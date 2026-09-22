@@ -44,6 +44,20 @@ NOT_ENTERED = "NOT_ENTERED"
 # Names are sas_id_personal first_name + last_name only. Informal list spellings are not stored.
 # helm_sas / crew_sas from live SAS table 22 Sep 2026. Do not invent IDs. TBA crew is omitted
 # unless a prior 420 team (or current same-club team that has sailed 420) uniquely identifies them.
+# Sheet order: 2025 420 Nationals overall rank (best rank of anyone on the 2026 boat),
+# then new boats A–Z by helm surname. Source: /regatta/2025-10-04-420-national-championship.
+
+
+def _helm_surname(name: str) -> str:
+    parts = (name or "").strip().split()
+    return parts[-1].lower() if parts else ""
+
+
+def _helm_first(name: str) -> str:
+    parts = (name or "").strip().split()
+    return " ".join(parts[:-1]).lower() if len(parts) > 1 else (parts[0].lower() if parts else "")
+
+
 ENTRIES = [
     {
         "helm_list": "Theodor Scheder-Bieschin",
@@ -53,6 +67,8 @@ ENTRIES = [
         "club_raw": "ZVYC",
         "club_abbrev": "ZVYC",
         "flag": NOT_ENTERED,
+        "nationals_2025_best": None,
+        "nationals_2025_helm": None,
         "issues": [
             "Partial 'Scheder Bischein' matched via SAS surname + prior 420 + current ZVYC team. "
             "Theodor 9515 helm (ZVYC; 420 Nationals 2018/2020/2021). "
@@ -67,6 +83,8 @@ ENTRIES = [
         "club_raw": "Izivungu",
         "club_abbrev": "IZI",
         "flag": SAS_PORTAL,
+        "nationals_2025_best": None,
+        "nationals_2025_helm": None,
         "issues": ["Club Izivungu → IZI."],
     },
     {
@@ -77,6 +95,8 @@ ENTRIES = [
         "club_raw": "ZVSC",
         "club_abbrev": "ZVSC",
         "flag": SAS_PORTAL,
+        "nationals_2025_best": None,
+        "nationals_2025_helm": None,
         "issues": ["SAS home club is ZVYC; entry club left as listed ZVSC."],
     },
     {
@@ -87,7 +107,9 @@ ENTRIES = [
         "club_raw": "ZVYC",
         "club_abbrev": "ZVYC",
         "flag": SAS_PORTAL,
-        "issues": [],
+        "nationals_2025_best": 3,
+        "nationals_2025_helm": 3,
+        "issues": ["2025 420 Nationals 3rd (Dillan Swarts crew last year)."],
     },
     {
         "helm_list": "Nathan McCombe",
@@ -97,8 +119,11 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": SAS_PORTAL,
+        "nationals_2025_best": 5,
+        "nationals_2025_helm": 5,
         "issues": [
-            "AMENDED: Nathan McCombe 21517 helm, Liam Geldenhuys 25653 crew. Dirty Nathan dup 28587 unused."
+            "AMENDED: Nathan McCombe 21517 helm, Liam Geldenhuys 25653 crew. "
+            "2025 420 Nationals 5th as crew to Timothy Weaving. Dirty Nathan dup 28587 unused."
         ],
     },
     {
@@ -109,9 +134,11 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": SAS_PORTAL,
+        "nationals_2025_best": 4,
+        "nationals_2025_helm": None,
         "issues": [
-            "AMENDED: one MAC boat. Prior 420 WC Dinghy Champs 2026 rank 2 "
-            "(Kamva Mgcubhe helm / Maddison Smit crew)."
+            "AMENDED: one MAC boat. Maddison Smit 2025 420 Nationals 4th (crew to Athenkosi Vena). "
+            "Prior 420 WC Dinghy Champs 2026 rank 2 (Kamva helm / Maddison crew)."
         ],
     },
     {
@@ -122,6 +149,8 @@ ENTRIES = [
         "club_raw": "ZVYC",
         "club_abbrev": "ZVYC",
         "flag": SAS_PORTAL,
+        "nationals_2025_best": None,
+        "nationals_2025_helm": None,
         "issues": [],
     },
     {
@@ -132,9 +161,11 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": SAS_PORTAL,
+        "nationals_2025_best": 8,
+        "nationals_2025_helm": None,
         "issues": [
-            "Crew Sphelele: no unique SAS. Aisha 420 teams were Tristan Gress 8612 and Maddison Smit 21052, not a Sphelele. "
-            "Closest 420 first-name hit is Siphelele Gayeka 1491 (420 with Thando Mntambo, never with Aisha). Not assigned."
+            "2025 420 Nationals 8th as crew to Tristan Gress. "
+            "Crew Sphelele: no unique SAS. Not assigned."
         ],
     },
     {
@@ -145,6 +176,8 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": SAS_PORTAL,
+        "nationals_2025_best": None,
+        "nationals_2025_helm": None,
         "issues": [],
     },
     {
@@ -155,6 +188,8 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": SAS_PORTAL,
+        "nationals_2025_best": None,
+        "nationals_2025_helm": None,
         "issues": [],
     },
     {
@@ -165,6 +200,8 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": NOT_ENTERED,
+        "nationals_2025_best": None,
+        "nationals_2025_helm": None,
         "issues": [
             "No SAS surname Winzel. Only MAC Alexa is Alexa Aab 22974 (ILCA 4.7 / Optimist, no 420). Not assigned."
         ],
@@ -177,6 +214,8 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": NOT_ENTERED,
+        "nationals_2025_best": None,
+        "nationals_2025_helm": None,
         "issues": ["Thomas Henshilwood 9612 (2009), not Thomas 7352 (1976)."],
     },
     {
@@ -187,6 +226,8 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": NOT_ENTERED,
+        "nationals_2025_best": None,
+        "nationals_2025_helm": None,
         "issues": [],
     },
     {
@@ -197,7 +238,11 @@ ENTRIES = [
         "club_raw": "HYC",
         "club_abbrev": "HYC",
         "flag": NOT_ENTERED,
-        "issues": [],
+        "nationals_2025_best": 2,
+        "nationals_2025_helm": 5,
+        "issues": [
+            "2025 420 Nationals: Timothy 5th helm / Nathan McCombe. Hayden Miller was 2nd crew to Howard Leoto."
+        ],
     },
     {
         "helm_list": "Howard Leoto",
@@ -207,12 +252,27 @@ ENTRIES = [
         "club_raw": "RNYC",
         "club_abbrev": "RNYC",
         "flag": NOT_ENTERED,
+        "nationals_2025_best": 2,
+        "nationals_2025_helm": 2,
         "issues": [
             "AMENDED: Howard Leoto 3709 / Lebogang January 1485, RNYC. "
-            "Prior 420: 2023 WC Dinghy Champs rank 1. Lebogang SAS home club is RCYC."
+            "2025 420 Nationals 2nd (Hayden Miller crew last year). Lebogang SAS home club is RCYC."
         ],
     },
 ]
+
+
+def _entry_sheet_order(entry: dict) -> tuple:
+    """Last year's 420 Nationals first (best rank, then helm's own rank), then new A–Z by surname."""
+    best = entry.get("nationals_2025_best")
+    helm_r = entry.get("nationals_2025_helm")
+    name = entry.get("helm_list") or ""
+    if best is not None:
+        return (0, int(best), int(helm_r) if helm_r is not None else 99, _helm_surname(name), _helm_first(name))
+    return (1, 99, 99, _helm_surname(name), _helm_first(name))
+
+
+ENTRIES.sort(key=_entry_sheet_order)
 
 
 def get_db_url() -> str:

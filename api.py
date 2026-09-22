@@ -24391,7 +24391,8 @@ _RESULT_SHEET_CSS = (
     ".medal-silver{background-color:#D7D7D7}"
     ".medal-bronze{background-color:#CE8946}"
     ".entry-sas{background-color:#d6e6f5}"
-    ".entry-pending{background-color:#ffffff}"
+    ".entry-pending{background-color:#d9d9d9}"
+    ".entry-unresolved{background-color:#d9d9d9}"
     ".code{color:#c62828;font-weight:bold}"
     ".code.disc{color:#c62828;font-weight:bold}"
     ".disc{color:#6a1b9a;font-weight:bold;text-decoration:line-through;opacity:0.8}"
@@ -24585,17 +24586,20 @@ def _wc_fleet_editable_cell(
 
 
 def _result_sheet_entry_row_class(row: dict) -> str:
-    """Light blue = entered on SAS portal; white = listed but not entered yet.
+    """Blue = every named sailor has a SAS ID. Grey = someone on the row is unresolved.
 
-    Medals win when a row is already ranked. raced IS NULL (preload) is not
-    struck out; only explicit raced=FALSE / 0 is.
+    Only applied on preload flags so scored historical sheets stay unchanged.
     """
     flag = (row.get("validation_flag") or "").strip().upper()
-    if flag == "SAS_PORTAL":
+    if flag not in ("SAS_PORTAL", "NOT_ENTERED", "UNRESOLVED"):
+        return ""
+    helm_name = (row.get("helm_name") or "").strip()
+    crew_name = (row.get("crew_name") or "").strip()
+    helm_ok = bool(helm_name) and row.get("helm_sa_sailing_id") is not None
+    crew_ok = (not crew_name) or row.get("crew_sa_sailing_id") is not None
+    if helm_ok and crew_ok:
         return "entry-sas"
-    if flag == "NOT_ENTERED":
-        return "entry-pending"
-    return ""
+    return "entry-unresolved"
 
 
 def _render_result_sheet_fleet(
@@ -24692,7 +24696,7 @@ def _render_result_sheet_fleet(
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
     entry_flags = {(r.get("validation_flag") or "").strip().upper() for r in rows}
     if "SAS_PORTAL" in entry_flags or "NOT_ENTERED" in entry_flags:
-        sailed_line += ". Light blue = entered on SAS portal; white = not entered yet. Initial list — incomplete"
+        sailed_line += ". Blue = SAS matched; grey = not resolved. Order: 2025 420 Nationals rank, then new A–Z. Initial list — incomplete"
 
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():
