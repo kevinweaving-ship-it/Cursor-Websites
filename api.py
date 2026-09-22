@@ -26283,13 +26283,11 @@ def _format_regatta_host_display(abbrev: str, fullname: str, legacy_coalesce: st
 
 
 def _format_regatta_status_line(status_word: str, as_at_time) -> str:
-    """Format status line per RESULTS_HTML_STATUS_LINE_RULE. as_at_time from API (results table then regattas). No datetime.now/start_date.
-    If as_at_time exists and is formattable: 'Results are <Status> as at DD Month YYYY at HH:MM'.
-    If as_at_time is NULL or invalid: 'Results are <Status> (snapshot time not recorded)'."""
-    word = (status_word or "Final").strip() or "Final"
+    """RESULTS_HTML_STATUS_LINE_RULE only. No as_at_time → omit the line. Never invent a time or '(snapshot time not recorded)'."""
+    word = (status_word or "").strip()
+    if not word or not as_at_time:
+        return ""
     escaped_word = html_module.escape(word)
-    if not as_at_time:
-        return f"Results are {escaped_word} (snapshot time not recorded)"
     if hasattr(as_at_time, "strftime"):
         status_date = as_at_time.strftime("%d %B %Y at %H:%M")
         return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
@@ -26307,8 +26305,8 @@ def _format_regatta_status_line(status_word: str, as_at_time) -> str:
             status_date = t.strftime("%d %B %Y at %H:%M")
             return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
         except Exception:
-            pass
-    return f"Results are {escaped_word} (snapshot time not recorded)"
+            return ""
+    return ""
 
 
 def _resolve_class_slug_to_class_id(class_slug: str):
@@ -26596,7 +26594,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             + '<div class="regatta-header-main-col">'
             f'<div class="regatta-name">{escaped_title}</div>'
             f'<div class="host-club">Host: {host_club_html}</div>'
-            f'<div class="status-line">{status_line_text}</div>'
+            (f'<div class="status-line">{status_line_text}</div>' if status_line_text else "")
             + "</div>"
             + _right_logo_col
             + "</div></div>"
@@ -26908,7 +26906,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             + '<div class="regatta-header-main-col">'
             f"{name_html}"
             f"{host_row}"
-            f'<div class="status-line">{status_line_text}</div>'
+            (f'<div class="status-line">{status_line_text}</div>' if status_line_text else "")
             + "</div>"
             + right_logo_col
             + "</div>"

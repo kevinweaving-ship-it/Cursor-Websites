@@ -23,7 +23,8 @@
   - API may fall back to `results.result_status` / `results.as_at_time` when regattas is null.
 
 - **Do not:**  
-  Use current date/time, or event start/end date, as placeholder for "as at".
+  Use current date/time, or event start/end date, as placeholder for "as at".  
+  Never use the retired leftover `(snapshot time not recorded)`. If `as_at_time` is NULL, **omit the status line**.
 
 ## How it’s applied (from results/regattas → header of each results page)
 

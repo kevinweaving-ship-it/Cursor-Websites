@@ -99,8 +99,8 @@ Calendar: HMYC `367984` / `events.event_id=139944` / `regatta_number=999010`.
 
 `/regatta/2026-09-25-tsc-420-nationals` was already created and correct. The ask was **entries only**.
 
-What went wrong: live `api.py` was replaced with the repo snapshot, and invented sheet copy was added (blue/grey rows, “Blue = SAS matched”, “snapshot time not recorded”, 2025-order legend). **No README specifies that.** That is not an Event URL format.
+What went wrong: live `api.py` was replaced with the repo snapshot. The old leftover `_format_regatta_status_line` fallback `(snapshot time not recorded)` was reused, plus invented blue/grey rows and a sailed-line legend. **That leftover is retired.** No README specifies it.
 
-Do not use or reintroduce `.entry-sas`, `.entry-pending`, `.entry-unresolved`, or any preload legend on the sailed line.
+Do not use or reintroduce `(snapshot time not recorded)`, `.entry-sas`, `.entry-pending`, `.entry-unresolved`, or any preload legend on the sailed line. If `as_at_time` is NULL, omit the status line.
 
 When the Event URL exists: write `public.results` only. Do not edit `api.py`, headers, or the sheet.
