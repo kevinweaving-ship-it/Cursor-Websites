@@ -10,8 +10,11 @@ Live calendar row (already in public.events):
   venue            = Theewater Sports Club (TSC)
   regatta_id       = NULL  (needs Event URL)
 
-Creates / links, same pattern as Midmar Cup preload:
+Recorded Event URL format (docs/CLUB_EVENT_LIVE_CARDS.md):
+  YYYY-MM-DD-{club}-{slug}
   Event URL = https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals
+  Host from clubs: host_club_id + host_club_name + host_club_code (TSC).
+  Do not change this slug after create. Entries update the fleet only.
 
 Idempotent. Default is apply; use --dry-run to print the plan only.
 
