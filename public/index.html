@@ -1592,6 +1592,13 @@
                 <div id="landing-news-list" class="news-feed-list"></div>
             </section>
 
+            <section id="landing-sponsors-embed" class="home-intro-box" aria-label="SailingSA sponsors">
+                <h2 class="news-feed-section-header">Sponsors</h2>
+                <p><a href="/sponsors/miller-gold">Miller Gold &amp; Co</a> — jewellery house, est. 1992.</p>
+                <p><a href="https://www.marinemegastore.co.za/" target="_blank" rel="noopener noreferrer">Marine Megastore</a> — dinghy and marine equipment partner.</p>
+                <p><a href="/sponsors">All SailingSA sponsors</a></p>
+            </section>
+
             <section class="browse-sailingsa" aria-label="Browse SailingSA" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e0e0e0;">
                 <h3 style="font-size: 1.05rem; font-weight: 700; color: #001f3f; margin: 0 0 0.5rem 0;">Browse SailingSA</h3>
                 <p style="margin: 0;">
@@ -1600,7 +1607,8 @@
                     <a href="/classes">Classes</a> |
                     <a href="/clubs">Clubs</a> |
                     <a href="/events">Events</a> |
-                    <a href="/stats">Statistics</a>
+                    <a href="/stats">Statistics</a> |
+                    <a href="/sponsors">Sponsors</a>
                 </p>
             </section>
 
@@ -2082,6 +2090,7 @@
             var hr = document.querySelector('.search-to-profile-separator');
             if (hr) hr.style.display = isClass ? 'none' : '';
             show(document.getElementById('landing-news-embed'), !isClass);
+            show(document.getElementById('landing-sponsors-embed'), !isClass);
             var browse = document.querySelector('section.browse-sailingsa');
             if (browse) show(browse, !isClass);
             show(document.getElementById('public-view'), !isClass);

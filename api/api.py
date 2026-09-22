@@ -1593,6 +1593,28 @@ def _about_html():
     raise HTTPException(status_code=404, detail="about.html not found")
 
 
+@app.get("/sponsors")
+def _sponsors_html():
+    """Serve SailingSA sponsors page at /sponsors."""
+    path = os.path.join(_static_dir(), "sponsors.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html")
+    raise HTTPException(status_code=404, detail="sponsors.html not found")
+
+
+@app.get("/sponsors/miller-gold")
+@app.get("/sponsors/miller-gold/")
+def _sponsors_miller_gold_html():
+    """Serve Miller Gold & Co sponsor profile (Ullman architecture)."""
+    path = os.path.join(_static_dir(), "sponsors", "miller-gold.html")
+    if os.path.isfile(path):
+        return FileResponse(path, media_type="text/html")
+    parent = os.path.join(os.path.dirname(_static_dir()), "sponsors", "miller-gold.html")
+    if os.path.isfile(parent):
+        return FileResponse(parent, media_type="text/html")
+    raise HTTPException(status_code=404, detail="sponsors/miller-gold.html not found")
+
+
 # Directory pages: /sailors, /regattas, /clubs, /classes — alphabetical lists for SEO crawl
 def _directory_sailors():
     """Return [(display_name, slug), ...] for sailors with at least one result. Sorted by name."""
@@ -21893,6 +21915,7 @@ def _seo_discovery_pairs(min_count: int = 12, max_count: int = 20):
         ("/classes", "Classes"),
         ("/stats", "Statistics"),
         ("/about", "About"),
+        ("/sponsors", "Sponsors"),
         ("/", "Home"),
     ]
     out = raw[:max_count]
