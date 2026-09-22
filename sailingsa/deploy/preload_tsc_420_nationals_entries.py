@@ -4,10 +4,8 @@
 Event URL:  https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals
 Fleet URL:  https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals/class-420
 
-Rows go into public.results on the existing :420 block so the Event / fleet
-sheets can show them. raced is NULL (does not inflate stats, no strike-out).
-Rank is NULL — blank on the sheet, list order is staging only. First race sorts.
-No ">" placeholder. validation_flag is SAS_PORTAL or NOT_ENTERED.
+Rows go into public.results on the existing :420 block only.
+Do not edit api.py, headers, or the Event URL page. Rank is NULL.
 
 Names stored are sas_id_personal first_name + last_name (not the informal list).
 

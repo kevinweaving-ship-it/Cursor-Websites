@@ -92,3 +92,15 @@ Creating `/regatta/2026-09-24-hmyc-dart-18-nationals` went wrong in this order. 
 
 Dart Event URL: `/regatta/2026-09-24-hmyc-dart-18-nationals`  
 Calendar: HMYC `367984` / `events.event_id=139944` / `regatta_number=999010`.
+
+---
+
+## Corrections from TSC 420 Nationals 2026 — do not repeat
+
+`/regatta/2026-09-25-tsc-420-nationals` was already created and correct. The ask was **entries only**.
+
+What went wrong: live `api.py` was replaced with the repo snapshot, and invented sheet copy was added (blue/grey rows, “Blue = SAS matched”, “snapshot time not recorded”, 2025-order legend). **No README specifies that.** That is not an Event URL format.
+
+Do not use or reintroduce `.entry-sas`, `.entry-pending`, `.entry-unresolved`, or any preload legend on the sailed line.
+
+When the Event URL exists: write `public.results` only. Do not edit `api.py`, headers, or the sheet.

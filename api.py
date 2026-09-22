@@ -24390,9 +24390,6 @@ _RESULT_SHEET_CSS = (
     ".medal-gold{background-color:#D4AF37}"
     ".medal-silver{background-color:#D7D7D7}"
     ".medal-bronze{background-color:#CE8946}"
-    ".entry-sas{background-color:#d6e6f5}"
-    ".entry-pending{background-color:#d9d9d9}"
-    ".entry-unresolved{background-color:#d9d9d9}"
     ".code{color:#c62828;font-weight:bold}"
     ".code.disc{color:#c62828;font-weight:bold}"
     ".disc{color:#6a1b9a;font-weight:bold;text-decoration:line-through;opacity:0.8}"
@@ -24585,11 +24582,6 @@ def _wc_fleet_editable_cell(
     return f'<span class="wc-sa-edit-hide">{public_inner_html}</span>' + inp
 
 
-def _result_sheet_entry_row_class(row: dict) -> str:
-    """Event URL sheets use the same row classes as Midmar / Dart. No extra preload colours."""
-    return ""
-
-
 def _render_result_sheet_fleet(
     fleet: dict,
     standalone_class_page: bool = False,
@@ -24757,8 +24749,7 @@ def _render_result_sheet_fleet(
             medal_class = "medal-bronze"
         did_not_race = r.get("raced") is False or r.get("raced") == 0
         strike_class = "strike-out" if did_not_race else ""
-        entry_class = "" if medal_class else _result_sheet_entry_row_class(r)
-        row_classes = " ".join(c for c in (medal_class, strike_class, entry_class) if c)
+        row_classes = " ".join(c for c in (medal_class, strike_class) if c)
         rank_str = _format_rank(r.get("rank"))
         fleet_str = html_module.escape(fleet_label)
         class_str = html_module.escape(r.get("class_name") or "")
