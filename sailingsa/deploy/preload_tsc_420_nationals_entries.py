@@ -16,7 +16,9 @@ Helm/crew amends:
   Kamva Mgcubhe helm, Maddison Smit crew (MAC) — one boat.
   Howard Leoto helm, Lebogang January crew, club RNYC.
 
-Idempotent. Default is apply; use --dry-run to print the plan only.
+Idempotent. INSERT new boats only; UPDATE existing rows. Never DELETE
+(docs/README_results_table.md). Do not change the preloaded Event URL,
+regatta, or :420 block.
 
   export DB_URL=...   # from sailingsa-api.service on live
   python3 sailingsa/deploy/preload_tsc_420_nationals_entries.py --dry-run
@@ -460,41 +462,6 @@ def build_row_values(entry: dict, block: dict, class_420: dict, club: dict, cols
     return {k: values[k] for k in cols if k in values}
 
 
-def clear_preload_rows(cur, block_id: str, dry_run: bool) -> int:
-    """Remove unscored preload rows so re-insert follows list order. Rank stays NULL."""
-    cur.execute(
-        """
-        SELECT result_id, helm_name, rank, raced, race_scores, validation_flag
-        FROM results
-        WHERE regatta_id = %s AND block_id = %s
-        ORDER BY result_id
-        """,
-        (REGATTA_ID, block_id),
-    )
-    rows = [dict(r) for r in (cur.fetchall() or [])]
-    to_delete = []
-    for r in rows:
-        scores = r.get("race_scores")
-        has_scores = bool(scores) and str(scores).strip() not in ("{}", "null", "None")
-        if r.get("raced") is True or r.get("raced") == 1 or has_scores:
-            continue
-        flag = (r.get("validation_flag") or "").strip().upper()
-        rank = r.get("rank")
-        rank_blank = rank is None or str(rank).strip() in ("", ">", "—", "-", "–")
-        if flag in (SAS_PORTAL, NOT_ENTERED, "UNRESOLVED") or (rank_blank and r.get("raced") is None):
-            to_delete.append(r)
-    ids = [r["result_id"] for r in to_delete]
-    print(f"Clear {len(ids)} preload row(s) so sheet order = list order (rank blank).")
-    for r in to_delete:
-        print(f"  DELETE result_id={r.get('result_id')} {r.get('helm_name')}")
-    if ids and not dry_run:
-        cur.execute(
-            "DELETE FROM results WHERE result_id = ANY(%s) AND regatta_id = %s AND block_id = %s",
-            (ids, REGATTA_ID, block_id),
-        )
-    return len(ids)
-
-
 def upsert_entry(cur, entry: dict, block: dict, class_420: dict, club: dict, cols: list[str], dry_run: bool) -> str:
     existing = find_existing(cur, block["block_id"], entry)
     values = build_row_values(entry, block, class_420, club, cols)
@@ -601,8 +568,6 @@ def main() -> int:
         print(f"Event:   https://sailingsa.co.za/regatta/{REGATTA_ID}")
         print(f"Fleet:   https://sailingsa.co.za/regatta/{REGATTA_ID}/class-420")
         print("Rank:    blank (staging order = list order; first race sorts)")
-        print()
-        clear_preload_rows(cur, block["block_id"], args.dry_run)
         print()
 
         for i, raw in enumerate(ENTRIES, start=1):
