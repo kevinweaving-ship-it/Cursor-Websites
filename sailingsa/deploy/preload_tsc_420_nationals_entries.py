@@ -8,10 +8,12 @@ Rows go into public.results on the existing :420 block so the Event / fleet
 sheets can show them. raced is NULL (does not inflate stats, no strike-out).
 No rank (no medals). validation_flag is SAS_PORTAL or NOT_ENTERED.
 
+Names stored are sas_id_personal first_name + last_name (not the informal list).
+
 Helm/crew amends:
-  Nathan McCombe helm, Liam Geldenhuys crew (list had Liam first).
-  Kamva Mgcubhe helm, Maddison Smit crew (MAC) — one boat, not two TBA rows.
-  Howard Leoto helm, Lebogang January (Lebo) crew, club RNYC.
+  Nathan McCombe helm, Liam Geldenhuys crew.
+  Kamva Mgcubhe helm, Maddison Smit crew (MAC) — one boat.
+  Howard Leoto helm, Lebogang January crew, club RNYC.
 
 Idempotent. Default is apply; use --dry-run to print the plan only.
 
@@ -40,18 +42,21 @@ SAS_PORTAL = "SAS_PORTAL"
 NOT_ENTERED = "NOT_ENTERED"
 
 # Names are sas_id_personal first_name + last_name only. Informal list spellings are not stored.
-# helm_sas / crew_sas from live SAS table 22 Sep 2026. Do not invent IDs. TBA crew is omitted.
+# helm_sas / crew_sas from live SAS table 22 Sep 2026. Do not invent IDs. TBA crew is omitted
+# unless a prior 420 team (or current same-club team that has sailed 420) uniquely identifies them.
 ENTRIES = [
     {
-        "helm_list": "Scheder Bischein",
-        "helm_sas": None,
-        "crew_list": None,
-        "crew_sas": None,
+        "helm_list": "Theodor Scheder-Bieschin",
+        "helm_sas": 9515,
+        "crew_list": "Anna Scheder-Bieschin",
+        "crew_sas": 12797,
         "club_raw": "ZVYC",
         "club_abbrev": "ZVYC",
         "flag": NOT_ENTERED,
         "issues": [
-            "No SAS row. Family Scheder-Bieschin exists; do not assign Theodor 9515."
+            "Partial 'Scheder Bischein' matched via SAS surname + prior 420 + current ZVYC team. "
+            "Theodor 9515 helm (ZVYC; 420 Nationals 2018/2020/2021). "
+            "Anna 12797 crew (420 Nationals 2021; Sonnet crew to Theodor at ZVYC Cape Classic 13 Sep 2026)."
         ],
     },
     {
@@ -127,7 +132,10 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": SAS_PORTAL,
-        "issues": ["Crew Sphelele: no SAS row (no surname). Stored as given, no crew ID."],
+        "issues": [
+            "Crew Sphelele: no unique SAS. Aisha 420 teams were Tristan Gress 8612 and Maddison Smit 21052, not a Sphelele. "
+            "Closest 420 first-name hit is Siphelele Gayeka 1491 (420 with Thando Mntambo, never with Aisha). Not assigned."
+        ],
     },
     {
         "helm_list": "Hayley Rae",
@@ -157,7 +165,9 @@ ENTRIES = [
         "club_raw": "MAC",
         "club_abbrev": "MAC",
         "flag": NOT_ENTERED,
-        "issues": ["No SAS row. Helm has neither SA ID nor temp ID."],
+        "issues": [
+            "No SAS surname Winzel. Only MAC Alexa is Alexa Aab 22974 (ILCA 4.7 / Optimist, no 420). Not assigned."
+        ],
     },
     {
         "helm_list": "Ben Henshilwood",
