@@ -24586,20 +24586,8 @@ def _wc_fleet_editable_cell(
 
 
 def _result_sheet_entry_row_class(row: dict) -> str:
-    """Blue = every named sailor has a SAS ID. Grey = someone on the row is unresolved.
-
-    Only applied on preload flags so scored historical sheets stay unchanged.
-    """
-    flag = (row.get("validation_flag") or "").strip().upper()
-    if flag not in ("SAS_PORTAL", "NOT_ENTERED", "UNRESOLVED"):
-        return ""
-    helm_name = (row.get("helm_name") or "").strip()
-    crew_name = (row.get("crew_name") or "").strip()
-    helm_ok = bool(helm_name) and row.get("helm_sa_sailing_id") is not None
-    crew_ok = (not crew_name) or row.get("crew_sa_sailing_id") is not None
-    if helm_ok and crew_ok:
-        return "entry-sas"
-    return "entry-unresolved"
+    """Event URL sheets use the same row classes as Midmar / Dart. No extra preload colours."""
+    return ""
 
 
 def _render_result_sheet_fleet(
@@ -24694,9 +24682,6 @@ def _render_result_sheet_fleet(
     entries = fleet.get("entries") or 0
     scoring_system = fleet.get("scoring_system") or "Appendix A"
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
-    entry_flags = {(r.get("validation_flag") or "").strip().upper() for r in rows}
-    if "SAS_PORTAL" in entry_flags or "NOT_ENTERED" in entry_flags:
-        sailed_line += ". Blue = SAS matched; grey = not resolved. Order: 2025 420 Nationals pair avg (missing teammate = DNC), then new A–Z. Initial list — incomplete"
 
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():
