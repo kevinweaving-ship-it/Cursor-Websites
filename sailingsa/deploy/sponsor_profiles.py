@@ -2166,6 +2166,57 @@ def _class_match_key(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "", _safe_text(value).lower())
 
 
+def _class_already_listed(label: Any, existing_keys: list[str]) -> bool:
+    key = _class_match_key(label)
+    if not key:
+        return True
+    for existing in existing_keys:
+        if not existing:
+            continue
+        if key == existing or key in existing or existing in key:
+            return True
+    return False
+
+
+def _apply_mention_target_classes(sailors: list[dict[str, Any]], profile: dict[str, Any]) -> list[dict[str, Any]]:
+    by_id: dict[str, list[str]] = {}
+    by_name: dict[str, list[str]] = {}
+    for row in _json_list(profile.get("mention_targets")):
+        if not isinstance(row, dict):
+            continue
+        classes = [_safe_text(x) for x in _json_list(row.get("primary_classes")) if _safe_text(x)]
+        if not classes:
+            continue
+        sid = _safe_text(row.get("sas_id") or row.get("sa_sailing_id"))
+        full_name = " ".join(
+            x for x in [_safe_text(row.get("first_name")), _safe_text(row.get("last_name"))] if x
+        )
+        if sid:
+            by_id[sid] = classes
+        if full_name:
+            by_name[_norm_text_key(full_name)] = classes
+        for alias in _json_list(row.get("aliases")):
+            alias_name = _safe_text(alias)
+            if alias_name:
+                by_name[_norm_text_key(alias_name)] = classes
+    for sailor in sailors:
+        sid = _safe_text(sailor.get("sas_id"))
+        extras = by_id.get(sid) or by_name.get(_norm_text_key(sailor.get("name"))) or []
+        if not extras:
+            continue
+        ranking = [dict(x) for x in _json_list(sailor.get("ranking_classes")) if isinstance(x, dict)]
+        existing_keys = [_class_match_key(row.get("class_name")) for row in ranking]
+        added: list[dict[str, str]] = []
+        for label in extras:
+            if _class_already_listed(label, existing_keys):
+                continue
+            added.append({"class_name": label})
+            existing_keys.append(_class_match_key(label))
+        if added:
+            sailor["ranking_classes"] = (added + ranking)[:12]
+    return sailors
+
+
 def _direct_linked_classes(
     mentions: list[dict[str, Any]],
     rows: list[dict[str, Any]],
@@ -3832,6 +3883,7 @@ def page_html(
         return_db_connection=return_db_connection,
         table_exists=table_exists,
     )
+    sailors = _apply_mention_target_classes(sailors, profile)
     classes = _direct_linked_classes(mentions, direct_rows)
     boats = _direct_boats(direct_rows, profile)
     for row in regattas:
