@@ -24696,7 +24696,7 @@ def _render_result_sheet_fleet(
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
     entry_flags = {(r.get("validation_flag") or "").strip().upper() for r in rows}
     if "SAS_PORTAL" in entry_flags or "NOT_ENTERED" in entry_flags:
-        sailed_line += ". Blue = SAS matched; grey = not resolved. Rank blank — staging order only. First race will sort. Initial list — incomplete"
+        sailed_line += ". Blue = SAS matched; grey = not resolved. Order: 2025 420 Nationals pair avg (missing teammate = DNC), then new A–Z. Initial list — incomplete"
 
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():
@@ -24762,26 +24762,19 @@ def _render_result_sheet_fleet(
     trs = []
     for r in rows:
         race_scores = r.get("race_scores") or {}
-        entry_flag = (r.get("validation_flag") or "").strip().upper()
-        is_preload_entry = entry_flag in ("SAS_PORTAL", "NOT_ENTERED", "UNRESOLVED")
-        raw_rank = r.get("rank")
-        if is_preload_entry or raw_rank is None or str(raw_rank).strip() in ("", ">", "—", "-", "–"):
-            rank_num = 0
-            medal_class = ""
-        else:
-            rank_num = int(raw_rank) if str(raw_rank).strip().lstrip("-").isdigit() else 0
-            medal_class = ""
-            if rank_num == 1:
-                medal_class = "medal-gold"
-            elif rank_num == 2:
-                medal_class = "medal-silver"
-            elif rank_num == 3:
-                medal_class = "medal-bronze"
+        rank_num = int(r.get("rank")) if r.get("rank") is not None else 0
+        medal_class = ""
+        if rank_num == 1:
+            medal_class = "medal-gold"
+        elif rank_num == 2:
+            medal_class = "medal-silver"
+        elif rank_num == 3:
+            medal_class = "medal-bronze"
         did_not_race = r.get("raced") is False or r.get("raced") == 0
         strike_class = "strike-out" if did_not_race else ""
         entry_class = "" if medal_class else _result_sheet_entry_row_class(r)
         row_classes = " ".join(c for c in (medal_class, strike_class, entry_class) if c)
-        rank_str = "" if is_preload_entry else _format_rank(r.get("rank"))
+        rank_str = _format_rank(r.get("rank"))
         fleet_str = html_module.escape(fleet_label)
         class_str = html_module.escape(r.get("class_name") or "")
         sail_str = html_module.escape(str(r.get("sail_number") or ""))
@@ -24890,10 +24883,7 @@ def _render_result_sheet_fleet(
         sail_raw = str(r.get("sail_number") or "")
         total_plain = str(r.get("total")) if r.get("total") is not None else ""
         nett_plain = str(r.get("nett")) if r.get("nett") is not None else ""
-        rank_plain = "" if is_preload_entry or r.get("rank") is None else str(r.get("rank")).strip()
-        if rank_plain in (">", "—", "-", "–"):
-            rank_plain = ""
-            rank_str = ""
+        rank_plain = "" if r.get("rank") is None else str(r.get("rank")).strip()
         total_str = html_module.escape(total_plain)
         nett_str = html_module.escape(nett_plain)
         row_html = f'<tr class="{row_classes}">'
