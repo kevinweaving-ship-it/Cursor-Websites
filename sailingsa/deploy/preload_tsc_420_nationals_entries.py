@@ -44,11 +44,15 @@ NOT_ENTERED = "NOT_ENTERED"
 # Names are sas_id_personal first_name + last_name only. Informal list spellings are not stored.
 # helm_sas / crew_sas from live SAS table 22 Sep 2026. Do not invent IDs. TBA crew is omitted
 # unless a prior 420 team (or current same-club team that has sailed 420) uniquely identifies them.
-# Sheet order: sailors who did 2025 420 Nationals first. If the 2026 pair is not the
-# same as last year, use the average of each sailor's 2025 overall rank. New boats
-# (nobody at 2025 Nationals) A–Z by helm surname.
+# Sheet order: sailors who did 2025 420 Nationals first. New 2026 pairs average
+# each sailor's 2025 overall rank. A named/TBA teammate who did not sail 2025
+# counts as DNC (entries+1 = 13). So Howard/Lebogang is (2+13)/2, not 2 —
+# last year's 2nd was Howard/Hayden, and Hayden is now with Timothy.
+# Identical last-year pairs would keep that shared rank. New boats A–Z by surname.
 # 2025 1st Dominique Provoyeur / Alex Falcon are not in this list.
 # Source: /regatta/2025-10-04-420-national-championship overall.
+
+DNC_2025 = 13  # 12-boat overall + 1
 
 
 def _helm_surname(name: str) -> str:
@@ -112,7 +116,7 @@ ENTRIES = [
         "flag": SAS_PORTAL,
         "helm_2025_rank": 3,
         "crew_2025_rank": None,
-        "issues": ["2025 420 Nationals 3rd with Dillan Swarts; crew TBA this year. Sort rank 3."],
+        "issues": ["New pair vs 2025 (Dillan not listed). Jemayne 3 + crew DNC 13. Sort avg 8.0."],
     },
     {
         "helm_list": "Nathan McCombe",
@@ -125,8 +129,7 @@ ENTRIES = [
         "helm_2025_rank": 5,
         "crew_2025_rank": None,
         "issues": [
-            "AMENDED: Nathan McCombe 21517 helm, Liam Geldenhuys 25653 crew (new pair). "
-            "Nathan 2025 5th crew to Timothy. Sort rank 5. Dirty Nathan dup 28587 unused."
+            "New pair. Nathan 2025 5th + Liam DNC 13. Sort avg 9.0. Dirty Nathan dup 28587 unused."
         ],
     },
     {
@@ -140,8 +143,7 @@ ENTRIES = [
         "helm_2025_rank": None,
         "crew_2025_rank": 4,
         "issues": [
-            "AMENDED: one MAC boat (new pair vs 2025). Maddison 2025 4th crew to Athenkosi Vena. "
-            "Kamva did not do 2025 Nationals. Sort rank 4."
+            "New pair. Kamva DNC 13 + Maddison 2025 4th. Sort avg 8.5."
         ],
     },
     {
@@ -167,7 +169,7 @@ ENTRIES = [
         "helm_2025_rank": 8,
         "crew_2025_rank": None,
         "issues": [
-            "Aisha 2025 8th crew to Tristan Gress; new crew Sphelele (no SAS). Sort rank 8."
+            "New pair. Aisha 2025 8th + Sphelele DNC 13. Sort avg 10.5. Sphelele no SAS."
         ],
     },
     {
@@ -243,7 +245,7 @@ ENTRIES = [
         "helm_2025_rank": 5,
         "crew_2025_rank": 2,
         "issues": [
-            "New pair. Timothy 2025 5th helm, Hayden 2025 2nd crew to Howard. Sort avg (5+2)/2 = 3.5."
+            "New pair. Timothy 2025 5th + Hayden 2025 2nd (was Howard's crew). Sort avg 3.5."
         ],
     },
     {
@@ -257,19 +259,25 @@ ENTRIES = [
         "helm_2025_rank": 2,
         "crew_2025_rank": None,
         "issues": [
-            "New pair. Howard 2025 2nd helm (Hayden last year); Lebogang did not do 2025 Nationals. Sort rank 2."
+            "New pair. Howard 2025 2nd was with Hayden, not Lebogang. "
+            "Lebogang did not sail 2025 Nationals = DNC 13. Sort avg (2+13)/2 = 7.5."
         ],
     },
 ]
 
 
 def _entry_2025_avg(entry: dict) -> float | None:
-    """Average of each sailor's 2025 overall rank. Same pair would share one rank; new pairs average."""
-    ranks = [entry.get("helm_2025_rank"), entry.get("crew_2025_rank")]
-    ranks = [int(r) for r in ranks if r is not None]
-    if not ranks:
+    """Avg of current pair's 2025 ranks. Teammate who did not sail last year = DNC 13.
+
+    A 2025 result belonged to last year's pair. Howard/Hayden 2nd is not Howard/Lebogang's rank.
+    """
+    helm_r = entry.get("helm_2025_rank")
+    crew_r = entry.get("crew_2025_rank")
+    if helm_r is None and crew_r is None:
         return None
-    return sum(ranks) / len(ranks)
+    h = int(helm_r) if helm_r is not None else DNC_2025
+    c = int(crew_r) if crew_r is not None else DNC_2025
+    return (h + c) / 2.0
 
 
 def _entry_sheet_order(entry: dict) -> tuple:
