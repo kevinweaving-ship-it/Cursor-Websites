@@ -41,7 +41,7 @@ Use these names to scope work and split agents:
 
 - **News Feed** — Landing-page "Latest News" section (Local / International), 16:9 thumb cards, fetch from `/api/news/latest`. In scope: `sailingsa/frontend/index.html` (`#landing-news-embed`, `#landing-news-list`, `.news-feed-*` CSS, `loadLandingNews()`), optional `sailingsa/news/index.html`, and in `api.py` only `GET /api/news/latest`, `POST /api/news/refresh`, and the news cache/pipeline. **Full scope:** **`docs/NEWS_FEED_AGENT.md`**. When the user says "News Feed", limit changes to this scope only.
 
-- **Sponsors SailingSA** — Public sponsors page and home sponsors section. In scope: `sponsors.html`, `public/sponsors.html`, landing `#landing-sponsors-embed` in `index.html` / `sailingsa/frontend/index.html`, and in `api.py` only `GET /sponsors`. Confirmed partners only (currently Marine Megastore). **Full scope:** **`docs/SPONSORS_SAILINGSA_AGENT.md`**. When the user says "Sponsors SailingSA" or "Sponsors", limit changes to this scope only.
+- **Sponsors SailingSA** — Public sponsors page and home sponsors section. In scope: `sponsors.html`, `public/sponsors.html`, `sponsors/miller-gold.html`, landing `#landing-sponsors-embed` in `index.html` / `sailingsa/frontend/index.html`, and in `api.py` `GET /sponsors`, `GET /sponsors/miller-gold`, and headline-sponsor markup on `/regatta/{slug}`. Confirmed partners only (Miller Gold Headline + Marine Megastore). **Full scope:** **`docs/SPONSORS_SAILINGSA_AGENT.md`**. When the user says "Sponsors SailingSA" or "Sponsors", limit changes to this scope only.
 
 ## UI / design system — hard rules (do not break pages)
 

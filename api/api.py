@@ -1596,9 +1596,16 @@ def _about_html():
 @app.get("/sponsors")
 def _sponsors_html():
     """Serve SailingSA sponsors page at /sponsors."""
-    path = os.path.join(_static_dir(), "sponsors.html")
-    if os.path.isfile(path):
-        return FileResponse(path, media_type="text/html")
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(here)
+    for path in (
+        os.path.join(_static_dir(), "sponsors.html"),
+        os.path.join(root, "public", "sponsors.html"),
+        os.path.join(root, "sponsors.html"),
+        os.path.join(here, "sponsors.html"),
+    ):
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="text/html")
     raise HTTPException(status_code=404, detail="sponsors.html not found")
 
 
@@ -1606,13 +1613,32 @@ def _sponsors_html():
 @app.get("/sponsors/miller-gold/")
 def _sponsors_miller_gold_html():
     """Serve Miller Gold & Co sponsor profile (Ullman architecture)."""
-    path = os.path.join(_static_dir(), "sponsors", "miller-gold.html")
-    if os.path.isfile(path):
-        return FileResponse(path, media_type="text/html")
-    parent = os.path.join(os.path.dirname(_static_dir()), "sponsors", "miller-gold.html")
-    if os.path.isfile(parent):
-        return FileResponse(parent, media_type="text/html")
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(here)
+    for path in (
+        os.path.join(_static_dir(), "sponsors", "miller-gold.html"),
+        os.path.join(root, "public", "sponsors", "miller-gold.html"),
+        os.path.join(root, "sponsors", "miller-gold.html"),
+    ):
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="text/html")
     raise HTTPException(status_code=404, detail="sponsors/miller-gold.html not found")
+
+
+@app.get("/landing-page-artwork/logos/miller-gold.png")
+@app.get("/artwork/Sponsor Logo/Miller-Gold.png")
+def _miller_gold_logo():
+    """Tracked transparent Miller Gold logo (artwork/ is gitignored)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(here)
+    for path in (
+        os.path.join(_static_dir(), "landing-page-artwork", "logos", "miller-gold.png"),
+        os.path.join(root, "landing-page-artwork", "logos", "miller-gold.png"),
+        os.path.join(root, "public", "landing-page-artwork", "logos", "miller-gold.png"),
+    ):
+        if os.path.isfile(path):
+            return FileResponse(path, media_type="image/png")
+    raise HTTPException(status_code=404, detail="miller-gold.png not found")
 
 
 # Directory pages: /sailors, /regattas, /clubs, /classes — alphabetical lists for SEO crawl
@@ -21448,6 +21474,89 @@ def _club_logo_file_exists_on_disk(code: str) -> bool:
     return False
 
 
+def _event_headline_sponsors(regatta_id: str) -> list:
+    """Confirmed headline sponsors for a regatta. Empty unless explicitly assigned."""
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        return []
+    here = os.path.dirname(os.path.abspath(__file__))
+    root = os.path.dirname(here)
+    payload = {}
+    for path in (
+        os.path.join(root, "sponsors", "event_headline_sponsors.json"),
+        os.path.join(root, "public", "sponsors", "event_headline_sponsors.json"),
+        os.path.join(_static_dir(), "sponsors", "event_headline_sponsors.json"),
+    ):
+        if os.path.isfile(path):
+            try:
+                payload = json.loads(Path(path).read_text(encoding="utf-8")) or {}
+            except Exception:
+                payload = {}
+            break
+    rows = payload.get(rid) or payload.get(rid.lower()) or []
+    out = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("name") or "").strip()
+        href = str(row.get("profile_url") or "").strip()
+        if not name or not href:
+            continue
+        out.append(row)
+    return out
+
+
+def _regatta_headline_sponsor_row_html(regatta_id: str) -> str:
+    """Clickable headline-sponsor logo + name under the event host line."""
+    items = _event_headline_sponsors(regatta_id)
+    if not items:
+        return ""
+    links = []
+    any_headline = False
+    for row in items:
+        name = html_module.escape(str(row.get("name") or "").strip())
+        href = html_module.escape(str(row.get("profile_url") or "").strip(), quote=True)
+        logo = html_module.escape(str(row.get("logo_url") or "").strip(), quote=True)
+        tier = str(row.get("tier") or "headline").strip().lower()
+        if tier == "headline":
+            any_headline = True
+        img = ""
+        if logo:
+            img = (
+                f'<img class="event-sponsor-logo" src="{logo}" alt="{name}" '
+                'width="72" height="54" loading="lazy" decoding="async">'
+            )
+        title = html_module.escape(
+            ("Headline sponsor" if tier == "headline" else "Sponsor") + " — " + str(row.get("name") or "").strip(),
+            quote=True,
+        )
+        links.append(f'<a href="{href}" title="{title}">{img}<span>{name}</span></a>')
+    label = "Headline sponsor" if any_headline else "Sponsor"
+    if len(items) > 1:
+        label = "Headline sponsors" if any_headline else "Sponsors"
+    return f'<div class="event-sponsor">{html_module.escape(label)}: {"".join(links)}</div>'
+
+
+def _regatta_sponsor_json_ld(regatta_id: str, base_url: str):
+    items = _event_headline_sponsors(regatta_id)
+    if not items:
+        return None
+    base = str(base_url or "").rstrip("/")
+    out = []
+    for row in items:
+        url = str(row.get("profile_url") or "").strip()
+        if url.startswith("/"):
+            url = base + url
+        logo = str(row.get("logo_url") or "").strip()
+        if logo.startswith("/"):
+            logo = base + logo
+        org = {"@type": "Organization", "name": str(row.get("name") or "").strip(), "url": url}
+        if logo:
+            org["logo"] = logo
+        out.append(org)
+    return out[0] if len(out) == 1 else out
+
+
 def _regatta_header_right_club_logo_html(host_club_abbrev: str, host_club_slug: Optional[str]) -> str:
     """Right header slot: host club logo from disk if present, else same Sailing SA asset as left (symmetric)."""
     code = re.sub(r"[^\w\-]", "", (host_club_abbrev or "").strip())
@@ -23494,6 +23603,10 @@ _RESULT_SHEET_CSS = (
     ".host-club{font-size:18px;color:#1a2750;margin-bottom:8px}"
     ".host-club a,.host-club a:visited{color:#1a2750;font-weight:600;text-decoration:none}"
     ".host-club a:hover{color:#e65100}"
+    ".event-sponsor{font-size:18px;color:#1a2750;margin-bottom:8px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px}"
+    ".event-sponsor a,.event-sponsor a:visited{color:#1a2750;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:8px;min-height:44px}"
+    ".event-sponsor a:hover{color:#e65100}"
+    ".event-sponsor-logo{display:block;height:36px;width:auto;max-width:120px;object-fit:contain}"
     ".host-club-wrap .host-club-public-nav a{color:#1a2750;font-weight:600;text-decoration:none}"
     ".host-club-wrap .host-club-public-nav a:hover{color:#e65100}"
     ".host-club-sa-edit-hit{display:none;background:none;border:none;padding:0;margin:0;font:inherit;font-size:inherit;font-weight:600;color:#1a2750;text-decoration:none;cursor:pointer;text-align:left}"
@@ -23581,6 +23694,8 @@ _RESULT_SHEET_CSS = (
     ".regatta-name{font-size:18px}"
     ".regatta-name-input{font-size:16px}"
     ".host-club{font-size:14px}"
+    ".event-sponsor{font-size:14px}"
+    ".event-sponsor-logo{height:28px;max-width:96px}"
     ".status-line{font-size:12px;margin-top:6px}"
     ".fleet-section{width:100%;margin-top:24px}"
     ".class-header{width:100%!important;max-width:100%!important;padding:12px;font-size:16px;margin-left:0;margin-right:0}"
@@ -23618,6 +23733,8 @@ _RESULT_SHEET_CSS = (
     ".regatta-header-logo-img{max-height:min(12vw,44px);max-width:min(18vw,72px);object-fit:contain}"
     ".regatta-name{font-size:clamp(10.4px,3.04vw,14.4px);line-height:1.2;margin-bottom:3px}"
     ".host-club{font-size:clamp(9.6px,2.56vw,11.2px);margin-bottom:0;line-height:1.25}"
+    ".event-sponsor{font-size:clamp(9.6px,2.56vw,11.2px);margin-bottom:0;line-height:1.25;gap:6px}"
+    ".event-sponsor-logo{height:22px;max-width:72px}"
     ".status-line{font-size:clamp(8px,2.24vw,9.6px);margin-top:2px;margin-bottom:0;line-height:1.25}"
     "}"
     "@media (max-width:768px) and (orientation:landscape){"
@@ -25737,7 +25854,8 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             + '<div class="regatta-header-main-col">'
             f'<div class="regatta-name">{escaped_title}</div>'
             f'<div class="host-club">Host: {host_club_html}</div>'
-            f'<div class="status-line">{status_line_text}</div>'
+            + _regatta_headline_sponsor_row_html(str(regatta_id))
+            + f'<div class="status-line">{status_line_text}</div>'
             + "</div>"
             + _right_logo_col
             + "</div></div>"
@@ -25768,6 +25886,9 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             json_ld["description"] = event_name
         if host_club_text:
             json_ld["organizer"] = {"@type": "Organization", "name": host_club_text}
+        sponsor_ld = _regatta_sponsor_json_ld(str(regatta_id), base_url)
+        if sponsor_ld:
+            json_ld["sponsor"] = sponsor_ld
         wc_prefs = _merge_wc_column_prefs_for_regatta(str(regatta_id)) if use_wc_cols else None
         sa_columns_frag = ""
         if use_wc_cols and is_sa:
@@ -25894,7 +26015,8 @@ def serve_regatta_standalone(slug: str, request: Request):
             + '<div class="regatta-header-main-col">'
             f"{name_html}"
             f"{host_row}"
-            f'<div class="status-line">{status_line_text}</div>'
+            + _regatta_headline_sponsor_row_html(str(regatta_id))
+            + f'<div class="status-line">{status_line_text}</div>'
             + "</div>"
             + right_logo_col
             + "</div>"
@@ -25929,6 +26051,9 @@ def serve_regatta_standalone(slug: str, request: Request):
             json_ld["description"] = description
         organizer_name = host_club_text or "SailingSA"
         json_ld["organizer"] = {"@type": "Organization", "name": organizer_name}
+        sponsor_ld = _regatta_sponsor_json_ld(str(regatta_id), base_url)
+        if sponsor_ld:
+            json_ld["sponsor"] = sponsor_ld
         if host_club_text:
             address = {"@type": "PostalAddress", "addressCountry": "ZA"}
             if host_club_province:
