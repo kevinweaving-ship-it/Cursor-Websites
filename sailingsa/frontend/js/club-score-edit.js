@@ -70,6 +70,47 @@
     });
   }
 
+  function hideEmptyRacesForPublic() {
+    if (scoreEditOn()) {
+      document.querySelectorAll(".race-col--entry-hide").forEach(function (el) {
+        el.classList.remove("race-col--entry-hide");
+      });
+      return;
+    }
+    if (!document.getElementById("clubPublicRaceHideCss")) {
+      var st = document.createElement("style");
+      st.id = "clubPublicRaceHideCss";
+      st.textContent =
+        ".fleet-results-table th.race-col.race-col--entry-hide,.fleet-results-table td.race-col.race-col--entry-hide{display:none!important}";
+      document.head.appendChild(st);
+    }
+    document.querySelectorAll("table.fleet-results-table").forEach(function (table) {
+      var thead = table.querySelector("thead tr");
+      if (!thead) return;
+      thead.querySelectorAll("th.race-col").forEach(function (th) {
+        var key = raceHeadKey(th);
+        if (!key) return;
+        var idx = [].indexOf.call(thead.children, th);
+        var any = false;
+        table.querySelectorAll("tbody tr").forEach(function (tr) {
+          var td =
+            tr.querySelector('td.race-col[data-race-key="' + key + '"]') ||
+            (idx >= 0 ? tr.children[idx] : null);
+          if (td && raceCellValue(td)) any = true;
+        });
+        th.classList.toggle("race-col--entry-hide", !any);
+        table.querySelectorAll("tbody tr").forEach(function (tr) {
+          var td =
+            tr.querySelector('td.race-col[data-race-key="' + key + '"]') ||
+            (idx >= 0 ? tr.children[idx] : null);
+          if (td && td.classList && td.classList.contains("race-col")) {
+            td.classList.toggle("race-col--entry-hide", !any);
+          }
+        });
+      });
+    });
+  }
+
   function isSuperAdmin(session) {
     var role = String((session && session.role) || "")
       .toLowerCase()
@@ -682,6 +723,7 @@
         wireSaWaitOnly(table);
       } else {
         removePublicScoreInputs();
+        hideEmptyRacesForPublic();
       }
     });
   }
@@ -1176,6 +1218,7 @@
     var page = document.querySelector(".regatta-page");
     if (!page) return;
     page.classList.add("regatta-page--club-score-edit");
+    hideEmptyRacesForPublic();
     var crew = page.querySelector("#capeClassicCrew");
     if (crew) crew.classList.add("cape-crew--admin");
     banner();
@@ -1219,6 +1262,7 @@
   }
 
   removePublicScoreInputs();
+  hideEmptyRacesForPublic();
   pollLive();
   setInterval(function () {
     if (!document.hidden) pollLive();
