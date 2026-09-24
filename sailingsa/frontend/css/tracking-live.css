@@ -1,0 +1,25 @@
+.tracking-live {
+  height: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.tracking-live-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.tracking-live-title {
+  font-weight: 700;
+}
+#tracking-live-status {
+  flex: 1;
+}
+#tracking-live-map {
+  flex: 1;
+  min-height: 320px;
+}
