@@ -27,20 +27,47 @@
     return url + (url.indexOf("?") >= 0 ? "&" : "?") + "session=" + encodeURIComponent(t);
   }
 
-  function canScore(session) {
-    if (!session || !session.valid) return false;
-    var role = String(session.role || "")
+  function sessionRole(session) {
+    var raw =
+      (session && (session.role || (session.user && session.user.role))) || "";
+    return String(raw)
       .toLowerCase()
       .replace(/[\s-]+/g, "_");
-    return (
-      role === "club_admin" ||
-      role === "clubadmin" ||
-      role === "club_manager" ||
-      role === "admin" ||
-      role === "super_admin" ||
-      role === "superadmin" ||
-      !!session.is_super_admin
-    );
+  }
+
+  function canScore(session) {
+    if (!session || !session.valid) return false;
+    if (session.is_super_admin === true) return true;
+    var role = sessionRole(session);
+    if (role === "super_admin" || role === "superadmin") return true;
+    if (role !== "club_admin" && role !== "clubadmin" && role !== "club_manager") {
+      return false;
+    }
+    var adminClub = session.admin_club_id;
+    if (adminClub == null && session.user) adminClub = session.user.admin_club_id;
+    var hostEl = document.querySelector("[data-host-club-id], .regatta-page[data-club-id]");
+    var hostClub = hostEl
+      ? hostEl.getAttribute("data-host-club-id") || hostEl.getAttribute("data-club-id")
+      : "";
+    if (adminClub != null && hostClub) {
+      return String(adminClub) === String(hostClub);
+    }
+    return true;
+  }
+
+  function scoreEditOn() {
+    var page = document.querySelector(".regatta-page");
+    return !!(page && page.classList.contains("regatta-page--club-score-edit"));
+  }
+
+  function removePublicScoreInputs() {
+    if (scoreEditOn()) return;
+    document.querySelectorAll("td.race-col .club-score-input").forEach(function (inp) {
+      var td = inp.parentNode;
+      var v = String(inp.value || "").trim();
+      if (inp.parentNode) inp.parentNode.removeChild(inp);
+      if (td && !(String(td.textContent || "").trim()) && v) td.textContent = v;
+    });
   }
 
   function isSuperAdmin(session) {
@@ -177,7 +204,7 @@
   }
 
   function applySaRaceClosed(table, liveRows) {
-    if (!table) return;
+    if (!table || !scoreEditOn()) return;
     var dom = closedFromDom(table);
     var live = liveRows ? closedFromLiveRows(liveRows, dom.keys) : { closed: {}, waitKey: "" };
     var auto = {};
@@ -218,7 +245,7 @@
   }
 
   function wireSaWaitOnly(table) {
-    if (!table) return;
+    if (!table || !scoreEditOn()) return;
     applySaRaceClosed(table);
     table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
       var rid = tr.getAttribute("data-result-id");
@@ -650,8 +677,12 @@
       rows.forEach(applyFleetRow);
       /* Official A8 order on the sheet: rerankFleet restores it and rejects result_id order. */
       rerankFleet(table);
-      applySaRaceClosed(table, rows);
-      wireSaWaitOnly(table);
+      if (scoreEditOn()) {
+        applySaRaceClosed(table, rows);
+        wireSaWaitOnly(table);
+      } else {
+        removePublicScoreInputs();
+      }
     });
   }
 
@@ -861,6 +892,7 @@
   }
 
   function wireCell(td, resultId) {
+    if (!scoreEditOn()) return;
     if (!td || td.querySelector(".club-score-input")) return;
     if (td.closest(".total-col, .nett-col, .rank-col")) return;
     var race = (td.getAttribute("data-race-key") || "").trim().toUpperCase();
@@ -1186,6 +1218,7 @@
     if (start) start.focus();
   }
 
+  removePublicScoreInputs();
   pollLive();
   setInterval(function () {
     if (!document.hidden) pollLive();
