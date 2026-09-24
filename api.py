@@ -26868,7 +26868,12 @@ def serve_regatta_standalone(slug: str, request: Request):
                 "})();</script>"
             )
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-        body_html = header_html + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
+        tracking_slot = (
+            '<div id="tracking-event-slot" class="tracking-event-slot" data-event="'
+            + html_module.escape(str(regatta_id))
+            + '"></div>'
+        )
+        body_html = header_html + "\n" + tracking_slot + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script = (
@@ -26887,6 +26892,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
             f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
+            '<script src="/js/tracking-event-module.js?v=2" defer></script>'
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))

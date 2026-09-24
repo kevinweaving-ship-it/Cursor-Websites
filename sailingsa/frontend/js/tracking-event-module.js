@@ -1,21 +1,14 @@
 (function () {
-  var ENABLED_EVENT = "2026-08-29-lipton-challenge-cup";
   if (window.top !== window) return;
-  var match = window.location.pathname.match(/\/regatta\/([^/]+)/);
-  var slug = match ? decodeURIComponent(match[1]) : "";
-  if (slug !== ENABLED_EVENT) return;
+  var slot = document.getElementById("tracking-event-slot");
+  if (!slot) return;
+  var slug = slot.getAttribute("data-event") || "";
+  if (!slug) return;
 
   var link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = "/css/tracking-event-module.css?v=1";
+  link.href = "/css/tracking-event-module.css?v=2";
   document.head.appendChild(link);
-
-  var openBtn = document.createElement("button");
-  openBtn.type = "button";
-  openBtn.className = "tracking-event-open";
-  openBtn.textContent = "Tracking";
-  var host = document.querySelector(".container") || document.body;
-  host.insertBefore(openBtn, host.firstChild);
 
   var panel = document.createElement("div");
   panel.className = "tracking-event-module";
@@ -32,14 +25,41 @@
     frame.src = "about:blank";
   }
 
-  openBtn.addEventListener("click", function () {
-    frame.src = "/tracking-live.html?event=" + encodeURIComponent(slug);
-    panel.hidden = false;
-    panel.classList.add("is-open");
-  });
-
   window.addEventListener("message", function (ev) {
     if (ev.origin !== window.location.origin) return;
     if (ev.data && ev.data.type === "tracking-live-close") closePanel();
   });
+
+  fetch("/api/tracking/live?event=" + encodeURIComponent(slug), { cache: "no-store" })
+    .then(function (res) {
+      if (!res.ok) return null;
+      return res.json();
+    })
+    .then(function (body) {
+      if (!body || !body.show || !body.assets || !body.assets.length) return;
+      var card = document.createElement("section");
+      card.className = "tracking-event-card";
+      var title = document.createElement("h2");
+      title.className = "tracking-event-card-title";
+      title.textContent = "Tracking";
+      var line = document.createElement("p");
+      line.className = "tracking-event-card-assets";
+      line.textContent = body.assets.map(function (asset) {
+        return (asset.name || "Tracker") + " " + asset.userId;
+      }).join(", ");
+      var openBtn = document.createElement("button");
+      openBtn.type = "button";
+      openBtn.className = "tracking-event-open";
+      openBtn.textContent = "Open tracking";
+      openBtn.addEventListener("click", function () {
+        frame.src = "/tracking-live.html?event=" + encodeURIComponent(slug);
+        panel.hidden = false;
+        panel.classList.add("is-open");
+      });
+      card.appendChild(title);
+      card.appendChild(line);
+      card.appendChild(openBtn);
+      slot.appendChild(card);
+    })
+    .catch(function () {});
 })();
