@@ -147,11 +147,12 @@ def main() -> int:
     elif "_touch_live_club_as_at(conn, regatta_id)" in text:
         print("fleet touch present or skip")
     text = _add_as_at_to_out(text)
-    if LIVE_OLD in text and '"as_at_time": as_at' not in text:
+    if LIVE_OLD in text and '"as_at_time": as_at}' not in text and '"fleets": fleets, "as_at_time"' not in text:
         text = text.replace(LIVE_OLD, LIVE_NEW, 1)
         print("patched live-fleets as_at")
-    text = text.replace("club-score-edit.js?v=ccr24", "club-score-edit.js?v=ccr25")
-    text = text.replace("club-score-edit.js?v=ccr23", "club-score-edit.js?v=ccr25")
+    text = text.replace("club-score-edit.js?v=ccr25", "club-score-edit.js?v=ccr26")
+    text = text.replace("club-score-edit.js?v=ccr24", "club-score-edit.js?v=ccr26")
+    text = text.replace("club-score-edit.js?v=ccr23", "club-score-edit.js?v=ccr26")
     API.write_text(text)
     print("ok", API)
     return 0

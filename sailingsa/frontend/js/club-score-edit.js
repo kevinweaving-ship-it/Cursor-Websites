@@ -43,6 +43,112 @@
     );
   }
 
+  function isSuperAdmin(session) {
+    var role = String((session && session.role) || "")
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_");
+    return role === "super_admin" || role === "superadmin" || !!(session && session.is_super_admin);
+  }
+
+  function saEditOn() {
+    var page = document.querySelector(".regatta-page");
+    return !!(page && page.classList.contains("regatta-page--super-admin-edit"));
+  }
+
+  function raceHeadKey(th) {
+    var k = String((th && (th.getAttribute("data-race-key") || th.textContent)) || "")
+      .replace(/\s+/g, "")
+      .toUpperCase();
+    var m = k.match(/^(R\d+)/);
+    return m ? m[1] : "";
+  }
+
+  function raceCellValue(td) {
+    if (!td) return "";
+    var box = td.querySelector && td.querySelector(".club-score-input, .wc-result-field-input");
+    if (box) return String(box.value || "").replace(/[()]/g, "").trim();
+    var hide = td.querySelector && td.querySelector(".wc-sa-edit-hide");
+    if (hide) return String(hide.textContent || "").replace(/[()]/g, "").trim();
+    return String(td.textContent || "").replace(/[()]/g, "").trim();
+  }
+
+  function applySaRaceClosed(table) {
+    if (!table || !saEditOn()) {
+      if (table) {
+        table.querySelectorAll(".race-col--closed, .race-col--wait").forEach(function (el) {
+          el.classList.remove("race-col--closed", "race-col--wait");
+        });
+      }
+      return;
+    }
+    var thead = table.querySelector("thead tr");
+    if (!thead) return;
+    var items = [];
+    thead.querySelectorAll("th.race-col").forEach(function (th) {
+      var key = raceHeadKey(th);
+      if (!key) return;
+      th.setAttribute("data-race-key", key);
+      items.push({ th: th, key: key, closed: false });
+    });
+    var waitKey = "";
+    items.forEach(function (item) {
+      var idx = [].indexOf.call(thead.children, item.th);
+      var n = 0;
+      var scored = 0;
+      table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
+        var td =
+          tr.querySelector('td.race-col[data-race-key="' + item.key + '"]') ||
+          (idx >= 0 ? tr.children[idx] : null);
+        if (!td) return;
+        n += 1;
+        if (raceCellValue(td)) scored += 1;
+      });
+      item.closed = n > 0 && scored === n;
+      if (!item.closed && !waitKey) waitKey = item.key;
+    });
+    items.forEach(function (item) {
+      var wait = !item.closed && item.key === waitKey;
+      item.th.classList.toggle("race-col--closed", !!item.closed);
+      item.th.classList.toggle("race-col--wait", wait);
+      var idx = [].indexOf.call(thead.children, item.th);
+      table.querySelectorAll("tbody tr").forEach(function (tr) {
+        var td =
+          tr.querySelector('td.race-col[data-race-key="' + item.key + '"]') ||
+          (idx >= 0 ? tr.children[idx] : null);
+        if (!td || !td.classList || !td.classList.contains("race-col")) return;
+        td.setAttribute("data-race-key", item.key);
+        td.classList.toggle("race-col--closed", !!item.closed);
+        td.classList.toggle("race-col--wait", wait);
+      });
+    });
+  }
+
+  function wireSaWaitOnly(table) {
+    if (!table || !saEditOn()) return;
+    applySaRaceClosed(table);
+    table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
+      var rid = tr.getAttribute("data-result-id");
+      if (!rid) return;
+      tr.querySelectorAll("td.race-col.race-col--wait").forEach(function (td) {
+        if (td.querySelector(".wc-result-field-input, .club-score-input")) return;
+        wireCell(td, rid);
+      });
+    });
+  }
+
+  function watchSaToggle() {
+    var page = document.querySelector(".regatta-page");
+    if (!page || page._saRaceObs) return;
+    var mo = new MutationObserver(function () {
+      page.querySelectorAll("table.fleet-results-table").forEach(function (table) {
+        applySaRaceClosed(table);
+        if (saEditOn()) wireSaWaitOnly(table);
+      });
+    });
+    mo.observe(page, { attributes: true, attributeFilter: ["class"] });
+    page._saRaceObs = mo;
+  }
+
   function injectStyles() {
     if (document.getElementById("clubScoreEditCss")) return;
     var st = document.createElement("style");
@@ -53,6 +159,17 @@
       ".club-score-input.club-score-input--saving{background:#fef08a}" +
       ".club-score-input.club-score-input--saved{background:#bbf7d0}" +
       ".club-score-input.club-score-input--dup{background:#fecaca;border-color:#b91c1c}" +
+      ".regatta-page--super-admin-edit th.race-col,.regatta-page--super-admin-edit td.race-col.race-col--closed,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-sa-edit-hide,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-score{font-size:inherit!important;font-weight:inherit}" +
+      ".regatta-page--super-admin-edit th.race-col.race-col--closed{color:#15803d!important;font-weight:700}" +
+      ".regatta-page--super-admin-edit th.race-col.race-col--closed .wc-clear-race,.regatta-page--super-admin-edit th.race-col.race-col--closed input{display:none!important}" +
+      ".regatta-page--super-admin-edit td.race-col.race-col--closed .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input.wc-sa-edit-only{display:none!important}" +
+      ".regatta-page--super-admin-edit td.race-col.race-col--closed .wc-sa-edit-hide{display:inline!important}" +
+      ".regatta-page--super-admin-edit td.race-col.race-col--wait .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input{font-size:calc(1em + 2px)!important;font-weight:700!important;height:auto;min-height:0;max-height:none;line-height:1.2}" +
+      "@media (max-width:768px) and (orientation:portrait){" +
+      ".regatta-page--super-admin-edit th.race-col.race-col--closed{color:#15803d!important}" +
+      ".regatta-page--super-admin-edit td.race-col.race-col--closed .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input.wc-sa-edit-only{display:none!important}" +
+      ".regatta-page--super-admin-edit td.race-col.race-col--closed .wc-sa-edit-hide{display:inline!important}" +
+      "}" +
       ".regatta-page--club-score-edit .fleet-results-table td.race-col{padding:2px 3px;vertical-align:middle}" +
       ".regatta-page--club-score-edit td.total-col," +
       ".regatta-page--club-score-edit td.nett-col," +
@@ -443,6 +560,7 @@
       rows.forEach(applyFleetRow);
       /* Official A8 order on the sheet: rerankFleet restores it and rejects result_id order. */
       rerankFleet(table);
+      if (saEditOn()) applySaRaceClosed(table);
     });
   }
 
@@ -930,7 +1048,7 @@
     else if (hdr) hdr.insertBefore(box, hdr.firstChild);
   }
 
-  function activate() {
+  function activate(session) {
     injectStyles();
     var page = document.querySelector(".regatta-page");
     if (!page) return;
@@ -938,6 +1056,29 @@
     var crew = page.querySelector("#capeClassicCrew");
     if (crew) crew.classList.add("cape-crew--admin");
     banner();
+    watchSaToggle();
+    if (isSuperAdmin(session)) {
+      var tog = document.getElementById("regattaSaEditToggle");
+      if (tog) {
+        page.classList.toggle("regatta-page--super-admin-edit", !!tog.checked);
+        if (!tog._saBound) {
+          tog.addEventListener("change", function () {
+            page.classList.toggle("regatta-page--super-admin-edit", !!tog.checked);
+          });
+          tog._saBound = true;
+        }
+      } else {
+        page.classList.add("regatta-page--super-admin-edit");
+      }
+      page.querySelectorAll(".fleet-section").forEach(injectRaceStepper);
+      page.querySelectorAll("table.fleet-results-table").forEach(function (table) {
+        ensureR1(table);
+        applySaRaceClosed(table);
+        if (saEditOn()) wireSaWaitOnly(table);
+        rerankFleet(table);
+      });
+      return;
+    }
     page.querySelectorAll(".fleet-section").forEach(injectRaceStepper);
     page.querySelectorAll("table.fleet-results-table").forEach(ensureR1);
     page.querySelectorAll("tr[data-result-id]").forEach(function (tr) {
@@ -976,7 +1117,7 @@
       return r.json();
     })
     .then(function (session) {
-      if (canScore(session)) activate();
+      if (canScore(session)) activate(session);
     })
     .catch(function () {});
 })();
