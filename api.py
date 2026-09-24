@@ -26409,6 +26409,52 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
+TRACKING_LIVE_EVENT = "2026-08-29-lipton-challenge-cup"
+TRACKING_LIVE_ASSETS = ((2619, "MagTrack"), (2079, "KingPet1"))
+
+
+def _tracking_live_sys_path():
+    root = str(Path(__file__).resolve().parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+
+@app.get("/api/tracking/live")
+def api_tracking_live(request: Request):
+    """GpsGate positions for one enabled event. Every other event is off."""
+    event = (request.query_params.get("event") or "").strip()
+    if event != TRACKING_LIVE_EVENT:
+        return JSONResponse({"enabled": False}, status_code=404)
+    on_date = (request.query_params.get("date") or "").strip()
+    try:
+        _tracking_live_sys_path()
+        from sailingsa.backend.gpsgate_client import GpsGateClient
+        client = GpsGateClient()
+        assets = []
+        for uid, label in TRACKING_LIVE_ASSETS:
+            item = {"userId": uid, "name": label, "position": client.status(uid)}
+            if on_date:
+                item["track"] = client.tracks(uid, on_date)
+            assets.append(item)
+        return JSONResponse({"enabled": True, "event": event, "assets": assets})
+    except Exception as err:
+        code = getattr(err, "status_code", None) or 502
+        if code not in (400, 401, 403, 404, 429, 503):
+            code = 502
+        return JSONResponse({"enabled": True, "error": "tracking unavailable"}, status_code=code)
+
+
+@app.get("/tracking-live.html")
+@app.head("/tracking-live.html")
+def tracking_live_page():
+    path = FRONTEND_DIR / "tracking-live.html"
+    if not path.is_file():
+        path = Path(__file__).resolve().parent / "sailingsa" / "frontend" / "tracking-live.html"
+    if not path.is_file():
+        return HTMLResponse("Tracking page missing", status_code=404)
+    return HTMLResponse(path.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"})
+
+
 TRACKING_DEV2_SLUG = "2026-08-29-lipton-challenge-cup-dev2"
 
 

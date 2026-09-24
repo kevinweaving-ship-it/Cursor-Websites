@@ -1,0 +1,21 @@
+.tracking-event-module {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: none;
+  background: rgba(0, 0, 0, 0.35);
+}
+.tracking-event-module.is-open {
+  display: block;
+}
+.tracking-event-module iframe {
+  position: absolute;
+  inset: 24px;
+  width: auto;
+  height: auto;
+  border: 0;
+  background: #fff;
+}
+.tracking-event-open {
+  margin: 8px 0;
+}
