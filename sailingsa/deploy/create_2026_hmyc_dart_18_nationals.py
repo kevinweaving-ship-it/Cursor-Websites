@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Create / match HMYC Dart 18 Nationals Event URL (live DB).
 
+PAGE LOCKED — docs/HMYC_DART_18_NATIONALS_2026_PAGE_LOCKED.md
+Do not re-run --apply (resets as_at_time to 11:00) unless the user writes override lock.
+
 Read docs/CLUB_EVENT_LIVE_CARDS.md first. User vibe-codes; agent SSHs live.
 landing-event-card, no blank69 / breaking-news, empty own media,
 no Venue if same as Host.

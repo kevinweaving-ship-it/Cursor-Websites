@@ -1,5 +1,10 @@
 # Event URL preload — copy last same-club cards
 
+**Dart 18 Nationals 2026 is LOCKED.**  
+https://sailingsa.co.za/regatta/2026-09-24-hmyc-dart-18-nationals — do **not** change that page again.  
+Full lock (all public + admin rules): **`docs/HMYC_DART_18_NATIONALS_2026_PAGE_LOCKED.md`**.  
+Override only if the user writes exactly **`override lock`** in the same request. This file is for the **next** Event URL.
+
 When creating or preloading a **new Event URL**, do not invent a new card layout.
 
 1. **Find the event** (SAS / club calendar) and match it.
@@ -90,5 +95,5 @@ Creating `/regatta/2026-09-24-hmyc-dart-18-nationals` went wrong in this order. 
 5. **Old media fuckup** — live `midmar-live-media.js` treated Dart as Midmar and seeded Midmar Cup still + “Last minute Training”. Dart `/mm-clips` was already empty (0). Must `emptyMedia` when slug ≠ Midmar; do not call `cupVideos()` / `mmLiptonReelsInit` on a new event.
 6. **Venue : Henley Midmar Yacht Club** — Host was already HMYC. New row had `host_club_id` but **empty `host_club_name` / `host_club_code`**, so the “hide Venue if same as host” check had nothing to compare. Always persist name+code from `clubs`, and resolve host via `host_club_id` join. Venue only if a **different** club.
 
-Dart Event URL: `/regatta/2026-09-24-hmyc-dart-18-nationals`  
+Dart Event URL: `/regatta/2026-09-24-hmyc-dart-18-nationals` — **LOCKED**, see **`docs/HMYC_DART_18_NATIONALS_2026_PAGE_LOCKED.md`**.  
 Calendar: HMYC `367984` / `events.event_id=139944` / `regatta_number=999010`.

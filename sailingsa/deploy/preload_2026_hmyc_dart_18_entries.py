@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Preload Dart 18 Nationals 2026 entries onto live Event URL — two fleets DH + SH.
 
+PAGE LOCKED — docs/HMYC_DART_18_NATIONALS_2026_PAGE_LOCKED.md
+Do not re-run --apply unless the user writes override lock. Age is code Y, not Youth.
+
 CSV Entry Type:
   Dart 18 Single          -> SH
   Dart 18 Double / Youth  -> DH

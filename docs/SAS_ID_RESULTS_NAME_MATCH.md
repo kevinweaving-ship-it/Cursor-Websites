@@ -74,6 +74,8 @@
 
 **Format (locked):** SAS ID is the name. Display is **Title Case** (`Ciara Neumann`, `Tristan Elliott`). Never copy a sheet’s typing and never leave ALL CAPS (`TRISTAN ELLIOTT`) on a result or in `sas_id_personal`. If SAS `full_name` / `first_name` / `last_name` is ALL CAPS, amend that row to Title Case first, then copy it onto results.
 
+Dart 18 Nationals 2026 Age column is code **`Y`**, never the word Youth. That Event URL is **LOCKED** — `docs/HMYC_DART_18_NATIONALS_2026_PAGE_LOCKED.md`.
+
 ---
 
 ## Fix (run once)

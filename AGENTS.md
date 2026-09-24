@@ -45,6 +45,8 @@ Use these names to scope work and split agents:
 
 - **New Event URL** — Preload / match / Event URL + same-club cards. **Must read `docs/CLUB_EVENT_LIVE_CARDS.md` first.** User vibe-codes; **agent SSHs live** (not repo-only, not “run this on Mac”). Landing hero is `/` `landing-event-card`; search is `/api/regattas/with-counts`. **Do not** edit `blank69.html` or `js/breaking-news-card.js`. Media empty on the new slug (no Midmar leftovers). No Venue line unless host and venue are different clubs.
 
+- **HMYC Dart 18 Nationals 2026 (LOCKED)** — `/regatta/2026-09-24-hmyc-dart-18-nationals`. **Do not change this page again** unless the user writes exactly **`override lock`**. All public + admin rules: **`docs/HMYC_DART_18_NATIONALS_2026_PAGE_LOCKED.md`**. Public never edits scores and never sees empty entry races; Age is code `Y`; Super Admin closed R is green fill + click toggle; only Super Admin + HMYC club admin (`admin_club_id=98`).
+
 ## UI / design system — hard rules (do not break pages)
 
 **`docs/UI_COMPONENTS_README.md`** — Hard rules for layout and components. **Store in Cursor memory for easy access.**
