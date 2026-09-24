@@ -17,13 +17,14 @@ OLD = '''def regatta_header_sponsor_html(regatta_id: str, event_name: str = "") 
     if not rid:
         return ""
 '''
-NEW = '''def regatta_header_sponsor_html(regatta_id: str, event_name: str = "") -> str:
-    """Sponsors stay on /sponsors pages — never in the event main header. """ + MARK + '''
-    return ""
-    rid = _safe_text(regatta_id)
-    if not rid:
-        return ""
-'''
+NEW = (
+    "def regatta_header_sponsor_html(regatta_id: str, event_name: str = \"\") -> str:\n"
+    f'    """Sponsors stay on /sponsors pages — never in the event main header. {MARK}"""\n'
+    "    return \"\"\n"
+    "    rid = _safe_text(regatta_id)\n"
+    "    if not rid:\n"
+    "        return \"\"\n"
+)
 
 
 def patch(path: Path) -> None:
