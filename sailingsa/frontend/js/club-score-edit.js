@@ -66,65 +66,117 @@
   function raceCellValue(td) {
     if (!td) return "";
     var box = td.querySelector && td.querySelector(".club-score-input, .wc-result-field-input");
-    if (box) return String(box.value || "").replace(/[()]/g, "").trim();
     var hide = td.querySelector && td.querySelector(".wc-sa-edit-hide");
-    if (hide) return String(hide.textContent || "").replace(/[()]/g, "").trim();
+    var fromBox = box ? String(box.value || "").replace(/[()]/g, "").trim() : "";
+    var fromHide = hide ? String(hide.textContent || "").replace(/[()]/g, "").trim() : "";
+    if (fromBox) return fromBox;
+    if (fromHide) return fromHide;
+    if (box) return "";
     return String(td.textContent || "").replace(/[()]/g, "").trim();
   }
 
-  function applySaRaceClosed(table) {
-    if (!table || !saEditOn()) {
-      if (table) {
-        table.querySelectorAll(".race-col--closed, .race-col--wait").forEach(function (el) {
-          el.classList.remove("race-col--closed", "race-col--wait");
-        });
-      }
-      return;
-    }
+  function paintRaceClosedState(table, closedSet, waitKey) {
+    if (!table) return;
     var thead = table.querySelector("thead tr");
     if (!thead) return;
-    var items = [];
     thead.querySelectorAll("th.race-col").forEach(function (th) {
       var key = raceHeadKey(th);
       if (!key) return;
       th.setAttribute("data-race-key", key);
-      items.push({ th: th, key: key, closed: false });
-    });
-    var waitKey = "";
-    items.forEach(function (item) {
-      var idx = [].indexOf.call(thead.children, item.th);
-      var n = 0;
-      var scored = 0;
-      table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
-        var td =
-          tr.querySelector('td.race-col[data-race-key="' + item.key + '"]') ||
-          (idx >= 0 ? tr.children[idx] : null);
-        if (!td) return;
-        n += 1;
-        if (raceCellValue(td)) scored += 1;
-      });
-      item.closed = n > 0 && scored === n;
-      if (!item.closed && !waitKey) waitKey = item.key;
-    });
-    items.forEach(function (item) {
-      var wait = !item.closed && item.key === waitKey;
-      item.th.classList.toggle("race-col--closed", !!item.closed);
-      item.th.classList.toggle("race-col--wait", wait);
-      var idx = [].indexOf.call(thead.children, item.th);
+      var closed = !!(closedSet && closedSet[key]);
+      var wait = key === waitKey;
+      th.classList.toggle("race-col--closed", closed);
+      th.classList.toggle("race-col--wait", wait);
+      var idx = [].indexOf.call(thead.children, th);
       table.querySelectorAll("tbody tr").forEach(function (tr) {
         var td =
-          tr.querySelector('td.race-col[data-race-key="' + item.key + '"]') ||
+          tr.querySelector('td.race-col[data-race-key="' + key + '"]') ||
           (idx >= 0 ? tr.children[idx] : null);
         if (!td || !td.classList || !td.classList.contains("race-col")) return;
-        td.setAttribute("data-race-key", item.key);
-        td.classList.toggle("race-col--closed", !!item.closed);
+        td.setAttribute("data-race-key", key);
+        td.classList.toggle("race-col--closed", closed);
         td.classList.toggle("race-col--wait", wait);
       });
     });
   }
 
+  function closedFromDom(table) {
+    var thead = table && table.querySelector("thead tr");
+    var out = { closed: {}, waitKey: "", keys: [] };
+    if (!thead) return out;
+    thead.querySelectorAll("th.race-col").forEach(function (th) {
+      var key = raceHeadKey(th);
+      if (key) out.keys.push(key);
+    });
+    var rows = table.querySelectorAll("tbody tr[data-result-id]");
+    if (!rows.length) rows = table.querySelectorAll("tbody tr");
+    out.keys.forEach(function (key) {
+      var th = thead.querySelector('th.race-col[data-race-key="' + key + '"]');
+      if (!th) {
+        Array.prototype.some.call(thead.querySelectorAll("th.race-col"), function (h) {
+          if (raceHeadKey(h) === key) {
+            th = h;
+            return true;
+          }
+          return false;
+        });
+      }
+      var idx = th ? [].indexOf.call(thead.children, th) : -1;
+      var n = 0;
+      var scored = 0;
+      Array.prototype.forEach.call(rows, function (tr) {
+        var td =
+          tr.querySelector('td.race-col[data-race-key="' + key + '"]') ||
+          (idx >= 0 ? tr.children[idx] : null);
+        if (!td) return;
+        n += 1;
+        if (raceCellValue(td)) scored += 1;
+      });
+      if (n > 0 && scored >= n) out.closed[key] = 1;
+      else if (!out.waitKey) out.waitKey = key;
+    });
+    return out;
+  }
+
+  function closedFromLiveRows(rows, keys) {
+    var out = { closed: {}, waitKey: "" };
+    var n = (rows || []).length;
+    var scored = {};
+    (rows || []).forEach(function (r) {
+      var rs = r.race_scores || {};
+      Object.keys(rs).forEach(function (k) {
+        var key = String(k || "").toUpperCase();
+        if (!/^R\d+$/.test(key)) return;
+        if (String(rs[k] == null ? "" : rs[k]).replace(/[()]/g, "").trim()) {
+          scored[key] = (scored[key] || 0) + 1;
+        }
+      });
+    });
+    (keys || Object.keys(scored).sort()).forEach(function (key) {
+      if (n > 0 && (scored[key] || 0) >= n) out.closed[key] = 1;
+      else if (!out.waitKey) out.waitKey = key;
+    });
+    return out;
+  }
+
+  function applySaRaceClosed(table, liveRows) {
+    if (!table) return;
+    var dom = closedFromDom(table);
+    var live = liveRows ? closedFromLiveRows(liveRows, dom.keys) : { closed: {}, waitKey: "" };
+    var closed = {};
+    dom.keys.forEach(function (key) {
+      if (dom.closed[key] || live.closed[key]) closed[key] = 1;
+    });
+    Object.keys(live.closed).forEach(function (key) {
+      closed[key] = 1;
+    });
+    var waitKey = live.waitKey || dom.waitKey || "";
+    if (waitKey && closed[waitKey]) waitKey = "";
+    paintRaceClosedState(table, closed, waitKey);
+  }
+
   function wireSaWaitOnly(table) {
-    if (!table || !saEditOn()) return;
+    if (!table) return;
     applySaRaceClosed(table);
     table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
       var rid = tr.getAttribute("data-result-id");
@@ -159,16 +211,17 @@
       ".club-score-input.club-score-input--saving{background:#fef08a}" +
       ".club-score-input.club-score-input--saved{background:#bbf7d0}" +
       ".club-score-input.club-score-input--dup{background:#fecaca;border-color:#b91c1c}" +
-      ".regatta-page--super-admin-edit th.race-col,.regatta-page--super-admin-edit td.race-col.race-col--closed,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-sa-edit-hide,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-score{font-size:inherit!important;font-weight:inherit}" +
-      ".regatta-page--super-admin-edit th.race-col.race-col--closed{color:#15803d!important;font-weight:700}" +
-      ".regatta-page--super-admin-edit th.race-col.race-col--closed .wc-clear-race,.regatta-page--super-admin-edit th.race-col.race-col--closed input{display:none!important}" +
-      ".regatta-page--super-admin-edit td.race-col.race-col--closed .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input.wc-sa-edit-only{display:none!important}" +
-      ".regatta-page--super-admin-edit td.race-col.race-col--closed .wc-sa-edit-hide{display:inline!important}" +
-      ".regatta-page--super-admin-edit td.race-col.race-col--wait .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input{font-size:calc(1em + 2px)!important;font-weight:700!important;height:auto;min-height:0;max-height:none;line-height:1.2}" +
-      "@media (max-width:768px) and (orientation:portrait){" +
-      ".regatta-page--super-admin-edit th.race-col.race-col--closed{color:#15803d!important}" +
-      ".regatta-page--super-admin-edit td.race-col.race-col--closed .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input.wc-sa-edit-only{display:none!important}" +
-      ".regatta-page--super-admin-edit td.race-col.race-col--closed .wc-sa-edit-hide{display:inline!important}" +
+      ".regatta-page--club-score-edit th.race-col,.regatta-page--super-admin-edit th.race-col{font-size:inherit!important}" +
+      ".regatta-page--club-score-edit th.race-col:not(.race-col--wait),.regatta-page--super-admin-edit th.race-col:not(.race-col--wait){color:#15803d!important;font-weight:700}" +
+      ".regatta-page--club-score-edit th.race-col.race-col--wait,.regatta-page--super-admin-edit th.race-col.race-col--wait{color:inherit!important;font-weight:700}" +
+      ".regatta-page--club-score-edit th.race-col:not(.race-col--wait) .wc-clear-race,.regatta-page--super-admin-edit th.race-col:not(.race-col--wait) .wc-clear-race,.regatta-page--club-score-edit th.race-col:not(.race-col--wait) input,.regatta-page--super-admin-edit th.race-col:not(.race-col--wait) input{display:none!important}" +
+      ".regatta-page--club-score-edit td.race-col:not(.race-col--wait) .club-score-input,.regatta-page--club-score-edit td.race-col:not(.race-col--wait) .wc-result-field-input,.regatta-page--super-admin-edit td.race-col:not(.race-col--wait) .wc-result-field-input,.regatta-page--super-admin-edit td.race-col:not(.race-col--wait) .wc-result-field-input.wc-sa-edit-only{display:none!important}" +
+      ".regatta-page--club-score-edit td.race-col:not(.race-col--wait) .wc-sa-edit-hide,.regatta-page--super-admin-edit td.race-col:not(.race-col--wait) .wc-sa-edit-hide{display:inline!important;font-size:inherit!important;font-weight:inherit}" +
+      ".regatta-page--club-score-edit td.race-col.race-col--wait .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input{font-size:calc(1em + 2px)!important;font-weight:700!important;height:auto;min-height:0;max-height:none;line-height:1.2}" +
+      "@media (max-width:768px), (max-width:768px) and (orientation:portrait), (max-width:768px) and (max-aspect-ratio:1/1){" +
+      ".regatta-page--club-score-edit th.race-col:not(.race-col--wait),.regatta-page--super-admin-edit th.race-col:not(.race-col--wait){color:#15803d!important;font-weight:700}" +
+      ".regatta-page--club-score-edit td.race-col:not(.race-col--wait) .club-score-input,.regatta-page--club-score-edit td.race-col:not(.race-col--wait) .wc-result-field-input,.regatta-page--super-admin-edit td.race-col:not(.race-col--wait) .wc-result-field-input.wc-sa-edit-only{display:none!important}" +
+      ".regatta-page--club-score-edit td.race-col:not(.race-col--wait) .wc-sa-edit-hide,.regatta-page--super-admin-edit td.race-col:not(.race-col--wait) .wc-sa-edit-hide{display:inline!important}" +
       "}" +
       ".regatta-page--club-score-edit .fleet-results-table td.race-col{padding:2px 3px;vertical-align:middle}" +
       ".regatta-page--club-score-edit td.total-col," +
@@ -560,7 +613,8 @@
       rows.forEach(applyFleetRow);
       /* Official A8 order on the sheet: rerankFleet restores it and rejects result_id order. */
       rerankFleet(table);
-      if (saEditOn()) applySaRaceClosed(table);
+      applySaRaceClosed(table, rows);
+      wireSaWaitOnly(table);
     });
   }
 
@@ -1074,19 +1128,16 @@
       page.querySelectorAll("table.fleet-results-table").forEach(function (table) {
         ensureR1(table);
         applySaRaceClosed(table);
-        if (saEditOn()) wireSaWaitOnly(table);
+        wireSaWaitOnly(table);
         rerankFleet(table);
       });
       return;
     }
     page.querySelectorAll(".fleet-section").forEach(injectRaceStepper);
-    page.querySelectorAll("table.fleet-results-table").forEach(ensureR1);
-    page.querySelectorAll("tr[data-result-id]").forEach(function (tr) {
-      var rid = tr.getAttribute("data-result-id");
-      if (!rid) return;
-      tr.querySelectorAll("td.race-col[data-race-key]").forEach(function (td) {
-        wireCell(td, rid);
-      });
+    page.querySelectorAll("table.fleet-results-table").forEach(function (table) {
+      ensureR1(table);
+      applySaRaceClosed(table);
+      wireSaWaitOnly(table);
     });
     var boxes = page.querySelectorAll(".club-score-input");
     var start = null;
