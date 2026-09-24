@@ -55,6 +55,21 @@
     return !!(page && page.classList.contains("regatta-page--super-admin-edit"));
   }
 
+  var raceOverrideKey =
+    "ssa-race-open:" + ((path.match(/\/regatta\/([^/?#]+)/) || [])[1] || "dart");
+  var raceOpenOverride = {};
+  try {
+    raceOpenOverride = JSON.parse(localStorage.getItem(raceOverrideKey) || "{}") || {};
+  } catch (e1) {
+    raceOpenOverride = {};
+  }
+
+  function saveRaceOverrides() {
+    try {
+      localStorage.setItem(raceOverrideKey, JSON.stringify(raceOpenOverride));
+    } catch (e2) {}
+  }
+
   function raceHeadKey(th) {
     var k = String((th && (th.getAttribute("data-race-key") || th.textContent)) || "")
       .replace(/\s+/g, "")
@@ -75,7 +90,7 @@
     return String(td.textContent || "").replace(/[()]/g, "").trim();
   }
 
-  function paintRaceClosedState(table, closedSet, waitKey) {
+  function paintRaceClosedState(table, closedSet) {
     if (!table) return;
     var thead = table.querySelector("thead tr");
     if (!thead) return;
@@ -84,9 +99,11 @@
       if (!key) return;
       th.setAttribute("data-race-key", key);
       var closed = !!(closedSet && closedSet[key]);
-      var wait = key === waitKey;
+      var wait = !closed;
       th.classList.toggle("race-col--closed", closed);
       th.classList.toggle("race-col--wait", wait);
+      th.title = closed ? "Tap to reopen scores" : "Tap to close race";
+      th.setAttribute("role", "button");
       var idx = [].indexOf.call(thead.children, th);
       table.querySelectorAll("tbody tr").forEach(function (tr) {
         var td =
@@ -163,16 +180,41 @@
     if (!table) return;
     var dom = closedFromDom(table);
     var live = liveRows ? closedFromLiveRows(liveRows, dom.keys) : { closed: {}, waitKey: "" };
+    var auto = {};
+    dom.keys.forEach(function (key) {
+      if (dom.closed[key] || live.closed[key]) auto[key] = 1;
+    });
+    Object.keys(live.closed || {}).forEach(function (key) {
+      auto[key] = 1;
+    });
     var closed = {};
     dom.keys.forEach(function (key) {
-      if (dom.closed[key] || live.closed[key]) closed[key] = 1;
+      if (raceOpenOverride[key] === true) return;
+      if (raceOpenOverride[key] === false || auto[key]) closed[key] = 1;
     });
-    Object.keys(live.closed).forEach(function (key) {
-      closed[key] = 1;
+    paintRaceClosedState(table, closed);
+    bindRaceHeaderToggle(table);
+  }
+
+  function bindRaceHeaderToggle(table) {
+    if (!table) return;
+    var thead = table.querySelector("thead tr");
+    if (!thead) return;
+    thead.querySelectorAll("th.race-col").forEach(function (th) {
+      if (th._raceToggleBound) return;
+      th._raceToggleBound = true;
+      th.addEventListener("click", function (ev) {
+        if (ev.target && ev.target.closest && ev.target.closest(".wc-clear-race")) return;
+        ev.preventDefault();
+        var key = raceHeadKey(th);
+        if (!key) return;
+        var wasClosed = th.classList.contains("race-col--closed");
+        raceOpenOverride[key] = wasClosed;
+        saveRaceOverrides();
+        applySaRaceClosed(table);
+        wireSaWaitOnly(table);
+      });
     });
-    var waitKey = live.waitKey || dom.waitKey || "";
-    if (waitKey && closed[waitKey]) waitKey = "";
-    paintRaceClosedState(table, closed, waitKey);
   }
 
   function wireSaWaitOnly(table) {
@@ -194,7 +236,7 @@
     var mo = new MutationObserver(function () {
       page.querySelectorAll("table.fleet-results-table").forEach(function (table) {
         applySaRaceClosed(table);
-        if (saEditOn()) wireSaWaitOnly(table);
+        wireSaWaitOnly(table);
       });
     });
     mo.observe(page, { attributes: true, attributeFilter: ["class"] });
@@ -211,6 +253,7 @@
       ".club-score-input.club-score-input--saving{background:#fef08a}" +
       ".club-score-input.club-score-input--saved{background:#bbf7d0}" +
       ".club-score-input.club-score-input--dup{background:#fecaca;border-color:#b91c1c}" +
+      ".regatta-page--club-score-edit th.race-col,.regatta-page--super-admin-edit th.race-col{cursor:pointer;-webkit-user-select:none;user-select:none}" +
       ".regatta-page--club-score-edit th.race-col.race-col--closed,.regatta-page--super-admin-edit th.race-col.race-col--closed{background:#15803d!important;color:#fff!important;font-weight:700}" +
       ".regatta-page--club-score-edit th.race-col.race-col--wait,.regatta-page--super-admin-edit th.race-col.race-col--wait{background:transparent!important;color:inherit!important}" +
       ".regatta-page--club-score-edit th.race-col.race-col--closed .wc-clear-race,.regatta-page--super-admin-edit th.race-col.race-col--closed .wc-clear-race,.regatta-page--club-score-edit th.race-col.race-col--closed input,.regatta-page--super-admin-edit th.race-col.race-col--closed input{display:none!important}" +
