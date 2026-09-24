@@ -308,8 +308,11 @@
     if (!table) return;
     var f = raceHeaderFont(table);
     var px = parseFloat(f.size) || 9;
-    var w = Math.max(Math.round(px * 1.7), 12) + "px";
     table.querySelectorAll(".club-score-input, .wc-result-field-input").forEach(function (inp) {
+      var v = String(inp.value || "").trim();
+      var w = /[A-Za-z]/.test(v)
+        ? Math.max(v.length + 1, 7) + "ch"
+        : Math.max(Math.round(px * 1.7), 12) + "px";
       inp.style.setProperty("font-size", f.size, "important");
       inp.style.setProperty("font-family", f.family, "important");
       inp.style.setProperty("font-weight", f.weight, "important");
@@ -319,10 +322,38 @@
       inp.style.setProperty("max-height", f.size, "important");
       inp.style.setProperty("width", w, "important");
       inp.style.setProperty("min-width", "0", "important");
+      inp.style.setProperty("max-width", "none", "important");
       inp.style.setProperty("padding", "0 1px", "important");
       inp.style.setProperty("-webkit-text-size-adjust", "100%", "important");
       inp.style.setProperty("text-size-adjust", "100%", "important");
     });
+  }
+
+  function editScoreText(raw) {
+    var cell = String(raw == null ? "" : raw)
+      .replace(/[()]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!cell) return "";
+    var m = cell.match(/^(\d+(?:\.\d+)?)\s*([A-Z]{2,})$/i);
+    if (m) return fmtScoreNum(m[1]) + " " + m[2].toUpperCase();
+    m = cell.match(/^(\d+(?:\.\d+)?)([A-Z]{2,})$/i);
+    if (m) return fmtScoreNum(m[1]) + " " + m[2].toUpperCase();
+    if (/^[A-Z]{2,}$/i.test(cell)) return cell.toUpperCase();
+    return cell;
+  }
+
+  function cellEditText(td) {
+    if (!td) return "";
+    var live = td.getAttribute("data-live-cell");
+    if (live) return editScoreText(live);
+    var score = td.querySelector(".wc-score");
+    var code = td.querySelector(".wc-code");
+    if (code && String(code.textContent || "").trim()) {
+      var n = score ? String(score.textContent || "").replace(/[()]/g, "").trim() : "";
+      return editScoreText((n ? n + " " : "") + String(code.textContent).trim());
+    }
+    return editScoreText(td.textContent);
   }
 
   function wireSaWaitOnly(table) {
@@ -562,10 +593,11 @@
         inp.title = "";
         inp.removeAttribute("data-dirty");
         if (o.j && o.j.race_scores && o.j.race_scores[race] != null) {
-          v = String(o.j.race_scores[race]);
+          v = editScoreText(o.j.race_scores[race]);
         }
         inp.setAttribute("data-original", v);
         if (document.activeElement !== inp) inp.value = v;
+        paintScoreInputFont(fleetTable(inp));
         inp.classList.add("club-score-input--saved");
         applyServerFleet(o.j, fleetTable(inp));
         pushLive();
@@ -702,13 +734,16 @@
       tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
     }
     if (row.race_scores && typeof row.race_scores === "object") {
-      tr.querySelectorAll(".club-score-input").forEach(function (box) {
+      tr.querySelectorAll(".club-score-input, .wc-result-field-input").forEach(function (box) {
         if (boxBusy(box)) return;
-        var rk = box.getAttribute("data-race");
-        var cell = String(row.race_scores[rk] == null ? "" : row.race_scores[rk]);
+        var rk =
+          box.getAttribute("data-race") ||
+          (box.closest("td") && box.closest("td").getAttribute("data-race-key"));
+        var cell = editScoreText(row.race_scores[rk] == null ? "" : row.race_scores[rk]);
         box.value = cell;
         box.setAttribute("data-original", cell);
       });
+      paintScoreInputFont(tr.closest("table"));
       Object.keys(row.race_scores).forEach(function (rk) {
         var cell = String(row.race_scores[rk] == null ? "" : row.race_scores[rk]);
         var td = tr.querySelector('td.race-col[data-race-key="' + rk + '"]');
@@ -980,7 +1015,7 @@
     if (td.closest(".total-col, .nett-col, .rank-col")) return;
     var race = (td.getAttribute("data-race-key") || "").trim().toUpperCase();
     if (!/^R\d+$/.test(race)) return;
-    var current = (td.textContent || "").trim();
+    var current = cellEditText(td);
     td.textContent = "";
     var inp = document.createElement("input");
     inp.type = "text";
