@@ -407,8 +407,32 @@
     return from && from.closest ? from.closest("table") : null;
   }
 
+  function paintAsAt(iso) {
+    var el = document.querySelector(".regatta-status-as-at-date");
+    if (!el || !iso) return;
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return;
+    var parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Johannesburg",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(d);
+    var get = function (t) {
+      var x = parts.find(function (p) {
+        return p.type === t;
+      });
+      return x ? x.value : "";
+    };
+    el.textContent = [get("day"), get("month"), get("year"), get("hour") + ":" + get("minute")].join("\u00a0");
+  }
+
   function applyLiveFleets(data) {
     if (!data || !data.fleets) return;
+    paintAsAt(data.as_at_time);
     Object.keys(data.fleets).forEach(function (bid) {
       var sec = document.querySelector('.fleet-section[data-block-id="' + bid + '"]');
       var table = fleetTable(sec) || (sec && sec.querySelector("table"));
@@ -624,6 +648,7 @@
       });
     }
     rerankFleet(table);
+    paintAsAt(j.as_at_time);
   }
 
   function wireCell(td, resultId) {
