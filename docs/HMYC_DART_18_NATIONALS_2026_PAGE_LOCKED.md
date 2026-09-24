@@ -178,7 +178,7 @@ Admin is **different** from public. Do not shrink public to match admin, and do 
 | Closed race header | **Green fill** `#15803d` + **white** type. Not green text on a white header. |
 | Closed R is the toggle | Click closed R → reopen scores. Click again → close. No extra box toggle. `localStorage` key `ssa-race-open:{slug}`. |
 | Wait / open race | Transparent header; compact score boxes only in wait cells. |
-| Score box size | `font-size: inherit` (~race-col / ~9px). Box about **`1.6rem × 1.15em`**. Same visual size as R1/R2 numbers. **Not** 22px / 4.8rem / `height:auto` that stretches every rank row. |
+| Score box size | Edit-mode R text (R1…R4 and every later R) = **computed `th.race-col` size** (R1 header label, live table **9px**). Explicit px on the input — iOS ignores `inherit` and blows up to 16px. Box **`1.7em × 1em`** of that px, not `rem`. **Not** 16px / 22px / 1.6rem circles. |
 | Extra empty race (R4+) | Visible for entry. Public still hides it until a score exists. |
 | Total / Nett / Rank | Read-only. Auto after PATCH. |
 | Banner | “Type a place or OCS/DSQ…” — admin only. |

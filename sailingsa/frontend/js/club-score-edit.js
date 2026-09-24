@@ -285,6 +285,46 @@
     });
   }
 
+  function raceHeaderFont(table) {
+    var th =
+      (table && table.querySelector("thead th.race-col")) ||
+      document.querySelector("th.race-col");
+    if (!th) return { size: "9px", family: "inherit", weight: "inherit", line: "1.2" };
+    var cs = window.getComputedStyle(th);
+    return {
+      size: cs.fontSize || "9px",
+      family: cs.fontFamily || "inherit",
+      weight: cs.fontWeight || "inherit",
+      line: cs.lineHeight || "1.2",
+    };
+  }
+
+  function paintScoreInputFont(root) {
+    var table = root && root.querySelector ? root : null;
+    if (root && root.closest) table = root.closest("table") || table;
+    if (!table || !table.querySelector) {
+      table = document.querySelector("table.fleet-results-table");
+    }
+    if (!table) return;
+    var f = raceHeaderFont(table);
+    var px = parseFloat(f.size) || 9;
+    var w = Math.max(Math.round(px * 1.7), 12) + "px";
+    table.querySelectorAll(".club-score-input, .wc-result-field-input").forEach(function (inp) {
+      inp.style.setProperty("font-size", f.size, "important");
+      inp.style.setProperty("font-family", f.family, "important");
+      inp.style.setProperty("font-weight", f.weight, "important");
+      inp.style.setProperty("line-height", "1.2", "important");
+      inp.style.setProperty("height", f.size, "important");
+      inp.style.setProperty("min-height", "0", "important");
+      inp.style.setProperty("max-height", f.size, "important");
+      inp.style.setProperty("width", w, "important");
+      inp.style.setProperty("min-width", "0", "important");
+      inp.style.setProperty("padding", "0 1px", "important");
+      inp.style.setProperty("-webkit-text-size-adjust", "100%", "important");
+      inp.style.setProperty("text-size-adjust", "100%", "important");
+    });
+  }
+
   function wireSaWaitOnly(table) {
     if (!table || !scoreEditOn()) return;
     applySaRaceClosed(table);
@@ -296,6 +336,7 @@
         wireCell(td, rid);
       });
     });
+    paintScoreInputFont(table);
   }
 
   function watchSaToggle() {
@@ -317,7 +358,7 @@
     st.id = "clubScoreEditCss";
     st.textContent =
       ".club-score-banner{margin:12px 0 0;padding:10px 12px;border:2px solid #1a2750;border-radius:8px;background:#f8fafc;color:#1a2750;font-weight:700;font-size:13px}" +
-      ".club-score-input{box-sizing:border-box;width:1.6rem;min-width:0;height:1.15em;min-height:0;max-height:1.3em;padding:0 1px;text-align:center;font:inherit;font-size:inherit;line-height:inherit;font-weight:inherit;border:1px solid #1a2750;border-radius:2px;background:#fff;color:#1a2750}" +
+      ".club-score-input{-webkit-appearance:none;appearance:none;box-sizing:border-box;width:1.7em;min-width:0;height:1em;min-height:0;max-height:1em;padding:0 1px;text-align:center;font-size:9px;line-height:1.2;font-weight:inherit;border:1px solid #1a2750;border-radius:2px;background:#fff;color:#1a2750;-webkit-text-size-adjust:100%;text-size-adjust:100%}" +
       ".club-score-input.club-score-input--saving{background:#fef08a}" +
       ".club-score-input.club-score-input--saved{background:#bbf7d0}" +
       ".club-score-input.club-score-input--dup{background:#fecaca;border-color:#b91c1c}" +
@@ -328,7 +369,7 @@
       ".regatta-page--club-score-edit td.race-col.race-col--closed .club-score-input,.regatta-page--club-score-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input.wc-sa-edit-only{display:none!important}" +
       ".regatta-page--club-score-edit td.race-col.race-col--closed .wc-sa-edit-hide,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-sa-edit-hide{display:inline!important;font-size:inherit!important;font-weight:inherit}" +
       ".regatta-page--club-score-edit .fleet-results-table td.race-col{padding:1px 2px;vertical-align:middle}" +
-      ".regatta-page--club-score-edit td.race-col .club-score-input,.regatta-page--club-score-edit td.race-col.race-col--wait .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input.wc-sa-edit-only{box-sizing:border-box!important;width:1.6rem!important;min-width:0!important;max-width:100%!important;height:1.15em!important;min-height:0!important;max-height:1.3em!important;padding:0 1px!important;margin:0!important;font-size:inherit!important;line-height:inherit!important;font-weight:inherit!important;border:1px solid #1a2750!important;border-radius:2px!important}" +
+      ".regatta-page--club-score-edit td.race-col .club-score-input,.regatta-page--club-score-edit td.race-col.race-col--wait .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input.wc-sa-edit-only{-webkit-appearance:none!important;appearance:none!important;box-sizing:border-box!important;width:1.7em!important;min-width:0!important;max-width:100%!important;height:1em!important;min-height:0!important;max-height:1em!important;padding:0 1px!important;margin:0!important;font-size:9px!important;line-height:1.2!important;font-weight:inherit!important;border:1px solid #1a2750!important;border-radius:2px!important;-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}" +
       ".regatta-page--club-score-edit td.total-col," +
       ".regatta-page--club-score-edit td.nett-col," +
       ".regatta-page--club-score-edit td.rank-col{pointer-events:none;user-select:none}" +
@@ -956,6 +997,7 @@
     inp.setAttribute("aria-label", race + " position");
     inp.value = current;
     td.appendChild(inp);
+    paintScoreInputFont(td.closest("table"));
     td.addEventListener("click", function (ev) {
       if (ev.target === inp) return;
       inp.focus();
