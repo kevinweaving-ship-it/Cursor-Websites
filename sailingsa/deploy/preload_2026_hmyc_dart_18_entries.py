@@ -319,7 +319,7 @@ def apply(url: str, csv_path: Path) -> int:
                     c_name,
                     c_id,
                     c_tmp,
-                    "Youth" if youth else None,
+                    "Y" if youth else None,
                     "Dart 18 Nationals incorporating the KZN provincials",
                 ),
             )
