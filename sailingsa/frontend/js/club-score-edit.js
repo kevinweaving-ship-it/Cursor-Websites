@@ -249,7 +249,7 @@
     st.id = "clubScoreEditCss";
     st.textContent =
       ".club-score-banner{margin:12px 0 0;padding:10px 12px;border:2px solid #1a2750;border-radius:8px;background:#f8fafc;color:#1a2750;font-weight:700;font-size:13px}" +
-      ".club-score-input{box-sizing:border-box;width:1.85rem;min-width:0;height:16px;min-height:16px;max-height:16px;padding:0 2px;text-align:center;font:inherit;font-size:11px;line-height:14px;font-weight:700;border:1px solid #1a2750;border-radius:2px;background:#fff;color:#1a2750}" +
+      ".club-score-input{box-sizing:border-box;width:1.6rem;min-width:0;height:1.15em;min-height:0;max-height:1.3em;padding:0 1px;text-align:center;font:inherit;font-size:inherit;line-height:inherit;font-weight:inherit;border:1px solid #1a2750;border-radius:2px;background:#fff;color:#1a2750}" +
       ".club-score-input.club-score-input--saving{background:#fef08a}" +
       ".club-score-input.club-score-input--saved{background:#bbf7d0}" +
       ".club-score-input.club-score-input--dup{background:#fecaca;border-color:#b91c1c}" +
@@ -260,7 +260,7 @@
       ".regatta-page--club-score-edit td.race-col.race-col--closed .club-score-input,.regatta-page--club-score-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input.wc-sa-edit-only{display:none!important}" +
       ".regatta-page--club-score-edit td.race-col.race-col--closed .wc-sa-edit-hide,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-sa-edit-hide{display:inline!important;font-size:inherit!important;font-weight:inherit}" +
       ".regatta-page--club-score-edit .fleet-results-table td.race-col{padding:1px 2px;vertical-align:middle}" +
-      ".regatta-page--club-score-edit td.race-col .club-score-input,.regatta-page--club-score-edit td.race-col.race-col--wait .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input.wc-sa-edit-only{box-sizing:border-box!important;width:1.85rem!important;min-width:0!important;max-width:100%!important;height:16px!important;min-height:16px!important;max-height:16px!important;padding:0 2px!important;margin:0!important;font-size:11px!important;line-height:14px!important;font-weight:700!important;border:1px solid #1a2750!important;border-radius:2px!important}" +
+      ".regatta-page--club-score-edit td.race-col .club-score-input,.regatta-page--club-score-edit td.race-col.race-col--wait .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input.wc-sa-edit-only{box-sizing:border-box!important;width:1.6rem!important;min-width:0!important;max-width:100%!important;height:1.15em!important;min-height:0!important;max-height:1.3em!important;padding:0 1px!important;margin:0!important;font-size:inherit!important;line-height:inherit!important;font-weight:inherit!important;border:1px solid #1a2750!important;border-radius:2px!important}" +
       ".regatta-page--club-score-edit td.total-col," +
       ".regatta-page--club-score-edit td.nett-col," +
       ".regatta-page--club-score-edit td.rank-col{pointer-events:none;user-select:none}" +
