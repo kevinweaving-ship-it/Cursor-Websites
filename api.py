@@ -24364,6 +24364,8 @@ def _render_result_sheet_fleet(
         fleet_header_title = fname
     else:
         fleet_header_title = fname + " Fleet" if not fname.endswith(" Fleet") else fname
+    if str(fleet.get("regatta_id") or "").startswith("2026-09-24-hmyc-dart-18-nationals"):
+        fleet_header_title = "Fleet"
     fleet_title_inner = fleet_header_title
     regatta_id = fleet.get("regatta_id")
     class_slug = (fleet.get("class_slug") or "").strip()
