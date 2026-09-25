@@ -467,7 +467,7 @@
     if (typeof next.select === "function") next.select();
   }
 
-  var PENALTY_CODES = ["DNC", "DNS", "DNF", "RET", "DSQ", "UFD", "BFD", "DPI", "OCS", "OCF", "NSC", "DNE"];
+  var PENALTY_CODES = ["DNC", "DNS", "DNF", "RET", "DSQ", "UFD", "BFD", "DPI", "OCS", "OCF", "NSC", "DNE", "TLE"];
 
   function entriesFor(inp) {
     var n = parseInt(inp.getAttribute("data-entries") || "0", 10);
