@@ -20,8 +20,8 @@
   // MIDMAR_PUBLIC_DROP_v1
   // MIDMAR_DROP_PE_v1
   // MIDMAR_MEDIA_UNSQUASH_v1
-  var JS_VER = "midmarwx59";
-  var THEME_SRC = "/assets/dart-nats-theme-fast.mp3?v=dartsong3";
+  var JS_VER = "midmarwx60";
+  var THEME_SRC = "/assets/dart-nats-theme-fast.mp3?v=dartsong4";
   var dartThemeAudio = null;
   var dartThemeUserPaused = false;
   var EVENT_PATH = "/regatta/" + RID;
@@ -66,14 +66,27 @@
       link.href = THEME_SRC;
       document.head.appendChild(link);
     }
-    dartThemeAudio = new Audio();
-    dartThemeAudio.preload = "auto";
-    dartThemeAudio.setAttribute("playsinline", "");
-    dartThemeAudio.volume = 0.5;
-    dartThemeAudio.src = THEME_SRC;
+    var el = document.getElementById("dart-nats-theme-audio");
+    if (!el) {
+      el = document.createElement("audio");
+      el.id = "dart-nats-theme-audio";
+      el.setAttribute("autoplay", "");
+      el.setAttribute("playsinline", "");
+      el.setAttribute("webkit-playsinline", "");
+      el.preload = "auto";
+      el.controls = false;
+      el.loop = false;
+      el.volume = 0.5;
+      el.src = THEME_SRC;
+      el.className = "dart-nats-theme-audio";
+      (document.body || document.documentElement).appendChild(el);
+    }
+    dartThemeAudio = el;
     try {
-      dartThemeAudio.load();
+      el.load();
     } catch (e) {}
+    var kick = el.play();
+    if (kick && kick.catch) kick.catch(function () {});
     return dartThemeAudio;
   }
   preloadDartTheme();
@@ -89,6 +102,7 @@
       ".regatta-page > .midmar-live-media .midmar-mm-row > .mm-lipton-reels{flex:1 1 auto;width:100%!important;max-width:100%!important;}",
       ".regatta-page > .midmar-live-media .midmar-mm-row > .midmar-mm-sa{flex:0 0 auto;width:100%;max-width:100%;}",
       ".midmar-live-media .mm-lipton-reels-grid .mm-lipton-reels-thumb,.midmar-live-media .mm-lipton-reels-days .mm-lipton-reels-thumb{aspect-ratio:16/9!important;height:auto!important;}",
+      ".dart-nats-theme-audio{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}",
       ".regatta-page > .midmar-live-media .mm-lipton-reels-brand{display:none!important;}",".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-09-24-hmyc-dart-18-nationals'] .mm-lipton-reels-brand{display:block!important;cursor:pointer;}@keyframes dartThemePulse{0%,100%{opacity:1}50%{opacity:.35}}.mm-lipton-reels-brand.is-dart-theme{animation:dartThemePulse 2.6s ease-in-out infinite}.mm-lipton-reels-brand:not(.is-dart-theme){animation:none!important}",
       ".regatta-page > .midmar-live-media .mm-midmar-cup-thumb{flex:0 0 auto;position:sticky;left:0;z-index:3;align-self:stretch;}",
       ".midmar-live-media .mm-midmar-cup-thumb .mm-lipton-reels-play,.midmar-live-media .mm-lipton-reels-tile[aria-label=\"View photo\"] .mm-lipton-reels-play{display:none!important;}",
@@ -1202,13 +1216,18 @@
       el.setAttribute("aria-pressed", on ? "true" : "false");
     }
     function dartVideo(node) {
-      return node && node.tagName === "VIDEO" && node.closest && node.closest("[data-regatta-id^='2026-09-24-hmyc-dart-18-nationals']");
+      if (!node || node.tagName !== "VIDEO") return false;
+      if (node.hasAttribute("data-mm-compact-live") || node.hasAttribute("data-mm-pre")) return false;
+      if (!node.closest || !node.closest("[data-regatta-id^='2026-09-24-hmyc-dart-18-nationals']")) return false;
+      return !!(node.hasAttribute("data-mm-hero-video") || node.closest(".mm-lipton-reels--expanded"));
     }
     function videoPlaying() {
-      var nodes = document.querySelectorAll("[data-regatta-id^='2026-09-24-hmyc-dart-18-nationals'] video");
+      var nodes = document.querySelectorAll(
+        "[data-regatta-id^='2026-09-24-hmyc-dart-18-nationals'] [data-mm-hero-video], [data-regatta-id^='2026-09-24-hmyc-dart-18-nationals'] .mm-lipton-reels--expanded video"
+      );
       var i;
       for (i = 0; i < nodes.length; i++) {
-        if (!nodes[i].paused && !nodes[i].ended) return true;
+        if (!nodes[i].paused && !nodes[i].ended && !nodes[i].muted) return true;
       }
       return false;
     }
@@ -1249,6 +1268,20 @@
       if (!dartThemeUserPaused) start();
     });
     start();
+    var nudges = 0;
+    function nudge() {
+      if (dartThemeUserPaused || audio.ended || (!audio.paused && !audio.ended)) return;
+      start();
+      nudges += 1;
+      if (nudges < 24) window.setTimeout(nudge, 250);
+    }
+    window.setTimeout(nudge, 200);
+    document.addEventListener("pageshow", function () {
+      if (!dartThemeUserPaused) start();
+    });
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden && !dartThemeUserPaused) start();
+    });
     document.addEventListener("click", toggleFromBrand, true);
     document.addEventListener("keydown", function (ev) {
       if (ev.key !== "Enter" && ev.key !== " ") return;
