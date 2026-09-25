@@ -1,0 +1,23 @@
+#!/usr/bin/expect -f
+set timeout 90
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {mkdir -p /tmp/hmyc-cam-js}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/js/club-score-edit.js /workspace/sailingsa/deploy/apply_dart_race_toggle.py ${user}@${server}:/tmp/hmyc-cam-js/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {TS=$(date +%Y%m%d_%H%M%S); tar -czf /root/backup_dart_race_toggle_${TS}.tar.gz /var/www/sailingsa/js/club-score-edit.js /var/www/sailingsa/api/api.py; echo BACKUP:/root/backup_dart_race_toggle_${TS}.tar.gz; mv /tmp/hmyc-cam-js/apply_dart_race_toggle.py /tmp/; chattr -i /var/www/sailingsa/api/api.py 2>/dev/null; python3 /tmp/apply_dart_race_toggle.py; echo APPLY:$?; rm -f /var/www/sailingsa/api/__pycache__/api.cpython-312.pyc; systemctl restart sailingsa-api; sleep 12; systemctl is-active sailingsa-api; chattr +i /var/www/sailingsa/api/api.py; echo DONE}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait

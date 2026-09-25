@@ -13784,10 +13784,10 @@ def patch_race_score(request: Request, result_id: int, body: dict):
             if value:
                 # Extract numeric position from value (e.g., "3" from "3" or "3 (DNS)")
                 num_match = re.search(r'^(\d+)', value.strip())
-                has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', value, re.I))
+                has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS|OCF|TLE)', value, re.I))
                 
                 # Only validate position if it's a numeric score (not ISP-only like "(DNS)")
-                if num_match and not value.strip().startswith('('):
+                if num_match and not has_penalty and not value.strip().startswith('('):
                     position = int(num_match.group(1))
                     
                     # Check if this position is already taken by another sailor in this fleet
@@ -13811,10 +13811,10 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                         
                         # Extract position from other sailor's score
                         other_num_match = re.search(r'^(\d+)', other_value)
-                        other_has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', other_value, re.I))
+                        other_has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS|OCF|TLE)', other_value, re.I))
                         
                         # If other sailor has same position and it's not ISP-only, reject
-                        if other_num_match and not other_value.startswith('('):
+                        if other_num_match and not other_has_penalty and not other_value.startswith('('):
                             other_position = int(other_num_match.group(1))
                             if other_position == position:
                                 raise HTTPException(
@@ -13853,7 +13853,7 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                 # Parse score value (extract numeric, handle brackets, penalty codes)
                 is_bracket = val.startswith("(") and val.endswith(")")
                 num_match = re.search(r'[\d.]+', val)
-                has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', val, re.I))
+                has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS|OCF|TLE)', val, re.I))
                 
                 if num_match:
                     score_val = abs(float(num_match.group(0)))
@@ -13950,7 +13950,7 @@ def patch_race_score(request: Request, result_id: int, body: dict):
                     
                     is_bracket = val.startswith("(") and val.endswith(")")
                     num_match = re.search(r'[\d.]+', val)
-                    has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)', val, re.I))
+                    has_penalty = bool(re.search(r'(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS|OCF|TLE)', val, re.I))
                     
                     if num_match:
                         score_val = abs(float(num_match.group(0)))
@@ -15705,6 +15705,8 @@ def api_isp_codes():
         {"code": "RET", "description": "Retired"},
         {"code": "DSQ", "description": "Disqualified"},
         {"code": "OCS", "description": "On Course Side"},
+        {"code": "OCF", "description": "On Course Finish"},
+        {"code": "TLE", "description": "Time Limit Expired"},
         {"code": "BFD", "description": "Black Flag Disqualification"},
         {"code": "UFD", "description": "U Flag Disqualification"},
         {"code": "DPI", "description": "Discretionary Penalty Imposed"}
@@ -24024,7 +24026,7 @@ def _render_result_sheet_fleet(
             for rkey in race_columns:
                 score = (race_scores.get(rkey) or "").strip()
                 is_discarded = score.startswith("(") and score.endswith(")")
-                has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS)\b", score, re.I)) if score else False
+                has_penalty = bool(re.search(r"\b(DNC|DNS|DNF|RET|DSQ|UFD|BFD|DPI|OCS|OCF|TLE)\b", score, re.I)) if score else False
                 cell_class = "code" if has_penalty else ("disc" if is_discarded else ("score-counts" if score else ""))
                 row_html += f'<td class="{cell_class}">{_wc_cell(html_module.escape(score), score, None, rkey, 48)}</td>'
         if _pref_on("total"):
