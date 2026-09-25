@@ -1296,8 +1296,8 @@
     if (!placeHost()) return;
     if (isDartNats()) {
     playDartTheme();
-    loadCss("/css/mm-lipton-reels.css?v=hmycdart24");
-    loadScript("/js/mm-lipton-reels-card.js?v=hmycdart24").then(function () {
+    loadCss("/css/mm-lipton-reels.css?v=hmycdart25");
+    loadScript("/js/mm-lipton-reels-card.js?v=hmycdart25").then(function () {
       if (typeof window.mmLiptonReelsInit === "function") window.mmLiptonReelsInit();
     });
     } else if (!emptyMedia()) {
