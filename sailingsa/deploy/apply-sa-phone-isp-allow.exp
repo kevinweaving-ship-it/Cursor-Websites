@@ -1,0 +1,17 @@
+#!/usr/bin/expect -f
+set timeout 90
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/apply_sa_phone_isp_allow.py /workspace/sailingsa/deploy/snippets/sailingsa-sa-isp-allow.conf ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} {TS=$(date +%Y%m%d_%H%M%S); tar -czf /root/backup_sa_phone_isp_${TS}.tar.gz /etc/nginx/snippets/sailingsa-swarm-deny.conf /etc/nginx/sites-enabled/sailingsa /var/www/sailingsa/api/api.py; echo BACKUP:/root/backup_sa_phone_isp_${TS}.tar.gz; chattr -i /var/www/sailingsa/api/api.py; python3 /tmp/apply_sa_phone_isp_allow.py; echo APPLY:$?; nginx -t && systemctl reload nginx; echo NGINX_RELOAD:$?; systemctl restart sailingsa-api; sleep 6; systemctl is-active sailingsa-api; chattr +i /var/www/sailingsa/api/api.py; echo DONE}
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
