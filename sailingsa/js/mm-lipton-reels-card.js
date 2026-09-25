@@ -474,17 +474,28 @@
     return '';
   }
 
-  function dartDayTag(v) {
-    if (!isDartNats() || !v) return '';
-    var iso = String(v.started_at || '');
+  function dartDayNumberFromKey(key) {
+    var iso = String(key || '');
     var m = iso.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (!m) return '';
+    if (!m) {
+      var stamp = iso.match(/^([A-Za-z]{3})\s+(\d{1,2})\s+Sep(?:\s+(\d{2,4}))?/i);
+      if (stamp) {
+        var yr = stamp[3] ? (stamp[3].length === 2 ? '20' + stamp[3] : stamp[3]) : '2026';
+        m = [null, yr + '-09-' + (stamp[2].length === 1 ? '0' + stamp[2] : stamp[2])];
+      }
+    }
+    if (!m) return 0;
     var start = Date.parse('2026-09-24T00:00:00+02:00');
     var day = Date.parse(m[1] + 'T12:00:00+02:00');
-    if (!start || !day) return '';
+    if (!start || !day) return 0;
     var n = Math.floor((day - start) / 86400000 + 0.05) + 1;
-    if (n < 1 || n > 4) return '';
-    return 'Day ' + n;
+    return n >= 1 && n <= 10 ? n : 0;
+  }
+
+  function dartDayTag(v) {
+    if (!isDartNats() || !v) return '';
+    var n = dartDayNumberFromKey(v.started_at || '') || dartDayNumberFromKey(v.stamp || v.fb_sub || '');
+    return n ? 'Day ' + n : '';
   }
 
   function thumbWhenHtml(v) {
@@ -2311,7 +2322,12 @@
     var da = parseInt(parts[2], 10);
     if (!y || mo < 0 || mo > 11 || !da) return key;
     var dt = new Date(y, mo, da);
-    return days[dt.getDay()] + ' ' + da + ' ' + months[mo];
+    var label = days[dt.getDay()] + ' ' + da + ' ' + months[mo];
+    if (isDartNats()) {
+      var n = dartDayNumberFromKey(key);
+      if (n) label += ' - Day ' + n;
+    }
+    return label;
   }
 
   function isOtherDayKey(key) {
