@@ -468,7 +468,7 @@
     if (typeof next.select === "function") next.select();
   }
 
-  var PENALTY_CODES = ["DNC", "DNS", "DNF", "RET", "DSQ", "UFD", "BFD", "DPI", "OCS", "NSC", "DNE"];
+  var PENALTY_CODES = ["DNC", "DNS", "DNF", "RET", "DSQ", "UFD", "BFD", "DPI", "OCS", "OCF", "NSC", "DNE"];
 
   function entriesFor(inp) {
     var n = parseInt(inp.getAttribute("data-entries") || "0", 10);
@@ -649,8 +649,8 @@
   /* Poll used to wipe race cells with textContent ("20 DNC"), which killed
      wc-score/wc-code so the code flashed small then went full-size. Paint
      the same split HTML the sheet shipped with. Skip if already correct. */
-  var RACE_CODE_RE = /^(DNC|DNS|DNF|DNR|RET|DSQ|UFD|BFD|DPI|OCS|NSC|DNE|ZFP|SCP|RDG|TLE)$/i;
-  var NUM_CODE_RE = /^(\d+(?:\.\d+)?)\s+(DNC|DNS|DNF|DNR|RET|DSQ|UFD|BFD|DPI|OCS|NSC|DNE|ZFP|SCP|RDG|TLE)$/i;
+  var RACE_CODE_RE = /^(DNC|DNS|DNF|DNR|RET|DSQ|UFD|BFD|DPI|OCS|OCF|NSC|DNE|ZFP|SCP|RDG|TLE)$/i;
+  var NUM_CODE_RE = /^(\d+(?:\.\d+)?)\s+(DNC|DNS|DNF|DNR|RET|DSQ|UFD|BFD|DPI|OCS|OCF|NSC|DNE|ZFP|SCP|RDG|TLE)$/i;
 
   function fmtScoreNum(s) {
     var raw = String(s == null ? "" : s).trim();
