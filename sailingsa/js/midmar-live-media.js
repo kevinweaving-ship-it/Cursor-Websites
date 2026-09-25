@@ -20,7 +20,10 @@
   // MIDMAR_PUBLIC_DROP_v1
   // MIDMAR_DROP_PE_v1
   // MIDMAR_MEDIA_UNSQUASH_v1
-  var JS_VER = "midmarwx58";
+  var JS_VER = "midmarwx59";
+  var THEME_SRC = "/assets/dart-nats-theme-fast.mp3?v=dartsong3";
+  var dartThemeAudio = null;
+  var dartThemeUserPaused = false;
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
@@ -52,6 +55,29 @@
     return rid === RID || rid === "2026-09-24-hmyc-dart-18-nationals";
   }
 
+  function preloadDartTheme() {
+    if (!isDartNats()) return null;
+    if (dartThemeAudio) return dartThemeAudio;
+    if (document.head && !document.getElementById("dart-theme-preload")) {
+      var link = document.createElement("link");
+      link.id = "dart-theme-preload";
+      link.rel = "preload";
+      link.as = "audio";
+      link.href = THEME_SRC;
+      document.head.appendChild(link);
+    }
+    dartThemeAudio = new Audio();
+    dartThemeAudio.preload = "auto";
+    dartThemeAudio.setAttribute("playsinline", "");
+    dartThemeAudio.volume = 0.5;
+    dartThemeAudio.src = THEME_SRC;
+    try {
+      dartThemeAudio.load();
+    } catch (e) {}
+    return dartThemeAudio;
+  }
+  preloadDartTheme();
+
   function injectCss() {
     if (document.getElementById(CSS_ID)) return;
     var s = document.createElement("style");
@@ -63,7 +89,7 @@
       ".regatta-page > .midmar-live-media .midmar-mm-row > .mm-lipton-reels{flex:1 1 auto;width:100%!important;max-width:100%!important;}",
       ".regatta-page > .midmar-live-media .midmar-mm-row > .midmar-mm-sa{flex:0 0 auto;width:100%;max-width:100%;}",
       ".midmar-live-media .mm-lipton-reels-grid .mm-lipton-reels-thumb,.midmar-live-media .mm-lipton-reels-days .mm-lipton-reels-thumb{aspect-ratio:16/9!important;height:auto!important;}",
-      ".regatta-page > .midmar-live-media .mm-lipton-reels-brand{display:none!important;}",".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-09-24-hmyc-dart-18-nationals'] .mm-lipton-reels-brand{display:block!important;}",
+      ".regatta-page > .midmar-live-media .mm-lipton-reels-brand{display:none!important;}",".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-09-24-hmyc-dart-18-nationals'] .mm-lipton-reels-brand{display:block!important;cursor:pointer;}@keyframes dartThemePulse{0%,100%{opacity:1}50%{opacity:.35}}.mm-lipton-reels-brand.is-dart-theme{animation:dartThemePulse 2.6s ease-in-out infinite}.mm-lipton-reels-brand:not(.is-dart-theme){animation:none!important}",
       ".regatta-page > .midmar-live-media .mm-midmar-cup-thumb{flex:0 0 auto;position:sticky;left:0;z-index:3;align-self:stretch;}",
       ".midmar-live-media .mm-midmar-cup-thumb .mm-lipton-reels-play,.midmar-live-media .mm-lipton-reels-tile[aria-label=\"View photo\"] .mm-lipton-reels-play{display:none!important;}",
       ".midmar-live-media .mm-lipton-reels-compact .mm-lipton-reels-clip-chrome{display:none!important;}",
@@ -558,7 +584,7 @@
       );
       mm.innerHTML =
         '<div class="mm-lipton-reels-compact">' +
-        '<div class="mm-lipton-reels-brand" aria-label="Event Reels">' +
+        '<div class="mm-lipton-reels-brand" role="button" tabindex="0" aria-label="Play or pause Dart Nationals song" aria-pressed="false">' +
         '<img src="/img/dart-event-reels.jpg?v=dartreel3" alt="Event Reels" width="320" height="213" decoding="async">' +
         '</div>' +
         '<div class="mm-lipton-reels-rail-wrap">' +
@@ -1159,12 +1185,117 @@
     });
   }
 
+
+  function playDartTheme() {
+    if (!isDartNats()) return;
+    var audio = preloadDartTheme();
+    if (!audio || audio.getAttribute("data-dart-theme-bound") === "1") return;
+    audio.setAttribute("data-dart-theme-bound", "1");
+    function brandEl() {
+      return document.querySelector(".mm-lipton-reels-brand");
+    }
+    function mark() {
+      var el = brandEl();
+      var on = !audio.paused && !audio.ended && !dartThemeUserPaused;
+      if (!el) return;
+      el.classList.toggle("is-dart-theme", on);
+      el.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    function dartVideo(node) {
+      return node && node.tagName === "VIDEO" && node.closest && node.closest("[data-regatta-id^='2026-09-24-hmyc-dart-18-nationals']");
+    }
+    function videoPlaying() {
+      var nodes = document.querySelectorAll("[data-regatta-id^='2026-09-24-hmyc-dart-18-nationals'] video");
+      var i;
+      for (i = 0; i < nodes.length; i++) {
+        if (!nodes[i].paused && !nodes[i].ended) return true;
+      }
+      return false;
+    }
+    function start() {
+      if (dartThemeUserPaused || audio.ended || videoPlaying()) {
+        mark();
+        return;
+      }
+      var gone = audio.play();
+      if (gone && gone.catch) gone.catch(function () {});
+      mark();
+    }
+    function toggleFromBrand(ev) {
+      var brand = ev.target && ev.target.closest && ev.target.closest(".mm-lipton-reels-brand");
+      if (!brand) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (!audio.paused && !audio.ended) {
+        dartThemeUserPaused = true;
+        audio.pause();
+        mark();
+        return;
+      }
+      if (audio.ended) return;
+      dartThemeUserPaused = false;
+      start();
+    }
+    audio.addEventListener("play", mark);
+    audio.addEventListener("pause", mark);
+    audio.addEventListener("ended", function () {
+      dartThemeUserPaused = false;
+      mark();
+    });
+    audio.addEventListener("canplay", function () {
+      if (!dartThemeUserPaused) start();
+    });
+    audio.addEventListener("loadeddata", function () {
+      if (!dartThemeUserPaused) start();
+    });
+    start();
+    document.addEventListener("click", toggleFromBrand, true);
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      var brand = ev.target && ev.target.closest && ev.target.closest(".mm-lipton-reels-brand");
+      if (!brand) return;
+      ev.preventDefault();
+      toggleFromBrand(ev);
+    }, true);
+    document.addEventListener("play", function (ev) {
+      if (!dartVideo(ev.target) || audio.ended) return;
+      audio.pause();
+      mark();
+    }, true);
+    function resumeAfter(ev) {
+      if (dartThemeUserPaused || !dartVideo(ev.target) || audio.ended) return;
+      window.setTimeout(function () {
+        if (dartThemeUserPaused || audio.ended || videoPlaying()) return;
+        start();
+      }, 400);
+    }
+    document.addEventListener("pause", resumeAfter, true);
+    document.addEventListener("ended", resumeAfter, true);
+    document.addEventListener("pointerdown", function kick(ev) {
+      if (dartThemeUserPaused || videoPlaying()) return;
+      if (ev.target && ev.target.closest && ev.target.closest(".mm-lipton-reels-brand")) return;
+      if (!audio.paused && !audio.ended) {
+        document.removeEventListener("pointerdown", kick, true);
+        return;
+      }
+      if (audio.ended) return;
+      var gone = audio.play();
+      if (gone && gone.then) {
+        gone.then(function () {
+          document.removeEventListener("pointerdown", kick, true);
+        }).catch(function () {});
+      }
+    }, true);
+  }
+
   function boot() {
     if (!onMidmar()) return;
+    if (isDartNats()) playDartTheme();
     injectCss();
     injectFleetResultsStatus();
     if (!placeHost()) return;
     if (isDartNats()) {
+    playDartTheme();
     loadCss("/css/mm-lipton-reels.css?v=hmycdart24");
     loadScript("/js/mm-lipton-reels-card.js?v=hmycdart24").then(function () {
       if (typeof window.mmLiptonReelsInit === "function") window.mmLiptonReelsInit();
