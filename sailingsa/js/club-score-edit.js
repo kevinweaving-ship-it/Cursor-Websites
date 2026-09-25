@@ -185,7 +185,7 @@
         td.setAttribute("data-race-key", key);
         td.classList.toggle("race-col--closed", closed);
         td.classList.toggle("race-col--wait", wait);
-        if (closed) syncRaceHide(td);
+        if (closed && td.querySelector("input")) syncRaceHide(td);
       });
     });
   }
@@ -423,6 +423,7 @@
       ".regatta-page--club-score-edit td.race-col.race-col--closed .club-score-input,.regatta-page--club-score-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-result-field-input.wc-sa-edit-only{display:none!important}" +
       ".regatta-page--club-score-edit td.race-col.race-col--wait .wc-sa-edit-hide,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-sa-edit-hide{display:none!important}" +
       ".regatta-page--club-score-edit td.race-col.race-col--closed .wc-sa-edit-hide,.regatta-page--super-admin-edit td.race-col.race-col--closed .wc-sa-edit-hide{display:inline!important;font-size:inherit!important;font-weight:inherit}" +
+      ".regatta-page--club-score-edit td.race-col.race-col--closed > span:not(.wc-sa-edit-hide),.regatta-page--super-admin-edit td.race-col.race-col--closed > span:not(.wc-sa-edit-hide){display:none!important}" +
       ".regatta-page--club-score-edit .fleet-results-table td.race-col{padding:1px 2px;vertical-align:middle}" +
       ".regatta-page--club-score-edit td.race-col .club-score-input,.regatta-page--club-score-edit td.race-col.race-col--wait .club-score-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input,.regatta-page--super-admin-edit td.race-col.race-col--wait .wc-result-field-input.wc-sa-edit-only{-webkit-appearance:none!important;appearance:none!important;box-sizing:border-box!important;width:9ch!important;min-width:9ch!important;max-width:none!important;height:1em!important;min-height:0!important;max-height:1em!important;padding:0 2px!important;margin:0!important;font-size:9px!important;line-height:1.2!important;font-weight:inherit!important;border:1px solid #1a2750!important;border-radius:2px!important;-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}" +
       ".regatta-page--club-score-edit td.total-col," +
@@ -721,20 +722,33 @@
     return { cell: cell, html: html, classes: classes };
   }
 
+  function keepScoreNode(node) {
+    if (!node || node.nodeType !== 1) return false;
+    if (node.classList && node.classList.contains("wc-sa-edit-hide")) return true;
+    if (node.tagName === "INPUT") return true;
+    if (node.classList && (node.classList.contains("club-score-input") || node.classList.contains("wc-result-field-input") || node.classList.contains("wc-sa-ac-wrap"))) return true;
+    return false;
+  }
+
   function syncRaceHide(td, raw) {
     if (!td) return;
     var box = td.querySelector && td.querySelector(".club-score-input, .wc-result-field-input");
-    var val =
-      raw != null
-        ? raw
-        : box
-          ? box.value
-          : raceCellValue(td);
+    var val = raw != null ? raw : box ? box.value : "";
+    if (!val) {
+      var hide0 = td.querySelector(".wc-sa-edit-hide");
+      if (hide0 && String(hide0.textContent || "").trim()) val = hide0.textContent;
+    }
+    if (!val && box) val = "";
+    if (!val) val = "";
     var painted = scorePaint(val);
     td.classList.remove("disc", "code", "score-counts");
     td.classList.add("race-col");
     painted.classes.forEach(function (c) {
       td.classList.add(c);
+    });
+    Array.prototype.slice.call(td.childNodes).forEach(function (node) {
+      if (keepScoreNode(node)) return;
+      if (node.parentNode) node.parentNode.removeChild(node);
     });
     var hide = td.querySelector(".wc-sa-edit-hide");
     if (!hide) {
@@ -749,7 +763,7 @@
   function syncClosedColumn(table, key) {
     if (!table || !key) return;
     table.querySelectorAll('td.race-col[data-race-key="' + key + '"]').forEach(function (td) {
-      syncRaceHide(td);
+      if (td.querySelector("input")) syncRaceHide(td);
     });
   }
 

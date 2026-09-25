@@ -7,7 +7,7 @@ SRC = Path("/tmp/hmyc-cam-js/club-score-edit.js")
 JS = Path("/var/www/sailingsa/js/club-score-edit.js")
 FRONT = Path("/var/www/sailingsa/frontend/js/club-score-edit.js")
 API = Path("/var/www/sailingsa/api/api.py")
-VER = "ccr35"
+VER = "ccr36"
 
 
 def main() -> None:
