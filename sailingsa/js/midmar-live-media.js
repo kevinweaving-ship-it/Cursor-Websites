@@ -20,7 +20,7 @@
   // MIDMAR_PUBLIC_DROP_v1
   // MIDMAR_DROP_PE_v1
   // MIDMAR_MEDIA_UNSQUASH_v1
-  var JS_VER = "midmarwx57";
+  var JS_VER = "midmarwx58";
   var EVENT_PATH = "/regatta/" + RID;
   var STILL = "https://hmyccam1.nwsza.net/latest.jpg";
   var POLL_MS = 60000;
