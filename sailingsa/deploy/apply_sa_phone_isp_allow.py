@@ -152,18 +152,22 @@ def write_allow_snippet() -> None:
 
 
 def include_before_deny() -> None:
-    site = SITE.read_text()
+    real = SITE.resolve()
+    subprocess.call(["chattr", "-i", str(real)])
+    site = real.read_text()
     if "sailingsa-sa-isp-allow.conf" in site:
         print("SITE_ALREADY")
         return
     n = site.count(SWARM_INC)
     if n != 2:
         raise SystemExit(f"SITE_INC_{n}")
-    SITE.write_text(site.replace(SWARM_INC, BOTH_INC))
-    print("SITE_OK", SITE.read_text().count("sailingsa-sa-isp-allow.conf"))
+    real.write_text(site.replace(SWARM_INC, BOTH_INC))
+    subprocess.call(["chattr", "+i", str(real)])
+    print("SITE_OK", real.read_text().count("sailingsa-sa-isp-allow.conf"))
 
 
 def strip_consumer_denies() -> None:
+    subprocess.call(["chattr", "-i", str(DENY)])
     text = DENY.read_text()
     kept, dropped = [], []
     for line in text.splitlines():
