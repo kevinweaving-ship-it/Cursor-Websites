@@ -9551,6 +9551,12 @@ def _regatta_standalone(request: Request, slug: str):
     return serve_regatta_standalone(slug, request)
 
 
+@app.get("/event/{slug}")
+@app.head("/event/{slug}")
+def _event_alias_standalone(request: Request, slug: str):
+    return serve_regatta_standalone(slug, request)
+
+
 @app.get("/club/{slug}")
 @app.head("/club/{slug}")
 def _club_standalone(slug: str):
@@ -23039,13 +23045,14 @@ def _get_regatta_by_event_name_slug(slug: str):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
-            cur.execute("""
+                    cur.execute("""
                 SELECT r.regatta_id, r.event_name, r.start_date, r.end_date,
                        r.host_club_id,
                        COALESCE(c.club_abbrev, c.club_fullname, '') AS host_club_name
                 FROM regattas r
                 LEFT JOIN clubs c ON c.club_id = r.host_club_id
                 WHERE r.event_name IS NOT NULL AND TRIM(r.event_name) != ''
+                ORDER BY COALESCE(r.end_date, r.start_date) DESC NULLS LAST, r.regatta_id DESC
             """)
             for r in cur.fetchall() or []:
                 name = (r.get("event_name") or "").strip()
@@ -23084,16 +23091,24 @@ def _get_regatta_by_slug(slug: str):
     if not slug or not slug.strip():
         return None
     s = slug.strip()
+    pretty = {
+        "420-nationals": "2026-09-25-tsc-420-nationals",
+        "2026-420-nationals": "2026-09-25-tsc-420-nationals",
+    }.get(s.lower())
+    if pretty:
+        return _get_regatta_by_regatta_id(pretty)
     # Prefer direct regatta_id match (existing routing)
     reg = _get_regatta_by_regatta_id(s)
     if reg:
         return reg
     # Backward-compatible alias: numeric-prefix slugs can drift (e.g. 385-... -> 380-...).
     # If id-prefixed slug does not exist, match by suffix after the first dash.
+    # Do not treat short class slugs like "420-nationals" as a drifted event id —
+    # ILIKE '%-nationals' would land on the latest *Nationals* (currently Dart).
     m = re.match(r"^\d+-(.+)$", s)
     if m:
         tail = (m.group(1) or "").strip()
-        if tail:
+        if tail and tail.lower() not in {"nationals", "champs", "championships", "open"}:
             try:
                 conn = get_db_connection()
                 cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -24364,6 +24379,8 @@ def _render_result_sheet_fleet(
         fleet_header_title = fname
     else:
         fleet_header_title = fname + " Fleet" if not fname.endswith(" Fleet") else fname
+    if str(fleet.get("regatta_id") or "").startswith("2026-09-24-hmyc-dart-18-nationals"):
+        fleet_header_title = "Fleet"
     fleet_title_inner = fleet_header_title
     regatta_id = fleet.get("regatta_id")
     class_slug = (fleet.get("class_slug") or "").strip()
@@ -24442,6 +24459,8 @@ def _render_result_sheet_fleet(
 
     show_boat = _optional_col_visible("boat_name", has_boat_name)
     show_jib = _optional_col_visible("jib", has_jib_no)
+    if str(fleet.get("regatta_id") or "").startswith("2026-09-25-tsc-420-nationals"):
+        show_jib = True
     show_bow = _optional_col_visible("bow", has_bow_no)
     show_hull = _optional_col_visible("hull", has_hull_no)
     show_crew_col = _optional_col_visible("crew", has_crew)
