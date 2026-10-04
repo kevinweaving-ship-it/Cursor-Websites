@@ -171,8 +171,8 @@ def _repair_event_date(conn, sn: str, event_type: str, better_at: str | None) ->
         )
 
 
-def _circuit_join_date(raw_json: str | None) -> str | None:
-    """Original in-service date from the circuit, not a later takeover order."""
+def _circuit_dates(raw_json: str | None) -> dict[str, str]:
+    """Original circuit dates. inService/completion beat a later takeover order."""
     try:
         payload = json.loads(raw_json or "{}")
     except json.JSONDecodeError:
@@ -181,11 +181,16 @@ def _circuit_join_date(raw_json: str | None) -> str | None:
     circ = data.get("circuit") or {}
     attrs = (circ.get("circuitAttributes") or [{}])
     attrs = attrs[0] if attrs else {}
-    for key in ("inServiceDate", "completionDate", "unibaseCreationDate"):
+    out: dict[str, str] = {}
+    for key, name in (
+        ("inServiceDate", "in_service"),
+        ("completionDate", "completed"),
+        ("unibaseCreationDate", "created"),
+    ):
         parsed = _date_only(attrs.get(key))
         if parsed:
-            return parsed
-    return None
+            out[name] = parsed
+    return out
 
 
 def _order_stage(raw_json: str | None) -> str:
@@ -202,10 +207,15 @@ def _order_dates(conn) -> tuple[dict[str, str], dict[str, str], list[tuple]]:
     cancel: dict[str, str] = {}
     fallback: dict[str, str] = {}
     later: list[tuple] = []
+    unibase: dict[str, str] = {}
     for sn, raw in conn.execute("SELECT service_number, raw_circuit_json FROM services"):
-        circuit_join = _circuit_join_date(raw)
-        if circuit_join:
-            join[sn] = circuit_join
+        circ = _circuit_dates(raw)
+        if circ.get("in_service"):
+            join[sn] = circ["in_service"]
+        elif circ.get("completed"):
+            join[sn] = circ["completed"]
+        if circ.get("created"):
+            unibase[sn] = circ["created"]
     for sn, status, created, implemented, raw in conn.execute(
         """SELECT service_number, order_status, created_on, date_implemented, raw_json
            FROM orders WHERE service_number IS NOT NULL"""
@@ -225,6 +235,8 @@ def _order_dates(conn) -> tuple[dict[str, str], dict[str, str], list[tuple]]:
                 cancel[sn] = best
         if sn not in fallback or best < fallback[sn]:
             fallback[sn] = best
+    for sn, when in unibase.items():
+        join.setdefault(sn, when)
     for sn, when in fallback.items():
         join.setdefault(sn, when)
     return join, cancel, later
@@ -274,19 +286,41 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
             if not _has_event(conn, sn, "joined"):
                 _add_event(conn, sn, "joined", joined, "circuit", "Circuit in-service / first order")
             else:
-                _repair_event_date(conn, sn, "joined", joined)
+                current = _event_at(conn, sn, "joined")
+                if current != joined:
+                    conn.execute(
+                        """UPDATE service_events SET at=?, source='circuit',
+                           note='Circuit in-service / first order'
+                           WHERE service_number=? AND event_type='joined' AND id=(
+                             SELECT id FROM service_events
+                             WHERE service_number=? AND event_type='joined'
+                             ORDER BY id LIMIT 1
+                           )""",
+                        (joined, sn, sn),
+                    )
+            conn.execute(
+                """DELETE FROM service_events
+                   WHERE service_number=? AND event_type IN ('reprovisioned','takeover')
+                     AND at < date(?, '+14 days')
+                     AND IFNULL(note,'') NOT LIKE '%Receive Ownership%'""",
+                (sn, joined),
+            )
 
         for later_sn, later_at, stage in later_orders:
             if later_sn != sn or not joined or later_at <= joined:
                 continue
-            kind = "takeover" if "receive ownership" in stage.lower() else "reprovisioned"
+            ownership = "receive ownership" in (stage or "").lower()
+            gap = _days_between(joined, later_at)
+            if not ownership and gap is not None and gap < 14:
+                continue
+            kind = "takeover" if ownership else "reprovisioned"
             exists = conn.execute(
                 """SELECT 1 FROM service_events
                    WHERE service_number=? AND event_type=? AND at=? LIMIT 1""",
                 (sn, kind, later_at),
             ).fetchone()
             if not exists:
-                _add_event(conn, sn, kind, later_at, "order", stage[:180] or "Later accepted order")
+                _add_event(conn, sn, kind, later_at, "order", (stage or "")[:180] or "Later accepted order")
 
         if new == "cancelled":
             if not _has_event(conn, sn, "cancelled"):
