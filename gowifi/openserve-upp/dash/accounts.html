@@ -157,7 +157,7 @@ function render(data){
     <h2 class="toggle" id="cancel-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="cancel-fold">
       <span class="chev">▸</span>
       <span>Cancelled</span>
-      <span class="meta">${c.cancelled_lines??0}</span>
+      <span class="meta">${c.cancelled_lines??0}${c.never_installed?` · ${c.never_installed} never installed`:""}</span>
     </h2>
     <div id="cancel-fold" class="fold hidden">
       <div class="card scroll">

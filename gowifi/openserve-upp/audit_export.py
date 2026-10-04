@@ -346,17 +346,80 @@ def cancel_on(orders: list[dict], events: list[dict]) -> date | None:
     return None
 
 
-def story_label(row: dict) -> str:
-    bits = []
+def short_addr(addr: str | None) -> str:
+    text = re.sub(r"\s+", " ", (addr or "").strip())
+    if not text:
+        return ""
+    return text.split(",")[0][:48]
+
+
+def ua_note(orders: list[dict]) -> str | None:
+    for order in orders:
+        try:
+            raw = json.loads(order.get("raw_json") or "{}")
+        except json.JSONDecodeError:
+            raw = {}
+        text = " ".join(
+            filter(None, [str(raw.get("unverifiedAddress") or ""), str(raw.get("uaCaseComments") or "")])
+        )
+        if "granny" in text.lower():
+            return "granny flat"
+        if text.strip():
+            tail = [p.strip() for p in text.split(",") if p.strip()]
+            if tail:
+                return tail[-1]
+    return None
+
+
+def _peer(peers: list[dict], row: dict, want: str) -> dict | None:
+    for other in peers or []:
+        if other.get("service_number") == row.get("service_number"):
+            continue
+        if want == "replacement" and row.get("line_status") == "cancelled" and other.get("line_status") in {
+            "active",
+            "suspended",
+        }:
+            return other
+        if want == "prior" and row.get("line_status") in {"active", "suspended"} and other.get("line_status") == "cancelled":
+            return other
+    return None
+
+
+def story_label(row: dict, peers: list[dict] | None = None) -> str:
+    """Plain-English why: never installed, wrong address, delay, long-held cease."""
+    peers = peers or []
+    replacement = _peer(peers, row, "replacement")
+    prior = _peer(peers, row, "prior")
     if row.get("never_installed"):
-        bits.append("Never installed")
-        if row.get("cancel_reason"):
-            bits.append(row["cancel_reason"])
+        bits = ["Never installed"]
+        if replacement:
+            here = short_addr(row.get("address"))
+            there = short_addr(replacement.get("address"))
+            bits.append(f"wrong address{f' ({here})' if here else ''}")
+            extra = f"new order {replacement['service_number']}"
+            if there:
+                extra += f" at {there}"
+            if replacement.get("installed_label") and replacement["installed_label"] != "—":
+                extra += f" · installed {replacement['installed_label']}"
+            if replacement.get("delay_label") and replacement["delay_label"] not in {"—", "0 days"}:
+                extra += f" after {replacement['delay_label']} delay"
+            bits.append(extra)
+        else:
+            reason = row.get("cancel_reason") or ""
+            if "unverified" in reason:
+                note = row.get("ua_note")
+                bits.append("unverified address" + (f" ({note})" if note else ""))
+            if "handover" in reason:
+                bits.append("then cancelled before Openserve handover")
+            elif reason and "unverified" not in reason:
+                bits.append(reason)
         if row.get("cancelled_label"):
             bits.append(f"Cancelled {row['cancelled_label']}")
-        if row.get("related_label"):
-            bits.append(row["related_label"])
         return " · ".join(bits)
+
+    bits = []
+    if prior and prior.get("never_installed"):
+        bits.append(f"Replacement after wrong-address cancel {prior['service_number']}")
     if row.get("ordered_label") and row["ordered_label"] != "—":
         bits.append(f"Ordered {row['ordered_label']}")
     if row.get("installed_label") and row["installed_label"] != "—":
@@ -364,7 +427,7 @@ def story_label(row: dict) -> str:
     if row.get("line_status") != "cancelled":
         if row.get("activated_label") and row["activated_label"] != "—":
             bits.append(f"Activated {row['activated_label']}")
-        if row.get("delay_label") and row["delay_label"] != "—":
+        if row.get("delay_label") and row["delay_label"] not in {"", "—"}:
             bits.append(f"Delay {row['delay_label']}")
     for extra in row.get("change_bits") or []:
         bits.append(extra)
@@ -375,13 +438,21 @@ def story_label(row: dict) -> str:
     elif row.get("stints") and any(not stint.get("open") for stint in row["stints"]):
         bits.append(f"Suspended then restored · {row['stints_label']}")
     if row.get("line_status") == "cancelled":
-        if row.get("cancel_reason"):
-            bits.append(row["cancel_reason"])
+        if row.get("months_label") and row["months_label"] != "—":
+            bits.append(f"Was a client {row['months_label']}")
         if row.get("cancelled_label"):
             bits.append(f"Cancelled {row['cancelled_label']} · complete")
         else:
             bits.append("Cancelled · complete (holding pool)")
-    if row.get("related_label"):
+        if replacement:
+            there = short_addr(replacement.get("address"))
+            extra = f"new install at another address {replacement['service_number']}"
+            if there:
+                extra += f" ({there})"
+            bits.append(extra)
+        else:
+            bits.append("no new order at another address")
+    elif row.get("related_label") and not (prior and prior.get("never_installed")):
         bits.append(row["related_label"])
     return " · ".join(bits)
 
@@ -517,6 +588,7 @@ def build(conn: sqlite3.Connection) -> dict:
             "related_label": None,
             "story_label": "",
             "never_installed": never_installed,
+            "ua_note": ua_note(related),
             "cancel_reason": cancel_reason,
             "change_bits": change_bits(
                 related,
@@ -564,7 +636,7 @@ def build(conn: sqlite3.Connection) -> dict:
             else:
                 notes.append(f"also {other['service_number']} {other['line_status']}")
         row["related_label"] = notes[0] if notes else None
-        row["story_label"] = story_label(row)
+        row["story_label"] = story_label(row, others)
 
     live_sns = {r["service_number"] for r in active} | {r["service_number"] for r in suspended}
     cancelled_sns = {r["service_number"] for r in cancelled_lines}
@@ -619,6 +691,7 @@ def build(conn: sqlite3.Connection) -> dict:
             "suspended": len(suspended),
             "cancelled_lines": len(cancelled_lines),
             "cancelled_orders": len(cancellations),
+            "never_installed": sum(1 for r in cancelled_lines if r.get("never_installed")),
             "invoices": len(invoice_rows),
         },
         "active": active,
