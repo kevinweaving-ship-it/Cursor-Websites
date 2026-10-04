@@ -132,20 +132,19 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
         </table>
         <div class="due">This invoice ${money(r.amount)}</div>
         ${stmt.lines && stmt.lines.length ? `
-        <h2><span>Statement of account</span><span class="muted">as at ${esc(fmtDate(stmt.as_at||r.invoice_date))}</span></h2>
+        <h2><span>Outstanding</span><span class="muted">as at ${esc(fmtDate(stmt.as_at||r.invoice_date))}</span></h2>
+        ${stmt.last_payment && stmt.last_payment.date ? `<div class="muted">Last payment ${esc(fmtDate(stmt.last_payment.date))} ${money(stmt.last_payment.amount)}</div>` : ""}
         <table class="soa">
-          <thead><tr><th>Date</th><th>Reference</th><th>Description</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead>
+          <thead><tr><th>Date</th><th>Invoice</th><th class="num">Days</th><th class="num">Amount</th></tr></thead>
           <tbody>${stmt.lines.map(line=>`<tr>
             <td>${esc(line.date_fmt||fmtDate(line.date))}</td>
-            <td>${esc(line.reference||"")}</td>
-            <td>${esc(line.description||"")}</td>
-            <td class="num">${money(line.debit,false)}</td>
-            <td class="num">${money(line.credit,false)}</td>
-            <td class="num">${money(line.balance,false)}</td>
+            <td>${esc(line.reference||line.description||"")}</td>
+            <td class="num">${esc(line.days!=null?line.days:"")}</td>
+            <td class="num">${money(line.amount!=null?line.amount:line.debit,false)}</td>
           </tr>`).join("")}</tbody>
         </table>
         <table class="ageing">
-          <tr><th>Current</th><th>1–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th><th class="total">Balance due</th></tr>
+          <tr><th>Current</th><th>1–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th><th class="total">= Balance due</th></tr>
           <tr>
             <td>${money(ageing.current,false)||"0.00"}</td>
             <td>${money(ageing.d30,false)||"0.00"}</td>

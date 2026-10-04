@@ -447,7 +447,7 @@ def history_for_export(conn: sqlite3.Connection) -> dict:
         inv["description"] = cleaned
         inv.update(prepare_invoice(inv))
         inv["statement"] = statement_on_invoice(
-            invoices, payments, inv.get("customer"), as_at=inv.get("invoice_date")
+            invoices, payments, inv.get("customer")
         )
     last = invoices[-1]["invoice_number"] if invoices else 0
     return {
