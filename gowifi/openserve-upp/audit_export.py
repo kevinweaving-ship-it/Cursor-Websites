@@ -124,12 +124,47 @@ def first_gowifi_order(orders: list[dict]) -> dict | None:
 
 def gowifi_order_dates(orders: list[dict]) -> tuple[date | None, date | None]:
     """Order placed, then install/activation on our side."""
+    timeline = gowifi_timeline(orders)
+    return timeline["ordered"], timeline["installed"]
+
+
+def gowifi_timeline(orders: list[dict], circ: dict | None = None) -> dict:
+    """GoWiFi order → install → activate. Never a previous-ISP circuit date."""
+    empty = {
+        "ordered": None,
+        "installed": None,
+        "activated": None,
+        "delay_days": None,
+    }
     order = first_gowifi_order(orders)
     if not order:
-        return None, None
+        return empty
     ordered = parse_date(order.get("created_on"))
     installed = parse_date(order.get("date_implemented")) or ordered
-    return ordered, installed
+    activated = installed
+    ins = (circ or {}).get("in_service")
+    if ins and ordered and ins >= ordered:
+        if installed and abs((ins - installed).days) <= 14:
+            activated = ins
+    delay = None
+    if ordered and installed:
+        delay = max(0, (installed - ordered).days)
+    return {
+        "ordered": ordered,
+        "installed": installed,
+        "activated": activated,
+        "delay_days": delay,
+    }
+
+
+def fmt_delay(days: int | None) -> str:
+    if days is None:
+        return "—"
+    if days == 0:
+        return "0 days"
+    if days == 1:
+        return "1 day"
+    return f"{days} days"
 
 
 def fmt_days(days: int | None) -> str:
@@ -235,8 +270,12 @@ def build(conn: sqlite3.Connection) -> dict:
             if (accepted or latest)
             else None
         )
-        ordered, installed = gowifi_order_dates(related)
-        joined = installed or ordered
+        circ = circuit_dates(svc.get("raw_circuit_json"))
+        tl = gowifi_timeline(related, circ)
+        ordered = tl["ordered"]
+        installed = tl["installed"]
+        activated = tl["activated"]
+        joined = activated or installed or ordered
         months = months_as_client(joined, today)
         exclusive = svc.get("exclusive_status") or "unknown"
         history = events_for(conn, sn)
@@ -263,6 +302,10 @@ def build(conn: sqlite3.Connection) -> dict:
             "ordered_label": ordered.strftime("%d %b %Y") if ordered else "—",
             "installed": installed.isoformat() if installed else None,
             "installed_label": installed.strftime("%d %b %Y") if installed else "—",
+            "activated": activated.isoformat() if activated else None,
+            "activated_label": activated.strftime("%d %b %Y") if activated else "—",
+            "delay_days": tl["delay_days"],
+            "delay_label": fmt_delay(tl["delay_days"]),
             "months": months,
             "months_label": fmt_months(months),
             "suspend_stints": len(stints) or (svc.get("suspend_count") or 0),
