@@ -192,7 +192,8 @@ def apply_420(cur) -> None:
     cur.execute(
         """
         UPDATE regattas
-        SET result_status='Final', as_at_time=%s, scoring_system='Appendix A'
+        SET start_date='2026-09-26', end_date='2026-09-27',
+            result_status='Final', as_at_time=%s, scoring_system='Appendix A'
         WHERE regatta_id=%s
         """,
         (as_at, RID420),
