@@ -34,15 +34,19 @@ Cron (every 15 minutes) re-pulls orders and service status while the token is va
 Tables: `organisations`, `organisation_history`, `users`, `orders`, `services`,
 `service_status_history`, `products`, `sync_runs`.
 
-Service `lifecycle` values: `active`, `suspended`, `cancelled`, `unauthorized`, `unknown`.
+Service `lifecycle` / `exclusive_status` is one bucket only: `active`,
+`suspended`, `cancelled`, or `unknown`. A line is never both active and
+suspended. Access status wins over partner `IspActive`. Empty/unowned
+circuits with a cancelled order are cancelled. Each service number keeps
+its own suspend → restore stint history in `service_events`.
 
 ## Audit page
 
 Compact fibre list at **https://gowifi.co.za/dash/accounts.html** (same dash login).
 
-- Active accounts: client, service number, line status, speed, join date, months as client
-- Cancellations list under that
-- Suspended / held lines at the bottom
+- Active accounts: client, service number, exclusive line status, speed, join date, months as client
+- Cancelled lines (own history) then cancelled orders
+- Suspended lines at the bottom: how long, how many stints, own history
 
 ```bash
 python3 /root/gowifi-upp/audit_export.py

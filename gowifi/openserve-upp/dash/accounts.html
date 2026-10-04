@@ -77,22 +77,27 @@ const pillFor = (status) => {
 };
 function render(data){
   const c=data.counts||{};
-  $("#sub").textContent = `As at ${data.as_at||"—"} · sync ${data.synced_at||"—"}`;
+  $("#sub").textContent = `As at ${data.as_at||"—"} · sync ${data.synced_at||"—"} · one status per line`;
+  const hist = r => {
+    const bits=[];
+    if (r.history_label) bits.push(r.history_label);
+    if (r.stints_label && r.stints_label!=="—") bits.push(r.suspend_stints+" stint"+(r.suspend_stints===1?"":"s")+": "+r.stints_label);
+    return bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : "";
+  };
   const activeRows = (data.active||[]).map(r=>`
     <tr>
-      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div></td>
+      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor(r.line_status)}</td>
       <td class="num">${esc(r.speed)}</td>
       <td class="num">${esc(r.joined_label)}<div class="meta">${esc(r.months_label)}</div></td>
     </tr>`).join("");
-  const inactiveRows = (data.inactive||[]).map(r=>`
+  const cancelledLineRows = (data.cancelled_lines||[]).map(r=>`
     <tr>
-      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div></td>
+      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
-      <td>${pillFor(r.lifecycle)}</td>
-      <td class="num">${esc(r.speed)}</td>
-      <td class="num">${esc(r.joined_label)}<div class="meta">${esc(r.months_label)} · ${esc(r.order_status||"")}</div></td>
+      <td>${pillFor("cancelled")}</td>
+      <td class="num">${esc(r.joined_label)}<div class="meta">${esc(r.months_label)}</div></td>
     </tr>`).join("");
   const cancelRows = (data.cancellations||[]).map(r=>`
     <tr>
@@ -101,11 +106,19 @@ function render(data){
       <td>${pillFor(r.status)}</td>
       <td class="num">${esc(r.created)}<div class="meta">${esc(r.implemented)}</div></td>
     </tr>`).join("");
+  const suspendedRows = (data.suspended||[]).map(r=>`
+    <tr>
+      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
+      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)} · ${esc(r.suspend_stints||0)} stint${(r.suspend_stints||0)===1?"":"s"}</div></td>
+      <td>${pillFor("suspended")}</td>
+      <td class="num">${esc(r.speed)}</td>
+      <td class="num">${esc(r.suspend_for)}<div class="meta">joined ${esc(r.joined_label)}</div></td>
+    </tr>`).join("");
   $("#app").innerHTML = `
     <div class="grid">
-      <div class="card"><div class="k">Active lines</div><div class="v">${c.active??0}</div></div>
+      <div class="card"><div class="k">Active</div><div class="v">${c.active??0}</div></div>
       <div class="card"><div class="k">Suspended</div><div class="v">${c.suspended??0}</div></div>
-      <div class="card"><div class="k">Cancelled orders</div><div class="v">${c.cancelled_orders??0}</div></div>
+      <div class="card"><div class="k">Cancelled lines</div><div class="v">${c.cancelled_lines??0}</div></div>
     </div>
     <h2>Active accounts</h2>
     <div class="card" style="overflow:auto">
@@ -114,18 +127,25 @@ function render(data){
         <tbody>${activeRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
       </table>
     </div>
-    <h2>Cancellations</h2>
+    <h2>Cancelled lines</h2>
+    <div class="card" style="overflow:auto">
+      <table class="compact">
+        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Joined / history</th></tr></thead>
+        <tbody>${cancelledLineRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
+      </table>
+    </div>
+    <h2>Cancelled orders</h2>
     <div class="card" style="overflow:auto">
       <table class="compact">
         <thead><tr><th>Client</th><th>Line / order</th><th>Status</th><th>When</th></tr></thead>
         <tbody>${cancelRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
       </table>
     </div>
-    <h2>Suspended / held</h2>
+    <h2>Suspended</h2>
     <div class="card" style="overflow:auto">
       <table class="compact">
-        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Joined / months</th></tr></thead>
-        <tbody>${inactiveRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
+        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Suspended for</th></tr></thead>
+        <tbody>${suspendedRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
       </table>
     </div>
   `;

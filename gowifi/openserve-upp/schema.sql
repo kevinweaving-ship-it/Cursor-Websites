@@ -99,7 +99,11 @@ CREATE TABLE IF NOT EXISTS services (
     raw_circuit_json TEXT,
     raw_status_json TEXT,
     first_seen_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    exclusive_status TEXT,
+    suspend_started_at TEXT,
+    last_restored_at TEXT,
+    suspend_count INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS service_status_history (
@@ -112,6 +116,16 @@ CREATE TABLE IF NOT EXISTS service_status_history (
     download_kbps INTEGER,
     upload_kbps INTEGER,
     note TEXT
+);
+
+CREATE TABLE IF NOT EXISTS service_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    service_number TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    at TEXT NOT NULL,
+    source TEXT,
+    note TEXT,
+    duration_days INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -127,3 +141,4 @@ CREATE INDEX IF NOT EXISTS idx_orders_service ON orders(service_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(order_status);
 CREATE INDEX IF NOT EXISTS idx_services_lifecycle ON services(lifecycle);
 CREATE INDEX IF NOT EXISTS idx_status_history_sn ON service_status_history(service_number, changed_at);
+CREATE INDEX IF NOT EXISTS idx_service_events_sn ON service_events(service_number, at);

@@ -78,7 +78,8 @@ def kbps(text) -> int | None:
 
 def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA busy_timeout=30000")
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA.read_text())
@@ -229,22 +230,17 @@ def upsert_order(conn: sqlite3.Connection, order: dict):
     )
 
 
-def lifecycle_of(order_status: str | None, access: str | None, can_access: bool | None) -> str:
-    access_l = (access or "").lower()
-    status_l = (order_status or "").lower()
-    if "suspend" in access_l:
-        return "suspended"
-    if can_access is False or "not authorized" in (order_status or "").lower():
-        if "cancel" in status_l:
-            return "cancelled"
-        return "unauthorized"
-    if "cancel" in status_l:
-        return "cancelled"
-    if access_l == "active":
-        return "active"
-    if status_l in {"accepted", "done", "in progress", "pending"}:
-        return "active" if access_l == "active" else "unknown"
-    return "unknown"
+def lifecycle_of(order_status: str | None, access: str | None, can_access: bool | None, customer: str | None = None, isp_name: str | None = None) -> str:
+    from status_events import exclusive_status
+
+    return exclusive_status(
+        {
+            "access_status": access,
+            "customer": customer,
+            "isp_name": isp_name,
+            "latest_order_status": order_status,
+        }
+    )
 
 
 def record_service_history(conn: sqlite3.Connection, sn: str, lifecycle, access, partner, down, up, note=None):
@@ -290,7 +286,9 @@ def upsert_service(conn, sn, circuit, status, validator, latest_order):
     up = kbps(st.get("uploadSpeed"))
     can_access = val.get("canBeAccessed")
     order_status = (latest_order or {}).get("orderStatus")
-    life = lifecycle_of(order_status, access, can_access)
+    customer = circ.get("customer") or attrs.get("ispName")
+    isp_name = val.get("ispName") or attrs.get("ispName")
+    life = lifecycle_of(order_status, access, can_access, customer, isp_name)
     existing = conn.execute("SELECT first_seen_at FROM services WHERE service_number=?", (sn,)).fetchone()
     record_service_history(conn, sn, life, access, partner, down, up)
     conn.execute(
@@ -385,7 +383,9 @@ def sync(s: requests.Session, conn: sqlite3.Connection) -> dict:
         upsert_product(conn, product)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from audit_export import build, write
+    from status_events import apply_events
 
+    apply_events(conn)
     write(build(conn))
     return {"orders": len(orders), "services": len(latest_by_sn), "users": len(users)}
 

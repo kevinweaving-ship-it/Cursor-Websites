@@ -127,9 +127,71 @@ def join_date(circ: dict, orders: list[dict]) -> date | None:
     return None
 
 
+def fmt_days(days: int | None) -> str:
+    if days is None:
+        return "—"
+    if days < 30:
+        return f"{days} d"
+    months, rem = divmod(days, 30)
+    if rem == 0:
+        return f"{months} mo"
+    return f"{months} mo {rem} d"
+
+
+def fmt_date(raw) -> str:
+    if not raw:
+        return "—"
+    try:
+        return date.fromisoformat(str(raw)[:10]).strftime("%d %b %Y")
+    except ValueError:
+        return str(raw)
+
+
+def history_label(events: list[dict], exclusive: str, suspend_started: str | None, today: date) -> str:
+    bits = []
+    for ev in events:
+        kind = ev.get("event")
+        at_lab = fmt_date(ev.get("at"))
+        if kind == "joined":
+            bits.append(f"Joined {at_lab}")
+        elif kind == "suspended":
+            bits.append(f"Suspended {at_lab}")
+        elif kind == "restored":
+            dur = ev.get("duration_days")
+            extra = f" after {fmt_days(dur)}" if dur is not None else ""
+            bits.append(f"Restored {at_lab}{extra}")
+        elif kind == "cancelled":
+            bits.append(f"Cancelled {at_lab}")
+    if exclusive == "suspended" and suspend_started:
+        try:
+            open_days = (today - date.fromisoformat(suspend_started[:10])).days
+        except ValueError:
+            open_days = None
+        bits.append(f"open {fmt_days(open_days)}")
+    return " · ".join(bits) if bits else "—"
+
+
+def stint_label(stints: list[dict]) -> str:
+    if not stints:
+        return "—"
+    bits = []
+    for stint in stints:
+        start = fmt_date(stint.get("start"))
+        if stint.get("open"):
+            bits.append(f"#{stint['n']} {start}–now ({fmt_days(stint.get('days'))})")
+        else:
+            bits.append(
+                f"#{stint['n']} {start}–{fmt_date(stint.get('end'))} ({fmt_days(stint.get('days'))})"
+            )
+    return " · ".join(bits)
+
+
 def build(conn: sqlite3.Connection) -> dict:
     today = date.today()
     conn.row_factory = sqlite3.Row
+    from status_events import apply_events, assert_exclusive, events_for, stints_from
+
+    apply_events(conn)
     services = [dict(r) for r in conn.execute("SELECT * FROM services")]
     orders = [dict(r) for r in conn.execute("SELECT * FROM orders")]
     org = conn.execute("SELECT * FROM organisations").fetchone()
@@ -141,7 +203,8 @@ def build(conn: sqlite3.Connection) -> dict:
         by_sn.setdefault(order.get("service_number") or "", []).append(order)
 
     active = []
-    inactive = []
+    suspended = []
+    cancelled_lines = []
     for svc in services:
         sn = svc["service_number"]
         related = by_sn.get(sn, [])
@@ -157,28 +220,46 @@ def build(conn: sqlite3.Connection) -> dict:
         circ = circuit_dates(svc.get("raw_circuit_json"))
         joined = join_date(circ, related)
         months = months_as_client(joined, today)
+        exclusive = svc.get("exclusive_status") or "unknown"
+        history = events_for(conn, sn)
+        started = svc.get("suspend_started_at")
+        open_days = None
+        if exclusive == "suspended" and started:
+            try:
+                open_days = (today - date.fromisoformat(started[:10])).days
+            except ValueError:
+                open_days = None
+        stints = stints_from(history, exclusive, started, today)
         row = {
             "service_number": sn,
             "customer": customer,
             "address": (svc.get("address") or latest.get("address") or "").strip(" ,"),
             "product": short_product(svc.get("circuit_type"), latest.get("product")),
             "speed": fmt_speed(svc.get("download_kbps"), svc.get("upload_kbps")),
-            "line_status": svc.get("access_status") or "—",
-            "partner_status": svc.get("partner_status") or "—",
-            "lifecycle": svc.get("lifecycle"),
+            "line_status": exclusive,
+            "lifecycle": exclusive,
             "order_status": svc.get("latest_order_status"),
             "joined": joined.isoformat() if joined else None,
             "joined_label": joined.strftime("%d %b %Y") if joined else "—",
             "months": months,
             "months_label": fmt_months(months),
+            "suspend_stints": len(stints) or (svc.get("suspend_count") or 0),
+            "suspend_for": fmt_days(open_days) if exclusive == "suspended" else "—",
+            "stints": stints,
+            "stints_label": stint_label(stints),
+            "history": history,
+            "history_label": history_label(history, exclusive, started, today),
         }
-        if svc.get("lifecycle") == "active":
+        if exclusive == "active":
             active.append(row)
-        else:
-            inactive.append(row)
+        elif exclusive == "suspended":
+            suspended.append(row)
+        elif exclusive == "cancelled":
+            cancelled_lines.append(row)
 
     active.sort(key=lambda r: (r["customer"].lower(), r["service_number"]))
-    inactive.sort(key=lambda r: (r["lifecycle"], r["customer"].lower()))
+    suspended.sort(key=lambda r: (r["customer"].lower(), r["service_number"]))
+    cancelled_lines.sort(key=lambda r: (r["customer"].lower(), r["service_number"]))
 
     cancellations = []
     for order in orders:
@@ -202,6 +283,14 @@ def build(conn: sqlite3.Connection) -> dict:
         )
     cancellations.sort(key=lambda r: r["created"], reverse=True)
 
+    assert_exclusive(
+        {
+            "active": [r["service_number"] for r in active],
+            "suspended": [r["service_number"] for r in suspended],
+            "cancelled": [r["service_number"] for r in cancelled_lines],
+        }
+    )
+
     return {
         "as_at": today.isoformat(),
         "synced_at": sync["finished_at"] if sync else None,
@@ -209,12 +298,13 @@ def build(conn: sqlite3.Connection) -> dict:
         "org": org["oms_name"] if org else "GOWIFI",
         "counts": {
             "active": len(active),
-            "suspended": sum(1 for r in inactive if r["lifecycle"] == "suspended"),
-            "cancelled_lines": sum(1 for r in inactive if r["lifecycle"] == "cancelled"),
+            "suspended": len(suspended),
+            "cancelled_lines": len(cancelled_lines),
             "cancelled_orders": len(cancellations),
         },
         "active": active,
-        "inactive": inactive,
+        "suspended": suspended,
+        "cancelled_lines": cancelled_lines,
         "cancellations": cancellations,
     }
 
@@ -232,7 +322,8 @@ def write(payload: dict, dest: Path = JSON_PATH) -> Path:
 
 
 def main() -> int:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA busy_timeout=30000")
     payload = build(conn)
     conn.close()
     path = write(payload)
