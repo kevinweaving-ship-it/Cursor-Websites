@@ -258,7 +258,14 @@ def statement_on_invoice(
     age_on = as_day or date.today()
     items, credit = _open_items(rows)
     lines, ageing, balance = _age_items(items, age_on, credit)
-    last_pay = next((r for r in reversed(rows) if r["kind"] == "payment"), None)
+    pay_days = [r for r in rows if r["kind"] == "payment"]
+    last_pay = None
+    if pay_days:
+        last_day = max(r["date"] for r in pay_days)
+        last_pay = {
+            "date": last_day,
+            "amount": round(sum(abs(r["signed"]) for r in pay_days if r["date"] == last_day), 2),
+        }
     aged_sum = round(sum(ageing.values()), 2)
     return {
         "lines": lines,
@@ -267,9 +274,7 @@ def statement_on_invoice(
         "period_from": lines[0]["date"] if lines else None,
         "ageing": ageing,
         "ageing_sum": aged_sum,
-        "last_payment": (
-            {"date": last_pay["date"], "amount": abs(last_pay["signed"])} if last_pay else None
-        ),
+        "last_payment": last_pay,
     }
 
 
@@ -525,6 +530,9 @@ def self_test() -> int:
         failed += 1
     elif not all(l.get("days", 0) >= 0 for l in stmt_m["lines"]):
         print("FAIL days", stmt_m["lines"])
+        failed += 1
+    elif (stmt_m.get("last_payment") or {}).get("amount") != 1000:
+        print("FAIL last-payment", stmt_m.get("last_payment"))
         failed += 1
     elif fmt_date("2026-09-21") != "21/09/2026":
         print("FAIL date-fmt")
