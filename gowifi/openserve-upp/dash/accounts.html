@@ -42,6 +42,12 @@ main { padding:12px var(--pad) 28px; max-width:920px; margin:0 auto; }
 .name { font-weight:650; }
 .meta { color:var(--muted); font-size:12px; margin-top:2px; }
 h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:18px 0 8px; }
+h2.toggle {
+  cursor:pointer; user-select:none; min-height:44px; display:flex; align-items:center; gap:8px;
+}
+h2.toggle .chev { color:var(--acc); font-size:14px; }
+.fold.hidden { display:none; }
+.scroll { overflow:auto; }
 .err { background:#3a1518; color:#ffd0d0; padding:12px; border-radius:12px; }
 table.compact { width:100%; border-collapse:collapse; font-size:13px; }
 table.compact th {
@@ -80,7 +86,7 @@ function render(data){
   $("#sub").textContent = `As at ${data.as_at||"—"} · sync ${data.synced_at||"—"} · one status per line`;
   const hist = r => {
     const bits=[];
-    if (r.history_label) bits.push(r.history_label);
+    if (r.joined_label && r.joined_label!=="—") bits.push("Joined "+r.joined_label);
     if (r.stints_label && r.stints_label!=="—") bits.push(r.suspend_stints+" stint"+(r.suspend_stints===1?"":"s")+": "+r.stints_label);
     return bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : "";
   };
@@ -121,34 +127,50 @@ function render(data){
       <div class="card"><div class="k">Cancelled lines</div><div class="v">${c.cancelled_lines??0}</div></div>
     </div>
     <h2>Active accounts</h2>
-    <div class="card" style="overflow:auto">
+    <div class="card scroll">
       <table class="compact">
         <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Joined / months</th></tr></thead>
         <tbody>${activeRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
       </table>
     </div>
-    <h2>Cancelled lines</h2>
-    <div class="card" style="overflow:auto">
-      <table class="compact">
-        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Joined / history</th></tr></thead>
-        <tbody>${cancelledLineRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
-      </table>
-    </div>
-    <h2>Cancelled orders</h2>
-    <div class="card" style="overflow:auto">
-      <table class="compact">
-        <thead><tr><th>Client</th><th>Line / order</th><th>Status</th><th>When</th></tr></thead>
-        <tbody>${cancelRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
-      </table>
+    <h2 class="toggle" id="cancel-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="cancel-fold">
+      <span class="chev">▸</span>
+      <span>Cancellations</span>
+      <span class="meta">${c.cancelled_lines??0} lines · ${c.cancelled_orders??0} orders</span>
+    </h2>
+    <div id="cancel-fold" class="fold hidden">
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Joined / history</th></tr></thead>
+          <tbody>${cancelledLineRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Client</th><th>Line / order</th><th>Status</th><th>When</th></tr></thead>
+          <tbody>${cancelRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
+        </table>
+      </div>
     </div>
     <h2>Suspended</h2>
-    <div class="card" style="overflow:auto">
+    <div class="card scroll">
       <table class="compact">
         <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Suspended for</th></tr></thead>
         <tbody>${suspendedRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
       </table>
     </div>
   `;
+  const toggle = $("#cancel-toggle");
+  const fold = $("#cancel-fold");
+  const setOpen = (open) => {
+    fold.classList.toggle("hidden", !open);
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toggle.querySelector(".chev").textContent = open ? "▾" : "▸";
+  };
+  toggle.addEventListener("click", () => setOpen(fold.classList.contains("hidden")));
+  toggle.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setOpen(fold.classList.contains("hidden")); }
+  });
 }
 fetch("accounts.json",{credentials:"same-origin"})
   .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })

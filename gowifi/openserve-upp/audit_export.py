@@ -277,10 +277,15 @@ def build(conn: sqlite3.Connection) -> dict:
     suspended.sort(key=lambda r: (r["customer"].lower(), r["service_number"]))
     cancelled_lines.sort(key=lambda r: (r["customer"].lower(), r["service_number"]))
 
+    live_sns = {r["service_number"] for r in active} | {r["service_number"] for r in suspended}
+    cancelled_sns = {r["service_number"] for r in cancelled_lines}
     cancellations = []
     for order in orders:
         status = (order.get("order_status") or "")
         if status.lower() not in {"cancelled", "unverified address", "pending cancellation", "to be cancelled"}:
+            continue
+        sn = order.get("service_number") or ""
+        if sn and (sn in live_sns or sn in cancelled_sns):
             continue
         cancellations.append(
             {
