@@ -156,12 +156,17 @@ def parse_qb_statement(text: str, filename: str = "") -> dict | None:
     date = re.search(r"DATE\s+(\d{2}/\d{2}/\d{4})", text)
     due = re.search(r"TOTAL DUE\s+R?\s*([\d,.]+)", text)
     customer = None
-    for line in text.splitlines():
-        if line.strip().startswith("TO"):
-            rest = re.sub(r"^TO\s+", "", line.strip())
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if re.match(r"^\s*TO\b", line):
+            rest = re.sub(r"^\s*TO\s*", "", line)
             rest = re.split(r"STATEMENT", rest, maxsplit=1)[0].strip()
             if rest:
                 customer = rest
+            elif i + 1 < len(lines):
+                nxt = re.split(r"\s{2,}DATE|\s{2,}TOTAL", lines[i + 1])[0].strip()
+                if nxt and not nxt.upper().startswith("DATE"):
+                    customer = nxt
             break
     invoices = []
     payments = []
@@ -440,6 +445,9 @@ Amoroc Doors                                                          DATE 18/09
     )
     if not stmt or stmt["statement_number"] != 1369 or len(stmt["invoices"]) != 1:
         print("FAIL statement", stmt)
+        failed += 1
+    elif stmt["customer"] != "Amoroc Doors":
+        print("FAIL statement-customer", stmt)
         failed += 1
     elif stmt["invoices"][0]["invoice_number"] != 2477 or stmt["payments"][0]["amount"] != -199:
         print("FAIL statement-rows", stmt)

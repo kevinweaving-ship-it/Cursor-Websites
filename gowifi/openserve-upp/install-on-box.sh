@@ -25,7 +25,9 @@ if [ -f "$SRC/dash/accounts.html" ]; then
   cp -a "$SRC/dash/accounts.html" "$DASH/accounts.html"
 fi
 if [ -f "$SRC/dash/invoice.html" ]; then
-  cp -a "$SRC/dash/invoice.html" "$DEST/dash/invoice.html"
+  if [ "$SRC/dash/invoice.html" != "$DEST/dash/invoice.html" ]; then
+    cp -a "$SRC/dash/invoice.html" "$DEST/dash/invoice.html"
+  fi
   cp -a "$SRC/dash/invoice.html" "$DASH/invoice.html"
 fi
 HOOK="$SRC/hook_dash_index.py"
