@@ -133,11 +133,29 @@ function render(data){
       <td class="num">${esc(r.speed)}</td>
       <td class="num">${esc(r.suspend_for)}<div class="meta">installed ${esc(r.installed_label || r.joined_label)}</div></td>
     </tr>`).join("");
+  const names={};
+  (data.active||[]).concat(data.cancelled_lines||[], data.suspended||[]).forEach(r=>{ if(r.service_number) names[r.service_number]=r.customer; });
+  const cov=data.mail_coverage||{};
+  const accountRows=(data.billing_accounts||[]).map(r=>`
+    <tr>
+      <td class="num">${esc(r.account_number)}</td>
+      <td>${esc(r.product_family||"—")}</td>
+      <td class="num">${esc(r.invoices)}</td>
+      <td class="num">${esc(r.from||"—")} → ${esc(r.to||"—")}</td>
+      <td class="num">${r.total==null?"—":Number(r.total).toFixed(2)}</td>
+    </tr>`).join("");
+  const chargeRows=(data.line_charges||[]).map(r=>`
+    <tr>
+      <td><div class="name">${esc(names[r.service_number]||"—")}</div><div class="meta">${esc(r.service_number)}</div></td>
+      <td class="num">${esc(r.invoices)}</td>
+      <td class="num">${esc(r.from||"—")} → ${esc(r.to||"—")}</td>
+      <td class="num">${r.total==null?"—":Number(r.total).toFixed(2)}</td>
+    </tr>`).join("");
   const invoiceRows = (data.invoices||[]).map(r=>`
     <tr>
       <td class="num">${esc(r.invoice_number)}</td>
       <td class="num">${esc(r.invoice_date||"—")}</td>
-      <td>${esc(r.product_family||"—")}<div class="meta">${(r.extras||[]).join(" · ")||"rental"}</div></td>
+      <td>${esc(r.product_family||"—")}<div class="meta">${esc(r.account_number||"")} ${(r.extras||[]).join(" · ")}</div></td>
       <td class="num">${esc((r.services||[]).length)} lines</td>
       <td class="num">${r.total==null?"—":Number(r.total).toFixed(2)}</td>
     </tr>`).join("");
@@ -173,6 +191,20 @@ function render(data){
       <span class="meta">${c.invoices??0}</span>
     </h2>
     <div id="invoice-fold" class="fold hidden">
+      <div class="card"><div class="meta">${esc(cov.gap||"Openserve invoice copies are imported from kevin@ mail.")}</div>
+        <div class="meta">Bank proof of payment: ${esc(cov.pop_status||"awaiting upload")}</div></div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Openserve account</th><th>Product</th><th>Invoices</th><th>Period</th><th>Charged</th></tr></thead>
+          <tbody>${accountRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Line</th><th>Invoices</th><th>Period</th><th>Charged</th></tr></thead>
+          <tbody>${chargeRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
+        </table>
+      </div>
       <div class="card scroll">
         <table class="compact">
           <thead><tr><th>Invoice</th><th>Date</th><th>Product</th><th>Lines</th><th>Total</th></tr></thead>

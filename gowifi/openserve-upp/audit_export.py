@@ -483,12 +483,23 @@ def build(conn: sqlite3.Connection) -> dict:
     from status_events import apply_events, assert_exclusive, events_for, stints_from
 
     apply_events(conn)
-    from invoice_import import billed_speed_by_sn, extras_by_sn, ingest_mail, invoices_for_export
+    from invoice_import import (
+        billed_speed_by_sn,
+        billing_accounts_for_export,
+        extras_by_sn,
+        ingest_mail,
+        invoices_for_export,
+        line_charges_for_export,
+        mail_coverage_for_export,
+    )
 
     ingest_mail(conn)
     extras_map = extras_by_sn(conn)
     billed_map = billed_speed_by_sn(conn)
     invoice_rows = invoices_for_export(conn)
+    billing_accounts = billing_accounts_for_export(conn)
+    line_charges = line_charges_for_export(conn)
+    mail_coverage = mail_coverage_for_export(conn)
     services = [dict(r) for r in conn.execute("SELECT * FROM services")]
     orders = [dict(r) for r in conn.execute("SELECT * FROM orders")]
     org = conn.execute("SELECT * FROM organisations").fetchone()
@@ -694,12 +705,16 @@ def build(conn: sqlite3.Connection) -> dict:
             "cancelled_orders": len(cancellations),
             "never_installed": sum(1 for r in cancelled_lines if r.get("never_installed")),
             "invoices": len(invoice_rows),
+            "billing_accounts": len(billing_accounts),
         },
         "active": active,
         "suspended": suspended,
         "cancelled_lines": cancelled_lines,
         "cancellations": cancellations,
         "invoices": invoice_rows,
+        "billing_accounts": billing_accounts,
+        "line_charges": line_charges,
+        "mail_coverage": mail_coverage,
         "payments": [],
     }
 

@@ -21,6 +21,9 @@ DB_PATH = Path(os.environ.get("UPP_DB", "/root/gowifi-upp/upp.db"))
 MAILBOXES = [
     Path("/home/user-data/mail/mailboxes/gowifi.co.za/kevin"),
     Path("/home/user-data/mail/mailboxes/gowifi.co.za/openserve"),
+    Path("/home/user-data/mail/mailboxes/gowifi.co.za/accounts"),
+    Path("/home/user-data/mail/mailboxes/go-wifi.co.za/accounts"),
+    Path("/home/user-data/mail/mailboxes/go-wifi.co.za/kevin"),
 ]
 
 SCHEMA = """
@@ -70,6 +73,18 @@ CREATE TABLE IF NOT EXISTS payments (
     matched_invoice TEXT,
     note TEXT
 );
+CREATE TABLE IF NOT EXISTS mail_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT,
+    mailbox TEXT,
+    sent_on TEXT,
+    kind TEXT,
+    subject TEXT,
+    account_number TEXT,
+    invoice_number TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mail_items_dedup
+    ON mail_items (COALESCE(message_id, ''), COALESCE(sent_on, ''), COALESCE(subject, ''));
 """
 
 
@@ -244,6 +259,82 @@ def _iter_mail_zips():
                     yield fname, payload
 
 
+def _mail_kind(subject: str) -> str:
+    low = (subject or "").lower()
+    if "invoice csv" in low:
+        return "invoice_csv"
+    if "invoice" in low:
+        return "invoice"
+    if "statement" in low:
+        return "statement"
+    if "letter of demand" in low or "sysgen" in low:
+        return "demand"
+    if "credit" in low or re.search(r"\bcn\d+", low):
+        return "credit"
+    return "other"
+
+
+def catalog_mail(conn: sqlite3.Connection) -> dict:
+    """Index Openserve invoice/statement mail. Does not store bodies."""
+    from email.utils import parsedate_to_datetime
+
+    ensure_tables(conn)
+    conn.execute("DELETE FROM mail_items")
+    counted = 0
+    for root in MAILBOXES:
+        if not root.exists():
+            continue
+        mailbox = f"{root.parent.name}/{root.name}"
+        for dirpath, _dirs, files in os.walk(root):
+            if "/new" not in dirpath and "/cur" not in dirpath:
+                continue
+            for name in files:
+                if name.startswith("."):
+                    continue
+                path = Path(dirpath) / name
+                try:
+                    with path.open("rb") as fh:
+                        msg = email.message_from_binary_file(fh)
+                except OSError:
+                    continue
+                subj = " ".join((msg.get("Subject") or "").split())
+                frm = (msg.get("From") or "").lower()
+                blob = f"{subj} {frm}".lower()
+                if "openserve" not in blob and "nbcustnb@" not in blob and "inats" not in blob:
+                    continue
+                sent = ""
+                try:
+                    sent = parsedate_to_datetime(msg.get("Date") or "").date().isoformat()
+                except (TypeError, ValueError, IndexError):
+                    sent = ""
+                mid = (msg.get("Message-ID") or msg.get("Message-Id") or "").strip()
+                accounts = re.findall(
+                    r"94\d{11}",
+                    subj + " " + "".join(part.get_filename() or "" for part in msg.walk()),
+                )
+                invoices = [m.upper() for m in re.findall(r"INATS\d+", subj, flags=re.I)]
+                conn.execute(
+                    """INSERT OR IGNORE INTO mail_items
+                       (message_id, mailbox, sent_on, kind, subject, account_number, invoice_number)
+                       VALUES (?,?,?,?,?,?,?)""",
+                    (
+                        mid or None,
+                        mailbox,
+                        sent or None,
+                        _mail_kind(subj),
+                        subj[:180],
+                        accounts[0] if accounts else None,
+                        invoices[0] if invoices else None,
+                    ),
+                )
+                counted += 1
+    conn.commit()
+    row = conn.execute(
+        "SELECT MIN(sent_on), MAX(sent_on), COUNT(*) FROM mail_items WHERE sent_on IS NOT NULL"
+    ).fetchone()
+    return {"indexed": counted, "from": row[0], "to": row[1], "stored": row[2]}
+
+
 def ingest_mail(conn: sqlite3.Connection) -> dict:
     ensure_tables(conn)
     seen: set[str] = set()
@@ -256,8 +347,9 @@ def ingest_mail(conn: sqlite3.Connection) -> dict:
         seen.add(digest)
         files += 1
         lines += ingest_zip(conn, payload, fname, "mail")
+    coverage = catalog_mail(conn)
     counts = conn.execute("SELECT COUNT(*) FROM invoices").fetchone()[0]
-    return {"files": files, "lines_read": lines, "invoices": counts}
+    return {"files": files, "lines_read": lines, "invoices": counts, "mail": coverage}
 
 
 def extras_by_sn(conn: sqlite3.Connection) -> dict[str, list[dict]]:
@@ -299,6 +391,93 @@ def billed_speed_by_sn(conn: sqlite3.Connection) -> dict[str, dict]:
             continue
         out[sn] = {"capacity": capacity, "invoice_date": inv_date, "text": text}
     return out
+
+
+def billing_accounts_for_export(conn: sqlite3.Connection) -> list[dict]:
+    ensure_tables(conn)
+    rows = conn.execute(
+        """SELECT account_number, product_family, COUNT(*), ROUND(SUM(total),2),
+                  MIN(invoice_date), MAX(invoice_date)
+           FROM invoices
+           WHERE account_number IS NOT NULL AND account_number != ''
+           GROUP BY account_number
+           ORDER BY account_number"""
+    )
+    out = []
+    for account, family, n, total, first, last in rows:
+        sns = [
+            r[0]
+            for r in conn.execute(
+                """SELECT DISTINCT l.service_number
+                   FROM invoice_lines l
+                   JOIN invoices i USING (invoice_number)
+                   WHERE i.account_number=? AND l.service_number IS NOT NULL
+                   ORDER BY l.service_number""",
+                (account,),
+            )
+        ]
+        out.append(
+            {
+                "account_number": account,
+                "product_family": family,
+                "invoices": n,
+                "total": total,
+                "from": first,
+                "to": last,
+                "services": sns,
+            }
+        )
+    return out
+
+
+def line_charges_for_export(conn: sqlite3.Connection) -> list[dict]:
+    ensure_tables(conn)
+    rows = conn.execute(
+        """SELECT l.service_number, ROUND(SUM(l.charge_amount),2),
+                  COUNT(DISTINCT l.invoice_number), MIN(i.invoice_date), MAX(i.invoice_date)
+           FROM invoice_lines l
+           JOIN invoices i USING (invoice_number)
+           WHERE l.service_number IS NOT NULL AND l.service_number != ''
+             AND IFNULL(l.extra_kind,'') != 'vat'
+           GROUP BY l.service_number
+           ORDER BY l.service_number"""
+    )
+    return [
+        {
+            "service_number": sn,
+            "total": total,
+            "invoices": n,
+            "from": first,
+            "to": last,
+        }
+        for sn, total, n, first, last in rows
+    ]
+
+
+def mail_coverage_for_export(conn: sqlite3.Connection) -> dict:
+    ensure_tables(conn)
+    row = conn.execute(
+        """SELECT MIN(sent_on), MAX(sent_on), COUNT(*) FROM mail_items
+           WHERE kind IN ('invoice','invoice_csv','statement','credit')"""
+    ).fetchone()
+    kinds = {
+        k: n
+        for k, n in conn.execute("SELECT kind, COUNT(*) FROM mail_items GROUP BY kind")
+    }
+    return {
+        "from": row[0],
+        "to": row[1],
+        "messages": row[2] or 0,
+        "kinds": kinds,
+        "mailbox": "kevin@gowifi.co.za",
+        "pop_status": "awaiting bank proof of payment",
+        "gap": (
+            "Openserve invoices/statements on the box run "
+            f"{row[0] or '—'} to {row[1] or '—'}. "
+            "No copies before mid-September 2025 (first fibre order was September 2024) "
+            "and none after early February 2026."
+        ),
+    }
 
 
 def invoices_for_export(conn: sqlite3.Connection) -> list[dict]:
@@ -375,6 +554,16 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK invoice-import")
+    accounts = billing_accounts_for_export(conn)
+    lines = line_charges_for_export(conn)
+    if not accounts or accounts[0]["account_number"] != "9400000004653":
+        print("FAIL billing-account", accounts)
+        failed += 1
+    elif not lines or lines[0]["service_number"] != "B110033875":
+        print("FAIL line-charges", lines)
+        failed += 1
+    else:
+        print("OK per-account-reconcile")
     conn.close()
     return failed
 

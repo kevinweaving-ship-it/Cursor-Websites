@@ -178,6 +178,17 @@ CREATE TABLE IF NOT EXISTS payments (
     note TEXT
 );
 
+CREATE TABLE IF NOT EXISTS mail_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id TEXT,
+    mailbox TEXT,
+    sent_on TEXT,
+    kind TEXT,
+    subject TEXT,
+    account_number TEXT,
+    invoice_number TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_orders_service ON orders(service_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(order_status);
 CREATE INDEX IF NOT EXISTS idx_services_lifecycle ON services(lifecycle);
