@@ -111,9 +111,10 @@ def circuit_dates(raw_json: str | None) -> dict:
 
 def join_date(circ: dict, orders: list[dict]) -> date | None:
     accepted = [o for o in orders if (o.get("order_status") or "").lower() == "accepted"]
-    implemented = [parse_date(o.get("date_implemented")) for o in accepted]
+    pool = accepted or orders
+    implemented = [parse_date(o.get("date_implemented")) for o in pool]
     implemented = [d for d in implemented if d]
-    created = [parse_date(o.get("created_on")) for o in accepted]
+    created = [parse_date(o.get("created_on")) for o in pool]
     created = [d for d in created if d]
     for candidate in (
         circ.get("in_service"),

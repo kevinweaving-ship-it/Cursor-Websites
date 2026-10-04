@@ -279,7 +279,15 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
 def events_for(conn, sn: str) -> list[dict]:
     rows = conn.execute(
         """SELECT event_type, at, source, note, duration_days
-           FROM service_events WHERE service_number=? ORDER BY at, id""",
+           FROM service_events WHERE service_number=?
+           ORDER BY at,
+             CASE event_type
+               WHEN 'joined' THEN 0
+               WHEN 'suspended' THEN 1
+               WHEN 'restored' THEN 2
+               WHEN 'cancelled' THEN 3
+               ELSE 4
+             END, id""",
         (sn,),
     ).fetchall()
     return [
