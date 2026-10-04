@@ -463,10 +463,16 @@ def build(conn: sqlite3.Connection) -> dict:
             cancelled = None
         tenure_end = cancelled or today
         months = months_as_client(joined, tenure_end) if joined else None
-        reasons = [order_reason(o) for o in related]
-        cancel_reason = next((r for r in reasons if r and r != "cancelled"), None)
-        if never_installed and not cancel_reason:
-            cancel_reason = next((r for r in reasons if r), "never installed")
+        reasons = []
+        for order in related:
+            reason = order_reason(order)
+            if reason and reason not in reasons:
+                reasons.append(reason)
+        cancel_reason = None
+        if exclusive == "cancelled":
+            cancel_reason = " · ".join(r for r in reasons if r != "cancelled") or (
+                "never installed" if never_installed else None
+            )
         started = svc.get("suspend_started_at")
         open_days = None
         if exclusive == "suspended" and started:
