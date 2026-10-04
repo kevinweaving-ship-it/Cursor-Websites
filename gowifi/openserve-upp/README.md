@@ -44,7 +44,8 @@ its own suspend → restore stint history in `service_events`.
 
 Compact fibre list at **https://gowifi.co.za/dash/accounts.html** (same dash login).
 
-- Join / months as client is the earliest GoWiFi accepted order, not the old Openserve circuit date
+- Dates are GoWiFi order placed (`createdOn`) and install/activation (`dateImplemented`)
+- Months as client start at install — never the previous ISP / old circuit date
 - Active accounts: client, service number, exclusive line status, speed, join date, months as client
 - Cancelled lines (own history) then cancelled orders
 - Suspended lines at the bottom: how long, how many stints, own history

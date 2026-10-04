@@ -101,7 +101,9 @@ function render(data){
   };
   const hist = r => {
     const bits=[];
-    if (r.joined_label && r.joined_label!=="—") bits.push("Joined "+r.joined_label);
+    if (r.ordered_label && r.ordered_label!=="—") bits.push("Ordered "+r.ordered_label);
+    if (r.installed_label && r.installed_label!=="—") bits.push("Installed "+r.installed_label);
+    else if (r.joined_label && r.joined_label!=="—") bits.push("Installed "+r.joined_label);
     if (r.stints_label && r.stints_label!=="—") bits.push(r.suspend_stints+" stint"+(r.suspend_stints===1?"":"s")+": "+r.stints_label);
     return bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : "";
   };
@@ -113,7 +115,7 @@ function render(data){
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor(r.line_status)}</td>
       <td class="num">${esc(r.speed)}</td>
-      <td class="num">${esc(monthsAsClient(r.joined))}</td>
+      <td class="num">${esc(monthsAsClient(r.installed || r.joined))}</td>
     </tr>`).join("");
   const taken = new Set((data.active||[]).concat(data.suspended||[]).map(r=>r.service_number).filter(Boolean));
   const cancelledLineRows = (data.cancelled_lines||[]).filter(r=>!taken.has(r.service_number)).map(r=>`
@@ -121,7 +123,7 @@ function render(data){
       <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor("cancelled")}</td>
-      <td class="num">${esc(monthsAsClient(r.joined))}</td>
+      <td class="num">${esc(monthsAsClient(r.installed || r.joined))}</td>
     </tr>`).join("");
   const suspendedRows = (data.suspended||[]).filter(r=>r.line_status==="suspended" && !cancelledSNs.has(r.service_number)).map(r=>`
     <tr>
@@ -129,7 +131,7 @@ function render(data){
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)} · ${esc(r.suspend_stints||0)} stint${(r.suspend_stints||0)===1?"":"s"}</div></td>
       <td>${pillFor("suspended")}</td>
       <td class="num">${esc(r.speed)}</td>
-      <td class="num">${esc(r.suspend_for)}<div class="meta">joined ${esc(r.joined_label)}</div></td>
+      <td class="num">${esc(r.suspend_for)}<div class="meta">installed ${esc(r.installed_label || r.joined_label)}</div></td>
     </tr>`).join("");
   $("#app").innerHTML = `
     <div class="grid">

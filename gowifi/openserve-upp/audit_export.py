@@ -109,19 +109,27 @@ def circuit_dates(raw_json: str | None) -> dict:
     }
 
 
-def gowifi_join(orders: list[dict]) -> date | None:
-    """When they became a GoWiFi client — earliest accepted order, not the old circuit."""
+def first_gowifi_order(orders: list[dict]) -> dict | None:
+    """Earliest GoWiFi accepted order. Ignore old Openserve circuit dates."""
     accepted = [o for o in orders if (o.get("order_status") or "").lower() == "accepted"]
     pool = accepted or orders
-    dates = []
-    for order in pool:
-        dates.append(parse_date(order.get("date_implemented")) or parse_date(order.get("created_on")))
-    dates = [d for d in dates if d]
-    return min(dates) if dates else None
+    if not pool:
+        return None
+
+    def sort_key(order):
+        return parse_date(order.get("created_on")) or parse_date(order.get("date_implemented")) or date.max
+
+    return min(pool, key=sort_key)
 
 
-def fibre_since(circ: dict) -> date | None:
-    return circ.get("in_service") or circ.get("completed")
+def gowifi_order_dates(orders: list[dict]) -> tuple[date | None, date | None]:
+    """Order placed, then install/activation on our side."""
+    order = first_gowifi_order(orders)
+    if not order:
+        return None, None
+    ordered = parse_date(order.get("created_on"))
+    installed = parse_date(order.get("date_implemented")) or ordered
+    return ordered, installed
 
 
 def fmt_days(days: int | None) -> str:
@@ -227,9 +235,8 @@ def build(conn: sqlite3.Connection) -> dict:
             if (accepted or latest)
             else None
         )
-        circ = circuit_dates(svc.get("raw_circuit_json"))
-        joined = gowifi_join(related) or fibre_since(circ)
-        fibre = fibre_since(circ)
+        ordered, installed = gowifi_order_dates(related)
+        joined = installed or ordered
         months = months_as_client(joined, today)
         exclusive = svc.get("exclusive_status") or "unknown"
         history = events_for(conn, sn)
@@ -252,10 +259,10 @@ def build(conn: sqlite3.Connection) -> dict:
             "order_status": svc.get("latest_order_status"),
             "joined": joined.isoformat() if joined else None,
             "joined_label": joined.strftime("%d %b %Y") if joined else "—",
-            "fibre_since": fibre.isoformat() if fibre else None,
-            "fibre_since_label": (
-                fibre.strftime("%d %b %Y") if fibre and joined and fibre < joined else None
-            ),
+            "ordered": ordered.isoformat() if ordered else None,
+            "ordered_label": ordered.strftime("%d %b %Y") if ordered else "—",
+            "installed": installed.isoformat() if installed else None,
+            "installed_label": installed.strftime("%d %b %Y") if installed else "—",
             "months": months,
             "months_label": fmt_months(months),
             "suspend_stints": len(stints) or (svc.get("suspend_count") or 0),

@@ -277,17 +277,10 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
         joined = computed_join.get(sn)
         cancel_at = cancel_dates.get(sn) or today
 
-        fibre_at = fibre_dates.get(sn)
-        if fibre_at and joined and fibre_at < joined:
-            if not _has_event(conn, sn, "fibre_since"):
-                _add_event(conn, sn, "fibre_since", fibre_at, "circuit", "Openserve in-service (before GoWiFi)")
-            else:
-                current_fibre = _event_at(conn, sn, "fibre_since")
-                if current_fibre != fibre_at:
-                    conn.execute(
-                        """UPDATE service_events SET at=? WHERE service_number=? AND event_type='fibre_since'""",
-                        (fibre_at, sn),
-                    )
+        conn.execute(
+            "DELETE FROM service_events WHERE service_number=? AND event_type='fibre_since'",
+            (sn,),
+        )
 
         if joined:
             if not _has_event(conn, sn, "joined"):
@@ -663,15 +656,14 @@ def self_test() -> int:
     apply_events(conn)
     evs = events_for(conn, "B140017953")
     joined = [e for e in evs if e["event"] == "joined"]
-    fibre = [e for e in evs if e["event"] == "fibre_since"]
     if not joined or joined[0]["at"] != "2026-03-25":
         print("FAIL annette-gowifi-join", evs)
         failed += 1
-    elif not fibre or fibre[0]["at"] != "2020-03-12":
-        print("FAIL annette-fibre-since", evs)
+    elif any(e["event"] == "fibre_since" for e in evs):
+        print("FAIL annette-no-old-circuit", evs)
         failed += 1
     else:
-        print("OK annette-gowifi-join")
+        print("OK annette-gowifi-install")
     conn.close()
     return failed
 
