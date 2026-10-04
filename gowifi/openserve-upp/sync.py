@@ -408,11 +408,18 @@ def sync(s: requests.Session, conn: sqlite3.Connection) -> dict:
         upsert_product(conn, product)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from audit_export import build, write
+    from invoice_import import ingest_mail
     from status_events import apply_events
 
     apply_events(conn)
+    invoices = ingest_mail(conn)
     write(build(conn))
-    return {"orders": len(orders), "services": len(latest_by_sn), "users": len(users)}
+    return {
+        "orders": len(orders),
+        "services": len(latest_by_sn),
+        "users": len(users),
+        "invoices": invoices.get("invoices"),
+    }
 
 
 def main() -> int:

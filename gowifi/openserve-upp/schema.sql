@@ -138,6 +138,46 @@ CREATE TABLE IF NOT EXISTS products (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS invoices (
+    invoice_number TEXT PRIMARY KEY,
+    invoice_date TEXT,
+    account_number TEXT,
+    product_family TEXT,
+    total REAL,
+    vat REAL,
+    source TEXT,
+    filename TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS invoice_lines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_number TEXT NOT NULL,
+    service_number TEXT,
+    end_customer TEXT,
+    product TEXT,
+    invoice_text TEXT,
+    charge_amount REAL,
+    currency TEXT,
+    event_type TEXT,
+    extra_kind TEXT,
+    capacity TEXT,
+    activation_date TEXT,
+    charge_date TEXT,
+    period_start TEXT,
+    period_end TEXT
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    paid_on TEXT,
+    amount REAL,
+    reference TEXT,
+    source TEXT,
+    matched_invoice TEXT,
+    note TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_orders_service ON orders(service_number);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(order_status);
 CREATE INDEX IF NOT EXISTS idx_services_lifecycle ON services(lifecycle);

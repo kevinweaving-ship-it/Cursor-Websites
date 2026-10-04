@@ -251,7 +251,7 @@ def _order_dates(conn) -> tuple[dict[str, str], dict[str, str], dict[str, str], 
         if "cancel" in st or st == "unverified address":
             if sn not in cancel or best < cancel[sn]:
                 cancel[sn] = best
-        if sn not in fallback or best < fallback[sn]:
+        if st == "accepted" and (sn not in fallback or best < fallback[sn]):
             fallback[sn] = best
     for sn, when in fallback.items():
         join.setdefault(sn, when)
@@ -817,6 +817,50 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK aljo-apply-cancelled")
+    conn.close()
+
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(
+        """
+        CREATE TABLE services (
+            service_number TEXT PRIMARY KEY, lifecycle TEXT NOT NULL,
+            access_status TEXT, partner_status TEXT, customer TEXT, isp_name TEXT,
+            latest_order_status TEXT, raw_circuit_json TEXT,
+            validator_message TEXT, circuit_admin TEXT,
+            first_seen_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            exclusive_status TEXT, suspend_started_at TEXT, last_restored_at TEXT,
+            suspend_count INTEGER DEFAULT 0
+        );
+        CREATE TABLE orders (
+            id INTEGER PRIMARY KEY, order_status TEXT, service_number TEXT,
+            created_on TEXT, date_implemented TEXT, raw_json TEXT NOT NULL,
+            first_seen_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
+        """
+    )
+    conn.execute(
+        """INSERT INTO services (service_number, lifecycle, access_status, partner_status,
+           customer, isp_name, latest_order_status, raw_circuit_json, first_seen_at, updated_at)
+           VALUES ('B110062840','cancelled','Active','IspActive','','','Cancelled','{}','x','x')"""
+    )
+    conn.execute(
+        """INSERT INTO orders (id, order_status, service_number, created_on, date_implemented,
+           raw_json, first_seen_at, updated_at)
+           VALUES (1,'Cancelled','B110062840','2026-06-30','2026-07-17',
+           '{"stageComments":"OpenServe: Cancel. CBS taking Control"}','x','x')"""
+    )
+    apply_events(conn)
+    evs = events_for(conn, "B110062840")
+    joined = [e for e in evs if e["event"] == "joined"]
+    cancelled = [e for e in evs if e["event"] == "cancelled"]
+    if joined:
+        print("FAIL aman-never-installed-no-join", evs)
+        failed += 1
+    elif not cancelled or cancelled[0]["at"] != "2026-07-17":
+        print("FAIL aman-cancel-order-date", evs)
+        failed += 1
+    else:
+        print("OK aman-never-installed")
     conn.close()
     return failed
 

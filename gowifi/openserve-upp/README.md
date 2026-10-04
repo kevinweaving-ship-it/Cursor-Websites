@@ -60,3 +60,9 @@ python3 /root/gowifi-upp/audit_export.py
 ```
 
 `sync.py` refreshes `/dash/accounts.json` after each pull.
+
+Openserve invoice CSVs from `kevin@` / `openserve@` mail (INATS* zip) are
+imported into `invoices` / `invoice_lines` for payment reconcile. Extra
+charges such as Dynamic IPv4 and ONT bridge show on the line with the date
+they were added. Cancelled orders that never reached Accepted are **never
+installed** — `dateImplemented` on a cancel is not an install date.

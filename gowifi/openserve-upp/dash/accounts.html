@@ -133,6 +133,14 @@ function render(data){
       <td class="num">${esc(r.speed)}</td>
       <td class="num">${esc(r.suspend_for)}<div class="meta">installed ${esc(r.installed_label || r.joined_label)}</div></td>
     </tr>`).join("");
+  const invoiceRows = (data.invoices||[]).map(r=>`
+    <tr>
+      <td class="num">${esc(r.invoice_number)}</td>
+      <td class="num">${esc(r.invoice_date||"—")}</td>
+      <td>${esc(r.product_family||"—")}<div class="meta">${(r.extras||[]).join(" · ")||"rental"}</div></td>
+      <td class="num">${esc((r.services||[]).length)} lines</td>
+      <td class="num">${r.total==null?"—":Number(r.total).toFixed(2)}</td>
+    </tr>`).join("");
   $("#app").innerHTML = `
     <div class="grid">
       <div class="card"><div class="k">Active</div><div class="v">${c.active??0}</div></div>
@@ -159,6 +167,19 @@ function render(data){
         </table>
       </div>
     </div>
+    <h2 class="toggle" id="invoice-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="invoice-fold">
+      <span class="chev">▸</span>
+      <span>Openserve invoices</span>
+      <span class="meta">${c.invoices??0}</span>
+    </h2>
+    <div id="invoice-fold" class="fold hidden">
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Invoice</th><th>Date</th><th>Product</th><th>Lines</th><th>Total</th></tr></thead>
+          <tbody>${invoiceRows || `<tr><td colspan="5" class="meta">No Openserve invoice CSVs in mail yet</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
     <h2>Suspended</h2>
     <div class="card scroll">
       <table class="compact">
@@ -178,6 +199,19 @@ function render(data){
   toggle.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setOpen(fold.classList.contains("hidden")); }
   });
+  const invToggle = $("#invoice-toggle");
+  const invFold = $("#invoice-fold");
+  if (invToggle && invFold) {
+    const setInv = (open) => {
+      invFold.classList.toggle("hidden", !open);
+      invToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      invToggle.querySelector(".chev").textContent = open ? "▾" : "▸";
+    };
+    invToggle.addEventListener("click", () => setInv(invFold.classList.contains("hidden")));
+    invToggle.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setInv(invFold.classList.contains("hidden")); }
+    });
+  }
 }
 fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
   .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })

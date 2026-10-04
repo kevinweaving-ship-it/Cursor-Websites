@@ -6,9 +6,11 @@ SRC=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$DEST"
 if [ "$SRC" != "$DEST" ]; then
   cp -a "$SRC/schema.sql" "$SRC/sync.py" "$SRC/audit_export.py" \
-    "$SRC/status_events.py" "$SRC/checksum_accounts_mail.py" "$SRC/README.md" "$DEST/"
+    "$SRC/status_events.py" "$SRC/invoice_import.py" \
+    "$SRC/checksum_accounts_mail.py" "$SRC/README.md" "$DEST/"
 fi
-chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" "$DEST/audit_export.py" "$DEST/status_events.py"
+chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" \
+  "$DEST/audit_export.py" "$DEST/status_events.py" "$DEST/invoice_import.py"
 DASH=/home/user-data/www/default/dash
 mkdir -p "$DASH"
 mkdir -p "$DEST/dash"

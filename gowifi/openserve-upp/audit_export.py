@@ -77,6 +77,97 @@ def fmt_speed(down, up) -> str:
     return mb(down)
 
 
+def speed_mb(raw) -> int | None:
+    if raw is None or raw == "":
+        return None
+    if isinstance(raw, (int, float)):
+        value = int(raw)
+        return int(round(value / 1024)) if value > 1000 else value
+    digits = re.findall(r"\d+", str(raw))
+    if not digits:
+        return None
+    value = int(digits[0])
+    if "kb" in str(raw).lower() or value > 1000:
+        return int(round(value / 1024)) if value > 1000 else value
+    return value
+
+
+def order_reason(order: dict) -> str | None:
+    try:
+        raw = json.loads(order.get("raw_json") or "{}")
+    except json.JSONDecodeError:
+        raw = {}
+    blob = " ".join(
+        filter(
+            None,
+            [
+                order.get("order_status"),
+                order.get("remark"),
+                raw.get("stageComments"),
+                raw.get("uaCaseComments"),
+                raw.get("messageForIsp"),
+            ],
+        )
+    ).lower()
+    if "unverified" in blob or "ua case" in blob:
+        return "unverified address"
+    if "wrong address" in blob:
+        return "wrong address"
+    if "cbs taking control" in blob:
+        return "cancelled before handover"
+    if "holding pool" in blob:
+        return "holding pool"
+    if "cancel" in blob:
+        return "cancelled"
+    return None
+
+
+def change_bits(orders: list[dict], current_speed: str | None, extras: list[dict], billed: dict | None) -> list[str]:
+    bits = []
+    accepted = sorted(
+        accepted_orders(orders),
+        key=lambda o: parse_date(o.get("date_implemented")) or parse_date(o.get("created_on")) or date.max,
+    )
+    prev_prod = None
+    prev_mb = None
+    last_mb = None
+    for order in accepted:
+        prod = short_product(None, order.get("product"))
+        mb = speed_mb(order.get("speed"))
+        when = parse_date(order.get("date_implemented")) or parse_date(order.get("created_on"))
+        label = f"{prod} {mb}" if mb else prod
+        if prev_prod is None:
+            prev_prod, prev_mb, last_mb = prod, mb, mb
+            continue
+        elif prod != prev_prod or mb != prev_mb:
+            if mb and prev_mb and mb > prev_mb:
+                verb = "Upgraded"
+            elif mb and prev_mb and mb < prev_mb:
+                verb = "Downgraded"
+            else:
+                verb = "Changed"
+            bits.append(f"{verb} to {label} {when.strftime('%d %b %Y')}" if when else f"{verb} to {label}")
+        prev_prod, prev_mb, last_mb = prod, mb, mb
+    now_mb = speed_mb(current_speed)
+    if now_mb and last_mb and now_mb != last_mb:
+        bits.append(f"line now {now_mb}")
+    if billed and billed.get("capacity"):
+        billed_mb = speed_mb(billed.get("capacity"))
+        if billed_mb and now_mb and billed_mb != now_mb:
+            bits.append(f"last billed {billed_mb}")
+    for extra in extras:
+        when = extra.get("added")
+        try:
+            when_lab = date.fromisoformat(when).strftime("%d %b %Y") if when else None
+        except ValueError:
+            when_lab = when
+        if when_lab:
+            bits.append(f"{extra.get('label')} added {when_lab}")
+        else:
+            bits.append(f"{extra.get('label')} added")
+    return bits
+
+
 def short_product(circuit_type: str | None, product: str | None) -> str:
     text = (circuit_type or product or "").upper()
     if "OFFICE CONNECT" in text:
@@ -109,10 +200,13 @@ def circuit_dates(raw_json: str | None) -> dict:
     }
 
 
+def accepted_orders(orders: list[dict]) -> list[dict]:
+    return [o for o in orders if (o.get("order_status") or "").lower() == "accepted"]
+
+
 def first_gowifi_order(orders: list[dict]) -> dict | None:
     """Earliest GoWiFi accepted order. Ignore old Openserve circuit dates."""
-    accepted = [o for o in orders if (o.get("order_status") or "").lower() == "accepted"]
-    pool = accepted or orders
+    pool = accepted_orders(orders)
     if not pool:
         return None
 
@@ -138,7 +232,18 @@ def gowifi_timeline(orders: list[dict], circ: dict | None = None) -> dict:
     }
     order = first_gowifi_order(orders)
     if not order:
-        return empty
+        first = None
+        if orders:
+            first = min(
+                orders,
+                key=lambda o: parse_date(o.get("created_on")) or date.max,
+            )
+        return {
+            "ordered": parse_date((first or {}).get("created_on")) if first else None,
+            "installed": None,
+            "activated": None,
+            "delay_days": None,
+        }
     ordered = parse_date(order.get("created_on"))
     installed = parse_date(order.get("date_implemented")) or ordered
     activated = installed
@@ -243,6 +348,15 @@ def cancel_on(orders: list[dict], events: list[dict]) -> date | None:
 
 def story_label(row: dict) -> str:
     bits = []
+    if row.get("never_installed"):
+        bits.append("Never installed")
+        if row.get("cancel_reason"):
+            bits.append(row["cancel_reason"])
+        if row.get("cancelled_label"):
+            bits.append(f"Cancelled {row['cancelled_label']}")
+        if row.get("related_label"):
+            bits.append(row["related_label"])
+        return " · ".join(bits)
     if row.get("ordered_label") and row["ordered_label"] != "—":
         bits.append(f"Ordered {row['ordered_label']}")
     if row.get("installed_label") and row["installed_label"] != "—":
@@ -252,6 +366,8 @@ def story_label(row: dict) -> str:
             bits.append(f"Activated {row['activated_label']}")
         if row.get("delay_label") and row["delay_label"] != "—":
             bits.append(f"Delay {row['delay_label']}")
+    for extra in row.get("change_bits") or []:
+        bits.append(extra)
     if row.get("line_status") == "suspended":
         bits.append("Suspended (not active)")
         if row.get("stints_label") and row["stints_label"] != "—":
@@ -259,6 +375,8 @@ def story_label(row: dict) -> str:
     elif row.get("stints") and any(not stint.get("open") for stint in row["stints"]):
         bits.append(f"Suspended then restored · {row['stints_label']}")
     if row.get("line_status") == "cancelled":
+        if row.get("cancel_reason"):
+            bits.append(row["cancel_reason"])
         if row.get("cancelled_label"):
             bits.append(f"Cancelled {row['cancelled_label']} · complete")
         else:
@@ -293,6 +411,12 @@ def build(conn: sqlite3.Connection) -> dict:
     from status_events import apply_events, assert_exclusive, events_for, stints_from
 
     apply_events(conn)
+    from invoice_import import billed_speed_by_sn, extras_by_sn, ingest_mail, invoices_for_export
+
+    ingest_mail(conn)
+    extras_map = extras_by_sn(conn)
+    billed_map = billed_speed_by_sn(conn)
+    invoice_rows = invoices_for_export(conn)
     services = [dict(r) for r in conn.execute("SELECT * FROM services")]
     orders = [dict(r) for r in conn.execute("SELECT * FROM orders")]
     org = conn.execute("SELECT * FROM organisations").fetchone()
@@ -300,37 +424,49 @@ def build(conn: sqlite3.Connection) -> dict:
         "SELECT finished_at, ok FROM sync_runs ORDER BY id DESC LIMIT 1"
     ).fetchone()
     by_sn: dict[str, list[dict]] = {}
+    orphans_by_name: dict[str, list[dict]] = {}
     for order in orders:
-        by_sn.setdefault(order.get("service_number") or "", []).append(order)
+        sn_key = order.get("service_number") or ""
+        by_sn.setdefault(sn_key, []).append(order)
+        if not sn_key:
+            orphans_by_name.setdefault(
+                name_key(clean_name(order.get("end_customer"))), []
+            ).append(order)
 
     active = []
     suspended = []
     cancelled_lines = []
     for svc in services:
         sn = svc["service_number"]
-        related = by_sn.get(sn, [])
+        related = list(by_sn.get(sn, []))
         latest = related[0] if related else {}
         if related:
             latest = sorted(related, key=lambda o: o.get("created_on") or "", reverse=True)[0]
-        accepted = [o for o in related if (o.get("order_status") or "").lower() == "accepted"]
+        accepted = accepted_orders(related)
         customer = clean_name(
             (accepted[-1] if accepted else latest).get("end_customer")
             if (accepted or latest)
             else None
         )
+        related.extend(orphans_by_name.get(name_key(customer), []))
         circ = circuit_dates(svc.get("raw_circuit_json"))
         tl = gowifi_timeline(related, circ)
-        ordered = tl["ordered"]
-        installed = tl["installed"]
-        activated = tl["activated"]
-        joined = activated or installed or ordered
         exclusive = svc.get("exclusive_status") or "unknown"
+        never_installed = exclusive == "cancelled" and not accepted
+        ordered = tl["ordered"]
+        installed = None if never_installed else tl["installed"]
+        activated = None if never_installed else tl["activated"]
+        joined = None if never_installed else (activated or installed)
         history = events_for(conn, sn)
         cancelled = cancel_on(related, history) if exclusive == "cancelled" else None
         if cancelled and str(cancelled) in {"", "—"}:
             cancelled = None
         tenure_end = cancelled or today
-        months = months_as_client(joined, tenure_end)
+        months = months_as_client(joined, tenure_end) if joined else None
+        reasons = [order_reason(o) for o in related]
+        cancel_reason = next((r for r in reasons if r and r != "cancelled"), None)
+        if never_installed and not cancel_reason:
+            cancel_reason = next((r for r in reasons if r), "never installed")
         started = svc.get("suspend_started_at")
         open_days = None
         if exclusive == "suspended" and started:
@@ -374,6 +510,14 @@ def build(conn: sqlite3.Connection) -> dict:
             "history_label": history_label(history, exclusive, started, today),
             "related_label": None,
             "story_label": "",
+            "never_installed": never_installed,
+            "cancel_reason": cancel_reason,
+            "change_bits": change_bits(
+                related,
+                fmt_speed(svc.get("download_kbps"), svc.get("upload_kbps")),
+                extras_map.get(sn, []),
+                billed_map.get(sn),
+            ),
         }
         if exclusive == "active":
             active.append(row)
@@ -397,11 +541,20 @@ def build(conn: sqlite3.Connection) -> dict:
             if other["service_number"] != row["service_number"]
         ]
         notes = []
+        row_addr = re.sub(r"[^a-z0-9]+", "", (row.get("address") or "").lower())
         for other in others:
+            other_addr = re.sub(r"[^a-z0-9]+", "", (other.get("address") or "").lower())
+            moved = row_addr and other_addr and row_addr != other_addr
             if row["line_status"] == "cancelled" and other["line_status"] in {"active", "suspended"}:
-                notes.append(f"moved · now {other['service_number']} ({other['line_status']})")
+                if moved:
+                    notes.append(f"wrong address · new order {other['service_number']}")
+                else:
+                    notes.append(f"moved · now {other['service_number']} ({other['line_status']})")
             elif row["line_status"] in {"active", "suspended"} and other["line_status"] == "cancelled":
-                notes.append(f"prior line {other['service_number']} cancelled")
+                if moved:
+                    notes.append(f"prior wrong-address order {other['service_number']}")
+                else:
+                    notes.append(f"prior line {other['service_number']} cancelled")
             else:
                 notes.append(f"also {other['service_number']} {other['line_status']}")
         row["related_label"] = notes[0] if notes else None
@@ -460,11 +613,14 @@ def build(conn: sqlite3.Connection) -> dict:
             "suspended": len(suspended),
             "cancelled_lines": len(cancelled_lines),
             "cancelled_orders": len(cancellations),
+            "invoices": len(invoice_rows),
         },
         "active": active,
         "suspended": suspended,
         "cancelled_lines": cancelled_lines,
         "cancellations": cancellations,
+        "invoices": invoice_rows,
+        "payments": [],
     }
 
 
