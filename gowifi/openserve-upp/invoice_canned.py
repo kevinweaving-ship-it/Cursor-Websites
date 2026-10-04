@@ -152,18 +152,12 @@ def _open_items(rows: list[dict]) -> tuple[list[dict], float]:
 
 def _age_items(items: list[dict], age_on: date, credit: float = 0.0) -> tuple[list[dict], dict, float]:
     buckets = {"current": 0.0, "d30": 0.0, "d60": 0.0, "d90": 0.0, "older": 0.0}
-    latest = None
-    for item in items:
-        day = parse_day(item["date"])
-        if day and (latest is None or day > latest):
-            latest = day
     lines = []
     running = 0.0
     for item in items:
         day = parse_day(item["date"]) or age_on
         days = (age_on - day).days
-        # Latest bill is Current; older unpaid invoices age from today.
-        bucket = "current" if latest and day == latest else _bucket(days)
+        bucket = _bucket(days)
         buckets[bucket] = round(buckets[bucket] + item["amount"], 2)
         running = round(running + item["amount"], 2)
         lines.append(
@@ -262,8 +256,31 @@ def statement_on_invoice(
         )
     rows.sort(key=lambda r: (r.get("date") or "", r.get("kind") or "", r.get("reference") or ""))
     age_on = as_day or date.today()
+    ledger = []
+    balance = 0.0
+    for row in rows:
+        balance = round(balance + row["signed"], 2)
+        if row["kind"] == "invoice":
+            desc = f"Invoice No.{row['reference']}"
+        elif row["kind"] == "forward":
+            desc = "Balance Forward"
+        else:
+            desc = "Payment"
+        ledger.append(
+            {
+                "date": row["date"],
+                "date_fmt": fmt_date(row["date"]),
+                "reference": row.get("reference") or "",
+                "description": desc,
+                "amount": row["signed"],
+                "debit": row["signed"] if row["signed"] > 0 and row["kind"] == "invoice" else None,
+                "credit": abs(row["signed"]) if row["kind"] == "payment" else None,
+                "balance": balance,
+                "kind": row["kind"],
+            }
+        )
     items, credit = _open_items(rows)
-    lines, ageing, balance = _age_items(items, age_on, credit)
+    aged_lines, ageing, aged_due = _age_items(items, age_on, credit)
     pay_days = [r for r in rows if r["kind"] == "payment"]
     last_pay = None
     if pay_days:
@@ -274,10 +291,11 @@ def statement_on_invoice(
         }
     aged_sum = round(sum(ageing.values()), 2)
     return {
-        "lines": lines,
+        "lines": ledger,
+        "outstanding": aged_lines,
         "total_due": balance,
         "as_at": age_on.isoformat(),
-        "period_from": lines[0]["date"] if lines else None,
+        "period_from": ledger[0]["date"] if ledger else None,
         "ageing": ageing,
         "ageing_sum": aged_sum,
         "last_payment": last_pay,
@@ -401,29 +419,30 @@ def statement_html(row: dict) -> str:
     body = "".join(
         "<tr>"
         f"<td>{escape(line.get('date_fmt') or fmt_date(line.get('date')))}</td>"
-        f"<td>{escape(str(line.get('reference') or ''))}</td>"
-        f"<td class=\"num\">{escape(str(line.get('days') if line.get('days') is not None else ''))}</td>"
-        f"<td class=\"num\">{money(line.get('amount') if line.get('amount') is not None else line.get('debit'), False)}</td>"
+        f"<td>{escape(line.get('description') or '')}</td>"
+        f"<td class=\"num\">{money(line.get('amount'), False)}</td>"
+        f"<td class=\"num\">{money(line.get('balance'), False)}</td>"
         "</tr>"
         for line in lines
     )
     ageing = stmt.get("ageing") or {}
     as_at = fmt_date(stmt.get("as_at") or row.get("invoice_date"))
-    last = stmt.get("last_payment") or {}
-    last_html = (
-        f'<div class="muted">Last payment {escape(fmt_date(last.get("date")))} {money(last.get("amount"))}</div>'
-        if last.get("date")
-        else ""
-    )
     return f"""
-<h2><span>Outstanding</span><span class="muted">as at {escape(as_at)}</span></h2>
-{last_html}
+<h2><span>Statement</span><span class="muted">as at {escape(as_at)}</span></h2>
+<div class="due">Total due {money(due)}</div>
 <table class="soa">
-  <thead><tr><th>Date</th><th>Invoice</th><th class="num">Days</th><th class="num">Amount</th></tr></thead>
+  <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
   <tbody>{body}</tbody>
 </table>
 <table class="ageing">
-  <tr><th>Current</th><th>1–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th><th class="total">= Balance due</th></tr>
+  <tr>
+    <th>Current<br>Due</th>
+    <th>1–30 Days<br>Past Due</th>
+    <th>31–60 Days<br>Past Due</th>
+    <th>61–90 Days<br>Past Due</th>
+    <th>90+ Days<br>Past Due</th>
+    <th class="total">Amount<br>Due</th>
+  </tr>
   <tr>
     <td>{money(ageing.get("current"), False) or "0.00"}</td>
     <td>{money(ageing.get("d30"), False) or "0.00"}</td>
@@ -445,10 +464,10 @@ def self_test() -> int:
     ]
     payments = [{"paid_on": "2026-01-15", "customer": "Mr Godfrey Cupido", "amount": -759, "note": "Payment"}]
     stmt = statement_on_invoice(invoices, payments, "Godfrey Cupido", as_at="2026-02-01")
-    if stmt["total_due"] != 759 or len(stmt["lines"]) != 1:
+    if stmt["total_due"] != 759 or len(stmt["lines"]) != 3:
         print("FAIL ledger", stmt)
         failed += 1
-    elif stmt["lines"][0]["reference"] != "2" or stmt["lines"][0]["days"] != 0:
+    elif stmt["lines"][0]["description"] != "Invoice No.1":
         print("FAIL first-line", stmt["lines"][0])
         failed += 1
     else:
@@ -520,22 +539,21 @@ def self_test() -> int:
         for amt in amounts:
             marlene_pay.append({"paid_on": day, "customer": who, "amount": amt, "note": "Payment"})
     stmt_m = statement_on_invoice(marlene_inv, marlene_pay, who, as_at="2026-10-04")
-    line_sum = round(sum(l["amount"] for l in stmt_m["lines"]), 2)
     aged_sum = round(sum(stmt_m["ageing"].values()), 2)
     if stmt_m["total_due"] != 7070:
         print("FAIL marlene-due", stmt_m["total_due"], len(stmt_m["lines"]))
         failed += 1
-    elif line_sum != 7070 or aged_sum != 7070:
-        print("FAIL outstanding-sum", line_sum, aged_sum, stmt_m["ageing"])
+    elif stmt_m["lines"][0]["description"] != "Balance Forward" or stmt_m["lines"][-1]["description"] != "Invoice No.3113":
+        print("FAIL qb-ledger", stmt_m["lines"][0], stmt_m["lines"][-1])
         failed += 1
-    elif stmt_m["ageing"] != {"current": 439.0, "d30": 0.0, "d60": 439.0, "d90": 768.0, "older": 5424.0}:
+    elif stmt_m["lines"][-1]["balance"] != 7070:
+        print("FAIL last-balance", stmt_m["lines"][-1])
+        failed += 1
+    elif stmt_m["ageing"] != {"current": 0.0, "d30": 439.0, "d60": 439.0, "d90": 768.0, "older": 5424.0}:
         print("FAIL ageing", stmt_m["ageing"])
         failed += 1
-    elif aged_sum != stmt_m["total_due"]:
-        print("FAIL ageing-not-to-current", aged_sum, stmt_m["total_due"])
-        failed += 1
-    elif not all(l.get("days", 0) >= 0 for l in stmt_m["lines"]):
-        print("FAIL days", stmt_m["lines"])
+    elif aged_sum != 7070:
+        print("FAIL ageing-not-to-current", aged_sum, stmt_m["ageing"])
         failed += 1
     elif (stmt_m.get("last_payment") or {}).get("amount") != 1000:
         print("FAIL last-payment", stmt_m.get("last_payment"))
@@ -544,7 +562,7 @@ def self_test() -> int:
         print("FAIL date-fmt")
         failed += 1
     else:
-        print("OK outstanding-days", len(stmt_m["lines"]), stmt_m["ageing"])
+        print("OK qb-statement-1490", len(stmt_m["lines"]), stmt_m["ageing"])
 
     # Same-day invoices are Current, 31-day-old unpaid is 31-60, matching QB 1369.
     amoroc = [
@@ -563,7 +581,7 @@ def self_test() -> int:
 
     # Historical invoice must not list later bills.
     early = statement_on_invoice(invoices, payments, "Godfrey Cupido", as_at="2026-01-01")
-    if early["total_due"] != 759 or any(l.get("reference") == "2" for l in early["lines"]):
+    if early["total_due"] != 759 or any("No.2" in (l.get("description") or "") for l in early["lines"]):
         print("FAIL as-at-cutoff", early)
         failed += 1
     else:
