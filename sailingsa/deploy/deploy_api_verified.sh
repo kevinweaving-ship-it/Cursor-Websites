@@ -41,6 +41,14 @@ if [ -f "$INCOMING_H" ]; then
   chown www-data:www-data "$LIVE_H" 2>/dev/null || true
 fi
 
+INCOMING_I=/root/incoming/ilca4_canonical.py
+LIVE_I=/var/www/sailingsa/api/ilca4_canonical.py
+if [ -f "$INCOMING_I" ]; then
+  echo "Copy ilca4_canonical.py"
+  cp "$INCOMING_I" "$LIVE_I"
+  chown www-data:www-data "$LIVE_I" 2>/dev/null || true
+fi
+
 echo "Live hash AFTER:"
 sha256sum "$LIVE"
 

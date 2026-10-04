@@ -19,5 +19,10 @@ if [ -f "$INH" ]; then
   cp "$INH" "$(dirname "$API")/regatta_host_code.py"
   chown www-data:www-data "$(dirname "$API")/regatta_host_code.py" || true
 fi
+INI="/root/incoming/ilca4_canonical.py"
+if [ -f "$INI" ]; then
+  cp "$INI" "$(dirname "$API")/ilca4_canonical.py"
+  chown www-data:www-data "$(dirname "$API")/ilca4_canonical.py" || true
+fi
 systemctl restart sailingsa-api
 systemctl is-active sailingsa-api

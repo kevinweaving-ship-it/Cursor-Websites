@@ -36,6 +36,25 @@ try:
 except ImportError:
     build_sailor_bio_from_db = None  # module not deployed (e.g. missing sailingsa/api/modules/)
 
+try:
+    from ilca4_canonical import (
+        ILCA4_CLASS_LOOKUP_SQL,
+        LOGO_URL as ILCA4_LOGO_URL,
+        choose_single_class_row,
+        is_ilca4_family_label,
+        is_ilca4_family_slug,
+        lookup_params as ilca4_lookup_params,
+        search_aliases as ilca4_search_aliases,
+    )
+except ImportError:
+    ILCA4_CLASS_LOOKUP_SQL = None
+    ILCA4_LOGO_URL = "/artwork/Class Logo/ILCA-4-Class-Logo.png"
+    choose_single_class_row = None
+    is_ilca4_family_label = lambda _raw: False
+    is_ilca4_family_slug = lambda _slug: False
+    ilca4_lookup_params = None
+    ilca4_search_aliases = lambda: ["ilca 4", "ilca 4.7", "laser 4.7", "laser radial 4.7"]
+
 NAME_SIM_THRESHOLD = 0.75
 
 # Align default with config.postgres.env (sailors_user)
@@ -16042,10 +16061,14 @@ def api_isp_codes():
     ]
 
 # Class name resolution: full phrase -> also match aliases (e.g. Laser -> ILCA). Use full phrase so "Optimist A" matches only that class.
+_ILCA4_SEARCH = ilca4_search_aliases()
 CLASS_SEARCH_ALIASES = {
     "laser": ["laser", "ilca"],
     "ilca": ["ilca", "laser"],
-    "ilca 4": ["ilca 4", "ilca4", "laser 4", "laser4", "radial"],
+    "ilca 4": _ILCA4_SEARCH,
+    "ilca 4.7": _ILCA4_SEARCH,
+    "laser 4.7": _ILCA4_SEARCH,
+    "laser radial 4.7": _ILCA4_SEARCH,
     "ilca 6": ["ilca 6", "ilca6", "laser standard", "laser radial"],
     "ilca 7": ["ilca 7", "ilca7", "laser"],
     "optimist": ["optimist", "opti"],
@@ -21976,8 +21999,12 @@ def _class_logo_url_from_fleet_name(name: str) -> Optional[str]:
     if not key:
         return None
     file_map = {
-        "ilca 4": "/artwork/Class Logo/ILCA-4.7-Class-Logo.png",
-        "ilca 4.7": "/artwork/Class Logo/ILCA-4.7-Class-Logo.png",
+        "ilca 4": ILCA4_LOGO_URL,
+        "ilca 4.7": ILCA4_LOGO_URL,
+        "ilca4.7": ILCA4_LOGO_URL,
+        "ilca 4,7": ILCA4_LOGO_URL,
+        "laser 4.7": ILCA4_LOGO_URL,
+        "laser radial 4.7": ILCA4_LOGO_URL,
         "ilca 6": "/artwork/Class Logo/ILCA-6-Class-Logo.png",
         "ilca 7": "/artwork/Class Logo/ILCA-7-Class-Logo.png",
         "optimist a": "/artwork/Class Logo/Optimist-A-Class-Logo.png",
@@ -26064,7 +26091,61 @@ def _resolve_class_slug_to_class_id(class_slug: str):
         except (ValueError, TypeError):
             return (None, None)
     class_id, class_name = _get_class_by_name_slug(s)
-    return (class_id, class_name)
+    if class_id:
+        return (class_id, class_name)
+    class_id, class_name = _get_class_by_alias_slug(s)
+    if class_id:
+        return (class_id, class_name)
+    if is_ilca4_family_slug(s):
+        return _lookup_single_ilca4_class()
+    return (None, None)
+
+
+def _get_class_by_alias_slug(slug: str):
+    """Name-only slug matched to class_aliases.alias. One class_id or none."""
+    norm = _normalise_class_slug_for_lookup(slug)
+    if not norm:
+        return (None, None)
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            """
+            SELECT c.class_id, c.class_name
+            FROM class_aliases a
+            JOIN classes c ON c.class_id = a.class_id
+            WHERE LOWER(TRIM(a.alias)) = %s
+            """,
+            (norm,),
+        )
+        chosen = choose_single_class_row(cur.fetchall()) if choose_single_class_row else None
+        if not chosen:
+            return (None, None)
+        return chosen
+    except Exception:
+        return (None, None)
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+def _lookup_single_ilca4_class():
+    """Existing ILCA 4 family class, or (None, None) when missing or duplicated."""
+    if not ILCA4_CLASS_LOOKUP_SQL or not ilca4_lookup_params or not choose_single_class_row:
+        return (None, None)
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(ILCA4_CLASS_LOOKUP_SQL, ilca4_lookup_params())
+        chosen = choose_single_class_row(cur.fetchall())
+        return chosen if chosen else (None, None)
+    except Exception:
+        return (None, None)
+    finally:
+        if conn:
+            return_db_connection(conn)
 
 
 @app.get("/api/class/resolve-slug/{slug}")

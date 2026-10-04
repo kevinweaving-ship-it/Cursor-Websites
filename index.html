@@ -6891,8 +6891,11 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                         list.push(t);
                                     };
                                     var fileMap = {
-                                        'ilca 4': 'ILCA-4.7-Class-Logo.png',
-                                        'ilca 4.7': 'ILCA-4.7-Class-Logo.png',
+                                        'ilca 4': 'ILCA-4-Class-Logo.png',
+                                        'ilca 4.7': 'ILCA-4-Class-Logo.png',
+                                        'ilca4.7': 'ILCA-4-Class-Logo.png',
+                                        'laser 4.7': 'ILCA-4-Class-Logo.png',
+                                        'laser radial 4.7': 'ILCA-4-Class-Logo.png',
                                         'ilca 6': 'ILCA-6-Class-Logo.png',
                                         'ilca 7': 'ILCA-7-Class-Logo.png',
                                         'ilca': 'ILCA-Class-Logo.png',
@@ -10884,7 +10887,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     if (entriesResponse.ok) classEntries = await entriesResponse.json();
                 } catch (e) { console.error('Class entries fetch:', e); }
                 function formatClassName(key) {
-                    const m = { 'dabchick':'Dabchick','ilca 4':'ILCA 4','ilca 4.7':'ILCA 4.7','ilca 6':'ILCA 6','mirror':'Mirror','open':'Open','optimist a':'Optimist A','optimist b':'Optimist B','rs tera':'RS Tera','topaz':'Topaz','topper 5.3':'Topper 5.3' };
+                    const m = { 'dabchick':'Dabchick','ilca 4':'ILCA 4','ilca 4.7':'ILCA 4','ilca4.7':'ILCA 4','laser 4.7':'ILCA 4','laser radial 4.7':'ILCA 4','ilca 6':'ILCA 6','mirror':'Mirror','open':'Open','optimist a':'Optimist A','optimist b':'Optimist B','rs tera':'RS Tera','topaz':'Topaz','topper 5.3':'Topper 5.3' };
                     return m[(key || '').toLowerCase()] || key;
                 }
                 const classesWithEntries = Object.entries(classEntries)
@@ -11422,8 +11425,11 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
             function regattaChipMasterClassLogo(label) {
                 var key = String(label || '').trim().toLowerCase().replace(/\s+fleet$/i, '').replace(/\s+class$/i, '').trim();
                 var fileMap = {
-                    'ilca 4': '/artwork/Class Logo/ILCA-4.7-Class-Logo.png',
-                    'ilca 4.7': '/artwork/Class Logo/ILCA-4.7-Class-Logo.png',
+                    'ilca 4': '/artwork/Class Logo/ILCA-4-Class-Logo.png',
+                    'ilca 4.7': '/artwork/Class Logo/ILCA-4-Class-Logo.png',
+                    'ilca4.7': '/artwork/Class Logo/ILCA-4-Class-Logo.png',
+                    'laser 4.7': '/artwork/Class Logo/ILCA-4-Class-Logo.png',
+                    'laser radial 4.7': '/artwork/Class Logo/ILCA-4-Class-Logo.png',
                     'ilca 6': '/artwork/Class Logo/ILCA-6-Class-Logo.png',
                     'ilca 7': '/artwork/Class Logo/ILCA-7-Class-Logo.png',
                     'optimist a': '/artwork/Class Logo/Optimist-A-Class-Logo.png',
