@@ -1,0 +1,1104 @@
+{
+  "captured_on": "2026-10-04",
+  "source": "Read-only select of production public.classes and public.class_aliases. Not a schema change.",
+  "classes": [
+    {
+      "class_id": 1,
+      "class_name": "Optimist"
+    },
+    {
+      "class_id": 2,
+      "class_name": "Mirror"
+    },
+    {
+      "class_id": 3,
+      "class_name": "29er"
+    },
+    {
+      "class_id": 5,
+      "class_name": "Dabchick"
+    },
+    {
+      "class_id": 7,
+      "class_name": "420"
+    },
+    {
+      "class_id": 8,
+      "class_name": "ILCA 4"
+    },
+    {
+      "class_id": 9,
+      "class_name": "Finn"
+    },
+    {
+      "class_id": 10,
+      "class_name": "Sonnet"
+    },
+    {
+      "class_id": 20,
+      "class_name": "505"
+    },
+    {
+      "class_id": 21,
+      "class_name": "9hr Endurance"
+    },
+    {
+      "class_id": 22,
+      "class_name": "Cape 31"
+    },
+    {
+      "class_id": 23,
+      "class_name": "Class 40"
+    },
+    {
+      "class_id": 24,
+      "class_name": "DF95"
+    },
+    {
+      "class_id": 27,
+      "class_name": "Dinghy"
+    },
+    {
+      "class_id": 29,
+      "class_name": "Extra"
+    },
+    {
+      "class_id": 32,
+      "class_name": "Farr 40"
+    },
+    {
+      "class_id": 33,
+      "class_name": "Fast Fleet"
+    },
+    {
+      "class_id": 35,
+      "class_name": "Formula 1"
+    },
+    {
+      "class_id": 37,
+      "class_name": "Halcat"
+    },
+    {
+      "class_id": 39,
+      "class_name": "Hobie 14"
+    },
+    {
+      "class_id": 40,
+      "class_name": "Hobie 16"
+    },
+    {
+      "class_id": 41,
+      "class_name": "Hobie Tiger"
+    },
+    {
+      "class_id": 45,
+      "class_name": "Ilca 6"
+    },
+    {
+      "class_id": 46,
+      "class_name": "Ilca 7"
+    },
+    {
+      "class_id": 47,
+      "class_name": "IOM"
+    },
+    {
+      "class_id": 48,
+      "class_name": "J22"
+    },
+    {
+      "class_id": 49,
+      "class_name": "L26"
+    },
+    {
+      "class_id": 52,
+      "class_name": "Lipton Cup - Keelboat"
+    },
+    {
+      "class_id": 55,
+      "class_name": "Mono Class A"
+    },
+    {
+      "class_id": 56,
+      "class_name": "Mono Class B"
+    },
+    {
+      "class_id": 57,
+      "class_name": "Mono Class C"
+    },
+    {
+      "class_id": 58,
+      "class_name": "Multi"
+    },
+    {
+      "class_id": 59,
+      "class_name": "Multihull"
+    },
+    {
+      "class_id": 60,
+      "class_name": "Open"
+    },
+    {
+      "class_id": 61,
+      "class_name": "Open Dinghy"
+    },
+    {
+      "class_id": 62,
+      "class_name": "Optimist A"
+    },
+    {
+      "class_id": 63,
+      "class_name": "Optimist B"
+    },
+    {
+      "class_id": 64,
+      "class_name": "Orca"
+    },
+    {
+      "class_id": 65,
+      "class_name": "Ocean Racing"
+    },
+    {
+      "class_id": 67,
+      "class_name": "Simonis 35"
+    },
+    {
+      "class_id": 68,
+      "class_name": "Simonis 55"
+    },
+    {
+      "class_id": 69,
+      "class_name": "Soling"
+    },
+    {
+      "class_id": 71,
+      "class_name": "Stadt 23"
+    },
+    {
+      "class_id": 72,
+      "class_name": "Sun Fast 3300"
+    },
+    {
+      "class_id": 73,
+      "class_name": "RS Tera"
+    },
+    {
+      "class_id": 74,
+      "class_name": "Tiger"
+    },
+    {
+      "class_id": 75,
+      "class_name": "Topper"
+    },
+    {
+      "class_id": 76,
+      "class_name": "Windsurfer"
+    },
+    {
+      "class_id": 77,
+      "class_name": "Fireball"
+    },
+    {
+      "class_id": 78,
+      "class_name": "Flying Dutchman"
+    },
+    {
+      "class_id": 79,
+      "class_name": "Sprint"
+    },
+    {
+      "class_id": 80,
+      "class_name": "Viper"
+    },
+    {
+      "class_id": 81,
+      "class_name": "Yngling"
+    },
+    {
+      "class_id": 97,
+      "class_name": "Mosquito"
+    },
+    {
+      "class_id": 100,
+      "class_name": "Unknown"
+    },
+    {
+      "class_id": 102,
+      "class_name": "Er"
+    },
+    {
+      "class_id": 103,
+      "class_name": "Optimist C"
+    },
+    {
+      "class_id": 105,
+      "class_name": "Flying"
+    },
+    {
+      "class_id": 106,
+      "class_name": "Mono"
+    },
+    {
+      "class_id": 107,
+      "class_name": "Simonis"
+    },
+    {
+      "class_id": 109,
+      "class_name": "Ladd 27"
+    },
+    {
+      "class_id": 111,
+      "class_name": "Mount Gay 30"
+    },
+    {
+      "class_id": 113,
+      "class_name": "Elan 444"
+    },
+    {
+      "class_id": 118,
+      "class_name": "Miura"
+    },
+    {
+      "class_id": 120,
+      "class_name": "Fast 42"
+    },
+    {
+      "class_id": 121,
+      "class_name": "Corby 49"
+    },
+    {
+      "class_id": 122,
+      "class_name": "MAT 1180"
+    },
+    {
+      "class_id": 123,
+      "class_name": "Lavranos 34"
+    },
+    {
+      "class_id": 124,
+      "class_name": "Lavranos 36"
+    },
+    {
+      "class_id": 125,
+      "class_name": "Tornado"
+    },
+    {
+      "class_id": 127,
+      "class_name": "Senior Dinghy"
+    },
+    {
+      "class_id": 129,
+      "class_name": "Active 15"
+    },
+    {
+      "class_id": 130,
+      "class_name": "Phantom"
+    },
+    {
+      "class_id": 131,
+      "class_name": "Class AB"
+    },
+    {
+      "class_id": 132,
+      "class_name": "Class C"
+    },
+    {
+      "class_id": 133,
+      "class_name": "Class D"
+    },
+    {
+      "class_id": 134,
+      "class_name": "Class E"
+    },
+    {
+      "class_id": 135,
+      "class_name": "JPK 1010"
+    },
+    {
+      "class_id": 136,
+      "class_name": "J-105"
+    },
+    {
+      "class_id": 137,
+      "class_name": "Whitbread MG30"
+    },
+    {
+      "class_id": 138,
+      "class_name": "Pacer 27"
+    },
+    {
+      "class_id": 139,
+      "class_name": "Didi 40"
+    },
+    {
+      "class_id": 140,
+      "class_name": "Topaz Duo"
+    },
+    {
+      "class_id": 141,
+      "class_name": "Flamenca"
+    },
+    {
+      "class_id": 142,
+      "class_name": "Windsurfer LT"
+    },
+    {
+      "class_id": 143,
+      "class_name": "BIC"
+    },
+    {
+      "class_id": 144,
+      "class_name": "Bosun"
+    },
+    {
+      "class_id": 145,
+      "class_name": "Enterprise"
+    },
+    {
+      "class_id": 146,
+      "class_name": "Pico DH"
+    },
+    {
+      "class_id": 147,
+      "class_name": "Saldanha"
+    },
+    {
+      "class_id": 148,
+      "class_name": "TSL"
+    },
+    {
+      "class_id": 149,
+      "class_name": "Topaz"
+    },
+    {
+      "class_id": 150,
+      "class_name": "RS Quba"
+    },
+    {
+      "class_id": 151,
+      "class_name": "RS Tera Sport"
+    },
+    {
+      "class_id": 152,
+      "class_name": "Laser Pico"
+    },
+    {
+      "class_id": 153,
+      "class_name": "Topper 4.2"
+    },
+    {
+      "class_id": 154,
+      "class_name": "Topper 3.0"
+    },
+    {
+      "class_id": 156,
+      "class_name": "J/24"
+    },
+    {
+      "class_id": 158,
+      "class_name": "Schionning Arrow 12"
+    },
+    {
+      "class_id": 159,
+      "class_name": "Farrier"
+    },
+    {
+      "class_id": 160,
+      "class_name": "Sea Oyster"
+    },
+    {
+      "class_id": 161,
+      "class_name": "J-133"
+    },
+    {
+      "class_id": 162,
+      "class_name": "J-120"
+    },
+    {
+      "class_id": 163,
+      "class_name": "First 44.7"
+    },
+    {
+      "class_id": 164,
+      "class_name": "Mumm 36"
+    },
+    {
+      "class_id": 165,
+      "class_name": "Leisure 42"
+    },
+    {
+      "class_id": 166,
+      "class_name": "Oceanis Yacht 54"
+    },
+    {
+      "class_id": 167,
+      "class_name": "Rocket 55"
+    },
+    {
+      "class_id": 169,
+      "class_name": "Lavranos 52"
+    },
+    {
+      "class_id": 170,
+      "class_name": "J-111"
+    },
+    {
+      "class_id": 172,
+      "class_name": "Farr 38"
+    },
+    {
+      "class_id": 173,
+      "class_name": "Sun Fast 3200"
+    },
+    {
+      "class_id": 174,
+      "class_name": "Jaz 30"
+    },
+    {
+      "class_id": 175,
+      "class_name": "Fareast 28R"
+    },
+    {
+      "class_id": 176,
+      "class_name": "Avanti26"
+    },
+    {
+      "class_id": 179,
+      "class_name": "Charger 33"
+    },
+    {
+      "class_id": 182,
+      "class_name": "Sun Odyssey 39i"
+    },
+    {
+      "class_id": 183,
+      "class_name": "Lightwave 395"
+    },
+    {
+      "class_id": 184,
+      "class_name": "Sun Odyssey 409"
+    },
+    {
+      "class_id": 185,
+      "class_name": "Lavranos 43"
+    },
+    {
+      "class_id": 186,
+      "class_name": "First 375"
+    },
+    {
+      "class_id": 188,
+      "class_name": "Mauritius 43"
+    },
+    {
+      "class_id": 189,
+      "class_name": "Bavaria 38 Match"
+    },
+    {
+      "class_id": 190,
+      "class_name": "Swede 55"
+    },
+    {
+      "class_id": 191,
+      "class_name": "Elan 434 Impression"
+    },
+    {
+      "class_id": 192,
+      "class_name": "Montevideo 43"
+    },
+    {
+      "class_id": 193,
+      "class_name": "Sadler 32"
+    },
+    {
+      "class_id": 194,
+      "class_name": "C&C 30 MK2"
+    },
+    {
+      "class_id": 195,
+      "class_name": "L36"
+    },
+    {
+      "class_id": 196,
+      "class_name": "Oceanis 390"
+    },
+    {
+      "class_id": 197,
+      "class_name": "Lavranos 39"
+    },
+    {
+      "class_id": 198,
+      "class_name": "Bongers 39"
+    },
+    {
+      "class_id": 199,
+      "class_name": "Tosca 36 mod."
+    },
+    {
+      "class_id": 200,
+      "class_name": "Sun Odyssey 34.2"
+    },
+    {
+      "class_id": 201,
+      "class_name": "Ocean 31"
+    },
+    {
+      "class_id": 202,
+      "class_name": "One-off"
+    },
+    {
+      "class_id": 203,
+      "class_name": "Van De Stadt 34"
+    },
+    {
+      "class_id": 204,
+      "class_name": "Weta"
+    },
+    {
+      "class_id": 206,
+      "class_name": "Flying 15"
+    },
+    {
+      "class_id": 209,
+      "class_name": "Hunter 19"
+    },
+    {
+      "class_id": 210,
+      "class_name": "MacGregor 26"
+    },
+    {
+      "class_id": 211,
+      "class_name": "Theta 26 - Racing"
+    },
+    {
+      "class_id": 212,
+      "class_name": "L20"
+    },
+    {
+      "class_id": 213,
+      "class_name": "Sprog"
+    },
+    {
+      "class_id": 214,
+      "class_name": "Topaz Uno"
+    },
+    {
+      "class_id": 216,
+      "class_name": "Dragonfly"
+    },
+    {
+      "class_id": 217,
+      "class_name": "Holiday 23"
+    },
+    {
+      "class_id": 218,
+      "class_name": "Beneteau 345"
+    },
+    {
+      "class_id": 219,
+      "class_name": "Mistral Fin"
+    },
+    {
+      "class_id": 220,
+      "class_name": "Atlantis 36"
+    },
+    {
+      "class_id": 221,
+      "class_name": "Hartley 30"
+    },
+    {
+      "class_id": 222,
+      "class_name": "GP14"
+    },
+    {
+      "class_id": 223,
+      "class_name": "Melges 14"
+    },
+    {
+      "class_id": 224,
+      "class_name": "F15 Classic"
+    },
+    {
+      "class_id": 225,
+      "class_name": "F9RX"
+    },
+    {
+      "class_id": 226,
+      "class_name": "Farr Ajax 40"
+    },
+    {
+      "class_id": 227,
+      "class_name": "Revervo"
+    },
+    {
+      "class_id": 228,
+      "class_name": "Power Boat"
+    },
+    {
+      "class_id": 229,
+      "class_name": "Topper 5.3"
+    },
+    {
+      "class_id": 230,
+      "class_name": "49er"
+    },
+    {
+      "class_id": 246,
+      "class_name": "Dart 18"
+    },
+    {
+      "class_id": 247,
+      "class_name": "RS Tera Pro"
+    },
+    {
+      "class_id": 248,
+      "class_name": "J/99"
+    },
+    {
+      "class_id": 249,
+      "class_name": "Mistral"
+    },
+    {
+      "class_id": 250,
+      "class_name": "Weta Tri"
+    },
+    {
+      "class_id": 251,
+      "class_name": "Dart 1 up"
+    },
+    {
+      "class_id": 252,
+      "class_name": "Dart 2 up"
+    },
+    {
+      "class_id": 253,
+      "class_name": "Halcat 1 up"
+    },
+    {
+      "class_id": 254,
+      "class_name": "Gypsy"
+    },
+    {
+      "class_id": 255,
+      "class_name": "Laser 28"
+    },
+    {
+      "class_id": 256,
+      "class_name": "Wharram Tiki 30"
+    },
+    {
+      "class_id": 257,
+      "class_name": "Petersen 33"
+    },
+    {
+      "class_id": 258,
+      "class_name": "Endurance 37"
+    },
+    {
+      "class_id": 259,
+      "class_name": "Bavaria 35"
+    },
+    {
+      "class_id": 260,
+      "class_name": "Tumlaren"
+    },
+    {
+      "class_id": 261,
+      "class_name": "Astove 30 Mk2"
+    },
+    {
+      "class_id": 262,
+      "class_name": "Bavaria 35 Match"
+    },
+    {
+      "class_id": 263,
+      "class_name": "Bavaria 36"
+    },
+    {
+      "class_id": 264,
+      "class_name": "Elvstrom 1/4 Ton"
+    },
+    {
+      "class_id": 265,
+      "class_name": "First 40 CR"
+    },
+    {
+      "class_id": 266,
+      "class_name": "Flamenca Modified"
+    },
+    {
+      "class_id": 267,
+      "class_name": "Flamenca Dutton"
+    },
+    {
+      "class_id": 268,
+      "class_name": "Norlin 34"
+    },
+    {
+      "class_id": 269,
+      "class_name": "RCOD (mod)"
+    },
+    {
+      "class_id": 270,
+      "class_name": "Sadler 26"
+    },
+    {
+      "class_id": 271,
+      "class_name": "TLC 19 Wing Keel"
+    },
+    {
+      "class_id": 272,
+      "class_name": "Stadt 26"
+    },
+    {
+      "class_id": 273,
+      "class_name": "Stadt 34"
+    },
+    {
+      "class_id": 274,
+      "class_name": "Nimbus"
+    },
+    {
+      "class_id": 275,
+      "class_name": "Hickman Std"
+    },
+    {
+      "class_id": 276,
+      "class_name": "Sea Cart"
+    },
+    {
+      "class_id": 277,
+      "class_name": "Astove 31"
+    },
+    {
+      "class_id": 278,
+      "class_name": "RS Feva"
+    },
+    {
+      "class_id": 283,
+      "class_name": "L 34"
+    },
+    {
+      "class_id": 284,
+      "class_name": "Quarter Ton"
+    },
+    {
+      "class_id": 285,
+      "class_name": "RCOD"
+    },
+    {
+      "class_id": 286,
+      "class_name": "Sunfast 3300"
+    },
+    {
+      "class_id": 287,
+      "class_name": "Dolphin"
+    },
+    {
+      "class_id": 288,
+      "class_name": "Unicorn"
+    },
+    {
+      "class_id": 289,
+      "class_name": "J33"
+    },
+    {
+      "class_id": 290,
+      "class_name": "First Class 10"
+    },
+    {
+      "class_id": 292,
+      "class_name": "ORC"
+    }
+  ],
+  "aliases": [
+    {
+      "class_id": 1,
+      "alias": "OPTIMIST A"
+    },
+    {
+      "class_id": 1,
+      "alias": "OPTIMIST B"
+    },
+    {
+      "class_id": 1,
+      "alias": "Optimist"
+    },
+    {
+      "class_id": 1,
+      "alias": "Optimist C"
+    },
+    {
+      "class_id": 2,
+      "alias": "13"
+    },
+    {
+      "class_id": 2,
+      "alias": "Mirror"
+    },
+    {
+      "class_id": 3,
+      "alias": "6"
+    },
+    {
+      "class_id": 5,
+      "alias": "19"
+    },
+    {
+      "class_id": 5,
+      "alias": "Dabchick"
+    },
+    {
+      "class_id": 7,
+      "alias": "420"
+    },
+    {
+      "class_id": 8,
+      "alias": "ILCA 4,7"
+    },
+    {
+      "class_id": 8,
+      "alias": "ILCA4"
+    },
+    {
+      "class_id": 8,
+      "alias": "ILCA4.7"
+    },
+    {
+      "class_id": 8,
+      "alias": "Ilca 4.7"
+    },
+    {
+      "class_id": 8,
+      "alias": "Laser 4"
+    },
+    {
+      "class_id": 8,
+      "alias": "Laser 4.7"
+    },
+    {
+      "class_id": 8,
+      "alias": "Laser Radial 4.7"
+    },
+    {
+      "class_id": 8,
+      "alias": "ilca 4"
+    },
+    {
+      "class_id": 9,
+      "alias": "FINN"
+    },
+    {
+      "class_id": 10,
+      "alias": "Sonnet"
+    },
+    {
+      "class_id": 22,
+      "alias": "Cape 31"
+    },
+    {
+      "class_id": 23,
+      "alias": "Class 40 OCD 40"
+    },
+    {
+      "class_id": 35,
+      "alias": "F1"
+    },
+    {
+      "class_id": 35,
+      "alias": "F1 Class"
+    },
+    {
+      "class_id": 35,
+      "alias": "Formula"
+    },
+    {
+      "class_id": 35,
+      "alias": "Formula One"
+    },
+    {
+      "class_id": 35,
+      "alias": "Formula-1"
+    },
+    {
+      "class_id": 39,
+      "alias": "Hobie 14"
+    },
+    {
+      "class_id": 40,
+      "alias": "H16"
+    },
+    {
+      "class_id": 40,
+      "alias": "Hobie 16"
+    },
+    {
+      "class_id": 45,
+      "alias": "ILCA 6"
+    },
+    {
+      "class_id": 45,
+      "alias": "ILCA6"
+    },
+    {
+      "class_id": 45,
+      "alias": "Laser Radial"
+    },
+    {
+      "class_id": 46,
+      "alias": "ILCA 7"
+    },
+    {
+      "class_id": 46,
+      "alias": "ILCA7"
+    },
+    {
+      "class_id": 46,
+      "alias": "Laser / ILCA"
+    },
+    {
+      "class_id": 46,
+      "alias": "Laser 7"
+    },
+    {
+      "class_id": 46,
+      "alias": "Laser Standard"
+    },
+    {
+      "class_id": 48,
+      "alias": "J22"
+    },
+    {
+      "class_id": 49,
+      "alias": "L 26"
+    },
+    {
+      "class_id": 49,
+      "alias": "L26"
+    },
+    {
+      "class_id": 59,
+      "alias": "Multi"
+    },
+    {
+      "class_id": 61,
+      "alias": "OPEN"
+    },
+    {
+      "class_id": 67,
+      "alias": "Simonis 35 mod"
+    },
+    {
+      "class_id": 72,
+      "alias": "Jeanneau Sun Fast 3300"
+    },
+    {
+      "class_id": 73,
+      "alias": "RS TERA"
+    },
+    {
+      "class_id": 73,
+      "alias": "TERA"
+    },
+    {
+      "class_id": 97,
+      "alias": "Mosquito"
+    },
+    {
+      "class_id": 109,
+      "alias": "Ladd 27"
+    },
+    {
+      "class_id": 111,
+      "alias": "Mount Gay 30"
+    },
+    {
+      "class_id": 135,
+      "alias": "JPK"
+    },
+    {
+      "class_id": 135,
+      "alias": "JPK 1010"
+    },
+    {
+      "class_id": 135,
+      "alias": "JPK10.10"
+    },
+    {
+      "class_id": 135,
+      "alias": "JPK1010"
+    },
+    {
+      "class_id": 135,
+      "alias": "jpk 10.10"
+    },
+    {
+      "class_id": 138,
+      "alias": "Pacer 27"
+    },
+    {
+      "class_id": 138,
+      "alias": "Pacer27"
+    },
+    {
+      "class_id": 138,
+      "alias": "pacer"
+    },
+    {
+      "class_id": 151,
+      "alias": "RS Tera Sport"
+    },
+    {
+      "class_id": 151,
+      "alias": "Tera Sport"
+    },
+    {
+      "class_id": 169,
+      "alias": "Lavranos 52 One Off"
+    },
+    {
+      "class_id": 170,
+      "alias": "J/111"
+    },
+    {
+      "class_id": 172,
+      "alias": "Farr 38 MOD"
+    },
+    {
+      "class_id": 172,
+      "alias": "Farr 38 mod."
+    },
+    {
+      "class_id": 176,
+      "alias": "Avanti 26"
+    },
+    {
+      "class_id": 186,
+      "alias": "Beneteau First 375"
+    },
+    {
+      "class_id": 188,
+      "alias": "Mauritius 43 mod."
+    },
+    {
+      "class_id": 209,
+      "alias": "Hunter"
+    },
+    {
+      "class_id": 217,
+      "alias": "Holiday 34"
+    },
+    {
+      "class_id": 247,
+      "alias": "RS Tera Pro"
+    },
+    {
+      "class_id": 247,
+      "alias": "Tera Pro"
+    },
+    {
+      "class_id": 249,
+      "alias": "Mistral M20"
+    }
+  ]
+}

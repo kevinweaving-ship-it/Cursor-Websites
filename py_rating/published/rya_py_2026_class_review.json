@@ -1,0 +1,2031 @@
+{
+  "system_code": "RYA_PY",
+  "version_label": "2026",
+  "version_number": "4",
+  "effective_from": "2026-04-22",
+  "class_master_captured_on": "2026-10-04",
+  "counts": {
+    "matched": 18,
+    "unmatched": 89,
+    "ambiguous": 0
+  },
+  "rows": [
+    {
+      "source_class_id": "6",
+      "source_class_name": "2.4mR",
+      "list_section": "dinghy_base",
+      "rating_value": 1235,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "221",
+      "source_class_name": "2000",
+      "list_section": "dinghy_base",
+      "rating_value": 1122,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "7",
+      "source_class_name": "29er",
+      "list_section": "dinghy_base",
+      "rating_value": 900,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "matched",
+      "class_id": 3,
+      "class_name": "29er",
+      "matched_on": [
+        "29er"
+      ],
+      "candidate_class_ids": [
+        3
+      ],
+      "hints": []
+    },
+    {
+      "source_class_id": "223",
+      "source_class_name": "4000",
+      "list_section": "dinghy_base",
+      "rating_value": 926,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "12",
+      "source_class_name": "420",
+      "list_section": "dinghy_base",
+      "rating_value": 1110,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "matched",
+      "class_id": 7,
+      "class_name": "420",
+      "matched_on": [
+        "420"
+      ],
+      "candidate_class_ids": [
+        7
+      ],
+      "hints": []
+    },
+    {
+      "source_class_id": "17",
+      "source_class_name": "505",
+      "list_section": "dinghy_base",
+      "rating_value": 892,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "matched",
+      "class_id": 20,
+      "class_name": "505",
+      "matched_on": [
+        "505"
+      ],
+      "candidate_class_ids": [
+        20
+      ],
+      "hints": []
+    },
+    {
+      "source_class_id": "22",
+      "source_class_name": "ALBACORE",
+      "list_section": "dinghy_base",
+      "rating_value": 1037,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "25",
+      "source_class_name": "ALTO",
+      "list_section": "dinghy_base",
+      "rating_value": 910,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "28",
+      "source_class_name": "B14",
+      "list_section": "dinghy_base",
+      "rating_value": 858,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "34",
+      "source_class_name": "BLAZE",
+      "list_section": "dinghy_base",
+      "rating_value": 1030,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "44",
+      "source_class_name": "BRITISH MOTH",
+      "list_section": "dinghy_base",
+      "rating_value": 1160,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "46",
+      "source_class_name": "BUZZ",
+      "list_section": "dinghy_base",
+      "rating_value": 1009,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "50",
+      "source_class_name": "BYTE CII",
+      "list_section": "dinghy_base",
+      "rating_value": 1123,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "62",
+      "source_class_name": "COMET",
+      "list_section": "dinghy_base",
+      "rating_value": 1208,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "64",
+      "source_class_name": "COMET XTRA",
+      "list_section": "dinghy_base",
+      "rating_value": 1210,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "69",
+      "source_class_name": "COMET TRIO MK 1",
+      "list_section": "dinghy_base",
+      "rating_value": 1082,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "70",
+      "source_class_name": "COMET TRIO MK 2",
+      "list_section": "dinghy_base",
+      "rating_value": 1053,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "71",
+      "source_class_name": "CONTENDER",
+      "list_section": "dinghy_base",
+      "rating_value": 973,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "81",
+      "source_class_name": "DEVOTI D-ONE",
+      "list_section": "dinghy_base",
+      "rating_value": 957,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "82",
+      "source_class_name": "DEVOTI D-ZERO",
+      "list_section": "dinghy_base",
+      "rating_value": 1029,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "108",
+      "source_class_name": "ENTERPRISE",
+      "list_section": "dinghy_base",
+      "rating_value": 1137,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 145,
+      "class_name": "Enterprise",
+      "matched_on": [
+        "ENTERPRISE"
+      ],
+      "candidate_class_ids": [
+        145
+      ],
+      "hints": []
+    },
+    {
+      "source_class_id": "111",
+      "source_class_name": "EUROPE",
+      "list_section": "dinghy_base",
+      "rating_value": 1140,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "132",
+      "source_class_name": "FINN",
+      "list_section": "dinghy_base",
+      "rating_value": 1049,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 9,
+      "class_name": "Finn",
+      "matched_on": [
+        "FINN"
+      ],
+      "candidate_class_ids": [
+        9
+      ],
+      "hints": []
+    },
+    {
+      "source_class_id": "133",
+      "source_class_name": "FIREBALL",
+      "list_section": "dinghy_base",
+      "rating_value": 960,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "matched",
+      "class_id": 77,
+      "class_name": "Fireball",
+      "matched_on": [
+        "FIREBALL"
+      ],
+      "candidate_class_ids": [
+        77
+      ],
+      "hints": []
+    },
+    {
+      "source_class_id": "135",
+      "source_class_name": "FIREFLY",
+      "list_section": "dinghy_base",
+      "rating_value": 1178,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "140",
+      "source_class_name": "FLYING FIFTEEN CLASSIC (1-2700)",
+      "list_section": "dinghy_base",
+      "rating_value": 1079,
+      "variant": "Classic (1-2700)",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 78,
+          "class_name": "Flying Dutchman",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 105,
+          "class_name": "Flying",
+          "reason": "name prefix only; not an automatic match"
+        },
+        {
+          "class_id": 206,
+          "class_name": "Flying 15",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "141",
+      "source_class_name": "FLYING FIFTEEN SILVER (2701-3400)",
+      "list_section": "dinghy_base",
+      "rating_value": 1051,
+      "variant": "Silver (2701-3400)",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 78,
+          "class_name": "Flying Dutchman",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 105,
+          "class_name": "Flying",
+          "reason": "name prefix only; not an automatic match"
+        },
+        {
+          "class_id": 206,
+          "class_name": "Flying 15",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "142",
+      "source_class_name": "FlYING FIFTEEN",
+      "list_section": "dinghy_base",
+      "rating_value": 1028,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 78,
+          "class_name": "Flying Dutchman",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 105,
+          "class_name": "Flying",
+          "reason": "name prefix only; not an automatic match"
+        },
+        {
+          "class_id": 206,
+          "class_name": "Flying 15",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "148",
+      "source_class_name": "FUSION PRO",
+      "list_section": "dinghy_base",
+      "rating_value": 1281,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "153",
+      "source_class_name": "GP14",
+      "list_section": "dinghy_base",
+      "rating_value": 1145,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "matched",
+      "class_id": 222,
+      "class_name": "GP14",
+      "matched_on": [
+        "GP14"
+      ],
+      "candidate_class_ids": [
+        222
+      ],
+      "hints": []
+    },
+    {
+      "source_class_id": "155",
+      "source_class_name": "GRADUATE",
+      "list_section": "dinghy_base",
+      "rating_value": 1110,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "156",
+      "source_class_name": "GULL",
+      "list_section": "dinghy_base",
+      "rating_value": 1385,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "158",
+      "source_class_name": "HADRON H2",
+      "list_section": "dinghy_base",
+      "rating_value": 1045,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "182",
+      "source_class_name": "HORNET",
+      "list_section": "dinghy_base",
+      "rating_value": 950,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "189",
+      "source_class_name": "ILCA 4 / Laser 4.7",
+      "list_section": "dinghy_base",
+      "rating_value": 1218,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 8,
+      "class_name": "ILCA 4",
+      "matched_on": [
+        "ILCA 4",
+        "Laser 4.7"
+      ],
+      "candidate_class_ids": [
+        8
+      ],
+      "hints": [
+        {
+          "class_id": 45,
+          "class_name": "Ilca 6",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 46,
+          "class_name": "Ilca 7",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "190",
+      "source_class_name": "ILCA 6 / Laser Radial",
+      "list_section": "dinghy_base",
+      "rating_value": 1156,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 45,
+      "class_name": "Ilca 6",
+      "matched_on": [
+        "ILCA 6",
+        "Laser Radial"
+      ],
+      "candidate_class_ids": [
+        45
+      ],
+      "hints": [
+        {
+          "class_id": 8,
+          "class_name": "ILCA 4",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 46,
+          "class_name": "Ilca 7",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "191",
+      "source_class_name": "ILCA 7 / Laser",
+      "list_section": "dinghy_base",
+      "rating_value": 1103,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 46,
+      "class_name": "Ilca 7",
+      "matched_on": [
+        "ILCA 7"
+      ],
+      "candidate_class_ids": [
+        46
+      ],
+      "hints": [
+        {
+          "class_id": 8,
+          "class_name": "ILCA 4",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 45,
+          "class_name": "Ilca 6",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "192",
+      "source_class_name": "ILLUSION",
+      "list_section": "dinghy_base",
+      "rating_value": 1285,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "204",
+      "source_class_name": "K1",
+      "list_section": "dinghy_base",
+      "rating_value": 1060,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "319",
+      "source_class_name": "K6",
+      "list_section": "dinghy_base",
+      "rating_value": 900,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "206",
+      "source_class_name": "KESTREL",
+      "list_section": "dinghy_base",
+      "rating_value": 1042,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "213",
+      "source_class_name": "LARK",
+      "list_section": "dinghy_base",
+      "rating_value": 1060,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "233",
+      "source_class_name": "LASER STRATOS CENTREBOARD",
+      "list_section": "dinghy_base",
+      "rating_value": 1108,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 152,
+          "class_name": "Laser Pico",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 255,
+          "class_name": "Laser 28",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "239",
+      "source_class_name": "LIGHTNING 368",
+      "list_section": "dinghy_base",
+      "rating_value": 1171,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "245",
+      "source_class_name": "MEGABYTE",
+      "list_section": "dinghy_base",
+      "rating_value": 1058,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "250",
+      "source_class_name": "MERLIN ROCKET",
+      "list_section": "dinghy_base",
+      "rating_value": 980,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "252",
+      "source_class_name": "MIRACLE",
+      "list_section": "dinghy_base",
+      "rating_value": 1196,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "253",
+      "source_class_name": "MIRROR",
+      "list_section": "dinghy_base",
+      "rating_value": 1364,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "matched",
+      "class_id": 2,
+      "class_name": "Mirror",
+      "matched_on": [
+        "MIRROR"
+      ],
+      "candidate_class_ids": [
+        2
+      ],
+      "hints": []
+    },
+    {
+      "source_class_id": "254",
+      "source_class_name": "MIRROR - SINGLEHANDED WITH SPINNAKER",
+      "list_section": "dinghy_base",
+      "rating_value": 1364,
+      "variant": "SINGLEHANDED WITH SPINNAKER",
+      "crew_count": 1,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 2,
+          "class_name": "Mirror",
+          "reason": "name prefix only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "255",
+      "source_class_name": "MIRROR SINGLEHANDED NO SPINNAKER",
+      "list_section": "dinghy_base",
+      "rating_value": 1376,
+      "variant": "SINGLEHANDED NO SPINNAKER",
+      "crew_count": 1,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 2,
+          "class_name": "Mirror",
+          "reason": "name prefix only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "257",
+      "source_class_name": "MUSTO SKIFF",
+      "list_section": "dinghy_base",
+      "rating_value": 830,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "259",
+      "source_class_name": "NATIONAL 12",
+      "list_section": "dinghy_base",
+      "rating_value": 1070,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "280",
+      "source_class_name": "OK",
+      "list_section": "dinghy_base",
+      "rating_value": 1092,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "282",
+      "source_class_name": "OPTIMIST",
+      "list_section": "dinghy_base",
+      "rating_value": 1629,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 1,
+      "class_name": "Optimist",
+      "matched_on": [
+        "OPTIMIST"
+      ],
+      "candidate_class_ids": [
+        1
+      ],
+      "hints": [
+        {
+          "class_id": 62,
+          "class_name": "Optimist A",
+          "reason": "name prefix only; not an automatic match"
+        },
+        {
+          "class_id": 63,
+          "class_name": "Optimist B",
+          "reason": "name prefix only; not an automatic match"
+        },
+        {
+          "class_id": 103,
+          "class_name": "Optimist C",
+          "reason": "name prefix only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "283",
+      "source_class_name": "OSPREY",
+      "list_section": "dinghy_base",
+      "rating_value": 932,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "288",
+      "source_class_name": "PHANTOM",
+      "list_section": "dinghy_base",
+      "rating_value": 998,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 130,
+      "class_name": "Phantom",
+      "matched_on": [
+        "PHANTOM"
+      ],
+      "candidate_class_ids": [
+        130
+      ],
+      "hints": []
+    },
+    {
+      "source_class_id": "299",
+      "source_class_name": "ROOSTER 8.1",
+      "list_section": "dinghy_base",
+      "rating_value": 1016,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "311",
+      "source_class_name": "RS AERO 5",
+      "list_section": "dinghy_base",
+      "rating_value": 1141,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "455",
+      "source_class_name": "RS AERO 6",
+      "list_section": "dinghy_base",
+      "rating_value": 1098,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "312",
+      "source_class_name": "RS AERO 7",
+      "list_section": "dinghy_base",
+      "rating_value": 1062,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "313",
+      "source_class_name": "RS AERO 9",
+      "list_section": "dinghy_base",
+      "rating_value": 1005,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "318",
+      "source_class_name": "RS FEVA XL",
+      "list_section": "dinghy_base",
+      "rating_value": 1248,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 278,
+          "class_name": "RS Feva",
+          "reason": "name prefix only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "324",
+      "source_class_name": "RS TERA PRO",
+      "list_section": "dinghy_base",
+      "rating_value": 1368,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 247,
+      "class_name": "RS Tera Pro",
+      "matched_on": [
+        "RS TERA PRO"
+      ],
+      "candidate_class_ids": [
+        247
+      ],
+      "hints": [
+        {
+          "class_id": 73,
+          "class_name": "RS Tera",
+          "reason": "name prefix only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "323",
+      "source_class_name": "RS TERA SPORT",
+      "list_section": "dinghy_base",
+      "rating_value": 1452,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 151,
+      "class_name": "RS Tera Sport",
+      "matched_on": [
+        "RS TERA SPORT"
+      ],
+      "candidate_class_ids": [
+        151
+      ],
+      "hints": [
+        {
+          "class_id": 73,
+          "class_name": "RS Tera",
+          "reason": "name prefix only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "325",
+      "source_class_name": "RS VAREO",
+      "list_section": "dinghy_base",
+      "rating_value": 1095,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "329",
+      "source_class_name": "RS VISION",
+      "list_section": "dinghy_base",
+      "rating_value": 1150,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "301",
+      "source_class_name": "RS100 8.4",
+      "list_section": "dinghy_base",
+      "rating_value": 1002,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "303",
+      "source_class_name": "RS200",
+      "list_section": "dinghy_base",
+      "rating_value": 1053,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "304",
+      "source_class_name": "RS300",
+      "list_section": "dinghy_base",
+      "rating_value": 965,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "305",
+      "source_class_name": "RS400",
+      "list_section": "dinghy_base",
+      "rating_value": 945,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "306",
+      "source_class_name": "RS500",
+      "list_section": "dinghy_base",
+      "rating_value": 963,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "307",
+      "source_class_name": "RS600",
+      "list_section": "dinghy_base",
+      "rating_value": 921,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "309",
+      "source_class_name": "RS700",
+      "list_section": "dinghy_base",
+      "rating_value": 845,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "310",
+      "source_class_name": "RS800",
+      "list_section": "dinghy_base",
+      "rating_value": 797,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "334",
+      "source_class_name": "SCORPION",
+      "list_section": "dinghy_base",
+      "rating_value": 1042,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "335",
+      "source_class_name": "SEAFLY",
+      "list_section": "dinghy_base",
+      "rating_value": 1074,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "348",
+      "source_class_name": "SNIPE",
+      "list_section": "dinghy_base",
+      "rating_value": 1104,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "350",
+      "source_class_name": "SOLO",
+      "list_section": "dinghy_base",
+      "rating_value": 1139,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "351",
+      "source_class_name": "SOLUTION",
+      "list_section": "dinghy_base",
+      "rating_value": 1112,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "355",
+      "source_class_name": "SPLASH",
+      "list_section": "dinghy_base",
+      "rating_value": 1247,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "363",
+      "source_class_name": "STREAKER",
+      "list_section": "dinghy_base",
+      "rating_value": 1121,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "367",
+      "source_class_name": "SUPERNOVA",
+      "list_section": "dinghy_base",
+      "rating_value": 1075,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "370",
+      "source_class_name": "TASAR",
+      "list_section": "dinghy_base",
+      "rating_value": 1022,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "379",
+      "source_class_name": "TOPPER",
+      "list_section": "dinghy_base",
+      "rating_value": 1369,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 75,
+      "class_name": "Topper",
+      "matched_on": [
+        "TOPPER"
+      ],
+      "candidate_class_ids": [
+        75
+      ],
+      "hints": [
+        {
+          "class_id": 153,
+          "class_name": "Topper 4.2",
+          "reason": "name prefix only; not an automatic match"
+        },
+        {
+          "class_id": 154,
+          "class_name": "Topper 3.0",
+          "reason": "name prefix only; not an automatic match"
+        },
+        {
+          "class_id": 229,
+          "class_name": "Topper 5.3",
+          "reason": "name prefix only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "380",
+      "source_class_name": "TOPPER 4.2",
+      "list_section": "dinghy_base",
+      "rating_value": 1450,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 153,
+      "class_name": "Topper 4.2",
+      "matched_on": [
+        "TOPPER 4.2"
+      ],
+      "candidate_class_ids": [
+        153
+      ],
+      "hints": [
+        {
+          "class_id": 75,
+          "class_name": "Topper",
+          "reason": "name prefix only; not an automatic match"
+        },
+        {
+          "class_id": 154,
+          "class_name": "Topper 3.0",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 229,
+          "class_name": "Topper 5.3",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "411",
+      "source_class_name": "WANDERER",
+      "list_section": "dinghy_base",
+      "rating_value": 1201,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "415",
+      "source_class_name": "WAYFARER",
+      "list_section": "dinghy_base",
+      "rating_value": 1107,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "19",
+      "source_class_name": "A CLASS (NON-FOILING)",
+      "list_section": "multihull_base",
+      "rating_value": 695,
+      "variant": "NON-FOILING",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "55",
+      "source_class_name": "CATAPULT",
+      "list_section": "multihull_base",
+      "rating_value": 898,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "56",
+      "source_class_name": "CHALLENGER",
+      "list_section": "multihull_base",
+      "rating_value": 1175,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "84",
+      "source_class_name": "DART 15 / SPRINT 15",
+      "list_section": "multihull_base",
+      "rating_value": 916,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 246,
+          "class_name": "Dart 18",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 251,
+          "class_name": "Dart 1 up",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 252,
+          "class_name": "Dart 2 up",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "86",
+      "source_class_name": "DART 15 SPORT / SPRINT 15 SPORT",
+      "list_section": "multihull_base",
+      "rating_value": 904,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 246,
+          "class_name": "Dart 18",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 251,
+          "class_name": "Dart 1 up",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 252,
+          "class_name": "Dart 2 up",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "95",
+      "source_class_name": "DART 18",
+      "list_section": "multihull_base",
+      "rating_value": 795,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "matched",
+      "class_id": 246,
+      "class_name": "Dart 18",
+      "matched_on": [
+        "DART 18"
+      ],
+      "candidate_class_ids": [
+        246
+      ],
+      "hints": [
+        {
+          "class_id": 251,
+          "class_name": "Dart 1 up",
+          "reason": "same first word only; not an automatic match"
+        },
+        {
+          "class_id": 252,
+          "class_name": "Dart 2 up",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "187",
+      "source_class_name": "HURRICANE 5.9 SX",
+      "list_section": "multihull_base",
+      "rating_value": 680,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "354",
+      "source_class_name": "SPITFIRE",
+      "list_section": "multihull_base",
+      "rating_value": 745,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "36",
+      "source_class_name": "BLAZE FIRE",
+      "list_section": "experimental",
+      "rating_value": 1050,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "49",
+      "source_class_name": "BYTE CI",
+      "list_section": "experimental",
+      "rating_value": 1223,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "51",
+      "source_class_name": "CADET",
+      "list_section": "experimental",
+      "rating_value": 1455,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "C",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "451",
+      "source_class_name": "DEVOTI D ZERO - BLACK RIG",
+      "list_section": "experimental",
+      "rating_value": 1051,
+      "variant": "BLACK RIG",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "151",
+      "source_class_name": "FUSION PRO GEN",
+      "list_section": "experimental",
+      "rating_value": 1275,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "195",
+      "source_class_name": "INTERNATIONAL CANOE",
+      "list_section": "experimental",
+      "rating_value": 858,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "202",
+      "source_class_name": "ISO",
+      "list_section": "experimental",
+      "rating_value": 940,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "507",
+      "source_class_name": "MIRROR - NO SPINNAKER",
+      "list_section": "experimental",
+      "rating_value": 1376,
+      "variant": "NO SPINNAKER",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 2,
+          "class_name": "Mirror",
+          "reason": "name prefix only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "161",
+      "source_class_name": "HANSA 303 - SINGLEHANDED",
+      "list_section": "experimental",
+      "rating_value": 1570,
+      "variant": "SINGLEHANDED",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "162",
+      "source_class_name": "HANSA LIBERTY",
+      "list_section": "experimental",
+      "rating_value": 1411,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "U",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": []
+    },
+    {
+      "source_class_id": "553",
+      "source_class_name": "HARTLEY ZENITH",
+      "list_section": "experimental",
+      "rating_value": 1051,
+      "variant": "",
+      "crew_count": 1,
+      "rig": "S",
+      "spinnaker": "0",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 221,
+          "class_name": "Hartley 30",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    },
+    {
+      "source_class_id": "549",
+      "source_class_name": "MELGES 15",
+      "list_section": "experimental",
+      "rating_value": 994,
+      "variant": "",
+      "crew_count": 2,
+      "rig": "S",
+      "spinnaker": "A",
+      "match_status": "unmatched",
+      "class_id": null,
+      "class_name": null,
+      "matched_on": [],
+      "candidate_class_ids": [],
+      "hints": [
+        {
+          "class_id": 223,
+          "class_name": "Melges 14",
+          "reason": "same first word only; not an automatic match"
+        }
+      ]
+    }
+  ]
+}
