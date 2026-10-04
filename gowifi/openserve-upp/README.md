@@ -84,8 +84,8 @@ what it was for, and the amount — those rows are recreated as full invoices
 (bill-to, address, qty/rate, terms). Same-client known packages fill monthly
 lines that only say `Invoice No.N`. Click `Invoice No.N` on the statement
 to open that invoice. New invoices are one A4 page at `/dash/invoice.html`:
-the old QuickBooks invoice block (letterhead, bill to, this month’s line,
-FNB footer) with a statement of account under it — opening balance, Date /
+company and client cards, this month’s invoice card, then a statement card
+from the last paid-up zero through the current bill and amount due. Date /
 Description / Amount / Balance, ageing, closing. The document is an Invoice, not
 a Tax Invoice (no VAT number on the old PDFs). FNB `62860060278`. Cancel
 QuickBooks once that history is on the box.

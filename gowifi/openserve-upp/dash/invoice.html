@@ -7,35 +7,36 @@
 <style>
 @page { size: A4; margin: 12mm; }
 body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#1a1a1a; background:#e8e8e8; margin:0; }
-.sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:14mm 16mm 18mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
-.letterhead { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; border-bottom:2px solid #1a1a1a; padding-bottom:10px; }
-.brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; }
-.doc-title { font-size:28px; font-weight:700; letter-spacing:.14em; }
+.sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:10mm 12mm 14mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
+.card { border: 2.5px solid #1a3a6b; border-radius:8px; padding:12px 14px; margin:0 0 12px; background:#fff; }
+.card-row { display:flex; gap:12px; margin:0 0 12px; }
+.card-row .card { flex:1; margin:0; }
+.brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; color:#1a3a6b; }
+.doc-title { font-size:22px; font-weight:700; letter-spacing:.12em; color:#1a3a6b; }
 .muted { color:#555; }
-.label { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#555; margin-bottom:3px; }
-.parties { display:flex; justify-content:space-between; gap:28px; margin:16px 0 14px; }
+.label { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#1a3a6b; margin-bottom:3px; font-weight:700; }
 .who { font-weight:700; font-size:13px; }
-.meta { border-collapse:collapse; }
+.meta { border-collapse:collapse; margin-top:8px; }
 .meta th { text-align:left; font-weight:600; color:#555; padding:2px 16px 2px 0; }
 .meta td { text-align:right; font-weight:600; }
 table.lines, table.soa, table.index { width:100%; border-collapse:collapse; }
-table.lines th, table.soa th, table.index th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:1px solid #1a1a1a; padding:6px 4px; }
-table.lines td, table.index td { padding:5px 4px; border-bottom:1px solid #e4e4e4; vertical-align:top; }
-table.soa td { padding:3px 4px; border-bottom:1px solid #eee; vertical-align:top; }
+table.lines th, table.soa th, table.index th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:2px solid #1a3a6b; padding:6px 4px; color:#1a3a6b; }
+table.lines td, table.index td { padding:5px 4px; border-bottom:1.5px solid #1a3a6b; vertical-align:top; }
+table.soa td { padding:4px; border-bottom:1.5px solid #1a3a6b; vertical-align:top; }
 table.soa a, table.index a { color:#1a3a6b; text-decoration:underline; font-weight:600; }
 .num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.due { font-size:13px; font-weight:700; text-align:right; margin:10px 0 18px; }
-h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 6px; display:flex; justify-content:space-between; align-items:baseline; }
+.due { font-size:13px; font-weight:700; text-align:right; margin:10px 0 8px; color:#1a3a6b; }
+h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; color:#1a3a6b; }
 .ageing { width:100%; border-collapse:collapse; margin:10px 0 4px; }
-.ageing th { font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:#555; text-align:right; padding:2px 6px; }
-.ageing td { text-align:right; font-weight:600; padding:2px 6px; font-variant-numeric:tabular-nums; }
+.ageing th { font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:#1a3a6b; text-align:right; padding:4px 6px; border-bottom:2px solid #1a3a6b; }
+.ageing td { text-align:right; font-weight:600; padding:6px; font-variant-numeric:tabular-nums; border-top:1.5px solid #1a3a6b; }
 .ageing td.total, .ageing th.total { font-size:13px; }
-.bank { border-top:1px solid #1a1a1a; padding-top:8px; margin-top:16px; color:#333; }
+.bank { color:#333; margin-bottom:0; }
 a.back { font: 13px/1.4 sans-serif; color:#345; }
 .screen-only { max-width:210mm; margin:12px auto 0; padding:0 16px; }
-.index-wrap { width:210mm; margin:16px auto 32px; background:#fff; padding:14mm 16mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
+.index-wrap { width:210mm; margin:16px auto 32px; background:#fff; padding:14mm 16mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); border: 2.5px solid #1a3a6b; border-radius:8px; }
 .index-wrap h1 { font-size:20px; letter-spacing:.08em; margin:0 0 4px; }
-.index-wrap a { color:#1a1a1a; }
+.index-wrap a { color:#1a3a6b; }
 .err { color:#a00; padding:24px; }
 @media print { body { background:#fff; } .sheet, .index-wrap { margin:0; box-shadow:none; width:auto; min-height:0; padding:0; } .screen-only { display:none; } }
 </style>
@@ -125,41 +126,43 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
     document.title = "Invoice "+r.invoice_number;
     document.getElementById("app").innerHTML = `
       <article class="sheet">
-        <header class="letterhead">
-          <div>
+        <div class="card-row">
+          <section class="card">
+            <div class="label">From</div>
             <div class="brand">${esc(c.name||"GoWifi (Pty) Ltd")}</div>
             ${(c.lines||[]).map(x=>`<div>${esc(x)}</div>`).join("")}
             <div class="muted">${esc(c.phone||"")} · ${esc(c.email||"")}</div>
             <div class="muted">Business ID No. ${esc(c.reg||"")}</div>
-          </div>
-          <div class="doc-title">INVOICE</div>
-        </header>
-        <section class="parties">
-          <div>
+          </section>
+          <section class="card">
             <div class="label">Bill to</div>
             <div class="who">${esc(r.customer||"—")}</div>
             ${addrHtml(r.address)}
-          </div>
-          <table class="meta">
-            <tr><th>Invoice</th><td>${esc(r.invoice_number)}</td></tr>
-            <tr><th>Date</th><td>${esc(fmtDate(r.invoice_date))}</td></tr>
-            <tr><th>Terms</th><td>${esc(r.terms||"Due on receipt")}</td></tr>
-            <tr><th>Due date</th><td>${esc(fmtDate(r.due_date||r.invoice_date))}</td></tr>
+            <table class="meta">
+              <tr><th>Invoice</th><td>${esc(r.invoice_number)}</td></tr>
+              <tr><th>Date</th><td>${esc(fmtDate(r.invoice_date))}</td></tr>
+              <tr><th>Terms</th><td>${esc(r.terms||"Due on receipt")}</td></tr>
+              <tr><th>Due date</th><td>${esc(fmtDate(r.due_date||r.invoice_date))}</td></tr>
+            </table>
+          </section>
+        </div>
+        <section class="card">
+          <h2><span>Invoice</span><span class="doc-title">INVOICE</span></h2>
+          <table class="lines">
+            <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+            <tbody><tr>
+              <td>${esc(desc)}</td>
+              <td class="num">${esc(r.qty||1)}</td>
+              <td class="num">${money(r.rate!=null?r.rate:r.amount,false)}</td>
+              <td class="num">${money(r.amount,false)}</td>
+            </tr></tbody>
           </table>
+          <div class="due">This invoice ${money(r.amount)}</div>
         </section>
-        <table class="lines">
-          <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
-          <tbody><tr>
-            <td>${esc(desc)}</td>
-            <td class="num">${esc(r.qty||1)}</td>
-            <td class="num">${money(r.rate!=null?r.rate:r.amount,false)}</td>
-            <td class="num">${money(r.amount,false)}</td>
-          </tr></tbody>
-        </table>
-        <div class="due">This invoice ${money(r.amount)}</div>
         ${stmt.lines && stmt.lines.length ? `
-        <h2><span>Statement</span><span class="muted">as at ${esc(fmtDate(stmt.as_at||r.invoice_date))}</span></h2>
-        <div class="due">Total due ${money(due)}</div>
+        <section class="card">
+        <h2><span>Statement</span><span class="muted">from last paid up · as at ${esc(fmtDate(stmt.as_at||r.invoice_date))}</span></h2>
+        <div class="due">Outstanding ${money(due)}</div>
         <table class="soa">
           <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
           <tbody>${stmt.lines.map(line=>{
@@ -191,8 +194,9 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
             <td>${money(ageing.older,false)||"0.00"}</td>
             <td class="total">${money(due)}</td>
           </tr>
-        </table>` : `<div class="due">Balance due ${money(due)}</div>`}
-        <footer class="bank">
+        </table>
+        </section>` : `<section class="card"><div class="due">Balance due ${money(due)}</div></section>`}
+        <footer class="card bank">
           <div class="label">Banking / EFT</div>
           <div>Account name ${esc(c.bank_account_name||"GoWifi (Pty) Ltd")}</div>
           <div>${esc(c.bank||"First National Bank")} · ${esc(c.branch||"Hermanus")} · ${esc(c.branch_code||"200412")}</div>

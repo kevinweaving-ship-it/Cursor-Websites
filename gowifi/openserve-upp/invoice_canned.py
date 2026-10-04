@@ -203,6 +203,19 @@ def _ageing(rows: list[dict], as_at: date | None) -> dict:
     return ageing
 
 
+def _from_last_paid_up(ledger: list[dict]) -> list[dict]:
+    """Start where the account was last clear (balance 0), then the problem / this bill."""
+    if not ledger:
+        return ledger
+    last_zero = None
+    for i, line in enumerate(ledger):
+        if abs(float(line.get("balance") or 0)) <= 0.004:
+            last_zero = i
+    if last_zero is None:
+        return ledger
+    return ledger[last_zero:]
+
+
 def statement_on_invoice(
     invoices: list[dict],
     payments: list[dict],
@@ -292,12 +305,14 @@ def statement_on_invoice(
             "amount": round(sum(abs(r["signed"]) for r in pay_days if r["date"] == last_day), 2),
         }
     aged_sum = round(sum(ageing.values()), 2)
+    shown = _from_last_paid_up(ledger)
     return {
-        "lines": ledger,
+        "lines": shown,
         "outstanding": aged_lines,
         "total_due": balance,
         "as_at": age_on.isoformat(),
-        "period_from": ledger[0]["date"] if ledger else None,
+        "period_from": shown[0]["date"] if shown else None,
+        "paid_up_on": shown[0]["date"] if shown and abs(float(shown[0].get("balance") or 0)) <= 0.004 else None,
         "ageing": ageing,
         "ageing_sum": aged_sum,
         "last_payment": last_pay,
@@ -332,42 +347,45 @@ def render_invoice(row: dict) -> str:
 <body>
 <p class="screen-only"><a class="back" href="/dash/accounts.html">← Fibre accounts</a></p>
 <article class="sheet">
-  <header class="letterhead">
-    <div>
+  <div class="card-row">
+    <section class="card">
+      <div class="label">From</div>
       <div class="brand">{escape(c["name"])}</div>
       {lines}
       <div class="muted">{escape(c["phone"])} · {escape(c["email"])}</div>
       <div class="muted">Business ID No. {escape(c["reg"])}</div>
-    </div>
-    <div class="doc-title">INVOICE</div>
-  </header>
-  <section class="parties">
-    <div>
+    </section>
+    <section class="card">
       <div class="label">Bill to</div>
       <div class="who">{escape(row.get("customer") or "—")}</div>
       {_address_html(row.get("address"))}
-    </div>
-    <table class="meta">
-      <tr><th>Invoice</th><td>{escape(str(row.get("invoice_number") or ""))}</td></tr>
-      <tr><th>Date</th><td>{escape(row.get("invoice_date_fmt") or "—")}</td></tr>
-      <tr><th>Terms</th><td>{escape(row.get("terms") or "Due on receipt")}</td></tr>
-      <tr><th>Due date</th><td>{escape(row.get("due_date_fmt") or "—")}</td></tr>
+      <table class="meta">
+        <tr><th>Invoice</th><td>{escape(str(row.get("invoice_number") or ""))}</td></tr>
+        <tr><th>Date</th><td>{escape(row.get("invoice_date_fmt") or "—")}</td></tr>
+        <tr><th>Terms</th><td>{escape(row.get("terms") or "Due on receipt")}</td></tr>
+        <tr><th>Due date</th><td>{escape(row.get("due_date_fmt") or "—")}</td></tr>
+      </table>
+    </section>
+  </div>
+  <section class="card">
+    <h2><span>Invoice</span><span class="doc-title">INVOICE</span></h2>
+    <table class="lines">
+      <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>{desc}</td>
+          <td class="num">{escape(str(row.get("qty") or 1))}</td>
+          <td class="num">{money(row.get("rate") if row.get("rate") is not None else row.get("amount"), False)}</td>
+          <td class="num">{money(row.get("amount"), False)}</td>
+        </tr>
+      </tbody>
     </table>
+    <div class="due">This invoice {money(row.get("amount"))}</div>
   </section>
-  <table class="lines">
-    <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
-    <tbody>
-      <tr>
-        <td>{desc}</td>
-        <td class="num">{escape(str(row.get("qty") or 1))}</td>
-        <td class="num">{money(row.get("rate") if row.get("rate") is not None else row.get("amount"), False)}</td>
-        <td class="num">{money(row.get("amount"), False)}</td>
-      </tr>
-    </tbody>
-  </table>
-  <div class="due">This invoice {money(row.get("amount"))}</div>
+  <section class="card">
   {statement_html(row)}
-  <footer class="bank">
+  </section>
+  <footer class="card bank">
     <div class="label">Banking / EFT</div>
     <div>Account name {escape(c["bank_account_name"])}</div>
     <div>{escape(c["bank"])} · {escape(c["branch"])} · {escape(c["branch_code"])}</div>
@@ -382,28 +400,29 @@ def render_invoice(row: dict) -> str:
 DOCUMENT_CSS = """
 @page { size: A4; margin: 12mm; }
 body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#1a1a1a; background:#e8e8e8; margin:0; }
-.sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:14mm 16mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
-.letterhead { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; border-bottom:2px solid #1a1a1a; padding-bottom:10px; }
-.brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; }
-.doc-title { font-size:28px; font-weight:700; letter-spacing:.14em; }
+.sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:10mm 12mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
+.card { border: 2.5px solid #1a3a6b; border-radius:8px; padding:12px 14px; margin:0 0 12px; background:#fff; }
+.card-row { display:flex; gap:12px; margin:0 0 12px; }
+.card-row .card { flex:1; margin:0; }
+.brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; color:#1a3a6b; }
+.doc-title { font-size:22px; font-weight:700; letter-spacing:.12em; color:#1a3a6b; }
 .muted { color:#555; }
-.label { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#555; margin-bottom:3px; }
-.parties { display:flex; justify-content:space-between; gap:28px; margin:16px 0 14px; }
+.label { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#1a3a6b; margin-bottom:3px; font-weight:700; }
 .who { font-weight:700; font-size:13px; }
-.meta { border-collapse:collapse; }
+.meta { border-collapse:collapse; margin-top:8px; }
 .meta th { text-align:left; font-weight:600; color:#555; padding:2px 16px 2px 0; }
 .meta td { text-align:right; font-weight:600; }
 table.lines, table.soa { width:100%; border-collapse:collapse; }
-table.lines th, table.soa th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:1px solid #1a1a1a; padding:6px 4px; }
-table.lines td, table.soa td { padding:5px 4px; border-bottom:1px solid #e4e4e4; vertical-align:top; }
+table.lines th, table.soa th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:2px solid #1a3a6b; padding:6px 4px; color:#1a3a6b; }
+table.lines td, table.soa td { padding:5px 4px; border-bottom:1.5px solid #1a3a6b; vertical-align:top; }
 .num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.due { font-size:13px; font-weight:700; text-align:right; margin:10px 0 18px; }
-h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 6px; display:flex; justify-content:space-between; }
+.due { font-size:13px; font-weight:700; text-align:right; margin:10px 0 8px; color:#1a3a6b; }
+h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 8px; display:flex; justify-content:space-between; color:#1a3a6b; }
 .ageing { width:100%; border-collapse:collapse; margin:10px 0 4px; }
-.ageing th { font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:#555; text-align:right; padding:2px 6px; }
-.ageing td { text-align:right; font-weight:600; padding:2px 6px; font-variant-numeric:tabular-nums; }
+.ageing th { font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:#1a3a6b; text-align:right; padding:4px 6px; border-bottom:2px solid #1a3a6b; }
+.ageing td { text-align:right; font-weight:600; padding:6px; font-variant-numeric:tabular-nums; border-top:1.5px solid #1a3a6b; }
 .ageing td.total, .ageing th.total { font-size:13px; }
-.bank { border-top:1px solid #1a1a1a; padding-top:8px; margin-top:16px; color:#333; }
+.bank { color:#333; margin-bottom:0; }
 a.back { font: 13px/1.4 sans-serif; color:#345; }
 table.soa a { color:#1a3a6b; text-decoration:underline; font-weight:600; }
 .screen-only { max-width:210mm; margin:12px auto 0; padding:0 16px; }
@@ -438,8 +457,8 @@ def statement_html(row: dict) -> str:
     ageing = stmt.get("ageing") or {}
     as_at = fmt_date(stmt.get("as_at") or row.get("invoice_date"))
     return f"""
-<h2><span>Statement</span><span class="muted">as at {escape(as_at)}</span></h2>
-<div class="due">Total due {money(due)}</div>
+<h2><span>Statement</span><span class="muted">from last paid up · as at {escape(as_at)}</span></h2>
+<div class="due">Outstanding {money(due)}</div>
 <table class="soa">
   <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
   <tbody>{body}</tbody>
@@ -474,11 +493,14 @@ def self_test() -> int:
     ]
     payments = [{"paid_on": "2026-01-15", "customer": "Mr Godfrey Cupido", "amount": -759, "note": "Payment"}]
     stmt = statement_on_invoice(invoices, payments, "Godfrey Cupido", as_at="2026-02-01")
-    if stmt["total_due"] != 759 or len(stmt["lines"]) != 3:
+    if stmt["total_due"] != 759 or len(stmt["lines"]) != 2:
         print("FAIL ledger", stmt)
         failed += 1
-    elif stmt["lines"][0]["description"] != "Invoice No.1":
-        print("FAIL first-line", stmt["lines"][0])
+    elif stmt["lines"][0]["balance"] != 0 or stmt["lines"][-1]["description"] != "Invoice No.2":
+        print("FAIL good-payer", stmt["lines"])
+        failed += 1
+    elif stmt["total_due"] != invoices[1]["amount"]:
+        print("FAIL due-is-invoice", stmt)
         failed += 1
     else:
         print("OK invoice-plus-statement")
@@ -553,7 +575,13 @@ def self_test() -> int:
     if stmt_m["total_due"] != 7070:
         print("FAIL marlene-due", stmt_m["total_due"], len(stmt_m["lines"]))
         failed += 1
-    elif stmt_m["lines"][0]["description"] != "Balance Forward" or stmt_m["lines"][-1]["description"] != "Invoice No.3113":
+    elif stmt_m["lines"][0]["balance"] != 0 or stmt_m["lines"][0]["date"] != "2025-03-05":
+        print("FAIL last-paid-up", stmt_m["lines"][0])
+        failed += 1
+    elif any(l.get("reference") == "2373" for l in stmt_m["lines"]):
+        print("FAIL still-showing-cleared", stmt_m["lines"][0])
+        failed += 1
+    elif stmt_m["lines"][-1]["description"] != "Invoice No.3113":
         print("FAIL qb-ledger", stmt_m["lines"][0], stmt_m["lines"][-1])
         failed += 1
     elif stmt_m["lines"][-1].get("invoice_number") != "3113":
