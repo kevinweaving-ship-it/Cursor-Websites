@@ -203,6 +203,19 @@ def parse_qb_statement(text: str, filename: str = "") -> dict | None:
                     "statement_number": int(num.group(1)) if num else None,
                 }
             )
+            continue
+        fwd = re.search(r"^(\d{2}/\d{2}/\d{4}) Balance Forward\s+(-?[\d,.]+)\s*$", line)
+        if fwd and _money(fwd.group(2)):
+            payments.append(
+                {
+                    "paid_on": _iso(fwd.group(1)),
+                    "customer": customer,
+                    "amount": _money(fwd.group(2)),
+                    "note": "Balance Forward",
+                    "source": "quickbooks-statement",
+                    "statement_number": int(num.group(1)) if num else None,
+                }
+            )
     return {
         "statement_number": int(num.group(1)) if num else None,
         "statement_date": _iso(date.group(1) if date else None),
@@ -459,8 +472,10 @@ Voelklip                                                                        
 TO                                                            STATEMENT NO. 1369
 Amoroc Doors                                                          DATE 18/09/2025
                                                TOTAL DUE R1,597.00
+ 28/02/2025               Balance Forward                                             0.00
  17/03/2025               Invoice No.2477                                   199.00    199.00
  22/04/2025               Payment                                           -199.00   0.00
+ 29/02/2024               Balance Forward                                       1,197.00
 """,
         "s.pdf",
     )
@@ -470,8 +485,11 @@ Amoroc Doors                                                          DATE 18/09
     elif stmt["customer"] != "Amoroc Doors":
         print("FAIL statement-customer", stmt)
         failed += 1
-    elif stmt["invoices"][0]["invoice_number"] != 2477 or stmt["payments"][0]["amount"] != -199:
+    elif stmt["invoices"][0]["invoice_number"] != 2477:
         print("FAIL statement-rows", stmt)
+        failed += 1
+    elif not any(p.get("note") == "Balance Forward" and p.get("amount") == 1197 for p in stmt["payments"]):
+        print("FAIL balance-forward", stmt["payments"])
         failed += 1
     else:
         print("OK qb-statement")
