@@ -48,7 +48,7 @@ try:
     )
 except ImportError:
     ILCA4_CLASS_LOOKUP_SQL = None
-    ILCA4_LOGO_URL = "/artwork/Class Logo/ILCA-4-Class-Logo.png"
+    ILCA4_LOGO_URL = "/artwork/Class Logo/ILCA-4.7-Class-Logo.png"
     choose_single_class_row = None
     is_ilca4_family_label = lambda _raw: False
     is_ilca4_family_slug = lambda _slug: False

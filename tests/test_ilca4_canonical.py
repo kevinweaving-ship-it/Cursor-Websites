@@ -99,6 +99,8 @@ class Ilca4LabelTests(unittest.TestCase):
         raw = LOGO.read_bytes()
         self.assertEqual(hashlib.sha256(raw).hexdigest(), LOGO_SRC_SHA)
         self.assertEqual(LEGACY_LOGO.read_bytes(), raw)
+        self.assertEqual(ilca4.LOGO_FILE, "ILCA-4-Class-Logo.png")
+        self.assertTrue(ilca4.LOGO_URL.endswith("ILCA-4.7-Class-Logo.png"))
         self.assertEqual(raw[12:16], b"IHDR")
         _w, _h, bit, color = struct.unpack(">IIBB", raw[16:26])
         self.assertEqual(bit, 8)

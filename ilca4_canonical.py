@@ -8,10 +8,11 @@ from __future__ import annotations
 import re
 
 CANONICAL_NAME = "ILCA 4"
+# Canonical new asset. Same bytes as the production filename below.
 LOGO_FILE = "ILCA-4-Class-Logo.png"
-LOGO_URL = "/artwork/Class Logo/" + LOGO_FILE
-# Same bytes as LOGO_FILE, kept so older /artwork paths still show the new logo.
+# Existing production path. Maps keep this filename so live references do not move.
 LEGACY_LOGO_FILE = "ILCA-4.7-Class-Logo.png"
+LOGO_URL = "/artwork/Class Logo/" + LEGACY_LOGO_FILE
 
 # Spaced forms after comma→dot and whitespace collapse.
 _SPACED = frozenset({
