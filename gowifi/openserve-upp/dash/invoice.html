@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoWifi invoice</title>
+<style>
+body { font: 14px/1.4 Georgia, "Times New Roman", serif; color:#111; margin:24px auto; max-width:760px; }
+h1 { font-size:28px; letter-spacing:.08em; margin:28px 0 12px; }
+.muted { color:#444; font-size:13px; }
+.row { display:flex; justify-content:space-between; gap:24px; }
+table { width:100%; border-collapse:collapse; margin:22px 0; }
+th { text-align:left; font-size:11px; letter-spacing:.05em; border-bottom:1px solid #111; padding:6px 4px; }
+td { padding:10px 4px; vertical-align:top; border-bottom:1px solid #ddd; }
+.num { text-align:right; white-space:nowrap; }
+.due { font-size:18px; font-weight:700; text-align:right; margin:12px 0 24px; }
+.bank { border-top:1px solid #111; padding-top:10px; font-size:13px; }
+a.back { font: 13px sans-serif; color:#345; }
+.err { color:#a00; }
+@media print { a.back { display:none; } body { margin:12mm; } }
+</style>
+</head>
+<body>
+<p><a class="back" href="/dash/accounts.html">← Fibre accounts</a></p>
+<div id="app">Loading…</div>
+<script>
+const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const money = v => v==null ? "—" : "R"+Number(v).toLocaleString("en-ZA",{minimumFractionDigits:2, maximumFractionDigits:2});
+const params = new URLSearchParams(location.search);
+fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store"})
+  .then(r => { if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+  .then(data => {
+    const hist = ((data.books||{}).history||{}).invoices || [];
+    const drafts = ((data.books||{}).customer_invoices||{}).rows || [];
+    const all = hist.concat(drafts);
+    const want = params.get("n");
+    if (!want) {
+      document.getElementById("app").innerHTML = `<p class="muted">Canned invoices</p><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th class="num">Amount</th></tr></thead><tbody>${
+        all.map(r=>`<tr><td><a href="?n=${esc(r.invoice_number)}">${esc(r.invoice_number)}</a></td><td>${esc(r.invoice_date||"—")}</td><td>${esc(r.customer||"—")}</td><td class="num">${money(r.amount)}</td></tr>`).join("") || `<tr><td colspan="4">None yet</td></tr>`
+      }</tbody></table>`;
+      return;
+    }
+    const r = all.find(x => String(x.invoice_number)===String(want));
+    if (!r) { document.getElementById("app").innerHTML = `<p class="err">No invoice ${esc(want)}</p>`; return; }
+    const c = (data.books&&data.books.company) || {};
+    document.title = "Invoice "+r.invoice_number;
+    document.getElementById("app").innerHTML = `
+      <div><strong>${esc(c.name||"GoWifi (Pty) Ltd")}</strong></div>
+      ${(c.lines||[]).map(x=>`<div>${esc(x)}</div>`).join("")}
+      <div class="muted">${esc(c.phone||"")} · ${esc(c.email||"")}</div>
+      <div class="muted">Business ID No. ${esc(c.reg||"")}</div>
+      <h1>INVOICE</h1>
+      <div class="row">
+        <div>
+          <div class="muted">BILL TO</div>
+          <div><strong>${esc(r.customer||"—")}</strong></div>
+          <div>${esc(r.address||"")}</div>
+        </div>
+        <div>
+          <div>INVOICE ${esc(r.invoice_number)}</div>
+          <div>DATE ${esc(r.invoice_date||"—")}</div>
+          <div>TERMS ${esc(r.terms||"Due on receipt")}</div>
+          <div>DUE DATE ${esc(r.due_date||r.invoice_date||"—")}</div>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+        <tbody><tr>
+          <td>${esc(r.description||"Monthly service")}</td>
+          <td class="num">${esc(r.qty||1)}</td>
+          <td class="num">${money(r.rate!=null?r.rate:r.amount)}</td>
+          <td class="num">${money(r.amount)}</td>
+        </tr></tbody>
+      </table>
+      <div class="due">BALANCE DUE ${money(r.balance_due!=null?r.balance_due:r.amount)}</div>
+      <div class="bank">
+        <div>Banking/EFT Details</div>
+        <div>Account Name: ${esc(c.bank_account_name||"GoWifi (Pty) Ltd")}</div>
+        <div>Bank: ${esc(c.bank||"First National Bank")}</div>
+        <div>Branch: ${esc(c.branch||"Hermanus")}</div>
+        <div>Branch Code: ${esc(c.branch_code||"200412")}</div>
+        <div>Account Number: ${esc(c.account_number||"62860060278")}</div>
+      </div>`;
+  })
+  .catch(e => { document.getElementById("app").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>

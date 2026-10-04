@@ -197,13 +197,22 @@ function render(data){
       <span class="meta">no QuickBooks</span>
     </h2>
     <div id="books-fold" class="fold hidden">
-      <div class="card"><div class="meta">${esc((data.books&&data.books.loop)||"We invoice ourselves. Netcash collects. FNB is the bank. Openserve is the fibre cost.")}</div></div>
+      <div class="card"><div class="meta">${esc((data.books&&data.books.loop)||"Old QuickBooks history in, new invoices canned.")}</div>
+        <div class="meta"><a href="/dash/invoice.html" style="color:var(--acc)">Canned invoices</a> · next ${esc((data.books&&data.books.customer_invoices&&data.books.customer_invoices.next)||"—")}</div></div>
       <div class="grid">
-        <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">invoices · ${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
-        <div class="card"><div class="k">FNB daily</div><div class="v">${((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"awaiting GoWiFi CSV")}</div></div>
-        <div class="card"><div class="k">Netcash</div><div class="v">${data.books&&data.books.netcash&&data.books.netcash.ready?"ready":"key"}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||"")}</div></div>
+        <div class="card"><div class="k">Old invoices</div><div class="v">${(data.books&&data.books.history&&data.books.history.count)||0}</div><div class="meta">${esc((data.books&&data.books.history&&data.books.history.statements)||0)} statements · ${esc((data.books&&data.books.history&&data.books.history.payments)||0)} payments</div></div>
+        <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
+        <div class="card"><div class="k">FNB</div><div class="v">${((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"")}</div></div>
       </div>
-      <div class="card"><div class="meta">Customer invoices: next ${esc((data.books&&data.books.customer_invoices&&data.books.customer_invoices.next)||3040)} · ${esc((data.books&&data.books.customer_invoices&&data.books.customer_invoices.drafts)||0)} drafts from active lines · ${esc((data.books&&data.books.customer_invoices&&data.books.customer_invoices.note)||"")}</div></div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>#</th><th>Date</th><th>Client</th><th>Amount</th></tr></thead>
+          <tbody>${((data.books&&data.books.history&&data.books.history.invoices)||[]).map(r=>`
+            <tr><td class="num"><a href="/dash/invoice.html?n=${esc(r.invoice_number)}" style="color:var(--acc)">${esc(r.invoice_number)}</a></td>
+            <td class="num">${esc(r.invoice_date||"—")}</td><td>${esc(r.customer||"—")}<div class="meta">${esc(r.source||"")}</div></td>
+            <td class="num">${r.amount==null?"—":Number(r.amount).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No QuickBooks invoices in mail yet</td></tr>`}</tbody>
+        </table>
+      </div>
     </div>
     <h2>Active accounts</h2>
     <div class="card scroll">

@@ -203,6 +203,32 @@ CREATE TABLE IF NOT EXISTS customer_invoices (
     source TEXT
 );
 
+CREATE TABLE IF NOT EXISTS customer_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    paid_on TEXT,
+    customer TEXT,
+    amount REAL,
+    note TEXT,
+    source TEXT,
+    statement_number INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS customer_statements (
+    statement_number INTEGER PRIMARY KEY,
+    statement_date TEXT,
+    customer TEXT,
+    total_due REAL,
+    source TEXT,
+    filename TEXT
+);
+
+CREATE TABLE IF NOT EXISTS package_prices (
+    key TEXT PRIMARY KEY,
+    description TEXT,
+    rate REAL,
+    source TEXT
+);
+
 CREATE TABLE IF NOT EXISTS netcash_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_ref TEXT,

@@ -16,9 +16,11 @@ import zipfile
 from datetime import date
 from pathlib import Path
 
+from company import COMPANY, GOWIFI_FNB
+
 MAIL_ROOT = Path(os.environ.get("MAIL_ROOT", "/home/user-data/mail/mailboxes"))
 NETCASH_ENV = Path(os.environ.get("NETCASH_ENV", "/root/secrets/netcash.env"))
-# Last QuickBooks invoice seen in kevin@ mail was 3039.
+# Floor only. Live series continues after the highest imported QuickBooks invoice.
 INVOICE_SERIES_AFTER = 3039
 
 SCHEMA = """
@@ -71,7 +73,12 @@ def ensure_tables(conn: sqlite3.Connection) -> None:
 
 def is_gowifi_account(name: str | None, number: str | None) -> bool:
     blob = f"{name or ''} {number or ''}".lower()
-    return "gowifi" in blob or "go-wifi" in blob or "go wifi" in blob
+    return (
+        "gowifi" in blob
+        or "go-wifi" in blob
+        or "go wifi" in blob
+        or (number or "").replace(" ", "") == GOWIFI_FNB
+    )
 
 
 def parse_fnb_history(text: str, filename: str = "") -> dict:
@@ -211,30 +218,76 @@ def netcash_status() -> dict:
     }
 
 
+def _last_rate(conn: sqlite3.Connection, customer: str | None) -> tuple[float | None, str | None]:
+    if not customer:
+        return None, None
+    key = " ".join(customer.lower().split()[:2])
+    try:
+        rows = conn.execute(
+            """SELECT customer, rate, amount, description FROM customer_invoices
+               WHERE source LIKE 'quickbooks%' AND customer IS NOT NULL
+               ORDER BY invoice_date DESC"""
+        )
+    except sqlite3.OperationalError:
+        return None, None
+    for rec in rows:
+        other = " ".join((rec[0] or "").lower().split()[:2])
+        if other and other == key:
+            return rec[1] or rec[2], rec[3]
+    return None, None
+
+
 def draft_customer_invoices(conn: sqlite3.Connection, today: date | None = None) -> list[dict]:
-    """One draft per active fibre line. Amount left blank until a price is set."""
+    """One draft per active fibre line. Rate from last QuickBooks invoice for that client."""
     ensure_tables(conn)
     today = today or date.today()
     period = today.strftime("%Y-%m")
     rows = []
-    services = conn.execute(
-        """SELECT service_number, exclusive_status FROM services
-           WHERE exclusive_status='active' ORDER BY service_number"""
-    ).fetchall()
+    try:
+        services = conn.execute(
+            """SELECT service_number FROM services
+               WHERE exclusive_status='active' ORDER BY service_number"""
+        ).fetchall()
+    except sqlite3.OperationalError:
+        services = []
     number = INVOICE_SERIES_AFTER
-    last = conn.execute("SELECT MAX(invoice_number) FROM customer_invoices").fetchone()
-    if last and last[0]:
-        number = max(number, int(last[0]))
+    try:
+        last = conn.execute("SELECT MAX(invoice_number) FROM customer_invoices").fetchone()
+        if last and last[0]:
+            number = max(number, int(last[0]))
+    except sqlite3.OperationalError:
+        pass
     for svc in services:
         number += 1
-        sn = svc[0] if not isinstance(svc, sqlite3.Row) else svc["service_number"]
+        sn = svc[0]
+        customer = None
+        product = None
+        try:
+            order = conn.execute(
+                """SELECT end_customer, product FROM orders
+                   WHERE service_number=? ORDER BY created_on DESC LIMIT 1""",
+                (sn,),
+            ).fetchone()
+            if order:
+                customer, product = order[0], order[1]
+        except sqlite3.OperationalError:
+            pass
+        rate, hist_desc = _last_rate(conn, customer)
+        desc = hist_desc or (product or "Monthly service")
         rows.append(
             {
                 "invoice_number": number,
                 "invoice_date": today.isoformat(),
+                "due_date": today.isoformat(),
                 "service_number": sn,
+                "customer": customer,
+                "description": desc,
                 "period": period,
-                "amount": None,
+                "qty": 1,
+                "rate": rate,
+                "amount": rate,
+                "balance_due": rate,
+                "terms": "Due on receipt",
                 "status": "draft",
                 "source": "gowifi",
             }
@@ -245,6 +298,10 @@ def draft_customer_invoices(conn: sqlite3.Connection, today: date | None = None)
 def books_for_export(conn: sqlite3.Connection) -> dict:
     ensure_tables(conn)
     ingest_fnb_mail(conn)
+    from qb_import import history_for_export, ingest_qb_mail
+
+    ingest_qb_mail(conn)
+    history = history_for_export(conn)
     openserve = conn.execute(
         "SELECT COUNT(*), COALESCE(SUM(total),0) FROM invoices"
     ).fetchone()
@@ -265,11 +322,15 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         )
     drafts = draft_customer_invoices(conn)
     nc = netcash_status()
+    next_no = max(history.get("next") or INVOICE_SERIES_AFTER + 1, INVOICE_SERIES_AFTER + 1)
+    if drafts:
+        next_no = drafts[0]["invoice_number"]
     return {
-        "quickbooks": "not required",
+        "quickbooks": "cancel after this history is on the box",
+        "company": COMPANY,
         "loop": (
-            "We invoice and statement ourselves. Netcash collects debit orders. "
-            "FNB daily CSV is the bank. Openserve invoices are the fibre cost."
+            "Old QuickBooks invoices and statements are imported from mail. "
+            "New invoices are the same canned page. Netcash collects. FNB is the bank."
         ),
         "openserve": {
             "invoices": openserve[0] if openserve else 0,
@@ -288,10 +349,12 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "netcash": nc,
         "customer_invoices": {
             "series_after_quickbooks": INVOICE_SERIES_AFTER,
-            "next": INVOICE_SERIES_AFTER + 1,
+            "next": next_no,
             "drafts": len(drafts),
-            "note": "Drafts from active fibre lines. Amounts when the package price list is in.",
+            "rows": drafts,
+            "note": "Canned invoice at /dash/invoice.html — same layout as the old QuickBooks one.",
         },
+        "history": history,
     }
 
 
