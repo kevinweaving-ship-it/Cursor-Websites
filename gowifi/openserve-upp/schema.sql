@@ -178,6 +178,42 @@ CREATE TABLE IF NOT EXISTS payments (
     note TEXT
 );
 
+CREATE TABLE IF NOT EXISTS bank_tx (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_number TEXT,
+    account_name TEXT,
+    ours INTEGER NOT NULL DEFAULT 0,
+    paid_on TEXT NOT NULL,
+    amount REAL NOT NULL,
+    balance REAL,
+    description TEXT,
+    source TEXT,
+    filename TEXT
+);
+
+CREATE TABLE IF NOT EXISTS customer_invoices (
+    invoice_number INTEGER PRIMARY KEY,
+    invoice_date TEXT,
+    service_number TEXT,
+    customer TEXT,
+    period TEXT,
+    amount REAL,
+    vat REAL,
+    status TEXT,
+    source TEXT
+);
+
+CREATE TABLE IF NOT EXISTS netcash_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_ref TEXT,
+    service_number TEXT,
+    amount REAL,
+    action_date TEXT,
+    result TEXT,
+    batch_id TEXT,
+    source TEXT
+);
+
 CREATE TABLE IF NOT EXISTS mail_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     message_id TEXT,

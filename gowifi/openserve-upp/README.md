@@ -67,6 +67,17 @@ python3 /root/gowifi-upp/audit_export.py
 
 `sync.py` refreshes `/dash/accounts.json` after each pull.
 
+## Books (no QuickBooks)
+
+GoWiFi books are three feeds, not a full ledger package:
+
+1. **We invoice / statement** active fibre lines (series continues after QuickBooks 3039)
+2. **Netcash** debit-order API (`NIWS_NIF`) — collections and unpaids
+3. **FNB daily CSV** — scheduled “ACCOUNT TRANSACTION HISTORY” to `accounts@go-wifi.co.za`
+4. **Openserve invoices** already on the box — fibre cost to match against FNB debits
+
+QuickBooks / Xero are not required for this. An accountant can take a CSV export at year end.
+
 Openserve invoice CSVs from `kevin@` / `openserve@` mail (INATS* zip) are
 imported into `invoices` / `invoice_lines` for payment reconcile, grouped
 per Openserve billing account and per fibre line. Bank proof-of-payment

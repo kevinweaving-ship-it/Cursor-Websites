@@ -191,6 +191,20 @@ function render(data){
         <tbody>${incomingRows || `<tr><td colspan="4" class="meta">None mapped</td></tr>`}</tbody>
       </table>
     </div>
+    <h2 class="toggle" id="books-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="books-fold">
+      <span class="chev">▸</span>
+      <span>Books</span>
+      <span class="meta">no QuickBooks</span>
+    </h2>
+    <div id="books-fold" class="fold hidden">
+      <div class="card"><div class="meta">${esc((data.books&&data.books.loop)||"We invoice ourselves. Netcash collects. FNB is the bank. Openserve is the fibre cost.")}</div></div>
+      <div class="grid">
+        <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">invoices · ${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
+        <div class="card"><div class="k">FNB daily</div><div class="v">${((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"awaiting GoWiFi CSV")}</div></div>
+        <div class="card"><div class="k">Netcash</div><div class="v">${data.books&&data.books.netcash&&data.books.netcash.ready?"ready":"key"}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||"")}</div></div>
+      </div>
+      <div class="card"><div class="meta">Customer invoices: next ${esc((data.books&&data.books.customer_invoices&&data.books.customer_invoices.next)||3040)} · ${esc((data.books&&data.books.customer_invoices&&data.books.customer_invoices.drafts)||0)} drafts from active lines · ${esc((data.books&&data.books.customer_invoices&&data.books.customer_invoices.note)||"")}</div></div>
+    </div>
     <h2>Active accounts</h2>
     <div class="card scroll">
       <table class="compact">
@@ -260,6 +274,19 @@ function render(data){
   });
   const invToggle = $("#invoice-toggle");
   const invFold = $("#invoice-fold");
+  const booksToggle = $("#books-toggle");
+  const booksFold = $("#books-fold");
+  if (booksToggle && booksFold) {
+    const setBooks = (open) => {
+      booksFold.classList.toggle("hidden", !open);
+      booksToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      booksToggle.querySelector(".chev").textContent = open ? "▾" : "▸";
+    };
+    booksToggle.addEventListener("click", () => setBooks(booksFold.classList.contains("hidden")));
+    booksToggle.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setBooks(booksFold.classList.contains("hidden")); }
+    });
+  }
   if (invToggle && invFold) {
     const setInv = (open) => {
       invFold.classList.toggle("hidden", !open);

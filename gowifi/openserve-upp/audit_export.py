@@ -452,6 +452,8 @@ def build(conn: sqlite3.Connection) -> dict:
 
     from site_lines import apply_site_line, incoming_fibre_for_export, incoming_related_label
 
+    from books import books_for_export
+
     ingest_mail(conn)
     extras_map = extras_by_sn(conn)
     billed_map = billed_speed_by_sn(conn)
@@ -459,6 +461,7 @@ def build(conn: sqlite3.Connection) -> dict:
     billing_accounts = billing_accounts_for_export(conn)
     line_charges = line_charges_for_export(conn)
     mail_coverage = mail_coverage_for_export(conn)
+    books = books_for_export(conn)
     services = [dict(r) for r in conn.execute("SELECT * FROM services")]
     orders = [dict(r) for r in conn.execute("SELECT * FROM orders")]
     org = conn.execute("SELECT * FROM organisations").fetchone()
@@ -673,6 +676,7 @@ def build(conn: sqlite3.Connection) -> dict:
         "billing_accounts": billing_accounts,
         "line_charges": line_charges,
         "mail_coverage": mail_coverage,
+        "books": books,
         "payments": [],
     }
 
