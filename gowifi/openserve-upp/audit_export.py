@@ -282,13 +282,21 @@ def build(conn: sqlite3.Connection) -> dict:
 
     live_sns = {r["service_number"] for r in active} | {r["service_number"] for r in suspended}
     cancelled_sns = {r["service_number"] for r in cancelled_lines}
+    listed_names = {
+        r["customer"].lower()
+        for r in active + suspended + cancelled_lines
+        if r.get("customer") and r["customer"] != "—"
+    }
     cancellations = []
     for order in orders:
         status = (order.get("order_status") or "")
         if status.lower() not in {"cancelled", "unverified address", "pending cancellation", "to be cancelled"}:
             continue
         sn = order.get("service_number") or ""
+        name = clean_name(order.get("end_customer")).lower()
         if sn and (sn in live_sns or sn in cancelled_sns):
+            continue
+        if name in listed_names:
             continue
         cancellations.append(
             {

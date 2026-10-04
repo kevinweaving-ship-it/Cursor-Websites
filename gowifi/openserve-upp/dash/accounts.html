@@ -105,7 +105,9 @@ function render(data){
     if (r.stints_label && r.stints_label!=="—") bits.push(r.suspend_stints+" stint"+(r.suspend_stints===1?"":"s")+": "+r.stints_label);
     return bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : "";
   };
-  const activeRows = (data.active||[]).map(r=>`
+  const cancelledSNs = new Set((data.cancelled_lines||[]).map(r=>r.service_number).filter(Boolean));
+  const suspendedSNs = new Set((data.suspended||[]).map(r=>r.service_number).filter(Boolean));
+  const activeRows = (data.active||[]).filter(r=>r.line_status==="active" && !cancelledSNs.has(r.service_number) && !suspendedSNs.has(r.service_number)).map(r=>`
     <tr>
       <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
@@ -113,21 +115,15 @@ function render(data){
       <td class="num">${esc(r.speed)}</td>
       <td class="num">${esc(monthsAsClient(r.joined))}</td>
     </tr>`).join("");
-  const cancelledLineRows = (data.cancelled_lines||[]).map(r=>`
+  const taken = new Set((data.active||[]).concat(data.suspended||[]).map(r=>r.service_number).filter(Boolean));
+  const cancelledLineRows = (data.cancelled_lines||[]).filter(r=>!taken.has(r.service_number)).map(r=>`
     <tr>
       <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor("cancelled")}</td>
       <td class="num">${esc(monthsAsClient(r.joined))}</td>
     </tr>`).join("");
-  const cancelRows = (data.cancellations||[]).map(r=>`
-    <tr>
-      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.remark)}</div></td>
-      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.order_number)} · ${esc(r.product)}</div></td>
-      <td>${pillFor(r.status)}</td>
-      <td class="num">${esc(r.created)}<div class="meta">${esc(r.implemented)}</div></td>
-    </tr>`).join("");
-  const suspendedRows = (data.suspended||[]).map(r=>`
+  const suspendedRows = (data.suspended||[]).filter(r=>r.line_status==="suspended" && !cancelledSNs.has(r.service_number)).map(r=>`
     <tr>
       <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)} · ${esc(r.suspend_stints||0)} stint${(r.suspend_stints||0)===1?"":"s"}</div></td>
@@ -139,7 +135,7 @@ function render(data){
     <div class="grid">
       <div class="card"><div class="k">Active</div><div class="v">${c.active??0}</div></div>
       <div class="card"><div class="k">Suspended</div><div class="v">${c.suspended??0}</div></div>
-      <div class="card"><div class="k">Cancelled lines</div><div class="v">${c.cancelled_lines??0}</div></div>
+      <div class="card"><div class="k">Cancelled</div><div class="v">${c.cancelled_lines??0}</div></div>
     </div>
     <h2>Active accounts</h2>
     <div class="card scroll">
@@ -150,20 +146,14 @@ function render(data){
     </div>
     <h2 class="toggle" id="cancel-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="cancel-fold">
       <span class="chev">▸</span>
-      <span>Cancellations</span>
-      <span class="meta">${c.cancelled_lines??0} lines · ${c.cancelled_orders??0} orders</span>
+      <span>Cancelled</span>
+      <span class="meta">${c.cancelled_lines??0}</span>
     </h2>
     <div id="cancel-fold" class="fold hidden">
       <div class="card scroll">
         <table class="compact">
           <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Client for</th></tr></thead>
           <tbody>${cancelledLineRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
-        </table>
-      </div>
-      <div class="card scroll">
-        <table class="compact">
-          <thead><tr><th>Client</th><th>Line / order</th><th>Status</th><th>When</th></tr></thead>
-          <tbody>${cancelRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
         </table>
       </div>
     </div>
