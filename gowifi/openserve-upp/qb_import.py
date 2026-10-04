@@ -130,6 +130,9 @@ def parse_qb_invoice(text: str, filename: str = "") -> dict | None:
         if "Mbps" in line or "Fibre" in line or "Fiber" in line or "Uncapped" in line:
             desc = re.sub(r"\s+", " ", line).strip()[:160]
             break
+    from invoice_canned import clean_description
+
+    desc = clean_description(desc)
     return {
         "invoice_number": int(num.group(1)),
         "invoice_date": _iso(date.group(1) if date else None),
@@ -430,10 +433,14 @@ def history_for_export(conn: sqlite3.Connection) -> dict:
                ORDER BY paid_on, id"""
         )
     ]
-    from invoice_canned import statement_on_invoice
+    from invoice_canned import clean_description, prepare_invoice, statement_on_invoice
 
     for inv in invoices:
-        inv["statement"] = statement_on_invoice(invoices, payments, inv.get("customer"))
+        inv["description"] = clean_description(inv.get("description"))
+        inv.update(prepare_invoice(inv))
+        inv["statement"] = statement_on_invoice(
+            invoices, payments, inv.get("customer"), as_at=inv.get("invoice_date")
+        )
     last = invoices[-1]["invoice_number"] if invoices else 0
     return {
         "invoices": invoices,

@@ -79,10 +79,13 @@ GoWiFi books are three feeds, not a full ledger package:
 QuickBooks / Xero are not required for this. An accountant can take a CSV export at year end.
 
 Old QuickBooks invoice and statement PDFs in `kevin@` / `accounts@` mail are
-imported as history. New invoices are one page: this month’s line plus the
-client’s statement history under it (`/dash/invoice.html`). No separate
-statement document. FNB `62860060278`. Cancel QuickBooks once that history
-is on the box.
+imported as history. New invoices are one A4 page at `/dash/invoice.html`:
+the old QuickBooks invoice block (letterhead, bill to, this month’s line,
+FNB footer) with a statement of account under it — opening balance, Date /
+Reference / Debit / Credit / Balance, ageing, closing. Older history rolls
+into Balance forward so it stays one page. The document is an Invoice, not
+a Tax Invoice (no VAT number on the old PDFs). FNB `62860060278`. Cancel
+QuickBooks once that history is on the box.
 
 Openserve invoice CSVs from `kevin@` / `openserve@` mail (INATS* zip) are
 imported into `invoices` / `invoice_lines` for payment reconcile, grouped

@@ -17,6 +17,7 @@ from datetime import date
 from pathlib import Path
 
 from company import COMPANY, GOWIFI_FNB
+from invoice_canned import clean_description
 
 MAIL_ROOT = Path(os.environ.get("MAIL_ROOT", "/home/user-data/mail/mailboxes"))
 NETCASH_ENV = Path(os.environ.get("NETCASH_ENV", "/root/secrets/netcash.env"))
@@ -273,7 +274,7 @@ def draft_customer_invoices(conn: sqlite3.Connection, today: date | None = None)
         except sqlite3.OperationalError:
             pass
         rate, hist_desc = _last_rate(conn, customer)
-        desc = hist_desc or (product or "Monthly service")
+        desc = clean_description(hist_desc or product or "Monthly service")
         rows.append(
             {
                 "invoice_number": number,
@@ -321,12 +322,15 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
             }
         )
     drafts = draft_customer_invoices(conn)
-    from invoice_canned import statement_on_invoice
+    from invoice_canned import prepare_invoice, statement_on_invoice
 
     all_inv = (history.get("invoices") or []) + drafts
     pays = history.get("payments") or []
     for row in drafts:
-        row["statement"] = statement_on_invoice(all_inv, pays, row.get("customer"))
+        row.update(prepare_invoice(row))
+        row["statement"] = statement_on_invoice(
+            all_inv, pays, row.get("customer"), as_at=row.get("invoice_date")
+        )
         if row["statement"].get("total_due") is not None:
             row["balance_due"] = row["statement"]["total_due"]
     nc = netcash_status()
@@ -338,7 +342,7 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "company": COMPANY,
         "loop": (
             "Old QuickBooks invoices and statements are imported from mail. "
-            "New invoices are one page: this month’s line plus the statement history under it."
+            "New invoices are one A4 page: this month’s line plus a compact statement of account."
         ),
         "openserve": {
             "invoices": openserve[0] if openserve else 0,
@@ -360,7 +364,7 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
             "next": next_no,
             "drafts": len(drafts),
             "rows": drafts,
-            "note": "One page: invoice + statement. /dash/invoice.html",
+            "note": "One A4 page: invoice + statement of account. /dash/invoice.html",
         },
         "history": history,
     }

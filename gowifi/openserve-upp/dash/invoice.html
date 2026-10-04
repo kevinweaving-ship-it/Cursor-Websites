@@ -5,28 +5,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GoWifi invoice</title>
 <style>
-body { font: 14px/1.4 Georgia, "Times New Roman", serif; color:#111; margin:24px auto; max-width:760px; }
-h1 { font-size:28px; letter-spacing:.08em; margin:28px 0 12px; }
-.muted { color:#444; font-size:13px; }
-.row { display:flex; justify-content:space-between; gap:24px; }
-table { width:100%; border-collapse:collapse; margin:22px 0; }
-th { text-align:left; font-size:11px; letter-spacing:.05em; border-bottom:1px solid #111; padding:6px 4px; }
-td { padding:10px 4px; vertical-align:top; border-bottom:1px solid #ddd; }
-.num { text-align:right; white-space:nowrap; }
-.due { font-size:18px; font-weight:700; text-align:right; margin:12px 0 8px; }
-h2 { font-size:16px; letter-spacing:.08em; margin:28px 0 8px; }
-.bank { border-top:1px solid #111; padding-top:10px; font-size:13px; margin-top:20px; }
-a.back { font: 13px sans-serif; color:#345; }
-.err { color:#a00; }
-@media print { a.back { display:none; } body { margin:12mm; } }
+@page { size: A4; margin: 12mm; }
+body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#1a1a1a; background:#e8e8e8; margin:0; }
+.sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:14mm 16mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
+.letterhead { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; border-bottom:2px solid #1a1a1a; padding-bottom:10px; }
+.brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; }
+.doc-title { font-size:28px; font-weight:700; letter-spacing:.14em; }
+.muted { color:#555; }
+.label { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#555; margin-bottom:3px; }
+.parties { display:flex; justify-content:space-between; gap:28px; margin:16px 0 14px; }
+.who { font-weight:700; font-size:13px; }
+.meta { border-collapse:collapse; }
+.meta th { text-align:left; font-weight:600; color:#555; padding:2px 16px 2px 0; }
+.meta td { text-align:right; font-weight:600; }
+table.lines, table.soa, table.index { width:100%; border-collapse:collapse; }
+table.lines th, table.soa th, table.index th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:1px solid #1a1a1a; padding:6px 4px; }
+table.lines td, table.soa td, table.index td { padding:5px 4px; border-bottom:1px solid #e4e4e4; vertical-align:top; }
+.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.due { font-size:13px; font-weight:700; text-align:right; margin:10px 0 18px; }
+h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 6px; display:flex; justify-content:space-between; align-items:baseline; }
+.ageing { width:100%; border-collapse:collapse; margin:10px 0 4px; }
+.ageing th { font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:#555; text-align:right; padding:2px 6px; }
+.ageing td { text-align:right; font-weight:600; padding:2px 6px; font-variant-numeric:tabular-nums; }
+.ageing td.total, .ageing th.total { font-size:13px; }
+.bank { border-top:1px solid #1a1a1a; padding-top:8px; margin-top:16px; color:#333; }
+a.back { font: 13px/1.4 sans-serif; color:#345; }
+.screen-only { max-width:210mm; margin:12px auto 0; padding:0 16px; }
+.index-wrap { width:210mm; margin:16px auto 32px; background:#fff; padding:14mm 16mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
+.index-wrap h1 { font-size:20px; letter-spacing:.08em; margin:0 0 4px; }
+.index-wrap a { color:#1a1a1a; }
+.err { color:#a00; padding:24px; }
+@media print { body { background:#fff; } .sheet, .index-wrap { margin:0; box-shadow:none; width:auto; min-height:0; padding:0; } .screen-only { display:none; } }
 </style>
 </head>
 <body>
-<p><a class="back" href="/dash/accounts.html">← Fibre accounts</a></p>
+<p class="screen-only"><a class="back" href="/dash/accounts.html">← Fibre accounts</a></p>
 <div id="app">Loading…</div>
 <script>
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
-const money = v => v==null ? "—" : "R"+Number(v).toLocaleString("en-ZA",{minimumFractionDigits:2, maximumFractionDigits:2});
+const money = (v, withR=true) => {
+  if (v==null || v==="") return "";
+  const n = Number(v);
+  if (Number.isNaN(n)) return "";
+  const sign = n<0 ? "-" : "";
+  const body = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return sign + (withR ? "R" : "") + body;
+};
+const fmtDate = v => {
+  if (!v) return "—";
+  const s = String(v).trim();
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  const dmy = s.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+  if (dmy) return `${dmy[1]}/${dmy[2]}/${dmy[3]}`;
+  return s;
+};
+const addrHtml = a => String(a||"").split(",").map(x=>x.trim()).filter(Boolean).map(x=>`<div>${esc(x)}</div>`).join("");
 const params = new URLSearchParams(location.search);
 fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store"})
   .then(r => { if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
@@ -35,72 +69,99 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
     const drafts = ((data.books||{}).customer_invoices||{}).rows || [];
     const all = hist.concat(drafts);
     const want = params.get("n");
+    const c = (data.books&&data.books.company) || {};
     if (!want) {
-      document.getElementById("app").innerHTML = `<p class="muted">Canned invoices</p><table><thead><tr><th>#</th><th>Date</th><th>Client</th><th class="num">Amount</th></tr></thead><tbody>${
-        all.map(r=>`<tr><td><a href="?n=${esc(r.invoice_number)}">${esc(r.invoice_number)}</a></td><td>${esc(r.invoice_date||"—")}</td><td>${esc(r.customer||"—")}</td><td class="num">${money(r.amount)}</td></tr>`).join("") || `<tr><td colspan="4">None yet</td></tr>`
-      }</tbody></table>`;
+      document.title = "GoWifi invoices";
+      document.getElementById("app").innerHTML = `
+        <div class="index-wrap">
+          <header class="letterhead">
+            <div>
+              <div class="brand">${esc(c.name||"GoWifi (Pty) Ltd")}</div>
+              <div class="muted">Invoice and statement of account</div>
+            </div>
+            <div class="doc-title">INVOICES</div>
+          </header>
+          <table class="index">
+            <thead><tr><th>#</th><th>Date</th><th>Client</th><th class="num">Amount</th></tr></thead>
+            <tbody>${
+              all.map(r=>`<tr><td><a href="?n=${esc(r.invoice_number)}">${esc(r.invoice_number)}</a></td><td>${esc(fmtDate(r.invoice_date))}</td><td>${esc(r.customer||"—")}</td><td class="num">${money(r.amount)}</td></tr>`).join("") || `<tr><td colspan="4">None yet</td></tr>`
+            }</tbody>
+          </table>
+        </div>`;
       return;
     }
     const r = all.find(x => String(x.invoice_number)===String(want));
     if (!r) { document.getElementById("app").innerHTML = `<p class="err">No invoice ${esc(want)}</p>`; return; }
-    const pays = ((data.books||{}).history||{}).payments || [];
-    const key = (name) => String(name||"").toLowerCase().replace(/\b(mr|mrs|ms|miss|dr)\b/g,"").replace(/[^a-z0-9]+/g," ").trim().split(" ").slice(0,2).join(" ");
-    const mine = key(r.customer);
-    const ledger = [];
-    if (mine) {
-      all.filter(x => key(x.customer)===mine).forEach(x => ledger.push({date:x.invoice_date, description:"Invoice No."+x.invoice_number, amount:Number(x.amount||0)}));
-      pays.filter(x => key(x.customer)===mine).forEach(x => ledger.push({date:x.paid_on, description:x.note||"Payment", amount:Number(x.amount||0)}));
-      ledger.sort((a,b)=> (a.date||"").localeCompare(b.date||"") || a.description.localeCompare(b.description));
-      let bal=0;
-      ledger.forEach(x => { bal=Math.round((bal+x.amount)*100)/100; x.balance=bal; });
-    }
-    const stmt = r.statement && r.statement.lines && r.statement.lines.length ? r.statement : {lines:ledger, total_due: ledger.length?ledger[ledger.length-1].balance:r.balance_due};
-    const c = (data.books&&data.books.company) || {};
+    const stmt = r.statement && r.statement.lines && r.statement.lines.length ? r.statement : {lines:[], total_due: r.balance_due!=null?r.balance_due:r.amount, ageing:{}};
+    const ageing = stmt.ageing || {};
+    const due = stmt.total_due!=null ? stmt.total_due : (r.balance_due!=null?r.balance_due:r.amount);
+    const desc = r.description || "Monthly service";
     document.title = "Invoice "+r.invoice_number;
     document.getElementById("app").innerHTML = `
-      <div><strong>${esc(c.name||"GoWifi (Pty) Ltd")}</strong></div>
-      ${(c.lines||[]).map(x=>`<div>${esc(x)}</div>`).join("")}
-      <div class="muted">${esc(c.phone||"")} · ${esc(c.email||"")}</div>
-      <div class="muted">Business ID No. ${esc(c.reg||"")}</div>
-      <h1>INVOICE</h1>
-      <div class="row">
-        <div>
-          <div class="muted">BILL TO</div>
-          <div><strong>${esc(r.customer||"—")}</strong></div>
-          <div>${esc(r.address||"")}</div>
-        </div>
-        <div>
-          <div>INVOICE ${esc(r.invoice_number)}</div>
-          <div>DATE ${esc(r.invoice_date||"—")}</div>
-          <div>TERMS ${esc(r.terms||"Due on receipt")}</div>
-          <div>DUE DATE ${esc(r.due_date||r.invoice_date||"—")}</div>
-        </div>
-      </div>
-      <table>
-        <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
-        <tbody><tr>
-          <td>${esc(r.description||"Monthly service")}</td>
-          <td class="num">${esc(r.qty||1)}</td>
-          <td class="num">${money(r.rate!=null?r.rate:r.amount)}</td>
-          <td class="num">${money(r.amount)}</td>
-        </tr></tbody>
-      </table>
-      <div class="due">THIS INVOICE ${money(r.amount)}</div>
-      ${stmt.lines && stmt.lines.length ? `
-      <h2>STATEMENT</h2>
-      <table>
-        <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
-        <tbody>${stmt.lines.map(line=>`<tr><td>${esc(line.date||"—")}</td><td>${esc(line.description||"")}</td><td class="num">${money(line.amount)}</td><td class="num">${money(line.balance)}</td></tr>`).join("")}</tbody>
-      </table>
-      <div class="due">BALANCE DUE ${money(stmt.total_due)}</div>` : `<div class="due">BALANCE DUE ${money(r.balance_due!=null?r.balance_due:r.amount)}</div>`}
-      <div class="bank">
-        <div>Banking/EFT Details</div>
-        <div>Account Name: ${esc(c.bank_account_name||"GoWifi (Pty) Ltd")}</div>
-        <div>Bank: ${esc(c.bank||"First National Bank")}</div>
-        <div>Branch: ${esc(c.branch||"Hermanus")}</div>
-        <div>Branch Code: ${esc(c.branch_code||"200412")}</div>
-        <div>Account Number: ${esc(c.account_number||"62860060278")}</div>
-      </div>`;
+      <article class="sheet">
+        <header class="letterhead">
+          <div>
+            <div class="brand">${esc(c.name||"GoWifi (Pty) Ltd")}</div>
+            ${(c.lines||[]).map(x=>`<div>${esc(x)}</div>`).join("")}
+            <div class="muted">${esc(c.phone||"")} · ${esc(c.email||"")}</div>
+            <div class="muted">Business ID No. ${esc(c.reg||"")}</div>
+          </div>
+          <div class="doc-title">INVOICE</div>
+        </header>
+        <section class="parties">
+          <div>
+            <div class="label">Bill to</div>
+            <div class="who">${esc(r.customer||"—")}</div>
+            ${addrHtml(r.address)}
+          </div>
+          <table class="meta">
+            <tr><th>Invoice</th><td>${esc(r.invoice_number)}</td></tr>
+            <tr><th>Date</th><td>${esc(fmtDate(r.invoice_date))}</td></tr>
+            <tr><th>Terms</th><td>${esc(r.terms||"Due on receipt")}</td></tr>
+            <tr><th>Due date</th><td>${esc(fmtDate(r.due_date||r.invoice_date))}</td></tr>
+          </table>
+        </section>
+        <table class="lines">
+          <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+          <tbody><tr>
+            <td>${esc(desc)}</td>
+            <td class="num">${esc(r.qty||1)}</td>
+            <td class="num">${money(r.rate!=null?r.rate:r.amount,false)}</td>
+            <td class="num">${money(r.amount,false)}</td>
+          </tr></tbody>
+        </table>
+        <div class="due">This invoice ${money(r.amount)}</div>
+        ${stmt.lines && stmt.lines.length ? `
+        <h2><span>Statement of account</span><span class="muted">as at ${esc(fmtDate(stmt.as_at||r.invoice_date))}</span></h2>
+        <table class="soa">
+          <thead><tr><th>Date</th><th>Reference</th><th>Description</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead>
+          <tbody>${stmt.lines.map(line=>`<tr>
+            <td>${esc(line.date_fmt||fmtDate(line.date))}</td>
+            <td>${esc(line.reference||"")}</td>
+            <td>${esc(line.description||"")}</td>
+            <td class="num">${money(line.debit,false)}</td>
+            <td class="num">${money(line.credit,false)}</td>
+            <td class="num">${money(line.balance,false)}</td>
+          </tr>`).join("")}</tbody>
+        </table>
+        <table class="ageing">
+          <tr><th>Current</th><th>1–30 days</th><th>31–60 days</th><th>61–90 days</th><th>90+ days</th><th class="total">Balance due</th></tr>
+          <tr>
+            <td>${money(ageing.current,false)||"0.00"}</td>
+            <td>${money(ageing.d30,false)||"0.00"}</td>
+            <td>${money(ageing.d60,false)||"0.00"}</td>
+            <td>${money(ageing.d90,false)||"0.00"}</td>
+            <td>${money(ageing.older,false)||"0.00"}</td>
+            <td class="total">${money(due)}</td>
+          </tr>
+        </table>` : `<div class="due">Balance due ${money(due)}</div>`}
+        <footer class="bank">
+          <div class="label">Banking / EFT</div>
+          <div>Account name ${esc(c.bank_account_name||"GoWifi (Pty) Ltd")}</div>
+          <div>${esc(c.bank||"First National Bank")} · ${esc(c.branch||"Hermanus")} · ${esc(c.branch_code||"200412")}</div>
+          <div>Account ${esc(c.account_number||"62860060278")} · Reference ${esc(r.invoice_number)}</div>
+        </footer>
+      </article>`;
   })
   .catch(e => { document.getElementById("app").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
 </script>
