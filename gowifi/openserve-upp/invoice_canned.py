@@ -68,7 +68,7 @@ def clean_description(text: str | None) -> str:
         last = speeds[-1]
         head = blob[: last.start()]
         head = re.split(r"\d+(?:\.\d+)?\s*Mbps", head, maxsplit=1, flags=re.I)[0]
-        head = re.sub(r"(?i)^old\s*$", "", head.strip(" -/"))
+        head = re.sub(r"(?i)^old\s*$", "", head.strip(" -/—"))
         label = re.sub(r"\s+", " ", last.group(0)).strip(" -")
         if head and len(head) <= 28 and not re.match(r"(?i)gw\d", head):
             return f"{head} — {label}"
@@ -219,12 +219,12 @@ def statement_on_invoice(
     lines = []
     balance = 0.0
     if older or opening:
-        first_kept = kept[0]["date"] if kept else (as_day.isoformat() if as_day else "")
+        open_on = kept[0]["date"] if kept else (as_day.isoformat() if as_day else "")
         balance = opening
         lines.append(
             {
-                "date": older[-1]["date"] if older else first_kept,
-                "date_fmt": fmt_date(older[0]["date"] if older else first_kept),
+                "date": open_on,
+                "date_fmt": fmt_date(open_on),
                 "reference": "",
                 "description": "Balance forward",
                 "amount": opening,
@@ -445,8 +445,9 @@ def self_test() -> int:
     clean_ok = True
     for raw, want in mashed:
         got = clean_description(raw)
-        if got != want:
-            print("FAIL clean", raw, "->", got, "want", want)
+        again = clean_description(got)
+        if got != want or again != want:
+            print("FAIL clean", raw, "->", got, "again", again, "want", want)
             failed += 1
             clean_ok = False
     if clean_ok:
@@ -510,6 +511,12 @@ def self_test() -> int:
         failed += 1
     elif stmt_m["lines"][0]["description"] != "Balance forward":
         print("FAIL opening", stmt_m["lines"][0])
+        failed += 1
+    elif stmt_m["lines"][0]["date_fmt"] != fmt_date(stmt_m["lines"][0]["date"]):
+        print("FAIL opening-date", stmt_m["lines"][0])
+        failed += 1
+    elif stmt_m["lines"][0]["date_fmt"] == "29/02/2024":
+        print("FAIL opening-should-be-period-start", stmt_m["lines"][0])
         failed += 1
     elif stmt_m["ageing"] != {"current": 439.0, "d30": 0.0, "d60": 439.0, "d90": 768.0, "older": 5424.0}:
         print("FAIL ageing", stmt_m["ageing"])

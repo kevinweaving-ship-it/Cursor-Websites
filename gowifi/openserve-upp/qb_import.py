@@ -433,10 +433,18 @@ def history_for_export(conn: sqlite3.Connection) -> dict:
                ORDER BY paid_on, id"""
         )
     ]
-    from invoice_canned import clean_description, prepare_invoice, statement_on_invoice
+    from invoice_canned import clean_description, client_key, prepare_invoice, statement_on_invoice
 
+    latest_desc = {}
     for inv in invoices:
-        inv["description"] = clean_description(inv.get("description"))
+        cleaned = clean_description(inv.get("description"))
+        if cleaned and cleaned != "Monthly service":
+            latest_desc[client_key(inv.get("customer"))] = cleaned
+    for inv in invoices:
+        cleaned = clean_description(inv.get("description"))
+        if cleaned == "Monthly service":
+            cleaned = latest_desc.get(client_key(inv.get("customer"))) or cleaned
+        inv["description"] = cleaned
         inv.update(prepare_invoice(inv))
         inv["statement"] = statement_on_invoice(
             invoices, payments, inv.get("customer"), as_at=inv.get("invoice_date")
