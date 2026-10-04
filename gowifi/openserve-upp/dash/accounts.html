@@ -6,6 +6,7 @@
 <title>GoWifi · Fibre accounts</title>
 <meta name="theme-color" content="#0b1220">
 <meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
 <style>
 :root {
   --bg:#0b1220; --card:#141c2e; --line:#243049; --text:#e8eef8; --muted:#8b9bb4;
@@ -101,7 +102,6 @@ function render(data){
   const hist = r => {
     const bits=[];
     if (r.joined_label && r.joined_label!=="—") bits.push("Joined "+r.joined_label);
-    if (r.fibre_since_label) bits.push("Fibre since "+r.fibre_since_label);
     if (r.stints_label && r.stints_label!=="—") bits.push(r.suspend_stints+" stint"+(r.suspend_stints===1?"":"s")+": "+r.stints_label);
     return bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : "";
   };
@@ -177,7 +177,7 @@ function render(data){
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setOpen(fold.classList.contains("hidden")); }
   });
 }
-fetch("accounts.json",{credentials:"same-origin"})
+fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
   .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
   .then(render)
   .catch(e=>{ $("#app").innerHTML = `<p class="err">${esc(e.message)}</p>`; });

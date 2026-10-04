@@ -152,7 +152,7 @@ def history_label(events: list[dict], exclusive: str, suspend_started: str | Non
         if kind == "joined":
             bits.append(f"Joined {at_lab}")
         elif kind == "fibre_since":
-            bits.append(f"Fibre since {at_lab}")
+            continue
         elif kind == "takeover":
             bits.append(f"Takeover {at_lab}")
         elif kind == "reprovisioned":
