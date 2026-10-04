@@ -7,7 +7,9 @@ Each service number keeps its own stint history: suspend, then restore.
 """
 from __future__ import annotations
 
-from datetime import date
+import json
+import re
+from datetime import date, datetime
 
 HOLDING_MARKERS = (
     "TRANSITION",
@@ -81,13 +83,36 @@ def _iso_today() -> str:
     return date.today().isoformat()
 
 
+DATE_FORMATS = (
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d",
+    "%d-%b-%Y",
+    "%d-%b-%Y %H:%M:%S",
+    "%d-%B-%Y",
+)
+
+
 def _date_only(raw) -> str | None:
     if not raw:
         return None
-    text = str(raw).strip()
+    text = re.sub(r"\s+", " ", str(raw).strip())
+    if not text:
+        return None
     if len(text) >= 10 and text[4] == "-" and text[7] == "-":
         return text[:10]
-    return None
+    for fmt in DATE_FORMATS:
+        try:
+            return datetime.strptime(text, fmt).date().isoformat()
+        except ValueError:
+            continue
+    try:
+        return datetime.strptime(text[:11].title() + text[11:], "%d-%b-%Y %H:%M:%S").date().isoformat()
+    except ValueError:
+        pass
+    try:
+        return datetime.strptime(text.title(), "%d-%b-%Y").date().isoformat()
+    except ValueError:
+        return None
 
 
 def _days_between(start: str | None, end: str | None) -> int | None:
@@ -146,13 +171,43 @@ def _repair_event_date(conn, sn: str, event_type: str, better_at: str | None) ->
         )
 
 
-def _order_dates(conn) -> tuple[dict[str, str], dict[str, str]]:
-    """Join date (earliest implemented/created) and cancel date per SN."""
+def _circuit_join_date(raw_json: str | None) -> str | None:
+    """Original in-service date from the circuit, not a later takeover order."""
+    try:
+        payload = json.loads(raw_json or "{}")
+    except json.JSONDecodeError:
+        payload = {}
+    data = payload.get("data") or {}
+    circ = data.get("circuit") or {}
+    attrs = (circ.get("circuitAttributes") or [{}])
+    attrs = attrs[0] if attrs else {}
+    for key in ("inServiceDate", "completionDate", "unibaseCreationDate"):
+        parsed = _date_only(attrs.get(key))
+        if parsed:
+            return parsed
+    return None
+
+
+def _order_stage(raw_json: str | None) -> str:
+    try:
+        payload = json.loads(raw_json or "{}")
+    except json.JSONDecodeError:
+        return ""
+    return str(payload.get("stageComments") or payload.get("remark") or "")
+
+
+def _order_dates(conn) -> tuple[dict[str, str], dict[str, str], list[tuple]]:
+    """Join date (circuit first), cancel date, and later accepted orders."""
     join: dict[str, str] = {}
     cancel: dict[str, str] = {}
     fallback: dict[str, str] = {}
-    for sn, status, created, implemented in conn.execute(
-        """SELECT service_number, order_status, created_on, date_implemented
+    later: list[tuple] = []
+    for sn, raw in conn.execute("SELECT service_number, raw_circuit_json FROM services"):
+        circuit_join = _circuit_join_date(raw)
+        if circuit_join:
+            join[sn] = circuit_join
+    for sn, status, created, implemented, raw in conn.execute(
+        """SELECT service_number, order_status, created_on, date_implemented, raw_json
            FROM orders WHERE service_number IS NOT NULL"""
     ):
         st = (status or "").lower()
@@ -164,6 +219,7 @@ def _order_dates(conn) -> tuple[dict[str, str], dict[str, str]]:
         if st == "accepted":
             if sn not in join or best < join[sn]:
                 join[sn] = best
+            later.append((sn, best, _order_stage(raw)))
         if "cancel" in st or st == "unverified address":
             if sn not in cancel or best < cancel[sn]:
                 cancel[sn] = best
@@ -171,18 +227,19 @@ def _order_dates(conn) -> tuple[dict[str, str], dict[str, str]]:
             fallback[sn] = best
     for sn, when in fallback.items():
         join.setdefault(sn, when)
-    return join, cancel
+    return join, cancel, later
 
 
 def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
     """Write exclusive status and append history only on change."""
     conn.execute("PRAGMA busy_timeout=30000")
     ensure_columns(conn)
-    computed_join, cancel_dates = _order_dates(conn)
+    computed_join, cancel_dates, later_orders = _order_dates(conn)
     if join_dates:
         for key, value in join_dates.items():
-            if value:
-                computed_join[key] = str(value)[:10]
+            parsed = _date_only(value)
+            if parsed and (key not in computed_join or parsed < computed_join[key]):
+                computed_join[key] = parsed
     today = _iso_today()
     rows = conn.execute(
         """SELECT service_number, access_status, partner_status, customer, isp_name,
@@ -213,8 +270,23 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
         joined = computed_join.get(sn)
         cancel_at = cancel_dates.get(sn) or today
 
-        if joined and not _has_event(conn, sn, "joined"):
-            _add_event(conn, sn, "joined", joined, "circuit/order", "Became a client")
+        if joined:
+            if not _has_event(conn, sn, "joined"):
+                _add_event(conn, sn, "joined", joined, "circuit", "Circuit in-service / first order")
+            else:
+                _repair_event_date(conn, sn, "joined", joined)
+
+        for later_sn, later_at, stage in later_orders:
+            if later_sn != sn or not joined or later_at <= joined:
+                continue
+            kind = "takeover" if "receive ownership" in stage.lower() else "reprovisioned"
+            exists = conn.execute(
+                """SELECT 1 FROM service_events
+                   WHERE service_number=? AND event_type=? AND at=? LIMIT 1""",
+                (sn, kind, later_at),
+            ).fetchone()
+            if not exists:
+                _add_event(conn, sn, kind, later_at, "order", stage[:180] or "Later accepted order")
 
         if new == "cancelled":
             if not _has_event(conn, sn, "cancelled"):
@@ -222,9 +294,16 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
             else:
                 _repair_event_date(conn, sn, "cancelled", cancel_dates.get(sn))
 
+        conn.execute(
+            """UPDATE service_events SET source='first-seen'
+               WHERE service_number=? AND event_type='suspended'
+                 AND note LIKE '%no historical%'""",
+            (sn,),
+        )
+
         if prev is None:
             if new == "suspended":
-                started = today
+                started = None
                 count = max(1, count)
                 if not _has_event(conn, sn, "suspended"):
                     _add_event(
@@ -232,7 +311,7 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
                         sn,
                         "suspended",
                         today,
-                        "accessStatus",
+                        "first-seen",
                         "Observed suspended (Openserve has no historical suspend date)",
                     )
         elif prev != new:
@@ -268,6 +347,16 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
                 )
                 started = None
 
+        if new == "suspended" and started == today:
+            first_seen = conn.execute(
+                """SELECT 1 FROM service_events
+                   WHERE service_number=? AND event_type='suspended'
+                     AND source='first-seen' LIMIT 1""",
+                (sn,),
+            ).fetchone()
+            if first_seen:
+                started = None
+
         conn.execute(
             """UPDATE services SET exclusive_status=?, suspend_started_at=?,
                suspend_count=? WHERE service_number=?""",
@@ -283,10 +372,12 @@ def events_for(conn, sn: str) -> list[dict]:
            ORDER BY at,
              CASE event_type
                WHEN 'joined' THEN 0
-               WHEN 'suspended' THEN 1
-               WHEN 'restored' THEN 2
-               WHEN 'cancelled' THEN 3
-               ELSE 4
+               WHEN 'takeover' THEN 1
+               WHEN 'reprovisioned' THEN 1
+               WHEN 'suspended' THEN 2
+               WHEN 'restored' THEN 3
+               WHEN 'cancelled' THEN 4
+               ELSE 5
              END, id""",
         (sn,),
     ).fetchall()
@@ -306,11 +397,15 @@ def stints_from(events: list[dict], exclusive: str, suspend_started: str | None,
     """Closed restore stints plus one open stint if still suspended."""
     stints: list[dict] = []
     open_start = None
+    unknown_start = False
     n = 0
     for ev in events:
         kind = ev.get("event")
         if kind == "suspended":
             open_start = ev.get("at")
+            unknown_start = (ev.get("source") == "first-seen") or (
+                "no historical" in (ev.get("note") or "").lower()
+            )
         elif kind == "restored" and open_start:
             n += 1
             stints.append(
@@ -320,18 +415,41 @@ def stints_from(events: list[dict], exclusive: str, suspend_started: str | None,
                     "end": ev.get("at"),
                     "days": ev.get("duration_days"),
                     "open": False,
+                    "unknown_start": False,
                 }
             )
             open_start = None
+            unknown_start = False
     if exclusive == "suspended":
-        start = open_start or suspend_started
-        if start:
-            n += 1
+        n += 1
+        if unknown_start or not (open_start or suspend_started):
+            stints.append(
+                {
+                    "n": n,
+                    "start": None,
+                    "seen": open_start,
+                    "end": None,
+                    "days": None,
+                    "open": True,
+                    "unknown_start": True,
+                }
+            )
+        else:
+            start = open_start or suspend_started
             try:
                 days = (today - date.fromisoformat(start[:10])).days
             except ValueError:
                 days = None
-            stints.append({"n": n, "start": start, "end": None, "days": days, "open": True})
+            stints.append(
+                {
+                    "n": n,
+                    "start": start,
+                    "end": None,
+                    "days": days,
+                    "open": True,
+                    "unknown_start": False,
+                }
+            )
     return stints
 
 
@@ -452,6 +570,68 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK stints")
+
+    # Annette-style: circuit in-service 2020, later 2026 "Receive Ownership" order
+    import sqlite3
+
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(
+        """
+        CREATE TABLE services (
+            service_number TEXT PRIMARY KEY, lifecycle TEXT NOT NULL,
+            access_status TEXT, partner_status TEXT, customer TEXT, isp_name TEXT,
+            latest_order_status TEXT, raw_circuit_json TEXT,
+            first_seen_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            exclusive_status TEXT, suspend_started_at TEXT, last_restored_at TEXT,
+            suspend_count INTEGER DEFAULT 0
+        );
+        CREATE TABLE orders (
+            id INTEGER PRIMARY KEY, order_status TEXT, service_number TEXT,
+            created_on TEXT, date_implemented TEXT, raw_json TEXT NOT NULL,
+            first_seen_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
+        """
+    )
+    circuit = {
+        "data": {
+            "circuit": {
+                "circuitAttributes": [{"inServiceDate": "12-Mar-2020", "completionDate": "12-mar-2020 15:30:56"}]
+            }
+        }
+    }
+    order = {
+        "stageComments": "SVOrderType: Sales Order Reason: Receive Ownership Product: Speed Mbps:25",
+        "orderStatus": "Accepted",
+    }
+    conn.execute(
+        """INSERT INTO services (service_number, lifecycle, access_status, partner_status,
+           customer, isp_name, latest_order_status, raw_circuit_json, first_seen_at, updated_at)
+           VALUES ('B140017953','active','Active','IspActive','GOWIFI','WS GOWIFI','Accepted',?,?,?)""",
+        (json.dumps(circuit), "2026-10-04", "2026-10-04"),
+    )
+    conn.execute(
+        """INSERT INTO orders (id, order_status, service_number, created_on, date_implemented,
+           raw_json, first_seen_at, updated_at)
+           VALUES (1,'Accepted','B140017953','2026-03-19','2026-03-25',?,?,?)""",
+        (json.dumps(order), "x", "x"),
+    )
+    ensure_columns(conn)
+    # seed the wrong 2026 join like the first export did
+    _add_event(conn, "B140017953", "joined", "2026-03-25", "circuit/order", "Became a client")
+    conn.commit()
+    apply_events(conn)
+    evs = events_for(conn, "B140017953")
+    joined = [e for e in evs if e["event"] == "joined"]
+    take = [e for e in evs if e["event"] == "takeover"]
+    if not joined or joined[0]["at"] != "2020-03-12":
+        print("FAIL annette-join", evs)
+        failed += 1
+    elif not take or take[0]["at"] != "2026-03-25":
+        print("FAIL annette-takeover", evs)
+        failed += 1
+    else:
+        print("OK annette-join-from-circuit")
+    conn.close()
     return failed
 
 

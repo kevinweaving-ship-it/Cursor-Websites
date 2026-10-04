@@ -155,8 +155,15 @@ def history_label(events: list[dict], exclusive: str, suspend_started: str | Non
         at_lab = fmt_date(ev.get("at"))
         if kind == "joined":
             bits.append(f"Joined {at_lab}")
+        elif kind == "takeover":
+            bits.append(f"Takeover {at_lab}")
+        elif kind == "reprovisioned":
+            bits.append(f"Re-provisioned {at_lab}")
         elif kind == "suspended":
-            bits.append(f"Suspended {at_lab}")
+            if ev.get("source") == "first-seen" or "no historical" in (ev.get("note") or "").lower():
+                bits.append(f"Suspended (date unknown · first seen {at_lab})")
+            else:
+                bits.append(f"Suspended {at_lab}")
         elif kind == "restored":
             dur = ev.get("duration_days")
             extra = f" after {fmt_days(dur)}" if dur is not None else ""
@@ -178,7 +185,11 @@ def stint_label(stints: list[dict]) -> str:
     bits = []
     for stint in stints:
         start = fmt_date(stint.get("start"))
-        if stint.get("open"):
+        if stint.get("unknown_start"):
+            seen = fmt_date(stint.get("seen"))
+            extra = f" (seen {seen})" if seen != "—" else ""
+            bits.append(f"#{stint['n']} start unknown{extra}")
+        elif stint.get("open"):
             bits.append(f"#{stint['n']} {start}–now ({fmt_days(stint.get('days'))})")
         else:
             bits.append(
@@ -245,7 +256,11 @@ def build(conn: sqlite3.Connection) -> dict:
             "months": months,
             "months_label": fmt_months(months),
             "suspend_stints": len(stints) or (svc.get("suspend_count") or 0),
-            "suspend_for": fmt_days(open_days) if exclusive == "suspended" else "—",
+            "suspend_for": (
+                fmt_days(open_days)
+                if exclusive == "suspended" and open_days is not None
+                else ("unknown" if exclusive == "suspended" else "—")
+            ),
             "stints": stints,
             "stints_label": stint_label(stints),
             "history": history,
