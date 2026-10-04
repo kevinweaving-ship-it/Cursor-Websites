@@ -109,23 +109,19 @@ def circuit_dates(raw_json: str | None) -> dict:
     }
 
 
-def join_date(circ: dict, orders: list[dict]) -> date | None:
+def gowifi_join(orders: list[dict]) -> date | None:
+    """When they became a GoWiFi client — earliest accepted order, not the old circuit."""
     accepted = [o for o in orders if (o.get("order_status") or "").lower() == "accepted"]
     pool = accepted or orders
-    implemented = [parse_date(o.get("date_implemented")) for o in pool]
-    implemented = [d for d in implemented if d]
-    created = [parse_date(o.get("created_on")) for o in pool]
-    created = [d for d in created if d]
-    for candidate in (
-        circ.get("in_service"),
-        circ.get("completed"),
-        min(implemented) if implemented else None,
-        min(created) if created else None,
-        circ.get("created"),
-    ):
-        if candidate:
-            return candidate
-    return None
+    dates = []
+    for order in pool:
+        dates.append(parse_date(order.get("date_implemented")) or parse_date(order.get("created_on")))
+    dates = [d for d in dates if d]
+    return min(dates) if dates else None
+
+
+def fibre_since(circ: dict) -> date | None:
+    return circ.get("in_service") or circ.get("completed")
 
 
 def fmt_days(days: int | None) -> str:
@@ -155,6 +151,8 @@ def history_label(events: list[dict], exclusive: str, suspend_started: str | Non
         at_lab = fmt_date(ev.get("at"))
         if kind == "joined":
             bits.append(f"Joined {at_lab}")
+        elif kind == "fibre_since":
+            bits.append(f"Fibre since {at_lab}")
         elif kind == "takeover":
             bits.append(f"Takeover {at_lab}")
         elif kind == "reprovisioned":
@@ -230,7 +228,8 @@ def build(conn: sqlite3.Connection) -> dict:
             else None
         )
         circ = circuit_dates(svc.get("raw_circuit_json"))
-        joined = join_date(circ, related)
+        joined = gowifi_join(related) or fibre_since(circ)
+        fibre = fibre_since(circ)
         months = months_as_client(joined, today)
         exclusive = svc.get("exclusive_status") or "unknown"
         history = events_for(conn, sn)
@@ -253,6 +252,10 @@ def build(conn: sqlite3.Connection) -> dict:
             "order_status": svc.get("latest_order_status"),
             "joined": joined.isoformat() if joined else None,
             "joined_label": joined.strftime("%d %b %Y") if joined else "—",
+            "fibre_since": fibre.isoformat() if fibre else None,
+            "fibre_since_label": (
+                fibre.strftime("%d %b %Y") if fibre and joined and fibre < joined else None
+            ),
             "months": months,
             "months_label": fmt_months(months),
             "suspend_stints": len(stints) or (svc.get("suspend_count") or 0),

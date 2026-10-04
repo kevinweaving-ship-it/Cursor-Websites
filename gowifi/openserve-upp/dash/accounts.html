@@ -84,9 +84,24 @@ const pillFor = (status) => {
 function render(data){
   const c=data.counts||{};
   $("#sub").textContent = `As at ${data.as_at||"—"} · sync ${data.synced_at||"—"} · one status per line`;
+  const monthsAsClient = (iso) => {
+    if (!iso) return "—";
+    const j = new Date(iso + "T00:00:00");
+    const t = new Date((data.as_at || "") + "T00:00:00");
+    if (Number.isNaN(j.getTime()) || Number.isNaN(t.getTime())) return "—";
+    let m = (t.getFullYear() - j.getFullYear()) * 12 + (t.getMonth() - j.getMonth());
+    if (t.getDate() < j.getDate()) m -= 1;
+    m = Math.max(0, m);
+    if (m < 12) return m === 1 ? "1 month" : m + " months";
+    const y = Math.floor(m / 12), r = m % 12;
+    const ys = y === 1 ? "1 year" : y + " years";
+    if (!r) return ys;
+    return ys + " " + (r === 1 ? "1 month" : r + " months");
+  };
   const hist = r => {
     const bits=[];
     if (r.joined_label && r.joined_label!=="—") bits.push("Joined "+r.joined_label);
+    if (r.fibre_since_label) bits.push("Fibre since "+r.fibre_since_label);
     if (r.stints_label && r.stints_label!=="—") bits.push(r.suspend_stints+" stint"+(r.suspend_stints===1?"":"s")+": "+r.stints_label);
     return bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : "";
   };
@@ -96,14 +111,14 @@ function render(data){
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor(r.line_status)}</td>
       <td class="num">${esc(r.speed)}</td>
-      <td class="num">${esc(r.joined_label)}<div class="meta">${esc(r.months_label)}</div></td>
+      <td class="num">${esc(monthsAsClient(r.joined))}</td>
     </tr>`).join("");
   const cancelledLineRows = (data.cancelled_lines||[]).map(r=>`
     <tr>
       <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor("cancelled")}</td>
-      <td class="num">${esc(r.joined_label)}<div class="meta">${esc(r.months_label)}</div></td>
+      <td class="num">${esc(monthsAsClient(r.joined))}</td>
     </tr>`).join("");
   const cancelRows = (data.cancellations||[]).map(r=>`
     <tr>
@@ -129,7 +144,7 @@ function render(data){
     <h2>Active accounts</h2>
     <div class="card scroll">
       <table class="compact">
-        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Joined / months</th></tr></thead>
+        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Client for</th></tr></thead>
         <tbody>${activeRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
       </table>
     </div>
@@ -141,7 +156,7 @@ function render(data){
     <div id="cancel-fold" class="fold hidden">
       <div class="card scroll">
         <table class="compact">
-          <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Joined / history</th></tr></thead>
+          <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Client for</th></tr></thead>
           <tbody>${cancelledLineRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
         </table>
       </div>

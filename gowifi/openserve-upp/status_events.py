@@ -201,21 +201,18 @@ def _order_stage(raw_json: str | None) -> str:
     return str(payload.get("stageComments") or payload.get("remark") or "")
 
 
-def _order_dates(conn) -> tuple[dict[str, str], dict[str, str], list[tuple]]:
-    """Join date (circuit first), cancel date, and later accepted orders."""
+def _order_dates(conn) -> tuple[dict[str, str], dict[str, str], dict[str, str], list[tuple]]:
+    """GoWiFi join = earliest accepted order. Fibre-since = circuit in-service."""
     join: dict[str, str] = {}
     cancel: dict[str, str] = {}
+    fibre: dict[str, str] = {}
     fallback: dict[str, str] = {}
     later: list[tuple] = []
-    unibase: dict[str, str] = {}
     for sn, raw in conn.execute("SELECT service_number, raw_circuit_json FROM services"):
         circ = _circuit_dates(raw)
-        if circ.get("in_service"):
-            join[sn] = circ["in_service"]
-        elif circ.get("completed"):
-            join[sn] = circ["completed"]
-        if circ.get("created"):
-            unibase[sn] = circ["created"]
+        fibre_at = circ.get("in_service") or circ.get("completed")
+        if fibre_at:
+            fibre[sn] = fibre_at
     for sn, status, created, implemented, raw in conn.execute(
         """SELECT service_number, order_status, created_on, date_implemented, raw_json
            FROM orders WHERE service_number IS NOT NULL"""
@@ -235,22 +232,20 @@ def _order_dates(conn) -> tuple[dict[str, str], dict[str, str], list[tuple]]:
                 cancel[sn] = best
         if sn not in fallback or best < fallback[sn]:
             fallback[sn] = best
-    for sn, when in unibase.items():
-        join.setdefault(sn, when)
     for sn, when in fallback.items():
         join.setdefault(sn, when)
-    return join, cancel, later
+    return join, cancel, fibre, later
 
 
 def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
     """Write exclusive status and append history only on change."""
     conn.execute("PRAGMA busy_timeout=30000")
     ensure_columns(conn)
-    computed_join, cancel_dates, later_orders = _order_dates(conn)
+    computed_join, cancel_dates, fibre_dates, later_orders = _order_dates(conn)
     if join_dates:
         for key, value in join_dates.items():
             parsed = _date_only(value)
-            if parsed and (key not in computed_join or parsed < computed_join[key]):
+            if parsed and key not in computed_join:
                 computed_join[key] = parsed
     today = _iso_today()
     rows = conn.execute(
@@ -282,15 +277,27 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
         joined = computed_join.get(sn)
         cancel_at = cancel_dates.get(sn) or today
 
+        fibre_at = fibre_dates.get(sn)
+        if fibre_at and joined and fibre_at < joined:
+            if not _has_event(conn, sn, "fibre_since"):
+                _add_event(conn, sn, "fibre_since", fibre_at, "circuit", "Openserve in-service (before GoWiFi)")
+            else:
+                current_fibre = _event_at(conn, sn, "fibre_since")
+                if current_fibre != fibre_at:
+                    conn.execute(
+                        """UPDATE service_events SET at=? WHERE service_number=? AND event_type='fibre_since'""",
+                        (fibre_at, sn),
+                    )
+
         if joined:
             if not _has_event(conn, sn, "joined"):
-                _add_event(conn, sn, "joined", joined, "circuit", "Circuit in-service / first order")
+                _add_event(conn, sn, "joined", joined, "order", "GoWiFi client start")
             else:
                 current = _event_at(conn, sn, "joined")
                 if current != joined:
                     conn.execute(
-                        """UPDATE service_events SET at=?, source='circuit',
-                           note='Circuit in-service / first order'
+                        """UPDATE service_events SET at=?, source='order',
+                           note='GoWiFi client start'
                            WHERE service_number=? AND event_type='joined' AND id=(
                              SELECT id FROM service_events
                              WHERE service_number=? AND event_type='joined'
@@ -301,8 +308,7 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
             conn.execute(
                 """DELETE FROM service_events
                    WHERE service_number=? AND event_type IN ('reprovisioned','takeover')
-                     AND at < date(?, '+14 days')
-                     AND IFNULL(note,'') NOT LIKE '%Receive Ownership%'""",
+                     AND at <= ?""",
                 (sn, joined),
             )
 
@@ -405,13 +411,14 @@ def events_for(conn, sn: str) -> list[dict]:
            FROM service_events WHERE service_number=?
            ORDER BY at,
              CASE event_type
-               WHEN 'joined' THEN 0
-               WHEN 'takeover' THEN 1
-               WHEN 'reprovisioned' THEN 1
-               WHEN 'suspended' THEN 2
-               WHEN 'restored' THEN 3
-               WHEN 'cancelled' THEN 4
-               ELSE 5
+               WHEN 'fibre_since' THEN 0
+               WHEN 'joined' THEN 1
+               WHEN 'takeover' THEN 2
+               WHEN 'reprovisioned' THEN 2
+               WHEN 'suspended' THEN 3
+               WHEN 'restored' THEN 4
+               WHEN 'cancelled' THEN 5
+               ELSE 6
              END, id""",
         (sn,),
     ).fetchall()
@@ -656,15 +663,15 @@ def self_test() -> int:
     apply_events(conn)
     evs = events_for(conn, "B140017953")
     joined = [e for e in evs if e["event"] == "joined"]
-    take = [e for e in evs if e["event"] == "takeover"]
-    if not joined or joined[0]["at"] != "2020-03-12":
-        print("FAIL annette-join", evs)
+    fibre = [e for e in evs if e["event"] == "fibre_since"]
+    if not joined or joined[0]["at"] != "2026-03-25":
+        print("FAIL annette-gowifi-join", evs)
         failed += 1
-    elif not take or take[0]["at"] != "2026-03-25":
-        print("FAIL annette-takeover", evs)
+    elif not fibre or fibre[0]["at"] != "2020-03-12":
+        print("FAIL annette-fibre-since", evs)
         failed += 1
     else:
-        print("OK annette-join-from-circuit")
+        print("OK annette-gowifi-join")
     conn.close()
     return failed
 
