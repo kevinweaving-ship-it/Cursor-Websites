@@ -44,6 +44,8 @@ try:
         is_ilca4_family_label,
         is_ilca4_family_slug,
         lookup_params as ilca4_lookup_params,
+        normalise_class_slug as ilca4_normalise_class_slug,
+        public_class_path as ilca4_public_class_path,
         search_aliases as ilca4_search_aliases,
     )
 except ImportError:
@@ -53,6 +55,8 @@ except ImportError:
     is_ilca4_family_label = lambda _raw: False
     is_ilca4_family_slug = lambda _slug: False
     ilca4_lookup_params = None
+    ilca4_normalise_class_slug = lambda slug: slug.strip().lower().replace("-", " ") if isinstance(slug, str) else ""
+    ilca4_public_class_path = lambda _name: None
     ilca4_search_aliases = lambda: ["ilca 4", "ilca 4.7", "laser 4.7", "laser radial 4.7"]
 
 NAME_SIM_THRESHOLD = 0.75
@@ -1838,8 +1842,7 @@ def _directory_classes():
                 name = (r.get("class_name") or "").strip()
                 if cid is None or not name:
                     continue
-                slug = _class_canonical_slug(name) if name else ""
-                path = f"/class/{cid}-{slug}" if slug else f"/class/{cid}"
+                path = _class_public_path(cid, name)
                 out.append((name, path))
         finally:
             cur.close()
@@ -14855,7 +14858,7 @@ def test_class_aggregate_page(class_id: int):
 
     class_name = (data.get("class_name") or "").strip()
     cslug = _class_canonical_slug(class_name)
-    class_path = f"/class/{class_id}-{cslug}" if cslug else f"/class/{class_id}"
+    class_path = _class_public_path(class_id, class_name)
     base = _canonical_base_url()
 
     def a(rel: str, label: str) -> str:
@@ -22159,10 +22162,8 @@ print(f"[STATIC DEBUG] INDEX_PATH = {_INDEX_HTML_PATH}")
 
 
 def _normalise_class_slug_for_lookup(slug: str) -> str:
-    """Normalise URL slug for class_name lookup: lowercase, hyphen to space."""
-    if not slug or not isinstance(slug, str):
-        return ""
-    return slug.strip().lower().replace("-", " ")
+    """Normalise URL slug for class_name lookup. ILCA 4.7 forms match ILCA 4."""
+    return ilca4_normalise_class_slug(slug)
 
 
 def _class_canonical_slug(class_name: str) -> str:
@@ -22172,6 +22173,17 @@ def _class_canonical_slug(class_name: str) -> str:
     s = class_name.strip().lower().replace(" ", "-")
     s = re.sub(r"[^a-z0-9-]", "", s)
     return s.strip("-") or ""
+
+
+def _class_public_path(class_id, class_name: str) -> str:
+    """Public class URL. ILCA 4 is /class/ilca-4. Other classes stay /class/{id}-{slug}."""
+    special = ilca4_public_class_path(class_name or "") if ilca4_public_class_path else None
+    if special:
+        return special
+    slug = _class_canonical_slug(class_name or "")
+    if class_id is None:
+        return f"/class/{slug}" if slug else "/class"
+    return f"/class/{class_id}-{slug}" if slug else f"/class/{class_id}"
 
 
 def _get_class_by_name_slug(slug: str):
@@ -22478,8 +22490,7 @@ def _seo_discovery_pairs_fetch():
                     name = (r.get("class_name") or "").strip()
                     if cid is None or not name:
                         continue
-                    cslug = _class_canonical_slug(name)
-                    path = f"/class/{cid}-{cslug}" if cslug else f"/class/{cid}"
+                    path = _class_public_path(cid, name)
                     pairs.append((path, name[:100]))
         finally:
             cur.close()
@@ -22805,8 +22816,7 @@ def serve_class_spa(class_slug: str):
     class_id, class_name = _resolve_class_slug_to_class_id(class_slug)
     if not class_id or not class_name:
         raise HTTPException(status_code=404, detail="Class not found")
-    canonical_slug = _class_canonical_slug(class_name or "")
-    canonical_path = f"/class/{class_id}-{canonical_slug}" if canonical_slug else f"/class/{class_id}"
+    canonical_path = _class_public_path(class_id, class_name or "")
     req_slug = (class_slug or "").strip().lower()
     canon_slug = canonical_path.split("/class/", 1)[-1].lower()
     if req_slug != canon_slug:
@@ -26156,8 +26166,7 @@ def api_class_resolve_slug(slug: str):
     class_id, class_name = _resolve_class_slug_to_class_id(slug.strip())
     if not class_id:
         raise HTTPException(status_code=404, detail="Class not found")
-    canon = _class_canonical_slug(class_name or "")
-    canonical_path = f"/class/{class_id}-{canon}" if canon else f"/class/{class_id}"
+    canonical_path = _class_public_path(class_id, class_name or "")
     return {"class_id": int(class_id), "canonical_path": canonical_path}
 
 

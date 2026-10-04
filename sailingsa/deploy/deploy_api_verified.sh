@@ -30,6 +30,36 @@ chattr -i "$LIVE" 2>/dev/null || true
 echo "Live hash BEFORE:"
 sha256sum "$LIVE" 2>/dev/null || true
 
+# The live API is the long production file. The git branch file does not contain
+# that lineage. Copying it over live would remove the working ILCA 4 behaviour.
+if grep -q '_fleet_label_to_catalogue_class_name' "$LIVE" && ! grep -q '_fleet_label_to_catalogue_class_name' "$INCOMING"; then
+  echo "REFUSE: incoming api.py is not the production lineage. Live api.py will not be replaced."
+  if [ ! -f /root/ilca4_keep_live_api.sh ]; then
+    echo "ERROR: /root/ilca4_keep_live_api.sh is missing. Upload sailingsa/deploy/ilca4_keep_live_api.sh first."
+    chattr +i "$LIVE" 2>/dev/null || true
+    exit 1
+  fi
+  # shellcheck source=/dev/null
+  source /root/ilca4_keep_live_api.sh
+  rc=0
+  ilca4_preserve_live "$LIVE" || rc=$?
+  chattr +i "$LIVE" 2>/dev/null || true
+  if [ "$rc" = 10 ]; then
+    echo "Restart API after ILCA 4 sidecar or patch change"
+    systemctl restart sailingsa-api
+    sleep 2
+    systemctl is-active sailingsa-api || true
+    echo "===== DEPLOY COMPLETE (production api.py kept) ====="
+    exit 0
+  fi
+  if [ "$rc" != 0 ]; then
+    exit "$rc"
+  fi
+  echo "Live production api.py left unchanged. No restart."
+  echo "===== DEPLOY COMPLETE (production api.py kept) ====="
+  exit 0
+fi
+
 echo "Copy new API"
 cp "$INCOMING" "$LIVE"
 

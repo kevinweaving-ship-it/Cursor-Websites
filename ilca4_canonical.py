@@ -13,6 +13,9 @@ LOGO_FILE = "ILCA-4-Class-Logo.png"
 # Existing production path. Maps keep this filename so live references do not move.
 LEGACY_LOGO_FILE = "ILCA-4.7-Class-Logo.png"
 LOGO_URL = "/artwork/Class Logo/" + LEGACY_LOGO_FILE
+# Query string on the fleet-header logo. The path stays LEGACY_LOGO_FILE.
+LOGO_CACHE_BUST = "20261004ilca4"
+PUBLIC_CLASS_PATH = "/class/ilca-4"
 
 # Spaced forms after comma→dot and whitespace collapse.
 _SPACED = frozenset({
@@ -99,6 +102,64 @@ def is_ilca4_family_slug(slug: str) -> bool:
     return is_ilca4_family_label(slug.strip().replace("-", " "))
 
 
+def normalise_class_slug(slug: str) -> str:
+    """Lowercase a URL slug and turn hyphens into spaces.
+
+    Live /class/ilca-4.7, /class/ilca-47 and /class/ilca-4-7 are the same class
+    as /class/ilca-4. Other slugs, including ilca-6 and ilca-7, are unchanged.
+    """
+    if not slug or not isinstance(slug, str):
+        return ""
+    norm = slug.strip().lower().replace("-", " ")
+    if norm in ("ilca 47", "ilca 4.7", "ilca 4 7"):
+        return "ilca 4"
+    return norm
+
+
+def public_class_path(class_name: str) -> str | None:
+    """Canonical public path for the ILCA 4 class. None for every other class."""
+    if is_ilca4_family_label(class_name):
+        return PUBLIC_CLASS_PATH
+    return None
+
+
+def catalogue_class_name_for_fleet(fleet_label: str = "", block_tail: str = "") -> str | None:
+    """Catalogue name for an ILCA fleet header.
+
+    Same compact labels and block tails as the live fleet matcher. Returns the
+    display name only. Historical fleet URL tails are a separate map and are
+    not rewritten here.
+    """
+    fl = str(fleet_label or "").strip()
+    tail_slug = re.sub(r"-fleet$", "", str(block_tail or "").strip().lower().replace(" ", "-"))
+    compact = re.sub(r"[^a-z0-9]+", "", fl.lower())
+    if compact in ("ilca4", "ilca47", "laser4", "laser47", "laserradial47"):
+        return CANONICAL_NAME
+    if tail_slug in (
+        "ilca-4-16",
+        "ilca-4-7",
+        "ilca-4.7",
+        "ilca-47",
+        "ilca-4",
+        "laser-4",
+        "laser-4.7",
+        "laser-47",
+    ):
+        return CANONICAL_NAME
+    if tail_slug in ("ilca-6", "ilca-6-16"):
+        return "ILCA 6"
+    if tail_slug == "ilca-7":
+        return "ILCA 7"
+    return None
+
+
+def artwork_url_with_cache_bust(src_path: str, display_url: str, bust: str = LOGO_CACHE_BUST) -> str:
+    """Append the logo cache token after the path is encoded. Leave other URLs alone."""
+    if src_path and "?v=" not in src_path and "/artwork/" in str(display_url or "").lower():
+        return f"{src_path}?v={bust}"
+    return src_path
+
+
 def lookup_params() -> tuple[list[str], list[str], list[str], list[str]]:
     spaced = sorted(_SPACED)
     compact = sorted(_COMPACT)
@@ -131,6 +192,7 @@ def search_aliases() -> list[str]:
         "ilca 4.7",
         "ilca4",
         "ilca4.7",
+        "ilca47",
         "ilca 4,7",
         "laser 4.7",
         "laser 4",

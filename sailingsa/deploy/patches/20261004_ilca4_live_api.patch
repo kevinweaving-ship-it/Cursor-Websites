@@ -1,0 +1,115 @@
+--- a/api.py
++++ b/api.py
+@@ -37130,7 +37130,8 @@
+ CLASS_SEARCH_ALIASES.update({
+     "laser": ["laser", "ilca"],
+     "ilca": ["ilca", "laser"],
+-    "ilca 4": ["ilca 4", "ilca4", "laser 4", "laser4", "radial"],
++    "ilca 4": ["ilca 4", "ilca4", "ilca 4.7", "ilca4.7", "ilca47", "laser 4", "laser4", "laser 4.7", "laser radial 4.7", "radial"],
++    "ilca 4.7": ["ilca 4", "ilca 4.7", "ilca4.7", "ilca47", "laser 4.7", "laser 4", "laser radial 4.7"],
+     "ilca 6": ["ilca 6", "ilca6", "laser radial"],
+     "ilca 7": ["ilca 7", "ilca7", "laser standard"],
+     "optimist": ["optimist", "opti", "opi", "oppie", "oppies", "optmist"],
+@@ -44099,14 +44100,13 @@
+         return tail.title()
+     if re.match(r"^optimist\s+[abc]$", fl.lower()):
+         return fl
+-    # ILCA fleet tails from block slugs (strip trailing -fleet; 4.7 used a 4-only tail)
++    # ILCA fleet tails from block slugs (strip trailing -fleet). Canonical class is ILCA 4.
+     tail_slug = re.sub(r"-fleet$", "", tail_slug)
+-    # There is no class "Ilca 4". classes.class_name is Ilca 4.7.
+     fl_compact = re.sub(r"[^a-z0-9]+", "", fl.lower())
+-    if fl_compact in ("ilca4", "laser4"):
+-        return "ILCA 4.7"
+-    if tail_slug in ("ilca-4-16", "ilca-4-7", "ilca-4.7", "ilca-47", "ilca-4"):
+-        return "ILCA 4.7"
++    if fl_compact in ("ilca4", "ilca47", "laser4", "laser47", "laserradial47"):
++        return "ILCA 4"
++    if tail_slug in ("ilca-4-16", "ilca-4-7", "ilca-4.7", "ilca-47", "ilca-4", "laser-4", "laser-4.7", "laser-47"):
++        return "ILCA 4"
+     if tail_slug in ("ilca-6", "ilca-6-16"):
+         return "ILCA 6"
+     if tail_slug in ("ilca-7",):
+@@ -44846,7 +44846,7 @@
+ 
+ 
+ WC_DINGHY_EVENT_LOGO_SSOT = "/artwork/Event Logo/Western-Cape-Dinghy-Champs.png"
+-EVENT_LOGO_ASSET_BUST = "20260912c"
++EVENT_LOGO_ASSET_BUST = "20261004ilca4"
+ 
+ # Legacy event artwork → canonical series logo (same visual on search + regatta headers).
+ _EVENT_LOGO_CANONICAL_ALIASES: dict[str, str] = {
+@@ -54032,9 +54032,9 @@
+     if not slug or not isinstance(slug, str):
+         return ""
+     norm = slug.strip().lower().replace("-", " ")
+-    # Legacy URLs used ilca-47 (dot stripped from "ILCA 4.7"); classes row matches "ilca 4.7".
+-    if norm == "ilca 47":
+-        norm = "ilca 4.7"
++    # ILCA 4.7, Ilca 4.7 and legacy ilca-47 are the same class as canonical ILCA 4.
++    if norm in ("ilca 47", "ilca 4.7", "ilca 4 7"):
++        norm = "ilca 4"
+     return norm
+ 
+ 
+@@ -62720,7 +62720,10 @@
+     left_col = ""
+     right_col = ""
+     if display_url:
+-        src = html_module.escape(_enc_artwork_src(display_url))
++        src_path = _enc_artwork_src(display_url)
++        if src_path and "?v=" not in src_path and "/artwork/" in str(display_url).lower():
++            src_path = f"{src_path}?v={EVENT_LOGO_ASSET_BUST}"
++        src = html_module.escape(src_path)
+         alt = html_module.escape(_fleet_cn or "")
+         img = (
+             f'<img src="{src}" alt="{alt}" class="class-header-logo-img" '
+@@ -71430,6 +71433,37 @@
+     return t[: i + len(marker)] + f'<span class="regatta-status-as-at-date">{date_part}</span>'
+ 
+ 
++def _get_class_by_alias_slug(slug: str):
++    """Name-only slug matched to class_aliases. One class_id or none."""
++    norm = _normalise_class_slug_for_lookup(slug)
++    if not norm:
++        return (None, None)
++    conn = None
++    try:
++        conn = get_db_connection()
++        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
++        cur.execute(
++            """
++            SELECT c.class_id, c.class_name
++            FROM class_aliases a
++            JOIN classes c ON c.class_id = a.class_id
++            WHERE LOWER(TRIM(a.alias)) = %s
++            """,
++            (norm,),
++        )
++        rows = cur.fetchall() or []
++        ids = {int(r["class_id"]) for r in rows if r.get("class_id") is not None}
++        if len(ids) != 1:
++            return (None, None)
++        row = rows[0]
++        return (row["class_id"], row["class_name"])
++    except Exception:
++        return (None, None)
++    finally:
++        if conn:
++            return_db_connection(conn)
++
++
+ def _resolve_class_slug_to_class_id(class_slug: str):
+     """Resolve URL class_slug to (class_id, class_name). Handles name-only (420, ilca-6) and id-slug (7-420). Returns (None, None) if invalid."""
+     if not class_slug or not isinstance(class_slug, str):
+@@ -71443,7 +71477,9 @@
+         except (ValueError, TypeError):
+             return (None, None)
+     class_id, class_name = _get_class_by_name_slug(s)
+-    return (class_id, class_name)
++    if class_id:
++        return (class_id, class_name)
++    return _get_class_by_alias_slug(s)
+ 
+ 
+ @app.get("/api/class/resolve-slug/{slug}")
