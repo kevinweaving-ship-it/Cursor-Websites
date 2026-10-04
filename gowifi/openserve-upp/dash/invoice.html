@@ -61,6 +61,35 @@ const fmtDate = v => {
   return s;
 };
 const addrHtml = a => String(a||"").split(",").map(x=>x.trim()).filter(Boolean).map(x=>`<div>${esc(x)}</div>`).join("");
+const parseDay = v => {
+  const s = String(v||"").trim();
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return new Date(+iso[1], +iso[2]-1, +iso[3]);
+  const dmy = s.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+  if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
+  return null;
+};
+const toCurrent = stmt => {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const lines = (stmt.lines||[]).map(l => Object.assign({}, l));
+  let latest = null;
+  lines.forEach(l => {
+    const d = parseDay(l.date);
+    if (d && (!latest || d > latest)) latest = d;
+  });
+  const ageing = {current:0, d30:0, d60:0, d90:0, older:0};
+  lines.forEach(l => {
+    const d = parseDay(l.date) || today;
+    l.days = Math.max(0, Math.round((today - d) / 86400000));
+    const latestBill = latest && d.getTime() === latest.getTime();
+    const bucket = latestBill ? "current" : l.days<=0 ? "current" : l.days<=30 ? "d30" : l.days<=60 ? "d60" : l.days<=90 ? "d90" : "older";
+    ageing[bucket] += Number(l.amount!=null?l.amount:l.debit||0);
+  });
+  Object.keys(ageing).forEach(k => { ageing[k] = Math.round(ageing[k]*100)/100; });
+  const iso = today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
+  return Object.assign({}, stmt, {lines, ageing, as_at: iso});
+};
 const params = new URLSearchParams(location.search);
 fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store"})
   .then(r => { if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
@@ -92,7 +121,8 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
     }
     const r = all.find(x => String(x.invoice_number)===String(want));
     if (!r) { document.getElementById("app").innerHTML = `<p class="err">No invoice ${esc(want)}</p>`; return; }
-    const stmt = r.statement && r.statement.lines && r.statement.lines.length ? r.statement : {lines:[], total_due: r.balance_due!=null?r.balance_due:r.amount, ageing:{}};
+    const raw = r.statement && r.statement.lines && r.statement.lines.length ? r.statement : {lines:[], total_due: r.balance_due!=null?r.balance_due:r.amount, ageing:{}};
+    const stmt = toCurrent(raw);
     const ageing = stmt.ageing || {};
     const due = stmt.total_due!=null ? stmt.total_due : (r.balance_due!=null?r.balance_due:r.amount);
     const desc = r.description || "Monthly service";

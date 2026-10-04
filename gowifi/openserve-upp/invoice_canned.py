@@ -152,12 +152,18 @@ def _open_items(rows: list[dict]) -> tuple[list[dict], float]:
 
 def _age_items(items: list[dict], age_on: date, credit: float = 0.0) -> tuple[list[dict], dict, float]:
     buckets = {"current": 0.0, "d30": 0.0, "d60": 0.0, "d90": 0.0, "older": 0.0}
+    latest = None
+    for item in items:
+        day = parse_day(item["date"])
+        if day and (latest is None or day > latest):
+            latest = day
     lines = []
     running = 0.0
     for item in items:
         day = parse_day(item["date"]) or age_on
         days = (age_on - day).days
-        bucket = _bucket(days)
+        # Latest bill is Current; older unpaid invoices age from today.
+        bucket = "current" if latest and day == latest else _bucket(days)
         buckets[bucket] = round(buckets[bucket] + item["amount"], 2)
         running = round(running + item["amount"], 2)
         lines.append(
@@ -522,11 +528,11 @@ def self_test() -> int:
     elif line_sum != 7070 or aged_sum != 7070:
         print("FAIL outstanding-sum", line_sum, aged_sum, stmt_m["ageing"])
         failed += 1
-    elif stmt_m["ageing"]["current"] != 0:
-        print("FAIL arrears-not-current", stmt_m["ageing"])
-        failed += 1
-    elif stmt_m["ageing"] != {"current": 0.0, "d30": 439.0, "d60": 439.0, "d90": 768.0, "older": 5424.0}:
+    elif stmt_m["ageing"] != {"current": 439.0, "d30": 0.0, "d60": 439.0, "d90": 768.0, "older": 5424.0}:
         print("FAIL ageing", stmt_m["ageing"])
+        failed += 1
+    elif aged_sum != stmt_m["total_due"]:
+        print("FAIL ageing-not-to-current", aged_sum, stmt_m["total_due"])
         failed += 1
     elif not all(l.get("days", 0) >= 0 for l in stmt_m["lines"]):
         print("FAIL days", stmt_m["lines"])
