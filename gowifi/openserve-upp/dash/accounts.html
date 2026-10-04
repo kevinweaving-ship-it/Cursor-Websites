@@ -100,13 +100,12 @@ function render(data){
     return ys + " " + (r === 1 ? "1 month" : r + " months");
   };
   const hist = r => {
-    const bits=[];
-    if (r.ordered_label && r.ordered_label!=="—") bits.push("Ordered "+r.ordered_label);
-    if (r.installed_label && r.installed_label!=="—") bits.push("Installed "+r.installed_label);
-    if (r.activated_label && r.activated_label!=="—") bits.push("Activated "+r.activated_label);
-    if (r.delay_label && r.delay_label!=="—") bits.push("Delay "+r.delay_label);
-    if (r.stints_label && r.stints_label!=="—") bits.push(r.suspend_stints+" stint"+(r.suspend_stints===1?"":"s")+": "+r.stints_label);
-    return bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : "";
+    const text = r.story_label || [r.ordered_label && "Ordered "+r.ordered_label, r.installed_label && "Installed "+r.installed_label].filter(Boolean).join(" · ");
+    return text ? `<div class="meta">${esc(text)}</div>` : "";
+  };
+  const tenure = r => {
+    if (r.line_status==="cancelled") return r.months_label && r.months_label!=="—" ? "Was "+r.months_label : "Cancelled";
+    return monthsAsClient(r.activated || r.installed || r.joined);
   };
   const cancelledSNs = new Set((data.cancelled_lines||[]).map(r=>r.service_number).filter(Boolean));
   const suspendedSNs = new Set((data.suspended||[]).map(r=>r.service_number).filter(Boolean));
@@ -116,7 +115,7 @@ function render(data){
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor(r.line_status)}</td>
       <td class="num">${esc(r.speed)}</td>
-      <td class="num">${esc(monthsAsClient(r.activated || r.installed || r.joined))}</td>
+      <td class="num">${esc(tenure(r))}</td>
     </tr>`).join("");
   const taken = new Set((data.active||[]).concat(data.suspended||[]).map(r=>r.service_number).filter(Boolean));
   const cancelledLineRows = (data.cancelled_lines||[]).filter(r=>!taken.has(r.service_number)).map(r=>`
@@ -124,7 +123,7 @@ function render(data){
       <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor("cancelled")}</td>
-      <td class="num">${esc(monthsAsClient(r.activated || r.installed || r.joined))}</td>
+      <td class="num">${esc(tenure(r))}</td>
     </tr>`).join("");
   const suspendedRows = (data.suspended||[]).filter(r=>r.line_status==="suspended" && !cancelledSNs.has(r.service_number)).map(r=>`
     <tr>

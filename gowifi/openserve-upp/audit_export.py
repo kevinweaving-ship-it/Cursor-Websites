@@ -220,6 +220,48 @@ def history_label(events: list[dict], exclusive: str, suspend_started: str | Non
     return " · ".join(bits) if bits else "—"
 
 
+def name_key(name: str) -> str:
+    words = re.findall(r"[a-z0-9]+", (name or "").lower())
+    words = [w for w in words if w not in {"new", "the", "and"}]
+    return " ".join(words[:2])
+
+
+def cancel_on(orders: list[dict], events: list[dict]) -> date | None:
+    for ev in events:
+        if ev.get("event") == "cancelled":
+            parsed = parse_date(ev.get("at"))
+            if parsed:
+                return parsed
+    for order in orders:
+        if "cancel" in (order.get("order_status") or "").lower():
+            return parse_date(order.get("date_implemented")) or parse_date(order.get("created_on"))
+    return None
+
+
+def story_label(row: dict) -> str:
+    bits = []
+    if row.get("ordered_label") and row["ordered_label"] != "—":
+        bits.append(f"Ordered {row['ordered_label']}")
+    if row.get("installed_label") and row["installed_label"] != "—":
+        bits.append(f"Installed {row['installed_label']}")
+    if row.get("line_status") != "cancelled":
+        if row.get("activated_label") and row["activated_label"] != "—":
+            bits.append(f"Activated {row['activated_label']}")
+        if row.get("delay_label") and row["delay_label"] != "—":
+            bits.append(f"Delay {row['delay_label']}")
+    if row.get("line_status") == "suspended":
+        bits.append("Suspended (not active)")
+        if row.get("stints_label") and row["stints_label"] != "—":
+            bits.append(row["stints_label"])
+    elif row.get("stints") and any(not stint.get("open") for stint in row["stints"]):
+        bits.append(f"Suspended then restored · {row['stints_label']}")
+    if row.get("line_status") == "cancelled":
+        bits.append(f"Cancelled {row.get('cancelled_label') or '—'} · complete")
+    if row.get("related_label"):
+        bits.append(row["related_label"])
+    return " · ".join(bits)
+
+
 def stint_label(stints: list[dict]) -> str:
     if not stints:
         return "—"
@@ -276,9 +318,11 @@ def build(conn: sqlite3.Connection) -> dict:
         installed = tl["installed"]
         activated = tl["activated"]
         joined = activated or installed or ordered
-        months = months_as_client(joined, today)
         exclusive = svc.get("exclusive_status") or "unknown"
         history = events_for(conn, sn)
+        cancelled = cancel_on(related, history) if exclusive == "cancelled" else None
+        tenure_end = cancelled or today
+        months = months_as_client(joined, tenure_end)
         started = svc.get("suspend_started_at")
         open_days = None
         if exclusive == "suspended" and started:
@@ -314,10 +358,14 @@ def build(conn: sqlite3.Connection) -> dict:
                 if exclusive == "suspended" and open_days is not None
                 else ("unknown" if exclusive == "suspended" else "—")
             ),
+            "cancelled": cancelled.isoformat() if cancelled else None,
+            "cancelled_label": cancelled.strftime("%d %b %Y") if cancelled else None,
             "stints": stints,
             "stints_label": stint_label(stints),
             "history": history,
             "history_label": history_label(history, exclusive, started, today),
+            "related_label": None,
+            "story_label": "",
         }
         if exclusive == "active":
             active.append(row)
@@ -329,6 +377,27 @@ def build(conn: sqlite3.Connection) -> dict:
     active.sort(key=lambda r: (r["customer"].lower(), r["service_number"]))
     suspended.sort(key=lambda r: (r["customer"].lower(), r["service_number"]))
     cancelled_lines.sort(key=lambda r: (r["customer"].lower(), r["service_number"]))
+
+    all_rows = active + suspended + cancelled_lines
+    by_key: dict[str, list[dict]] = {}
+    for row in all_rows:
+        by_key.setdefault(name_key(row["customer"]), []).append(row)
+    for row in all_rows:
+        others = [
+            other
+            for other in by_key.get(name_key(row["customer"]), [])
+            if other["service_number"] != row["service_number"]
+        ]
+        notes = []
+        for other in others:
+            if row["line_status"] == "cancelled" and other["line_status"] in {"active", "suspended"}:
+                notes.append(f"moved · now {other['service_number']} ({other['line_status']})")
+            elif row["line_status"] in {"active", "suspended"} and other["line_status"] == "cancelled":
+                notes.append(f"prior line {other['service_number']} cancelled")
+            else:
+                notes.append(f"also {other['service_number']} {other['line_status']}")
+        row["related_label"] = notes[0] if notes else None
+        row["story_label"] = story_label(row)
 
     live_sns = {r["service_number"] for r in active} | {r["service_number"] for r in suspended}
     cancelled_sns = {r["service_number"] for r in cancelled_lines}
