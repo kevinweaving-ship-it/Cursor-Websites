@@ -200,7 +200,7 @@ function render(data){
       <div class="card"><div class="meta">${esc((data.books&&data.books.loop)||"Old QuickBooks history in, new invoices canned.")}</div>
         <div class="meta"><a href="/dash/invoice.html" style="color:var(--acc)">Canned invoices</a> · next ${esc((data.books&&data.books.customer_invoices&&data.books.customer_invoices.next)||"—")}</div></div>
       <div class="grid">
-        <div class="card"><div class="k">Old invoices</div><div class="v">${(data.books&&data.books.history&&data.books.history.count)||0}</div><div class="meta">${esc((data.books&&data.books.history&&data.books.history.statements)||0)} statements · ${esc((data.books&&data.books.history&&data.books.history.payments)||0)} payments</div></div>
+        <div class="card"><div class="k">Old invoices</div><div class="v">${(data.books&&data.books.history&&data.books.history.count)||0}</div><div class="meta">statement sits on the invoice · ${esc((data.books&&data.books.history&&data.books.history.payment_count)||(data.books&&data.books.history&&data.books.history.payments&&data.books.history.payments.length)||0)} payments</div></div>
         <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
         <div class="card"><div class="k">FNB</div><div class="v">${((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"")}</div></div>
       </div>

@@ -321,6 +321,14 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
             }
         )
     drafts = draft_customer_invoices(conn)
+    from invoice_canned import statement_on_invoice
+
+    all_inv = (history.get("invoices") or []) + drafts
+    pays = history.get("payments") or []
+    for row in drafts:
+        row["statement"] = statement_on_invoice(all_inv, pays, row.get("customer"))
+        if row["statement"].get("total_due") is not None:
+            row["balance_due"] = row["statement"]["total_due"]
     nc = netcash_status()
     next_no = max(history.get("next") or INVOICE_SERIES_AFTER + 1, INVOICE_SERIES_AFTER + 1)
     if drafts:
@@ -330,7 +338,7 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "company": COMPANY,
         "loop": (
             "Old QuickBooks invoices and statements are imported from mail. "
-            "New invoices are the same canned page. Netcash collects. FNB is the bank."
+            "New invoices are one page: this month’s line plus the statement history under it."
         ),
         "openserve": {
             "invoices": openserve[0] if openserve else 0,
@@ -352,7 +360,7 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
             "next": next_no,
             "drafts": len(drafts),
             "rows": drafts,
-            "note": "Canned invoice at /dash/invoice.html — same layout as the old QuickBooks one.",
+            "note": "One page: invoice + statement. /dash/invoice.html",
         },
         "history": history,
     }

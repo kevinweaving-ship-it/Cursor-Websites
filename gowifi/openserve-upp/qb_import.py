@@ -387,25 +387,46 @@ def history_for_export(conn: sqlite3.Connection) -> dict:
         {
             "invoice_number": r[0],
             "invoice_date": r[1],
-            "customer": r[2],
-            "amount": r[3],
-            "balance_due": r[4],
+            "due_date": r[2],
+            "customer": r[3],
+            "address": r[4],
             "description": r[5],
-            "source": r[6],
-            "status": r[7],
+            "qty": r[6],
+            "rate": r[7],
+            "amount": r[8],
+            "balance_due": r[9],
+            "terms": r[10],
+            "source": r[11],
+            "status": r[12],
         }
         for r in conn.execute(
-            """SELECT invoice_number, invoice_date, customer, amount, balance_due,
-                      description, source, status
+            """SELECT invoice_number, invoice_date, due_date, customer, address,
+                      description, qty, rate, amount, balance_due, terms, source, status
                FROM customer_invoices ORDER BY invoice_number"""
         )
     ]
+    payments = [
+        {
+            "paid_on": r[0],
+            "customer": r[1],
+            "amount": r[2],
+            "note": r[3] or "Payment",
+        }
+        for r in conn.execute(
+            """SELECT paid_on, customer, amount, note FROM customer_payments
+               ORDER BY paid_on, id"""
+        )
+    ]
+    from invoice_canned import statement_on_invoice
+
+    for inv in invoices:
+        inv["statement"] = statement_on_invoice(invoices, payments, inv.get("customer"))
     last = invoices[-1]["invoice_number"] if invoices else 0
     return {
         "invoices": invoices,
         "count": len(invoices),
-        "statements": conn.execute("SELECT COUNT(*) FROM customer_statements").fetchone()[0],
-        "payments": conn.execute("SELECT COUNT(*) FROM customer_payments").fetchone()[0],
+        "payments": payments,
+        "payment_count": len(payments),
         "next": max(last, 3113) + 1,
         "fnb_account": GOWIFI_FNB,
     }

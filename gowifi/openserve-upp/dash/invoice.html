@@ -13,8 +13,9 @@ table { width:100%; border-collapse:collapse; margin:22px 0; }
 th { text-align:left; font-size:11px; letter-spacing:.05em; border-bottom:1px solid #111; padding:6px 4px; }
 td { padding:10px 4px; vertical-align:top; border-bottom:1px solid #ddd; }
 .num { text-align:right; white-space:nowrap; }
-.due { font-size:18px; font-weight:700; text-align:right; margin:12px 0 24px; }
-.bank { border-top:1px solid #111; padding-top:10px; font-size:13px; }
+.due { font-size:18px; font-weight:700; text-align:right; margin:12px 0 8px; }
+h2 { font-size:16px; letter-spacing:.08em; margin:28px 0 8px; }
+.bank { border-top:1px solid #111; padding-top:10px; font-size:13px; margin-top:20px; }
 a.back { font: 13px sans-serif; color:#345; }
 .err { color:#a00; }
 @media print { a.back { display:none; } body { margin:12mm; } }
@@ -42,6 +43,18 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
     }
     const r = all.find(x => String(x.invoice_number)===String(want));
     if (!r) { document.getElementById("app").innerHTML = `<p class="err">No invoice ${esc(want)}</p>`; return; }
+    const pays = ((data.books||{}).history||{}).payments || [];
+    const key = (name) => String(name||"").toLowerCase().replace(/\b(mr|mrs|ms|miss|dr)\b/g,"").replace(/[^a-z0-9]+/g," ").trim().split(" ").slice(0,2).join(" ");
+    const mine = key(r.customer);
+    const ledger = [];
+    if (mine) {
+      all.filter(x => key(x.customer)===mine).forEach(x => ledger.push({date:x.invoice_date, description:"Invoice No."+x.invoice_number, amount:Number(x.amount||0)}));
+      pays.filter(x => key(x.customer)===mine).forEach(x => ledger.push({date:x.paid_on, description:x.note||"Payment", amount:Number(x.amount||0)}));
+      ledger.sort((a,b)=> (a.date||"").localeCompare(b.date||"") || a.description.localeCompare(b.description));
+      let bal=0;
+      ledger.forEach(x => { bal=Math.round((bal+x.amount)*100)/100; x.balance=bal; });
+    }
+    const stmt = r.statement && r.statement.lines && r.statement.lines.length ? r.statement : {lines:ledger, total_due: ledger.length?ledger[ledger.length-1].balance:r.balance_due};
     const c = (data.books&&data.books.company) || {};
     document.title = "Invoice "+r.invoice_number;
     document.getElementById("app").innerHTML = `
@@ -72,7 +85,14 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
           <td class="num">${money(r.amount)}</td>
         </tr></tbody>
       </table>
-      <div class="due">BALANCE DUE ${money(r.balance_due!=null?r.balance_due:r.amount)}</div>
+      <div class="due">THIS INVOICE ${money(r.amount)}</div>
+      ${stmt.lines && stmt.lines.length ? `
+      <h2>STATEMENT</h2>
+      <table>
+        <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+        <tbody>${stmt.lines.map(line=>`<tr><td>${esc(line.date||"—")}</td><td>${esc(line.description||"")}</td><td class="num">${money(line.amount)}</td><td class="num">${money(line.balance)}</td></tr>`).join("")}</tbody>
+      </table>
+      <div class="due">BALANCE DUE ${money(stmt.total_due)}</div>` : `<div class="due">BALANCE DUE ${money(r.balance_due!=null?r.balance_due:r.amount)}</div>`}
       <div class="bank">
         <div>Banking/EFT Details</div>
         <div>Account Name: ${esc(c.bank_account_name||"GoWifi (Pty) Ltd")}</div>
