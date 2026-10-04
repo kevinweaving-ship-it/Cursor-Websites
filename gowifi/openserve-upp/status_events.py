@@ -65,8 +65,11 @@ def exclusive_status(svc: dict) -> str:
     # says Active or partner still says IspActive.
     if empty_circuit and cancelled_order:
         return "cancelled"
-    # Access Suspended always wins over partner IspActive.
-    if access == "suspended" and not (empty_circuit and cancelled_order):
+    # Holding pool / WS TELKOM is a cease back to Openserve, not a credit suspend.
+    if holding:
+        return "cancelled"
+    # Access Suspended only counts if GoWiFi still owns the circuit.
+    if access == "suspended" and owned:
         return "suspended"
     if cancelled_order and not owned:
         return "cancelled"
@@ -322,10 +325,33 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
                 _add_event(conn, sn, kind, later_at, "order", (stage or "")[:180] or "Later accepted order")
 
         if new == "cancelled":
+            real_cancel = cancel_dates.get(sn)
+            holding_now = _holding(svc.get("customer"), svc.get("isp_name"))
             if not _has_event(conn, sn, "cancelled"):
-                _add_event(conn, sn, "cancelled", cancel_at, "order", svc.get("latest_order_status"))
+                if real_cancel:
+                    _add_event(conn, sn, "cancelled", real_cancel, "order", svc.get("latest_order_status"))
+                elif holding_now:
+                    _add_event(
+                        conn,
+                        sn,
+                        "cancelled",
+                        "",
+                        "holding-pool",
+                        "Holding pool / WS TELKOM — complete cancel, not a credit suspend",
+                    )
+                else:
+                    _add_event(conn, sn, "cancelled", cancel_at, "order", svc.get("latest_order_status"))
             else:
-                _repair_event_date(conn, sn, "cancelled", cancel_dates.get(sn))
+                _repair_event_date(conn, sn, "cancelled", real_cancel)
+            if holding_now:
+                conn.execute(
+                    """DELETE FROM service_events
+                       WHERE service_number=? AND event_type='suspended'
+                         AND source='first-seen'""",
+                    (sn,),
+                )
+                started = None
+                count = 0
 
         conn.execute(
             """UPDATE service_events SET source='first-seen'
@@ -502,7 +528,7 @@ def assert_exclusive(groups: dict[str, list[str]]) -> None:
 def self_test() -> int:
     cases = [
         (
-            "aljo-suspended-not-active",
+            "aljo-holding-pool-is-cancelled",
             {
                 "access_status": "Suspended",
                 "partner_status": "IspActive",
@@ -510,15 +536,26 @@ def self_test() -> int:
                 "isp_name": "WS TELKOM SP",
                 "latest_order_status": "Accepted",
             },
-            "suspended",
+            "cancelled",
         ),
         (
-            "herman-holding-pool",
+            "herman-holding-pool-is-cancelled",
             {
                 "access_status": "Suspended",
                 "partner_status": "IspSuspended",
                 "customer": "WHOLESALE STAGING / TRANSITION AREA",
                 "isp_name": "WS TELKOM SP",
+                "latest_order_status": "Accepted",
+            },
+            "cancelled",
+        ),
+        (
+            "owned-credit-suspend",
+            {
+                "access_status": "Suspended",
+                "partner_status": "IspSuspended",
+                "customer": "GOWIFI (PTY) LTD",
+                "isp_name": "WS GOWIFI (PTY) LTD",
                 "latest_order_status": "Accepted",
             },
             "suspended",

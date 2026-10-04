@@ -256,7 +256,10 @@ def story_label(row: dict) -> str:
     elif row.get("stints") and any(not stint.get("open") for stint in row["stints"]):
         bits.append(f"Suspended then restored · {row['stints_label']}")
     if row.get("line_status") == "cancelled":
-        bits.append(f"Cancelled {row.get('cancelled_label') or '—'} · complete")
+        if row.get("cancelled_label"):
+            bits.append(f"Cancelled {row['cancelled_label']} · complete")
+        else:
+            bits.append("Cancelled · complete (holding pool)")
     if row.get("related_label"):
         bits.append(row["related_label"])
     return " · ".join(bits)
@@ -321,6 +324,8 @@ def build(conn: sqlite3.Connection) -> dict:
         exclusive = svc.get("exclusive_status") or "unknown"
         history = events_for(conn, sn)
         cancelled = cancel_on(related, history) if exclusive == "cancelled" else None
+        if cancelled and str(cancelled) in {"", "—"}:
+            cancelled = None
         tenure_end = cancelled or today
         months = months_as_client(joined, tenure_end)
         started = svc.get("suspend_started_at")
