@@ -50,6 +50,9 @@ Compact fibre list at **https://gowifi.co.za/dash/accounts.html** (same dash log
 
 - Per line: order → install → activate → (suspend/restore stints) → cancel is complete
 - A new house is a new order/install, not a continuation of a cancelled line
+- Cancel stories are inferred from orders only: address-error redo (never
+  installed, next order is the install), later move (was a live client, then a
+  new house), or cease (cancelled, no new order — end of account)
 - Never use a previous-ISP / previous-owner circuit date
 - Active accounts: client, service number, exclusive line status, speed, join date, months as client
 - GoWiFi incoming fibre at **VK Pop** (legal UPP name Kevin Weaving) is labelled as the

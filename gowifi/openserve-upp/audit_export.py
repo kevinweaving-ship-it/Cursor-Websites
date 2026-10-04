@@ -9,6 +9,15 @@ import sqlite3
 from datetime import date, datetime
 from pathlib import Path
 
+from client_stories import (
+    addrs_differ,
+    classify,
+    cluster_by_client,
+    names_match,
+    same_house_reorder_bit,
+    tidy_customer,
+)
+
 DB_PATH = Path(os.environ.get("UPP_DB", "/root/gowifi-upp/upp.db"))
 JSON_PATH = Path(os.environ.get("UPP_ACCOUNTS_JSON", "/home/user-data/www/default/dash/accounts.json"))
 
@@ -155,6 +164,19 @@ def change_bits(orders: list[dict], current_speed: str | None, extras: list[dict
         billed_mb = speed_mb(billed.get("capacity"))
         if billed_mb and now_mb and billed_mb != now_mb:
             bits.append(f"last billed {billed_mb}")
+    cancelled = [
+        order
+        for order in orders
+        if "cancel" in (order.get("order_status") or "").lower()
+    ]
+    if cancelled and accepted:
+        last_c = max(
+            cancelled,
+            key=lambda o: parse_date(o.get("created_on")) or date.min,
+        )
+        first_a = accepted[0]
+        if not addrs_differ(last_c.get("address"), first_a.get("address")):
+            bits.append(same_house_reorder_bit(last_c.get("product")))
     for extra in extras:
         when = extra.get("added")
         try:
@@ -328,12 +350,6 @@ def history_label(events: list[dict], exclusive: str, suspend_started: str | Non
     return " · ".join(bits) if bits else "—"
 
 
-def name_key(name: str) -> str:
-    words = re.findall(r"[a-z0-9]+", (name or "").lower())
-    words = [w for w in words if w not in {"new", "the", "and"}]
-    return " ".join(words[:2])
-
-
 def cancel_on(orders: list[dict], events: list[dict]) -> date | None:
     for ev in events:
         if ev.get("event") == "cancelled":
@@ -344,14 +360,6 @@ def cancel_on(orders: list[dict], events: list[dict]) -> date | None:
         if "cancel" in (order.get("order_status") or "").lower():
             return parse_date(order.get("date_implemented")) or parse_date(order.get("created_on"))
     return None
-
-
-def short_addr(addr: str | None) -> str:
-    parts = [p.strip() for p in re.sub(r"\s+", " ", (addr or "").strip()).split(",") if p.strip()]
-    for part in parts:
-        if re.search(r"\b(rd|st|av|ave|dr|ln|cl|ct|street|road)\b", part, re.I):
-            return part[:48]
-    return parts[0][:48] if parts else ""
 
 
 def ua_note(orders: list[dict]) -> str | None:
@@ -372,57 +380,17 @@ def ua_note(orders: list[dict]) -> str | None:
     return None
 
 
-def _peer(peers: list[dict], row: dict, want: str) -> dict | None:
-    for other in peers or []:
-        if other.get("service_number") == row.get("service_number"):
-            continue
-        if want == "replacement" and row.get("line_status") == "cancelled" and other.get("line_status") in {
-            "active",
-            "suspended",
-        }:
-            return other
-        if want == "prior" and row.get("line_status") in {"active", "suspended"} and other.get("line_status") == "cancelled":
-            return other
-    return None
-
-
-def story_label(row: dict, peers: list[dict] | None = None) -> str:
-    """Plain-English why: never installed, wrong address, delay, long-held cease."""
-    peers = peers or []
-    replacement = _peer(peers, row, "replacement")
-    prior = _peer(peers, row, "prior")
+def story_label(row: dict, peers: list[dict] | None = None, story: dict | None = None) -> str:
+    """Order facts plus redo / move / cease inferred from those orders."""
+    story = story or classify(row, peers or [])
     if row.get("never_installed"):
-        bits = ["Never installed"]
-        if replacement:
-            here = short_addr(row.get("address"))
-            there = short_addr(replacement.get("address"))
-            bits.append(f"wrong address{f' ({here})' if here else ''}")
-            extra = f"new order {replacement['service_number']}"
-            if there:
-                extra += f" at {there}"
-            if replacement.get("installed_label") and replacement["installed_label"] != "—":
-                extra += f" · installed {replacement['installed_label']}"
-            if replacement.get("delay_label") and replacement["delay_label"] not in {"—", "0 days"}:
-                extra += f" after {replacement['delay_label']} delay"
-            bits.append(extra)
-        else:
-            reason = row.get("cancel_reason") or ""
-            if "unverified" in reason:
-                note = row.get("ua_note")
-                bits.append("unverified address" + (f" ({note})" if note else ""))
-            if "handover" in reason:
-                bits.append("then cancelled before Openserve handover")
-            elif reason and "unverified" not in reason:
-                bits.append(reason)
-        if row.get("cancelled_label"):
-            bits.append(f"Cancelled {row['cancelled_label']}")
-        return " · ".join(bits)
+        return story["headline"]
 
     bits = []
     if row.get("incoming_label"):
         bits.append(row["incoming_label"])
-    if prior and prior.get("never_installed"):
-        bits.append(f"Replacement after wrong-address cancel {prior['service_number']}")
+    if story["kind"] in {"redo", "move"} and row.get("line_status") != "cancelled":
+        bits.append(story["headline"])
     if row.get("ordered_label") and row["ordered_label"] != "—":
         bits.append(f"Ordered {row['ordered_label']}")
     if row.get("installed_label") and row["installed_label"] != "—":
@@ -441,23 +409,10 @@ def story_label(row: dict, peers: list[dict] | None = None) -> str:
     elif row.get("stints") and any(not stint.get("open") for stint in row["stints"]):
         bits.append(f"Suspended then restored · {row['stints_label']}")
     if row.get("line_status") == "cancelled":
-        if row.get("months_label") and row["months_label"] != "—":
-            bits.append(f"Was a client {row['months_label']}")
-        if row.get("cancelled_label"):
-            bits.append(f"Cancelled {row['cancelled_label']} · complete")
-        else:
-            bits.append("Cancelled · complete (holding pool)")
-        if replacement:
-            there = short_addr(replacement.get("address"))
-            extra = f"new install at another address {replacement['service_number']}"
-            if there:
-                extra += f" ({there})"
-            bits.append(extra)
-        else:
-            bits.append("no new order at another address")
-    elif row.get("related_label") and not (prior and prior.get("never_installed")):
+        bits.append(story["headline"])
+    elif story["kind"] == "live" and row.get("related_label"):
         bits.append(row["related_label"])
-    return " · ".join(bits)
+    return " · ".join(bit for bit in bits if bit)
 
 
 def stint_label(stints: list[dict]) -> str:
@@ -511,14 +466,12 @@ def build(conn: sqlite3.Connection) -> dict:
         "SELECT finished_at, ok FROM sync_runs ORDER BY id DESC LIMIT 1"
     ).fetchone()
     by_sn: dict[str, list[dict]] = {}
-    orphans_by_name: dict[str, list[dict]] = {}
+    orphan_orders: list[dict] = []
     for order in orders:
         sn_key = order.get("service_number") or ""
         by_sn.setdefault(sn_key, []).append(order)
         if not sn_key:
-            orphans_by_name.setdefault(
-                name_key(clean_name(order.get("end_customer"))), []
-            ).append(order)
+            orphan_orders.append(order)
 
     active = []
     suspended = []
@@ -530,12 +483,18 @@ def build(conn: sqlite3.Connection) -> dict:
         if related:
             latest = sorted(related, key=lambda o: o.get("created_on") or "", reverse=True)[0]
         accepted = accepted_orders(related)
-        customer = clean_name(
-            (accepted[-1] if accepted else latest).get("end_customer")
-            if (accepted or latest)
-            else None
+        customer = tidy_customer(
+            clean_name(
+                (accepted[-1] if accepted else latest).get("end_customer")
+                if (accepted or latest)
+                else None
+            )
         )
-        related.extend(orphans_by_name.get(name_key(customer), []))
+        related.extend(
+            order
+            for order in orphan_orders
+            if names_match(customer, tidy_customer(clean_name(order.get("end_customer"))))
+        )
         circ = circuit_dates(svc.get("raw_circuit_json"))
         tl = gowifi_timeline(related, circ)
         exclusive = svc.get("exclusive_status") or "unknown"
@@ -602,6 +561,7 @@ def build(conn: sqlite3.Connection) -> dict:
             "history": history,
             "history_label": history_label(history, exclusive, started, today),
             "related_label": None,
+            "story_kind": None,
             "story_label": "",
             "never_installed": never_installed,
             "ua_note": ua_note(related),
@@ -626,38 +586,23 @@ def build(conn: sqlite3.Connection) -> dict:
     cancelled_lines.sort(key=lambda r: (r["customer"].lower(), r["service_number"]))
 
     all_rows = active + suspended + cancelled_lines
-    by_key: dict[str, list[dict]] = {}
-    for row in all_rows:
-        by_key.setdefault(name_key(row["customer"]), []).append(row)
-    for row in all_rows:
-        others = [
-            other
-            for other in by_key.get(name_key(row["customer"]), [])
-            if other["service_number"] != row["service_number"]
-        ]
-        notes = []
-        row_addr = re.sub(r"[^a-z0-9]+", "", (row.get("address") or "").lower())
-        for other in others:
-            incoming_note = incoming_related_label(other) if row.get("incoming_role") else None
-            if incoming_note:
-                notes.append(incoming_note)
-                continue
-            other_addr = re.sub(r"[^a-z0-9]+", "", (other.get("address") or "").lower())
-            moved = row_addr and other_addr and row_addr != other_addr
-            if row["line_status"] == "cancelled" and other["line_status"] in {"active", "suspended"}:
-                if moved:
-                    notes.append(f"wrong address · new order {other['service_number']}")
-                else:
-                    notes.append(f"moved · now {other['service_number']} ({other['line_status']})")
-            elif row["line_status"] in {"active", "suspended"} and other["line_status"] == "cancelled":
-                if moved:
-                    notes.append(f"prior wrong-address order {other['service_number']}")
-                else:
-                    notes.append(f"prior line {other['service_number']} cancelled")
-            else:
-                notes.append(f"also {other['service_number']} {other['line_status']}")
-        row["related_label"] = notes[0] if notes else None
-        row["story_label"] = story_label(row, others)
+    for group in cluster_by_client(all_rows):
+        for row in group:
+            others = [
+                other
+                for other in group
+                if other["service_number"] != row["service_number"]
+            ]
+            story = classify(row, others)
+            incoming_note = None
+            if row.get("incoming_role"):
+                for other in others:
+                    incoming_note = incoming_related_label(other)
+                    if incoming_note:
+                        break
+            row["story_kind"] = story["kind"]
+            row["related_label"] = incoming_note or story["related_label"]
+            row["story_label"] = story_label(row, others, story)
 
     incoming_fibre = incoming_fibre_for_export(all_rows)
 

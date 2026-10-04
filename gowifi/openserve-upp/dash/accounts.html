@@ -99,6 +99,13 @@ function render(data){
     if (!r) return ys;
     return ys + " " + (r === 1 ? "1 month" : r + " months");
   };
+  const kindPill = r => {
+    const k=(r.story_kind||"").toLowerCase();
+    if (k==="redo") return `<span class="pill warn">Address error</span>`;
+    if (k==="move") return `<span class="pill warn">Moved house</span>`;
+    if (k==="cease") return `<span class="pill bad">Ended</span>`;
+    return "";
+  };
   const hist = r => {
     const text = r.story_label || [r.ordered_label && "Ordered "+r.ordered_label, r.installed_label && "Installed "+r.installed_label].filter(Boolean).join(" · ");
     return text ? `<div class="meta">${esc(text)}</div>` : "";
@@ -133,7 +140,7 @@ function render(data){
     <tr>
       <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
-      <td>${pillFor("cancelled")}</td>
+      <td>${pillFor("cancelled")} ${kindPill(r)}</td>
       <td class="num">${esc(tenure(r))}</td>
     </tr>`).join("");
   const suspendedRows = (data.suspended||[]).filter(r=>r.line_status==="suspended" && !cancelledSNs.has(r.service_number)).map(r=>`
