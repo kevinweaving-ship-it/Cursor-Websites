@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · Fibre accounts</title>
+<meta name="theme-color" content="#0b1220">
+<meta name="robots" content="noindex">
+<style>
+:root {
+  --bg:#0b1220; --card:#141c2e; --line:#243049; --text:#e8eef8; --muted:#8b9bb4;
+  --ok:#3dd68c; --bad:#ff6b6b; --warn:#f5c16c; --acc:#3d8bff; --pad:14px;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:inherit; text-decoration:none; }
+header.app {
+  position:sticky; top:0; z-index:5;
+  background:rgba(11,18,32,.94); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+  padding:12px var(--pad) calc(10px + env(safe-area-inset-top));
+}
+header.app h1 { margin:0; font-size:18px; }
+header.app .sub { color:var(--muted); font-size:12px; margin-top:2px; }
+header.app a.back { display:inline-block; color:var(--acc); font-size:14px; min-height:44px; line-height:44px; }
+main { padding:12px var(--pad) 28px; max-width:920px; margin:0 auto; }
+.grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.card {
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:12px; margin:0 0 10px;
+}
+.k { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+.v { font-size:22px; font-weight:700; margin-top:2px; }
+.row { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+.pill { font-size:11px; font-weight:700; padding:3px 8px; border-radius:99px; white-space:nowrap; }
+.ok { background:#163527; color:var(--ok); }
+.bad { background:#3a1518; color:var(--bad); }
+.warn { background:#3a2e12; color:var(--warn); }
+.list .item { padding:8px 0; border-top:1px solid var(--line); }
+.list .item:first-child { border-top:0; padding-top:2px; }
+.name { font-weight:650; }
+.meta { color:var(--muted); font-size:12px; margin-top:2px; }
+h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:18px 0 8px; }
+.err { background:#3a1518; color:#ffd0d0; padding:12px; border-radius:12px; }
+table.compact { width:100%; border-collapse:collapse; font-size:13px; }
+table.compact th {
+  text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase;
+  letter-spacing:.04em; font-weight:700; padding:6px 6px 8px 0; border-bottom:1px solid var(--line);
+}
+table.compact td { padding:7px 8px 7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+table.compact tr:last-child td { border-bottom:0; }
+.num { white-space:nowrap; }
+@media (max-width:700px) {
+  .grid { grid-template-columns:1fr 1fr; }
+  .wide-only { display:none; }
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <a class="back" href="/dash/#/">← Home</a>
+  <h1>Fibre accounts</h1>
+  <div class="sub" id="sub">Openserve line status · join dates</div>
+</header>
+<main id="app">Loading…</main>
+<script>
+const $ = (s,el=document)=>el.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const pillFor = (status) => {
+  const s=(status||"").toLowerCase();
+  if (s==="active") return `<span class="pill ok">Active</span>`;
+  if (s==="suspended") return `<span class="pill warn">Suspended</span>`;
+  if (s.includes("cancel")) return `<span class="pill bad">Cancelled</span>`;
+  if (s.includes("unverified")) return `<span class="pill warn">Unverified</span>`;
+  return `<span class="pill warn">${esc(status||"—")}</span>`;
+};
+function render(data){
+  const c=data.counts||{};
+  $("#sub").textContent = `As at ${data.as_at||"—"} · sync ${data.synced_at||"—"}`;
+  const activeRows = (data.active||[]).map(r=>`
+    <tr>
+      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div></td>
+      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
+      <td>${pillFor(r.line_status)}</td>
+      <td class="num">${esc(r.speed)}</td>
+      <td class="num">${esc(r.joined_label)}<div class="meta">${esc(r.months_label)}</div></td>
+    </tr>`).join("");
+  const inactiveRows = (data.inactive||[]).map(r=>`
+    <tr>
+      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div></td>
+      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
+      <td>${pillFor(r.lifecycle)}</td>
+      <td class="num">${esc(r.speed)}</td>
+      <td class="num">${esc(r.joined_label)}<div class="meta">${esc(r.months_label)} · ${esc(r.order_status||"")}</div></td>
+    </tr>`).join("");
+  const cancelRows = (data.cancellations||[]).map(r=>`
+    <tr>
+      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.remark)}</div></td>
+      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.order_number)} · ${esc(r.product)}</div></td>
+      <td>${pillFor(r.status)}</td>
+      <td class="num">${esc(r.created)}<div class="meta">${esc(r.implemented)}</div></td>
+    </tr>`).join("");
+  $("#app").innerHTML = `
+    <div class="grid">
+      <div class="card"><div class="k">Active lines</div><div class="v">${c.active??0}</div></div>
+      <div class="card"><div class="k">Suspended</div><div class="v">${c.suspended??0}</div></div>
+      <div class="card"><div class="k">Cancelled orders</div><div class="v">${c.cancelled_orders??0}</div></div>
+    </div>
+    <h2>Active accounts</h2>
+    <div class="card" style="overflow:auto">
+      <table class="compact">
+        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Joined / months</th></tr></thead>
+        <tbody>${activeRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
+      </table>
+    </div>
+    <h2>Cancellations</h2>
+    <div class="card" style="overflow:auto">
+      <table class="compact">
+        <thead><tr><th>Client</th><th>Line / order</th><th>Status</th><th>When</th></tr></thead>
+        <tbody>${cancelRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
+      </table>
+    </div>
+    <h2>Suspended / held</h2>
+    <div class="card" style="overflow:auto">
+      <table class="compact">
+        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Joined / months</th></tr></thead>
+        <tbody>${inactiveRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
+      </table>
+    </div>
+  `;
+}
+fetch("accounts.json",{credentials:"same-origin"})
+  .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+  .then(render)
+  .catch(e=>{ $("#app").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>

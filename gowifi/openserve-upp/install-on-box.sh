@@ -5,9 +5,25 @@ DEST=/root/gowifi-upp
 SRC=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$DEST"
 if [ "$SRC" != "$DEST" ]; then
-  cp -a "$SRC/schema.sql" "$SRC/sync.py" "$SRC/checksum_accounts_mail.py" "$SRC/README.md" "$DEST/"
+  cp -a "$SRC/schema.sql" "$SRC/sync.py" "$SRC/audit_export.py" \
+    "$SRC/checksum_accounts_mail.py" "$SRC/README.md" "$DEST/"
 fi
-chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py"
+chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" "$DEST/audit_export.py"
+DASH=/home/user-data/www/default/dash
+mkdir -p "$DASH"
+mkdir -p "$DEST/dash"
+if [ -f "$SRC/dash/accounts.html" ]; then
+  if [ "$SRC/dash/accounts.html" != "$DEST/dash/accounts.html" ]; then
+    cp -a "$SRC/dash/accounts.html" "$DEST/dash/accounts.html"
+  fi
+  cp -a "$SRC/dash/accounts.html" "$DASH/accounts.html"
+fi
+HOOK="$SRC/hook_dash_index.py"
+[ -f "$HOOK" ] || HOOK="$DEST/hook_dash_index.py"
+if [ -f "$HOOK" ]; then
+  [ "$HOOK" = "$DEST/hook_dash_index.py" ] || cp -a "$HOOK" "$DEST/hook_dash_index.py"
+  python3 "$DEST/hook_dash_index.py" || true
+fi
 touch /root/secrets/upp.token
 chmod 600 /root/secrets/upp.token
 # every 15 minutes; no-op until /root/secrets/upp.token has a JWT

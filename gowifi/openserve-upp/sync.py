@@ -383,6 +383,10 @@ def sync(s: requests.Session, conn: sqlite3.Connection) -> dict:
     conn.execute("DELETE FROM products")
     for product in products:
         upsert_product(conn, product)
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from audit_export import build, write
+
+    write(build(conn))
     return {"orders": len(orders), "services": len(latest_by_sn), "users": len(users)}
 
 

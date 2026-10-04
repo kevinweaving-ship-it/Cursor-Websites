@@ -35,3 +35,17 @@ Tables: `organisations`, `organisation_history`, `users`, `orders`, `services`,
 `service_status_history`, `products`, `sync_runs`.
 
 Service `lifecycle` values: `active`, `suspended`, `cancelled`, `unauthorized`, `unknown`.
+
+## Audit page
+
+Compact fibre list at **https://gowifi.co.za/dash/accounts.html** (same dash login).
+
+- Active accounts: client, service number, line status, speed, join date, months as client
+- Cancellations list under that
+- Suspended / held lines at the bottom
+
+```bash
+python3 /root/gowifi-upp/audit_export.py
+```
+
+`sync.py` refreshes `/dash/accounts.json` after each pull.
