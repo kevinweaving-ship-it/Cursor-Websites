@@ -464,11 +464,19 @@ def mail_coverage_for_export(conn: sqlite3.Connection) -> dict:
         k: n
         for k, n in conn.execute("SELECT kind, COUNT(*) FROM mail_items GROUP BY kind")
     }
+    statement_accounts = [
+        r[0]
+        for r in conn.execute(
+            """SELECT DISTINCT account_number FROM mail_items
+               WHERE account_number IS NOT NULL ORDER BY account_number"""
+        )
+    ]
     return {
         "from": row[0],
         "to": row[1],
         "messages": row[2] or 0,
         "kinds": kinds,
+        "statement_accounts": statement_accounts,
         "mailbox": "kevin@gowifi.co.za",
         "pop_status": "awaiting bank proof of payment",
         "gap": (

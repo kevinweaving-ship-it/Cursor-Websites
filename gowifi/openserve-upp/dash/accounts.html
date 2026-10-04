@@ -192,6 +192,7 @@ function render(data){
     </h2>
     <div id="invoice-fold" class="fold hidden">
       <div class="card"><div class="meta">${esc(cov.gap||"Openserve invoice copies are imported from kevin@ mail.")}</div>
+        <div class="meta">Statement accounts: ${esc((cov.statement_accounts||[]).join(", ")||"—")}</div>
         <div class="meta">Bank proof of payment: ${esc(cov.pop_status||"awaiting upload")}</div></div>
       <div class="card scroll">
         <table class="compact">
