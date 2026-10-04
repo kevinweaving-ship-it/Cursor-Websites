@@ -405,7 +405,7 @@ h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 
 .ageing td.total, .ageing th.total { font-size:13px; }
 .bank { border-top:1px solid #1a1a1a; padding-top:8px; margin-top:16px; color:#333; }
 a.back { font: 13px/1.4 sans-serif; color:#345; }
-table.soa a { color:inherit; text-decoration:underline; }
+table.soa a { color:#1a3a6b; text-decoration:underline; font-weight:600; }
 .screen-only { max-width:210mm; margin:12px auto 0; padding:0 16px; }
 @media print { body { background:#fff; } .sheet { margin:0; box-shadow:none; width:auto; min-height:0; padding:0; } .screen-only { display:none; } }
 """
