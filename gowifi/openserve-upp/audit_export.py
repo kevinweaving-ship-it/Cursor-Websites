@@ -210,7 +210,10 @@ def history_label(events: list[dict], exclusive: str, suspend_started: str | Non
             extra = f" after {fmt_days(dur)}" if dur is not None else ""
             bits.append(f"Restored {at_lab}{extra}")
         elif kind == "cancelled":
-            bits.append(f"Cancelled {at_lab}")
+            if not ev.get("at"):
+                bits.append("Cancelled (holding pool)")
+            else:
+                bits.append(f"Cancelled {at_lab}")
     if exclusive == "suspended" and suspend_started:
         try:
             open_days = (today - date.fromisoformat(suspend_started[:10])).days

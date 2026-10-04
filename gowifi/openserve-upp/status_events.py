@@ -15,6 +15,7 @@ HOLDING_MARKERS = (
     "TRANSITION",
     "WHOLESALE STAGING",
     "WS TELKOM",
+    "HOLDING POOL",
 )
 
 SCHEMA_EXTRAS = """
@@ -39,15 +40,25 @@ def ensure_columns(conn) -> None:
         "suspend_started_at": "TEXT",
         "last_restored_at": "TEXT",
         "suspend_count": "INTEGER DEFAULT 0",
+        "circuit_admin": "TEXT",
     }
     for name, decl in extras.items():
         if name not in cols:
             conn.execute(f"ALTER TABLE services ADD COLUMN {name} {decl}")
 
 
-def _holding(customer: str | None, isp: str | None) -> bool:
-    text = f"{customer or ''} {isp or ''}".upper()
+def _holding(customer: str | None, isp: str | None, validator: str | None = None) -> bool:
+    text = f"{customer or ''} {isp or ''} {validator or ''}".upper()
     return any(marker in text for marker in HOLDING_MARKERS)
+
+
+def _circuit_admin(raw_json: str | None) -> str:
+    try:
+        payload = json.loads(raw_json or "{}")
+    except json.JSONDecodeError:
+        payload = {}
+    details = ((payload.get("data") or {}).get("circuit") or {}).get("circuitDetails") or {}
+    return str(details.get("circuitAdmin") or "").strip()
 
 
 def exclusive_status(svc: dict) -> str:
@@ -56,17 +67,24 @@ def exclusive_status(svc: dict) -> str:
     customer = (svc.get("customer") or "").strip()
     isp = (svc.get("isp_name") or "").strip()
     order = (svc.get("latest_order_status") or "").strip().lower()
-    holding = _holding(customer, isp)
+    validator = svc.get("validator_message") or ""
+    admin = (svc.get("circuit_admin") or "").strip() or _circuit_admin(svc.get("raw_circuit_json"))
+    holding = _holding(customer, isp, validator)
     owned = bool(customer) and not holding
     cancelled_order = "cancel" in order or order == "unverified address"
     empty_circuit = not customer and not isp
+    disconnected = admin.lower() == "disconnected"
 
     # Unowned empty circuit + cancelled order is ceased, even if access still
     # says Active or partner still says IspActive.
     if empty_circuit and cancelled_order:
         return "cancelled"
-    # Holding pool / WS TELKOM is a cease back to Openserve, not a credit suspend.
+    # Holding pool / WS TELKOM / validator "holding pool" is a cease, not a
+    # credit suspend. Openserve often leaves accessStatus=Suspended on these.
     if holding:
+        return "cancelled"
+    # Circuit admin Disconnected on a line we no longer own is a cease.
+    if disconnected and not owned:
         return "cancelled"
     # Access Suspended only counts if GoWiFi still owns the circuit.
     if access == "suspended" and owned:
@@ -254,7 +272,8 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
     rows = conn.execute(
         """SELECT service_number, access_status, partner_status, customer, isp_name,
                   latest_order_status, exclusive_status, suspend_started_at,
-                  last_restored_at, suspend_count, first_seen_at
+                  last_restored_at, suspend_count, first_seen_at,
+                  validator_message, raw_circuit_json, circuit_admin
            FROM services"""
     ).fetchall()
     for row in rows:
@@ -270,9 +289,14 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
             "last_restored_at",
             "suspend_count",
             "first_seen_at",
+            "validator_message",
+            "raw_circuit_json",
+            "circuit_admin",
         ]
         svc = dict(zip(keys, row))
         sn = svc["service_number"]
+        if not svc.get("circuit_admin"):
+            svc["circuit_admin"] = _circuit_admin(svc.get("raw_circuit_json"))
         new = exclusive_status(svc)
         prev = svc["exclusive_status"]
         started = svc["suspend_started_at"]
@@ -326,7 +350,9 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
 
         if new == "cancelled":
             real_cancel = cancel_dates.get(sn)
-            holding_now = _holding(svc.get("customer"), svc.get("isp_name"))
+            holding_now = _holding(
+                svc.get("customer"), svc.get("isp_name"), svc.get("validator_message")
+            ) or ((svc.get("circuit_admin") or "").lower() == "disconnected")
             if not _has_event(conn, sn, "cancelled"):
                 if real_cancel:
                     _add_event(conn, sn, "cancelled", real_cancel, "order", svc.get("latest_order_status"))
@@ -418,8 +444,8 @@ def apply_events(conn, join_dates: dict[str, str | None] | None = None) -> None:
 
         conn.execute(
             """UPDATE services SET exclusive_status=?, suspend_started_at=?,
-               suspend_count=? WHERE service_number=?""",
-            (new, started, count, sn),
+               suspend_count=?, circuit_admin=? WHERE service_number=?""",
+            (new, started, count, svc.get("circuit_admin") or None, sn),
         )
     conn.commit()
 
@@ -428,7 +454,7 @@ def events_for(conn, sn: str) -> list[dict]:
     rows = conn.execute(
         """SELECT event_type, at, source, note, duration_days
            FROM service_events WHERE service_number=?
-           ORDER BY at,
+           ORDER BY CASE WHEN at IS NULL OR at='' THEN 1 ELSE 0 END, at,
              CASE event_type
                WHEN 'fibre_since' THEN 0
                WHEN 'joined' THEN 1
@@ -550,6 +576,30 @@ def self_test() -> int:
             "cancelled",
         ),
         (
+            "validator-holding-pool-wins-over-access-suspend",
+            {
+                "access_status": "Suspended",
+                "partner_status": "IspActive",
+                "customer": "GOWIFI (PTY) LTD",
+                "isp_name": "WS GOWIFI (PTY) LTD",
+                "latest_order_status": "Accepted",
+                "validator_message": "Service number sucessfully validated, and is in the holding pool",
+            },
+            "cancelled",
+        ),
+        (
+            "disconnected-unowned-is-cancelled",
+            {
+                "access_status": "Suspended",
+                "partner_status": "IspActive",
+                "customer": "",
+                "isp_name": "",
+                "latest_order_status": "Accepted",
+                "circuit_admin": "Disconnected",
+            },
+            "cancelled",
+        ),
+        (
             "owned-credit-suspend",
             {
                 "access_status": "Suspended",
@@ -652,6 +702,7 @@ def self_test() -> int:
             service_number TEXT PRIMARY KEY, lifecycle TEXT NOT NULL,
             access_status TEXT, partner_status TEXT, customer TEXT, isp_name TEXT,
             latest_order_status TEXT, raw_circuit_json TEXT,
+            validator_message TEXT, circuit_admin TEXT,
             first_seen_at TEXT NOT NULL, updated_at TEXT NOT NULL,
             exclusive_status TEXT, suspend_started_at TEXT, last_restored_at TEXT,
             suspend_count INTEGER DEFAULT 0
@@ -701,6 +752,71 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK annette-gowifi-install")
+    conn.close()
+
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(
+        """
+        CREATE TABLE services (
+            service_number TEXT PRIMARY KEY, lifecycle TEXT NOT NULL,
+            access_status TEXT, partner_status TEXT, customer TEXT, isp_name TEXT,
+            latest_order_status TEXT, raw_circuit_json TEXT,
+            validator_message TEXT, circuit_admin TEXT,
+            first_seen_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            exclusive_status TEXT, suspend_started_at TEXT, last_restored_at TEXT,
+            suspend_count INTEGER DEFAULT 0
+        );
+        CREATE TABLE orders (
+            id INTEGER PRIMARY KEY, order_status TEXT, service_number TEXT,
+            created_on TEXT, date_implemented TEXT, raw_json TEXT NOT NULL,
+            first_seen_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
+        """
+    )
+    circuit = {
+        "data": {
+            "circuit": {
+                "customer": "WHOLESALE STAGING / TRANSITION AREA",
+                "circuitAttributes": [{"ispName": "WS TELKOM SP", "inServiceDate": "03-Aug-2025"}],
+                "circuitDetails": {"circuitAdmin": "Disconnected"},
+            }
+        }
+    }
+    conn.execute(
+        """INSERT INTO services (service_number, lifecycle, access_status, partner_status,
+           customer, isp_name, latest_order_status, raw_circuit_json, validator_message,
+           first_seen_at, updated_at)
+           VALUES ('B110040916','suspended','Suspended','IspActive',
+           'WHOLESALE STAGING / TRANSITION AREA','WS TELKOM SP','Accepted',?,?,?,?)""",
+        (
+            json.dumps(circuit),
+            "Service number sucessfully validated, and is in the holding pool",
+            "2026-10-04",
+            "2026-10-04",
+        ),
+    )
+    conn.execute(
+        """INSERT INTO orders (id, order_status, service_number, created_on, date_implemented,
+           raw_json, first_seen_at, updated_at)
+           VALUES (1,'Accepted','B110040916','2025-07-15','2025-08-03','{}','x','x')"""
+    )
+    apply_events(conn)
+    row = conn.execute(
+        "SELECT exclusive_status, circuit_admin FROM services WHERE service_number='B110040916'"
+    ).fetchone()
+    evs = events_for(conn, "B110040916")
+    kinds = [e["event"] for e in evs]
+    if not row or row[0] != "cancelled" or row[1] != "Disconnected":
+        print("FAIL aljo-apply-cancelled", row, evs)
+        failed += 1
+    elif "suspended" in kinds:
+        print("FAIL aljo-no-suspend-event", evs)
+        failed += 1
+    elif kinds != ["joined", "cancelled"]:
+        print("FAIL aljo-event-order", evs)
+        failed += 1
+    else:
+        print("OK aljo-apply-cancelled")
     conn.close()
     return failed
 

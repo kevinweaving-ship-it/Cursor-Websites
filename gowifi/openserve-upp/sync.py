@@ -83,6 +83,9 @@ def connect() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA.read_text())
+    from status_events import ensure_columns
+
+    ensure_columns(conn)
     return conn
 
 
@@ -230,7 +233,15 @@ def upsert_order(conn: sqlite3.Connection, order: dict):
     )
 
 
-def lifecycle_of(order_status: str | None, access: str | None, can_access: bool | None, customer: str | None = None, isp_name: str | None = None) -> str:
+def lifecycle_of(
+    order_status: str | None,
+    access: str | None,
+    can_access: bool | None,
+    customer: str | None = None,
+    isp_name: str | None = None,
+    validator_message: str | None = None,
+    circuit_admin: str | None = None,
+) -> str:
     from status_events import exclusive_status
 
     return exclusive_status(
@@ -239,6 +250,8 @@ def lifecycle_of(order_status: str | None, access: str | None, can_access: bool 
             "customer": customer,
             "isp_name": isp_name,
             "latest_order_status": order_status,
+            "validator_message": validator_message,
+            "circuit_admin": circuit_admin,
         }
     )
 
@@ -288,7 +301,17 @@ def upsert_service(conn, sn, circuit, status, validator, latest_order):
     order_status = (latest_order or {}).get("orderStatus")
     customer = circ.get("customer") or attrs.get("ispName")
     isp_name = val.get("ispName") or attrs.get("ispName")
-    life = lifecycle_of(order_status, access, can_access, customer, isp_name)
+    validator_message = (validator or {}).get("message")
+    circuit_admin = details.get("circuitAdmin")
+    life = lifecycle_of(
+        order_status,
+        access,
+        can_access,
+        customer,
+        isp_name,
+        validator_message,
+        circuit_admin,
+    )
     existing = conn.execute("SELECT first_seen_at FROM services WHERE service_number=?", (sn,)).fetchone()
     record_service_history(conn, sn, life, access, partner, down, up)
     conn.execute(
@@ -296,8 +319,8 @@ def upsert_service(conn, sn, circuit, status, validator, latest_order):
             service_number, lifecycle, access_status, partner_status, download_kbps,
             upload_kbps, transport_type, circuit_type, customer, isp_name, address,
             can_be_accessed, validator_message, latest_order_id, latest_order_status,
-            raw_circuit_json, raw_status_json, first_seen_at, updated_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            raw_circuit_json, raw_status_json, first_seen_at, updated_at, circuit_admin
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(service_number) DO UPDATE SET
             lifecycle=excluded.lifecycle, access_status=excluded.access_status,
             partner_status=excluded.partner_status, download_kbps=excluded.download_kbps,
@@ -309,7 +332,8 @@ def upsert_service(conn, sn, circuit, status, validator, latest_order):
             latest_order_id=excluded.latest_order_id,
             latest_order_status=excluded.latest_order_status,
             raw_circuit_json=excluded.raw_circuit_json,
-            raw_status_json=excluded.raw_status_json, updated_at=excluded.updated_at
+            raw_status_json=excluded.raw_status_json, updated_at=excluded.updated_at,
+            circuit_admin=excluded.circuit_admin
         """,
         (
             sn,
@@ -324,13 +348,14 @@ def upsert_service(conn, sn, circuit, status, validator, latest_order):
             val.get("ispName") or attrs.get("ispName"),
             address,
             1 if can_access else 0 if can_access is False else None,
-            (validator or {}).get("message"),
+            validator_message,
             (latest_order or {}).get("id"),
             order_status,
             json.dumps(circuit),
             json.dumps(status),
             existing["first_seen_at"] if existing else now(),
             now(),
+            circuit_admin,
         ),
     )
 

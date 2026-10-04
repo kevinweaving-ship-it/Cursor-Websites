@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS services (
     address TEXT,
     can_be_accessed INTEGER,
     validator_message TEXT,
+    circuit_admin TEXT,
     latest_order_id INTEGER,
     latest_order_status TEXT,
     raw_circuit_json TEXT,

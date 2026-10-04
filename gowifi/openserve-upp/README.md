@@ -36,9 +36,13 @@ Tables: `organisations`, `organisation_history`, `users`, `orders`, `services`,
 
 Service `lifecycle` / `exclusive_status` is one bucket only: `active`,
 `suspended`, `cancelled`, or `unknown`. A line is never both active and
-suspended. Access status wins over partner `IspActive`. Empty/unowned
-circuits with a cancelled order are cancelled. Each service number keeps
-its own suspend → restore stint history in `service_events`.
+suspended. Access status wins over partner `IspActive` only while GoWiFi
+still owns the circuit. Holding pool / `WS TELKOM` / validator "holding
+pool" / `circuitAdmin=Disconnected` on an unowned circuit is a **cease**
+(cancelled), not a credit suspend — Openserve often leaves
+`accessStatus=Suspended` on those. Empty/unowned circuits with a cancelled
+order are cancelled. Each service number keeps its own suspend → restore
+stint history in `service_events`.
 
 ## Audit page
 
