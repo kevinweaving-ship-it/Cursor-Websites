@@ -347,10 +347,11 @@ def cancel_on(orders: list[dict], events: list[dict]) -> date | None:
 
 
 def short_addr(addr: str | None) -> str:
-    text = re.sub(r"\s+", " ", (addr or "").strip())
-    if not text:
-        return ""
-    return text.split(",")[0][:48]
+    parts = [p.strip() for p in re.sub(r"\s+", " ", (addr or "").strip()).split(",") if p.strip()]
+    for part in parts:
+        if re.search(r"\b(rd|st|av|ave|dr|ln|cl|ct|street|road)\b", part, re.I):
+            return part[:48]
+    return parts[0][:48] if parts else ""
 
 
 def ua_note(orders: list[dict]) -> str | None:
