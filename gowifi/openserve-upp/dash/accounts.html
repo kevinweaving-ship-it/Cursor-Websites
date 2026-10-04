@@ -109,9 +109,20 @@ function render(data){
   };
   const cancelledSNs = new Set((data.cancelled_lines||[]).map(r=>r.service_number).filter(Boolean));
   const suspendedSNs = new Set((data.suspended||[]).map(r=>r.service_number).filter(Boolean));
+  const incomingRows = (data.incoming_fibre||[]).map(r=>`
+    <tr>
+      <td><div class="name">${esc(r.incoming_label||r.incoming_role||"—")}</div><div class="meta">${esc(r.uisp_site||"VK Pop")} · also on UISP</div></td>
+      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
+      <td>${pillFor(r.line_status)}</td>
+      <td class="num">${esc(r.speed)}</td>
+    </tr>`).join("");
+  const clientName = r => {
+    const extra = r.incoming_label ? `<div class="meta">${esc(r.incoming_label)}</div>` : "";
+    return `<div class="name">${esc(r.customer)}</div>${extra}<div class="meta">${esc(r.address)}</div>`;
+  };
   const activeRows = (data.active||[]).filter(r=>r.line_status==="active" && !cancelledSNs.has(r.service_number) && !suspendedSNs.has(r.service_number)).map(r=>`
     <tr>
-      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
+      <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor(r.line_status)}</td>
       <td class="num">${esc(r.speed)}</td>
@@ -120,14 +131,14 @@ function render(data){
   const taken = new Set((data.active||[]).concat(data.suspended||[]).map(r=>r.service_number).filter(Boolean));
   const cancelledLineRows = (data.cancelled_lines||[]).filter(r=>!taken.has(r.service_number)).map(r=>`
     <tr>
-      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
+      <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor("cancelled")}</td>
       <td class="num">${esc(tenure(r))}</td>
     </tr>`).join("");
   const suspendedRows = (data.suspended||[]).filter(r=>r.line_status==="suspended" && !cancelledSNs.has(r.service_number)).map(r=>`
     <tr>
-      <td><div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>${hist(r)}</td>
+      <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)} · ${esc(r.suspend_stints||0)} stint${(r.suspend_stints||0)===1?"":"s"}</div></td>
       <td>${pillFor("suspended")}</td>
       <td class="num">${esc(r.speed)}</td>
@@ -164,6 +175,14 @@ function render(data){
       <div class="card"><div class="k">Active</div><div class="v">${c.active??0}</div></div>
       <div class="card"><div class="k">Suspended</div><div class="v">${c.suspended??0}</div></div>
       <div class="card"><div class="k">Cancelled</div><div class="v">${c.cancelled_lines??0}</div></div>
+    </div>
+    <h2>GoWiFi incoming fibre · VK Pop</h2>
+    <div class="card"><div class="meta">Own card for UISP: these two Openserve lines are the incoming fibre at VK Pop. A fibre fault here takes the wireless network with it. They also stay on the fibre list below.</div></div>
+    <div class="card scroll">
+      <table class="compact">
+        <thead><tr><th>Role</th><th>Line</th><th>Status</th><th>Mb</th></tr></thead>
+        <tbody>${incomingRows || `<tr><td colspan="4" class="meta">None mapped</td></tr>`}</tbody>
+      </table>
     </div>
     <h2>Active accounts</h2>
     <div class="card scroll">

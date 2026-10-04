@@ -52,6 +52,9 @@ Compact fibre list at **https://gowifi.co.za/dash/accounts.html** (same dash log
 - A new house is a new order/install, not a continuation of a cancelled line
 - Never use a previous-ISP / previous-owner circuit date
 - Active accounts: client, service number, exclusive line status, speed, join date, months as client
+- GoWiFi incoming fibre at **VK Pop** (legal UPP name Kevin Weaving) is labelled as the
+  POP, not a residential client: `B110033875` primary 500, `B110034814` failover 300.
+  Same two lines also appear on the UISP home / VK Pop site as incoming fibre.
 - Cancelled lines (own history) then cancelled orders
 - Suspended lines at the bottom: how long, how many stints, own history
 

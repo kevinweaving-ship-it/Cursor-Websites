@@ -419,6 +419,8 @@ def story_label(row: dict, peers: list[dict] | None = None) -> str:
         return " · ".join(bits)
 
     bits = []
+    if row.get("incoming_label"):
+        bits.append(row["incoming_label"])
     if prior and prior.get("never_installed"):
         bits.append(f"Replacement after wrong-address cancel {prior['service_number']}")
     if row.get("ordered_label") and row["ordered_label"] != "—":
@@ -492,6 +494,8 @@ def build(conn: sqlite3.Connection) -> dict:
         line_charges_for_export,
         mail_coverage_for_export,
     )
+
+    from site_lines import apply_site_line, incoming_fibre_for_export, incoming_related_label
 
     ingest_mail(conn)
     extras_map = extras_by_sn(conn)
@@ -609,6 +613,7 @@ def build(conn: sqlite3.Connection) -> dict:
                 billed_map.get(sn),
             ),
         }
+        apply_site_line(row)
         if exclusive == "active":
             active.append(row)
         elif exclusive == "suspended":
@@ -633,6 +638,10 @@ def build(conn: sqlite3.Connection) -> dict:
         notes = []
         row_addr = re.sub(r"[^a-z0-9]+", "", (row.get("address") or "").lower())
         for other in others:
+            incoming_note = incoming_related_label(other) if row.get("incoming_role") else None
+            if incoming_note:
+                notes.append(incoming_note)
+                continue
             other_addr = re.sub(r"[^a-z0-9]+", "", (other.get("address") or "").lower())
             moved = row_addr and other_addr and row_addr != other_addr
             if row["line_status"] == "cancelled" and other["line_status"] in {"active", "suspended"}:
@@ -649,6 +658,8 @@ def build(conn: sqlite3.Connection) -> dict:
                 notes.append(f"also {other['service_number']} {other['line_status']}")
         row["related_label"] = notes[0] if notes else None
         row["story_label"] = story_label(row, others)
+
+    incoming_fibre = incoming_fibre_for_export(all_rows)
 
     live_sns = {r["service_number"] for r in active} | {r["service_number"] for r in suspended}
     cancelled_sns = {r["service_number"] for r in cancelled_lines}
@@ -706,7 +717,9 @@ def build(conn: sqlite3.Connection) -> dict:
             "never_installed": sum(1 for r in cancelled_lines if r.get("never_installed")),
             "invoices": len(invoice_rows),
             "billing_accounts": len(billing_accounts),
+            "incoming_fibre": len(incoming_fibre),
         },
+        "incoming_fibre": incoming_fibre,
         "active": active,
         "suspended": suspended,
         "cancelled_lines": cancelled_lines,
