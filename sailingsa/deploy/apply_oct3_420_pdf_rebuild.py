@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Drop stale 420 preload PDF so the next request rebuilds from live Final results."""
+import os
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -18,9 +19,11 @@ def main() -> None:
     for p in sorted(ROOT.iterdir()):
         print("HAD", p.name, p.stat().st_size)
         shutil.copy2(p, bak / p.name)
-        if p.suffix.lower() == ".pdf":
+        if p.suffix.lower() == ".pdf" or p.name.startswith(".event-truth"):
             p.unlink()
             print("DEL", p.name)
+    os.chown(ROOT, 33, 33)
+    os.chmod(ROOT, 0o775)
     print("BACKUP", bak)
     print("LEFT", [x.name for x in ROOT.iterdir()] if ROOT.is_dir() else "GONE")
 
