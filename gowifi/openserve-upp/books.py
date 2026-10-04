@@ -340,6 +340,7 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "company": COMPANY,
         "loop": (
             "Old QuickBooks invoices and statements are imported from mail. "
+            "Statement lines recreate every invoice (number, what-for, amount). "
             "New invoices are one A4 page: this month’s line plus a compact statement of account."
         ),
         "openserve": {

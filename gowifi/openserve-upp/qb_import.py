@@ -152,6 +152,182 @@ def parse_qb_invoice(text: str, filename: str = "") -> dict | None:
     }
 
 
+def _left_col(line: str) -> str:
+    return re.split(r"\s{2,}", (line or "").strip(), maxsplit=1)[0].strip()
+
+
+def _blank(value) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _useful_description(text: str | None) -> str | None:
+    from invoice_canned import clean_description
+
+    cleaned = clean_description(text)
+    if not cleaned or cleaned == "Monthly service":
+        return None
+    return cleaned
+
+
+def _generic_description(text: str | None) -> bool:
+    return _useful_description(text) is None
+
+
+def _money_pair(text: str) -> tuple[float, float] | None:
+    match = re.search(r"(-?[\d,.]+)\s+(-?[\d,.]+)\s*$", (text or "").strip())
+    if not match:
+        return None
+    amount = _money(match.group(1))
+    balance = _money(match.group(2))
+    if amount is None or balance is None:
+        return None
+    return amount, balance
+
+
+def _statement_invoice_line(line: str) -> dict | None:
+    compact = re.sub(r"\s+", " ", line or "").strip()
+    match = re.match(
+        r"^(\d{2}/\d{2}/\d{4})\s+Invoice No\.(\d+)(?:[:\s]+(.*))?$",
+        compact,
+        re.I,
+    )
+    if not match:
+        return None
+    rest = (match.group(3) or "").strip()
+    pair = _money_pair(rest)
+    desc = rest
+    if pair:
+        desc = re.sub(r"(-?[\d,.]+)\s+(-?[\d,.]+)\s*$", "", rest).strip(" :-")
+    return {
+        "date": match.group(1),
+        "invoice_number": int(match.group(2)),
+        "description": _blank(desc),
+        "amount": pair[0] if pair else None,
+        "balance": pair[1] if pair else None,
+    }
+
+
+def fill_invoice_fields(invoices: list[dict]) -> list[dict]:
+    """Recreate missing what-for / address from same-client known invoices."""
+    from invoice_canned import clean_description, client_key
+
+    known: dict[str, dict] = {}
+    for inv in invoices:
+        key = client_key(inv.get("customer"))
+        if not key:
+            continue
+        bucket = known.setdefault(key, {"address": None, "by_rate": {}, "monthly": []})
+        address = _blank(inv.get("address"))
+        if address and not bucket["address"]:
+            bucket["address"] = address
+        desc = clean_description(inv.get("description"))
+        if _generic_description(desc):
+            continue
+        rate = inv.get("rate") if inv.get("rate") is not None else inv.get("amount")
+        if rate is not None:
+            bucket["by_rate"].setdefault(round(float(rate), 2), desc)
+        if not re.match(r"(?i)install", desc):
+            if desc not in bucket["monthly"]:
+                bucket["monthly"].append(desc)
+
+    for inv in invoices:
+        key = client_key(inv.get("customer"))
+        bucket = known.get(key) or {}
+        if not _blank(inv.get("address")) and bucket.get("address"):
+            inv["address"] = bucket["address"]
+        desc = clean_description(inv.get("description"))
+        if _generic_description(desc):
+            rate = inv.get("rate") if inv.get("rate") is not None else inv.get("amount")
+            filled = None
+            if rate is not None:
+                filled = bucket.get("by_rate", {}).get(round(float(rate), 2))
+            monthly = bucket.get("monthly") or []
+            if not filled and len(monthly) == 1:
+                filled = monthly[0]
+            if filled:
+                desc = filled
+        inv["description"] = desc
+        if inv.get("qty") is None:
+            inv["qty"] = 1
+        if inv.get("rate") is None and inv.get("amount") is not None:
+            inv["rate"] = inv["amount"]
+        if not _blank(inv.get("terms")):
+            inv["terms"] = "Due on receipt"
+        if not _blank(inv.get("due_date")):
+            inv["due_date"] = inv.get("invoice_date")
+        if not _blank(inv.get("bill_to")):
+            inv["bill_to"] = inv.get("customer")
+    return invoices
+
+
+def _persist_filled_invoices(conn: sqlite3.Connection, invoices: list[dict]) -> int:
+    updated = 0
+    for inv in invoices:
+        number = inv.get("invoice_number")
+        if number is None:
+            continue
+        desc = _useful_description(inv.get("description"))
+        cur = conn.execute(
+            """UPDATE customer_invoices SET
+                 address=CASE WHEN address IS NULL OR trim(address)='' THEN ? ELSE address END,
+                 description=CASE
+                   WHEN ? IS NOT NULL AND (
+                     description IS NULL OR trim(description)='' OR description='Monthly service'
+                   ) THEN ? ELSE description END,
+                 qty=COALESCE(qty, ?),
+                 rate=COALESCE(rate, ?),
+                 terms=COALESCE(NULLIF(trim(COALESCE(terms,'')), ''), ?),
+                 due_date=COALESCE(due_date, ?),
+                 bill_to=COALESCE(NULLIF(trim(COALESCE(bill_to,'')), ''), ?)
+               WHERE invoice_number=?""",
+            (
+                _blank(inv.get("address")),
+                desc,
+                desc,
+                inv.get("qty") or 1,
+                inv.get("rate") if inv.get("rate") is not None else inv.get("amount"),
+                inv.get("terms") or "Due on receipt",
+                inv.get("due_date") or inv.get("invoice_date"),
+                inv.get("bill_to") or inv.get("customer"),
+                number,
+            ),
+        )
+        updated += cur.rowcount
+    if updated:
+        conn.commit()
+    return updated
+
+
+def recreate_invoices_from_statements(conn: sqlite3.Connection) -> int:
+    """Every statement invoice number becomes a full invoice (what-for + amount)."""
+    ensure_history_tables(conn)
+    invoices = [
+        {
+            "invoice_number": r[0],
+            "invoice_date": r[1],
+            "due_date": r[2],
+            "customer": r[3],
+            "bill_to": r[4],
+            "address": r[5],
+            "description": r[6],
+            "qty": r[7],
+            "rate": r[8],
+            "amount": r[9],
+            "terms": r[10],
+        }
+        for r in conn.execute(
+            """SELECT invoice_number, invoice_date, due_date, customer, bill_to, address,
+                      description, qty, rate, amount, terms
+               FROM customer_invoices ORDER BY invoice_number"""
+        )
+    ]
+    fill_invoice_fields(invoices)
+    return _persist_filled_invoices(conn, invoices)
+
+
 def parse_qb_statement(text: str, filename: str = "") -> dict | None:
     if "Statement" not in text or "STATEMENT NO" not in text.upper():
         return None
@@ -159,40 +335,85 @@ def parse_qb_statement(text: str, filename: str = "") -> dict | None:
     date = re.search(r"DATE\s+(\d{2}/\d{2}/\d{4})", text)
     due = re.search(r"TOTAL DUE\s+R?\s*([\d,.]+)", text)
     customer = None
+    address_lines = []
     lines = text.splitlines()
+    capture_to = False
     for i, line in enumerate(lines):
         if re.match(r"^\s*TO\b", line):
             rest = re.sub(r"^\s*TO\s*", "", line)
             rest = re.split(r"STATEMENT", rest, maxsplit=1)[0].strip()
             if rest:
                 customer = rest
-            elif i + 1 < len(lines):
-                nxt = re.split(r"\s{2,}DATE|\s{2,}TOTAL", lines[i + 1])[0].strip()
-                if nxt and not nxt.upper().startswith("DATE"):
-                    customer = nxt
-            break
+            capture_to = True
+            continue
+        if capture_to:
+            if re.search(r"DATE\s+DESCRIPTION|AMOUNT\s+BALANCE", line, re.I):
+                break
+            if re.match(r"^\s*\d{2}/\d{2}/\d{4}", line):
+                break
+            if re.search(r"Invoice No\.|Balance Forward|^\s*Current\b", line, re.I):
+                break
+            left = _left_col(line)
+            if not left or left.upper() in {"ENCLOSED", "DATE", "TOTAL DUE"}:
+                continue
+            if re.match(r"^DATE\b", left, re.I) or re.match(r"^TOTAL DUE\b", left, re.I):
+                continue
+            if customer is None:
+                customer = left
+            else:
+                address_lines.append(left)
+    address = ", ".join(address_lines) or None
     invoices = []
     payments = []
-    for raw in text.splitlines():
-        line = re.sub(r"\s+", " ", raw).strip()
-        inv = re.search(
-            r"^(\d{2}/\d{2}/\d{4}) Invoice No\.(\d+)(?::\s*(.*?))?\s+(-?[\d,.]+)\s+(-?[\d,.]+)$",
-            line,
-        )
-        if inv:
+    i = 0
+    while i < len(lines):
+        line = re.sub(r"\s+", " ", lines[i]).strip()
+        started = _statement_invoice_line(lines[i])
+        if started:
+            extra = []
+            amount = started["amount"]
+            balance = started["balance"]
+            if started["description"]:
+                extra.append(started["description"])
+            j = i + 1
+            while j < len(lines):
+                nxt = lines[j]
+                if re.match(r"^\s*\d{2}/\d{2}/\d{4}", nxt) or re.match(r"^\s*Current\b", nxt, re.I):
+                    break
+                pair = _money_pair(re.sub(r"\s+", " ", nxt))
+                if amount is None and pair:
+                    amount, balance = pair
+                    leftover = re.sub(r"(-?[\d,.]+)\s+(-?[\d,.]+)\s*$", "", nxt).strip()
+                    left = _left_col(leftover) if leftover else ""
+                    if left:
+                        extra.append(left)
+                    j += 1
+                    continue
+                left = _left_col(nxt)
+                if left and not re.match(r"^(DATE|AMOUNT|BALANCE|Current)\b", left, re.I):
+                    extra.append(left)
+                j += 1
+            desc = " ".join(x for x in extra if x) or None
             invoices.append(
                 {
-                    "invoice_number": int(inv.group(2)),
-                    "invoice_date": _iso(inv.group(1)),
+                    "invoice_number": started["invoice_number"],
+                    "invoice_date": _iso(started["date"]),
                     "customer": customer,
-                    "description": (inv.group(3) or "").strip() or None,
-                    "amount": _money(inv.group(4)),
-                    "balance_due": _money(inv.group(5)),
+                    "bill_to": customer,
+                    "address": address,
+                    "description": desc,
+                    "qty": 1,
+                    "rate": amount,
+                    "amount": amount,
+                    "balance_due": balance,
+                    "terms": "Due on receipt",
+                    "due_date": _iso(started["date"]),
                     "status": "historical",
                     "source": "quickbooks-statement",
                     "filename": filename,
                 }
             )
+            i = j
             continue
         pay = re.search(r"^(\d{2}/\d{2}/\d{4}) Payment\s+(-[\d,.]+)", line)
         if pay:
@@ -206,6 +427,7 @@ def parse_qb_statement(text: str, filename: str = "") -> dict | None:
                     "statement_number": int(num.group(1)) if num else None,
                 }
             )
+            i += 1
             continue
         fwd = re.search(r"^(\d{2}/\d{2}/\d{4}) Balance Forward\s+(-?[\d,.]+)\s*$", line)
         if fwd and _money(fwd.group(2)):
@@ -219,10 +441,12 @@ def parse_qb_statement(text: str, filename: str = "") -> dict | None:
                     "statement_number": int(num.group(1)) if num else None,
                 }
             )
+        i += 1
     return {
         "statement_number": int(num.group(1)) if num else None,
         "statement_date": _iso(date.group(1) if date else None),
         "customer": customer,
+        "address": address,
         "total_due": _money(due.group(1) if due else None),
         "source": "quickbooks",
         "filename": filename,
@@ -250,6 +474,20 @@ def _upsert_invoice(conn: sqlite3.Connection, row: dict) -> None:
         (row["invoice_number"],),
     ).fetchone()
     if existing and existing[0] == "quickbooks" and row.get("source") == "quickbooks-statement":
+        conn.execute(
+            """UPDATE customer_invoices SET
+                 address=CASE WHEN address IS NULL OR trim(address)='' THEN ? ELSE address END,
+                 description=CASE
+                   WHEN (description IS NULL OR trim(description)='' OR description='Monthly service')
+                        AND ? IS NOT NULL THEN ? ELSE description END
+               WHERE invoice_number=?""",
+            (
+                _blank(row.get("address")),
+                _useful_description(row.get("description")),
+                _useful_description(row.get("description")),
+                row["invoice_number"],
+            ),
+        )
         return
     conn.execute(
         """INSERT INTO customer_invoices
@@ -277,29 +515,30 @@ def _upsert_invoice(conn: sqlite3.Connection, row: dict) -> None:
             row.get("invoice_date"),
             row.get("due_date"),
             row.get("service_number"),
-            row.get("customer"),
-            row.get("bill_to"),
-            row.get("address"),
+            _blank(row.get("customer")),
+            _blank(row.get("bill_to")) or _blank(row.get("customer")),
+            _blank(row.get("address")),
             row.get("period"),
-            row.get("description"),
-            row.get("qty"),
-            row.get("rate"),
+            _useful_description(row.get("description")),
+            row.get("qty") if row.get("qty") is not None else 1,
+            row.get("rate") if row.get("rate") is not None else row.get("amount"),
             row.get("amount"),
             row.get("vat"),
             row.get("balance_due"),
-            row.get("terms"),
+            _blank(row.get("terms")) or "Due on receipt",
             row.get("status") or "historical",
             row.get("source") or "quickbooks",
             row.get("filename"),
         ),
     )
-    if row.get("description") and row.get("rate"):
-        key = re.sub(r"[^a-z0-9]+", "-", (row["description"] or "").lower())[:80]
+    useful = _useful_description(row.get("description"))
+    if useful and row.get("rate"):
+        key = re.sub(r"[^a-z0-9]+", "-", useful.lower())[:80]
         conn.execute(
             """INSERT INTO package_prices(key, description, rate, source)
                VALUES (?,?,?,?)
                ON CONFLICT(key) DO UPDATE SET rate=excluded.rate""",
-            (key, row.get("description"), row.get("rate"), row.get("source")),
+            (key, useful, row.get("rate"), row.get("source")),
         )
 
 
@@ -390,6 +629,7 @@ def ingest_qb_mail(conn: sqlite3.Connection) -> dict:
                         pay.get("statement_number"),
                     ),
                 )
+    recreate_invoices_from_statements(conn)
     conn.commit()
     inv_n = conn.execute("SELECT COUNT(*) FROM customer_invoices").fetchone()[0]
     st_n = conn.execute("SELECT COUNT(*) FROM customer_statements").fetchone()[0]
@@ -433,18 +673,11 @@ def history_for_export(conn: sqlite3.Connection) -> dict:
                ORDER BY paid_on, id"""
         )
     ]
-    from invoice_canned import clean_description, client_key, prepare_invoice, statement_on_invoice
+    from invoice_canned import prepare_invoice, statement_on_invoice
 
-    latest_desc = {}
+    fill_invoice_fields(invoices)
+    _persist_filled_invoices(conn, invoices)
     for inv in invoices:
-        cleaned = clean_description(inv.get("description"))
-        if cleaned and cleaned != "Monthly service":
-            latest_desc[client_key(inv.get("customer"))] = cleaned
-    for inv in invoices:
-        cleaned = clean_description(inv.get("description"))
-        if cleaned == "Monthly service":
-            cleaned = latest_desc.get(client_key(inv.get("customer"))) or cleaned
-        inv["description"] = cleaned
         inv.update(prepare_invoice(inv))
         inv["statement"] = statement_on_invoice(
             invoices, payments, inv.get("customer")
@@ -508,6 +741,118 @@ Amoroc Doors                                                          DATE 18/09
         failed += 1
     else:
         print("OK qb-statement")
+
+    wrapped = parse_qb_statement(
+        """Statement
+TO                                                            STATEMENT NO. 1367
+Mrs Jakobie Havenga                                                   DATE 18/09/2025
+63 6th Street
+Voelklip
+                                               TOTAL DUE R1,500.00
+ 17/05/2025               Invoice No.2533                                   399.00    399.00
+ 18/08/2025               Invoice No.2585: Installation completed 29
+                          August 2025 at Unit 1
+                                                                    1,500.00  1,899.00
+""",
+        "wrap.pdf",
+    )
+    inst = (wrapped or {}).get("invoices") or []
+    if (
+        not wrapped
+        or wrapped["customer"] != "Mrs Jakobie Havenga"
+        or wrapped.get("address") != "63 6th Street, Voelklip"
+        or len(inst) != 2
+        or inst[1]["invoice_number"] != 2585
+        or inst[1]["amount"] != 1500
+        or "Installation completed 29 August 2025" not in (inst[1].get("description") or "")
+    ):
+        print("FAIL wrap-invoice", wrapped)
+        failed += 1
+    else:
+        print("OK statement-recreate-wrap")
+
+    conn = sqlite3.connect(":memory:")
+    ensure_history_tables(conn)
+    for row in (
+        {
+            "invoice_number": 2533,
+            "invoice_date": "2025-05-17",
+            "customer": "Mrs Marlene/Georg Van Eeden",
+            "bill_to": "Mrs Marlene/Georg Van Eeden",
+            "address": "Unit 1 - 63 6th Street, Voelklip",
+            "description": "7 Mbps down / 3.5 Mbps Up",
+            "qty": 1,
+            "rate": 399,
+            "amount": 399,
+            "terms": "Due on receipt",
+            "status": "historical",
+            "source": "quickbooks",
+            "filename": "inv.pdf",
+        },
+        {
+            "invoice_number": 2373,
+            "invoice_date": "2024-03-17",
+            "customer": "Mrs Marlene/Georg Van Eeden",
+            "amount": 399,
+            "status": "historical",
+            "source": "quickbooks-statement",
+            "filename": "st.pdf",
+        },
+        {
+            "invoice_number": 2585,
+            "invoice_date": "2025-08-18",
+            "customer": "Mrs Marlene/Georg Van Eeden",
+            "description": "Installation completed 29 August 2025 at Unit 1",
+            "amount": 1500,
+            "status": "historical",
+            "source": "quickbooks-statement",
+            "filename": "st.pdf",
+        },
+        {
+            "invoice_number": 3113,
+            "invoice_date": "2026-09-21",
+            "customer": "Mrs Marlene/Georg Van Eeden",
+            "amount": 439,
+            "status": "historical",
+            "source": "quickbooks-statement",
+            "filename": "st.pdf",
+        },
+        {
+            "invoice_number": 2477,
+            "invoice_date": "2025-03-17",
+            "customer": "Amoroc Doors",
+            "amount": 199,
+            "status": "historical",
+            "source": "quickbooks-statement",
+            "filename": "st2.pdf",
+        },
+    ):
+        _upsert_invoice(conn, row)
+    conn.commit()
+    recreate_invoices_from_statements(conn)
+    hist = history_for_export(conn)
+    by_n = {r["invoice_number"]: r for r in hist["invoices"]}
+    if by_n[2373]["description"] != "7 Mbps down / 3.5 Mbps Up":
+        print("FAIL backfill-desc", by_n[2373])
+        failed += 1
+    elif by_n[2373]["address"] != "Unit 1 - 63 6th Street, Voelklip":
+        print("FAIL backfill-addr", by_n[2373])
+        failed += 1
+    elif by_n[3113]["description"] != "7 Mbps down / 3.5 Mbps Up":
+        print("FAIL backfill-price-bump", by_n[3113])
+        failed += 1
+    elif "Installation" not in (by_n[2585]["description"] or ""):
+        print("FAIL keep-install", by_n[2585])
+        failed += 1
+    elif by_n[2477]["description"] != "Monthly service":
+        print("FAIL no-cross-client", by_n[2477])
+        failed += 1
+    elif by_n[2373]["qty"] != 1 or by_n[2373]["rate"] != 399:
+        print("FAIL qty-rate", by_n[2373])
+        failed += 1
+    else:
+        print("OK recreate-from-statement")
+    conn.close()
     return failed
 
 

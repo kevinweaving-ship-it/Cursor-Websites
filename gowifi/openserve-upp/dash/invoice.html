@@ -22,6 +22,7 @@ table.lines, table.soa, table.index { width:100%; border-collapse:collapse; }
 table.lines th, table.soa th, table.index th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:1px solid #1a1a1a; padding:6px 4px; }
 table.lines td, table.index td { padding:5px 4px; border-bottom:1px solid #e4e4e4; vertical-align:top; }
 table.soa td { padding:3px 4px; border-bottom:1px solid #eee; vertical-align:top; }
+table.soa a, table.index a { color:#1a1a1a; text-decoration:underline; }
 .num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .due { font-size:13px; font-weight:700; text-align:right; margin:10px 0 18px; }
 h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 6px; display:flex; justify-content:space-between; align-items:baseline; }
@@ -106,9 +107,9 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
             <div class="doc-title">INVOICES</div>
           </header>
           <table class="index">
-            <thead><tr><th>#</th><th>Date</th><th>Client</th><th class="num">Amount</th></tr></thead>
+            <thead><tr><th>#</th><th>Date</th><th>Client</th><th>What for</th><th class="num">Amount</th></tr></thead>
             <tbody>${
-              all.map(r=>`<tr><td><a href="?n=${esc(r.invoice_number)}">${esc(r.invoice_number)}</a></td><td>${esc(fmtDate(r.invoice_date))}</td><td>${esc(r.customer||"—")}</td><td class="num">${money(r.amount)}</td></tr>`).join("") || `<tr><td colspan="4">None yet</td></tr>`
+              all.map(r=>`<tr><td><a href="?n=${esc(r.invoice_number)}">${esc(r.invoice_number)}</a></td><td>${esc(fmtDate(r.invoice_date))}</td><td>${esc(r.customer||"—")}</td><td>${esc(r.description||"Monthly service")}</td><td class="num">${money(r.amount)}</td></tr>`).join("") || `<tr><td colspan="5">None yet</td></tr>`
             }</tbody>
           </table>
         </div>`;
@@ -161,12 +162,17 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
         <div class="due">Total due ${money(due)}</div>
         <table class="soa">
           <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
-          <tbody>${stmt.lines.map(line=>`<tr>
+          <tbody>${stmt.lines.map(line=>{
+            const n = line.invoice_number || (line.kind==="invoice" ? line.reference : "");
+            const label = esc(line.description||"");
+            const desc = n ? `<a href="?n=${esc(n)}">${label}</a>` : label;
+            return `<tr>
             <td>${esc(line.date_fmt||fmtDate(line.date))}</td>
-            <td>${esc(line.description||"")}</td>
+            <td>${desc}</td>
             <td class="num">${money(line.amount,false)}</td>
             <td class="num">${money(line.balance,false)}</td>
-          </tr>`).join("")}</tbody>
+          </tr>`;
+          }).join("")}</tbody>
         </table>
         <table class="ageing">
           <tr>

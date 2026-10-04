@@ -79,11 +79,14 @@ GoWiFi books are three feeds, not a full ledger package:
 QuickBooks / Xero are not required for this. An accountant can take a CSV export at year end.
 
 Old QuickBooks invoice and statement PDFs in `kevin@` / `accounts@` mail are
-imported as history. New invoices are one A4 page at `/dash/invoice.html`:
+imported as history. Every statement line already has the invoice number,
+what it was for, and the amount — those rows are recreated as full invoices
+(bill-to, address, qty/rate, terms). Same-client known packages fill monthly
+lines that only say `Invoice No.N`. Click `Invoice No.N` on the statement
+to open that invoice. New invoices are one A4 page at `/dash/invoice.html`:
 the old QuickBooks invoice block (letterhead, bill to, this month’s line,
 FNB footer) with a statement of account under it — opening balance, Date /
-Reference / Debit / Credit / Balance, ageing, closing. Older history rolls
-into Balance forward so it stays one page. The document is an Invoice, not
+Description / Amount / Balance, ageing, closing. The document is an Invoice, not
 a Tax Invoice (no VAT number on the old PDFs). FNB `62860060278`. Cancel
 QuickBooks once that history is on the box.
 

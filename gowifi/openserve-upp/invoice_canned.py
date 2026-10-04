@@ -260,8 +260,9 @@ def statement_on_invoice(
     balance = 0.0
     for row in rows:
         balance = round(balance + row["signed"], 2)
+        invoice_number = row.get("reference") or ""
         if row["kind"] == "invoice":
-            desc = f"Invoice No.{row['reference']}"
+            desc = f"Invoice No.{invoice_number}"
         elif row["kind"] == "forward":
             desc = "Balance Forward"
         else:
@@ -270,7 +271,8 @@ def statement_on_invoice(
             {
                 "date": row["date"],
                 "date_fmt": fmt_date(row["date"]),
-                "reference": row.get("reference") or "",
+                "reference": invoice_number,
+                "invoice_number": invoice_number if row["kind"] == "invoice" else "",
                 "description": desc,
                 "amount": row["signed"],
                 "debit": row["signed"] if row["signed"] > 0 and row["kind"] == "invoice" else None,
@@ -403,6 +405,7 @@ h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 
 .ageing td.total, .ageing th.total { font-size:13px; }
 .bank { border-top:1px solid #1a1a1a; padding-top:8px; margin-top:16px; color:#333; }
 a.back { font: 13px/1.4 sans-serif; color:#345; }
+table.soa a { color:inherit; text-decoration:underline; }
 .screen-only { max-width:210mm; margin:12px auto 0; padding:0 16px; }
 @media print { body { background:#fff; } .sheet { margin:0; box-shadow:none; width:auto; min-height:0; padding:0; } .screen-only { display:none; } }
 """
@@ -416,10 +419,17 @@ def statement_html(row: dict) -> str:
         due = row.get("balance_due") if row.get("balance_due") is not None else row.get("amount")
     if not lines:
         return f'<div class="due">Balance due {money(due)}</div>'
+    def _stmt_desc(line: dict) -> str:
+        label = escape(line.get("description") or "")
+        number = str(line.get("invoice_number") or line.get("reference") or "")
+        if line.get("kind") == "invoice" and number:
+            return f'<a href="?n={escape(number)}">{label}</a>'
+        return label
+
     body = "".join(
         "<tr>"
         f"<td>{escape(line.get('date_fmt') or fmt_date(line.get('date')))}</td>"
-        f"<td>{escape(line.get('description') or '')}</td>"
+        f"<td>{_stmt_desc(line)}</td>"
         f"<td class=\"num\">{money(line.get('amount'), False)}</td>"
         f"<td class=\"num\">{money(line.get('balance'), False)}</td>"
         "</tr>"
@@ -545,6 +555,9 @@ def self_test() -> int:
         failed += 1
     elif stmt_m["lines"][0]["description"] != "Balance Forward" or stmt_m["lines"][-1]["description"] != "Invoice No.3113":
         print("FAIL qb-ledger", stmt_m["lines"][0], stmt_m["lines"][-1])
+        failed += 1
+    elif stmt_m["lines"][-1].get("invoice_number") != "3113":
+        print("FAIL invoice-link", stmt_m["lines"][-1])
         failed += 1
     elif stmt_m["lines"][-1]["balance"] != 7070:
         print("FAIL last-balance", stmt_m["lines"][-1])
