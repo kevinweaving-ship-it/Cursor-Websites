@@ -219,14 +219,19 @@ def fill_invoice_fields(invoices: list[dict]) -> list[dict]:
         key = client_key(inv.get("customer"))
         if not key:
             continue
-        bucket = known.setdefault(key, {"address": None, "by_rate": {}, "monthly": []})
+        bucket = known.setdefault(
+            key, {"address": None, "by_rate": {}, "monthly": [], "rate_counts": {}}
+        )
         address = _blank(inv.get("address"))
         if address and not bucket["address"]:
             bucket["address"] = address
+        rate = inv.get("rate") if inv.get("rate") is not None else inv.get("amount")
+        if rate is not None:
+            rounded = round(float(rate), 2)
+            bucket["rate_counts"][rounded] = bucket["rate_counts"].get(rounded, 0) + 1
         desc = clean_description(inv.get("description"))
         if _generic_description(desc):
             continue
-        rate = inv.get("rate") if inv.get("rate") is not None else inv.get("amount")
         if rate is not None:
             bucket["by_rate"].setdefault(round(float(rate), 2), desc)
         if not re.match(r"(?i)install", desc):
@@ -242,10 +247,16 @@ def fill_invoice_fields(invoices: list[dict]) -> list[dict]:
         if _generic_description(desc):
             rate = inv.get("rate") if inv.get("rate") is not None else inv.get("amount")
             filled = None
-            if rate is not None:
-                filled = bucket.get("by_rate", {}).get(round(float(rate), 2))
+            rounded = round(float(rate), 2) if rate is not None else None
+            if rounded is not None:
+                filled = bucket.get("by_rate", {}).get(rounded)
             monthly = bucket.get("monthly") or []
-            if not filled and len(monthly) == 1:
+            # Price-bumped monthly (399→439) can reuse the only known package.
+            # One-off amounts (329, install) stay generic unless the statement said so.
+            recurring = {
+                amt for amt, n in (bucket.get("rate_counts") or {}).items() if n >= 2
+            }
+            if not filled and len(monthly) == 1 and rounded in recurring:
                 filled = monthly[0]
             if filled:
                 desc = filled
@@ -809,10 +820,28 @@ Voelklip
             "filename": "st.pdf",
         },
         {
+            "invoice_number": 3104,
+            "invoice_date": "2026-08-20",
+            "customer": "Mrs Marlene/Georg Van Eeden",
+            "amount": 439,
+            "status": "historical",
+            "source": "quickbooks-statement",
+            "filename": "st.pdf",
+        },
+        {
             "invoice_number": 3113,
             "invoice_date": "2026-09-21",
             "customer": "Mrs Marlene/Georg Van Eeden",
             "amount": 439,
+            "status": "historical",
+            "source": "quickbooks-statement",
+            "filename": "st.pdf",
+        },
+        {
+            "invoice_number": 3079,
+            "invoice_date": "2026-07-17",
+            "customer": "Mrs Marlene/Georg Van Eeden",
+            "amount": 329,
             "status": "historical",
             "source": "quickbooks-statement",
             "filename": "st.pdf",
@@ -840,6 +869,9 @@ Voelklip
         failed += 1
     elif by_n[3113]["description"] != "7 Mbps down / 3.5 Mbps Up":
         print("FAIL backfill-price-bump", by_n[3113])
+        failed += 1
+    elif by_n[3079]["description"] != "Monthly service":
+        print("FAIL one-off-not-filled", by_n[3079])
         failed += 1
     elif "Installation" not in (by_n[2585]["description"] or ""):
         print("FAIL keep-install", by_n[2585])
