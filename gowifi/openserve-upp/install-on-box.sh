@@ -12,7 +12,8 @@ if [ "$SRC" != "$DEST" ]; then
     "$SRC/netcash.py" "$SRC/ledger.py" "$SRC/billing.py" "$SRC/packages.py" "$SRC/invoice_canned.py" "$SRC/company.py" \
     "$SRC/compliance.py" "$SRC/clients.py" \
     "$SRC/customers.py" "$SRC/invoice_list.py" "$SRC/statements.py" "$SRC/recon.py" \
-    "$SRC/checksum_accounts_mail.py" "$SRC/README.md" "$DEST/"
+    "$SRC/checksum_accounts_mail.py" "$SRC/mail_forwards.py" \
+    "$SRC/ensure_go_wifi_mail.sh" "$SRC/README.md" "$DEST/"
   mkdir -p "$DEST/data"
   if [ -d "$SRC/data" ]; then
     cp -a "$SRC/data/." "$DEST/data/"
@@ -24,7 +25,8 @@ chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" \
   "$DEST/qb_import.py" "$DEST/qb_oauth.py" "$DEST/qb_api.py" \
   "$DEST/netcash.py" "$DEST/ledger.py" "$DEST/billing.py" "$DEST/packages.py" "$DEST/invoice_canned.py" "$DEST/company.py" \
   "$DEST/compliance.py" "$DEST/clients.py" \
-  "$DEST/customers.py" "$DEST/invoice_list.py" "$DEST/statements.py" "$DEST/recon.py"
+  "$DEST/customers.py" "$DEST/invoice_list.py" "$DEST/statements.py" "$DEST/recon.py" \
+  "$DEST/mail_forwards.py" "$DEST/ensure_go_wifi_mail.sh"
 WWW=/home/user-data/www/default
 DASH="$WWW/dash"
 LEGAL="$WWW/legal"
@@ -94,4 +96,7 @@ fi
 # every 15 minutes; no-op until /root/secrets/upp.token has a JWT
 CRON_LINE='*/15 * * * * UPP_DB=/root/gowifi-upp/upp.db /usr/bin/python3 /root/gowifi-upp/sync.py >> /var/log/gowifi-upp-sync.log 2>&1'
 (crontab -l 2>/dev/null | grep -v 'gowifi-upp/sync.py' || true; echo "$CRON_LINE") | crontab -
+if [ -f "$DEST/ensure_go_wifi_mail.sh" ]; then
+  bash "$DEST/ensure_go_wifi_mail.sh"
+fi
 echo "installed $DEST"

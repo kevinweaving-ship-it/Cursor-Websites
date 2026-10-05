@@ -25,6 +25,7 @@ EXPECTED = (
     ("admin@go-wifi.co.za", "administrator@box.gowifi.co.za"),
     ("abuse@go-wifi.co.za", "administrator@box.gowifi.co.za"),
     ("postmaster@go-wifi.co.za", "administrator@box.gowifi.co.za"),
+    ("@go-wifi.co.za", "kevin@gowifi.co.za,openserve@gowifi.co.za"),
 )
 
 
@@ -116,9 +117,9 @@ def forwards_for_export(db: Path = USERS_DB) -> dict:
             "ns1.box.gowifi.co.za / ns2.box.gowifi.co.za (zone already has the MX)."
         ),
         "note": (
-            "Box aliases are live. Public MX is not. "
-            "The 18:49 statements To: kevin@go-wifi.co.za + kevinweaving@icloud.com "
-            "landed on iCloud only."
+            "Box accepts every @go-wifi.co.za address and delivers to gowifi. "
+            "Public MX is still missing at Domains.co.za, so the internet may not "
+            "route here until MX 10 box.gowifi.co.za is published."
         ),
     }
 
@@ -127,7 +128,7 @@ def self_test() -> int:
     failed = 0
     pack = forwards_for_export(Path("/nonexistent.sqlite"))
     names = [r["source"] for r in pack["aliases"]]
-    if "kevin@go-wifi.co.za" not in names or "accounts@go-wifi.co.za" not in names:
+    if "kevin@go-wifi.co.za" not in names or "@go-wifi.co.za" not in names:
         print("FAIL expected-list", names)
         failed += 1
     elif _norm("openserve@gowifi.co.za,kevin@gowifi.co.za") != _norm(
