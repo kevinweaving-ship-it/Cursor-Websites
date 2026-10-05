@@ -153,6 +153,12 @@ def _kind_of_line(product: str, description: str, amount: float) -> str:
 
 def ingest(conn: sqlite3.Connection) -> dict:
     ensure(conn)
+    try:
+        from recon import ingest as recon_ingest
+
+        recon_ingest(conn)
+    except Exception:
+        pass
     conn.execute("DELETE FROM customer_invoices WHERE source IN ('qb-list','qb-sales')")
     conn.execute("DELETE FROM customer_invoice_lines")
     conn.execute(
@@ -630,31 +636,44 @@ def _ledger_blocks(lines: list[dict]) -> list[dict]:
 
 
 def present_ledger(lines: list[dict]) -> list[dict]:
-    """Newest at the top. Last invoice + last payment + arrears show; paid history hidden."""
+    """Invoice and payment rows in date order: newest at the top, oldest at the bottom."""
+    from invoice_canned import parse_day
+
     blocks = _ledger_blocks(lines)
-    last_inv = None
-    last_pay = None
-    for i, block in enumerate(blocks):
-        if block.get("invoice"):
-            last_inv = i
-        if block.get("payments"):
-            last_pay = i
-    out = []
-    for i in range(len(blocks) - 1, -1, -1):
-        block = blocks[i]
+    last_inv_day = None
+    last_pay_day = None
+    tagged = []
+    for block in blocks:
         due = _money(block.get("open")) > 0.004
-        show = due or i == last_inv or i == last_pay
         for row in (
             ([block["invoice"]] if block.get("invoice") else [])
             + list(block.get("items") or [])
             + list(block.get("payments") or [])
         ):
             rec = dict(row)
-            rec["show"] = show
             rec["due_row"] = due
-            rec["reconciled"] = not show
-            out.append(rec)
-    return out
+            day = parse_day(rec.get("date"))
+            if rec.get("kind") == "invoice" and day and (last_inv_day is None or day > last_inv_day):
+                last_inv_day = day
+            if rec.get("kind") == "payment" and day and (last_pay_day is None or day > last_pay_day):
+                last_pay_day = day
+            tagged.append(rec)
+    for rec in tagged:
+        day = parse_day(rec.get("date"))
+        pin = (rec.get("kind") == "invoice" and day == last_inv_day) or (
+            rec.get("kind") == "payment" and day == last_pay_day
+        )
+        rec["show"] = bool(rec.get("due_row") or pin)
+        rec["reconciled"] = not rec["show"]
+
+    def _sort_key(rec: dict):
+        day = parse_day(rec.get("date")) or date.min
+        # Newest date first. Same day: payment above invoice (money after the bill).
+        kind_ord = 0 if rec.get("kind") == "payment" else 1
+        return (-day.toordinal(), kind_ord, str(rec.get("ref") or ""), str(rec.get("what") or ""))
+
+    tagged.sort(key=_sort_key)
+    return tagged
 
 
 def _sales_lines(number: str, conn: sqlite3.Connection | None = None) -> list[dict]:
@@ -1137,7 +1156,15 @@ def self_test() -> int:
         print("FAIL nord-default-last-two", nord_prev)
         failed += 1
     else:
-        print("OK nordhoek-one-line", nord_inv[0].get("what"), nord_last_pay.get("what"))
+        from invoice_canned import parse_day as _pd
+
+        days = [_pd(r.get("date")) for r in nord_led if r.get("kind") in {"invoice", "payment"}]
+        if any(days[i] < days[i + 1] for i in range(len(days) - 1) if days[i] and days[i + 1]):
+            print("FAIL nord-not-newest-top", [(r.get("date_fmt"), r.get("kind"), r.get("what")) for r in nord_led[:8]])
+            failed += 1
+        else:
+            print("OK nordhoek-one-line", nord_inv[0].get("what"), nord_last_pay.get("what"))
+            print("OK newest-top")
     conn.close()
     return failed
 

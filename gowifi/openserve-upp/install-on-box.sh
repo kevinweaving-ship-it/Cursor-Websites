@@ -11,7 +11,7 @@ if [ "$SRC" != "$DEST" ]; then
     "$SRC/qb_import.py" "$SRC/qb_oauth.py" "$SRC/qb_api.py" \
     "$SRC/netcash.py" "$SRC/ledger.py" "$SRC/billing.py" "$SRC/packages.py" "$SRC/invoice_canned.py" "$SRC/company.py" \
     "$SRC/compliance.py" "$SRC/clients.py" \
-    "$SRC/customers.py" "$SRC/invoice_list.py" "$SRC/statements.py" \
+    "$SRC/customers.py" "$SRC/invoice_list.py" "$SRC/statements.py" "$SRC/recon.py" "$SRC/recon.py" \
     "$SRC/checksum_accounts_mail.py" "$SRC/README.md" "$DEST/"
   mkdir -p "$DEST/data"
   if [ -d "$SRC/data" ]; then
