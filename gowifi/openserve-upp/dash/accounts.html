@@ -4,27 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>GoWifi · Fibre accounts</title>
-<meta name="theme-color" content="#0b1220">
+<meta name="theme-color" content="#ffffff">
 <meta name="robots" content="noindex">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
 <style>
 :root {
-  --bg:#0b1220; --card:#141c2e; --line:#243049; --text:#e8eef8; --muted:#8b9bb4;
-  --ok:#3dd68c; --bad:#ff6b6b; --warn:#f5c16c; --acc:#3d8bff; --pad:14px;
+  --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a; --pad:16px;
 }
 * { box-sizing:border-box; }
 html,body { margin:0; background:var(--bg); color:var(--text);
-  font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-a { color:inherit; text-decoration:none; }
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:var(--acc); }
 header.app {
   position:sticky; top:0; z-index:5;
-  background:rgba(11,18,32,.94); backdrop-filter:blur(8px);
-  border-bottom:1px solid var(--line);
-  padding:12px var(--pad) calc(10px + env(safe-area-inset-top));
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:12px var(--pad) 12px;
 }
-header.app h1 { margin:0; font-size:18px; }
-header.app .sub { color:var(--muted); font-size:12px; margin-top:2px; }
-header.app a.back { display:inline-block; color:var(--acc); font-size:14px; min-height:44px; line-height:44px; }
+header.app h1 { margin:0; font-size:22px; color:var(--acc); }
+header.app .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+header.app a.back { display:inline-block; color:var(--acc); font-size:14px; min-height:40px; line-height:40px; margin-right:14px; }
+.search {
+  width:100%; margin-top:10px; padding:12px 14px; font:16px/1.3 inherit;
+  color:var(--text); background:#fff; border:1px solid var(--line); border-radius:10px;
+}
+.search:focus { outline:2px solid var(--acc); border-color:var(--acc); }
 main { padding:12px var(--pad) 28px; max-width:920px; margin:0 auto; }
 .grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
 .card {
@@ -35,21 +39,21 @@ main { padding:12px var(--pad) 28px; max-width:920px; margin:0 auto; }
 .v { font-size:22px; font-weight:700; margin-top:2px; }
 .row { display:flex; justify-content:space-between; gap:8px; align-items:center; }
 .pill { font-size:11px; font-weight:700; padding:3px 8px; border-radius:99px; white-space:nowrap; }
-.ok { background:#163527; color:var(--ok); }
-.bad { background:#3a1518; color:var(--bad); }
-.warn { background:#3a2e12; color:var(--warn); }
+.ok { background:#e7f6ee; color:var(--ok); }
+.bad { background:#fdecec; color:var(--bad); }
+.warn { background:#fff4e0; color:var(--warn); }
 .list .item { padding:8px 0; border-top:1px solid var(--line); }
 .list .item:first-child { border-top:0; padding-top:2px; }
 .name { font-weight:650; }
 .meta { color:var(--muted); font-size:12px; margin-top:2px; }
-h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:18px 0 8px; }
+h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--acc); margin:18px 0 8px; }
 h2.toggle {
   cursor:pointer; user-select:none; min-height:44px; display:flex; align-items:center; gap:8px;
 }
 h2.toggle .chev { color:var(--acc); font-size:14px; }
 .fold.hidden { display:none; }
 .scroll { overflow:auto; }
-.err { background:#3a1518; color:#ffd0d0; padding:12px; border-radius:12px; }
+.err { background:#fdecec; color:#8a1212; padding:12px; border-radius:12px; }
 table.compact { width:100%; border-collapse:collapse; font-size:13px; }
 table.compact th {
   text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase;
@@ -67,8 +71,10 @@ table.compact tr:last-child td { border-bottom:0; }
 <body>
 <header class="app">
   <a class="back" href="/dash/#/">← Home</a>
+  <a class="back" href="/dash/clients.html">Clients</a>
   <h1>Fibre accounts</h1>
   <div class="sub" id="sub">Openserve line status · join dates</div>
+  <input class="search" id="q" type="search" placeholder="Search name, address, B number, package" autocomplete="off">
 </header>
 <main id="app">Loading…</main>
 <script>
@@ -459,6 +465,16 @@ function render(data){
     invToggle.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setInv(invFold.classList.contains("hidden")); }
     });
+  }
+  const qEl = $("#q");
+  if (qEl) {
+    const filter = () => {
+      const q = (qEl.value||"").trim().toLowerCase();
+      document.querySelectorAll("table.compact tbody tr").forEach(tr => {
+        tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? "" : "none";
+      });
+    };
+    qEl.addEventListener("input", filter);
   }
 }
 fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})

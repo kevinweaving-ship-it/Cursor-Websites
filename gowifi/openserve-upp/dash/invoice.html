@@ -6,37 +6,37 @@
 <title>GoWifi invoice</title>
 <style>
 @page { size: A4; margin: 12mm; }
-body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#1a1a1a; background:#e8e8e8; margin:0; }
+body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#0b1f44; background:#ffffff; margin:0; }
 .sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:10mm 12mm 14mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
-.card { border: 2.5px solid #1a3a6b; border-radius:8px; padding:12px 14px; margin:0 0 12px; background:#fff; }
+.card { border: 2.5px solid #123a7a; border-radius:8px; padding:12px 14px; margin:0 0 12px; background:#fff; }
 .card-row { display:flex; gap:12px; margin:0 0 12px; }
 .card-row .card { flex:1; margin:0; }
-.brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; color:#1a3a6b; }
-.doc-title { font-size:22px; font-weight:700; letter-spacing:.12em; color:#1a3a6b; }
+.brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; color:#123a7a; }
+.doc-title { font-size:22px; font-weight:700; letter-spacing:.12em; color:#123a7a; }
 .muted { color:#555; }
-.label { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#1a3a6b; margin-bottom:3px; font-weight:700; }
+.label { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#123a7a; margin-bottom:3px; font-weight:700; }
 .who { font-weight:700; font-size:13px; }
 .meta { border-collapse:collapse; margin-top:8px; }
 .meta th { text-align:left; font-weight:600; color:#555; padding:2px 16px 2px 0; }
 .meta td { text-align:right; font-weight:600; }
 table.lines, table.soa, table.index { width:100%; border-collapse:collapse; }
-table.lines th, table.soa th, table.index th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:2px solid #1a3a6b; padding:6px 4px; color:#1a3a6b; }
-table.lines td, table.index td { padding:5px 4px; border-bottom:1.5px solid #1a3a6b; vertical-align:top; }
-table.soa td { padding:4px; border-bottom:1.5px solid #1a3a6b; vertical-align:top; }
-table.soa a, table.index a { color:#1a3a6b; text-decoration:underline; font-weight:600; }
+table.lines th, table.soa th, table.index th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:2px solid #123a7a; padding:6px 4px; color:#123a7a; }
+table.lines td, table.index td { padding:5px 4px; border-bottom:1.5px solid #123a7a; vertical-align:top; }
+table.soa td { padding:4px; border-bottom:1.5px solid #123a7a; vertical-align:top; }
+table.soa a, table.index a { color:#123a7a; text-decoration:underline; font-weight:600; }
 .num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.due { font-size:13px; font-weight:700; text-align:right; margin:10px 0 8px; color:#1a3a6b; }
-h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; color:#1a3a6b; }
+.due { font-size:13px; font-weight:700; text-align:right; margin:10px 0 8px; color:#123a7a; }
+h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; color:#123a7a; }
 .ageing { width:100%; border-collapse:collapse; margin:10px 0 4px; }
-.ageing th { font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:#1a3a6b; text-align:right; padding:4px 6px; border-bottom:2px solid #1a3a6b; }
-.ageing td { text-align:right; font-weight:600; padding:6px; font-variant-numeric:tabular-nums; border-top:1.5px solid #1a3a6b; }
+.ageing th { font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:#123a7a; text-align:right; padding:4px 6px; border-bottom:2px solid #123a7a; }
+.ageing td { text-align:right; font-weight:600; padding:6px; font-variant-numeric:tabular-nums; border-top:1.5px solid #123a7a; }
 .ageing td.total, .ageing th.total { font-size:13px; }
 .bank { color:#333; margin-bottom:0; }
 a.back { font: 13px/1.4 sans-serif; color:#345; }
 .screen-only { max-width:210mm; margin:12px auto 0; padding:0 16px; }
-.index-wrap { width:210mm; margin:16px auto 32px; background:#fff; padding:14mm 16mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); border: 2.5px solid #1a3a6b; border-radius:8px; }
+.index-wrap { width:210mm; margin:16px auto 32px; background:#fff; padding:14mm 16mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); border: 2.5px solid #123a7a; border-radius:8px; }
 .index-wrap h1 { font-size:20px; letter-spacing:.08em; margin:0 0 4px; }
-.index-wrap a { color:#1a3a6b; }
+.index-wrap a { color:#123a7a; }
 .err { color:#a00; padding:24px; }
 @media print { body { background:#fff; } .sheet, .index-wrap { margin:0; box-shadow:none; width:auto; min-height:0; padding:0; } .screen-only { display:none; } }
 </style>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · Clients</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<style>
+:root {
+  --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a; --pad:16px;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:var(--acc); }
+header.app {
+  position:sticky; top:0; z-index:5;
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:12px var(--pad) 12px;
+}
+header.app h1 { margin:0; font-size:22px; color:var(--acc); }
+header.app .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+header.app a.back { display:inline-block; color:var(--acc); font-size:14px; min-height:40px; line-height:40px; margin-right:14px; }
+.search {
+  width:100%; margin-top:10px; padding:12px 14px; font:16px/1.3 inherit;
+  color:var(--text); background:#fff; border:1px solid var(--line); border-radius:10px;
+}
+.search:focus { outline:2px solid var(--acc); border-color:var(--acc); }
+main { padding:14px var(--pad) 32px; max-width:980px; margin:0 auto; }
+.counts { color:var(--muted); font-size:13px; margin:0 0 12px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+.card {
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:14px 14px 12px; color:var(--text);
+}
+.name { font-weight:700; font-size:17px; color:var(--acc); display:flex; align-items:center; gap:8px; }
+.meta { color:var(--muted); font-size:13px; margin-top:4px; }
+.row { margin-top:8px; }
+.k { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
+.v { margin-top:1px; }
+.dot {
+  width:12px; height:12px; border-radius:50%; display:inline-block; flex:0 0 12px;
+  box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--line);
+}
+.dot.active { background:var(--ok); }
+.dot.issue { background:var(--bad); }
+.dot.suspended { background:var(--warn); }
+.due { font-weight:700; }
+.due.ok { color:var(--ok); }
+.due.warn { color:var(--warn); }
+.due.bad { color:var(--bad); }
+.empty { color:var(--muted); padding:24px 0; }
+.err { color:#8a1212; background:#fdecec; padding:12px; border-radius:10px; }
+</style>
+</head>
+<body>
+<header class="app">
+  <a class="back" href="/dash/#/">← Home</a>
+  <a class="back" href="/dash/accounts.html">Detailed</a>
+  <h1>Clients</h1>
+  <div class="sub">Search · one card each</div>
+  <input class="search" id="q" type="search" placeholder="Search name, address, phone, B number, package" autocomplete="off">
+</header>
+<main>
+  <div class="counts" id="counts"></div>
+  <div class="grid" id="grid">Loading…</div>
+</main>
+<script>
+const $ = (s,el=document)=>el.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
+const dueClass = c => c.paid_up ? "ok" : (c.in_grace ? "warn" : (c.due ? "bad" : ""));
+function card(c){
+  return `<article class="card" data-search="${esc(c.search||"")}">
+    <div class="name"><span class="dot ${esc(c.dot||"active")}" title="${esc(c.dot_label||"")}"></span>${esc(c.name||"—")}</div>
+    <div class="meta">${esc(c.dot_label||"")} · ${esc(c.access||"")} · ${esc(c.pay||"")}${c.discount?" · discount":""}</div>
+    <div class="row"><div class="k">Address</div><div class="v">${esc(c.address||"—")}</div></div>
+    <div class="row"><div class="k">Contact</div><div class="v">${esc(c.phone||"—")}</div></div>
+    <div class="row"><div class="k">Start</div><div class="v">${esc(c.started_label||"—")}</div></div>
+    <div class="row"><div class="k">Year / month</div><div class="v">${esc(c.tenure||"—")}</div></div>
+    <div class="row"><div class="k">B number</div><div class="v">${esc(c.b_number||(c.access==="fibre"?"—":"Wireless"))}</div></div>
+    <div class="row"><div class="k">Package</div><div class="v">${esc(c.package||"—")}</div></div>
+    <div class="row"><div class="k">Balance</div><div class="v due ${dueClass(c)}">${esc(c.balance_label||"—")}${c.paid_up?"":`<div class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · ${c.in_grace?c.grace_days+" day grace":"due"}</div>`}</div></div>
+  </article>`;
+}
+function paint(cards){
+  const q = ($("#q").value||"").trim().toLowerCase();
+  const shown = (cards||[]).filter(c => !q || (c.search||"").includes(q));
+  $("#counts").textContent = q ? `${shown.length} of ${(cards||[]).length}` : `${(cards||[]).length} clients`;
+  $("#grid").innerHTML = shown.map(card).join("") || `<p class="empty">No clients match.</p>`;
+}
+fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
+  .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+  .then(data=>{
+    const pack = data.clients || {};
+    const cards = pack.cards || [];
+    paint(cards);
+    $("#q").addEventListener("input", ()=>paint(cards));
+  })
+  .catch(e=>{ $("#grid").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>

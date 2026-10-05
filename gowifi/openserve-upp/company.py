@@ -2,10 +2,12 @@
 
 COMPANY = {
     "name": "GoWifi (Pty) Ltd",
+    "representative": "Kevin Weaving",
     "lines": [
         "21 4th Avenue",
         "Voelklip, Western Cape 7200",
     ],
+    "postal": "21 4th Avenue, Voelklip, Western Cape 7200",
     "phone": "076 263 9937",
     "email": "accounts@go-wifi.co.za",
     "reg": "2020/514776/07",

@@ -1,7 +1,7 @@
 body {
   margin: 0;
-  color: #1a1a1a;
-  background: #f4f6f8;
+  color: #0b1f44;
+  background: #ffffff;
   font: 16px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 header, main, footer {
@@ -16,21 +16,21 @@ header {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: #1a3a6b;
+  color: #123a7a;
 }
 .card {
   background: #fff;
-  border: 2.5px solid #1a3a6b;
+  border: 2.5px solid #123a7a;
   border-radius: 8px;
   padding: 20px 22px 8px;
 }
 h1 {
   margin: 0 0 8px;
   font-size: 26px;
-  color: #1a3a6b;
+  color: #123a7a;
 }
 .meta, footer {
-  color: #555;
+  color: #4a5d7a;
   font-size: 14px;
 }
 h2 {
@@ -38,7 +38,7 @@ h2 {
   font-size: 16px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #1a3a6b;
+  color: #123a7a;
 }
 p, li {
   margin: 0 0 12px;
@@ -47,7 +47,7 @@ ol {
   padding-left: 20px;
 }
 a {
-  color: #1a3a6b;
+  color: #123a7a;
 }
 nav a {
   margin-right: 16px;
@@ -57,7 +57,7 @@ nav a {
   display: inline-block;
   margin: 8px 0 16px;
   padding: 12px 18px;
-  background: #1a3a6b;
+  background: #123a7a;
   color: #fff;
   font-weight: 700;
   text-decoration: none;

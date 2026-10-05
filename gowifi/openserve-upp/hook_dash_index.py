@@ -8,6 +8,16 @@ from datetime import datetime
 INDEX = Path(os.environ.get("GOWIFI_DASH_INDEX", "/home/user-data/www/default/dash/index.html"))
 ACCOUNTS_MARKER = "gowifi-fibre-accounts-hook"
 INCOMING_MARKER = "gowifi-incoming-fibre-hook"
+CLIENTS_MARKER = "gowifi-simple-clients-hook"
+THEME_MARKER = "gowifi-light-theme"
+THEME_CSS = f"""<style id="{THEME_MARKER}">
+:root {{
+  --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a;
+}}
+html,body {{ background:#ffffff !important; color:#0b1f44 !important; }}
+</style>
+"""
 
 INCOMING_JS = f"""function paintIncomingFibre(sel, siteName){{ /* {INCOMING_MARKER} */
   const el=document.querySelector(sel);
@@ -47,6 +57,10 @@ def _ensure_accounts(text: str) -> str:
     )
     text = text.replace(
         "    <h2>Network health</h2>\n    <div class=\"grid\">",
+        "    <a class=\"card tap\" href=\"/dash/clients.html\" style=\"display:block;margin-bottom:10px\">\n"
+        "      <div class=\"row\"><span class=\"name\">Clients</span><span class=\"pill ok\">cards</span></div>\n"
+        "      <div class=\"meta\">Search · one card each · balance</div>\n"
+        "    </a>\n"
         "    <a class=\"card tap\" href=\"#/accounts\" style=\"display:block;margin-bottom:10px\">\n"
         "      <div class=\"row\"><span class=\"name\">Fibre accounts</span><span class=\"pill ok\">audit</span></div>\n"
         "      <div class=\"meta\">Active Openserve lines · join dates · cancellations</div>\n"
@@ -57,16 +71,50 @@ def _ensure_accounts(text: str) -> str:
     text = text.replace(
         "    if(!DATA) DATA=await load();\n    const h=hash();",
         "    const h=hash();\n"
+        "    if(h===\"/clients\"){ clientsPage(); return; }\n"
         "    if(h===\"/accounts\"){ accountsPage(); return; }\n"
         "    if(!DATA) DATA=await load();",
         1,
     )
     hook = (
+        f"function clientsPage(){{ /* {CLIENTS_MARKER} */\n"
+        '  location.replace("/dash/clients.html");\n'
+        "}\n"
         f"function accountsPage(){{ /* {ACCOUNTS_MARKER} */\n"
         '  location.replace("/dash/accounts.html");\n'
         "}\n"
     )
     return text.replace("let DATA=null;", hook + "let DATA=null;", 1)
+
+
+def _ensure_clients(text: str) -> str:
+    if CLIENTS_MARKER not in text:
+        hook = (
+            f"function clientsPage(){{ /* {CLIENTS_MARKER} */\n"
+            '  location.replace("/dash/clients.html");\n'
+            "}\n"
+        )
+        if "function accountsPage" in text:
+            text = text.replace("function accountsPage", hook + "function accountsPage", 1)
+        else:
+            text = text.replace("let DATA=null;", hook + "let DATA=null;", 1)
+    if 'if(h==="/clients")' not in text:
+        text = text.replace(
+            'if(h==="/accounts"){ accountsPage(); return; }',
+            'if(h==="/clients"){ clientsPage(); return; }\n    if(h==="/accounts"){ accountsPage(); return; }',
+            1,
+        )
+    if 'href="/dash/clients.html"' not in text:
+        text = text.replace(
+            '    <a class="card tap" href="#/accounts"',
+            '    <a class="card tap" href="/dash/clients.html" style="display:block;margin-bottom:10px">\n'
+            '      <div class="row"><span class="name">Clients</span><span class="pill ok">cards</span></div>\n'
+            '      <div class="meta">Search · one card each · balance</div>\n'
+            "    </a>\n"
+            '    <a class="card tap" href="#/accounts"',
+            1,
+        )
+    return text
 
 
 def _strip_block(text: str, start_needle: str) -> str:
@@ -117,10 +165,20 @@ def _ensure_incoming(text: str) -> str:
     return text
 
 
+def _ensure_theme(text: str) -> str:
+    if THEME_MARKER in text:
+        return text
+    if "</head>" in text:
+        return text.replace("</head>", THEME_CSS + "</head>", 1)
+    return THEME_CSS + text
+
+
 def main() -> int:
     text = INDEX.read_text()
     original = text
+    text = _ensure_theme(text)
     text = _ensure_accounts(text)
+    text = _ensure_clients(text)
     text = _ensure_incoming(text)
     if text == original:
         print("already hooked")
@@ -129,7 +187,7 @@ def main() -> int:
         _backup(INDEX)
     INDEX.write_text(text)
     print(f"hooked {INDEX}")
-    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER) if m not in text]
+    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER, CLIENTS_MARKER, THEME_MARKER) if m not in text]
     if missing:
         print("WARN missing", missing)
         return 1

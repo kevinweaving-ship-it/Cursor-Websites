@@ -451,6 +451,7 @@ def build(conn: sqlite3.Connection) -> dict:
     )
 
     from site_lines import apply_site_line, incoming_fibre_for_export, incoming_related_label, pop_cost
+    from clients import cards_for_export
 
     from books import books_for_export
 
@@ -661,6 +662,7 @@ def build(conn: sqlite3.Connection) -> dict:
     active = [r for r in active if not r.get("incoming_role")]
     suspended = [r for r in suspended if not r.get("incoming_role")]
     cancelled_lines = [r for r in cancelled_lines if not r.get("incoming_role")]
+    client_cards = cards_for_export(conn, active + suspended + cancelled_lines, today)
 
     return {
         "as_at": today.isoformat(),
@@ -679,6 +681,7 @@ def build(conn: sqlite3.Connection) -> dict:
         },
         "incoming_fibre": incoming_fibre,
         "pop_cost": pop,
+        "clients": client_cards,
         "active": active,
         "suspended": suspended,
         "cancelled_lines": cancelled_lines,

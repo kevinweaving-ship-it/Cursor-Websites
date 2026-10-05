@@ -44,6 +44,19 @@ pool" / `circuitAdmin=Disconnected` on an unowned circuit is a **cease**
 order are cancelled. Each service number keeps its own suspend → restore
 stint history in `service_events`.
 
+## Clients (simple)
+
+Every GoWiFi URL is **white background, dark-blue text**. No dark/navy page chrome.
+
+**https://gowifi.co.za/dash/clients.html** — simple cards + search.
+
+One card per client, with a search bar: name, address, contact, start date, year/month,
+B number if fibre, package, balance / due (7-day grace). Status LED: green active,
+red Openserve issue, orange if we suspend. VK Pop incoming fibre is not a client.
+Auto-suspend, WhatsApp and reply notes come later (copied to admin).
+
+The detailed fibre audit stays at **https://gowifi.co.za/dash/accounts.html**.
+
 ## Audit page
 
 Compact fibre list at **https://gowifi.co.za/dash/accounts.html** (same dash login).
