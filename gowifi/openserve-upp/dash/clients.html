@@ -86,6 +86,18 @@ main {
 .due.warn { color:var(--warn); }
 .due.bad { color:var(--bad); }
 .alert { color:var(--bad); font-weight:700; }
+.stmt-band { display:block; }
+.stmt-wrap { width:100%; max-height:380px; overflow:auto; }
+.stmt { width:100%; border-collapse:collapse; font-size:13px; }
+.stmt th {
+  text-align:left; color:var(--muted); font-size:11px; letter-spacing:.03em;
+  text-transform:uppercase; font-weight:700; padding:4px 8px 6px 0;
+  border-bottom:1px solid var(--line); position:sticky; top:0; background:#fff;
+}
+.stmt th.num, .stmt td.num { text-align:right; white-space:nowrap; }
+.stmt td { padding:5px 8px 5px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+.stmt tr:last-child td { border-bottom:0; }
+.stmt tr.payment td.num { color:var(--ok); }
 .empty { color:var(--muted); padding:20px 14px; }
 .err { color:#8a1212; background:#fdecec; padding:12px; border-radius:10px; }
 .fold-head {
@@ -117,6 +129,7 @@ main {
     gap:8px 20px; align-items:start; padding:10px 16px;
   }
   .band.two { grid-template-columns:1fr 1fr; }
+  .band.stmt-band { display:block; }
   .field { width:auto; }
 }
 </style>
@@ -156,6 +169,29 @@ const accessLabel = c => (c.access||"") === "fibre" ? "Fibre" : "Wifi";
 function field(label, value, extra){
   return `<div class="field"><span class="k">${esc(label)}</span><span class="v${extra&&extra.cls?" "+extra.cls:""}">${value}</span></div>`;
 }
+function accountLine(c){
+  if (!c.master) return "";
+  const own = c.own_sub ? "own sub-account" : (c.sub || "sub-account");
+  const others = (c.other_subs||[]).map(s => `${s.name}${s.cancelled?" (cancelled)":""}`).join(", ");
+  return field("Account", `Master ${c.master} · ${own}${others?` · other sub ${others}`:""}`);
+}
+function stmtTable(c){
+  const rows = c.ledger || [];
+  if (!rows.length) return "";
+  const body = rows.map(r=>`<tr class="${esc(r.kind||"")}">
+    <td>${esc(r.date_fmt||r.date||"")}</td>
+    <td>${esc(r.what||"")}</td>
+    <td class="num">${esc(money(r.amount))}</td>
+    <td class="num">${esc(money(r.balance))}</td>
+  </tr>`).join("");
+  return `<div class="band stmt-band">
+    <div class="k">Statement</div>
+    <div class="stmt-wrap"><table class="stmt">
+      <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>
+  </div>`;
+}
 function headBal(c){
   if (c.suspension_notice || c.bounced) return `Bounced · Due ${money(c.due)}`;
   return c.balance_label || "—";
@@ -189,6 +225,8 @@ function card(c){
         ${field("Package", esc(c.package||"—"))}
         ${field("Balance", bal, {cls:"due "+dc})}
       </div>
+      ${c.master?`<div class="band">${accountLine(c)}</div>`:""}
+      ${stmtTable(c)}
       ${c.suspension_notice?`<div class="band"><div class="alert">Suspension notice · D/O bounced</div></div>`:""}
     </div>
   </article>`;

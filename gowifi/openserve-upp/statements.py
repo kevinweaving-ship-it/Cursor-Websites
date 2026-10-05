@@ -20,6 +20,7 @@ from billing import (
     canon_key,
     client_row,
     display_name,
+    split_qb_name,
 )
 from invoice_canned import statement_on_invoice
 from invoice_list import classify as classify_invoices
@@ -389,9 +390,11 @@ def _rows(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
             "invoice_date": r[1],
             "customer": r[2],
             "amount": r[3],
+            "source": r[4] if len(r) > 4 else "",
         }
         for r in conn.execute(
-            "SELECT invoice_number, invoice_date, customer, amount FROM customer_invoices ORDER BY invoice_date"
+            """SELECT invoice_number, invoice_date, customer, amount,
+                      COALESCE(source,'') FROM customer_invoices ORDER BY invoice_date"""
         )
     ]
     payments = [
@@ -408,6 +411,153 @@ def _rows(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
         )
     ]
     return invoices, payments
+
+
+def _books_invoice(row: dict) -> bool:
+    src = (row.get("source") or "qb-list").lower()
+    return not src.startswith("gowifi-")
+
+
+def fifo_statement(
+    invoices: list[dict],
+    payments: list[dict],
+    name: str,
+    today: date | None = None,
+) -> dict:
+    """Oldest invoice, then the payment(s) that clear it, then the next invoice."""
+    from invoice_canned import fmt_date
+
+    key = canon_key(name)
+    invs = sorted(
+        (
+            i
+            for i in invoices
+            if canon_key(i.get("customer")) == key and _books_invoice(i)
+        ),
+        key=lambda i: (i.get("invoice_date") or "", str(i.get("invoice_number") or "")),
+    )
+    pays = sorted(
+        (p for p in payments if canon_key(p.get("customer")) == key),
+        key=lambda p: (p.get("paid_on") or "", str(p.get("note") or "")),
+    )
+    pool = [
+        {
+            "date": p.get("paid_on"),
+            "left": abs(_money(p.get("amount"))),
+            "method": (p.get("method") or "eft").lower(),
+            "note": p.get("note") or "Payment",
+        }
+        for p in pays
+    ]
+    idx = 0
+    lines: list[dict] = []
+    balance = 0.0
+    billed = 0.0
+    paid = 0.0
+
+    def pay_what(note: str, method: str) -> str:
+        n = (note or "").lower()
+        if n.startswith("debit"):
+            return "Debit order"
+        if method == "cash":
+            return "Cash"
+        if method == "credit":
+            return note or "Credit"
+        return "Payment"
+
+    for inv in invs:
+        amt = _money(inv.get("amount"))
+        billed = round(billed + amt, 2)
+        balance = round(balance + amt, 2)
+        no = str(inv.get("invoice_number") or "")
+        lines.append(
+            {
+                "date": inv.get("invoice_date"),
+                "date_fmt": fmt_date(inv.get("invoice_date")),
+                "kind": "invoice",
+                "ref": no,
+                "what": f"Invoice {no}",
+                "amount": amt,
+                "balance": balance,
+            }
+        )
+        need = amt
+        while need > 0.004:
+            pick = None
+            for i, p in enumerate(pool):
+                if p["left"] > 0.004 and abs(p["left"] - need) <= 0.02:
+                    pick = i
+                    break
+            if pick is None:
+                for i, p in enumerate(pool):
+                    if p["left"] > 0.004:
+                        pick = i
+                        break
+            if pick is None:
+                break
+            use = min(pool[pick]["left"], need)
+            pool[pick]["left"] = round(pool[pick]["left"] - use, 2)
+            paid = round(paid + use, 2)
+            balance = round(balance - use, 2)
+            lines.append(
+                {
+                    "date": pool[pick]["date"],
+                    "date_fmt": fmt_date(pool[pick]["date"]),
+                    "kind": "payment",
+                    "ref": "",
+                    "what": pay_what(pool[pick]["note"], pool[pick]["method"]),
+                    "amount": -use,
+                    "balance": balance,
+                }
+            )
+            need = round(need - use, 2)
+    for p in pool:
+        left = p["left"]
+        if left <= 0.004:
+            continue
+        paid = round(paid + left, 2)
+        balance = round(balance - left, 2)
+        lines.append(
+            {
+                "date": p["date"],
+                "date_fmt": fmt_date(p["date"]),
+                "kind": "payment",
+                "ref": "",
+                "what": pay_what(p["note"], p["method"]),
+                "amount": -left,
+                "balance": balance,
+            }
+        )
+    master, sub = split_qb_name(name)
+    others = []
+    seen_subs = {key}
+    for inv in invoices:
+        cust = inv.get("customer") or ""
+        m, s = split_qb_name(cust)
+        if canon_key(m) != canon_key(master):
+            continue
+        ck = canon_key(cust)
+        if ck in seen_subs:
+            continue
+        seen_subs.add(ck)
+        others.append(
+            {
+                "name": s or m,
+                "key": ck,
+                "cancelled": "deleted" in cust.lower() or ck == "aljo van",
+            }
+        )
+    return {
+        "as_at": (today or date.today()).isoformat(),
+        "master": master or display_name(name) or name,
+        "sub": sub or master or (display_name(name) or name),
+        "own_sub": sub is None,
+        "other_subs": others,
+        "lines": lines,
+        "billed": billed,
+        "paid": paid,
+        "due": balance,
+    }
 
 
 def _bounces(conn: sqlite3.Connection, key: str) -> list[dict]:
@@ -443,16 +593,11 @@ def account_as_at(
     book = client_row(name)
     invoices, payments = _rows(conn)
     display = display_name(name) or name
+    ledger = fifo_statement(invoices, payments, display, today)
     stmt = statement_on_invoice(invoices, payments, display, as_at=today)
-    billed = round(
-        sum(_money(i["amount"]) for i in invoices if canon_key(i.get("customer")) == key),
-        2,
-    )
-    paid = round(
-        sum(abs(_money(p["amount"])) for p in payments if canon_key(p.get("customer")) == key),
-        2,
-    )
-    balance = _money(stmt.get("total_due"))
+    billed = ledger["billed"]
+    paid = ledger["paid"]
+    balance = ledger["due"]
     bounces = _bounces(conn, key)
     open_bounce = [b for b in bounces if (b.get("result") or "").lower() == "bounced"]
     pending = None
@@ -512,6 +657,11 @@ def account_as_at(
         "status": status,
         "nil": abs(due_today) <= 0.004 and not bounced,
         "statement": stmt,
+        "ledger": ledger.get("lines") or [],
+        "master": ledger.get("master"),
+        "sub": ledger.get("sub"),
+        "own_sub": ledger.get("own_sub"),
+        "other_subs": ledger.get("other_subs") or [],
         "last_payment": stmt.get("last_payment"),
     }
 
@@ -579,6 +729,31 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK oct5-collected-unpaid-0")
+    amoroc = account_as_at(conn, "Amoroc Doors", today)
+    lines = amoroc.get("ledger") or []
+    if abs((amoroc["billed"] or 0) - 9310.25) > 0.02 or abs((amoroc["paid"] or 0) - 9310.25) > 0.02:
+        print("FAIL amoroc-totals", amoroc["billed"], amoroc["paid"], amoroc["due"])
+        failed += 1
+    elif abs(amoroc["due"] or 0) > 0.02:
+        print("FAIL amoroc-due", amoroc["due"])
+        failed += 1
+    elif not lines or str(lines[0].get("ref")) != "2335" or abs((lines[0].get("amount") or 0) - 2345.25) > 0.02:
+        print("FAIL amoroc-first-invoice", lines[:2] if lines else None)
+        failed += 1
+    elif lines[1].get("kind") != "payment" or abs((lines[1].get("amount") or 0) + 2345.25) > 0.02:
+        print("FAIL amoroc-first-payment", lines[1] if len(lines) > 1 else None)
+        failed += 1
+    elif any("699" in str(r.get("amount")) and r.get("kind") == "invoice" and abs((r.get("amount") or 0) - 699) < 0.02 for r in lines):
+        print("FAIL amoroc-has-aljo", [r for r in lines if abs((r.get("amount") or 0)) == 699])
+        failed += 1
+    elif not amoroc.get("own_sub") or (amoroc.get("master") or "") != "Amoroc Doors":
+        print("FAIL amoroc-own-sub", amoroc.get("master"), amoroc.get("own_sub"))
+        failed += 1
+    elif not any(s.get("cancelled") and "aljo" in (s.get("key") or "") for s in amoroc.get("other_subs") or []):
+        print("FAIL amoroc-aljo-other-sub", amoroc.get("other_subs"))
+        failed += 1
+    else:
+        print("OK amoroc-statement", amoroc["due"], "lines", len(lines))
     conn.close()
     return failed
 

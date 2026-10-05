@@ -35,6 +35,9 @@ def money(value, with_r: bool = True) -> str:
 
 def client_key(name: str | None) -> str:
     words = [w for w in re.findall(r"[a-z0-9]+", (name or "").lower()) if w not in TITLES]
+    raw = " ".join(words)
+    if "aljo" in raw:
+        return "aljo van"
     key = " ".join(words[:2])
     try:
         from billing import _NAME_ALIASES

@@ -272,6 +272,11 @@ def cards_for_export(
                         "suspension_notice": st.get("suspension_notice"),
                         "in_do_grace": st.get("in_do_grace"),
                         "monthly": st.get("monthly"),
+                        "ledger": st.get("ledger") or [],
+                        "master": st.get("master"),
+                        "sub": st.get("sub"),
+                        "own_sub": st.get("own_sub"),
+                        "other_subs": st.get("other_subs") or [],
                         "last_paid_on": (st.get("last_payment") or {}).get("date")
                         if isinstance(st.get("last_payment"), dict)
                         else None,
@@ -315,6 +320,11 @@ def cards_for_export(
             "paid": acc.get("paid") or 0,
             "due": due,
             "paid_up": bool(acc.get("nil") or acc.get("status") == "paid-up"),
+            "ledger": acc.get("ledger") or [],
+            "master": acc.get("master"),
+            "sub": acc.get("sub"),
+            "own_sub": acc.get("own_sub"),
+            "other_subs": acc.get("other_subs") or [],
             "dot": dot,
             "dot_label": dot_label,
             "we_suspended": we_suspended,
@@ -398,6 +408,11 @@ def cards_for_export(
                     card["paid"] = st.get("paid") or 0
                     card["due"] = st.get("due")
                     card["paid_up"] = bool(st.get("nil"))
+                    card["ledger"] = st.get("ledger") or []
+                    card["master"] = st.get("master")
+                    card["sub"] = st.get("sub")
+                    card["own_sub"] = st.get("own_sub")
+                    card["other_subs"] = st.get("other_subs") or []
                     card.update(_grace(st, today))
             except Exception:
                 pass

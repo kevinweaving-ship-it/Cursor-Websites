@@ -137,6 +137,15 @@ def canon_key(name: str | None) -> str:
     return _NAME_ALIASES.get(key, key)
 
 
+def split_qb_name(name: str | None) -> tuple[str, str | None]:
+    """QuickBooks master:sub. No colon = the master's own sub-account."""
+    raw = re.sub(r"\s*\(deleted\)\s*", "", name or "", flags=re.I).strip()
+    if ":" in raw:
+        master, sub = raw.split(":", 1)
+        return master.strip(), sub.strip() or None
+    return raw, None
+
+
 def display_name(name: str | None) -> str:
     key = canon_key(name)
     for row in CLIENTS:
