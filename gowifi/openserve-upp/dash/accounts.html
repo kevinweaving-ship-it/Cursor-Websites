@@ -74,6 +74,13 @@ table.compact tr:last-child td { border-bottom:0; }
 <script>
 const $ = (s,el=document)=>el.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const clock = v => {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  const sa = new Date(d.getTime() + 2*60*60*1000);
+  return String(sa.getUTCHours()).padStart(2,"0")+":"+String(sa.getUTCMinutes()).padStart(2,"0");
+};
 const pillFor = (status) => {
   const s=(status||"").toLowerCase();
   if (s==="active") return `<span class="pill ok">Active</span>`;
@@ -84,7 +91,8 @@ const pillFor = (status) => {
 };
 function render(data){
   const c=data.counts||{};
-  $("#sub").textContent = `As at ${data.as_at||"—"} · sync ${data.synced_at||"—"} · one status per line`;
+  const checked = clock(data.synced_at);
+  $("#sub").textContent = checked ? `Last check ${checked}` : "Openserve line status · join dates";
   const monthsAsClient = (iso) => {
     if (!iso) return "—";
     const j = new Date(iso + "T00:00:00");
@@ -118,7 +126,7 @@ function render(data){
   const suspendedSNs = new Set((data.suspended||[]).map(r=>r.service_number).filter(Boolean));
   const fibreFetch = r => {
     const bits = [r.access_status, r.partner_status].filter(Boolean);
-    const when = r.fibre_fetched_at ? String(r.fibre_fetched_at).replace("T"," ").replace("+00:00"," UTC") : "";
+    const when = clock(r.fibre_fetched_at || data.synced_at);
     if (!bits.length && !when) return `<div class="meta">Fibre status not fetched</div>`;
     return `<div class="meta">${esc(bits.join(" · ")||"fetched")}${when?` · ${esc(when)}`:""}</div>`;
   };
