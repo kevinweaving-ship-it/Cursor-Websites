@@ -241,7 +241,7 @@ def _poll(method: str, key: str, token_field: str, token: str, tries: int = 8) -
     return "FILE NOT READY"
 
 
-def pull(conn: sqlite3.Connection, days: int = 14) -> dict:
+def pull(conn: sqlite3.Connection, days: int = 900) -> dict:
     conn.executescript(SCHEMA)
     env = _load_env()
     key = service_key(env)

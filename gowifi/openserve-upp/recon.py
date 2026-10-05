@@ -348,6 +348,11 @@ def ingest(conn: sqlite3.Connection) -> dict:
     nc_n = 0
     for row in _xls_rows(NETCASH_XLS):
         alloc = _netcash_alloc(row)
+        xls_batch = (
+            str(row.get("paid_on") or "").replace("-", "")
+            if alloc.get("alloc_key") and row.get("paid_on")
+            else None
+        )
         conn.execute(
             """INSERT OR IGNORE INTO netcash_tx
                (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
@@ -370,8 +375,8 @@ def ingest(conn: sqlite3.Connection) -> dict:
                 alloc["alloc_to"],
                 alloc["alloc_key"],
                 alloc["result"],
-                None,
-                None,
+                xls_batch,
+                alloc.get("alloc_key") and str(row.get("paid_on") or "").replace("-", "") or None,
                 None,
                 None,
                 0 if alloc["result"] == "paid" else abs(_money(row.get("payment")) or _money(row.get("amount"))),
@@ -546,6 +551,75 @@ def client_receipts(conn: sqlite3.Connection) -> list[dict]:
     return out
 
 
+def mirror_do_runs(conn: sqlite3.Connection) -> int:
+    """Every collected D/O is a Netcash batch row. Oct 5 stays 2571994; the rest use the run date."""
+    ensure(conn)
+    n = 0
+    try:
+        rows = conn.execute(
+            """SELECT paid_on, customer, amount FROM customer_payments
+               WHERE method='do' OR LOWER(COALESCE(note,'')) LIKE 'debit%'"""
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return 0
+    for paid_on, customer, amount in rows:
+        key = canon_key(customer)
+        if not key or not paid_on:
+            continue
+        amt = abs(_money(amount))
+        if amt <= 0.004:
+            continue
+        batch = "2571994" if str(paid_on)[:10] == "2026-10-05" else str(paid_on).replace("-", "")[:8]
+        exists = conn.execute(
+            """SELECT batch_id FROM netcash_tx
+               WHERE paid_on=? AND alloc_key=? AND ABS(amount)>=? - 0.02""",
+            (paid_on, key, amt),
+        ).fetchone()
+        if exists:
+            if not exists[0]:
+                conn.execute(
+                    """UPDATE netcash_tx SET batch_id=?
+                       WHERE paid_on=? AND alloc_key=? AND ABS(amount)>=? - 0.02
+                         AND COALESCE(batch_id,'')=''""",
+                    (batch, paid_on, key, amt),
+                )
+            continue
+        name = display_name(customer) or customer
+        conn.execute(
+            """INSERT OR IGNORE INTO netcash_tx
+               (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
+                account, bank_status, alloc_kind, alloc_to, alloc_key, result, batch_id,
+                account_ref, tracking_ref, extra_ref, unpaid_amount, source)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                paid_on,
+                batch,
+                name,
+                f"Batch {batch} paid",
+                0,
+                amt,
+                amt,
+                None,
+                "Payment",
+                "Accounts Receivable (A/R)",
+                "Collected",
+                "client_paid",
+                name,
+                key,
+                "paid",
+                batch,
+                None,
+                None,
+                None,
+                0,
+                "netcash-batch",
+            ),
+        )
+        n += 1
+    conn.commit()
+    return n
+
+
 def client_unpaid(conn: sqlite3.Connection) -> list[dict]:
     out = []
     try:
@@ -605,11 +679,17 @@ def self_test() -> int:
             """SELECT result, unpaid_amount FROM netcash_tx
                WHERE batch_id='2571994' AND alloc_key='g cupido'"""
         ).fetchone()
+        n_batches = conn.execute(
+            "SELECT COUNT(DISTINCT batch_id) FROM netcash_tx WHERE COALESCE(batch_id,'')!=''"
+        ).fetchone()[0]
         if not bing or bing[0] != "paid" or bing[1] != "1311699279" or bing[4]:
             print("FAIL bing-batch-paid", bing)
             failed += 1
         elif not cup or cup[0] != "unpaid":
             print("FAIL cupido-only-unpaid", cup)
+            failed += 1
+        elif n_batches < 8:
+            print("FAIL netcash-history-batches", n_batches)
             failed += 1
         else:
             print(

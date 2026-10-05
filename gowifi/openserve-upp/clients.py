@@ -112,6 +112,18 @@ def _pick_line(rows: list[dict]) -> dict | None:
     return (live or rows or [None])[0]
 
 
+def _line_account_key(row: dict) -> str:
+    """Fibre site wins over a shared customer name. Sleepy Hollow is Noordhoek, not HH."""
+    blob = " ".join(
+        str(row.get(k) or "") for k in ("customer", "address", "site", "location")
+    ).lower()
+    if any(w in blob for w in ("noordhoek", "nordhoek", "sleepy hollow")):
+        return "bing noordhoek"
+    if any(w in blob for w in ("hermanus heights", "francolin")):
+        return "annette bing"
+    return canon_key(row.get("customer"))
+
+
 def _invoice_profile(conn: sqlite3.Connection | None, name: str) -> dict:
     if conn is None:
         return {}
@@ -207,7 +219,7 @@ def cards_for_export(
     for row in fibre_rows:
         if is_incoming(row=row):
             continue
-        key = canon_key(row.get("customer"))
+        key = _line_account_key(row)
         if not key:
             unmatched.append(row)
             continue
@@ -252,7 +264,9 @@ def cards_for_export(
         if key in used:
             continue
         used.add(key)
-        line = _pick_line(by_line.get(key) or [])
+        fibre = (acc.get("access") or "") == "fibre"
+        book = next((c for c in CLIENTS if canon_key(c["name"]) == key), None)
+        line = _pick_line(by_line.get(key) or []) if fibre else None
         hist = _invoice_profile(conn, acc.get("name") or "")
         cust = customer_lookup(acc.get("name"))
         if conn is not None:
@@ -286,9 +300,9 @@ def cards_for_export(
             except Exception:
                 pass
         started = (
-            (line or {}).get("activated")
-            or (line or {}).get("installed")
-            or (line or {}).get("joined")
+            ((line or {}).get("activated") if fibre else None)
+            or ((line or {}).get("installed") if fibre else None)
+            or ((line or {}).get("joined") if fibre else None)
             or hist.get("first_invoice")
             or acc.get("started")
         )
@@ -300,13 +314,13 @@ def cards_for_export(
             dot, dot_label = "cancelled", "Cancelled"
         grace = _grace(acc, today)
         due = acc.get("due")
-        fibre_b = (line or {}).get("service_number") if acc.get("access") == "fibre" else None
+        fibre_b = (line or {}).get("service_number") if fibre else None
+        book_addr = (book or {}).get("address") or acc.get("address")
+        cust_addr = (cust or {}).get("address")
+        line_addr = (line or {}).get("address") if fibre else None
         card = {
             "name": acc.get("name"),
-            "address": acc.get("address")
-            or (line or {}).get("address")
-            or (cust or {}).get("address")
-            or hist.get("address"),
+            "address": book_addr or cust_addr or line_addr or hist.get("address"),
             "phone": acc.get("phone") or (line or {}).get("phone") or (cust or {}).get("phone"),
             "email": acc.get("email") or (cust or {}).get("email"),
             "started": _parse(started).isoformat() if _parse(started) else None,
@@ -479,12 +493,12 @@ def self_test() -> int:
     }
     broken = {
         "service_number": "B110000001",
-        "customer": "Bing Noordhoek Fibre",
+        "customer": "Annette Bing",
         "line_status": "active",
         "access_status": "Fault",
         "partner_status": "IspActive",
-        "address": "1 Test",
-        "activated": "2024-01-01",
+        "address": "13 SLEEPY HOLLOW LN, NOORDHOEK, NOORDHOEK",
+        "activated": "2026-03-25",
         "product": "Webstream",
         "speed": "25/25",
     }
@@ -550,6 +564,22 @@ def self_test() -> int:
         failed += 1
     elif (by["Bing Noordhoek Fibre"].get("access") or "") != "fibre":
         print("FAIL noordhoek-not-fibre", by["Bing Noordhoek Fibre"])
+        failed += 1
+    elif "hermanus heights" not in (by["Annette Bing HH"].get("address") or "").lower():
+        print("FAIL hh-address-hermanus-heights", by["Annette Bing HH"].get("address"))
+        failed += 1
+    elif "sleepy" in (by["Annette Bing HH"].get("address") or "").lower() or "noordhoek" in (
+        by["Annette Bing HH"].get("address") or ""
+    ).lower():
+        print("FAIL hh-not-noordhoek-address", by["Annette Bing HH"].get("address"))
+        failed += 1
+    elif "sleepy" not in (by["Bing Noordhoek Fibre"].get("address") or "").lower() and "noordhoek" not in (
+        by["Bing Noordhoek Fibre"].get("address") or ""
+    ).lower():
+        print("FAIL noordhoek-address", by["Bing Noordhoek Fibre"].get("address"))
+        failed += 1
+    elif (by["Annette Bing HH"].get("started") or "") == "2026-03-25":
+        print("FAIL hh-not-fibre-start", by["Annette Bing HH"])
         failed += 1
     elif by["Lategan"]["dot"] != "suspended":
         print("FAIL lategan-orange", by["Lategan"])

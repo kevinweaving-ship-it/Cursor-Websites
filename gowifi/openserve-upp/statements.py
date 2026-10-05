@@ -310,6 +310,13 @@ def ingest(conn: sqlite3.Connection) -> dict:
 
     n_nc = _apply_netcash_batch(conn)
     n_synth = _synth_do(conn, kind_by_no)
+    n_runs = 0
+    try:
+        from recon import mirror_do_runs
+
+        n_runs = mirror_do_runs(conn)
+    except Exception:
+        n_runs = 0
     conn.commit()
     return {
         "invoices": n_inv,
@@ -320,6 +327,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
         "bounces": n_bounce,
         "netcash": n_nc,
         "do_synth": n_synth,
+        "do_runs": n_runs,
     }
 
 
@@ -914,7 +922,9 @@ def fifo_statement(
             if p["left"] <= 0.004:
                 return False
             if _is_do(p):
-                return bool(collect_day) and (p.get("date") or "")[:10] == collect_day
+                if not collect_day:
+                    return False
+                return (p.get("date") or "")[:7] == collect_day[:7]
             return True
 
         while need > 0.004:
@@ -977,6 +987,36 @@ def fifo_statement(
                         "tone": "overdue",
                     }
                 )
+    open_invs = [r for r in lines if r.get("kind") == "invoice" and _money(r.get("open")) > 0.004]
+    for inv_row in open_invs:
+        need = _money(inv_row.get("open"))
+        no = str(inv_row.get("ref") or "")
+        while need > 0.004:
+            pick = None
+            for i, p in enumerate(pool):
+                if p["left"] > 0.004:
+                    pick = i
+                    break
+            if pick is None:
+                break
+            use = min(pool[pick]["left"], need)
+            pool[pick]["left"] = round(pool[pick]["left"] - use, 2)
+            paid = round(paid + use, 2)
+            balance = round(balance - use, 2)
+            how = pay_what(pool[pick]["note"], pool[pick]["method"])
+            lines.append(
+                {
+                    "date": pool[pick]["date"],
+                    "date_fmt": fmt_date(pool[pick]["date"]),
+                    "kind": "payment",
+                    "ref": no,
+                    "what": f"{how} · Invoice {no}",
+                    "amount": -use,
+                    "balance": balance,
+                }
+            )
+            need = round(need - use, 2)
+        inv_row["open"] = need
     for p in pool:
         left = p["left"]
         if left <= 0.004:
@@ -1392,6 +1432,25 @@ def self_test() -> int:
     else:
         print("OK invoice-tones", "matched", "pending", "overdue")
         print("OK cupido-unpaid", cup.get("due"))
+    ann = account_as_at(conn, "Annette Bing HH", today)
+    ann_old = [
+        r
+        for r in (ann.get("ledger") or [])
+        if r.get("kind") == "invoice" and r.get("show") and (r.get("date") or "") < "2026-01-01"
+    ]
+    ann_do = [
+        r
+        for r in (ann.get("ledger") or [])
+        if r.get("kind") == "payment" and "Debit" in (r.get("what") or "")
+    ]
+    if ann_old:
+        print("FAIL ann-old-invoices-showing", [(r.get("date"), r.get("ref"), r.get("open")) for r in ann_old[:8]])
+        failed += 1
+    elif len(ann_do) < 20:
+        print("FAIL ann-missing-do-history", len(ann_do))
+        failed += 1
+    else:
+        print("OK ann-hh-do-history", len(ann_do), "due", ann.get("due"))
     conn.close()
     return failed
 

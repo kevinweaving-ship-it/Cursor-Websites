@@ -82,6 +82,14 @@ def self_test() -> int:
     elif lookup("Bing, Annette - HH")["name"] == lookup("Annette Bing Nordhoek")["name"]:
         print("FAIL hh-vs-nordhoek")
         failed += 1
+    elif "hermanus heights" not in (lookup("Annette Bing HH").get("address") or "").lower():
+        print("FAIL hh-lookup-heights", lookup("Annette Bing HH"))
+        failed += 1
+    elif "sleepy" not in (lookup("Bing Noordhoek Fibre").get("address") or "").lower() and "noordhoek" not in (
+        lookup("Annette Bing Nordhoek").get("address") or ""
+    ).lower():
+        print("FAIL noordhoek-lookup-addr", lookup("Annette Bing Nordhoek"))
+        failed += 1
     elif lookup("Mr Derek van Zyl") is None or lookup("Mr Ruandré Wessels") is None:
         print("FAIL new-customers")
         failed += 1

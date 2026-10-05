@@ -25,7 +25,7 @@ DO_DAY = 1
 CLIENTS = [
     {"ref": "Wantling", "name": "David Wantling", "amount": 439.00, "method": "debit-order", "access": "wireless", "sku": None},
     {"ref": "DEV001", "name": "Dirk De Villiers", "amount": 399.00, "method": "debit-order", "access": "wireless", "sku": None},
-    {"ref": "BIN001", "name": "Annette Bing HH", "amount": 429.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "BIN001", "name": "Annette Bing HH", "amount": 429.00, "method": "debit-order", "access": "wireless", "sku": None, "address": "13 Francolin Close, Hermanus Heights, Hermanus"},
     {"ref": "HUN001", "name": "Stan Hundermark", "amount": 329.00, "method": "debit-order", "access": "wireless", "sku": None},
     {"ref": "De Gruchy OS Fiber 200", "name": "Phillip De Gruchy", "amount": 1219.00, "method": "debit-order", "access": "fibre", "sku": "OWS300M", "discount": True},
     {"ref": "Jean de Villiers", "name": "Jean de Villiers", "amount": 550.00, "method": "debit-order", "access": "wireless", "sku": None},
@@ -34,7 +34,7 @@ CLIENTS = [
     {"ref": "GeoCorp", "name": "GeoCorp", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
     {"ref": "Bryant Michael", "name": "Bryant Michael", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
     {"ref": "Murray DH", "name": "Murray DH", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
-    {"ref": "Bing Noordhoek Fibre", "name": "Bing Noordhoek Fibre", "amount": 599.00, "method": "debit-order", "access": "fibre", "sku": "OWS25M"},
+    {"ref": "Bing Noordhoek Fibre", "name": "Bing Noordhoek Fibre", "amount": 599.00, "method": "debit-order", "access": "fibre", "sku": "OWS25M", "address": "13 Sleepy Hollow Lane, Noordhoek, Cape Town"},
     {"ref": "G Cupido", "name": "G Cupido", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
     {"ref": "Gordon Neethling", "name": "Gordon Neethling", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
     {"ref": None, "name": "Lategan", "amount": 999.00, "method": "eft", "access": "fibre", "sku": "OWS100M"},
@@ -443,6 +443,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
             "sku": row.get("sku"),
             "package": by_sku(row.get("sku")),
             "discount": bool(row.get("discount")),
+            "address": row.get("address"),
         }
     for pay in payments:
         key = canon_key(pay.get("customer"))
@@ -457,6 +458,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "sku": None,
                 "package": None,
                 "discount": False,
+                "address": None,
             }
     aliased_inv = [{**i, "customer": display_name(i.get("customer")) or i.get("customer")} for i in invoices]
     aliased_pay = [{**p, "customer": display_name(p.get("customer")) or p.get("customer")} for p in payments]
@@ -532,6 +534,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "pending_do": pending_do,
                 "last_payment": last_pay,
                 "last_paid_on": (last_pay.get("date") or last_pay.get("paid_on")) if isinstance(last_pay, dict) else None,
+                "address": meta.get("address"),
             }
         )
     accounts.sort(
@@ -693,6 +696,15 @@ def self_test() -> int:
         failed += 1
     elif bing_wifi["access"] != "wireless" or bing_wifi.get("sku"):
         print("FAIL bing-hh-is-wifi", bing_wifi)
+        failed += 1
+    elif "hermanus heights" not in (bing_wifi.get("address") or "").lower():
+        print("FAIL bing-hh-hermanus-heights", bing_wifi.get("address"))
+        failed += 1
+    elif "sleepy" in (bing_wifi.get("address") or "").lower() or "noordhoek" in (bing_wifi.get("address") or "").lower():
+        print("FAIL bing-hh-not-noordhoek", bing_wifi.get("address"))
+        failed += 1
+    elif "noordhoek" not in (nord.get("address") or "").lower() and "sleepy" not in (nord.get("address") or "").lower():
+        print("FAIL noordhoek-address", nord.get("address"))
         failed += 1
     elif builders["access"] != "fibre" or geo["access"] != "fibre":
         print("FAIL builders-geocorp-fibre", builders, geo)
