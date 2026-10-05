@@ -345,6 +345,7 @@ def draft_customer_invoices(conn: sqlite3.Connection, today: date | None = None)
     ensure_tables(conn)
     from billing import invoice_day_on, period_for, period_label
     from invoice_canned import client_key
+    from site_lines import is_incoming
 
     today = today or date.today()
     inv_day = invoice_day_on(today)
@@ -365,8 +366,10 @@ def draft_customer_invoices(conn: sqlite3.Connection, today: date | None = None)
     except sqlite3.OperationalError:
         pass
     for svc in services:
-        number += 1
         sn = svc[0]
+        if is_incoming(sn):
+            continue
+        number += 1
         customer = None
         product = None
         try:
@@ -610,10 +613,12 @@ def self_test() -> int:
     conn.execute(
         "CREATE TABLE services (service_number TEXT, exclusive_status TEXT)"
     )
+    conn.execute("INSERT INTO services VALUES ('B110047678','active')")
     conn.execute("INSERT INTO services VALUES ('B110033875','active')")
     drafts = draft_customer_invoices(conn, date(2026, 10, 4))
     if (
-        not drafts
+        len(drafts) != 1
+        or drafts[0]["service_number"] != "B110047678"
         or drafts[0]["invoice_number"] != 3040
         or drafts[0]["invoice_date"] != "2026-09-17"
         or drafts[0]["period"] != "2026-10"

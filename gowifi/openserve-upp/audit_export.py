@@ -450,7 +450,7 @@ def build(conn: sqlite3.Connection) -> dict:
         mail_coverage_for_export,
     )
 
-    from site_lines import apply_site_line, incoming_fibre_for_export, incoming_related_label
+    from site_lines import apply_site_line, incoming_fibre_for_export, incoming_related_label, pop_cost
 
     from books import books_for_export
 
@@ -611,6 +611,8 @@ def build(conn: sqlite3.Connection) -> dict:
             row["story_label"] = story_label(row, others, story)
 
     incoming_fibre = incoming_fibre_for_export(all_rows)
+    billing = (books or {}).get("billing") or {}
+    pop = pop_cost(incoming_fibre, billed_wireless=billing.get("billed_wireless"))
 
     live_sns = {r["service_number"] for r in active} | {r["service_number"] for r in suspended}
     cancelled_sns = {r["service_number"] for r in cancelled_lines}
@@ -655,6 +657,11 @@ def build(conn: sqlite3.Connection) -> dict:
         }
     )
 
+    # Incoming fibre stays on the POP card only — not a client row.
+    active = [r for r in active if not r.get("incoming_role")]
+    suspended = [r for r in suspended if not r.get("incoming_role")]
+    cancelled_lines = [r for r in cancelled_lines if not r.get("incoming_role")]
+
     return {
         "as_at": today.isoformat(),
         "synced_at": sync["finished_at"] if sync else None,
@@ -671,6 +678,7 @@ def build(conn: sqlite3.Connection) -> dict:
             "incoming_fibre": len(incoming_fibre),
         },
         "incoming_fibre": incoming_fibre,
+        "pop_cost": pop,
         "active": active,
         "suspended": suspended,
         "cancelled_lines": cancelled_lines,

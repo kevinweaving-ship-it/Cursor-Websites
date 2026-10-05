@@ -150,7 +150,10 @@ function render(data){
     return text ? `<div class="meta">${esc(text)}</div>` : "";
   };
   const tenure = r => {
-    if (r.line_status==="cancelled") return r.months_label && r.months_label!=="—" ? "Was "+r.months_label : "Cancelled";
+    if (r.months_label && r.months_label!=="—") {
+      return r.line_status==="cancelled" ? "Was "+r.months_label : r.months_label;
+    }
+    if (r.line_status==="cancelled") return "Cancelled";
     return monthsAsClient(r.activated || r.installed || r.joined);
   };
   const cancelledSNs = new Set((data.cancelled_lines||[]).map(r=>r.service_number).filter(Boolean));
@@ -161,18 +164,26 @@ function render(data){
     if (!bits.length && !when) return `<div class="meta">Fibre status not fetched</div>`;
     return `<div class="meta">${esc(bits.join(" · ")||"fetched")}${when?` · ${esc(when)}`:""}</div>`;
   };
+  const isClient = r => !r.incoming_role && !r.not_a_client;
   const incomingRows = (data.incoming_fibre||[]).map(r=>`
     <tr>
-      <td><div class="name">${esc(r.incoming_label||r.incoming_role||"—")}</div><div class="meta">${esc(r.uisp_site||"VK Pop")} · also on UISP</div></td>
+      <td>
+        <div class="name">${esc(r.incoming_label||r.incoming_role||"—")}</div>
+        <div class="meta">${esc(r.uisp_site||"VK Pop")} · also on UISP · not a client · cost of wireless</div>
+        <div class="meta">${esc(r.address||"")}</div>
+        ${hist(r)}
+      </td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor(r.line_status)}${fibreFetch(r)}</td>
-      <td class="num">${esc(r.speed)}</td>
+      <td class="num">${esc(r.speed)}<div class="meta">${esc(tenure(r))}</div></td>
+      <td class="num">${money(r.cost)}<div class="meta">incl VAT we pay</div></td>
     </tr>`).join("");
-  const clientName = r => {
-    const extra = r.incoming_label ? `<div class="meta">${esc(r.incoming_label)}</div>` : "";
-    return `<div class="name">${esc(r.customer)}</div>${extra}<div class="meta">${esc(r.address)}</div>`;
-  };
-  const activeRows = (data.active||[]).filter(r=>r.line_status==="active" && !cancelledSNs.has(r.service_number) && !suspendedSNs.has(r.service_number)).map(r=>`
+  const pop = data.pop_cost || {};
+  const popBill = (data.books&&data.books.billing)||{};
+  const wirelessBilled = pop.billed_wireless!=null ? pop.billed_wireless : popBill.billed_wireless;
+  const popCover = pop.cover!=null ? pop.cover : (wirelessBilled!=null && pop.cost!=null ? Number(wirelessBilled)-Number(pop.cost) : null);
+  const clientName = r => `<div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>`;
+  const activeRows = (data.active||[]).filter(r=>isClient(r) && r.line_status==="active" && !cancelledSNs.has(r.service_number) && !suspendedSNs.has(r.service_number)).map(r=>`
     <tr>
       <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
@@ -181,14 +192,14 @@ function render(data){
       <td class="num">${esc(tenure(r))}</td>
     </tr>`).join("");
   const taken = new Set((data.active||[]).concat(data.suspended||[]).map(r=>r.service_number).filter(Boolean));
-  const cancelledLineRows = (data.cancelled_lines||[]).filter(r=>!taken.has(r.service_number)).map(r=>`
+  const cancelledLineRows = (data.cancelled_lines||[]).filter(r=>isClient(r) && !taken.has(r.service_number)).map(r=>`
     <tr>
       <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor("cancelled")} ${kindPill(r)}${fibreFetch(r)}</td>
       <td class="num">${esc(tenure(r))}</td>
     </tr>`).join("");
-  const suspendedRows = (data.suspended||[]).filter(r=>r.line_status==="suspended" && !cancelledSNs.has(r.service_number)).map(r=>`
+  const suspendedRows = (data.suspended||[]).filter(r=>isClient(r) && r.line_status==="suspended" && !cancelledSNs.has(r.service_number)).map(r=>`
     <tr>
       <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)} · ${esc(r.suspend_stints||0)} stint${(r.suspend_stints||0)===1?"":"s"}</div></td>
@@ -197,7 +208,7 @@ function render(data){
       <td class="num">${esc(r.suspend_for)}<div class="meta">installed ${esc(r.installed_label || r.joined_label)}</div></td>
     </tr>`).join("");
   const names={};
-  (data.active||[]).concat(data.cancelled_lines||[], data.suspended||[]).forEach(r=>{ if(r.service_number) names[r.service_number]=r.customer; });
+  (data.active||[]).concat(data.cancelled_lines||[], data.suspended||[], data.incoming_fibre||[]).forEach(r=>{ if(r.service_number) names[r.service_number]=r.customer || r.incoming_label; });
   const cov=data.mail_coverage||{};
   const accountRows=(data.billing_accounts||[]).map(r=>`
     <tr>
@@ -229,11 +240,16 @@ function render(data){
       <div class="card"><div class="k">Cancelled</div><div class="v">${c.cancelled_lines??0}</div></div>
     </div>
     <h2>GoWiFi incoming fibre · VK Pop</h2>
-    <div class="card"><div class="meta">Own card for UISP: these two Openserve lines are the incoming fibre at VK Pop. A fibre fault here takes the wireless network with it. They also stay on the fibre list below.</div></div>
+    <div class="card"><div class="meta">${esc(pop.note||"Not clients. All info lives on this POP card. These Openserve lines are the incoming fibre at VK Pop — the backhaul cost that wireless income has to cover. A fibre fault here takes the wireless network with it.")}</div></div>
+    <div class="grid">
+      <div class="card"><div class="k">Monthly cost</div><div class="v">${money(pop.cost)}</div><div class="meta">${pop.lines||0} lines · incl VAT we pay</div></div>
+      <div class="card"><div class="k">Wireless billed</div><div class="v">${money(wirelessBilled)}</div><div class="meta">income these fibres have to generate</div></div>
+      <div class="card"><div class="k">Cover</div><div class="v">${money(popCover)}</div><div class="meta">wireless billed − POP cost</div></div>
+    </div>
     <div class="card scroll">
       <table class="compact">
-        <thead><tr><th>Role</th><th>Line</th><th>Status</th><th>Mb</th></tr></thead>
-        <tbody>${incomingRows || `<tr><td colspan="4" class="meta">None mapped</td></tr>`}</tbody>
+        <thead><tr><th>Role</th><th>Line</th><th>Status</th><th>Mb</th><th>Cost</th></tr></thead>
+        <tbody>${incomingRows || `<tr><td colspan="5" class="meta">None mapped</td></tr>`}</tbody>
       </table>
     </div>
     ${(() => {

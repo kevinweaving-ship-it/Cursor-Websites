@@ -19,10 +19,11 @@ INCOMING_JS = f"""function paintIncomingFibre(sel, siteName){{ /* {INCOMING_MARK
       const want=(siteName||"").trim().toLowerCase();
       const list=rows.filter(r=>!want || (r.uisp_site||"").trim().toLowerCase()===want);
       if(!list.length){{ el.remove(); return; }}
-      const items=list.map(r=>`<div class="item"><div class="row"><span class="name">${{r.incoming_label||r.incoming_role}}</span>${{pill(r.line_status)}}</div><div class="meta">${{r.service_number}} · ${{r.speed}} · ${{r.product}}</div></div>`).join("");
+      const items=list.map(r=>`<div class="item"><div class="row"><span class="name">${{r.incoming_label||r.incoming_role}}</span>${{pill(r.line_status)}}</div><div class="meta">${{r.service_number}} · ${{r.speed}} · ${{r.product}}${{r.cost!=null?` · cost ${{Number(r.cost).toFixed(2)}}`:""}}</div>${{r.address?`<div class="meta">${{r.address}}</div>`:""}}${{r.story_label?`<div class="meta">${{r.story_label}}</div>`:""}}</div>`).join("");
+      const cost=list.reduce((s,r)=>s+Number(r.cost||0),0);
       el.outerHTML=`<a class="card tap" href="#/accounts" style="display:block;margin-bottom:10px">
-        <div class="row"><span class="name">Incoming fibre · ${{list[0].uisp_site||"VK Pop"}}</span><span class="pill warn">UISP</span></div>
-        <div class="meta">GoWiFi wireless depends on these Openserve lines</div>
+        <div class="row"><span class="name">Incoming fibre · ${{list[0].uisp_site||"VK Pop"}}</span><span class="pill warn">not a client</span></div>
+        <div class="meta">Cost of wireless · backhaul WiFi income has to cover${{cost?` · ${{cost.toFixed(2)}} / month`:""}}</div>
         <div class="list">${{items}}</div>
       </a>`;
     }}).catch(()=>{{ el.remove(); }});
