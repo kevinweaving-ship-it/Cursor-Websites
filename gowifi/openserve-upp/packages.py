@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
-"""Current Openserve wholesale rentals (ex VAT).
+"""Current Openserve wholesale + GoWiFi retail.
 
-Source: Makgosi Mabaso partner letters —
-  • Pricing Updates effective 1 April 2026 (Table 2 postpaid, Table 4 prepaid)
-  • 1Gbps FTTH from 1 July 2026 (OFC 1000 Lite R1 160 / OWS 1000 R1 275)
+Openserve letters are ex VAT. GoWiFi is not VAT registered, so our cost
+is the letter price × 1.15 (VAT we pay and cannot claim). We do not
+charge VAT on retail.
 
-Each March/April, watch for the next Openserve increase and WhatsApp
-a mailshot to clients before the 1 April change.
+Retail on live packages is what we already invoice. Everything else —
+including 1000 Mbps — uses the same markup as Webstream 50/25
+(R759 / R609.50), then rounds up to the next R99.
+
+Source: Makgosi Mabaso partner letters 1 Apr 2026 / 1 Gbps 1 Jul 2026.
+Each March/April, watch for the next increase and WhatsApp clients.
 """
 from __future__ import annotations
 
+import math
 import sqlite3
 from datetime import date
 
 VAT = 1.15
+VAT_REGISTERED = False
 APRIL_2026 = date(2026, 4, 1)
 GIGABIT_FROM = date(2026, 7, 1)
 SOURCE = "Openserve partner letter 1 Apr 2026 / 1 Gbps 1 Jul 2026"
@@ -100,13 +106,16 @@ PREPAID = [
     {"product": "OWSP", "down": 50, "up": None, "install": 370.00, "d3": 85.00, "d7": 160.00, "d14": 285.00, "d30": 550.00},
 ]
 
-# GoWiFi sell (incl VAT) for speeds we actually invoice. Phillip De Gruchy
-# 1219 on OWS300 is a client discount, not the list.
+# Live GoWiFi retail (no VAT charged). 50/25 sets the house markup.
 SELL = {
     "OWS-25-25": 429.00,  # Bing HH; HPP EFT 599
     "OWS-50-25": 759.00,
     "OWS-100-50": 999.00,
 }
+MARKUP_SKU = "OWS-50-25"
+MARKUP_LETTER_EX = 530.00
+MARKUP_COST = round(MARKUP_LETTER_EX * VAT, 2)  # 609.50 — VAT we pay
+MARKUP = SELL[MARKUP_SKU] / MARKUP_COST
 
 EXTRAS = [
     {"code": "new-install", "label": "New install", "amount": 0.00, "on_monthly_do": False, "kind": "once-off",
@@ -130,9 +139,13 @@ CREATE TABLE IF NOT EXISTS openserve_wholesale (
     up INTEGER,
     speed TEXT,
     cost_ex_vat REAL,
+    cost REAL,
     cost_incl_vat REAL,
     cost_pre_april REAL,
+    cost_pre_april_incl REAL,
     increase REAL,
+    retail REAL,
+    markup REAL,
     effective_from TEXT NOT NULL,
     kind TEXT NOT NULL,
     source TEXT,
@@ -157,79 +170,116 @@ def _money(ex: float | None) -> tuple[float | None, float | None]:
     return float(ex), round(float(ex) * VAT, 2)
 
 
+def round_up_99(amount: float) -> int:
+    """Next price ending in 99 that is >= amount (R199, R299, … R1899)."""
+    if amount <= 99:
+        return 99
+    return int(math.ceil((amount - 99) / 100.0) * 100 + 99)
+
+
+def retail_for(sku: str, cost: float | None) -> tuple[float | None, float | None, str]:
+    """Live sell, or house markup on VAT-in cost, rounded up to R99."""
+    live = SELL.get(sku)
+    if live is not None:
+        markup = round(live / cost, 4) if cost else None
+        return float(live), markup, "live"
+    if cost is None:
+        return None, None, "none"
+    raw = cost * MARKUP
+    retail = float(round_up_99(raw))
+    return retail, round(MARKUP, 4), "markup"
+
+
+def _priced(row: dict, letter_ex: float | None, pre_ex: float | None) -> dict:
+    """Our cost is letter × VAT. Retail is live or markup, no VAT added."""
+    ex, cost = _money(letter_ex)
+    pre_ex_n, pre_cost = _money(pre_ex)
+    retail, markup, how = retail_for(row["sku"], cost)
+    row["cost_ex_vat"] = ex
+    row["cost"] = cost
+    row["cost_incl_vat"] = cost
+    row["cost_pre_april"] = pre_ex_n
+    row["cost_pre_april_incl"] = pre_cost
+    row["increase"] = (
+        round(cost - pre_cost, 2) if cost is not None and pre_cost is not None else None
+    )
+    row["retail"] = retail
+    row["sell"] = retail
+    row["markup"] = markup
+    row["retail_source"] = how
+    row["margin"] = round(retail - cost, 2) if retail is not None and cost is not None else None
+    row["vat_registered"] = VAT_REGISTERED
+    return row
+
+
 def wholesale_rows(as_at: date | None = None) -> list[dict]:
     """Current Openserve wholesale card as a flat table."""
     as_at = as_at or date.today()
     rows = []
     for down, up, product, pre, current in POSTPAID:
-        ex, incl = _money(current)
-        pre_ex = float(pre) if pre is not None else None
         rows.append(
-            {
-                "sku": sku_for(product, down, up),
-                "product": product,
-                "family": FAMILIES.get(product, product),
-                "down": down,
-                "up": up,
-                "speed": f"{down}/{up}",
-                "cost_ex_vat": ex,
-                "cost_incl_vat": incl,
-                "cost_pre_april": pre_ex,
-                "increase": round(ex - pre_ex, 2) if ex is not None and pre_ex is not None else None,
-                "effective_from": APRIL_2026.isoformat(),
-                "kind": "postpaid",
-                "source": SOURCE,
-                "sell": SELL.get(sku_for(product, down, up)),
-                "label": f"{FAMILIES.get(product, product)} {down}/{up}",
-            }
+            _priced(
+                {
+                    "sku": sku_for(product, down, up),
+                    "product": product,
+                    "family": FAMILIES.get(product, product),
+                    "down": down,
+                    "up": up,
+                    "speed": f"{down}/{up}",
+                    "effective_from": APRIL_2026.isoformat(),
+                    "kind": "postpaid",
+                    "source": SOURCE,
+                    "label": f"{FAMILIES.get(product, product)} {down}/{up}",
+                },
+                current,
+                pre,
+            )
         )
     for down, up, product, pre, current, label in GIGABIT:
         live = as_at >= GIGABIT_FROM
-        ex, incl = _money(current if live else None)
         rows.append(
-            {
-                "sku": sku_for(product, down, up),
-                "product": product,
-                "family": FAMILIES.get(product, product),
-                "down": down,
-                "up": up,
-                "speed": f"{down}/{up}",
-                "cost_ex_vat": ex,
-                "cost_incl_vat": incl,
-                "cost_pre_april": pre,
-                "increase": None,
-                "effective_from": GIGABIT_FROM.isoformat(),
-                "kind": "gigabit",
-                "source": SOURCE,
-                "sell": None,
-                "label": label,
-                "available_from": GIGABIT_FROM.isoformat(),
-            }
+            _priced(
+                {
+                    "sku": sku_for(product, down, up),
+                    "product": product,
+                    "family": FAMILIES.get(product, product),
+                    "down": down,
+                    "up": up,
+                    "speed": f"{down}/{up}",
+                    "effective_from": GIGABIT_FROM.isoformat(),
+                    "kind": "gigabit",
+                    "source": SOURCE,
+                    "label": label,
+                    "available_from": GIGABIT_FROM.isoformat(),
+                },
+                current if live else None,
+                pre,
+            )
         )
     for item in PREPAID:
+        d30 = item["d30"]
         rows.append(
-            {
-                "sku": sku_for(item["product"], item["down"]),
-                "product": item["product"],
-                "family": FAMILIES.get(item["product"], item["product"]),
-                "down": item["down"],
-                "up": item["up"],
-                "speed": f"{item['down']}",
-                "cost_ex_vat": item["d30"],
-                "cost_incl_vat": round(item["d30"] * VAT, 2),
-                "cost_pre_april": None,
-                "increase": None,
-                "effective_from": APRIL_2026.isoformat(),
-                "kind": "prepaid",
-                "source": SOURCE,
-                "sell": None,
-                "label": f"{FAMILIES.get(item['product'])} {item['down']} prepaid",
-                "install": item["install"],
-                "recharge_3": item["d3"],
-                "recharge_7": item["d7"],
-                "recharge_14": item["d14"],
-                "recharge_30": item["d30"],
-            }
+            _priced(
+                {
+                    "sku": sku_for(item["product"], item["down"]),
+                    "product": item["product"],
+                    "family": FAMILIES.get(item["product"], item["product"]),
+                    "down": item["down"],
+                    "up": item["up"],
+                    "speed": f"{item['down']}",
+                    "effective_from": APRIL_2026.isoformat(),
+                    "kind": "prepaid",
+                    "source": SOURCE,
+                    "label": f"{FAMILIES.get(item['product'])} {item['down']} prepaid",
+                    "install": None if item["install"] is None else round(item["install"] * VAT, 2),
+                    "recharge_3": round(item["d3"] * VAT, 2),
+                    "recharge_7": round(item["d7"] * VAT, 2),
+                    "recharge_14": round(item["d14"] * VAT, 2),
+                    "recharge_30": round(d30 * VAT, 2),
+                },
+                d30,
+                None,
+            )
         )
     rows.sort(key=lambda r: (0 if r["kind"] == "postpaid" else 1 if r["kind"] == "gigabit" else 2, r["down"] or 0, r["up"] or 0, r["product"]))
     return rows
@@ -304,16 +354,17 @@ def all_packages(as_at: date | None = None) -> list[dict]:
 
 def ensure_wholesale(conn: sqlite3.Connection, as_at: date | None = None) -> int:
     """Replace the current wholesale table in SQLite."""
+    conn.execute("DROP TABLE IF EXISTS openserve_wholesale")
     conn.executescript(WHOLESALE_SCHEMA)
-    conn.execute("DELETE FROM openserve_wholesale")
     n = 0
     for row in wholesale_rows(as_at):
         conn.execute(
             """INSERT INTO openserve_wholesale
-               (sku, product, family, down, up, speed, cost_ex_vat, cost_incl_vat,
-                cost_pre_april, increase, effective_from, kind, source,
+               (sku, product, family, down, up, speed, cost_ex_vat, cost, cost_incl_vat,
+                cost_pre_april, cost_pre_april_incl, increase, retail, markup,
+                effective_from, kind, source,
                 install, recharge_3, recharge_7, recharge_14, recharge_30)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 row["sku"],
                 row["product"],
@@ -322,9 +373,13 @@ def ensure_wholesale(conn: sqlite3.Connection, as_at: date | None = None) -> int
                 row.get("up"),
                 row.get("speed"),
                 row.get("cost_ex_vat"),
+                row.get("cost"),
                 row.get("cost_incl_vat"),
                 row.get("cost_pre_april"),
+                row.get("cost_pre_april_incl"),
                 row.get("increase"),
+                row.get("retail"),
+                row.get("markup"),
                 row["effective_from"],
                 row["kind"],
                 row.get("source"),
@@ -383,10 +438,13 @@ def for_export(conn: sqlite3.Connection | None = None, as_at: date | None = None
         "effective": APRIL_2026.isoformat(),
         "gigabit_from": GIGABIT_FROM.isoformat(),
         "source": SOURCE,
-        "currency": "ZAR ex VAT",
+        "currency": "ZAR",
+        "vat_registered": VAT_REGISTERED,
+        "markup": round(MARKUP, 4),
         "note": (
-            "Current Openserve wholesale (ex VAT) from the 1 April 2026 partner letter. "
-            "Gigabit from 1 July 2026: OFC 1000 Lite R1 160, OWS 1000 R1 275. "
+            "GoWiFi is not VAT registered: cost is Openserve letter × 1.15 "
+            "(VAT we pay). Retail has no VAT. Live prices on 25/50/100; "
+            "other speeds including 1000 Mbps use the 50/25 markup then round up to R99. "
             "Each March/April watch for the next increase and WhatsApp clients."
         ),
         "increase_watch": watch,
@@ -405,43 +463,56 @@ def self_test() -> int:
     failed = 0
     table = current_table(date(2026, 10, 5))
     ows50 = by_sku("OWS50M", date(2026, 4, 1))
-    if not ows50 or ows50["cost_ex_vat"] != 530 or ows50["cost_pre_april"] != 500:
-        print("FAIL ows50-official", ows50)
+    if not ows50 or ows50["cost"] != 609.5 or ows50["retail"] != 759:
+        print("FAIL ows50-cost-incl-retail", ows50)
         failed += 1
     else:
-        print("OK ows50-official-530")
+        print("OK ows50-cost-609.50-retail-759")
     ows25 = by_sku("OWS25M", date(2026, 10, 5))
     ows300 = by_sku("OWS300M", date(2026, 10, 5))
     ooc500 = by_sku("OOCF500M", date(2026, 10, 5))
     ooc300 = by_sku("OOCF300M", date(2026, 10, 5))
-    if not ows25 or ows25["cost_ex_vat"] != 370:
+    if not ows25 or ows25["cost"] != 425.5 or ows25["retail"] != 429:
         print("FAIL ows25", ows25)
         failed += 1
-    elif not ows300 or ows300["cost_ex_vat"] != 940:
-        print("FAIL ows300", ows300)
+    elif not ows300 or ows300["cost"] != 1081 or ows300["retail"] != 1399:
+        print("FAIL ows300-markup-99", ows300)
         failed += 1
-    elif not ooc500 or ooc500["cost_ex_vat"] != 1815 or ooc500["cost_pre_april"] != 1710:
-        print("FAIL ooc500", ooc500)
+    elif not ooc500 or ooc500["cost"] != 2087.25:
+        print("FAIL ooc500-incl", ooc500)
         failed += 1
-    elif not ooc300 or ooc300["cost_ex_vat"] != 1345:
-        print("FAIL ooc300-sep-fnb", ooc300)
+    elif not ooc300 or abs((ooc300["cost"] or 0) - 1345 * VAT) > 0.02:
+        print("FAIL ooc300-incl", ooc300)
         failed += 1
     else:
-        print("OK official-ows-ooc")
+        print("OK cost-incl-vat-no-claim")
     gig_ows = by_sku("OWS1000M", date(2026, 7, 1))
     gig_ofc = by_sku("OFC1000M", date(2026, 7, 1))
     gig_jun = by_sku("OWS1000M", date(2026, 6, 30))
-    if not gig_ows or gig_ows["cost_ex_vat"] != 1275:
-        print("FAIL ows-gig-1275", gig_ows)
+    want_1000 = round_up_99((1275 * VAT) * MARKUP)
+    want_lite = round_up_99((1160 * VAT) * MARKUP)
+    if not gig_ows or gig_ows["cost"] != 1466.25 or gig_ows["retail"] != want_1000:
+        print("FAIL ows-gig-retail", gig_ows, want_1000)
         failed += 1
-    elif not gig_ofc or gig_ofc["cost_ex_vat"] != 1160:
-        print("FAIL ofc-lite-1160", gig_ofc)
+    elif want_1000 != 1899:
+        print("FAIL ows-gig-1899", want_1000)
         failed += 1
-    elif gig_jun and gig_jun["cost_ex_vat"] is not None:
+    elif not gig_ofc or gig_ofc["retail"] != want_lite or want_lite != 1699:
+        print("FAIL ofc-lite-retail", gig_ofc, want_lite)
+        failed += 1
+    elif gig_jun and gig_jun["cost"] is not None:
         print("FAIL gig-before-july", gig_jun)
         failed += 1
+    elif VAT_REGISTERED:
+        print("FAIL we-are-not-vat-registered")
+        failed += 1
     else:
-        print("OK gigabit-ows-1275-ofc-1160")
+        print("OK gigabit-markup-to-r99", want_1000, want_lite)
+    if round_up_99(1825.37) != 1899 or round_up_99(1899) != 1899:
+        print("FAIL round-up-99", round_up_99(1825.37))
+        failed += 1
+    else:
+        print("OK round-up-99")
     products = {r["product"] for r in table if r["kind"] == "postpaid"}
     want = {"OFC", "OWS", "OFCP", "OOC", "OCC", "OPC", "OWC", "OWCW"}
     if not want <= products:
@@ -464,7 +535,7 @@ def self_test() -> int:
         print("OK increase-watch-mar-apr-whatsapp")
     conn = sqlite3.connect(":memory:")
     n = ensure_wholesale(conn, date(2026, 10, 5))
-    stored = conn.execute("SELECT COUNT(*), SUM(cost_ex_vat) FROM openserve_wholesale WHERE kind='postpaid'").fetchone()
+    stored = conn.execute("SELECT COUNT(*), SUM(cost) FROM openserve_wholesale WHERE kind='postpaid'").fetchone()
     if n < 40 or not stored or stored[0] < 35:
         print("FAIL store", n, stored)
         failed += 1

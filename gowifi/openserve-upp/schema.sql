@@ -138,8 +138,8 @@ CREATE TABLE IF NOT EXISTS products (
     updated_at TEXT NOT NULL
 );
 
--- Current Openserve wholesale rentals (ex VAT). Seeded from packages.py
--- (partner letter 1 Apr 2026 + 1 Gbps 1 Jul 2026).
+-- Current Openserve wholesale. Cost is letter × 1.15 (not VAT registered).
+-- Retail is live sell or house markup rounded up to R99. Seeded from packages.py.
 CREATE TABLE IF NOT EXISTS openserve_wholesale (
     sku TEXT PRIMARY KEY,
     product TEXT NOT NULL,
@@ -148,9 +148,13 @@ CREATE TABLE IF NOT EXISTS openserve_wholesale (
     up INTEGER,
     speed TEXT,
     cost_ex_vat REAL,
+    cost REAL,
     cost_incl_vat REAL,
     cost_pre_april REAL,
+    cost_pre_april_incl REAL,
     increase REAL,
+    retail REAL,
+    markup REAL,
     effective_from TEXT NOT NULL,
     kind TEXT NOT NULL,
     source TEXT,

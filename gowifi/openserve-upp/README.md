@@ -78,9 +78,10 @@ GoWiFi books are three feeds, not a full ledger package:
 
 ### Packages (April 2026)
 
-`packages.py` stores the **current Openserve wholesale table** (ex VAT) from the
-1 April 2026 partner letter, plus 1 Gbps from 1 July 2026 (OFC 1000 Lite
-R1 160, OWS 1000 R1 275). Rows live in SQLite `openserve_wholesale`.
+`packages.py` stores the **current Openserve wholesale + GoWiFi retail table**.
+GoWiFi is **not VAT registered**: cost = letter × 1.15 (VAT we pay); retail
+has no VAT. Live retail on 25/50/100; other speeds including 1000 Mbps use the
+50/25 markup then round up to R99. Rows live in SQLite `openserve_wholesale`.
 
 **Each March/April:** watch for the next Openserve increase and WhatsApp a
 mailshot to clients before 1 April.

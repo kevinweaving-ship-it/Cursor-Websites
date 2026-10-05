@@ -219,7 +219,7 @@ function render(data){
         <div class="card"><div class="k">FNB</div><div class="v">${(data.books&&data.books.fnb&&data.books.fnb.transactions)||((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"")}</div></div>
         <div class="card"><div class="k">Netcash</div><div class="v">${(data.books&&data.books.netcash&&data.books.netcash.items)||0}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||((data.books&&data.books.ledger&&data.books.ledger.checksum&&data.books.ledger.checksum.note)||""))}</div></div>
         <div class="card"><div class="k">Clients</div><div class="v">${((data.books&&data.books.billing&&data.books.billing.accounts)||(data.books&&data.books.ledger&&data.books.ledger.clients)||[]).length}</div><div class="meta">${esc((data.books&&data.books.billing&&data.books.billing.rule)||"Invoice 17th · month in advance")}</div></div>
-        <div class="card"><div class="k">Packages</div><div class="v">${(data.books&&data.books.packages&&data.books.packages.count)||((data.books&&data.books.packages&&data.books.packages.table)||[]).length||0}</div><div class="meta">Openserve wholesale current · ex VAT · Apr 2026</div></div>
+        <div class="card"><div class="k">Packages</div><div class="v">${(data.books&&data.books.packages&&data.books.packages.count)||((data.books&&data.books.packages&&data.books.packages.table)||[]).length||0}</div><div class="meta">Cost incl VAT · retail no VAT · markup to R99</div></div>
         <div class="card"><div class="k">Loans</div><div class="v">${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).length}</div><div class="meta">${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).map(a=>esc(a.name.split(":").slice(-1)[0])+" "+Number(a.net||0).toFixed(0)).join(" · ")||"Kevin / Walter"}</div></div>
       </div>
       <div class="card scroll">
@@ -250,12 +250,12 @@ function render(data){
       })()}
       <div class="card scroll">
         <table class="compact">
-          <thead><tr><th>Product</th><th>Speed</th><th>Now ex</th><th>Was</th></tr></thead>
+          <thead><tr><th>Product</th><th>Speed</th><th>Cost</th><th>Retail</th></tr></thead>
           <tbody>${((data.books&&data.books.packages&&data.books.packages.table)||[]).map(r=>`
-            <tr><td>${esc(r.product||"—")}<div class="meta">${esc(r.family||"")}${r.kind==="gigabit"?" · from 1 Jul 2026":""}</div></td>
+            <tr><td>${esc(r.product||"—")}<div class="meta">${esc(r.family||"")}${r.kind==="gigabit"?" · from 1 Jul 2026":""}${r.retail_source==="live"?" · live":""}</div></td>
             <td class="num">${esc(r.speed||"—")}</td>
-            <td class="num">${r.cost_ex_vat==null?"—":Number(r.cost_ex_vat).toFixed(2)}</td>
-            <td class="num">${r.cost_pre_april==null?"—":Number(r.cost_pre_april).toFixed(2)}${r.increase!=null?`<div class="meta">+${Number(r.increase).toFixed(0)}</div>`:""}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No wholesale table yet</td></tr>`}</tbody>
+            <td class="num">${r.cost==null?"—":Number(r.cost).toFixed(2)}<div class="meta">incl VAT we pay</div></td>
+            <td class="num">${r.retail==null?"—":Number(r.retail).toFixed(0)}${r.margin!=null?`<div class="meta">+${Number(r.margin).toFixed(0)}</div>`:""}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No wholesale table yet</td></tr>`}</tbody>
         </table>
         <div class="meta" style="margin-top:8px">${esc((data.books&&data.books.packages&&data.books.packages.note)||"")}</div>
       </div>
