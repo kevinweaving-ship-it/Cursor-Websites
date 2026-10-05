@@ -3,7 +3,8 @@
 
 Due on the day viewed is invoices minus allocated payments. A pending
 D/O is grace (not due) until it is reconciled. A bounce stays due and
-raises a suspension notice. 5 Oct 2026 batch 2571994 collected (unpaid R0).
+raises a suspension notice. Netcash paid/unpaid is per batch — Bing
+Noordhoek Fibre R599 on 2571994 is paid; Cupido is the only unpaid.
 """
 from __future__ import annotations
 
@@ -34,6 +35,7 @@ NETCASH_JSON = DATA_DIR / "qb_do_payments.json"
 SALES_XLS = DATA_DIR / "sales.xls"
 SALES_REG_JSON = DATA_DIR / "qb_sales_register.json"
 DELETED_STATUSES = {"deleted", "void", "voided"}
+GRACE_DAYS = 7
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS customer_invoices (
@@ -162,9 +164,13 @@ def ingest(conn: sqlite3.Connection) -> dict:
     conn.execute("DELETE FROM customer_invoices WHERE source IN ('qb-list','qb-sales')")
     conn.execute("DELETE FROM customer_invoice_lines")
     conn.execute(
-        "DELETE FROM customer_payments WHERE source IN ('qb-eft','qb-cash','qb-do','qb-credit','qb-do-synth')"
+        "DELETE FROM customer_payments WHERE source IN "
+        "('qb-eft','qb-cash','qb-do','qb-credit','qb-do-synth','netcash-alloc','fnb-alloc')"
     )
-    conn.execute("DELETE FROM customer_do_events WHERE source IN ('fnb','qb-do-synth','netcash')")
+    conn.execute(
+        "DELETE FROM customer_do_events WHERE source IN "
+        "('fnb','qb-do-synth','netcash','netcash-alloc')"
+    )
 
     invoices = list((_load(INVOICES_JSON).get("rows") or []))
     sales = _load(SALES_JSON)
@@ -301,6 +307,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
         )
         n_bounce += 1
 
+    n_nc = _apply_netcash_batch(conn)
     n_synth = _synth_do(conn, kind_by_no)
     conn.commit()
     return {
@@ -310,8 +317,67 @@ def ingest(conn: sqlite3.Connection) -> dict:
         "do": n_do,
         "credits": n_credit,
         "bounces": n_bounce,
+        "netcash": n_nc,
         "do_synth": n_synth,
     }
+
+
+def _apply_netcash_batch(conn: sqlite3.Connection) -> int:
+    """Match Netcash paid/unpaid per batch onto client accounts. Bing 599 is the example."""
+    n = 0
+    try:
+        from recon import client_receipts, client_unpaid
+    except Exception:
+        return 0
+    for rec in client_receipts(conn):
+        if rec.get("source") != "netcash-alloc":
+            continue
+        name = display_name(rec.get("customer")) or rec.get("customer")
+        if not name:
+            continue
+        day = rec.get("paid_on") or ""
+        amt = abs(_money(rec.get("amount")))
+        if _already_paid(conn, canon_key(name), day, amt):
+            continue
+        conn.execute(
+            """INSERT INTO customer_payments
+               (paid_on, customer, amount, note, source, method)
+               VALUES (?,?,?,?,?,?)""",
+            (day, name, -amt, "Debit order", "netcash-alloc", "do"),
+        )
+        n += 1
+    for rec in client_unpaid(conn):
+        name = display_name(rec.get("customer")) or rec.get("customer")
+        if not name:
+            continue
+        conn.execute(
+            """INSERT OR IGNORE INTO customer_do_events
+               (action_date, customer, amount, result, note, source)
+               VALUES (?,?,?,?,?,?)""",
+            (
+                rec.get("action_date"),
+                name,
+                _money(rec.get("amount")),
+                "unpaid",
+                rec.get("note") or "Debit order unpaid",
+                "netcash-alloc",
+            ),
+        )
+        n += 1
+    return n
+
+
+def _do_unpaid_months(conn: sqlite3.Connection) -> set[tuple[str, str]]:
+    out = {(canon_key(r["customer"]), r["action_date"][:7]) for r in KNOWN_BOUNCES}
+    try:
+        for rec in conn.execute(
+            "SELECT action_date, customer, result FROM customer_do_events"
+        ):
+            if (rec[2] or "").lower() in {"unpaid", "bounced"}:
+                out.add((canon_key(rec[1]), (rec[0] or "")[:7]))
+    except sqlite3.OperationalError:
+        pass
+    return out
 
 
 def _already_paid(conn: sqlite3.Connection, key: str, day: str, amount: float) -> bool:
@@ -326,11 +392,8 @@ def _already_paid(conn: sqlite3.Connection, key: str, day: str, amount: float) -
 
 
 def _synth_do(conn: sqlite3.Connection, kind_by_no: dict[str, str]) -> int:
-    """Collected D/O for monthly invoices. Skip pending 5 Oct and bounced months."""
-    bounced = {
-        (canon_key(r["customer"]), r["action_date"][:7])
-        for r in KNOWN_BOUNCES
-    }
+    """Collected D/O for monthly invoices. Skip unpaid / bounced months from Netcash."""
+    bounced = _do_unpaid_months(conn)
     cutoff = date.fromisoformat(PENDING_DO["action_date"])
     if PENDING_DO.get("collected"):
         cutoff = add_months(cutoff, 0)
@@ -635,10 +698,38 @@ def _ledger_blocks(lines: list[dict]) -> list[dict]:
     return blocks
 
 
-def present_ledger(lines: list[dict]) -> list[dict]:
+def invoice_due_on(inv: dict, book: dict | None) -> date | None:
+    from invoice_canned import parse_day
+
+    raw = inv.get("due_date") or inv.get("due") or inv.get("due_on")
+    if book and book.get("method") == "debit-order":
+        inv_day = parse_day(inv.get("invoice_date") or inv.get("date"))
+        if inv_day:
+            return collection_for(inv_day)
+    return parse_day(raw) or parse_day(inv.get("invoice_date") or inv.get("date"))
+
+
+def invoice_tone(rec: dict, today: date) -> str:
+    """Blue when matched; orange while allowed; red after 7 days past due."""
+    if rec.get("kind") == "unpaid":
+        return "overdue"
+    if rec.get("kind") != "invoice":
+        return ""
+    if _money(rec.get("open")) <= 0.004:
+        return "matched"
+    from invoice_canned import parse_day
+
+    due = parse_day(rec.get("due_on")) or parse_day(rec.get("date"))
+    if due and (today - due).days > GRACE_DAYS:
+        return "overdue"
+    return "pending"
+
+
+def present_ledger(lines: list[dict], today: date | None = None) -> list[dict]:
     """Date order, newest at the top. Running balance after each row; top = amount due."""
     from invoice_canned import parse_day
 
+    today = today or date.today()
     tagged = [dict(r) for r in lines if r.get("kind") != "line"]
 
     def _day(rec: dict):
@@ -668,6 +759,7 @@ def present_ledger(lines: list[dict]) -> list[dict]:
         rec["due_row"] = due
         rec["show"] = bool(due or pin)
         rec["reconciled"] = not rec["show"]
+        rec["tone"] = invoice_tone(rec, today)
     return tagged
 
 
@@ -711,11 +803,18 @@ def fifo_statement(
     payments: list[dict],
     name: str,
     today: date | None = None,
+    unpaid_do: list[dict] | None = None,
 ) -> dict:
     """Oldest invoice, then the payment(s) that clear it, then the next invoice."""
     from invoice_canned import fmt_date
 
     key = canon_key(name)
+    book = client_row(name)
+    unpaid_months = {
+        (canon_key(u.get("customer") or name), (u.get("action_date") or "")[:7])
+        for u in (unpaid_do or [])
+        if (u.get("result") or "").lower() in {"unpaid", "bounced"}
+    }
     invs = sorted(
         (
             i
@@ -780,6 +879,7 @@ def fifo_statement(
         billed = round(billed + amt, 2)
         balance = round(balance + amt, 2)
         no = str(inv.get("invoice_number") or "")
+        due_on = invoice_due_on(inv, book)
         inv_row = {
             "date": inv.get("invoice_date"),
             "date_fmt": fmt_date(inv.get("invoice_date")),
@@ -789,6 +889,7 @@ def fifo_statement(
             "amount": amt,
             "balance": balance,
             "open": amt,
+            "due_on": due_on.isoformat() if due_on else None,
         }
         lines.append(inv_row)
         need = amt
@@ -823,7 +924,6 @@ def fifo_statement(
             )
             need = round(need - use, 2)
         inv_row["open"] = need
-        book = client_row(name)
         if (
             need > 0.004
             and book
@@ -835,7 +935,11 @@ def fifo_statement(
             except ValueError:
                 collect = None
             as_at = today or date.today()
-            if collect and collect <= as_at:
+            if (
+                collect
+                and collect <= as_at
+                and (key, collect.isoformat()[:7]) in unpaid_months
+            ):
                 lines.append(
                     {
                         "date": collect.isoformat(),
@@ -846,6 +950,7 @@ def fifo_statement(
                         "amount": need,
                         "balance": balance,
                         "open": need,
+                        "tone": "overdue",
                     }
                 )
     for p in pool:
@@ -936,13 +1041,25 @@ def account_as_at(
         invoices = [i for i in all_inv if _books_invoice(i) and not _invoice_deleted(i)]
         payments = all_pay
     display = display_name(name) or name
-    ledger = fifo_statement(invoices, payments, display, today)
-    meta = fifo_statement(all_inv, all_pay, display, today)
+    cut = today.isoformat()
+    invoices = [i for i in invoices if (i.get("invoice_date") or "")[:10] <= cut]
+    payments = [p for p in payments if (p.get("paid_on") or "")[:10] <= cut]
+    all_inv = [i for i in all_inv if (i.get("invoice_date") or "")[:10] <= cut]
+    all_pay = [p for p in all_pay if (p.get("paid_on") or "")[:10] <= cut]
+    do_events = _bounces(conn, key)
+    unpaid_do = [
+        b
+        for b in do_events
+        if (b.get("result") or "").lower() in {"unpaid", "bounced"}
+        and (b.get("action_date") or "")[:10] <= cut
+    ]
+    ledger = fifo_statement(invoices, payments, display, today, unpaid_do=unpaid_do)
+    meta = fifo_statement(all_inv, all_pay, display, today, unpaid_do=unpaid_do)
     ledger["other_subs"] = meta.get("other_subs") or ledger.get("other_subs") or []
     ledger["master"] = meta.get("master") or ledger.get("master")
     ledger["sub"] = meta.get("sub") or ledger.get("sub")
     ledger["own_sub"] = meta.get("own_sub") if "own_sub" in meta else ledger.get("own_sub")
-    ledger["lines"] = present_ledger(_fold_invoice_what(ledger.get("lines") or [], conn))
+    ledger["lines"] = present_ledger(_fold_invoice_what(ledger.get("lines") or [], conn), today)
     stmt = statement_on_invoice(invoices, payments, display, as_at=today)
     billed = ledger["billed"]
     paid = ledger["paid"]
@@ -1078,11 +1195,11 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK havenga-bounce-recorded")
-    if not PENDING_DO.get("collected") or (PENDING_DO.get("unpaid_volume") or 0) != 0:
+    if not PENDING_DO.get("collected"):
         print("FAIL oct5-not-collected", PENDING_DO)
         failed += 1
     else:
-        print("OK oct5-collected-unpaid-0")
+        print("OK oct5-batch-collected")
     amoroc = account_as_at(conn, "Amoroc Doors", today)
     lines = amoroc.get("ledger") or []
     living = living_books("Amoroc Doors")
@@ -1168,6 +1285,12 @@ def self_test() -> int:
     elif abs(nord.get("due") or 0) > 0.02:
         print("FAIL nord-due", nord.get("due"), nord.get("billed"), nord.get("paid"))
         failed += 1
+    elif any(r.get("kind") == "unpaid" for r in nord_led):
+        print("FAIL nord-invented-unpaid", [r for r in nord_led if r.get("kind") == "unpaid"])
+        failed += 1
+    elif nord_inv and nord_inv[0].get("tone") != "matched":
+        print("FAIL nord-3115-not-blue", nord_inv[0])
+        failed += 1
     elif not nord_first_pay or not (nord_first_pay.get("what") or "").startswith("EFT"):
         print("FAIL nord-first-eft", nord_first_pay)
         failed += 1
@@ -1189,6 +1312,35 @@ def self_test() -> int:
         else:
             print("OK nordhoek-one-line", nord_inv[0].get("what"), nord_last_pay.get("what"))
             print("OK newest-top")
+            print("OK nord-matched-blue")
+    early = account_as_at(conn, "Bing Noordhoek Fibre", date(2026, 9, 22))
+    early_3115 = next(
+        (r for r in (early.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "3115"),
+        None,
+    )
+    cup = account_as_at(conn, "G Cupido", today)
+    cup_unpaid = [r for r in (cup.get("ledger") or []) if r.get("kind") == "unpaid"]
+    amoroc_3107 = next((r for r in all_inv if str(r.get("ref")) == "3107"), None)
+    marlene_over = [
+        r
+        for r in (marlene.get("ledger") or [])
+        if r.get("kind") == "invoice" and r.get("tone") == "overdue"
+    ]
+    if not early_3115 or early_3115.get("tone") != "pending":
+        print("FAIL nord-3115-should-be-orange-before-due", early_3115)
+        failed += 1
+    elif not cup_unpaid or (cup.get("due") or 0) < 0.02:
+        print("FAIL cupido-only-unpaid", cup.get("due"), cup_unpaid)
+        failed += 1
+    elif not amoroc_3107 or amoroc_3107.get("tone") != "matched":
+        print("FAIL amoroc-3107-not-blue", amoroc_3107)
+        failed += 1
+    elif abs((marlene["due"] or 0) - 7180) <= 0.5 and not marlene_over:
+        print("FAIL marlene-overdue-red", [r.get("tone") for r in (marlene.get("ledger") or []) if r.get("kind") == "invoice"][:6])
+        failed += 1
+    else:
+        print("OK invoice-tones", "matched", "pending", "overdue")
+        print("OK cupido-unpaid", cup.get("due"))
     conn.close()
     return failed
 

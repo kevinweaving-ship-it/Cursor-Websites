@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS netcash_tx (
     alloc_key TEXT,
     result TEXT,
     batch_id TEXT,
+    account_ref TEXT,
+    tracking_ref TEXT,
+    extra_ref TEXT,
+    unpaid_amount REAL,
     source TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_netcash_tx_dedup
@@ -65,6 +69,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_netcash_tx_dedup
         COALESCE(batch_id,''), COALESCE(result,'')
     );
 """
+
+# Paid / unpaid per batch. Bing Noordhoek Fibre R599 on 2571994 is Paid
+# (account 1311699279 · 198765 · 429604040). Cupido is the only unpaid.
+BATCH_UNPAID = {
+    "2571994": {"g cupido"},
+}
+BATCH_ITEM_REFS = {
+    ("2571994", "bing noordhoek"): {
+        "account_ref": "1311699279",
+        "tracking_ref": "198765",
+        "extra_ref": "429604040",
+    },
+}
 
 
 def _money(value) -> float:
@@ -285,6 +302,15 @@ def _netcash_alloc(row: dict) -> dict:
 
 def ensure(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    have = {r[1] for r in conn.execute("PRAGMA table_info(netcash_tx)")}
+    for col, typ in (
+        ("account_ref", "TEXT"),
+        ("tracking_ref", "TEXT"),
+        ("extra_ref", "TEXT"),
+        ("unpaid_amount", "REAL"),
+    ):
+        if col not in have:
+            conn.execute(f"ALTER TABLE netcash_tx ADD COLUMN {col} {typ}")
 
 
 def ingest(conn: sqlite3.Connection) -> dict:
@@ -325,8 +351,9 @@ def ingest(conn: sqlite3.Connection) -> dict:
         conn.execute(
             """INSERT OR IGNORE INTO netcash_tx
                (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
-                account, bank_status, alloc_kind, alloc_to, alloc_key, result, batch_id, source)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                account, bank_status, alloc_kind, alloc_to, alloc_key, result, batch_id,
+                account_ref, tracking_ref, extra_ref, unpaid_amount, source)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 row["paid_on"],
                 row["ref"],
@@ -344,6 +371,10 @@ def ingest(conn: sqlite3.Connection) -> dict:
                 alloc["alloc_key"],
                 alloc["result"],
                 None,
+                None,
+                None,
+                None,
+                0 if alloc["result"] == "paid" else abs(_money(row.get("payment")) or _money(row.get("amount"))),
                 "netcash-xls",
             ),
         )
@@ -352,38 +383,48 @@ def ingest(conn: sqlite3.Connection) -> dict:
     if PENDING_DO.get("collected"):
         day = PENDING_DO["action_date"]
         batch = PENDING_DO.get("batch_id") or ""
+        unpaid_keys = BATCH_UNPAID.get(batch, set())
         for row in DO_CLIENTS:
             key = canon_key(row["name"])
+            unpaid = key in unpaid_keys
+            result = "unpaid" if unpaid else "paid"
+            refs = BATCH_ITEM_REFS.get((batch, key), {})
             exists = conn.execute(
                 """SELECT 1 FROM netcash_tx
                    WHERE paid_on=? AND alloc_key=? AND ABS(amount)>=? - 0.02
-                     AND result='paid'""",
-                (day, key, abs(float(row["amount"]))),
+                     AND result=? AND COALESCE(batch_id,'')=?""",
+                (day, key, abs(float(row["amount"])), result, batch),
             ).fetchone()
             if exists:
                 continue
+            amt = abs(float(row["amount"]))
             conn.execute(
                 """INSERT OR IGNORE INTO netcash_tx
                    (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
-                    account, bank_status, alloc_kind, alloc_to, alloc_key, result, batch_id, source)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    account, bank_status, alloc_kind, alloc_to, alloc_key, result, batch_id,
+                    account_ref, tracking_ref, extra_ref, unpaid_amount, source)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     day,
-                    batch,
+                    refs.get("account_ref") or batch,
                     row["name"],
-                    f"Batch {batch} collected unpaid 0",
-                    0,
-                    abs(float(row["amount"])),
-                    abs(float(row["amount"])),
+                    f"Batch {batch} {'unpaid' if unpaid else 'paid'}",
+                    amt if unpaid else 0,
+                    0 if unpaid else amt,
+                    amt,
                     None,
                     "Payment",
                     "Accounts Receivable (A/R)",
-                    "Collected",
-                    "client_paid",
+                    "Unpaid" if unpaid else "Collected",
+                    "client_unpaid" if unpaid else "client_paid",
                     row["name"],
                     key,
-                    "paid",
+                    result,
                     batch,
+                    refs.get("account_ref"),
+                    refs.get("tracking_ref"),
+                    refs.get("extra_ref"),
+                    amt if unpaid else 0,
                     "netcash-batch",
                 ),
             )
@@ -414,6 +455,38 @@ def summary(conn: sqlite3.Connection) -> dict:
         return out
 
     return {"fnb_alloc": counts("fnb_tx"), "netcash_alloc": counts("netcash_tx")}
+
+
+def batch_items(conn: sqlite3.Connection) -> list[dict]:
+    """Paid vs unpaid per batch. Newest batch at the top."""
+    try:
+        rows = conn.execute(
+            """SELECT paid_on, batch_id, alloc_to, payee, amount, unpaid_amount,
+                      result, account_ref, tracking_ref, extra_ref, ref, alloc_key
+               FROM netcash_tx
+               WHERE COALESCE(batch_id,'') != '' OR source='netcash-batch'
+               ORDER BY paid_on DESC, CASE result WHEN 'unpaid' THEN 0 ELSE 1 END, alloc_to"""
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    out = []
+    for rec in rows:
+        out.append(
+            {
+                "paid_on": rec[0],
+                "batch_id": rec[1],
+                "account_name": rec[2] or rec[3],
+                "payee": rec[3],
+                "amount": abs(_money(rec[4])),
+                "unpaid_amount": _money(rec[5]),
+                "result": rec[6] or "paid",
+                "account_ref": rec[7] or rec[10],
+                "tracking_ref": rec[8],
+                "extra_ref": rec[9],
+                "alloc_key": rec[11],
+            }
+        )
+    return out
 
 
 def leftover(conn: sqlite3.Connection, limit: int = 80) -> list[dict]:
@@ -523,25 +596,43 @@ def self_test() -> int:
         print("FAIL oct5-not-seeded", pack)
         failed += 1
     else:
-        print(
-            "OK recon",
-            "fnb",
-            fnb["rows"],
-            "alloc",
-            fnb["allocated"],
-            "left",
-            fnb["unallocated"],
-            "nc",
-            nc["rows"],
-            "left",
-            nc["unallocated"],
-            "oct5",
-            pack.get("oct5"),
-        )
-        kinds = Counter()
-        for rec in conn.execute("SELECT alloc_kind FROM fnb_tx"):
-            kinds[rec[0]] += 1
-        print("OK fnb-kinds", dict(kinds))
+        bing = conn.execute(
+            """SELECT result, account_ref, tracking_ref, extra_ref, unpaid_amount
+               FROM netcash_tx
+               WHERE batch_id='2571994' AND alloc_key='bing noordhoek'"""
+        ).fetchone()
+        cup = conn.execute(
+            """SELECT result, unpaid_amount FROM netcash_tx
+               WHERE batch_id='2571994' AND alloc_key='g cupido'"""
+        ).fetchone()
+        if not bing or bing[0] != "paid" or bing[1] != "1311699279" or bing[4]:
+            print("FAIL bing-batch-paid", bing)
+            failed += 1
+        elif not cup or cup[0] != "unpaid":
+            print("FAIL cupido-only-unpaid", cup)
+            failed += 1
+        else:
+            print(
+                "OK recon",
+                "fnb",
+                fnb["rows"],
+                "alloc",
+                fnb["allocated"],
+                "left",
+                fnb["unallocated"],
+                "nc",
+                nc["rows"],
+                "left",
+                nc["unallocated"],
+                "oct5",
+                pack.get("oct5"),
+            )
+            print("OK bing-netcash-paid", bing[1], bing[2], bing[3])
+            print("OK cupido-netcash-unpaid")
+            kinds = Counter()
+            for rec in conn.execute("SELECT alloc_kind FROM fnb_tx"):
+                kinds[rec[0]] += 1
+            print("OK fnb-kinds", dict(kinds))
     conn.close()
     return failed
 

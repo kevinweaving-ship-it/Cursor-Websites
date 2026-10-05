@@ -97,8 +97,11 @@ main {
 .stmt th.num, .stmt td.num { text-align:right; white-space:nowrap; }
 .stmt td { padding:5px 8px 5px 0; border-bottom:1px solid var(--line); vertical-align:top; }
 .stmt tr:last-child td { border-bottom:0; }
-.stmt tr.invoice td { color:var(--bad); }
 .stmt tr.payment td { color:var(--ok); }
+.stmt tr.invoice td,
+.stmt tr.invoice.pending td { color:var(--warn); }
+.stmt tr.invoice.matched td { color:var(--acc); }
+.stmt tr.invoice.overdue td,
 .stmt tr.unpaid td { color:var(--bad); }
 .stmt-toggle {
   display:block; width:100%; margin:0 0 8px; padding:8px 0; border:0;
@@ -180,7 +183,7 @@ function field(label, value, extra){
 function stmtRows(rows){
   return rows.map(r=>{
     const hide = r.reconciled ? " hidden" : "";
-    const cls = [r.kind||"", r.due_row?"due_row":"", r.reconciled?"paid":""].filter(Boolean).join(" ");
+    const cls = [r.kind||"", r.tone||"", r.due_row?"due_row":"", r.reconciled?"paid":""].filter(Boolean).join(" ");
     return `<tr class="${esc(cls)}${hide}">
     <td>${esc(r.date_fmt||r.date||"")}</td>
     <td>${esc(r.what||"")}</td>

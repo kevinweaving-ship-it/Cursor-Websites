@@ -504,6 +504,7 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
     from statements import ingest as ingest_statements
 
     ingest_statements(conn)
+    from recon import batch_items as netcash_batch_items
     ledger = ledger_for_export(conn)
     packages = packages_for_export(conn)
     compliance = compliance_for_export()
@@ -559,7 +560,10 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
                 )
             ),
         },
-        "netcash": nc,
+        "netcash": {
+            **(nc if isinstance(nc, dict) else {"items": nc}),
+            "batches": netcash_batch_items(conn),
+        },
         "customer_invoices": {
             "series_after_quickbooks": INVOICE_SERIES_AFTER,
             "next": next_no,
