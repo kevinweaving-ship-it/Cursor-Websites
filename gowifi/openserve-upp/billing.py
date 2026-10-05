@@ -11,27 +11,43 @@ from calendar import monthrange
 from datetime import date
 
 from invoice_canned import client_key, statement_on_invoice
+from packages import by_sku, extras as extra_charges
 
 INVOICE_DAY = 17
+# Normal collection is the 1st of the service month. 5 Oct 2026 was same-day
+# after the 17 Sep load was missed.
+DO_DAY = 1
 
-# Current Netcash debit masterfile (Go Wifi 52773396439), action date 5 Oct 2026.
-# Authorised, not collected — do not take these off the client yet.
-DO_CLIENTS = [
-    {"ref": "Wantling", "name": "David Wantling", "amount": 439.00},
-    {"ref": "DEV001", "name": "Dirk De Villiers", "amount": 399.00},
-    {"ref": "BIN001", "name": "Annette Bing HH", "amount": 429.00},
-    {"ref": "HUN001", "name": "Stan Hundermark", "amount": 329.00},
-    {"ref": "De Gruchy OS Fiber 200", "name": "Phillip De Gruchy", "amount": 1219.00},
-    {"ref": "Jean de Villiers", "name": "Jean de Villiers", "amount": 550.00},
-    {"ref": "Havenga", "name": "Havenga", "amount": 699.00},
-    {"ref": "HM Builders", "name": "Hermanus Builders", "amount": 759.00},
-    {"ref": "GeoCorp", "name": "GeoCorp", "amount": 759.00},
-    {"ref": "Bryant Michael", "name": "Bryant Michael", "amount": 759.00},
-    {"ref": "Murray DH", "name": "Murray DH", "amount": 759.00},
-    {"ref": "Bing Noordhoek Fibre", "name": "Bing Noordhoek Fibre", "amount": 599.00},
-    {"ref": "G Cupido", "name": "G Cupido", "amount": 759.00},
-    {"ref": "Gordon Neethling", "name": "Gordon Neethling", "amount": 759.00},
+# Monthly book: fibre + wireless, debit-order + EFT. D/O order matches the
+# Netcash masterfile (batch 2571994). Amount is the line rental only —
+# install / equipment / add-ons / reconnect are extras, not on the D/O.
+CLIENTS = [
+    {"ref": "Wantling", "name": "David Wantling", "amount": 439.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "DEV001", "name": "Dirk De Villiers", "amount": 399.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "BIN001", "name": "Annette Bing HH", "amount": 429.00, "method": "debit-order", "access": "fibre", "sku": "OWS25M"},
+    {"ref": "HUN001", "name": "Stan Hundermark", "amount": 329.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "De Gruchy OS Fiber 200", "name": "Phillip De Gruchy", "amount": 1219.00, "method": "debit-order", "access": "fibre", "sku": "OWS300M"},
+    {"ref": "Jean de Villiers", "name": "Jean de Villiers", "amount": 550.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "Havenga", "name": "Havenga", "amount": 699.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "HM Builders", "name": "Hermanus Builders", "amount": 759.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "GeoCorp", "name": "GeoCorp", "amount": 759.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "Bryant Michael", "name": "Bryant Michael", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
+    {"ref": "Murray DH", "name": "Murray DH", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
+    {"ref": "Bing Noordhoek Fibre", "name": "Bing Noordhoek Fibre", "amount": 599.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "G Cupido", "name": "G Cupido", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
+    {"ref": "Gordon Neethling", "name": "Gordon Neethling", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
+    {"ref": None, "name": "Lategan", "amount": 999.00, "method": "eft", "access": "fibre", "sku": "OWS100M"},
+    {"ref": None, "name": "HPP Control Room", "amount": 599.00, "method": "eft", "access": "fibre", "sku": "OWS25M"},
+    {"ref": None, "name": "Pearson, Philippa", "amount": 329.00, "method": "eft", "access": "wireless", "sku": None},
+    {"ref": None, "name": "Phillipus May", "amount": 439.00, "method": "eft", "access": "wireless", "sku": None},
+    {"ref": None, "name": "Amoroc Doors", "amount": 199.00, "method": "eft", "access": "wireless", "sku": None},
+    {"ref": None, "name": "WCC Tech", "amount": 1000.00, "method": "eft", "access": "wireless", "sku": None},
+    {"ref": None, "name": "Paltco", "amount": 1399.00, "method": "eft", "access": "wireless", "sku": None},
+    {"ref": None, "name": "Mrs Marlene/Georg Van Eeden", "amount": 439.00, "method": "eft", "access": "wireless", "sku": None},
 ]
+
+DO_CLIENTS = [row for row in CLIENTS if row["method"] == "debit-order"]
+EFT_CLIENTS = [row for row in CLIENTS if row["method"] == "eft"]
 
 _NAME_ALIASES = {
     "godfrey cupido": "g cupido",
@@ -58,6 +74,20 @@ _NAME_ALIASES = {
     "bing noordhoek": "bing noordhoek",
     "annette bing nordhoek": "bing noordhoek",
     "jean de": "jean de",
+    "lategan": "lategan",
+    "hpp control": "hpp control",
+    "hpp": "hpp control",
+    "pearson philippa": "pearson philippa",
+    "philippa pearson": "pearson philippa",
+    "phillipus may": "phillipus may",
+    "amoroc doors": "amoroc doors",
+    "amoroc": "amoroc doors",
+    "wcc tech": "wcc tech",
+    "wcc": "wcc tech",
+    "paltco": "paltco",
+    "marlene georg": "marlene georg",
+    "van eeden": "marlene georg",
+    "georg van": "marlene georg",
 }
 
 
@@ -68,10 +98,18 @@ def canon_key(name: str | None) -> str:
 
 def display_name(name: str | None) -> str:
     key = canon_key(name)
-    for row in DO_CLIENTS:
+    for row in CLIENTS:
         if canon_key(row["name"]) == key:
             return row["name"]
     return (name or "").strip()
+
+
+def client_row(name: str | None) -> dict | None:
+    key = canon_key(name)
+    for row in CLIENTS:
+        if canon_key(row["name"]) == key:
+            return row
+    return None
 
 
 PENDING_DO = {
@@ -82,6 +120,11 @@ PENDING_DO = {
     "volume": 14,
     "amount": 9217.00,
     "collected": False,
+    "normal_day": DO_DAY,
+    "note": (
+        "Normally collected on the 1st. This cycle the 17 Sep load was missed, "
+        "so the first same-day slot was 5 Oct. Authorised, not collected."
+    ),
 }
 
 
@@ -109,6 +152,23 @@ def period_label(period: str) -> str:
     year, month = period.split("-")
     names = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
     return f"{names[int(month) - 1]} {year}"
+
+
+def do_action_date(inv_day: date) -> date:
+    """D/O for the advance month. Normally the 1st; Oct 2026 was the 5th."""
+    nxt = add_months(inv_day, 1)
+    first = date(nxt.year, nxt.month, DO_DAY)
+    if first == date(2026, 10, 1):
+        return date(2026, 10, 5)
+    return first
+
+
+def line_label(row: dict, period: str) -> str:
+    pkg = by_sku(row.get("sku"))
+    if pkg:
+        return f"{pkg['label']} {period_label(period)} (month in advance)"
+    kind = "Fibre" if row.get("access") == "fibre" else "Wireless"
+    return f"{kind} {period_label(period)} (month in advance)"
 
 
 def apply_named_receipts(conn: sqlite3.Connection) -> int:
@@ -181,7 +241,7 @@ def ensure_cycle_invoices(
     today = today or date.today()
     inv_day = invoice_day_on(today)
     period = period_for(inv_day)
-    clients = clients or DO_CLIENTS
+    clients = clients or CLIENTS
     created = []
     last = conn.execute("SELECT MAX(invoice_number) FROM customer_invoices").fetchone()
     number = int(last[0] or 3113)
@@ -205,14 +265,18 @@ def ensure_cycle_invoices(
             "due_date": inv_day.isoformat(),
             "customer": row["name"],
             "period": period,
-            "description": f"Fibre {period_label(period)} (month in advance)",
+            "description": line_label(row, period),
             "qty": 1,
             "rate": row["amount"],
             "amount": row["amount"],
             "balance_due": row["amount"],
-            "terms": "Debit order following month",
+            "terms": (
+                "Debit order following month"
+                if row.get("method") == "debit-order"
+                else "EFT month in advance"
+            ),
             "status": "open",
-            "source": "gowifi-do",
+            "source": "gowifi-do" if row.get("method") == "debit-order" else "gowifi-eft",
         }
         try:
             from qb_import import _upsert_invoice
@@ -233,7 +297,7 @@ def ensure_cycle_invoices(
                     row["amount"],
                     None,
                     "open",
-                    "gowifi-do",
+                    payload["source"],
                 ),
             )
         created.append(payload)
@@ -296,15 +360,20 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
     pending["collected"] = False
     pending["note"] = (
         f"D/O {pending['action_date']} authorised, not collected. "
+        f"Normally the 1st; this cycle was 5 Oct. "
         f"September invoices stay on the client. Fees do not reduce the D/O."
     )
     by_key = {}
-    for row in DO_CLIENTS:
+    for row in CLIENTS:
         by_key[canon_key(row["name"])] = {
             "name": row["name"],
-            "ref": row["ref"],
-            "do_amount": row["amount"],
-            "method": "debit-order",
+            "ref": row.get("ref"),
+            "do_amount": row["amount"] if row.get("method") == "debit-order" else None,
+            "amount": row["amount"],
+            "method": row.get("method") or "eft",
+            "access": row.get("access"),
+            "sku": row.get("sku"),
+            "package": by_sku(row.get("sku")),
         }
     for pay in payments:
         key = canon_key(pay.get("customer"))
@@ -313,7 +382,11 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "name": display_name(pay.get("customer")),
                 "ref": None,
                 "do_amount": None,
+                "amount": None,
                 "method": "eft",
+                "access": None,
+                "sku": None,
+                "package": None,
             }
     aliased_inv = [{**i, "customer": display_name(i.get("customer")) or i.get("customer")} for i in invoices]
     aliased_pay = [{**p, "customer": display_name(p.get("customer")) or p.get("customer")} for p in payments]
@@ -339,7 +412,12 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
             if paid < inv_day.isoformat():
                 continue
             cycle_credit += abs(float(pay.get("amount") or 0))
-        inv_amt = float((cycle_inv or {}).get("amount") or meta.get("do_amount") or 0)
+        inv_amt = float(
+            (cycle_inv or {}).get("amount")
+            or meta.get("amount")
+            or meta.get("do_amount")
+            or 0
+        )
         due = round(inv_amt - cycle_credit, 2)
         pending_do = None
         if meta["method"] == "debit-order" and not pending["collected"]:
@@ -353,6 +431,9 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "name": meta["name"],
                 "ref": meta["ref"],
                 "method": meta["method"],
+                "access": meta.get("access"),
+                "sku": meta.get("sku"),
+                "package": (meta.get("package") or {}).get("label") if meta.get("package") else None,
                 "do_amount": meta["do_amount"],
                 "last_invoice": (cycle_inv or {}).get("invoice_number"),
                 "last_invoice_date": (cycle_inv or {}).get("invoice_date"),
@@ -364,26 +445,33 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "last_payment": stmt.get("last_payment"),
             }
         )
-    accounts = [
-        a
-        for a in accounts
-        if a["method"] == "debit-order"
-        or (a.get("last_invoice_date") or "") >= f"{inv_day.year:04d}-{inv_day.month:02d}-01"
-    ]
-    accounts.sort(key=lambda r: (0 if r["method"] == "debit-order" else 1, r["name"] or ""))
+    accounts.sort(
+        key=lambda r: (
+            0 if r["method"] == "debit-order" else 1,
+            0 if r.get("access") == "fibre" else 1,
+            r["name"] or "",
+        )
+    )
     return {
         "invoice_day": inv_day.isoformat(),
         "period": period,
         "period_label": period_label(period),
         "rule": (
-            "Invoice on the 17th, month in advance. D/O loaded with the invoice "
-            "and collected next month. Full D/O clears the invoice; Netcash fees "
-            "are a company cost, not a client shortfall."
+            "Invoice on the 17th, month in advance. D/O is loaded with the invoice "
+            "and collected next month on the 1st (5 Oct this cycle only). "
+            "Full D/O clears the invoice; Netcash fees are a company cost. "
+            "Wireless and EFT clients are on the same 17th cycle. "
+            "Install, equipment, add-ons and reconnection are once-off, not on the D/O."
         ),
         "pending_do": pending,
+        "do_action_date": do_action_date(inv_day).isoformat(),
+        "extras": extra_charges(),
         "accounts": accounts,
         "open": sum(1 for a in accounts if not a["nil"] and a["due"] not in (None, 0)),
         "do_clients": sum(1 for a in accounts if a["method"] == "debit-order"),
+        "eft_clients": sum(1 for a in accounts if a["method"] == "eft"),
+        "fibre": sum(1 for a in accounts if a.get("access") == "fibre"),
+        "wireless": sum(1 for a in accounts if a.get("access") == "wireless"),
     }
 
 
@@ -470,6 +558,41 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK do-full-amount-nil-vs-inv")
+    if do_action_date(date(2026, 9, 17)) != date(2026, 10, 5):
+        print("FAIL oct-do-exception", do_action_date(date(2026, 9, 17)))
+        failed += 1
+    elif do_action_date(date(2026, 10, 17)) != date(2026, 11, 1):
+        print("FAIL nov-do-first", do_action_date(date(2026, 10, 17)))
+        failed += 1
+    else:
+        print("OK do-1st-except-oct5")
+    fibre_do = [c for c in DO_CLIENTS if c["access"] == "fibre"]
+    wireless_do = [c for c in DO_CLIENTS if c["access"] == "wireless"]
+    if len(DO_CLIENTS) != 14 or not fibre_do or not wireless_do:
+        print("FAIL do-mix", len(DO_CLIENTS), len(fibre_do), len(wireless_do))
+        failed += 1
+    elif not EFT_CLIENTS or not any(c["access"] == "fibre" for c in EFT_CLIENTS):
+        print("FAIL eft-fibre", EFT_CLIENTS)
+        failed += 1
+    else:
+        print("OK fibre-wireless-do-and-eft")
+    extra = extra_charges()
+    if any(x["on_monthly_do"] for x in extra) or {x["code"] for x in extra} < {
+        "new-install",
+        "equipment",
+        "addon",
+        "reconnect",
+    }:
+        print("FAIL extras", extra)
+        failed += 1
+    else:
+        print("OK once-off-extras")
+    de = next(c for c in CLIENTS if c["name"] == "Phillip De Gruchy")
+    if not by_sku(de["sku"]) or by_sku(de["sku"])["down"] != 300:
+        print("FAIL de-gruchy-package", de)
+        failed += 1
+    else:
+        print("OK package-on-client")
     conn.close()
     return failed
 

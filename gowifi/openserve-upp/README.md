@@ -76,6 +76,15 @@ GoWiFi books are three feeds, not a full ledger package:
 3. **FNB daily CSV** — scheduled “ACCOUNT TRANSACTION HISTORY” to `accounts@go-wifi.co.za`
 4. **Openserve invoices** already on the box — fibre cost to match against FNB debits
 
+### Packages (April 2026)
+
+`packages.py` is the Webstream + Office Connect rate card after the 1 April 2026
+increase, 25 Mbps through gigabit (Webstream 1000/500 from 1 July). Office
+Connect stays 50–500. Cost is Openserve rental (ex VAT); sell is the GoWiFi
+17th invoice. Monthly D/O is the line only — new install, equipment, add-ons
+and reconnection are once-off extras. Wireless clients sit on the same D/O
+file; some clients pay EFT.
+
 QuickBooks / Xero are not required for this. An accountant can take a CSV export at year end.
 
 Old QuickBooks invoice and statement PDFs in `kevin@` / `accounts@` mail are

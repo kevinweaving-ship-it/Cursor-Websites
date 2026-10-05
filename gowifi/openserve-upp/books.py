@@ -489,8 +489,10 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         pass
     nc = netcash_status(conn)
     from ledger import ledger_for_export
+    from packages import for_export as packages_for_export
 
     ledger = ledger_for_export(conn)
+    packages = packages_for_export(conn)
     next_no = max(history.get("next") or INVOICE_SERIES_AFTER + 1, INVOICE_SERIES_AFTER + 1)
     if drafts:
         next_no = drafts[0]["invoice_number"]
@@ -499,6 +501,7 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "company": COMPANY,
         "ledger": ledger,
         "billing": billing.get("clients") if isinstance(billing, dict) else billing,
+        "packages": packages,
         "loop": (
             "Invoice on the 17th, month in advance. D/O is loaded with the invoice "
             "and collected next month. Full D/O clears the client; Netcash fees "
@@ -621,8 +624,10 @@ def self_test() -> int:
     else:
         print("OK netcash-awaiting-key")
     from ledger import self_test as ledger_test
+    from packages import self_test as packages_test
 
     failed += ledger_test()
+    failed += packages_test()
     conn.close()
     return failed
 

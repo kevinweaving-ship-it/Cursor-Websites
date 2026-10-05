@@ -9,7 +9,7 @@ if [ "$SRC" != "$DEST" ]; then
     "$SRC/status_events.py" "$SRC/invoice_import.py" \
     "$SRC/site_lines.py" "$SRC/client_stories.py" "$SRC/books.py" \
     "$SRC/qb_import.py" "$SRC/qb_oauth.py" "$SRC/qb_api.py" \
-    "$SRC/netcash.py" "$SRC/ledger.py" "$SRC/billing.py" "$SRC/invoice_canned.py" "$SRC/company.py" \
+    "$SRC/netcash.py" "$SRC/ledger.py" "$SRC/billing.py" "$SRC/packages.py" "$SRC/invoice_canned.py" "$SRC/company.py" \
     "$SRC/checksum_accounts_mail.py" "$SRC/README.md" "$DEST/"
   mkdir -p "$DEST/data"
   if [ -d "$SRC/data" ]; then
@@ -20,7 +20,7 @@ chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" \
   "$DEST/audit_export.py" "$DEST/status_events.py" "$DEST/invoice_import.py" \
   "$DEST/site_lines.py" "$DEST/client_stories.py" "$DEST/books.py" \
   "$DEST/qb_import.py" "$DEST/qb_oauth.py" "$DEST/qb_api.py" \
-  "$DEST/netcash.py" "$DEST/ledger.py" "$DEST/billing.py" "$DEST/invoice_canned.py" "$DEST/company.py"
+  "$DEST/netcash.py" "$DEST/ledger.py" "$DEST/billing.py" "$DEST/packages.py" "$DEST/invoice_canned.py" "$DEST/company.py"
 WWW=/home/user-data/www/default
 DASH="$WWW/dash"
 LEGAL="$WWW/legal"
