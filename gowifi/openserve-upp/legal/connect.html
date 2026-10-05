@@ -19,7 +19,19 @@
   <p class="meta">GoWiFi Box</p>
   <p>Use this page when connecting or reconnecting GoWiFi Box to GoWifi (Pty) Ltd’s QuickBooks Online company file. Only GoWiFi staff may do this.</p>
   <p>The connection is for reading GoWiFi’s own invoices, customers, and payments. See the <a href="privacy.html">privacy policy</a> and <a href="eula.html">licence agreement</a>.</p>
+  <p><a id="connect" href="#">Connect to QuickBooks</a></p>
+  <p id="err" class="meta"></p>
   <p>Questions: <a href="mailto:accounts@go-wifi.co.za">accounts@go-wifi.co.za</a> · 076 263 9937</p>
+<script>
+(function () {
+  var a = document.getElementById("connect");
+  var err = document.getElementById("err");
+  fetch("/legal/qb-start", {credentials: "same-origin"}).then(function (r) { return r.json(); }).then(function (d) {
+    if (d.url) a.href = d.url;
+    else err.textContent = d.error || "Connect is not ready.";
+  }).catch(function () { err.textContent = "Connect is not ready."; });
+})();
+</script>
 </main>
 </body>
 </html>

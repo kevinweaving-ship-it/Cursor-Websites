@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoWiFi Box QuickBooks callback</title>
+<link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<header>
+  <div class="brand">GoWifi (Pty) Ltd</div>
+  <nav>
+    <a href="eula.html">Licence agreement</a>
+    <a href="privacy.html">Privacy policy</a>
+  </nav>
+</header>
+<main class="card">
+  <h1>QuickBooks redirect</h1>
+  <p class="meta">GoWiFi Box · OAuth callback</p>
+  <p id="msg">Waiting for Intuit…</p>
+  <p>Do not email or screenshot the address bar. Staff only.</p>
+</main>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var el = document.getElementById("msg");
+  if (q.get("error")) {
+    el.textContent = "Intuit returned an error. Try connect again.";
+    return;
+  }
+  if (q.get("code")) {
+    el.textContent = "Authorisation received. Saving on the box…";
+    fetch("/legal/qb-token", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({code: q.get("code"), realmId: q.get("realmId"), state: q.get("state")})
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      el.textContent = d.ok ? "Connected. You can close this tab." : (d.error || "Could not save tokens.");
+    }).catch(function () { el.textContent = "Could not reach the box. Try again."; });
+    return;
+  }
+  el.textContent = "This page is the Intuit redirect URL. Nothing to do until you connect.";
+})();
+</script>
+</body>
+</html>
