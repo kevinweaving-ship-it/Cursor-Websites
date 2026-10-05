@@ -144,6 +144,7 @@ def _haystack(card: dict) -> str:
         card.get("b_number"),
         card.get("package"),
         card.get("access"),
+        "wifi" if (card.get("access") or "") != "fibre" else "fibre",
         card.get("pay"),
         "cancelled" if card.get("cancelled") else None,
     ]
@@ -406,7 +407,12 @@ def cards_for_export(
         else:
             cards.append(card)
 
-    cards.sort(key=lambda r: (r.get("name") or "").lower())
+    cards.sort(
+        key=lambda r: (
+            0 if (r.get("access") or "") != "fibre" else 1,
+            (r.get("name") or "").lower(),
+        )
+    )
     cancelled.sort(key=lambda r: (-float(r.get("due") or 0), (r.get("name") or "").lower()))
     still_owe = sum(1 for c in cancelled if float(c.get("due") or 0) > 0.004)
     return {
@@ -528,6 +534,9 @@ def self_test() -> int:
         failed += 1
     elif "mussel" not in by["HPP Control Room"]["search"]:
         print("FAIL search", by["HPP Control Room"]["search"])
+        failed += 1
+    elif names.index("David Wantling") > names.index("HPP Control Room"):
+        print("FAIL wifi-before-fibre", names)
         failed += 1
     elif "Aljo van Vreden" in names or "Aman Breedt" in names or "Johannes Lategan" in names:
         print("FAIL cancelled-or-dup-in-clients", names)

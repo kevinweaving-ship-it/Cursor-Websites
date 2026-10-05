@@ -31,6 +31,8 @@ header.app a.back { display:inline-block; color:var(--acc); font-size:14px; min-
 .search:focus { outline:2px solid var(--acc); border-color:var(--acc); }
 main { padding:14px var(--pad) 32px; max-width:980px; margin:0 auto; }
 .counts { color:var(--muted); font-size:13px; margin:0 0 12px; }
+.cat { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--acc); margin:16px 0 8px; }
+.cat:first-child { margin-top:0; }
 .list { display:flex; flex-direction:column; gap:8px; }
 .card {
   background:var(--card); border:1px solid var(--line); border-radius:12px;
@@ -132,16 +134,33 @@ function bindToggles(root){
     });
   });
 }
+function splitAccess(list){
+  const name = c => (c.name||"").toLowerCase();
+  const wifi = list.filter(c => (c.access||"") !== "fibre").sort((a,b)=>name(a).localeCompare(name(b)));
+  const fibre = list.filter(c => (c.access||"") === "fibre").sort((a,b)=>name(a).localeCompare(name(b)));
+  return {wifi, fibre};
+}
 function paint(pack){
   const q = ($("#q").value||"").trim().toLowerCase();
   const cards = pack.cards || [];
   const cancelled = pack.cancelled || [];
-  const shown = cards.filter(c => !q || (c.search||"").includes(q));
-  const shownC = cancelled.filter(c => !q || (c.search||"").includes(q));
+  const hit = c => !q || (c.search||"").includes(q) || (c.name||"").toLowerCase().includes(q);
+  const shown = cards.filter(hit);
+  const shownC = cancelled.filter(hit);
+  const {wifi, fibre} = splitAccess(shown);
   $("#counts").textContent = q
-    ? `${shown.length} of ${cards.length} clients`
-    : `${cards.length} clients`;
-  $("#grid").innerHTML = shown.map(card).join("") || `<p class="empty">No clients match.</p>`;
+    ? `${shown.length} match · ${wifi.length} wifi · ${fibre.length} fibre`
+    : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`;
+  let body = "";
+  if (!shown.length) body = `<p class="empty">No clients match.</p>`;
+  else if (q) {
+    if (wifi.length) body += `<h2 class="cat">GoWiFi Wifi</h2>` + wifi.map(card).join("");
+    if (fibre.length) body += `<h2 class="cat">Fibre</h2>` + fibre.map(card).join("");
+  } else {
+    body += `<h2 class="cat">GoWiFi Wifi</h2>` + (wifi.map(card).join("") || `<p class="empty">None</p>`);
+    body += `<h2 class="cat">Fibre</h2>` + (fibre.map(card).join("") || `<p class="empty">None</p>`);
+  }
+  $("#grid").innerHTML = body;
   bindToggles($("#grid"));
   const wrap = $("#cancelled-wrap");
   if (!cancelled.length) { wrap.classList.add("hidden"); return; }

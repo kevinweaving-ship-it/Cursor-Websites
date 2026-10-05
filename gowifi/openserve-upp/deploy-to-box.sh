@@ -10,6 +10,10 @@ if [ -n "${GOWIFI_SSH_KEY:-}" ]; then
   SSH+=(-i "$GOWIFI_SSH_KEY")
   SCP+=(-i "$GOWIFI_SSH_KEY")
 fi
+if [ -n "${SSHPASS:-}" ] && command -v sshpass >/dev/null; then
+  SSH=(sshpass -e "${SSH[@]}")
+  SCP=(sshpass -e "${SCP[@]}")
+fi
 
 echo "copy $SRC -> $BOX:/root/gowifi-upp"
 "${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp /home/user-data/www/default/dash /home/user-data/www/default/legal"
