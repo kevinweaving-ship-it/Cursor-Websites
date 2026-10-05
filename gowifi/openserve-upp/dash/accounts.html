@@ -81,6 +81,22 @@ const clock = v => {
   const sa = new Date(d.getTime() + 2*60*60*1000);
   return String(sa.getUTCHours()).padStart(2,"0")+":"+String(sa.getUTCMinutes()).padStart(2,"0");
 };
+const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
+const dueCell = r => r.nil ? `<span class="pill ok">nil</span>` : `<span class="pill bad">${esc(money(r.due))}</span>`;
+const clientTable = (rows) => {
+  const body = (rows||[]).map(r=>`
+    <tr>
+      <td><div class="name">${esc(r.name||"—")}</div>
+        <div class="meta">${esc(r.package||r.speed||"Wireless")}${r.discount?" · discount":""}${r.pending_do?` · D/O ${esc(r.pending_do.action_date)} not collected`:""}</div></td>
+      <td class="num">${esc(money(r.billed??r.invoice_amount))}</td>
+      <td>${r.pay==="D/O"?`<span class="pill ok">D/O</span>`:`<span class="pill warn">EFT</span>`}<div class="meta">${esc(r.ref||"")}</div></td>
+      <td class="num">${dueCell(r)}</td>
+    </tr>`).join("");
+  return `<table class="compact">
+    <thead><tr><th>Client</th><th>Billed</th><th>Pay</th><th>Due</th></tr></thead>
+    <tbody>${body || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
+  </table>`;
+};
 const pillFor = (status) => {
   const s=(status||"").toLowerCase();
   if (s==="active") return `<span class="pill ok">Active</span>`;
@@ -205,6 +221,34 @@ function render(data){
         <tbody>${incomingRows || `<tr><td colspan="4" class="meta">None mapped</td></tr>`}</tbody>
       </table>
     </div>
+    ${(() => {
+      const pkg = data.books&&data.books.packages||{};
+      const prices = (pkg.webstream||[]).concat(pkg.office_connect||[]);
+      const bill = data.books&&data.books.billing||{};
+      const priceBody = prices.map(r=>`
+        <tr>
+          <td>${esc(r.product||"—")}<div class="meta">${esc(r.label||r.family||"")}${r.retail_source==="live"?" · live":""}</div></td>
+          <td class="num">${esc(r.speed||"—")}</td>
+          <td class="num">${money(r.cost)}</td>
+          <td class="num">${r.retail==null?"—":Number(r.retail).toFixed(0)}</td>
+          <td class="num">${r.margin==null?"—":Number(r.margin).toFixed(2)}</td>
+        </tr>`).join("");
+      return `
+    <h2>Cost / Retail / Margin</h2>
+    <div class="card"><div class="meta">${esc(pkg.note||"Cost includes VAT we pay. Retail has no VAT.")}</div></div>
+    <div class="card scroll">
+      <table class="compact">
+        <thead><tr><th>Product</th><th>Speed</th><th>Cost</th><th>Retail</th><th>Margin</th></tr></thead>
+        <tbody>${priceBody || `<tr><td colspan="5" class="meta">No package card yet</td></tr>`}</tbody>
+      </table>
+    </div>
+    <h2>Wireless clients</h2>
+    <div class="card"><div class="meta">Billed ${money(bill.billed_wireless)} · due ${money(bill.due_wireless)} · D/O and EFT</div></div>
+    <div class="card scroll">${clientTable(bill.wireless)}</div>
+    <h2>Fibre clients</h2>
+    <div class="card"><div class="meta">Billed ${money(bill.billed_fibre)} · due ${money(bill.due_fibre)} · D/O and EFT</div></div>
+    <div class="card scroll">${clientTable(bill.fibre)}</div>`;
+    })()}
     <h2 class="toggle" id="books-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="books-fold">
       <span class="chev">▸</span>
       <span>Books</span>

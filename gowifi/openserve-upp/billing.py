@@ -429,16 +429,20 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "amount": meta["do_amount"],
                 "status": "authorised · not collected",
             }
+        pkg = meta.get("package") or {}
         accounts.append(
             {
                 "name": meta["name"],
                 "ref": meta["ref"],
                 "method": meta["method"],
-                "access": meta.get("access"),
+                "pay": "D/O" if meta["method"] == "debit-order" else "EFT",
+                "access": meta.get("access") or "wireless",
                 "sku": meta.get("sku"),
-                "package": (meta.get("package") or {}).get("label") if meta.get("package") else None,
+                "package": pkg.get("label") if pkg else None,
+                "speed": pkg.get("speed"),
                 "discount": bool(meta.get("discount")),
                 "do_amount": meta["do_amount"],
+                "billed": meta.get("amount") or inv_amt or None,
                 "last_invoice": (cycle_inv or {}).get("invoice_number"),
                 "last_invoice_date": (cycle_inv or {}).get("invoice_date"),
                 "period": (cycle_inv or {}).get("period") or period,
@@ -451,11 +455,13 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
         )
     accounts.sort(
         key=lambda r: (
-            0 if r["method"] == "debit-order" else 1,
             0 if r.get("access") == "fibre" else 1,
+            0 if r["method"] == "debit-order" else 1,
             r["name"] or "",
         )
     )
+    wireless = [a for a in accounts if a.get("access") != "fibre"]
+    fibre = [a for a in accounts if a.get("access") == "fibre"]
     return {
         "invoice_day": inv_day.isoformat(),
         "period": period,
@@ -471,11 +477,17 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
         "do_action_date": do_action_date(inv_day).isoformat(),
         "extras": extra_charges(),
         "accounts": accounts,
+        "wireless": wireless,
+        "fibre": fibre,
         "open": sum(1 for a in accounts if not a["nil"] and a["due"] not in (None, 0)),
         "do_clients": sum(1 for a in accounts if a["method"] == "debit-order"),
         "eft_clients": sum(1 for a in accounts if a["method"] == "eft"),
-        "fibre": sum(1 for a in accounts if a.get("access") == "fibre"),
-        "wireless": sum(1 for a in accounts if a.get("access") == "wireless"),
+        "fibre_count": len(fibre),
+        "wireless_count": len(wireless),
+        "due_wireless": round(sum(a["due"] or 0 for a in wireless if not a["nil"]), 2),
+        "due_fibre": round(sum(a["due"] or 0 for a in fibre if not a["nil"]), 2),
+        "billed_wireless": round(sum(a.get("billed") or 0 for a in wireless), 2),
+        "billed_fibre": round(sum(a.get("billed") or 0 for a in fibre), 2),
     }
 
 
@@ -602,6 +614,18 @@ def self_test() -> int:
     else:
         print("OK package-on-client")
         print("OK phillipus-discount")
+    acc = client_accounts(conn, date(2026, 10, 5))
+    if not acc.get("wireless") or not acc.get("fibre"):
+        print("FAIL access-lists", acc.get("wireless_count"), acc.get("fibre_count"))
+        failed += 1
+    elif not any(a["pay"] == "D/O" for a in acc["wireless"]) or not any(a["pay"] == "EFT" for a in acc["wireless"]):
+        print("FAIL wireless-pay", acc["wireless"])
+        failed += 1
+    elif not any(a["pay"] == "D/O" for a in acc["fibre"]) or not any(a["pay"] == "EFT" for a in acc["fibre"]):
+        print("FAIL fibre-pay", acc["fibre"])
+        failed += 1
+    else:
+        print("OK wireless-fibre-do-eft-lists")
     conn.close()
     return failed
 
