@@ -9,37 +9,37 @@
 <body>
 <header>
   <div class="brand">GoWifi (Pty) Ltd</div>
-  <nav>
-    <a href="eula.html">Licence agreement</a>
-    <a href="privacy.html">Privacy policy</a>
-  </nav>
 </header>
 <main class="card">
-  <h1>QuickBooks redirect</h1>
-  <p class="meta">GoWiFi Box · OAuth callback</p>
-  <p id="msg">Waiting for Intuit…</p>
-  <p>Do not email or screenshot the address bar. Staff only.</p>
+  <h1 id="title">Wrong page</h1>
+  <p id="msg">Do not type this address in Chrome. It is only a bounce-back for Intuit.</p>
+  <p><a href="https://developer.intuit.com">Open Intuit Developer</a></p>
 </main>
 <script>
 (function () {
   var q = new URLSearchParams(location.search);
+  var title = document.getElementById("title");
   var el = document.getElementById("msg");
   if (q.get("error")) {
-    el.textContent = "Intuit returned an error. Try connect again.";
+    title.textContent = "Intuit error";
+    el.textContent = "Intuit sent an error. Go back to Developer and try again.";
     return;
   }
   if (q.get("code")) {
+    title.textContent = "Saving…";
     el.textContent = "Authorisation received. Saving on the box…";
     fetch("/legal/qb-token", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({code: q.get("code"), realmId: q.get("realmId"), state: q.get("state")})
     }).then(function (r) { return r.json(); }).then(function (d) {
+      title.textContent = d.ok ? "Connected" : "Not saved";
       el.textContent = d.ok ? "Connected. You can close this tab." : (d.error || "Could not save tokens.");
-    }).catch(function () { el.textContent = "Could not reach the box. Try again."; });
-    return;
+    }).catch(function () {
+      title.textContent = "Not saved";
+      el.textContent = "Could not reach the box.";
+    });
   }
-  el.textContent = "This page is the Intuit redirect URL. Nothing to do until you connect.";
 })();
 </script>
 </body>
