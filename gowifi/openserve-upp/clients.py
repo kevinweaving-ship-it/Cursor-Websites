@@ -154,10 +154,11 @@ def _haystack(card: dict) -> str:
 def _package(acc: dict, line: dict | None) -> str | None:
     if acc.get("package"):
         return acc["package"]
-    if line and (line.get("product") or line.get("speed")):
+    fibre = (acc.get("access") or "") == "fibre"
+    if fibre and line and (line.get("product") or line.get("speed")):
         return " · ".join(p for p in (line.get("product"), line.get("speed")) if p)
-    if acc.get("access") == "wireless":
-        amt = acc.get("monthly") or acc.get("amount") or acc.get("do_amount")
+    if not fibre:
+        amt = acc.get("monthly") or acc.get("amount") or acc.get("do_amount") or acc.get("billed")
         return f"Wireless{f' R{amt:.0f}' if amt else ''}"
     return None
 
@@ -543,6 +544,9 @@ def self_test() -> int:
         failed += 1
     elif (by["Annette Bing HH"].get("access") or "") == "fibre" or by["Annette Bing HH"].get("b_number"):
         print("FAIL bing-wifi-not-fibre", by["Annette Bing HH"])
+        failed += 1
+    elif not (by["Annette Bing HH"].get("package") or "").startswith("Wireless"):
+        print("FAIL bing-wifi-package", by["Annette Bing HH"].get("package"))
         failed += 1
     elif (by["Bing Noordhoek Fibre"].get("access") or "") != "fibre":
         print("FAIL noordhoek-not-fibre", by["Bing Noordhoek Fibre"])
