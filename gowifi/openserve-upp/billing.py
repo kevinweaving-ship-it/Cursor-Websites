@@ -421,7 +421,10 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
             or meta.get("do_amount")
             or 0
         )
+        paid = round(cycle_credit, 2)
         due = round(inv_amt - cycle_credit, 2)
+        paid_up = abs(due) <= 0.004
+        last_pay = stmt.get("last_payment") or {}
         pending_do = None
         if meta["method"] == "debit-order" and not pending["collected"]:
             pending_do = {
@@ -443,14 +446,17 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "discount": bool(meta.get("discount")),
                 "do_amount": meta["do_amount"],
                 "billed": meta.get("amount") or inv_amt or None,
+                "paid": paid,
                 "last_invoice": (cycle_inv or {}).get("invoice_number"),
                 "last_invoice_date": (cycle_inv or {}).get("invoice_date"),
                 "period": (cycle_inv or {}).get("period") or period,
                 "invoice_amount": inv_amt or None,
                 "due": due,
-                "nil": abs(due) <= 0.004,
+                "nil": paid_up,
+                "status": "paid-up" if paid_up else "owes",
                 "pending_do": pending_do,
-                "last_payment": stmt.get("last_payment"),
+                "last_payment": last_pay,
+                "last_paid_on": (last_pay.get("date") or last_pay.get("paid_on")) if isinstance(last_pay, dict) else None,
             }
         )
     accounts.sort(
@@ -460,8 +466,17 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
             r["name"] or "",
         )
     )
+    def _split(rows):
+        owes = [a for a in rows if a["status"] == "owes"]
+        settled = [a for a in rows if a["status"] == "paid-up"]
+        owes.sort(key=lambda r: (-(r.get("due") or 0), r["name"] or ""))
+        settled.sort(key=lambda r: r["name"] or "")
+        return owes, settled
+
     wireless = [a for a in accounts if a.get("access") != "fibre"]
     fibre = [a for a in accounts if a.get("access") == "fibre"]
+    wireless_owes, wireless_paid = _split(wireless)
+    fibre_owes, fibre_paid = _split(fibre)
     return {
         "invoice_day": inv_day.isoformat(),
         "period": period,
@@ -479,15 +494,22 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
         "accounts": accounts,
         "wireless": wireless,
         "fibre": fibre,
-        "open": sum(1 for a in accounts if not a["nil"] and a["due"] not in (None, 0)),
+        "wireless_owes": wireless_owes,
+        "wireless_paid": wireless_paid,
+        "fibre_owes": fibre_owes,
+        "fibre_paid": fibre_paid,
+        "open": sum(1 for a in accounts if a["status"] == "owes"),
+        "paid_up": sum(1 for a in accounts if a["status"] == "paid-up"),
         "do_clients": sum(1 for a in accounts if a["method"] == "debit-order"),
         "eft_clients": sum(1 for a in accounts if a["method"] == "eft"),
         "fibre_count": len(fibre),
         "wireless_count": len(wireless),
-        "due_wireless": round(sum(a["due"] or 0 for a in wireless if not a["nil"]), 2),
-        "due_fibre": round(sum(a["due"] or 0 for a in fibre if not a["nil"]), 2),
+        "due_wireless": round(sum(a["due"] or 0 for a in wireless_owes), 2),
+        "due_fibre": round(sum(a["due"] or 0 for a in fibre_owes), 2),
         "billed_wireless": round(sum(a.get("billed") or 0 for a in wireless), 2),
         "billed_fibre": round(sum(a.get("billed") or 0 for a in fibre), 2),
+        "paid_wireless": round(sum(a.get("paid") or 0 for a in wireless), 2),
+        "paid_fibre": round(sum(a.get("paid") or 0 for a in fibre), 2),
     }
 
 
@@ -626,6 +648,20 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK wireless-fibre-do-eft-lists")
+    if want["status"] != "paid-up" or (want.get("paid") or 0) < 438:
+        print("FAIL wantling-paid-up-status", want)
+        failed += 1
+    elif dirk["status"] != "owes" or abs((dirk["due"] or 0) - 399) > 0.01:
+        print("FAIL dirk-owes-status", dirk)
+        failed += 1
+    elif not any(a["name"] == "David Wantling" for a in acc.get("wireless_paid") or []):
+        print("FAIL wireless-paid-list", acc.get("wireless_paid"))
+        failed += 1
+    elif not acc.get("fibre_owes"):
+        print("FAIL fibre-owes-list", acc.get("fibre_owes"))
+        failed += 1
+    else:
+        print("OK paid-up-vs-owes")
     conn.close()
     return failed
 

@@ -82,21 +82,36 @@ const clock = v => {
   return String(sa.getUTCHours()).padStart(2,"0")+":"+String(sa.getUTCMinutes()).padStart(2,"0");
 };
 const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
-const dueCell = r => r.nil ? `<span class="pill ok">nil</span>` : `<span class="pill bad">${esc(money(r.due))}</span>`;
-const clientTable = (rows) => {
-  const body = (rows||[]).map(r=>`
+const clientTable = (rows, empty) => {
+  const body = (rows||[]).map(r=>{
+    const paidUp = r.status==="paid-up" || r.nil;
+    const last = r.last_paid_on || (r.last_payment&&(r.last_payment.date||r.last_payment.paid_on)) || "";
+    return `
     <tr>
       <td><div class="name">${esc(r.name||"—")}</div>
-        <div class="meta">${esc(r.package||r.speed||"Wireless")}${r.discount?" · discount":""}${r.pending_do?` · D/O ${esc(r.pending_do.action_date)} not collected`:""}</div></td>
+        <div class="meta">${esc(r.package||r.speed||"Wireless")} · ${esc(r.pay||"")}${r.discount?" · discount":""}${r.pending_do?` · D/O ${esc(r.pending_do.action_date)} not collected`:""}${last?` · last paid ${esc(last)}`:""}</div></td>
       <td class="num">${esc(money(r.billed??r.invoice_amount))}</td>
-      <td>${r.pay==="D/O"?`<span class="pill ok">D/O</span>`:`<span class="pill warn">EFT</span>`}<div class="meta">${esc(r.ref||"")}</div></td>
-      <td class="num">${dueCell(r)}</td>
-    </tr>`).join("");
+      <td class="num">${esc(money(r.paid||0))}</td>
+      <td class="num">${paidUp?`<span class="pill ok">Paid up</span>`:`<span class="pill bad">Owes ${esc(money(r.due))}</span>`}</td>
+    </tr>`;
+  }).join("");
   return `<table class="compact">
-    <thead><tr><th>Client</th><th>Billed</th><th>Pay</th><th>Due</th></tr></thead>
-    <tbody>${body || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
+    <thead><tr><th>Client</th><th>Billed</th><th>Paid</th><th>Status</th></tr></thead>
+    <tbody>${body || `<tr><td colspan="4" class="meta">${esc(empty||"None")}</td></tr>`}</tbody>
   </table>`;
 };
+const clientBlock = (title, bill, owes, paid, due, billedAmt, paidAmt) => `
+    <h2>${esc(title)}</h2>
+    <div class="grid">
+      <div class="card"><div class="k">Still owe</div><div class="v">${(owes||[]).length}</div><div class="meta">${money(due)}</div></div>
+      <div class="card"><div class="k">Paid up</div><div class="v">${(paid||[]).length}</div><div class="meta">of ${(owes||[]).length+(paid||[]).length} billed ${money(billedAmt)}</div></div>
+      <div class="card"><div class="k">Received</div><div class="v">${money(paidAmt)}</div><div class="meta">this cycle</div></div>
+    </div>
+    <h2 class="k" style="margin-top:8px">Still owe</h2>
+    <div class="card scroll">${clientTable(owes, "Everyone paid up")}</div>
+    <h2 class="k">Paid up</h2>
+    <div class="card scroll">${clientTable(paid, "Nobody paid up yet")}</div>
+`;
 const pillFor = (status) => {
   const s=(status||"").toLowerCase();
   if (s==="active") return `<span class="pill ok">Active</span>`;
@@ -242,12 +257,8 @@ function render(data){
         <tbody>${priceBody || `<tr><td colspan="5" class="meta">No package card yet</td></tr>`}</tbody>
       </table>
     </div>
-    <h2>Wireless clients</h2>
-    <div class="card"><div class="meta">Billed ${money(bill.billed_wireless)} · due ${money(bill.due_wireless)} · D/O and EFT</div></div>
-    <div class="card scroll">${clientTable(bill.wireless)}</div>
-    <h2>Fibre clients</h2>
-    <div class="card"><div class="meta">Billed ${money(bill.billed_fibre)} · due ${money(bill.due_fibre)} · D/O and EFT</div></div>
-    <div class="card scroll">${clientTable(bill.fibre)}</div>`;
+    ${clientBlock("Wireless — who owes / who is paid up", bill, bill.wireless_owes, bill.wireless_paid, bill.due_wireless, bill.billed_wireless, bill.paid_wireless)}
+    ${clientBlock("Fibre — who owes / who is paid up", bill, bill.fibre_owes, bill.fibre_paid, bill.due_fibre, bill.billed_fibre, bill.paid_fibre)}`;
     })()}
     <h2 class="toggle" id="books-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="books-fold">
       <span class="chev">▸</span>
