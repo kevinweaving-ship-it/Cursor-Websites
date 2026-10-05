@@ -98,6 +98,8 @@ main {
 .stmt td { padding:5px 8px 5px 0; border-bottom:1px solid var(--line); vertical-align:top; }
 .stmt tr:last-child td { border-bottom:0; }
 .stmt tr.payment td.num { color:var(--ok); }
+.stmt tr.line td:nth-child(2) { padding-left:14px; color:var(--muted); }
+.stmt tr.line td.num { color:var(--muted); font-weight:400; }
 .empty { color:var(--muted); padding:20px 14px; }
 .err { color:#8a1212; background:#fdecec; padding:12px; border-radius:10px; }
 .fold-head {
@@ -179,10 +181,10 @@ function stmtTable(c){
   const rows = c.ledger || [];
   if (!rows.length) return "";
   const body = rows.map(r=>`<tr class="${esc(r.kind||"")}">
-    <td>${esc(r.date_fmt||r.date||"")}</td>
+    <td>${esc(r.kind==="line"?"":(r.date_fmt||r.date||""))}</td>
     <td>${esc(r.what||"")}</td>
     <td class="num">${esc(money(r.amount))}</td>
-    <td class="num">${esc(money(r.balance))}</td>
+    <td class="num">${r.kind==="line"?"":esc(money(r.balance))}</td>
   </tr>`).join("");
   return `<div class="band stmt-band">
     <div class="k">Statement</div>

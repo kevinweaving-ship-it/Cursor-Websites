@@ -30,6 +30,9 @@ INVOICES_JSON = DATA_DIR / "qb_invoices.json"
 SALES_JSON = DATA_DIR / "qb_sales.json"
 PAYMENTS_JSON = DATA_DIR / "qb_payments.json"
 NETCASH_JSON = DATA_DIR / "qb_do_payments.json"
+SALES_XLS = DATA_DIR / "sales.xls"
+SALES_REG_JSON = DATA_DIR / "qb_sales_register.json"
+DELETED_STATUSES = {"deleted", "void", "voided"}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS customer_invoices (
@@ -418,6 +421,182 @@ def _books_invoice(row: dict) -> bool:
     return not src.startswith("gowifi-")
 
 
+def _invoice_deleted(row: dict) -> bool:
+    """Deleted invoices never show and cannot carry an amount due."""
+    status = (row.get("status") or "").strip().lower()
+    if status in DELETED_STATUSES:
+        return True
+    typ = (row.get("type") or "").strip().lower()
+    return typ in DELETED_STATUSES
+
+
+def _xls_day(value):
+    from invoice_canned import parse_day
+
+    day = parse_day(value)
+    if day:
+        return day
+    if isinstance(value, (int, float)) and value > 20000:
+        try:
+            import xlrd
+
+            parts = xlrd.xldate_as_tuple(value, 0)
+            return date(*parts[:3])
+        except Exception:
+            return None
+    return None
+
+
+def _read_sales_xls(path: Path) -> list[dict]:
+    try:
+        import xlrd
+    except ImportError:
+        return []
+    sh = xlrd.open_workbook(str(path)).sheet_by_index(0)
+    header = 1
+    for r in range(min(5, sh.nrows)):
+        vals = [str(sh.cell_value(r, c)).strip().lower() for c in range(sh.ncols)]
+        if "type" in vals and ("amount" in vals or "no." in vals or "no" in vals):
+            header = r
+            break
+    cols = {str(sh.cell_value(header, c)).strip().lower(): c for c in range(sh.ncols)}
+
+    def cell(row, *names):
+        for n in names:
+            if n in cols:
+                return sh.cell_value(row, cols[n])
+        return ""
+
+    out = []
+    for r in range(header + 1, sh.nrows):
+        typ = str(cell(r, "type") or "").strip()
+        if typ.lower() == "deposit":
+            continue
+        if typ.lower() not in {"invoice", "payment", "credit"}:
+            continue
+        if _invoice_deleted({"type": typ, "status": cell(r, "status")}):
+            continue
+        day = _xls_day(cell(r, "date"))
+        out.append(
+            {
+                "date": day.isoformat() if day else str(cell(r, "date") or ""),
+                "type": typ,
+                "invoice_number": str(cell(r, "no.", "no") or "").strip(),
+                "customer": str(cell(r, "customer") or "").strip(),
+                "amount": _money(cell(r, "amount")),
+                "memo": str(cell(r, "memo") or "").strip(),
+                "status": str(cell(r, "status") or "").strip().lower(),
+                "source": "qb-sales-xls",
+            }
+        )
+    return out
+
+
+def load_sales_register(path: Path | None = None) -> list[dict]:
+    """QB Sales register: living invoices + applied payments. Deleted and deposits stay off."""
+    xls = path or SALES_XLS
+    if xls.exists() and xls.suffix.lower() in {".xls", ".xlsx"}:
+        rows = _read_sales_xls(xls)
+        if rows:
+            return rows
+    if SALES_REG_JSON.exists():
+        return list((_load(SALES_REG_JSON).get("rows") or []))
+    return []
+
+
+def living_books(name: str, path: Path | None = None) -> tuple[list[dict], list[dict]] | None:
+    """Only invoices still on the sales register. Deleted never show and never due."""
+    rows = load_sales_register(path)
+    if not rows:
+        return None
+    key = canon_key(name)
+    mine = [r for r in rows if canon_key(r.get("customer")) == key and not _invoice_deleted(r)]
+    if not mine:
+        return None
+    invoices = [
+        {
+            "invoice_number": r["invoice_number"],
+            "invoice_date": r["date"],
+            "customer": r["customer"],
+            "amount": abs(r["amount"]),
+            "source": "qb-sales-xls",
+            "status": r.get("status") or "paid",
+        }
+        for r in mine
+        if r["type"].lower() == "invoice"
+    ]
+    payments = [
+        {
+            "paid_on": r["date"],
+            "customer": r["customer"],
+            "amount": -abs(r["amount"]),
+            "note": r.get("memo") or "Payment",
+            "source": "qb-sales-xls",
+            "method": "eft",
+        }
+        for r in mine
+        if r["type"].lower() == "payment"
+    ]
+    return invoices, payments
+
+
+def _attach_invoice_lines(lines: list[dict], conn: sqlite3.Connection | None) -> list[dict]:
+    """Sales lines sit under the invoice. They do not change the running balance."""
+    out = []
+    for row in lines:
+        out.append(row)
+        if row.get("kind") != "invoice":
+            continue
+        for item in _sales_lines(str(row.get("ref") or ""), conn):
+            out.append(
+                {
+                    "date": row.get("date"),
+                    "date_fmt": "",
+                    "kind": "line",
+                    "ref": "",
+                    "what": item.get("what") or "",
+                    "amount": _money(item.get("amount")),
+                    "balance": None,
+                }
+            )
+    return out
+
+
+def _sales_lines(number: str, conn: sqlite3.Connection | None = None) -> list[dict]:
+    from invoice_canned import clean_description
+
+    out = []
+    if conn is not None:
+        try:
+            for rec in conn.execute(
+                """SELECT product, description, amount FROM customer_invoice_lines
+                   WHERE invoice_number=? ORDER BY line_no""",
+                (str(number),),
+            ):
+                out.append(
+                    {
+                        "what": clean_description(rec[1] or rec[0]),
+                        "amount": _money(rec[2]),
+                        "kind": "line",
+                    }
+                )
+        except sqlite3.OperationalError:
+            out = []
+    if out:
+        return out
+    for row in _load(SALES_JSON).get("rows") or []:
+        if str(row.get("number") or "") != str(number):
+            continue
+        out.append(
+            {
+                "what": clean_description(row.get("description") or row.get("product")),
+                "amount": _money(row.get("amount")),
+                "kind": "line",
+            }
+        )
+    return out
+
+
 def fifo_statement(
     invoices: list[dict],
     payments: list[dict],
@@ -591,9 +770,21 @@ def account_as_at(
     today = today or date.today()
     key = canon_key(name)
     book = client_row(name)
-    invoices, payments = _rows(conn)
+    all_inv, all_pay = _rows(conn)
+    living = living_books(name)
+    if living:
+        invoices, payments = living
+    else:
+        invoices = [i for i in all_inv if _books_invoice(i) and not _invoice_deleted(i)]
+        payments = all_pay
     display = display_name(name) or name
     ledger = fifo_statement(invoices, payments, display, today)
+    meta = fifo_statement(all_inv, all_pay, display, today)
+    ledger["other_subs"] = meta.get("other_subs") or ledger.get("other_subs") or []
+    ledger["master"] = meta.get("master") or ledger.get("master")
+    ledger["sub"] = meta.get("sub") or ledger.get("sub")
+    ledger["own_sub"] = meta.get("own_sub") if "own_sub" in meta else ledger.get("own_sub")
+    ledger["lines"] = _attach_invoice_lines(ledger.get("lines") or [], conn)
     stmt = statement_on_invoice(invoices, payments, display, as_at=today)
     billed = ledger["billed"]
     paid = ledger["paid"]
@@ -731,20 +922,49 @@ def self_test() -> int:
         print("OK oct5-collected-unpaid-0")
     amoroc = account_as_at(conn, "Amoroc Doors", today)
     lines = amoroc.get("ledger") or []
+    living = living_books("Amoroc Doors")
+    living_nos = {str(i.get("invoice_number")) for i in (living[0] if living else [])}
+    shown_inv = [r for r in lines if r.get("kind") == "invoice"]
+    shown_nos = {str(r.get("ref")) for r in shown_inv}
+    first_pay = next((r for r in lines if r.get("kind") == "payment"), None)
+    first_items = []
+    for row in lines[1:]:
+        if row.get("kind") != "line":
+            break
+        first_items.append(row)
+    conn.execute(
+        """INSERT OR REPLACE INTO customer_invoices
+           (invoice_number, invoice_date, customer, amount, balance_due, status, source)
+           VALUES (9999,'2024-01-01','Amoroc Doors',5000,5000,'deleted','qb-list')"""
+    )
+    ghost = account_as_at(conn, "Amoroc Doors", today)
+    ghost_lines = ghost.get("ledger") or []
     if abs((amoroc["billed"] or 0) - 9310.25) > 0.02 or abs((amoroc["paid"] or 0) - 9310.25) > 0.02:
         print("FAIL amoroc-totals", amoroc["billed"], amoroc["paid"], amoroc["due"])
         failed += 1
     elif abs(amoroc["due"] or 0) > 0.02:
         print("FAIL amoroc-due", amoroc["due"])
         failed += 1
-    elif not lines or str(lines[0].get("ref")) != "2335" or abs((lines[0].get("amount") or 0) - 2345.25) > 0.02:
-        print("FAIL amoroc-first-invoice", lines[:2] if lines else None)
+    elif not shown_inv or str(shown_inv[0].get("ref")) != "2335" or abs((shown_inv[0].get("amount") or 0) - 2345.25) > 0.02:
+        print("FAIL amoroc-first-invoice", shown_inv[:2] if shown_inv else lines[:3])
         failed += 1
-    elif lines[1].get("kind") != "payment" or abs((lines[1].get("amount") or 0) + 2345.25) > 0.02:
-        print("FAIL amoroc-first-payment", lines[1] if len(lines) > 1 else None)
+    elif [round(r.get("amount") or 0, 2) for r in first_items] != [1374.25, 172.0, 600.0, 199.0]:
+        print("FAIL amoroc-2335-lines", first_items)
         failed += 1
-    elif any("699" in str(r.get("amount")) and r.get("kind") == "invoice" and abs((r.get("amount") or 0) - 699) < 0.02 for r in lines):
+    elif not first_pay or abs((first_pay.get("amount") or 0) + 2345.25) > 0.02:
+        print("FAIL amoroc-first-payment", first_pay)
+        failed += 1
+    elif any(abs((r.get("amount") or 0)) == 699 and r.get("kind") == "invoice" for r in lines):
         print("FAIL amoroc-has-aljo", [r for r in lines if abs((r.get("amount") or 0)) == 699])
+        failed += 1
+    elif any(abs(abs(r.get("amount") or 0) - 2544.25) < 0.02 for r in lines):
+        print("FAIL amoroc-deposit-double-count")
+        failed += 1
+    elif living_nos and shown_nos - living_nos:
+        print("FAIL deleted-invoices-shown", sorted(shown_nos - living_nos))
+        failed += 1
+    elif any(str(r.get("ref")) == "9999" for r in ghost_lines) or abs(ghost.get("due") or 0) > 0.02:
+        print("FAIL deleted-invoice-due", ghost.get("due"), [r for r in ghost_lines if str(r.get("ref")) == "9999"])
         failed += 1
     elif not amoroc.get("own_sub") or (amoroc.get("master") or "") != "Amoroc Doors":
         print("FAIL amoroc-own-sub", amoroc.get("master"), amoroc.get("own_sub"))
@@ -753,7 +973,8 @@ def self_test() -> int:
         print("FAIL amoroc-aljo-other-sub", amoroc.get("other_subs"))
         failed += 1
     else:
-        print("OK amoroc-statement", amoroc["due"], "lines", len(lines))
+        print("OK amoroc-statement", amoroc["due"], "invoices", len(shown_inv), "lines", len(lines))
+        print("OK deleted-invoices-never-show")
     conn.close()
     return failed
 
