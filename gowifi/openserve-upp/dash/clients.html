@@ -11,6 +11,7 @@
 :root {
   --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
   --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a; --pad:16px;
+  --ml:844px;
 }
 * { box-sizing:border-box; }
 html,body { margin:0; background:var(--bg); color:var(--text);
@@ -96,8 +97,12 @@ main {
 .fold-head[aria-expanded="true"] { border-color:var(--acc); }
 .hidden { display:none; }
 
-/* ML — landscape phone, tablet, Mac. Same view, full width. */
+/* ML — landscape phone full width. Mac / wide tablet: same ML column, centred. */
 @media (min-width: 600px) {
+  header.app, main {
+    width:100%; max-width:var(--ml);
+    margin-left:auto; margin-right:auto;
+  }
   header.app { padding:12px 20px; }
   .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; gap:16px; }
   main { padding:14px 20px 36px; }
