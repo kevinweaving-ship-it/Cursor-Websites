@@ -468,10 +468,28 @@ def build(conn: sqlite3.Connection) -> dict:
     if not mail_forwards.get("mx_on_box"):
         mail_coverage["gap"] = (
             (mail_coverage.get("gap") or "")
-            + " go-wifi.co.za has no public MX — Openserve To: kevin@go-wifi.co.za "
-            "never reaches the box (iCloud still gets the copy)."
+            + " go-wifi.co.za has no public MX. Openserve profile is now"
+            " accounts@gowifi.co.za / kevin@gowifi.co.za; leftover mail still"
+            " addressed to @go-wifi.co.za will not hit the box."
         )
         mail_coverage["go_wifi_mx"] = False
+    upp_emails = {
+        "email_address": org["email_address"] if org else None,
+        "bundle_transaction_email": org["bundle_transaction_email"] if org else None,
+        "lead_response_email": org["lead_response_email"] if org else None,
+        "support_email": org["support_email"] if org else None,
+        "sales_email": org["sales_email"] if org else None,
+        "users": [
+            {
+                "email": r["email"],
+                "status": r["status"],
+                "primary": bool(r["is_primary"]),
+            }
+            for r in conn.execute(
+                "SELECT email, status, is_primary FROM users ORDER BY is_primary DESC, email"
+            )
+        ],
+    }
     books = books_for_export(conn)
     services = [dict(r) for r in conn.execute("SELECT * FROM services")]
     orders = [dict(r) for r in conn.execute("SELECT * FROM orders")]
@@ -715,6 +733,7 @@ def build(conn: sqlite3.Connection) -> dict:
         "line_charges": line_charges,
         "mail_coverage": mail_coverage,
         "mail_forwards": mail_forwards,
+        "upp_emails": upp_emails,
         "books": books,
         "payments": [],
     }

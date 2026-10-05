@@ -5,12 +5,17 @@ services. Runs on `box.gowifi.co.za`. Does not place orders or change services.
 
 ## Mail
 
-- Public accounts address (old dash domain, keep this): `accounts@go-wifi.co.za`
-- Openserve UPP `emailAddress` / `bundleTransactionEmail`: `accounts@go-wifi.co.za`
-- Both inboxes get a copy of accounts mail:
+- Openserve UPP `emailAddress` / `bundleTransactionEmail`: `accounts@gowifi.co.za`
+- Openserve UPP user (was obsolete `kevin@go-wifi.co.za`): `kevin@gowifi.co.za`
+- Lead / support / sales stay on `kevinweaving@icloud.com`
+- `accounts@gowifi.co.za` is an alias (Kevin + Openserve). Both inboxes get a copy:
   - `kevin@gowifi.co.za`
   - `openserve@gowifi.co.za`
-- `accounts@gowifi.co.za` is the same alias (Kevin + Openserve).
+- Refresh the UPP token and rewrite those emails if Openserve ever puts `@go-wifi.co.za` back:
+
+```bash
+python3 /root/gowifi-upp/upp_emails.py
+```
 - Checksum the two copies:
 
 ```bash

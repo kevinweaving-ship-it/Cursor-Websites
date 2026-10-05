@@ -442,6 +442,24 @@ function render(data){
         <div class="meta">Statement accounts: ${esc((cov.statement_accounts||[]).join(", ")||"—")}</div>
         <div class="meta">Bank proof of payment: ${esc(cov.pop_status||"awaiting upload")}</div></div>
       ${(() => {
+        const ue = data.upp_emails||{};
+        const users = (ue.users||[]).map(u=>`
+          <tr>
+            <td>${esc(u.email||"—")}</td>
+            <td>${esc(u.status||"—")}${u.primary?" · primary":""}</td>
+          </tr>`).join("");
+        const stale = /go-wifi\.co\.za/i.test([ue.email_address,ue.bundle_transaction_email,(ue.users||[]).map(u=>u.email).join(" ")].join(" "));
+        return `<div class="card scroll">
+          <div class="k">Openserve UPP emails</div>
+          <div class="meta ${stale?"bad":"ok"}">Profile ${esc(ue.email_address||"—")} · statements/bundles ${esc(ue.bundle_transaction_email||"—")}</div>
+          <div class="meta">Lead / support / sales stay on ${esc(ue.lead_response_email||"kevinweaving@icloud.com")}</div>
+          <table class="compact">
+            <thead><tr><th>UPP user</th><th>Status</th></tr></thead>
+            <tbody>${users || `<tr><td colspan="2" class="meta">No UPP users</td></tr>`}</tbody>
+          </table>
+        </div>`;
+      })()}
+      ${(() => {
         const fw = data.mail_forwards||{};
         const rows = (fw.aliases||[]).map(r=>`
           <tr>

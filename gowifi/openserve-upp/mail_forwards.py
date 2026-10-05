@@ -118,7 +118,9 @@ def forwards_for_export(db: Path = USERS_DB) -> dict:
         ),
         "note": (
             "Box accepts every @go-wifi.co.za address and delivers to gowifi. "
-            "Public MX is still missing at Domains.co.za, so the internet may not "
+            "Openserve UPP profile is now accounts@gowifi.co.za and "
+            "kevin@gowifi.co.za. Public MX for go-wifi.co.za is still missing "
+            "at Domains.co.za, so leftover mail to the old domain will not "
             "route here until MX 10 box.gowifi.co.za is published."
         ),
     }
