@@ -48,6 +48,21 @@ stint history in `service_events`.
 
 Every GoWiFi URL is **white background, dark-blue text**. No dark/navy page chrome.
 
+Live https://gowifi.co.za only updates after the files are on the box.
+`clients.html` 404s and the old dash stays dark blue until this runs:
+
+```bash
+# from a host that can SSH to the box (102.209.119.186)
+bash gowifi/openserve-upp/deploy-to-box.sh
+```
+
+Or on the box itself, after this tree is in `/root/gowifi-upp`:
+
+```bash
+bash /root/gowifi-upp/install-on-box.sh
+python3 /root/gowifi-upp/audit_export.py
+```
+
 **https://gowifi.co.za/dash/clients.html** — simple cards + search.
 
 One card per client, with a search bar: name, address, contact, start date, year/month,
