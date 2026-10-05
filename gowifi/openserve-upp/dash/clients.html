@@ -29,7 +29,7 @@ header.app a.back { display:inline-block; color:var(--acc); font-size:14px; min-
   color:var(--text); background:#fff; border:1px solid var(--line); border-radius:10px;
 }
 .search:focus { outline:2px solid var(--acc); border-color:var(--acc); }
-main { padding:14px var(--pad) 32px; max-width:980px; margin:0 auto; }
+main { padding:14px var(--pad) 32px; width:100%; }
 .counts { color:var(--muted); font-size:13px; margin:0 0 12px; }
 .cat { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--acc); margin:16px 0 8px; }
 .cat:first-child { margin-top:0; }
@@ -46,11 +46,17 @@ main { padding:14px var(--pad) 32px; max-width:980px; margin:0 auto; }
 .head:focus { outline:2px solid var(--acc); outline-offset:-2px; }
 .name { font-weight:700; font-size:17px; color:var(--acc); display:flex; align-items:center; gap:8px; flex:1; }
 .head-meta { color:var(--muted); font-size:13px; white-space:nowrap; }
-.meta { color:var(--muted); font-size:13px; margin-top:4px; }
-.detail { padding:0 14px 12px; border-top:1px solid var(--line); }
-.row { margin-top:8px; }
-.k { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
-.v { margin-top:1px; }
+.meta { color:var(--muted); font-size:13px; }
+.detail { padding:0; border-top:1px solid var(--line); }
+.band {
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 28px;
+  width:100%; padding:8px 14px;
+}
+.band + .band { border-top:1px solid var(--line); }
+.field { display:flex; align-items:baseline; gap:8px; min-width:0; flex:1 1 160px; }
+.field.wide { flex:1.6 1 220px; }
+.k { font-size:11px; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); flex:0 0 auto; }
+.v { min-width:0; }
 .dot {
   width:12px; height:12px; border-radius:50%; display:inline-block; flex:0 0 12px;
   box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--line);
@@ -105,22 +111,34 @@ function headerLine(c){
   const bits = [c.dot_label, c.access, c.pay, c.discount?"discount":"", c.balance_label].filter(Boolean);
   return bits.join(" · ");
 }
+function field(label, value, extra){
+  return `<div class="field${extra&&extra.wide?" wide":""}"><span class="k">${esc(label)}</span><span class="v${extra&&extra.cls?" "+extra.cls:""}">${value}</span></div>`;
+}
 function card(c){
   const id = "d-"+Math.random().toString(36).slice(2,8);
+  const bno = c.b_number || (c.access==="fibre" ? "—" : "Wireless");
+  const bal = `${esc(c.balance_label||"—")} <span class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · due ${esc(money(c.due))}</span>`;
   return `<article class="card" data-search="${esc(c.search||"")}">
     <button class="head" type="button" aria-expanded="false" aria-controls="${id}">
       <span class="name"><span class="dot ${esc(c.dot||"active")}" title="${esc(c.dot_label||"")}"></span>${esc(c.name||"—")}</span>
       <span class="head-meta due ${dueClass(c)}">${esc(headerLine(c))}</span>
     </button>
     <div class="detail hidden" id="${id}">
-      <div class="row"><div class="k">Address</div><div class="v">${esc(c.address||"—")}</div></div>
-      <div class="row"><div class="k">Contact</div><div class="v">${esc(c.phone||"—")}${c.email?`<div class="meta">${esc(c.email)}</div>`:""}</div></div>
-      <div class="row"><div class="k">Start</div><div class="v">${esc(c.started_label||"—")}</div></div>
-      <div class="row"><div class="k">Year / month</div><div class="v">${esc(c.tenure||"—")}</div></div>
-      <div class="row"><div class="k">B number</div><div class="v">${esc(c.b_number||(c.access==="fibre"?"—":"Wireless"))}</div></div>
-      <div class="row"><div class="k">Package</div><div class="v">${esc(c.package||"—")}</div></div>
-      <div class="row"><div class="k">Balance</div><div class="v due ${dueClass(c)}">${esc(c.balance_label||"—")}<div class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · due ${esc(money(c.due))}</div></div></div>
-      ${c.suspension_notice?`<div class="alert">Suspension notice · D/O bounced</div>`:""}
+      <div class="band">
+        ${field("Address", esc(c.address||"—"), {wide:true})}
+        ${field("Contact", esc(c.phone||"—"))}
+        ${field("Email", esc(c.email||"—"))}
+      </div>
+      <div class="band">
+        ${field("Start", esc(c.started_label||"—"))}
+        ${field("Years", esc(c.tenure||"—"))}
+        ${field("B no", esc(bno))}
+      </div>
+      <div class="band">
+        ${field("Package", esc(c.package||"—"))}
+        ${field("Balance", bal, {cls:"due "+dueClass(c), wide:true})}
+      </div>
+      ${c.suspension_notice?`<div class="band"><div class="alert">Suspension notice · D/O bounced</div></div>`:""}
     </div>
   </article>`;
 }
