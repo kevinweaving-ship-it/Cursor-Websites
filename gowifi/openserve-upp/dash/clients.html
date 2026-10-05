@@ -39,25 +39,27 @@ main {
   width:100%;
 }
 .counts { color:var(--muted); font-size:13px; margin:0 0 10px; }
-.block { margin:0 0 18px; }
-.block h2 {
-  margin:0 0 8px; font-size:15px; font-weight:700; color:var(--acc);
+.cat-card {
+  width:100%; margin:0 0 16px; padding:12px;
+  background:#e8eef6; border:1px solid var(--line); border-radius:14px;
 }
-.block h2 .n { color:var(--muted); font-weight:500; font-size:13px; }
-.sheet {
-  width:100%; background:var(--card); border:1px solid var(--line); border-radius:12px;
-  overflow:hidden;
+.cat-card h2 {
+  margin:0 0 10px; font-size:15px; font-weight:700; color:var(--acc);
 }
-.labels { display:none; }
-.card { width:100%; background:var(--card); color:var(--text); }
-.card + .card { border-top:1px solid var(--line); }
+.cat-card h2 .n { color:var(--muted); font-weight:500; font-size:13px; }
+.cat-list { display:flex; flex-direction:column; gap:10px; }
+.card {
+  width:100%; background:var(--card); color:var(--text);
+  border:1px solid var(--line); border-radius:12px;
+}
 .head {
-  display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px 12px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
   width:100%; padding:12px 14px; background:transparent; border:0; color:inherit;
   font:inherit; text-align:left; cursor:pointer; min-height:48px;
 }
 .head:focus { outline:2px solid var(--acc); outline-offset:-2px; }
-.head .access, .head .pay { display:none; }
+.head-right { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+.head .kind { display:none; color:var(--muted); font-size:13px; white-space:nowrap; }
 .name { font-weight:700; font-size:16px; color:var(--acc); display:flex; align-items:center; gap:8px; min-width:0; }
 .bal { font-size:13px; font-weight:700; white-space:nowrap; text-align:right; }
 .meta { color:var(--muted); font-size:13px; font-weight:400; }
@@ -99,23 +101,17 @@ main {
   header.app { padding:12px 20px; }
   .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; gap:16px; }
   main { padding:14px 20px 36px; }
-  .block h2 { font-size:16px; }
-  .labels {
-    display:grid; grid-template-columns:minmax(180px,2.2fr) 90px 70px minmax(140px,1.1fr);
-    gap:10px 16px; align-items:center; width:100%;
-    padding:8px 16px; border-bottom:1px solid var(--line);
-    font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted);
-  }
-  .head {
-    grid-template-columns:minmax(180px,2.2fr) 90px 70px minmax(140px,1.1fr);
-    gap:10px 16px; padding:10px 16px;
-  }
-  .head .access, .head .pay { display:block; color:var(--muted); font-size:14px; }
+  .cat-card { padding:16px; }
+  .cat-card h2 { font-size:16px; }
+  .cat-list { gap:12px; }
+  .head { padding:12px 16px; }
+  .head .kind { display:inline; }
   .name { font-size:16px; }
   .band {
-    display:grid; grid-template-columns:1.4fr 1fr 1fr;
-    gap:8px 24px; align-items:start; padding:10px 16px;
+    display:grid; grid-template-columns:1fr 1fr 1fr;
+    gap:8px 20px; align-items:start; padding:10px 16px;
   }
+  .band.two { grid-template-columns:1fr 1fr; }
   .field { width:auto; }
 }
 </style>
@@ -155,17 +151,23 @@ const accessLabel = c => (c.access||"") === "fibre" ? "Fibre" : "Wifi";
 function field(label, value, extra){
   return `<div class="field"><span class="k">${esc(label)}</span><span class="v${extra&&extra.cls?" "+extra.cls:""}">${value}</span></div>`;
 }
+function headBal(c){
+  if (c.suspension_notice || c.bounced) return `Bounced · Due ${money(c.due)}`;
+  return c.balance_label || "—";
+}
 function card(c){
   const id = "d-"+Math.random().toString(36).slice(2,8);
   const bno = c.b_number || (c.access==="fibre" ? "—" : "Wireless");
   const dc = dueClass(c);
+  const kind = [accessLabel(c), c.pay, c.discount?"disc":""].filter(Boolean).join(" · ");
   const bal = `${esc(c.balance_label||"—")} <span class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · due ${esc(money(c.due))}</span>`;
   return `<article class="card" data-search="${esc(c.search||"")}">
     <button class="head" type="button" aria-expanded="false" aria-controls="${id}">
       <span class="name"><span class="dot ${esc(c.dot||"active")}" title="${esc(c.dot_label||"")}"></span>${esc(c.name||"—")}</span>
-      <span class="access">${esc(accessLabel(c))}</span>
-      <span class="pay">${esc(c.pay||"—")}${c.discount?" · disc":""}</span>
-      <span class="bal due ${dc}">${esc(c.balance_label||"—")}</span>
+      <span class="head-right">
+        <span class="kind">${esc(kind)}</span>
+        <span class="bal due ${dc}">${esc(headBal(c))}</span>
+      </span>
     </button>
     <div class="detail hidden" id="${id}">
       <div class="band">
@@ -178,7 +180,7 @@ function card(c){
         ${field("Years", esc(c.tenure||"—"))}
         ${field("B no", esc(bno))}
       </div>
-      <div class="band">
+      <div class="band two">
         ${field("Package", esc(c.package||"—"))}
         ${field("Balance", bal, {cls:"due "+dc})}
       </div>
@@ -188,12 +190,9 @@ function card(c){
 }
 function block(title, list){
   if (!list.length) return "";
-  return `<section class="block">
+  return `<section class="cat-card">
     <h2>${esc(title)} <span class="n">${list.length}</span></h2>
-    <div class="sheet">
-      <div class="labels" aria-hidden="true"><span>Client</span><span>Access</span><span>Pay</span><span>Balance</span></div>
-      ${list.map(card).join("")}
-    </div>
+    <div class="cat-list">${list.map(card).join("")}</div>
   </section>`;
 }
 function bindToggles(root){
@@ -243,7 +242,10 @@ fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"
   .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
   .then(data=>{
     const pack = data.clients || {};
+    if (location.hash) $("#q").value = decodeURIComponent(location.hash.slice(1));
     paint(pack);
+    const first = $("#grid .head");
+    if (location.hash && first) first.click();
     $("#q").addEventListener("input", ()=>paint(pack));
     const tog = $("#cancelled-toggle");
     const grid = $("#cancelled-grid");
