@@ -436,10 +436,30 @@ function render(data){
       <span>Openserve invoices</span>
       <span class="meta">${c.invoices??0}</span>
     </h2>
-    <div id="invoice-fold" class="fold hidden">
+    <div id="invoice-fold" class="fold${((cov.missing&&cov.missing.missing)||[]).length?"":" hidden"}">
       <div class="card"><div class="meta">${esc(cov.gap||"Openserve invoice copies are imported from kevin@ mail.")}</div>
+        <div class="meta">Folder: ${esc(cov.folder||"/root/gowifi-upp/openserve-mail")} · ${esc(cov.unique_files??0)} unique · ${esc(cov.duplicate_sends??0)} repeat sends collapsed</div>
         <div class="meta">Statement accounts: ${esc((cov.statement_accounts||[]).join(", ")||"—")}</div>
         <div class="meta">Bank proof of payment: ${esc(cov.pop_status||"awaiting upload")}</div></div>
+      ${(() => {
+        const miss = (cov.missing&&cov.missing.missing)||[];
+        const fams = (cov.missing&&cov.missing.families)||[];
+        if (!miss.length && !fams.length) return "";
+        const famRows = fams.map(f=>`
+          <tr>
+            <td>${esc(f.label||f.family)}<div class="meta">${esc(f.account||"")}</div></td>
+            <td>${esc((f.have||[]).join(" · ")||"none")}</td>
+            <td class="${(f.missing||[]).length?"bad":"ok"}">${esc((f.missing||[]).join(" · ")||"none")}</td>
+          </tr>`).join("");
+        return `<div class="card scroll">
+          <div class="k">Missing invoice months</div>
+          <div class="meta">First fibre ${esc((cov.missing&&cov.missing.from)||"2024-09")} → last complete month ${esc((cov.missing&&cov.missing.to)||"—")}. Openserve resends the same file; copies live in one folder.</div>
+          <table class="compact">
+            <thead><tr><th>Account</th><th>Have</th><th>Missing</th></tr></thead>
+            <tbody>${famRows}</tbody>
+          </table>
+        </div>`;
+      })()}
       <div class="card scroll">
         <table class="compact">
           <thead><tr><th>Openserve account</th><th>Product</th><th>Invoices</th><th>Period</th><th>Charged</th></tr></thead>
@@ -499,6 +519,7 @@ function render(data){
       invToggle.setAttribute("aria-expanded", open ? "true" : "false");
       invToggle.querySelector(".chev").textContent = open ? "▾" : "▸";
     };
+    if (!invFold.classList.contains("hidden")) setInv(true);
     invToggle.addEventListener("click", () => setInv(invFold.classList.contains("hidden")));
     invToggle.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setInv(invFold.classList.contains("hidden")); }

@@ -14,17 +14,32 @@ import os
 import re
 import sqlite3
 import zipfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 DB_PATH = Path(os.environ.get("UPP_DB", "/root/gowifi-upp/upp.db"))
+MAIL_ROOT = Path(os.environ.get("MAIL_ROOT", "/home/user-data/mail/mailboxes"))
+COLLECT_DIR = Path(os.environ.get("OPENSERVE_MAIL_DIR", "/root/gowifi-upp/openserve-mail"))
 MAILBOXES = [
     Path("/home/user-data/mail/mailboxes/gowifi.co.za/kevin"),
     Path("/home/user-data/mail/mailboxes/gowifi.co.za/openserve"),
     Path("/home/user-data/mail/mailboxes/gowifi.co.za/accounts"),
+    Path("/home/user-data/mail/mailboxes/gowifi.co.za/robby"),
     Path("/home/user-data/mail/mailboxes/go-wifi.co.za/accounts"),
     Path("/home/user-data/mail/mailboxes/go-wifi.co.za/kevin"),
 ]
+FIRST_FIBRE_MONTH = "2024-09"
+INVOICE_FAMILIES = (
+    ("webstream", "Webstream", "9400000004759"),
+    ("office_connect", "Office Connect", "9400000004657"),
+)
+STATEMENT_ACCOUNTS = (
+    "9400000004653",
+    "9400000004655",
+    "9400000004657",
+    "9400000004759",
+    "9400000004815",
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS invoices (
@@ -226,13 +241,113 @@ def ingest_zip(conn: sqlite3.Connection, payload: bytes, filename: str, source: 
     return n
 
 
-def _iter_mail_zips():
-    for root in MAILBOXES:
-        if not root.exists():
-            continue
+def mailbox_roots() -> list[Path]:
+    found: list[Path] = []
+    seen: set[str] = set()
+    if MAIL_ROOT.exists():
+        for domain in sorted(MAIL_ROOT.iterdir()):
+            if not domain.is_dir():
+                continue
+            for user in sorted(domain.iterdir()):
+                if user.is_dir() and str(user) not in seen:
+                    found.append(user)
+                    seen.add(str(user))
+    for extra in MAILBOXES:
+        if extra.exists() and str(extra) not in seen:
+            found.append(extra)
+            seen.add(str(extra))
+    return found
+
+
+def _openserve_hit(msg) -> bool:
+    frm = (msg.get("From") or "").lower()
+    subj = (msg.get("Subject") or "").lower()
+    atts = " ".join((part.get_filename() or "") for part in msg.walk()).lower()
+    blob = f"{frm} {subj} {atts}"
+    return any(
+        token in blob
+        for token in ("openserve", "nbcustnb@", "inats", "brinats", "940000000")
+    )
+
+
+def _keep_attachment(fname: str) -> bool:
+    low = (fname or "").lower()
+    if not low or low.endswith((".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif")):
+        return False
+    if "inats" in low or "brinats" in low or "detailed" in low:
+        return True
+    if re.match(r"cn\d", low) or "credit" in low:
+        return True
+    if low.endswith(".csv"):
+        return True
+    if low.endswith(".zip") and ("invoice" in low or "csv" in low or "inats" in low):
+        return True
+    return False
+
+
+def _file_kind(fname: str, subject: str = "") -> str:
+    low = f"{fname} {subject}".lower()
+    if "detailed" in low or "statement" in low:
+        return "statement"
+    if "credit" in low or re.search(r"\bcn\d+", low):
+        return "credit"
+    if low.endswith(".csv") or low.endswith(".zip") or "invoice csv" in low:
+        return "invoice_csv"
+    if "brinats" in low or "invoice" in low:
+        return "invoice"
+    return "other"
+
+
+def _family_of(fname: str, account: str | None = None) -> str | None:
+    low = (fname or "").lower()
+    if "webstream" in low or account == "9400000004759":
+        return "webstream"
+    if "officeconnect" in low or "office connect" in low or "ooc" in low or account == "9400000004657":
+        return "office_connect"
+    return None
+
+
+def _month_from_name(fname: str) -> str | None:
+    m = re.search(r"(20\d{2})(\d{2})\d{2}", fname or "")
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    return None
+
+
+def month_range(start: str, end: str) -> list[str]:
+    y, m = [int(p) for p in start.split("-")[:2]]
+    ey, em = [int(p) for p in end.split("-")[:2]]
+    out = []
+    while (y, m) <= (ey, em):
+        out.append(f"{y:04d}-{m:02d}")
+        m += 1
+        if m == 13:
+            m = 1
+            y += 1
+    return out
+
+
+def last_complete_month(today: date | None = None) -> str:
+    today = today or date.today()
+    y, m = today.year, today.month - 1
+    if m == 0:
+        y, m = y - 1, 12
+    return f"{y:04d}-{m:02d}"
+
+
+def iter_openserve_parts():
+    """Every Openserve invoice / CSV / statement attachment on the box.
+
+    Openserve resends the same file a few times — caller must hash-dedupe.
+    """
+    from email.utils import parsedate_to_datetime
+
+    for root in mailbox_roots():
+        mailbox = f"{root.parent.name}/{root.name}"
         for dirpath, _dirs, files in os.walk(root):
             if "/new" not in dirpath and "/cur" not in dirpath:
                 continue
+            folder = Path(dirpath).parent.name
             for name in files:
                 if name.startswith("."):
                     continue
@@ -242,21 +357,49 @@ def _iter_mail_zips():
                         msg = email.message_from_binary_file(fh)
                 except OSError:
                     continue
-                frm = (msg.get("From") or "").lower()
-                subj = (msg.get("Subject") or "").lower()
-                if "openserve" not in frm and "openserve" not in subj:
+                if not _openserve_hit(msg):
                     continue
+                subj = " ".join((msg.get("Subject") or "").split())
+                frm = msg.get("From") or ""
+                sent = ""
+                try:
+                    sent = parsedate_to_datetime(msg.get("Date") or "").date().isoformat()
+                except (TypeError, ValueError, IndexError):
+                    sent = ""
+                mid = (msg.get("Message-ID") or msg.get("Message-Id") or "").strip()
                 for part in msg.walk():
                     fname = part.get_filename() or ""
-                    if not fname.lower().endswith(".zip"):
+                    if not _keep_attachment(fname):
                         continue
-                    if "invoice" not in fname.lower() and "inats" not in fname.lower():
-                        if "csv" not in fname.lower():
-                            continue
                     payload = part.get_payload(decode=True) or b""
-                    if not payload.startswith(b"PK"):
+                    if not payload:
                         continue
-                    yield fname, payload
+                    accounts = re.findall(r"94\d{11}", f"{subj} {fname}")
+                    invoices = [m.upper() for m in re.findall(r"INATS\d+", f"{subj} {fname}", flags=re.I)]
+                    yield {
+                        "filename": fname,
+                        "payload": payload,
+                        "mailbox": mailbox,
+                        "folder": folder,
+                        "sent_on": sent,
+                        "subject": subj,
+                        "from": frm,
+                        "message_id": mid,
+                        "kind": _file_kind(fname, subj),
+                        "account_number": accounts[0] if accounts else None,
+                        "invoice_number": invoices[0] if invoices else None,
+                        "family": _family_of(fname, accounts[0] if accounts else None),
+                        "month": _month_from_name(fname) or (sent[:7] if sent else None),
+                    }
+
+
+def _iter_mail_zips():
+    for item in iter_openserve_parts():
+        if item["kind"] != "invoice_csv":
+            continue
+        payload = item["payload"]
+        if payload.startswith(b"PK") or item["filename"].lower().endswith(".csv"):
+            yield item["filename"], payload
 
 
 def _mail_kind(subject: str) -> str:
@@ -276,58 +419,30 @@ def _mail_kind(subject: str) -> str:
 
 def catalog_mail(conn: sqlite3.Connection) -> dict:
     """Index Openserve invoice/statement mail. Does not store bodies."""
-    from email.utils import parsedate_to_datetime
-
     ensure_tables(conn)
     conn.execute("DELETE FROM mail_items")
     counted = 0
-    for root in MAILBOXES:
-        if not root.exists():
+    seen_msg: set[str] = set()
+    for item in iter_openserve_parts():
+        key = item.get("message_id") or f"{item.get('mailbox')}|{item.get('sent_on')}|{item.get('subject')}"
+        if key in seen_msg:
             continue
-        mailbox = f"{root.parent.name}/{root.name}"
-        for dirpath, _dirs, files in os.walk(root):
-            if "/new" not in dirpath and "/cur" not in dirpath:
-                continue
-            for name in files:
-                if name.startswith("."):
-                    continue
-                path = Path(dirpath) / name
-                try:
-                    with path.open("rb") as fh:
-                        msg = email.message_from_binary_file(fh)
-                except OSError:
-                    continue
-                subj = " ".join((msg.get("Subject") or "").split())
-                frm = (msg.get("From") or "").lower()
-                blob = f"{subj} {frm}".lower()
-                if "openserve" not in blob and "nbcustnb@" not in blob and "inats" not in blob:
-                    continue
-                sent = ""
-                try:
-                    sent = parsedate_to_datetime(msg.get("Date") or "").date().isoformat()
-                except (TypeError, ValueError, IndexError):
-                    sent = ""
-                mid = (msg.get("Message-ID") or msg.get("Message-Id") or "").strip()
-                accounts = re.findall(
-                    r"94\d{11}",
-                    subj + " " + "".join(part.get_filename() or "" for part in msg.walk()),
-                )
-                invoices = [m.upper() for m in re.findall(r"INATS\d+", subj, flags=re.I)]
-                conn.execute(
-                    """INSERT OR IGNORE INTO mail_items
-                       (message_id, mailbox, sent_on, kind, subject, account_number, invoice_number)
-                       VALUES (?,?,?,?,?,?,?)""",
-                    (
-                        mid or None,
-                        mailbox,
-                        sent or None,
-                        _mail_kind(subj),
-                        subj[:180],
-                        accounts[0] if accounts else None,
-                        invoices[0] if invoices else None,
-                    ),
-                )
-                counted += 1
+        seen_msg.add(key)
+        conn.execute(
+            """INSERT OR IGNORE INTO mail_items
+               (message_id, mailbox, sent_on, kind, subject, account_number, invoice_number)
+               VALUES (?,?,?,?,?,?,?)""",
+            (
+                item.get("message_id") or None,
+                item.get("mailbox"),
+                item.get("sent_on") or None,
+                _mail_kind(item.get("subject") or ""),
+                (item.get("subject") or "")[:180],
+                item.get("account_number"),
+                item.get("invoice_number"),
+            ),
+        )
+        counted += 1
     conn.commit()
     row = conn.execute(
         "SELECT MIN(sent_on), MAX(sent_on), COUNT(*) FROM mail_items WHERE sent_on IS NOT NULL"
@@ -335,21 +450,187 @@ def catalog_mail(conn: sqlite3.Connection) -> dict:
     return {"indexed": counted, "from": row[0], "to": row[1], "stored": row[2]}
 
 
+def ingest_payload(conn: sqlite3.Connection, payload: bytes, filename: str, source: str) -> int:
+    if filename.lower().endswith(".csv") and not payload.startswith(b"PK"):
+        return ingest_csv_text(conn, payload.decode("utf-8-sig", "replace"), filename, source)
+    if payload.startswith(b"PK"):
+        return ingest_zip(conn, payload, filename, source)
+    return 0
+
+
+def collect_openserve_mail(dest: Path | None = None) -> dict:
+    """Copy every Openserve attachment into one folder. Same file sent twice = one copy."""
+    dest = dest or COLLECT_DIR
+    dest.mkdir(parents=True, exist_ok=True)
+    files: dict[str, dict] = {}
+    copies = 0
+    extracted = 0
+    for item in iter_openserve_parts():
+        digest = hashlib.sha256(item["payload"]).hexdigest()
+        if digest in files:
+            files[digest]["copies"] += 1
+            copies += 1
+            continue
+        name = Path(item["filename"]).name
+        path = dest / name
+        if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            path = dest / f"{digest[:8]}_{name}"
+        path.write_bytes(item["payload"])
+        row = {
+            "filename": path.name,
+            "sha256": digest,
+            "kind": item["kind"],
+            "invoice_number": item.get("invoice_number"),
+            "account_number": item.get("account_number"),
+            "family": item.get("family"),
+            "month": item.get("month"),
+            "sent_on": item.get("sent_on"),
+            "mailbox": item.get("mailbox"),
+            "copies": 1,
+        }
+        files[digest] = row
+        if item["kind"] == "invoice_csv" and item["payload"].startswith(b"PK"):
+            try:
+                zf = zipfile.ZipFile(io.BytesIO(item["payload"]))
+            except zipfile.BadZipFile:
+                zf = None
+            if zf is not None:
+                for inner in zf.namelist():
+                    if not inner.lower().endswith(".csv"):
+                        continue
+                    inner_name = Path(inner).name
+                    inner_path = dest / inner_name
+                    raw = zf.read(inner)
+                    if not inner_path.exists():
+                        inner_path.write_bytes(raw)
+                        extracted += 1
+    have: dict[str, set[str]] = {key: set() for key, _label, _acc in INVOICE_FAMILIES}
+    statements: dict[str, set[str]] = {acc: set() for acc in STATEMENT_ACCOUNTS}
+    for row in files.values():
+        month = row.get("month")
+        if row.get("kind") in {"invoice", "invoice_csv"} and row.get("family") and month:
+            have.setdefault(row["family"], set()).add(month)
+        if row.get("kind") == "statement" and row.get("account_number") and month:
+            statements.setdefault(row["account_number"], set()).add(month)
+    missing = missing_invoice_report(have)
+    missing["statements"] = [
+        {"account": acc, "months": month_range(FIRST_FIBRE_MONTH, last_complete_month())}
+        for acc in STATEMENT_ACCOUNTS
+    ]
+    for block in missing["statements"]:
+        block["months"] = [
+            m for m in month_range(FIRST_FIBRE_MONTH, last_complete_month()) if m not in statements.get(block["account"], set())
+        ]
+    manifest = {
+        "folder": str(dest),
+        "unique_files": len(files),
+        "duplicate_sends": copies,
+        "csv_extracted": extracted,
+        "files": sorted(files.values(), key=lambda r: (r.get("month") or "", r.get("filename") or "")),
+        "missing": missing,
+    }
+    (dest / "MANIFEST.json").write_text(json.dumps(manifest, indent=2))
+    (dest / "MISSING.txt").write_text(_missing_text(missing, dest, copies))
+    return manifest
+
+
+def missing_invoice_report(
+    have: dict[str, set[str]],
+    today: date | None = None,
+    first: str = FIRST_FIBRE_MONTH,
+) -> dict:
+    """Months we should have a Webstream + Office Connect invoice for, but don't."""
+    end = last_complete_month(today)
+    expected = month_range(first, end)
+    families = []
+    all_missing = []
+    for key, label, account in INVOICE_FAMILIES:
+        got = set(have.get(key) or [])
+        miss = [m for m in expected if m not in got]
+        families.append(
+            {
+                "family": key,
+                "label": label,
+                "account": account,
+                "have": sorted(got),
+                "missing": miss,
+            }
+        )
+        all_missing.extend({"family": label, "account": account, "month": m} for m in miss)
+    recent = [r for r in all_missing if r["month"] >= "2026-08"]
+    return {
+        "from": first,
+        "to": end,
+        "expected_months": expected,
+        "families": families,
+        "missing": all_missing,
+        "recent_missing": recent,
+        "aug_sep_missing": [r for r in all_missing if r["month"][5:] in {"08", "09"}],
+    }
+
+
+def _missing_text(missing: dict, dest: Path, copies: int) -> str:
+    lines = [
+        "Openserve mail — one folder, duplicates collapsed.",
+        f"Folder: {dest}",
+        f"Expected invoices {missing.get('from')} → {missing.get('to')} (first fibre to last complete month).",
+        f"Same invoice sent more than once: {copies} extra copies kept as one file.",
+        "",
+    ]
+    for fam in missing.get("families") or []:
+        lines.append(f"{fam['label']} {fam['account']}")
+        lines.append(f"  have: {', '.join(fam.get('have') or []) or 'none'}")
+        lines.append(f"  missing: {', '.join(fam.get('missing') or []) or 'none'}")
+        lines.append("")
+    recent = missing.get("recent_missing") or []
+    lines.append("Aug / Sep (and later) still missing from the box:")
+    if recent:
+        for row in recent:
+            lines.append(f"  {row['month']} {row['family']} {row['account']}")
+    else:
+        lines.append("  none")
+    lines.append("")
+    lines.append(
+        "Box mail after 4 Feb 2026 has no nbcustnb@openserve.co.za invoices. "
+        "kevin@ still received other mail through October, so the mailbox is live — "
+        "Openserve is not delivering Aug/Sep (or Feb–Jul) copies here. "
+        "Check the Openserve portal / another inbox (iCloud / Multitrack) and drop the files in this folder."
+    )
+    return "\n".join(lines) + "\n"
+
+
 def ingest_mail(conn: sqlite3.Connection) -> dict:
     ensure_tables(conn)
+    collected = collect_openserve_mail()
     seen: set[str] = set()
     files = 0
     lines = 0
-    for fname, payload in _iter_mail_zips():
-        digest = hashlib.sha256(payload).hexdigest()
+    for item in iter_openserve_parts():
+        if item["kind"] != "invoice_csv":
+            continue
+        digest = hashlib.sha256(item["payload"]).hexdigest()
         if digest in seen:
             continue
         seen.add(digest)
         files += 1
-        lines += ingest_zip(conn, payload, fname, "mail")
+        lines += ingest_payload(conn, item["payload"], item["filename"], "mail")
     coverage = catalog_mail(conn)
+    coverage["folder"] = collected.get("folder")
+    coverage["unique_files"] = collected.get("unique_files")
+    coverage["duplicate_sends"] = collected.get("duplicate_sends")
+    coverage["missing"] = collected.get("missing")
     counts = conn.execute("SELECT COUNT(*) FROM invoices").fetchone()[0]
-    return {"files": files, "lines_read": lines, "invoices": counts, "mail": coverage}
+    return {
+        "files": files,
+        "lines_read": lines,
+        "invoices": counts,
+        "mail": coverage,
+        "collected": {
+            "folder": collected.get("folder"),
+            "unique_files": collected.get("unique_files"),
+            "duplicate_sends": collected.get("duplicate_sends"),
+        },
+    }
 
 
 def extras_by_sn(conn: sqlite3.Connection) -> dict[str, list[dict]]:
@@ -546,20 +827,52 @@ def mail_coverage_for_export(conn: sqlite3.Connection) -> dict:
                WHERE account_number IS NOT NULL ORDER BY account_number"""
         )
     ]
+    have: dict[str, set[str]] = {key: set() for key, _label, _acc in INVOICE_FAMILIES}
+    for inv, inv_date, account, family in conn.execute(
+        "SELECT invoice_number, invoice_date, account_number, product_family FROM invoices"
+    ):
+        month = (inv_date or "")[:7]
+        key = _family_of(family or "", account)
+        if key and month:
+            have.setdefault(key, set()).add(month)
+    manifest = {}
+    if (COLLECT_DIR / "MANIFEST.json").exists():
+        try:
+            manifest = json.loads((COLLECT_DIR / "MANIFEST.json").read_text())
+        except json.JSONDecodeError:
+            manifest = {}
+    for item in manifest.get("files") or []:
+        key = item.get("family") or _family_of(item.get("filename") or "", item.get("account_number"))
+        month = item.get("month")
+        if key and month and item.get("kind") in {"invoice", "invoice_csv"}:
+            have.setdefault(key, set()).add(month)
+    missing = missing_invoice_report(have)
+    recent = missing.get("recent_missing") or []
+    gap = (
+        f"All Openserve attachments are in {COLLECT_DIR} "
+        f"({manifest.get('unique_files') or 0} unique, "
+        f"{manifest.get('duplicate_sends') or 0} repeat sends collapsed). "
+        f"Mail on the box {row[0] or '—'} → {row[1] or '—'}. "
+    )
+    if recent:
+        gap += "Missing latest: " + ", ".join(f"{r['month']} {r['family']}" for r in recent) + "."
+    elif missing.get("missing"):
+        gap += f"{len(missing['missing'])} earlier months still have no invoice copy."
+    else:
+        gap += "No missing months."
     return {
         "from": row[0],
         "to": row[1],
         "messages": row[2] or 0,
         "kinds": kinds,
         "statement_accounts": statement_accounts,
-        "mailbox": "kevin@gowifi.co.za",
+        "mailbox": "all gowifi.co.za / go-wifi.co.za boxes",
+        "folder": str(COLLECT_DIR),
+        "unique_files": manifest.get("unique_files"),
+        "duplicate_sends": manifest.get("duplicate_sends"),
         "pop_status": "awaiting bank proof of payment",
-        "gap": (
-            "Openserve invoices/statements on the box run "
-            f"{row[0] or '—'} to {row[1] or '—'}. "
-            "No copies before mid-September 2025 (first fibre order was September 2024) "
-            "and none after early February 2026."
-        ),
+        "missing": missing,
+        "gap": gap,
     }
 
 
@@ -687,6 +1000,32 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK cost-per-b-plus-vat", phillip["label"], pop500["label"], pop_oc["label"])
+    miss = missing_invoice_report(
+        {
+            "webstream": {"2025-09", "2025-10", "2026-01"},
+            "office_connect": {"2025-09"},
+        },
+        today=date(2026, 10, 5),
+        first="2025-08",
+    )
+    ws_miss = next(f["missing"] for f in miss["families"] if f["family"] == "webstream")
+    if "2025-08" not in ws_miss or "2026-08" not in ws_miss or "2026-09" not in ws_miss:
+        print("FAIL missing-aug-sep", ws_miss)
+        failed += 1
+    elif "2025-09" in ws_miss or "2026-01" in ws_miss:
+        print("FAIL missing-should-have", ws_miss)
+        failed += 1
+    elif not any(r["month"] == "2026-08" for r in miss["aug_sep_missing"]):
+        print("FAIL aug-sep-flag", miss["aug_sep_missing"])
+        failed += 1
+    elif _month_from_name("INATS0117669_GOWIFI_20260131_OpenserveWebstreamRental.csv.zip") != "2026-01":
+        print("FAIL month-from-name")
+        failed += 1
+    elif _family_of("INATS0117643_GOWIFI_20260131_OpenServeOfficeConnectRental.csv.zip") != "office_connect":
+        print("FAIL family-from-name")
+        failed += 1
+    else:
+        print("OK missing-aug-sep", ",".join(miss["aug_sep_missing"][0][k] for k in ("month", "family")))
     conn2.close()
     conn.close()
     return failed
@@ -697,6 +1036,10 @@ def main() -> int:
 
     if "--self-test" in sys.argv:
         return self_test()
+    if "--collect" in sys.argv:
+        report = collect_openserve_mail()
+        print(json.dumps({"ok": True, "folder": report.get("folder"), "unique_files": report.get("unique_files"), "duplicate_sends": report.get("duplicate_sends"), "missing": (report.get("missing") or {}).get("recent_missing")}))
+        return 0
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA busy_timeout=30000")
     report = ingest_mail(conn)
