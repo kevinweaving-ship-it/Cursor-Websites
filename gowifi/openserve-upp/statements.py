@@ -636,43 +636,38 @@ def _ledger_blocks(lines: list[dict]) -> list[dict]:
 
 
 def present_ledger(lines: list[dict]) -> list[dict]:
-    """Invoice and payment rows in date order: newest at the top, oldest at the bottom."""
+    """Date order, newest at the top. Running balance after each row; top = amount due."""
     from invoice_canned import parse_day
 
-    blocks = _ledger_blocks(lines)
-    last_inv_day = None
-    last_pay_day = None
-    tagged = []
-    for block in blocks:
-        due = _money(block.get("open")) > 0.004
-        for row in (
-            ([block["invoice"]] if block.get("invoice") else [])
-            + list(block.get("items") or [])
-            + list(block.get("payments") or [])
-        ):
-            rec = dict(row)
-            rec["due_row"] = due
-            day = parse_day(rec.get("date"))
-            if rec.get("kind") == "invoice" and day and (last_inv_day is None or day > last_inv_day):
-                last_inv_day = day
-            if rec.get("kind") == "payment" and day and (last_pay_day is None or day > last_pay_day):
-                last_pay_day = day
-            tagged.append(rec)
-    for rec in tagged:
-        day = parse_day(rec.get("date"))
-        pin = (rec.get("kind") == "invoice" and day == last_inv_day) or (
-            rec.get("kind") == "payment" and day == last_pay_day
+    tagged = [dict(r) for r in lines if r.get("kind") != "line"]
+
+    def _day(rec: dict):
+        return parse_day(rec.get("date")) or date.min
+
+    # Oldest first to rebuild the running balance, then flip for display.
+    tagged.sort(
+        key=lambda r: (
+            _day(r),
+            0 if r.get("kind") == "invoice" else 1 if r.get("kind") == "unpaid" else 2,
+            str(r.get("ref") or ""),
         )
-        rec["show"] = bool(rec.get("due_row") or pin)
+    )
+    bal = 0.0
+    for rec in tagged:
+        if rec.get("kind") == "unpaid":
+            rec["balance"] = bal
+        else:
+            bal = round(bal + _money(rec.get("amount")), 2)
+            rec["balance"] = bal
+    tagged.reverse()
+    last_inv = next((r for r in tagged if r.get("kind") == "invoice"), None)
+    last_pay = next((r for r in tagged if r.get("kind") == "payment"), None)
+    for rec in tagged:
+        due = _money(rec.get("open")) > 0.004 or rec.get("kind") == "unpaid"
+        pin = rec is last_inv or rec is last_pay
+        rec["due_row"] = due
+        rec["show"] = bool(due or pin)
         rec["reconciled"] = not rec["show"]
-
-    def _sort_key(rec: dict):
-        day = parse_day(rec.get("date")) or date.min
-        # Newest date first. Same day: payment above invoice (money after the bill).
-        kind_ord = 0 if rec.get("kind") == "payment" else 1
-        return (-day.toordinal(), kind_ord, str(rec.get("ref") or ""), str(rec.get("what") or ""))
-
-    tagged.sort(key=_sort_key)
     return tagged
 
 
@@ -785,17 +780,17 @@ def fifo_statement(
         billed = round(billed + amt, 2)
         balance = round(balance + amt, 2)
         no = str(inv.get("invoice_number") or "")
-        lines.append(
-            {
-                "date": inv.get("invoice_date"),
-                "date_fmt": fmt_date(inv.get("invoice_date")),
-                "kind": "invoice",
-                "ref": no,
-                "what": f"Invoice {no}",
-                "amount": amt,
-                "balance": balance,
-            }
-        )
+        inv_row = {
+            "date": inv.get("invoice_date"),
+            "date_fmt": fmt_date(inv.get("invoice_date")),
+            "kind": "invoice",
+            "ref": no,
+            "what": f"Invoice {no}",
+            "amount": amt,
+            "balance": balance,
+            "open": amt,
+        }
+        lines.append(inv_row)
         need = amt
         while need > 0.004:
             pick = None
@@ -814,18 +809,45 @@ def fifo_statement(
             pool[pick]["left"] = round(pool[pick]["left"] - use, 2)
             paid = round(paid + use, 2)
             balance = round(balance - use, 2)
+            how = pay_what(pool[pick]["note"], pool[pick]["method"])
             lines.append(
                 {
                     "date": pool[pick]["date"],
                     "date_fmt": fmt_date(pool[pick]["date"]),
                     "kind": "payment",
-                    "ref": "",
-                    "what": pay_what(pool[pick]["note"], pool[pick]["method"]),
+                    "ref": no,
+                    "what": f"{how} · Invoice {no}",
                     "amount": -use,
                     "balance": balance,
                 }
             )
             need = round(need - use, 2)
+        inv_row["open"] = need
+        book = client_row(name)
+        if (
+            need > 0.004
+            and book
+            and book.get("method") == "debit-order"
+        ):
+            try:
+                inv_day = date.fromisoformat(str(inv.get("invoice_date") or "")[:10])
+                collect = collection_for(inv_day)
+            except ValueError:
+                collect = None
+            as_at = today or date.today()
+            if collect and collect <= as_at:
+                lines.append(
+                    {
+                        "date": collect.isoformat(),
+                        "date_fmt": fmt_date(collect.isoformat()),
+                        "kind": "unpaid",
+                        "ref": no,
+                        "what": f"Debit order unpaid · Invoice {no}",
+                        "amount": need,
+                        "balance": balance,
+                        "open": need,
+                    }
+                )
     for p in pool:
         left = p["left"]
         if left <= 0.004:
@@ -1146,14 +1168,16 @@ def self_test() -> int:
     elif abs(nord.get("due") or 0) > 0.02:
         print("FAIL nord-due", nord.get("due"), nord.get("billed"), nord.get("paid"))
         failed += 1
-    elif not nord_first_pay or nord_first_pay.get("what") != "EFT":
+    elif not nord_first_pay or not (nord_first_pay.get("what") or "").startswith("EFT"):
         print("FAIL nord-first-eft", nord_first_pay)
         failed += 1
-    elif not nord_last_pay or nord_last_pay.get("what") != "Debit order":
-        print("FAIL nord-last-do", nord_last_pay)
+    elif not nord_last_pay or "Debit order" not in (nord_last_pay.get("what") or "") or "3115" not in (
+        nord_last_pay.get("what") or ""
+    ):
+        print("FAIL nord-last-do-for-3115", nord_last_pay)
         failed += 1
-    elif len(nord_prev) != 2:
-        print("FAIL nord-default-last-two", nord_prev)
+    elif abs((nord_led[0].get("balance") if nord_led else 0) or 0) - abs(nord.get("due") or 0) > 0.02:
+        print("FAIL nord-top-balance-is-due", nord_led[0] if nord_led else None, nord.get("due"))
         failed += 1
     else:
         from invoice_canned import parse_day as _pd
