@@ -169,13 +169,14 @@ PENDING_DO = {
     "status": "Collected",
     "volume": 14,
     "amount": 9217.00,
-    "unpaid_value": 0.00,
-    "unpaid_volume": 0,
+    "unpaid_value": 759.00,
+    "unpaid_volume": 1,
     "collected": True,
     "normal_day": DO_DAY,
     "note": (
         "Same-day batch 2571994 on 5 Oct (the 1st slot after the 17 Sep load was missed). "
-        "14 collected · R9217.00 · unpaid R0. Applied in full against each client."
+        "Cupido is the only 2026 Netcash unpaid. Every other D/O on that run is paid "
+        "and clears the invoice in full."
     ),
 }
 

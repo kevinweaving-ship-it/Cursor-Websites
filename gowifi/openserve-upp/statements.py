@@ -1017,6 +1017,53 @@ def fifo_statement(
             )
             need = round(need - use, 2)
         inv_row["open"] = need
+    as_at = today or date.today()
+    for inv_row in lines:
+        if inv_row.get("kind") != "invoice":
+            continue
+        need = _money(inv_row.get("open"))
+        if need <= 0.004:
+            continue
+        if not book or book.get("method") != "debit-order":
+            continue
+        try:
+            inv_day = date.fromisoformat(str(inv_row.get("date") or "")[:10])
+            collect = collection_for(inv_day)
+        except ValueError:
+            continue
+        if not collect or collect > as_at or collect.year != 2026:
+            continue
+        if (key, collect.isoformat()[:7]) in unpaid_months:
+            continue
+        # Netcash 2026 unpaid is Cupido only. A paid run clears the invoice in full.
+        paid = round(paid + need, 2)
+        balance = round(balance - need, 2)
+        no = str(inv_row.get("ref") or "")
+        do_line = next(
+            (
+                r
+                for r in reversed(lines)
+                if r.get("kind") == "payment"
+                and str(r.get("ref") or "") == no
+                and "Debit" in (r.get("what") or "")
+            ),
+            None,
+        )
+        if do_line:
+            do_line["amount"] = round(_money(do_line.get("amount")) - need, 2)
+        else:
+            lines.append(
+                {
+                    "date": collect.isoformat(),
+                    "date_fmt": fmt_date(collect.isoformat()),
+                    "kind": "payment",
+                    "ref": no,
+                    "what": f"Debit order · Invoice {no}",
+                    "amount": -need,
+                    "balance": balance,
+                }
+            )
+        inv_row["open"] = 0.0
     for p in pool:
         left = p["left"]
         if left <= 0.004:
@@ -1223,7 +1270,7 @@ def for_export(conn: sqlite3.Connection, today: date | None = None) -> dict:
         "note": (
             "Due is as at today. D/O is grace until reconciled. "
             "A bounce stays due and raises a suspension notice. "
-            "5 Oct 2026 batch 2571994 collected — unpaid R0."
+            "5 Oct 2026 batch 2571994 collected — Cupido unpaid. No other 2026 Netcash unpaid."
         ),
         "count": len(cards),
         "accounts": cards,
@@ -1248,7 +1295,7 @@ def self_test() -> int:
     if not (want.get("pending_do") or {}).get("reconciled"):
         print("FAIL wantling-oct5-not-applied", want.get("pending_do"), want["due"])
         failed += 1
-    elif (want["due"] or 0) > 50:
+    elif abs(want["due"] or 0) > 0.02:
         print("FAIL wantling-still-due", want["due"], want["billed"], want["paid"])
         failed += 1
     else:
@@ -1449,8 +1496,38 @@ def self_test() -> int:
     elif len(ann_do) < 20:
         print("FAIL ann-missing-do-history", len(ann_do))
         failed += 1
+    elif abs(ann.get("due") or 0) > 0.02:
+        print("FAIL ann-2026-should-be-paid", ann.get("due"), [(r.get("ref"), r.get("open"), r.get("tone")) for r in (ann.get("ledger") or []) if r.get("kind")=="invoice" and r.get("show")])
+        failed += 1
     else:
         print("OK ann-hh-do-history", len(ann_do), "due", ann.get("due"))
+    only_2026_unpaid = []
+    for row in (
+        "David Wantling",
+        "Annette Bing HH",
+        "Murray DH",
+        "G Cupido",
+        "Bing Noordhoek Fibre",
+        "Stan Hundermark",
+        "Dirk De Villiers",
+    ):
+        pack = account_as_at(conn, row, today)
+        opens = [
+            r
+            for r in (pack.get("ledger") or [])
+            if r.get("kind") == "invoice"
+            and _money(r.get("open")) > 0.004
+            and (r.get("date") or "").startswith("2026")
+        ]
+        if opens:
+            only_2026_unpaid.append((row, pack.get("due"), [(r.get("ref"), r.get("open")) for r in opens]))
+    if only_2026_unpaid != [("G Cupido", cup.get("due"), [("3125", 207.0)])] and not (
+        len(only_2026_unpaid) == 1 and only_2026_unpaid[0][0] == "G Cupido"
+    ):
+        print("FAIL 2026-netcash-unpaid-not-only-cupido", only_2026_unpaid)
+        failed += 1
+    else:
+        print("OK 2026-netcash-unpaid-cupido-only")
     conn.close()
     return failed
 
