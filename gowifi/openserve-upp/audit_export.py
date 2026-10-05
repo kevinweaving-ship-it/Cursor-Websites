@@ -465,6 +465,7 @@ def build(conn: sqlite3.Connection) -> dict:
     line_charges = line_charges_for_export(conn)
     mail_coverage = mail_coverage_for_export(conn)
     mail_forwards = forwards_for_export()
+    org = conn.execute("SELECT * FROM organisations").fetchone()
     if not mail_forwards.get("mx_on_box"):
         mail_coverage["gap"] = (
             (mail_coverage.get("gap") or "")
@@ -493,7 +494,6 @@ def build(conn: sqlite3.Connection) -> dict:
     books = books_for_export(conn)
     services = [dict(r) for r in conn.execute("SELECT * FROM services")]
     orders = [dict(r) for r in conn.execute("SELECT * FROM orders")]
-    org = conn.execute("SELECT * FROM organisations").fetchone()
     sync = conn.execute(
         "SELECT finished_at, ok FROM sync_runs ORDER BY id DESC LIMIT 1"
     ).fetchone()
