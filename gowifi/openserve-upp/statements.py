@@ -562,6 +562,69 @@ def _attach_invoice_lines(lines: list[dict], conn: sqlite3.Connection | None) ->
     return out
 
 
+def _ledger_blocks(lines: list[dict]) -> list[dict]:
+    """Invoice + its lines + the payment(s) that clear it. Oldest block first."""
+    blocks: list[dict] = []
+    cur = None
+    leading = []
+    for row in lines:
+        kind = row.get("kind")
+        if kind == "invoice":
+            if cur is not None:
+                blocks.append(cur)
+            cur = {
+                "invoice": row,
+                "items": [],
+                "payments": [],
+                "open": _money(row.get("amount")),
+            }
+        elif kind == "line" and cur is not None:
+            cur["items"].append(row)
+        elif kind == "payment":
+            if cur is None:
+                leading.append(row)
+            else:
+                cur["payments"].append(row)
+                cur["open"] = round(cur["open"] + _money(row.get("amount")), 2)
+        elif cur is not None:
+            cur["items"].append(row)
+    if cur is not None:
+        blocks.append(cur)
+    if leading and blocks:
+        blocks[0]["payments"] = leading + blocks[0]["payments"]
+    elif leading:
+        blocks.append({"invoice": None, "items": [], "payments": leading, "open": 0.0})
+    return blocks
+
+
+def present_ledger(lines: list[dict]) -> list[dict]:
+    """Newest at the top. Last invoice + last payment + arrears show; paid history hidden."""
+    blocks = _ledger_blocks(lines)
+    last_inv = None
+    last_pay = None
+    for i, block in enumerate(blocks):
+        if block.get("invoice"):
+            last_inv = i
+        if block.get("payments"):
+            last_pay = i
+    out = []
+    for i in range(len(blocks) - 1, -1, -1):
+        block = blocks[i]
+        due = _money(block.get("open")) > 0.004
+        show = due or i == last_inv or i == last_pay
+        for row in (
+            ([block["invoice"]] if block.get("invoice") else [])
+            + list(block.get("items") or [])
+            + list(block.get("payments") or [])
+        ):
+            rec = dict(row)
+            rec["show"] = show
+            rec["due_row"] = due
+            rec["reconciled"] = not show
+            out.append(rec)
+    return out
+
+
 def _sales_lines(number: str, conn: sqlite3.Connection | None = None) -> list[dict]:
     from invoice_canned import clean_description
 
@@ -784,7 +847,7 @@ def account_as_at(
     ledger["master"] = meta.get("master") or ledger.get("master")
     ledger["sub"] = meta.get("sub") or ledger.get("sub")
     ledger["own_sub"] = meta.get("own_sub") if "own_sub" in meta else ledger.get("own_sub")
-    ledger["lines"] = _attach_invoice_lines(ledger.get("lines") or [], conn)
+    ledger["lines"] = present_ledger(_attach_invoice_lines(ledger.get("lines") or [], conn))
     stmt = statement_on_invoice(invoices, payments, display, as_at=today)
     billed = ledger["billed"]
     paid = ledger["paid"]
@@ -852,7 +915,12 @@ def account_as_at(
         "master": ledger.get("master"),
         "sub": ledger.get("sub"),
         "own_sub": ledger.get("own_sub"),
-        "other_subs": ledger.get("other_subs") or [],
+        "other_subs": [],
+        "earlier_paid": sum(
+            1
+            for r in (ledger.get("lines") or [])
+            if not r.get("show") and r.get("kind") in {"invoice", "payment"}
+        ),
         "last_payment": stmt.get("last_payment"),
     }
 
@@ -924,14 +992,11 @@ def self_test() -> int:
     lines = amoroc.get("ledger") or []
     living = living_books("Amoroc Doors")
     living_nos = {str(i.get("invoice_number")) for i in (living[0] if living else [])}
-    shown_inv = [r for r in lines if r.get("kind") == "invoice"]
-    shown_nos = {str(r.get("ref")) for r in shown_inv}
-    first_pay = next((r for r in lines if r.get("kind") == "payment"), None)
-    first_items = []
-    for row in lines[1:]:
-        if row.get("kind") != "line":
-            break
-        first_items.append(row)
+    all_inv = [r for r in lines if r.get("kind") == "invoice"]
+    preview = [r for r in lines if r.get("show") and r.get("kind") in {"invoice", "payment"}]
+    preview_inv = [r for r in preview if r.get("kind") == "invoice"]
+    preview_pay = [r for r in preview if r.get("kind") == "payment"]
+    oldest = next((r for r in reversed(all_inv) if str(r.get("ref")) == "2335"), None)
     conn.execute(
         """INSERT OR REPLACE INTO customer_invoices
            (invoice_number, invoice_date, customer, amount, balance_due, status, source)
@@ -939,20 +1004,28 @@ def self_test() -> int:
     )
     ghost = account_as_at(conn, "Amoroc Doors", today)
     ghost_lines = ghost.get("ledger") or []
+    marlene_open = [
+        r
+        for r in (marlene.get("ledger") or [])
+        if r.get("kind") == "invoice" and r.get("show") and r.get("due_row")
+    ]
     if abs((amoroc["billed"] or 0) - 9310.25) > 0.02 or abs((amoroc["paid"] or 0) - 9310.25) > 0.02:
         print("FAIL amoroc-totals", amoroc["billed"], amoroc["paid"], amoroc["due"])
         failed += 1
     elif abs(amoroc["due"] or 0) > 0.02:
         print("FAIL amoroc-due", amoroc["due"])
         failed += 1
-    elif not shown_inv or str(shown_inv[0].get("ref")) != "2335" or abs((shown_inv[0].get("amount") or 0) - 2345.25) > 0.02:
-        print("FAIL amoroc-first-invoice", shown_inv[:2] if shown_inv else lines[:3])
+    elif not all_inv or str(all_inv[0].get("ref")) != "3107" or abs((all_inv[0].get("amount") or 0) - 199) > 0.02:
+        print("FAIL amoroc-newest-top", all_inv[:2] if all_inv else lines[:3])
         failed += 1
-    elif [round(r.get("amount") or 0, 2) for r in first_items] != [1374.25, 172.0, 600.0, 199.0]:
-        print("FAIL amoroc-2335-lines", first_items)
+    elif not oldest or not oldest.get("reconciled") or oldest.get("show"):
+        print("FAIL amoroc-oldest-hidden", oldest)
         failed += 1
-    elif not first_pay or abs((first_pay.get("amount") or 0) + 2345.25) > 0.02:
-        print("FAIL amoroc-first-payment", first_pay)
+    elif len(preview_inv) != 1 or str(preview_inv[0].get("ref")) != "3107":
+        print("FAIL amoroc-default-last-invoice", preview_inv)
+        failed += 1
+    elif len(preview_pay) != 1 or abs((preview_pay[0].get("amount") or 0) + 199) > 0.02:
+        print("FAIL amoroc-default-last-payment", preview_pay)
         failed += 1
     elif any(abs((r.get("amount") or 0)) == 699 and r.get("kind") == "invoice" for r in lines):
         print("FAIL amoroc-has-aljo", [r for r in lines if abs((r.get("amount") or 0)) == 699])
@@ -960,21 +1033,22 @@ def self_test() -> int:
     elif any(abs(abs(r.get("amount") or 0) - 2544.25) < 0.02 for r in lines):
         print("FAIL amoroc-deposit-double-count")
         failed += 1
-    elif living_nos and shown_nos - living_nos:
-        print("FAIL deleted-invoices-shown", sorted(shown_nos - living_nos))
+    elif living_nos and {str(r.get("ref")) for r in all_inv} - living_nos:
+        print("FAIL deleted-invoices-shown", sorted({str(r.get("ref")) for r in all_inv} - living_nos))
         failed += 1
     elif any(str(r.get("ref")) == "9999" for r in ghost_lines) or abs(ghost.get("due") or 0) > 0.02:
         print("FAIL deleted-invoice-due", ghost.get("due"), [r for r in ghost_lines if str(r.get("ref")) == "9999"])
         failed += 1
-    elif not amoroc.get("own_sub") or (amoroc.get("master") or "") != "Amoroc Doors":
-        print("FAIL amoroc-own-sub", amoroc.get("master"), amoroc.get("own_sub"))
+    elif amoroc.get("other_subs"):
+        print("FAIL amoroc-aljo-on-card", amoroc.get("other_subs"))
         failed += 1
-    elif not any(s.get("cancelled") and "aljo" in (s.get("key") or "") for s in amoroc.get("other_subs") or []):
-        print("FAIL amoroc-aljo-other-sub", amoroc.get("other_subs"))
+    elif abs((marlene["due"] or 0) - 7180) <= 0.5 and len(marlene_open) < 2:
+        print("FAIL arrears-must-show", len(marlene_open), marlene["due"])
         failed += 1
     else:
-        print("OK amoroc-statement", amoroc["due"], "invoices", len(shown_inv), "lines", len(lines))
+        print("OK amoroc-statement", amoroc["due"], "newest", all_inv[0].get("ref"), "default", len(preview))
         print("OK deleted-invoices-never-show")
+        print("OK arrears-show", len(marlene_open))
     conn.close()
     return failed
 

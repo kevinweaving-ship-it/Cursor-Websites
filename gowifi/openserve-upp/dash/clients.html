@@ -100,6 +100,13 @@ main {
 .stmt tr.payment td.num { color:var(--ok); }
 .stmt tr.line td:nth-child(2) { padding-left:14px; color:var(--muted); }
 .stmt tr.line td.num { color:var(--muted); font-weight:400; }
+.stmt tr.due_row td.num { color:var(--bad); }
+.stmt-toggle {
+  display:block; width:100%; margin:0 0 8px; padding:8px 0; border:0;
+  background:transparent; color:var(--acc); font:inherit; font-size:13px;
+  font-weight:700; text-align:left; cursor:pointer;
+}
+.stmt-toggle:focus { outline:2px solid var(--acc); outline-offset:2px; }
 .empty { color:var(--muted); padding:20px 14px; }
 .err { color:#8a1212; background:#fdecec; padding:12px; border-radius:10px; }
 .fold-head {
@@ -171,26 +178,31 @@ const accessLabel = c => (c.access||"") === "fibre" ? "Fibre" : "Wifi";
 function field(label, value, extra){
   return `<div class="field"><span class="k">${esc(label)}</span><span class="v${extra&&extra.cls?" "+extra.cls:""}">${value}</span></div>`;
 }
-function accountLine(c){
-  if (!c.master) return "";
-  const own = c.own_sub ? "own sub-account" : (c.sub || "sub-account");
-  const others = (c.other_subs||[]).map(s => `${s.name}${s.cancelled?" (cancelled)":""}`).join(", ");
-  return field("Account", `Master ${c.master} · ${own}${others?` · other sub ${others}`:""}`);
-}
-function stmtTable(c){
-  const rows = c.ledger || [];
-  if (!rows.length) return "";
-  const body = rows.map(r=>`<tr class="${esc(r.kind||"")}">
+function stmtRows(rows){
+  return rows.map(r=>{
+    const hide = r.reconciled ? " hidden" : "";
+    const cls = [r.kind||"", r.due_row?"due_row":"", r.reconciled?"paid":""].filter(Boolean).join(" ");
+    return `<tr class="${esc(cls)}${hide}">
     <td>${esc(r.kind==="line"?"":(r.date_fmt||r.date||""))}</td>
     <td>${esc(r.what||"")}</td>
     <td class="num">${esc(money(r.amount))}</td>
     <td class="num">${r.kind==="line"?"":esc(money(r.balance))}</td>
-  </tr>`).join("");
+  </tr>`;
+  }).join("");
+}
+function stmtTable(c, id){
+  const rows = c.ledger || [];
+  if (!rows.length) return "";
+  const earlier = Number(c.earlier_paid||0) || rows.filter(r => r.reconciled && r.kind!=="line").length;
+  const hid = "s-"+id;
+  const toggle = earlier
+    ? `<button class="stmt-toggle" type="button" aria-expanded="false" aria-controls="${hid}">Statement · ${earlier} earlier paid · click to show</button>`
+    : `<div class="k">Last invoice / payment</div>`;
   return `<div class="band stmt-band">
-    <div class="k">Statement</div>
-    <div class="stmt-wrap"><table class="stmt">
+    ${toggle}
+    <div class="stmt-wrap" id="${hid}"><table class="stmt">
       <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
-      <tbody>${body}</tbody>
+      <tbody>${stmtRows(rows)}</tbody>
     </table></div>
   </div>`;
 }
@@ -227,8 +239,7 @@ function card(c){
         ${field("Package", esc(c.package||"—"))}
         ${field("Balance", bal, {cls:"due "+dc})}
       </div>
-      ${c.master?`<div class="band">${accountLine(c)}</div>`:""}
-      ${stmtTable(c)}
+      ${stmtTable(c, id)}
       ${c.suspension_notice?`<div class="band"><div class="alert">Suspension notice · D/O bounced</div></div>`:""}
     </div>
   </article>`;
@@ -247,6 +258,20 @@ function bindToggles(root){
       const panel = document.getElementById(btn.getAttribute("aria-controls"));
       btn.setAttribute("aria-expanded", open?"false":"true");
       if (panel) panel.classList.toggle("hidden", open);
+    });
+  });
+  root.querySelectorAll(".stmt-toggle").forEach(btn=>{
+    btn.addEventListener("click", e=>{
+      e.stopPropagation();
+      const open = btn.getAttribute("aria-expanded")==="true";
+      const next = !open;
+      btn.setAttribute("aria-expanded", next?"true":"false");
+      const wrap = document.getElementById(btn.getAttribute("aria-controls"));
+      if (wrap) wrap.querySelectorAll("tr.paid").forEach(tr => tr.classList.toggle("hidden", !next));
+      const n = (btn.textContent.match(/\d+/)||[])[0] || "";
+      btn.textContent = next
+        ? `Statement · hide earlier paid`
+        : `Statement · ${n} earlier paid · click to show`;
     });
   });
 }

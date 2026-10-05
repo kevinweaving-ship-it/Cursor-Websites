@@ -276,7 +276,8 @@ def cards_for_export(
                         "master": st.get("master"),
                         "sub": st.get("sub"),
                         "own_sub": st.get("own_sub"),
-                        "other_subs": st.get("other_subs") or [],
+                        "other_subs": [],
+                        "earlier_paid": st.get("earlier_paid") or 0,
                         "last_paid_on": (st.get("last_payment") or {}).get("date")
                         if isinstance(st.get("last_payment"), dict)
                         else None,
@@ -324,7 +325,8 @@ def cards_for_export(
             "master": acc.get("master"),
             "sub": acc.get("sub"),
             "own_sub": acc.get("own_sub"),
-            "other_subs": acc.get("other_subs") or [],
+            "other_subs": [],
+            "earlier_paid": acc.get("earlier_paid") or 0,
             "dot": dot,
             "dot_label": dot_label,
             "we_suspended": we_suspended,
@@ -412,7 +414,8 @@ def cards_for_export(
                     card["master"] = st.get("master")
                     card["sub"] = st.get("sub")
                     card["own_sub"] = st.get("own_sub")
-                    card["other_subs"] = st.get("other_subs") or []
+                    card["other_subs"] = []
+                    card["earlier_paid"] = st.get("earlier_paid") or 0
                     card.update(_grace(st, today))
             except Exception:
                 pass
