@@ -224,6 +224,8 @@ def _fnb_alloc(row: dict) -> dict:
         return {"alloc_kind": "clearing", "alloc_to": row.get("account") or "Bank", "alloc_key": "", "result": "allocated"}
     if qb == "transfer":
         return {"alloc_kind": "clearing", "alloc_to": row.get("account") or payee, "alloc_key": "", "result": "allocated"}
+    if "revenue" in account or qb == "deposit":
+        return {"alloc_kind": "income", "alloc_to": row.get("account") or payee or memo, "alloc_key": "", "result": "allocated"}
     return {"alloc_kind": "unallocated", "alloc_to": payee or memo or row.get("account"), "alloc_key": "", "result": "need-recon"}
 
 
@@ -245,6 +247,10 @@ def _netcash_alloc(row: dict) -> dict:
         return {"alloc_kind": "unallocated", "alloc_to": payee or memo, "alloc_key": "", "result": "unpaid"}
     if "service fee" in memo or "fee" in account:
         return {"alloc_kind": "fee", "alloc_to": "Netcash fee", "alloc_key": "", "result": "allocated"}
+    if "interest" in memo or "interest" in account:
+        return {"alloc_kind": "expense", "alloc_to": "Netcash interest", "alloc_key": "", "result": "allocated"}
+    if "recoveries" in memo or "insufficient" in memo:
+        return {"alloc_kind": "clearing", "alloc_to": "D/O recoveries", "alloc_key": "", "result": "unpaid"}
     if "fnb" in account or "62860060278" in account or memo.startswith("netcash"):
         return {"alloc_kind": "clearing", "alloc_to": "FNB settlement", "alloc_key": "", "result": "allocated"}
     if client:
