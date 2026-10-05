@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""Client statements from QB invoices + FNB EFT/cash + Netcash D/O.
+"""Client statements from QB invoices + FNB EFT + Netcash D/O.
 
-Due on the day viewed is invoices minus allocated payments. A pending
-D/O is grace (not due) until it is reconciled. A bounce stays due and
-raises a suspension notice. Netcash paid/unpaid is per batch — Bing
-Noordhoek Fibre R599 on 2571994 is paid; Cupido is the only unpaid.
+Books rule (not rocket science):
+- Invoice on the 17th, month in advance. Sep invoice → Oct D/O batch.
+- Collection is the 1st of the next month (5 Oct 2026 was the missed-load slot).
+- Look up that Netcash batch for the client: paid or unpaid.
+- Paid D/O clears that invoice in full. Unpaid stays due.
+- If unpaid, a named FNB EFT (client ref) can catch up. Next month is a new batch.
+- Payment source is Netcash (D/O) or FNB (named EFT). Do not invent unpaids from
+  Netcash clearing / refund memos on FNB (HAVENGA REFUND is not a client bounce).
+- Cupido is the only 2026 Netcash unpaid.
 """
 from __future__ import annotations
 
@@ -391,21 +396,11 @@ def _synth_do(conn: sqlite3.Connection, kind_by_no: dict[str, str]) -> int:
     rows = conn.execute(
         "SELECT invoice_number, invoice_date, customer, amount FROM customer_invoices"
     ).fetchall()
-    first_inv: dict[str, tuple[str, str]] = {}
-    for number, inv_date, customer, _amount in rows:
-        key = canon_key(customer)
-        prev = first_inv.get(key)
-        stamp = (inv_date or "", str(number))
-        if prev is None or stamp < prev:
-            first_inv[key] = stamp
     for number, inv_date, customer, amount in rows:
         book = client_row(customer)
         if not book or book.get("method") != "debit-order":
             continue
         if kind_by_no.get(str(number)) != "monthly":
-            continue
-        first = first_inv.get(canon_key(customer))
-        if first and str(number) == str(first[1]):
             continue
         try:
             day = date.fromisoformat(inv_date)
@@ -1015,11 +1010,11 @@ def fifo_statement(
             collect = collection_for(inv_day)
         except ValueError:
             continue
-        if not collect or collect > as_at or collect.year != 2026:
+        if not collect or collect > as_at:
             continue
         if (key, collect.isoformat()[:7]) in unpaid_months:
             continue
-        # Netcash 2026 unpaid is Cupido only. A paid run clears the invoice in full.
+        # Paid Netcash run (or no unpaid recorded) clears the invoice in full.
         paid = round(paid + need, 2)
         balance = round(balance - need, 2)
         no = str(inv_row.get("ref") or "")
@@ -1513,6 +1508,20 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK 2026-netcash-unpaid-cupido-only")
+    jean = account_as_at(conn, "Jean de Villiers", today)
+    geo = account_as_at(conn, "GeoCorp", today)
+    if abs(jean.get("due") or 0) > 0.02 or any(
+        r.get("kind") == "unpaid" for r in (jean.get("ledger") or [])
+    ):
+        print("FAIL jean-should-be-paid", jean.get("due"))
+        failed += 1
+    elif abs(geo.get("due") or 0) > 0.02 or any(
+        r.get("kind") == "unpaid" for r in (geo.get("ledger") or [])
+    ):
+        print("FAIL geocorp-should-be-paid", geo.get("due"))
+        failed += 1
+    else:
+        print("OK jean-geocorp-do-paid", jean.get("due"), geo.get("due"))
     conn.close()
     return failed
 
