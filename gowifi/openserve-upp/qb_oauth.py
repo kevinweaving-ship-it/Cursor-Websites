@@ -21,6 +21,9 @@ AUTHORIZE = "https://appcenter.intuit.com/connect/oauth2"
 TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
 SCOPE = "com.intuit.quickbooks.accounting"
 STATE = "gowifi-box"
+# Intuit pre-registers this on every app. Our gowifi.co.za callback is not
+# on the Production list until it is saved under Settings → Redirect URIs.
+PLAYGROUND_REDIRECT = "https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl"
 
 
 def _load_env(path: Path = ENV_PATH) -> dict[str, str]:
@@ -45,7 +48,7 @@ def _save_env(data: dict[str, str], path: Path = ENV_PATH) -> None:
 def authorize_url(env: dict[str, str] | None = None) -> str:
     env = env or _load_env()
     client_id = env.get("QBO_CLIENT_ID") or ""
-    redirect = env.get("QBO_REDIRECT_URI") or "https://gowifi.co.za/legal/qb-callback.html"
+    redirect = env.get("QBO_REDIRECT_URI") or PLAYGROUND_REDIRECT
     if not client_id:
         raise SystemExit("QBO_CLIENT_ID missing in /root/secrets/qbo.env")
     q = urllib.parse.urlencode(
@@ -94,8 +97,7 @@ def exchange_code(code: str, realm_id: str) -> dict:
         {
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": env.get("QBO_REDIRECT_URI")
-            or "https://gowifi.co.za/legal/qb-callback.html",
+            "redirect_uri": env.get("QBO_REDIRECT_URI") or PLAYGROUND_REDIRECT,
         },
     )
     payload["realmId"] = realm_id or payload.get("realmId")
@@ -200,5 +202,9 @@ if __name__ == "__main__":
     elif cmd == "refresh":
         refresh_tokens()
         print("refreshed")
+    elif cmd == "redeem":
+        if len(sys.argv) < 4:
+            raise SystemExit("redeem CODE REALMID")
+        print(json.dumps(exchange_code(sys.argv[2], sys.argv[3])))
     else:
-        raise SystemExit("url | serve | refresh")
+        raise SystemExit("url | serve | refresh | redeem")

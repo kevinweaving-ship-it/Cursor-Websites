@@ -52,7 +52,7 @@ if [ ! -f /root/secrets/qbo.env ]; then
   printf '%s\n' \
     'QBO_CLIENT_ID=' \
     'QBO_CLIENT_SECRET=' \
-    'QBO_REDIRECT_URI=https://gowifi.co.za/legal/qb-callback.html' \
+    'QBO_REDIRECT_URI=https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl' \
     > /root/secrets/qbo.env
   chmod 600 /root/secrets/qbo.env
 fi
