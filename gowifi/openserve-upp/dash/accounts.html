@@ -216,8 +216,17 @@ function render(data){
       <div class="grid">
         <div class="card"><div class="k">Old invoices</div><div class="v">${(data.books&&data.books.history&&data.books.history.count)||0}</div><div class="meta">statement sits on the invoice · ${esc((data.books&&data.books.history&&data.books.history.payment_count)||(data.books&&data.books.history&&data.books.history.payments&&data.books.history.payments.length)||0)} payments</div></div>
         <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
-        <div class="card"><div class="k">FNB</div><div class="v">${((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"")}</div></div>
+        <div class="card"><div class="k">FNB</div><div class="v">${(data.books&&data.books.fnb&&data.books.fnb.transactions)||((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"")}</div></div>
         <div class="card"><div class="k">Netcash</div><div class="v">${(data.books&&data.books.netcash&&data.books.netcash.items)||0}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||"")}</div></div>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Date</th><th>FNB</th><th>Amount</th><th>Balance</th></tr></thead>
+          <tbody>${((data.books&&data.books.fnb&&data.books.fnb.rows)||[]).map(r=>`
+            <tr><td class="num">${esc(r.paid_on||"—")}</td><td>${esc(r.description||"—")}</td>
+            <td class="num">${r.amount==null?"—":Number(r.amount).toFixed(2)}</td>
+            <td class="num">${r.balance==null?"—":Number(r.balance).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No FNB history yet</td></tr>`}</tbody>
+        </table>
       </div>
       <div class="card scroll">
         <table class="compact">

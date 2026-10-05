@@ -12,6 +12,7 @@ import io
 import os
 import re
 import sqlite3
+import sys
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -80,6 +81,97 @@ def is_gowifi_account(name: str | None, number: str | None) -> bool:
         or "go wifi" in blob
         or (number or "").replace(" ", "") == GOWIFI_FNB
     )
+
+
+_MONTHS = {
+    "jan": "01",
+    "feb": "02",
+    "mar": "03",
+    "apr": "04",
+    "may": "05",
+    "jun": "06",
+    "jul": "07",
+    "aug": "08",
+    "sep": "09",
+    "oct": "10",
+    "nov": "11",
+    "dec": "12",
+}
+
+
+def _fnb_money(raw: str) -> float | None:
+    text = (raw or "").replace("\u00a0", " ").replace(",", "").replace(" ", "").strip()
+    if not re.match(r"^-?\d+(\.\d+)?$", text):
+        return None
+    return float(text)
+
+
+def _fnb_date(raw: str) -> str | None:
+    m = re.match(r"^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$", (raw or "").strip())
+    if not m:
+        return None
+    mon = _MONTHS.get(m.group(2)[:3].lower())
+    if not mon:
+        return None
+    return f"{m.group(3)}-{mon}-{int(m.group(1)):02d}"
+
+
+def parse_fnb_online_table(text: str, filename: str = "") -> dict:
+    """FNB Online transaction table paste: Date, Description, Reference, Fee, Amount, Balance."""
+    lines = [ln.replace("\u00a0", " ").rstrip() for ln in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    rows = []
+    i = 0
+    while i < len(lines):
+        paid_on = _fnb_date(lines[i])
+        if not paid_on:
+            i += 1
+            continue
+        block = lines[i + 1 : i + 6]
+        if len(block) < 5:
+            break
+        desc, ref, _fee, amount_s, balance_s = block
+        amount = _fnb_money(amount_s)
+        balance = _fnb_money(balance_s)
+        if amount is None or balance is None:
+            i += 1
+            continue
+        detail = desc.strip()
+        if ref.strip():
+            detail = f"{detail} / {ref.strip()}"
+        rows.append(
+            {
+                "account_number": GOWIFI_FNB,
+                "account_name": COMPANY["bank_account_name"],
+                "ours": 1,
+                "paid_on": paid_on,
+                "amount": amount,
+                "balance": balance,
+                "description": detail,
+                "source": "fnb_online",
+                "filename": filename,
+            }
+        )
+        i += 6
+    return {
+        "account_number": GOWIFI_FNB,
+        "account_name": COMPANY["bank_account_name"],
+        "ours": 1,
+        "rows": rows,
+    }
+
+
+def ingest_fnb_text(conn: sqlite3.Connection, text: str, filename: str = "fnb-online") -> dict:
+    ensure_tables(conn)
+    parsed = parse_fnb_online_table(text, filename)
+    if not parsed["rows"]:
+        parsed = parse_fnb_history(text, filename)
+        for row in parsed["rows"]:
+            row["account_number"] = row.get("account_number") or GOWIFI_FNB
+            row["account_name"] = row.get("account_name") or COMPANY["bank_account_name"]
+            row["ours"] = 1 if is_gowifi_account(row.get("account_name"), row.get("account_number")) else row.get("ours") or 0
+    inserted = _upsert_bank(conn, parsed["rows"])
+    conn.commit()
+    return {"rows": len(parsed["rows"]), "inserted": inserted}
 
 
 def parse_fnb_history(text: str, filename: str = "") -> dict:
@@ -348,12 +440,11 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
     if drafts:
         next_no = drafts[0]["invoice_number"]
     return {
-        "quickbooks": "cancel after this history is on the box",
+        "quickbooks": "skip — FNB + Netcash + Openserve/UISP cover the books",
         "company": COMPANY,
         "loop": (
-            "Old QuickBooks invoices and statements are imported from mail. "
-            "Statement lines recreate every invoice (number, what-for, amount). "
-            "New invoices are one A4 page: this month’s line plus a compact statement of account."
+            "Books are FNB (money in/out), Netcash (debit collections), "
+            "and Openserve/UISP (fibre cost and lines). QuickBooks API is not required."
         ),
         "openserve": {
             "invoices": openserve[0] if openserve else 0,
@@ -362,6 +453,19 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "fnb": {
             "accounts": bank_accounts,
             "gowifi_account": any(a["ours"] for a in bank_accounts),
+            "transactions": conn.execute("SELECT COUNT(*) FROM bank_tx WHERE ours=1").fetchone()[0],
+            "rows": [
+                {
+                    "paid_on": r[0],
+                    "amount": r[1],
+                    "balance": r[2],
+                    "description": r[3],
+                }
+                for r in conn.execute(
+                    """SELECT paid_on, amount, balance, description FROM bank_tx
+                       WHERE ours=1 ORDER BY paid_on DESC, id DESC LIMIT 80"""
+                )
+            ],
             "note": (
                 "Daily CSV: FNB Online scheduled export to accounts@go-wifi.co.za "
                 "(ACCOUNT TRANSACTION HISTORY). GoWiFi operating account not on the box yet."
@@ -411,6 +515,21 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK gowifi-account")
+    online = parse_fnb_online_table(
+        "Date\nDescription\nReference\nService Fee\nAmount\nBalance\n"
+        "01 Oct 2026\nRSAWEB 436784018 NETCASH\n\n0.00\n-2,223.94\n5,074.66\n"
+        "01 Sep 2026\nNETCASH 431379977NETCASH\n431379977NETCASH\n0.00\n6,967.28\n13,649.29\n"
+    )
+    if (
+        len(online["rows"]) != 2
+        or online["rows"][0]["amount"] != -2223.94
+        or online["rows"][0]["paid_on"] != "2026-10-01"
+        or online["rows"][1]["amount"] != 6967.28
+    ):
+        print("FAIL fnb-online", online)
+        failed += 1
+    else:
+        print("OK fnb-online-table")
     conn = sqlite3.connect(":memory:")
     ensure_tables(conn)
     conn.execute(
@@ -432,4 +551,11 @@ def self_test() -> int:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "ingest-fnb":
+        path = Path(sys.argv[2]) if len(sys.argv) > 2 else None
+        if not path or not path.exists():
+            raise SystemExit("ingest-fnb FILE")
+        db = sqlite3.connect(os.environ.get("UPP_DB", "/root/gowifi-upp/upp.db"))
+        print(ingest_fnb_text(db, path.read_text(), path.name))
+        raise SystemExit(0)
     raise SystemExit(self_test())
