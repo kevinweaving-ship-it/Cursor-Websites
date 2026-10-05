@@ -1,0 +1,55 @@
+body {
+  margin: 0;
+  color: #1a1a1a;
+  background: #f4f6f8;
+  font: 16px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+header, main, footer {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+header {
+  padding-bottom: 0;
+}
+.brand {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1a3a6b;
+}
+.card {
+  background: #fff;
+  border: 2.5px solid #1a3a6b;
+  border-radius: 8px;
+  padding: 20px 22px 8px;
+}
+h1 {
+  margin: 0 0 8px;
+  font-size: 26px;
+  color: #1a3a6b;
+}
+.meta, footer {
+  color: #555;
+  font-size: 14px;
+}
+h2 {
+  margin: 22px 0 8px;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1a3a6b;
+}
+p, li {
+  margin: 0 0 12px;
+}
+ol {
+  padding-left: 20px;
+}
+a {
+  color: #1a3a6b;
+}
+nav a {
+  margin-right: 16px;
+  font-weight: 600;
+}

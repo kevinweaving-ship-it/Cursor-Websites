@@ -15,9 +15,17 @@ chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" \
   "$DEST/audit_export.py" "$DEST/status_events.py" "$DEST/invoice_import.py" \
   "$DEST/site_lines.py" "$DEST/client_stories.py" "$DEST/books.py" \
   "$DEST/qb_import.py" "$DEST/invoice_canned.py" "$DEST/company.py"
-DASH=/home/user-data/www/default/dash
-mkdir -p "$DASH"
-mkdir -p "$DEST/dash"
+WWW=/home/user-data/www/default
+DASH="$WWW/dash"
+LEGAL="$WWW/legal"
+mkdir -p "$DASH" "$LEGAL"
+mkdir -p "$DEST/dash" "$DEST/legal"
+if [ -d "$SRC/legal" ]; then
+  if [ "$SRC/legal" != "$DEST/legal" ]; then
+    cp -a "$SRC/legal/." "$DEST/legal/"
+  fi
+  cp -a "$SRC/legal/." "$LEGAL/"
+fi
 if [ -f "$SRC/dash/accounts.html" ]; then
   if [ "$SRC/dash/accounts.html" != "$DEST/dash/accounts.html" ]; then
     cp -a "$SRC/dash/accounts.html" "$DEST/dash/accounts.html"
