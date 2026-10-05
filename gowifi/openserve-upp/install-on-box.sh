@@ -40,5 +40,5 @@ touch /root/secrets/upp.token
 chmod 600 /root/secrets/upp.token
 # every 15 minutes; no-op until /root/secrets/upp.token has a JWT
 CRON_LINE='*/15 * * * * UPP_DB=/root/gowifi-upp/upp.db /usr/bin/python3 /root/gowifi-upp/sync.py >> /var/log/gowifi-upp-sync.log 2>&1'
-(crontab -l 2>/dev/null | grep -v gowifi-upp-sync.py || true; echo "$CRON_LINE") | crontab -
+(crontab -l 2>/dev/null | grep -v 'gowifi-upp/sync.py' || true; echo "$CRON_LINE") | crontab -
 echo "installed $DEST"

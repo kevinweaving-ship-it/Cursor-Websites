@@ -6,6 +6,7 @@ Secrets stay in the environment / /root/secrets — never in git.
 """
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import sqlite3
@@ -422,7 +423,23 @@ def sync(s: requests.Session, conn: sqlite3.Connection) -> dict:
     }
 
 
+def _lock_or_skip() -> object | None:
+    path = DB_PATH.parent / "sync.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(path, "w")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        print(json.dumps({"ok": True, "skipped": "already running"}))
+        return None
+    return handle
+
+
 def main() -> int:
+    lock = _lock_or_skip()
+    if lock is None:
+        return 0
     conn = connect()
     run_id = conn.execute(
         """INSERT INTO sync_runs (started_at, initiating_user, box_account, ok)
@@ -464,6 +481,10 @@ def main() -> int:
         return 1
     finally:
         conn.close()
+        try:
+            lock.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

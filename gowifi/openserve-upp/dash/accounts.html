@@ -116,11 +116,17 @@ function render(data){
   };
   const cancelledSNs = new Set((data.cancelled_lines||[]).map(r=>r.service_number).filter(Boolean));
   const suspendedSNs = new Set((data.suspended||[]).map(r=>r.service_number).filter(Boolean));
+  const fibreFetch = r => {
+    const bits = [r.access_status, r.partner_status].filter(Boolean);
+    const when = r.fibre_fetched_at ? String(r.fibre_fetched_at).replace("T"," ").replace("+00:00"," UTC") : "";
+    if (!bits.length && !when) return `<div class="meta">Fibre status not fetched</div>`;
+    return `<div class="meta">${esc(bits.join(" · ")||"fetched")}${when?` · ${esc(when)}`:""}</div>`;
+  };
   const incomingRows = (data.incoming_fibre||[]).map(r=>`
     <tr>
       <td><div class="name">${esc(r.incoming_label||r.incoming_role||"—")}</div><div class="meta">${esc(r.uisp_site||"VK Pop")} · also on UISP</div></td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
-      <td>${pillFor(r.line_status)}</td>
+      <td>${pillFor(r.line_status)}${fibreFetch(r)}</td>
       <td class="num">${esc(r.speed)}</td>
     </tr>`).join("");
   const clientName = r => {
@@ -131,7 +137,7 @@ function render(data){
     <tr>
       <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
-      <td>${pillFor(r.line_status)}</td>
+      <td>${pillFor(r.line_status)}${fibreFetch(r)}</td>
       <td class="num">${esc(r.speed)}</td>
       <td class="num">${esc(tenure(r))}</td>
     </tr>`).join("");
@@ -140,14 +146,14 @@ function render(data){
     <tr>
       <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
-      <td>${pillFor("cancelled")} ${kindPill(r)}</td>
+      <td>${pillFor("cancelled")} ${kindPill(r)}${fibreFetch(r)}</td>
       <td class="num">${esc(tenure(r))}</td>
     </tr>`).join("");
   const suspendedRows = (data.suspended||[]).filter(r=>r.line_status==="suspended" && !cancelledSNs.has(r.service_number)).map(r=>`
     <tr>
       <td>${clientName(r)}${hist(r)}</td>
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)} · ${esc(r.suspend_stints||0)} stint${(r.suspend_stints||0)===1?"":"s"}</div></td>
-      <td>${pillFor("suspended")}</td>
+      <td>${pillFor("suspended")}${fibreFetch(r)}</td>
       <td class="num">${esc(r.speed)}</td>
       <td class="num">${esc(r.suspend_for)}<div class="meta">installed ${esc(r.installed_label || r.joined_label)}</div></td>
     </tr>`).join("");
