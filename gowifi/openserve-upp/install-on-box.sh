@@ -50,9 +50,12 @@ touch /root/secrets/upp.token
 chmod 600 /root/secrets/upp.token
 if [ ! -f /root/secrets/qbo.env ]; then
   printf '%s\n' \
-    'QBO_CLIENT_ID=' \
-    'QBO_CLIENT_SECRET=' \
-    'QBO_REDIRECT_URI=https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl' \
+    'QBO_KEYSET=development' \
+    'QBO_DEV_CLIENT_ID=' \
+    'QBO_DEV_CLIENT_SECRET=' \
+    'QBO_PROD_CLIENT_ID=' \
+    'QBO_PROD_CLIENT_SECRET=' \
+    'QBO_REDIRECT_URI=https://gowifi.co.za/legal/qb-callback.html' \
     > /root/secrets/qbo.env
   chmod 600 /root/secrets/qbo.env
 fi

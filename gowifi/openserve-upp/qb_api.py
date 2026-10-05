@@ -12,11 +12,25 @@ import urllib.request
 from typing import Any
 
 from qb_import import _upsert_invoice, ensure_history_tables
-from qb_oauth import access_token
+from qb_oauth import TOKEN_PATH, access_token, load_tokens, save_tokens
 
 DB = os.environ.get("UPP_DB", "/root/gowifi-upp/upp.db")
-API = "https://quickbooks.api.intuit.com/v3/company"
+API_PROD = "https://quickbooks.api.intuit.com/v3/company"
+API_SANDBOX = "https://sandbox-quickbooks.api.intuit.com/v3/company"
 PAGE = 1000
+
+
+def _hosts() -> list[tuple[str, str]]:
+    preferred = None
+    if TOKEN_PATH.exists():
+        try:
+            preferred = load_tokens().get("api_host")
+        except Exception:
+            preferred = None
+    order = [("production", API_PROD), ("sandbox", API_SANDBOX)]
+    if preferred == "sandbox":
+        order = list(reversed(order))
+    return order
 
 
 def _get(path: str, token: str) -> dict[str, Any]:
@@ -36,18 +50,29 @@ def _get(path: str, token: str) -> dict[str, Any]:
 
 
 def _query(realm: str, token: str, entity: str) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    start = 1
-    while True:
-        sql = f"select * from {entity} STARTPOSITION {start} MAXRESULTS {PAGE}"
-        url = f"{API}/{realm}/query?" + urllib.parse.urlencode({"query": sql})
-        data = _get(url, token)
-        chunk = (data.get("QueryResponse") or {}).get(entity) or []
-        rows.extend(chunk)
-        if len(chunk) < PAGE:
-            break
-        start += PAGE
-    return rows
+    last_err: Exception | None = None
+    for name, base in _hosts():
+        try:
+            rows: list[dict[str, Any]] = []
+            start = 1
+            while True:
+                sql = f"select * from {entity} STARTPOSITION {start} MAXRESULTS {PAGE}"
+                url = f"{base}/{realm}/query?" + urllib.parse.urlencode({"query": sql})
+                data = _get(url, token)
+                chunk = (data.get("QueryResponse") or {}).get(entity) or []
+                rows.extend(chunk)
+                if len(chunk) < PAGE:
+                    break
+                start += PAGE
+            if TOKEN_PATH.exists():
+                tokens = load_tokens()
+                tokens["api_host"] = name
+                save_tokens(tokens)
+            return rows
+        except SystemExit as exc:
+            last_err = exc
+            continue
+    raise SystemExit(str(last_err) if last_err else "QBO query failed")
 
 
 def _addr(blob: dict | None) -> str | None:

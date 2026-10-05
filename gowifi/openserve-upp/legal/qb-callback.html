@@ -12,8 +12,7 @@
 </header>
 <main class="card">
   <h1 id="title">Wrong page</h1>
-  <p id="msg">Do not type this address in Chrome. It is only a bounce-back for Intuit.</p>
-  <p><a href="https://developer.intuit.com">Open Intuit Developer</a></p>
+  <p id="msg">This page only saves the bounce-back from Intuit. Open <a href="connect.html">Connect</a> instead.</p>
 </main>
 <script>
 (function () {
@@ -22,7 +21,7 @@
   var el = document.getElementById("msg");
   if (q.get("error")) {
     title.textContent = "Intuit error";
-    el.textContent = "Intuit sent an error. Go back to Developer and try again.";
+    el.textContent = (q.get("error_description") || q.get("error") || "Intuit sent an error") + ". Open Connect and try again.";
     return;
   }
   if (q.get("code")) {

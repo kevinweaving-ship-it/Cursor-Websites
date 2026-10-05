@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Production QuickBooks OAuth for GoWiFi Box. Tokens stay in /root/secrets."""
+"""QuickBooks OAuth for GoWiFi Box. Tokens stay in /root/secrets."""
 from __future__ import annotations
 
 import base64
@@ -21,9 +21,9 @@ AUTHORIZE = "https://appcenter.intuit.com/connect/oauth2"
 TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
 SCOPE = "com.intuit.quickbooks.accounting"
 STATE = "gowifi-box"
-# Intuit pre-registers this on every app. Our gowifi.co.za callback is not
-# on the Production list until it is saved under Settings → Redirect URIs.
-PLAYGROUND_REDIRECT = "https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl"
+BOX_REDIRECT = "https://gowifi.co.za/legal/qb-callback.html"
+API_PROD = "https://quickbooks.api.intuit.com/v3/company"
+API_SANDBOX = "https://sandbox-quickbooks.api.intuit.com/v3/company"
 
 
 def _load_env(path: Path = ENV_PATH) -> dict[str, str]:
@@ -45,12 +45,37 @@ def _save_env(data: dict[str, str], path: Path = ENV_PATH) -> None:
     os.chmod(path, 0o600)
 
 
+def active_keyset(env: dict[str, str] | None = None) -> str:
+    env = env or _load_env()
+    raw = (env.get("QBO_KEYSET") or "development").strip().lower()
+    return "production" if raw.startswith("prod") else "development"
+
+
+def client_pair(env: dict[str, str] | None = None) -> tuple[str, str, str]:
+    """Return (client_id, client_secret, redirect) for the active keyset.
+
+    Intuit's 2026 App Center often cannot resolve a Production client_id to an
+    app name and shows "undefined didn't connect". Development client_ids still
+    resolve and can reach the live company. Keep both pairs on disk; switch
+    with QBO_KEYSET=development|production.
+    """
+    env = env or _load_env()
+    redirect = env.get("QBO_REDIRECT_URI") or BOX_REDIRECT
+    keyset = active_keyset(env)
+    if keyset == "production":
+        client_id = env.get("QBO_PROD_CLIENT_ID") or env.get("QBO_CLIENT_ID") or ""
+        secret = env.get("QBO_PROD_CLIENT_SECRET") or env.get("QBO_CLIENT_SECRET") or ""
+    else:
+        client_id = env.get("QBO_DEV_CLIENT_ID") or env.get("QBO_CLIENT_ID") or ""
+        secret = env.get("QBO_DEV_CLIENT_SECRET") or env.get("QBO_CLIENT_SECRET") or ""
+    return client_id, secret, redirect
+
+
 def authorize_url(env: dict[str, str] | None = None) -> str:
     env = env or _load_env()
-    client_id = env.get("QBO_CLIENT_ID") or ""
-    redirect = env.get("QBO_REDIRECT_URI") or PLAYGROUND_REDIRECT
+    client_id, _secret, redirect = client_pair(env)
     if not client_id:
-        raise SystemExit("QBO_CLIENT_ID missing in /root/secrets/qbo.env")
+        raise SystemExit("QBO client id missing in /root/secrets/qbo.env")
     q = urllib.parse.urlencode(
         {
             "client_id": client_id,
@@ -63,18 +88,18 @@ def authorize_url(env: dict[str, str] | None = None) -> str:
     return f"{AUTHORIZE}?{q}"
 
 
-def _basic(env: dict[str, str]) -> str:
-    raw = f"{env['QBO_CLIENT_ID']}:{env['QBO_CLIENT_SECRET']}".encode()
+def _basic(client_id: str, secret: str) -> str:
+    raw = f"{client_id}:{secret}".encode()
     return "Basic " + base64.b64encode(raw).decode()
 
 
-def _post_token(env: dict[str, str], body: dict[str, str]) -> dict:
+def _post_token(client_id: str, secret: str, body: dict[str, str]) -> dict:
     req = urllib.request.Request(
         TOKEN_URL,
         data=urllib.parse.urlencode(body).encode(),
         method="POST",
         headers={
-            "Authorization": _basic(env),
+            "Authorization": _basic(client_id, secret),
             "Accept": "application/json",
             "Content-Type": "application/x-www-form-urlencoded",
         },
@@ -90,20 +115,49 @@ def _post_token(env: dict[str, str], body: dict[str, str]) -> dict:
 
 def exchange_code(code: str, realm_id: str) -> dict:
     env = _load_env()
-    if not env.get("QBO_CLIENT_SECRET"):
-        raise SystemExit("QBO_CLIENT_SECRET missing in /root/secrets/qbo.env")
+    client_id, secret, redirect = client_pair(env)
+    if not client_id or not secret:
+        raise SystemExit("QBO client id/secret missing in /root/secrets/qbo.env")
+    if not code:
+        raise SystemExit("missing authorization code")
     payload = _post_token(
-        env,
+        client_id,
+        secret,
         {
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": env.get("QBO_REDIRECT_URI") or PLAYGROUND_REDIRECT,
+            "redirect_uri": redirect,
         },
     )
     payload["realmId"] = realm_id or payload.get("realmId")
     payload["obtained_at"] = int(time.time())
+    payload["keyset"] = active_keyset(env)
+    if not payload.get("realmId"):
+        raise SystemExit("Intuit sent no company id (realmId)")
     save_tokens(payload)
-    return {"ok": True, "realmId": payload.get("realmId")}
+    return {"ok": True, "realmId": payload.get("realmId"), "keyset": payload["keyset"]}
+
+
+def ingest_tokens(
+    refresh_token: str,
+    realm_id: str,
+    access_token: str | None = None,
+    expires_in: int = 3600,
+) -> dict:
+    env = _load_env()
+    if not refresh_token or not realm_id:
+        raise SystemExit("refresh_token and realmId are required")
+    payload = {
+        "refresh_token": refresh_token,
+        "access_token": access_token or "",
+        "expires_in": int(expires_in or 3600),
+        "realmId": realm_id,
+        "obtained_at": int(time.time()) - (0 if access_token else 4000),
+        "keyset": active_keyset(env),
+        "source": "ingest",
+    }
+    save_tokens(payload)
+    return {"ok": True, "realmId": realm_id, "keyset": payload["keyset"]}
 
 
 def save_tokens(payload: dict, path: Path = TOKEN_PATH) -> None:
@@ -120,9 +174,11 @@ def load_tokens(path: Path = TOKEN_PATH) -> dict:
 
 def refresh_tokens() -> dict:
     env = _load_env()
+    client_id, secret, _redirect = client_pair(env)
     tokens = load_tokens()
     payload = _post_token(
-        env,
+        client_id,
+        secret,
         {
             "grant_type": "refresh_token",
             "refresh_token": tokens["refresh_token"],
@@ -130,6 +186,7 @@ def refresh_tokens() -> dict:
     )
     payload["realmId"] = tokens.get("realmId")
     payload["obtained_at"] = int(time.time())
+    payload["keyset"] = tokens.get("keyset") or active_keyset(env)
     save_tokens(payload)
     return payload
 
@@ -141,6 +198,43 @@ def access_token() -> tuple[str, str]:
     if not tokens.get("access_token") or time.time() > obtained + expires - 60:
         tokens = refresh_tokens()
     return tokens["access_token"], str(tokens["realmId"])
+
+
+def _http_json(url: str, token: str) -> tuple[int, dict | str]:
+    req = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+    )
+    ctx = ssl.create_default_context()
+    try:
+        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+            return resp.status, json.loads(resp.read().decode())
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode()[:400]
+
+
+def probe_company() -> dict:
+    token, realm = access_token()
+    result = {"realmId": realm, "hosts": {}}
+    for name, base in (("production", API_PROD), ("sandbox", API_SANDBOX)):
+        url = f"{base}/{realm}/companyinfo/{realm}?minorversion=75"
+        status, body = _http_json(url, token)
+        company = None
+        if isinstance(body, dict):
+            info = body.get("CompanyInfo") or {}
+            company = info.get("CompanyName") or info.get("LegalName")
+        result["hosts"][name] = {
+            "status": status,
+            "company": company,
+            "ok": status == 200 and bool(company),
+        }
+    ok_host = next((n for n, h in result["hosts"].items() if h["ok"]), None)
+    result["ok"] = bool(ok_host)
+    result["api_host"] = ok_host
+    tokens = load_tokens()
+    tokens["api_host"] = ok_host
+    save_tokens(tokens)
+    return result
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -160,9 +254,28 @@ class Handler(BaseHTTPRequestHandler):
         path = urllib.parse.urlparse(self.path).path
         if path == "/start":
             try:
-                self._send(200, {"url": authorize_url()})
+                env = _load_env()
+                self._send(
+                    200,
+                    {
+                        "url": authorize_url(env),
+                        "keyset": active_keyset(env),
+                    },
+                )
             except SystemExit as exc:
                 self._send(400, {"error": str(exc)})
+            return
+        if path == "/status":
+            token_ok = TOKEN_PATH.exists()
+            body: dict = {"connected": token_ok, "keyset": active_keyset()}
+            if token_ok:
+                try:
+                    tokens = load_tokens()
+                    body["realmId"] = tokens.get("realmId")
+                    body["api_host"] = tokens.get("api_host")
+                except Exception:
+                    pass
+            self._send(200, body)
             return
         self._send(404, {"error": "not found"})
 
@@ -178,6 +291,17 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": "bad json"})
             return
         try:
+            if data.get("refresh_token") and data.get("realmId"):
+                self._send(
+                    200,
+                    ingest_tokens(
+                        str(data.get("refresh_token") or ""),
+                        str(data.get("realmId") or ""),
+                        str(data.get("access_token") or "") or None,
+                        int(data.get("expires_in") or 3600),
+                    ),
+                )
+                return
             self._send(
                 200,
                 exchange_code(str(data.get("code") or ""), str(data.get("realmId") or "")),
@@ -206,5 +330,12 @@ if __name__ == "__main__":
         if len(sys.argv) < 4:
             raise SystemExit("redeem CODE REALMID")
         print(json.dumps(exchange_code(sys.argv[2], sys.argv[3])))
+    elif cmd == "ingest":
+        if len(sys.argv) < 4:
+            raise SystemExit("ingest REFRESH_TOKEN REALMID [ACCESS_TOKEN]")
+        access = sys.argv[4] if len(sys.argv) > 4 else ""
+        print(json.dumps(ingest_tokens(sys.argv[2], sys.argv[3], access or None)))
+    elif cmd == "probe":
+        print(json.dumps(probe_company(), indent=2))
     else:
-        raise SystemExit("url | serve | refresh | redeem")
+        raise SystemExit("url | serve | refresh | redeem | ingest | probe")
