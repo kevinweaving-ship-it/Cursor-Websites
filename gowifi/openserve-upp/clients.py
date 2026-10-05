@@ -9,6 +9,7 @@ import sqlite3
 from datetime import date, datetime, timedelta
 
 from billing import CLIENTS, canon_key, client_accounts
+from customers import lookup as customer_lookup
 from site_lines import is_incoming
 
 GRACE_DAYS = 7
@@ -86,12 +87,24 @@ def _openserve_issue(line: dict | None) -> bool:
     return False
 
 
-def _dot(we_suspended: bool, line: dict | None, access: str | None) -> tuple[str, str]:
+def _dot(we_suspended: bool, line: dict | None, access: str | None, acc: dict | None = None) -> tuple[str, str]:
+    if _is_cancelled(line, acc):
+        return "cancelled", "Cancelled"
     if we_suspended or (line and (line.get("line_status") or "").lower() == "suspended"):
         return "suspended", "Suspended"
     if access == "fibre" and _openserve_issue(line):
         return "issue", "Openserve issue"
     return "active", "Active"
+
+
+def _is_cancelled(line: dict | None, acc: dict | None = None) -> bool:
+    name = ((acc or {}).get("name") or (line or {}).get("customer") or "")
+    if "deleted" in name.lower():
+        return True
+    if (acc or {}).get("cancelled") or (acc or {}).get("closed"):
+        return True
+    status = ((line or {}).get("line_status") or "").lower()
+    return status == "cancelled"
 
 
 def _pick_line(rows: list[dict]) -> dict | None:
@@ -127,10 +140,12 @@ def _haystack(card: dict) -> str:
         card.get("name"),
         card.get("address"),
         card.get("phone"),
+        card.get("email"),
         card.get("b_number"),
         card.get("package"),
         card.get("access"),
         card.get("pay"),
+        "cancelled" if card.get("cancelled") else None,
     ]
     return " ".join(str(b) for b in bits if b).lower()
 
@@ -141,7 +156,7 @@ def _package(acc: dict, line: dict | None) -> str | None:
     if line and (line.get("product") or line.get("speed")):
         return " · ".join(p for p in (line.get("product"), line.get("speed")) if p)
     if acc.get("access") == "wireless":
-        amt = acc.get("billed") or acc.get("amount")
+        amt = acc.get("monthly") or acc.get("amount") or acc.get("do_amount")
         return f"Wireless{f' R{amt:.0f}' if amt else ''}"
     return None
 
@@ -149,18 +164,32 @@ def _package(acc: dict, line: dict | None) -> str | None:
 def _grace(acc: dict, today: date) -> dict:
     due = float(acc.get("due") or 0)
     paid_up = bool(acc.get("nil") or acc.get("status") == "paid-up")
-    inv = _parse(acc.get("last_invoice_date"))
+    bounced = bool(acc.get("bounced") or acc.get("suspension_notice"))
+    pending = acc.get("pending_do") or {}
+    do_grace = bool(acc.get("in_do_grace") or (pending and not pending.get("reconciled") and not paid_up))
+    collected = bool(pending.get("reconciled"))
+    inv = _parse(acc.get("last_invoice_date") or acc.get("last_paid_on"))
     days = (today - inv).days if inv else None
-    in_grace = (not paid_up) and days is not None and 0 <= days <= GRACE_DAYS
+    in_grace = do_grace or ((not paid_up) and (not bounced) and days is not None and 0 <= days <= GRACE_DAYS)
+    if bounced:
+        label = f"D/O bounced · Due {due:.2f} · Suspension notice"
+    elif paid_up:
+        label = "Paid up"
+        if collected:
+            label = f"Paid up · D/O {pending.get('action_date')}"
+    elif do_grace:
+        label = f"D/O pending · {pending.get('action_date')} · not due until reconciled"
+    elif in_grace:
+        label = f"Grace · due {due:.2f}"
+    else:
+        label = f"Due {due:.2f}"
     return {
         "grace_days": GRACE_DAYS,
         "in_grace": in_grace,
         "days_since_invoice": days,
-        "balance_label": (
-            "Paid up"
-            if paid_up
-            else (f"Grace · due {due:.2f}" if in_grace else f"Due {due:.2f}")
-        ),
+        "bounced": bounced,
+        "suspension_notice": bounced,
+        "balance_label": label,
     }
 
 
@@ -212,13 +241,42 @@ def cards_for_export(
             for c in CLIENTS
         ]
 
+    live_keys = {canon_key(c["name"]) for c in CLIENTS}
     used = set()
     cards = []
+    cancelled = []
     for acc in accounts:
         key = canon_key(acc.get("name"))
+        if key in used:
+            continue
         used.add(key)
         line = _pick_line(by_line.get(key) or [])
         hist = _invoice_profile(conn, acc.get("name") or "")
+        cust = customer_lookup(acc.get("name"))
+        if conn is not None:
+            try:
+                from statements import account_as_at
+
+                st = account_as_at(conn, acc.get("name"), today)
+                if st.get("billed") is not None:
+                    acc = {
+                        **acc,
+                        "billed": st.get("billed"),
+                        "paid": st.get("paid"),
+                        "due": st.get("due"),
+                        "nil": st.get("nil"),
+                        "status": st.get("status"),
+                        "pending_do": st.get("pending_do"),
+                        "bounced": st.get("bounced"),
+                        "suspension_notice": st.get("suspension_notice"),
+                        "in_do_grace": st.get("in_do_grace"),
+                        "monthly": st.get("monthly"),
+                        "last_paid_on": (st.get("last_payment") or {}).get("date")
+                        if isinstance(st.get("last_payment"), dict)
+                        else None,
+                    }
+            except Exception:
+                pass
         started = (
             (line or {}).get("activated")
             or (line or {}).get("installed")
@@ -228,18 +286,26 @@ def cards_for_export(
         )
         months = _months(_parse(started), today)
         we_suspended = bool(acc.get("suspended") or (line or {}).get("we_suspended"))
-        dot, dot_label = _dot(we_suspended, line, acc.get("access"))
+        gone = _is_cancelled(line, acc)
+        dot, dot_label = _dot(we_suspended, line, acc.get("access"), acc)
+        if gone:
+            dot, dot_label = "cancelled", "Cancelled"
         grace = _grace(acc, today)
         due = acc.get("due")
+        fibre_b = (line or {}).get("service_number") if acc.get("access") == "fibre" else None
         card = {
             "name": acc.get("name"),
-            "address": acc.get("address") or (line or {}).get("address") or hist.get("address"),
-            "phone": acc.get("phone") or (line or {}).get("phone"),
+            "address": acc.get("address")
+            or (line or {}).get("address")
+            or (cust or {}).get("address")
+            or hist.get("address"),
+            "phone": acc.get("phone") or (line or {}).get("phone") or (cust or {}).get("phone"),
+            "email": acc.get("email") or (cust or {}).get("email"),
             "started": _parse(started).isoformat() if _parse(started) else None,
             "started_label": _day_label(started),
             "months": months,
             "tenure": _tenure(months),
-            "b_number": (line or {}).get("service_number") if acc.get("access") == "fibre" else None,
+            "b_number": fibre_b or ((cust or {}).get("b_number") if acc.get("access") == "fibre" else None),
             "package": _package(acc, line),
             "access": acc.get("access") or "wireless",
             "pay": acc.get("pay") or ("D/O" if acc.get("method") == "debit-order" else "EFT"),
@@ -260,9 +326,17 @@ def cards_for_export(
                 "note": "Later: auto suspend, WhatsApp, client reply notes — all copied to admin.",
             },
         }
+        card["cancelled"] = gone
+        if gone:
+            card["dot"] = "cancelled"
+            card["dot_label"] = "Cancelled"
+            card["pay"] = acc.get("pay")
         card.update(grace)
         card["search"] = _haystack(card)
-        cards.append(card)
+        if gone:
+            cancelled.append(card)
+        else:
+            cards.append(card)
 
     for key, rows in by_line.items():
         if key in used:
@@ -273,16 +347,21 @@ def cards_for_export(
         started = line.get("activated") or line.get("installed") or line.get("joined")
         months = _months(_parse(started), today)
         we_suspended = (line.get("line_status") or "") == "suspended"
-        dot, dot_label = _dot(we_suspended, line, "fibre")
+        dot, dot_label = _dot(we_suspended, line, "fibre", None)
+        extra = customer_lookup(line.get("customer"))
+        gone = _is_cancelled(line, None)
+        if gone:
+            dot, dot_label = "cancelled", "Cancelled"
         card = {
             "name": line.get("customer"),
-            "address": line.get("address"),
-            "phone": line.get("phone"),
+            "address": line.get("address") or (extra or {}).get("address"),
+            "phone": line.get("phone") or (extra or {}).get("phone"),
+            "email": (extra or {}).get("email"),
             "started": _parse(started).isoformat() if _parse(started) else None,
             "started_label": _day_label(started),
             "months": months,
             "tenure": _tenure(months),
-            "b_number": line.get("service_number"),
+            "b_number": line.get("service_number") or (extra or {}).get("b_number"),
             "package": _package({"access": "fibre"}, line),
             "access": "fibre",
             "pay": None,
@@ -294,7 +373,8 @@ def cards_for_export(
             "dot": dot,
             "dot_label": dot_label,
             "we_suspended": we_suspended,
-            "openserve_issue": _openserve_issue(line),
+            "cancelled": gone,
+            "openserve_issue": False if gone else _openserve_issue(line),
             "grace_days": GRACE_DAYS,
             "in_grace": False,
             "days_since_invoice": None,
@@ -307,10 +387,28 @@ def cards_for_export(
                 "note": "Later: auto suspend, WhatsApp, client reply notes — all copied to admin.",
             },
         }
+        if conn is not None:
+            try:
+                from statements import account_as_at
+
+                st = account_as_at(conn, line.get("customer"), today)
+                if st.get("billed"):
+                    card["billed"] = st.get("billed")
+                    card["paid"] = st.get("paid") or 0
+                    card["due"] = st.get("due")
+                    card["paid_up"] = bool(st.get("nil"))
+                    card.update(_grace(st, today))
+            except Exception:
+                pass
         card["search"] = _haystack(card)
-        cards.append(card)
+        if gone:
+            cancelled.append(card)
+        else:
+            cards.append(card)
 
     cards.sort(key=lambda r: (r.get("name") or "").lower())
+    cancelled.sort(key=lambda r: (-float(r.get("due") or 0), (r.get("name") or "").lower()))
+    still_owe = sum(1 for c in cancelled if float(c.get("due") or 0) > 0.004)
     return {
         "as_at": today.isoformat(),
         "grace_days": GRACE_DAYS,
@@ -318,9 +416,14 @@ def cards_for_export(
         "active": sum(1 for c in cards if c["dot"] == "active"),
         "issue": sum(1 for c in cards if c["dot"] == "issue"),
         "suspended": sum(1 for c in cards if c["dot"] == "suspended"),
+        "cancelled_count": len(cancelled),
+        "cancelled_due": still_owe,
         "cards": cards,
+        "cancelled": cancelled,
         "note": (
-            "Simple client cards. VK Pop incoming fibre is not a client. "
+            "Simple client cards. Cancelled clients are not on this list — "
+            "they sit in the Cancelled card at the bottom. "
+            "VK Pop incoming fibre is not a client. "
             "Later: auto suspend, WhatsApp, notes to admin."
         ),
     }
@@ -369,9 +472,36 @@ def self_test() -> int:
         "product": "Webstream",
         "speed": "100/50",
     }
-    pack = cards_for_export(None, [pop, hpp, broken, held], today)
+    aljo = {
+        "service_number": "B110040916",
+        "customer": "Aljo van Vreden",
+        "line_status": "cancelled",
+        "address": "177A TURTLE CL VERMONT",
+        "activated": "2025-08-03",
+        "product": "Webstream",
+        "speed": "50/25",
+    }
+    aman = {
+        "service_number": "B110062840",
+        "customer": "Aman Breedt",
+        "line_status": "cancelled",
+        "address": "22 DISA SANDBAAI",
+        "product": "Webstream",
+        "speed": "20/10",
+    }
+    johannes = {
+        "service_number": "B110058887",
+        "customer": "Johannes Lategan",
+        "line_status": "active",
+        "address": "LE PARADIS",
+        "activated": "2026-04-04",
+        "product": "Webstream",
+        "speed": "100/50",
+    }
+    pack = cards_for_export(None, [pop, hpp, broken, held, aljo, aman, johannes], today)
     names = [c["name"] for c in pack["cards"]]
     by = {c["name"]: c for c in pack["cards"]}
+    cancelled_names = [c["name"] for c in pack.get("cancelled") or []]
     if any(c.get("b_number") == "B110033875" for c in pack["cards"]):
         print("FAIL pop-not-a-client", names)
         failed += 1
@@ -399,8 +529,24 @@ def self_test() -> int:
     elif "mussel" not in by["HPP Control Room"]["search"]:
         print("FAIL search", by["HPP Control Room"]["search"])
         failed += 1
+    elif "Aljo van Vreden" in names or "Aman Breedt" in names or "Johannes Lategan" in names:
+        print("FAIL cancelled-or-dup-in-clients", names)
+        failed += 1
+    elif names.count("Lategan") != 1:
+        print("FAIL lategan-dup", names)
+        failed += 1
+    elif set(cancelled_names) < {"Aljo van Vreden", "Aman Breedt"}:
+        print("FAIL cancelled-list", cancelled_names)
+        failed += 1
+    elif canon_key("Johannes Lategan") != "lategan" or canon_key("Patriot SA / Paltco") != "paltco":
+        print("FAIL alias-dedup", canon_key("Johannes Lategan"), canon_key("Patriot SA / Paltco"))
+        failed += 1
+    elif canon_key("Such, James (deleted)") != "james such":
+        print("FAIL deleted-key", canon_key("Such, James (deleted)"))
+        failed += 1
     else:
         print("OK client-cards")
+        print("OK cancelled-own-list")
     return failed
 
 

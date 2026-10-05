@@ -31,13 +31,21 @@ header.app a.back { display:inline-block; color:var(--acc); font-size:14px; min-
 .search:focus { outline:2px solid var(--acc); border-color:var(--acc); }
 main { padding:14px var(--pad) 32px; max-width:980px; margin:0 auto; }
 .counts { color:var(--muted); font-size:13px; margin:0 0 12px; }
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+.list { display:flex; flex-direction:column; gap:8px; }
 .card {
   background:var(--card); border:1px solid var(--line); border-radius:12px;
-  padding:14px 14px 12px; color:var(--text);
+  padding:0; color:var(--text); width:100%;
 }
-.name { font-weight:700; font-size:17px; color:var(--acc); display:flex; align-items:center; gap:8px; }
+.head {
+  display:flex; align-items:center; gap:10px; width:100%;
+  padding:12px 14px; background:transparent; border:0; color:inherit;
+  font:inherit; text-align:left; cursor:pointer; min-height:48px;
+}
+.head:focus { outline:2px solid var(--acc); outline-offset:-2px; }
+.name { font-weight:700; font-size:17px; color:var(--acc); display:flex; align-items:center; gap:8px; flex:1; }
+.head-meta { color:var(--muted); font-size:13px; white-space:nowrap; }
 .meta { color:var(--muted); font-size:13px; margin-top:4px; }
+.detail { padding:0 14px 12px; border-top:1px solid var(--line); }
 .row { margin-top:8px; }
 .k { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
 .v { margin-top:1px; }
@@ -48,57 +56,118 @@ main { padding:14px var(--pad) 32px; max-width:980px; margin:0 auto; }
 .dot.active { background:var(--ok); }
 .dot.issue { background:var(--bad); }
 .dot.suspended { background:var(--warn); }
+.dot.cancelled { background:#8b9bb4; }
 .due { font-weight:700; }
 .due.ok { color:var(--ok); }
 .due.warn { color:var(--warn); }
 .due.bad { color:var(--bad); }
+.alert { color:var(--bad); font-weight:700; margin-top:6px; }
 .empty { color:var(--muted); padding:24px 0; }
 .err { color:#8a1212; background:#fdecec; padding:12px; border-radius:10px; }
+.fold-head {
+  cursor:pointer; user-select:none; margin:22px 0 10px;
+  border:1px solid var(--line); border-radius:12px; padding:14px;
+  background:#fff; color:var(--acc);
+}
+.fold-head .name { font-size:17px; }
+.fold-head[aria-expanded="true"] { border-color:var(--acc); }
+.hidden { display:none; }
 </style>
 </head>
 <body>
 <header class="app">
   <a class="back" href="/dash/#/">← Home</a>
   <a class="back" href="/dash/accounts.html">Detailed</a>
+  <a class="back" href="/dash/invoices.html">Invoices</a>
   <h1>Clients</h1>
-  <div class="sub">Search · one card each</div>
+  <div class="sub">One line each · click the name for details</div>
   <input class="search" id="q" type="search" placeholder="Search name, address, phone, B number, package" autocomplete="off">
 </header>
 <main>
   <div class="counts" id="counts"></div>
-  <div class="grid" id="grid">Loading…</div>
+  <div class="list" id="grid">Loading…</div>
+  <section id="cancelled-wrap" class="hidden">
+    <div class="fold-head" id="cancelled-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="cancelled-grid">
+      <div class="name">Cancelled / deleted</div>
+      <div class="meta" id="cancelled-meta">Not clients anymore · click to show</div>
+    </div>
+    <div class="list hidden" id="cancelled-grid"></div>
+  </section>
 </main>
 <script>
 const $ = (s,el=document)=>el.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
 const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
-const dueClass = c => c.paid_up ? "ok" : (c.in_grace ? "warn" : (c.due ? "bad" : ""));
+const dueClass = c => c.suspension_notice||c.bounced ? "bad" : (c.paid_up ? "ok" : (c.in_grace ? "warn" : (c.due ? "bad" : "")));
+function headerLine(c){
+  const bits = [c.dot_label, c.access, c.pay, c.discount?"discount":"", c.balance_label].filter(Boolean);
+  return bits.join(" · ");
+}
 function card(c){
+  const id = "d-"+Math.random().toString(36).slice(2,8);
   return `<article class="card" data-search="${esc(c.search||"")}">
-    <div class="name"><span class="dot ${esc(c.dot||"active")}" title="${esc(c.dot_label||"")}"></span>${esc(c.name||"—")}</div>
-    <div class="meta">${esc(c.dot_label||"")} · ${esc(c.access||"")} · ${esc(c.pay||"")}${c.discount?" · discount":""}</div>
-    <div class="row"><div class="k">Address</div><div class="v">${esc(c.address||"—")}</div></div>
-    <div class="row"><div class="k">Contact</div><div class="v">${esc(c.phone||"—")}</div></div>
-    <div class="row"><div class="k">Start</div><div class="v">${esc(c.started_label||"—")}</div></div>
-    <div class="row"><div class="k">Year / month</div><div class="v">${esc(c.tenure||"—")}</div></div>
-    <div class="row"><div class="k">B number</div><div class="v">${esc(c.b_number||(c.access==="fibre"?"—":"Wireless"))}</div></div>
-    <div class="row"><div class="k">Package</div><div class="v">${esc(c.package||"—")}</div></div>
-    <div class="row"><div class="k">Balance</div><div class="v due ${dueClass(c)}">${esc(c.balance_label||"—")}${c.paid_up?"":`<div class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · ${c.in_grace?c.grace_days+" day grace":"due"}</div>`}</div></div>
+    <button class="head" type="button" aria-expanded="false" aria-controls="${id}">
+      <span class="name"><span class="dot ${esc(c.dot||"active")}" title="${esc(c.dot_label||"")}"></span>${esc(c.name||"—")}</span>
+      <span class="head-meta due ${dueClass(c)}">${esc(headerLine(c))}</span>
+    </button>
+    <div class="detail hidden" id="${id}">
+      <div class="row"><div class="k">Address</div><div class="v">${esc(c.address||"—")}</div></div>
+      <div class="row"><div class="k">Contact</div><div class="v">${esc(c.phone||"—")}${c.email?`<div class="meta">${esc(c.email)}</div>`:""}</div></div>
+      <div class="row"><div class="k">Start</div><div class="v">${esc(c.started_label||"—")}</div></div>
+      <div class="row"><div class="k">Year / month</div><div class="v">${esc(c.tenure||"—")}</div></div>
+      <div class="row"><div class="k">B number</div><div class="v">${esc(c.b_number||(c.access==="fibre"?"—":"Wireless"))}</div></div>
+      <div class="row"><div class="k">Package</div><div class="v">${esc(c.package||"—")}</div></div>
+      <div class="row"><div class="k">Balance</div><div class="v due ${dueClass(c)}">${esc(c.balance_label||"—")}<div class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · due ${esc(money(c.due))}</div></div></div>
+      ${c.suspension_notice?`<div class="alert">Suspension notice · D/O bounced</div>`:""}
+    </div>
   </article>`;
 }
-function paint(cards){
+function bindToggles(root){
+  root.querySelectorAll(".head").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const open = btn.getAttribute("aria-expanded")==="true";
+      const panel = document.getElementById(btn.getAttribute("aria-controls"));
+      btn.setAttribute("aria-expanded", open?"false":"true");
+      if (panel) panel.classList.toggle("hidden", open);
+    });
+  });
+}
+function paint(pack){
   const q = ($("#q").value||"").trim().toLowerCase();
-  const shown = (cards||[]).filter(c => !q || (c.search||"").includes(q));
-  $("#counts").textContent = q ? `${shown.length} of ${(cards||[]).length}` : `${(cards||[]).length} clients`;
+  const cards = pack.cards || [];
+  const cancelled = pack.cancelled || [];
+  const shown = cards.filter(c => !q || (c.search||"").includes(q));
+  const shownC = cancelled.filter(c => !q || (c.search||"").includes(q));
+  $("#counts").textContent = q
+    ? `${shown.length} of ${cards.length} clients`
+    : `${cards.length} clients`;
   $("#grid").innerHTML = shown.map(card).join("") || `<p class="empty">No clients match.</p>`;
+  bindToggles($("#grid"));
+  const wrap = $("#cancelled-wrap");
+  if (!cancelled.length) { wrap.classList.add("hidden"); return; }
+  wrap.classList.remove("hidden");
+  const owe = cancelled.filter(c => Number(c.due||0) > 0).length;
+  $("#cancelled-meta").textContent = q
+    ? `${shownC.length} of ${cancelled.length} deleted`
+    : `${cancelled.length} deleted · ${owe} still owe · click to show`;
+  $("#cancelled-grid").innerHTML = shownC.map(card).join("") || `<p class="empty">No deleted clients match.</p>`;
+  bindToggles($("#cancelled-grid"));
 }
 fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
   .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
   .then(data=>{
     const pack = data.clients || {};
-    const cards = pack.cards || [];
-    paint(cards);
-    $("#q").addEventListener("input", ()=>paint(cards));
+    paint(pack);
+    $("#q").addEventListener("input", ()=>paint(pack));
+    const tog = $("#cancelled-toggle");
+    const grid = $("#cancelled-grid");
+    const flip = () => {
+      const open = tog.getAttribute("aria-expanded")==="true";
+      tog.setAttribute("aria-expanded", open?"false":"true");
+      grid.classList.toggle("hidden", open);
+    };
+    tog.addEventListener("click", flip);
+    tog.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); flip(); }});
   })
   .catch(e=>{ $("#grid").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
 </script>

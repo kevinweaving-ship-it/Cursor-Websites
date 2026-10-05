@@ -72,6 +72,7 @@ table.compact tr:last-child td { border-bottom:0; }
 <header class="app">
   <a class="back" href="/dash/#/">← Home</a>
   <a class="back" href="/dash/clients.html">Clients</a>
+  <a class="back" href="/dash/invoices.html">Invoices</a>
   <h1>Fibre accounts</h1>
   <div class="sub" id="sub">Openserve line status · join dates</div>
   <input class="search" id="q" type="search" placeholder="Search name, address, B number, package" autocomplete="off">
@@ -281,6 +282,23 @@ function render(data){
     </div>
     ${clientBlock("Wireless — who owes / who is paid up", bill, bill.wireless_owes, bill.wireless_paid, bill.due_wireless, bill.billed_wireless, bill.paid_wireless)}
     ${clientBlock("Fibre — who owes / who is paid up", bill, bill.fibre_owes, bill.fibre_paid, bill.due_fibre, bill.billed_fibre, bill.paid_fibre)}`;
+    })()}
+    ${(() => {
+      const inv = (data.books&&data.books.invoice_list) || data.invoice_list || {};
+      const qs = inv.queries || [];
+      if (!qs.length) return "";
+      return `
+    <h2>Need full invoice</h2>
+    <div class="card"><div class="meta">${esc(inv.ask||"Need full invoice PDF — install / equipment / fees")} · <a href="/dash/invoices.html">Invoice list</a></div>
+      <div class="meta">${qs.length} odd amounts · ${(inv.monthly_count||0)} monthly line rental of ${(inv.count||0)}</div></div>
+    <div class="card scroll">
+      <table class="compact">
+        <thead><tr><th>Inv</th><th>Client</th><th>Date</th><th>Amount</th></tr></thead>
+        <tbody>${qs.map(r=>`
+          <tr><td>${esc(r.number)}</td><td>${esc(r.name)}<div class="meta">${esc(r.why||"")}</div></td>
+          <td>${esc(r.date||"—")}</td><td class="num">${Number(r.amount).toFixed(2)}</td></tr>`).join("")}</tbody>
+      </table>
+    </div>`;
     })()}
     <h2 class="toggle" id="books-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="books-fold">
       <span class="chev">▸</span>

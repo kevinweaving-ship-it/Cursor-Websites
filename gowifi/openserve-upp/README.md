@@ -69,6 +69,12 @@ One card per client, with a search bar: name, address, contact, start date, year
 B number if fibre, package, balance / due (7-day grace). Status LED: green active,
 red Openserve issue, orange if we suspend. VK Pop incoming fibre is not a client.
 Auto-suspend, WhatsApp and reply notes come later (copied to admin).
+Addresses, phones and emails come from the QuickBooks `Customers.xls` list.
+
+**https://gowifi.co.za/dash/invoices.html** — all QuickBooks invoices (1 Jan 2020–5 Oct 2026).
+Repeating mid-month amounts are monthly line rental. Odd amounts (install /
+equipment / fees) are listed as queries so Kevin can send the full invoice PDF.
+Do not invent line items. Do not put once-offs on the monthly D/O.
 
 The detailed fibre audit stays at **https://gowifi.co.za/dash/accounts.html**.
 

@@ -6,6 +6,7 @@ clears the invoice in full. A loaded-but-uncollected batch stays on the client.
 """
 from __future__ import annotations
 
+import re
 import sqlite3
 from calendar import monthrange
 from datetime import date
@@ -75,6 +76,8 @@ _NAME_ALIASES = {
     "annette bing nordhoek": "bing noordhoek",
     "jean de": "jean de",
     "lategan": "lategan",
+    "johannes lategan": "lategan",
+    "lategan johannes": "lategan",
     "hpp control": "hpp control",
     "hpp": "hpp control",
     "pearson philippa": "pearson philippa",
@@ -86,14 +89,50 @@ _NAME_ALIASES = {
     "amoroc": "amoroc doors",
     "wcc tech": "wcc tech",
     "wcc": "wcc tech",
+    "wcc technologies": "wcc tech",
     "paltco": "paltco",
+    "patriot sa": "paltco",
     "marlene georg": "marlene georg",
     "van eeden": "marlene georg",
     "georg van": "marlene georg",
+    "havenga daniel": "havenga",
+    "daniel havenga": "havenga",
+    "geocorp cc": "geocorp",
+    "geocorp": "geocorp",
+    "steyn irene": "irene steyn",
+    "irene steyn": "irene steyn",
+    "terence pereira": "terence pereira",
+    "james such": "james such",
+    "such james": "james such",
+    "geran sukhraj": "geran sukhraj",
+    "sukhraj geran": "geran sukhraj",
+    "aljo van": "aljo van",
+    "derek van": "derek van",
+    "van zyl": "derek van",
+    "ruandr wessels": "ruandre wessels",
+    "ruandre wessels": "ruandre wessels",
+    "leon dykman": "leon dykman",
 }
 
 
 def canon_key(name: str | None) -> str:
+    raw = " ".join(re.findall(r"[a-z0-9]+", (name or "").lower()))
+    if "nordhoek" in raw or "noordhoek" in raw:
+        return "bing noordhoek"
+    if "aljo" in raw:
+        return "aljo van"
+    if "jean" in raw and "vill" in raw:
+        return "jean de"
+    if "dirk" in raw:
+        return "dirk de"
+    if "lategan" in raw:
+        return "lategan"
+    if "paltco" in raw or "patriot" in raw:
+        return "paltco"
+    if "deleted" in raw and "leon" in raw:
+        return "leon dykman"
+    if "deleted" in raw and "pereira" in raw:
+        return "terence pereira"
     key = client_key(name)
     return _NAME_ALIASES.get(key, key)
 
@@ -117,15 +156,17 @@ def client_row(name: str | None) -> dict | None:
 PENDING_DO = {
     "action_date": "2026-10-05",
     "batch_id": "2571994",
-    "batch_name": "Debit batch for 05 Oct 2026",
-    "status": "Authorised",
+    "batch_name": "Debit batch for 2026-10-05",
+    "status": "Collected",
     "volume": 14,
     "amount": 9217.00,
-    "collected": False,
+    "unpaid_value": 0.00,
+    "unpaid_volume": 0,
+    "collected": True,
     "normal_day": DO_DAY,
     "note": (
-        "Normally collected on the 1st. This cycle the 17 Sep load was missed, "
-        "so the first same-day slot was 5 Oct. Authorised, not collected."
+        "Same-day batch 2571994 on 5 Oct (the 1st slot after the 17 Sep load was missed). "
+        "14 collected · R9217.00 · unpaid R0. Applied in full against each client."
     ),
 }
 
@@ -214,8 +255,21 @@ def apply_named_receipts(conn: sqlite3.Connection) -> int:
 
 def apply_collected_do(conn: sqlite3.Connection, action_date: str, clients: list[dict]) -> int:
     """Post the full D/O (not the FNB net after fees) as paid against each client."""
+    have = set()
+    try:
+        for paid_on, customer, amount, source in conn.execute(
+            "SELECT paid_on, customer, amount, source FROM customer_payments"
+        ):
+            if source not in {"netcash-do", "qb-do", "qb-do-synth"}:
+                continue
+            have.add((paid_on, canon_key(customer), round(abs(float(amount or 0)), 2)))
+    except sqlite3.OperationalError:
+        have = set()
     n = 0
     for row in clients:
+        key = (action_date, canon_key(row["name"]), round(abs(float(row["amount"])), 2))
+        if key in have:
+            continue
         conn.execute(
             """INSERT INTO customer_payments
                (paid_on, customer, amount, note, source, statement_number)
@@ -228,6 +282,7 @@ def apply_collected_do(conn: sqlite3.Connection, action_date: str, clients: list
                 "netcash-do",
             ),
         )
+        have.add(key)
         n += 1
     conn.commit()
     return n
@@ -249,12 +304,13 @@ def ensure_cycle_invoices(
     for row in clients:
         key = canon_key(row["name"])
         existing = None
+        month = inv_day.isoformat()[:7]
         for rec in conn.execute(
-            """SELECT invoice_number, customer FROM customer_invoices
-               WHERE invoice_date=?""",
-            (inv_day.isoformat(),),
+            """SELECT invoice_number, customer, invoice_date FROM customer_invoices"""
         ):
-            if canon_key(rec[1]) == key:
+            if canon_key(rec[1]) != key:
+                continue
+            if (rec[2] or "")[:7] == month:
                 existing = rec
                 break
         if existing:
@@ -358,12 +414,6 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
     invoices = _invoices(conn)
     payments = _payments(conn)
     pending = dict(PENDING_DO)
-    pending["collected"] = False
-    pending["note"] = (
-        f"D/O {pending['action_date']} authorised, not collected. "
-        f"Normally the 1st; this cycle was 5 Oct. "
-        f"September invoices stay on the client. Fees do not reduce the D/O."
-    )
     by_key = {}
     for row in CLIENTS:
         by_key[canon_key(row["name"])] = {
@@ -426,11 +476,19 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
         paid_up = abs(due) <= 0.004
         last_pay = stmt.get("last_payment") or {}
         pending_do = None
-        if meta["method"] == "debit-order" and not pending["collected"]:
+        if meta["method"] == "debit-order" and pending.get("collected"):
+            pending_do = {
+                "action_date": pending["action_date"],
+                "amount": meta["do_amount"],
+                "status": "collected",
+                "reconciled": True,
+            }
+        elif meta["method"] == "debit-order" and not pending.get("collected"):
             pending_do = {
                 "action_date": pending["action_date"],
                 "amount": meta["do_amount"],
                 "status": "authorised · not collected",
+                "reconciled": False,
             }
         pkg = meta.get("package") or {}
         accounts.append(
@@ -517,10 +575,13 @@ def run_cycle(conn: sqlite3.Connection, today: date | None = None) -> dict:
     today = today or date.today()
     created = ensure_cycle_invoices(conn, today)
     receipts = apply_named_receipts(conn)
-    # Never apply PENDING_DO — 5 Oct is loaded, not paid.
+    do_n = 0
+    if PENDING_DO.get("collected") and today >= date.fromisoformat(PENDING_DO["action_date"]):
+        do_n = apply_collected_do(conn, PENDING_DO["action_date"], DO_CLIENTS)
     return {
         "invoices_created": len(created),
         "receipts": receipts,
+        "debit_orders": do_n,
         "pending_do": PENDING_DO,
         "clients": client_accounts(conn, today),
     }

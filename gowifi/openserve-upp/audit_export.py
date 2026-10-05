@@ -682,6 +682,7 @@ def build(conn: sqlite3.Connection) -> dict:
         "incoming_fibre": incoming_fibre,
         "pop_cost": pop,
         "clients": client_cards,
+        "invoice_list": books.get("invoice_list") or {},
         "active": active,
         "suspended": suspended,
         "cancelled_lines": cancelled_lines,

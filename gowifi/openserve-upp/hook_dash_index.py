@@ -9,13 +9,31 @@ INDEX = Path(os.environ.get("GOWIFI_DASH_INDEX", "/home/user-data/www/default/da
 ACCOUNTS_MARKER = "gowifi-fibre-accounts-hook"
 INCOMING_MARKER = "gowifi-incoming-fibre-hook"
 CLIENTS_MARKER = "gowifi-simple-clients-hook"
+INVOICES_MARKER = "gowifi-invoice-list-hook"
 THEME_MARKER = "gowifi-light-theme"
 THEME_CSS = f"""<style id="{THEME_MARKER}">
 :root {{
   --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
   --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a;
 }}
-html,body {{ background:#ffffff !important; color:#0b1f44 !important; }}
+html,body,#app,main {{ background:#ffffff !important; color:#0b1f44 !important; }}
+header.app, header.app#hdr {{
+  background:#ffffff !important;
+  color:#0b1f44 !important;
+  border-bottom:1px solid #d5deea !important;
+  backdrop-filter:none !important;
+}}
+header.app h1 {{ color:#123a7a !important; }}
+header.app .sub {{ color:#4a5d7a !important; }}
+header.app a, header.app a.back, header.app .sub a {{ color:#123a7a !important; }}
+.card {{ background:#ffffff !important; color:#0b1f44 !important; border-color:#d5deea !important; }}
+.name, .v, h2, h3.sector {{ color:#0b1f44 !important; }}
+.k, .meta, .equip dt {{ color:#4a5d7a !important; }}
+a {{ color:#123a7a !important; }}
+.ok:not(.pill) {{ background:transparent !important; color:#1a8f4a !important; }}
+.bad:not(.pill) {{ background:transparent !important; color:#c62828 !important; }}
+.warn:not(.pill) {{ background:transparent !important; color:#c77800 !important; }}
+.err {{ background:#fdecec !important; color:#8a1212 !important; }}
 .pill {{
   background:transparent !important;
   color:#0b1f44 !important;
@@ -140,6 +158,36 @@ def _ensure_clients(text: str) -> str:
     return text
 
 
+def _ensure_invoices(text: str) -> str:
+    if INVOICES_MARKER not in text:
+        hook = (
+            f"function invoicesPage(){{ /* {INVOICES_MARKER} */\n"
+            '  location.replace("/dash/invoices.html");\n'
+            "}\n"
+        )
+        if "function clientsPage" in text:
+            text = text.replace("function clientsPage", hook + "function clientsPage", 1)
+        else:
+            text = text.replace("let DATA=null;", hook + "let DATA=null;", 1)
+    if 'if(h==="/invoices")' not in text:
+        text = text.replace(
+            'if(h==="/clients"){ clientsPage(); return; }',
+            'if(h==="/invoices"){ invoicesPage(); return; }\n    if(h==="/clients"){ clientsPage(); return; }',
+            1,
+        )
+    if 'href="/dash/invoices.html"' not in text:
+        text = text.replace(
+            '    <a class="card tap" href="/dash/clients.html"',
+            '    <a class="card tap" href="/dash/invoices.html" style="display:block;margin-bottom:10px">\n'
+            '      <div class="row"><span class="name">Invoices</span><span class="pill warn">queries</span></div>\n'
+            '      <div class="meta">Monthly line rental · need full invoice for install / equipment</div>\n'
+            "    </a>\n"
+            '    <a class="card tap" href="/dash/clients.html"',
+            1,
+        )
+    return text
+
+
 def _strip_block(text: str, start_needle: str) -> str:
     start = text.find(start_needle)
     if start < 0:
@@ -204,12 +252,26 @@ def _ensure_theme(text: str) -> str:
     return THEME_CSS + text
 
 
+def self_test() -> int:
+    failed = 0
+    if "header.app" not in THEME_CSS or "background:#ffffff" not in THEME_CSS:
+        print("FAIL theme-header-white")
+        failed += 1
+    elif "rgba(11,18,32" in THEME_CSS:
+        print("FAIL theme-still-navy")
+        failed += 1
+    else:
+        print("OK theme-header-white")
+    return failed
+
+
 def main() -> int:
     text = INDEX.read_text()
     original = text
     text = _ensure_theme(text)
     text = _ensure_accounts(text)
     text = _ensure_clients(text)
+    text = _ensure_invoices(text)
     text = _ensure_incoming(text)
     if text == original:
         print("already hooked")
@@ -218,7 +280,7 @@ def main() -> int:
         _backup(INDEX)
     INDEX.write_text(text)
     print(f"hooked {INDEX}")
-    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER, CLIENTS_MARKER, THEME_MARKER) if m not in text]
+    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER, CLIENTS_MARKER, INVOICES_MARKER, THEME_MARKER) if m not in text]
     if missing:
         print("WARN missing", missing)
         return 1
@@ -235,4 +297,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if self_test():
+        raise SystemExit(1)
     raise SystemExit(main())

@@ -500,10 +500,14 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
     from ledger import ledger_for_export
     from packages import for_export as packages_for_export
     from compliance import for_export as compliance_for_export
+    from invoice_list import for_export as invoice_list_for_export
+    from statements import ingest as ingest_statements
 
+    ingest_statements(conn)
     ledger = ledger_for_export(conn)
     packages = packages_for_export(conn)
     compliance = compliance_for_export()
+    invoice_list = invoice_list_for_export()
     next_no = max(history.get("next") or INVOICE_SERIES_AFTER + 1, INVOICE_SERIES_AFTER + 1)
     if drafts:
         next_no = drafts[0]["invoice_number"]
@@ -514,6 +518,7 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "billing": billing.get("clients") if isinstance(billing, dict) else billing,
         "packages": packages,
         "compliance": compliance,
+        "invoice_list": invoice_list,
         "loop": (
             "Invoice on the 17th, month in advance. D/O is loaded with the invoice "
             "and collected next month. Full D/O clears the client; Netcash fees "
@@ -641,11 +646,17 @@ def self_test() -> int:
     from packages import self_test as packages_test
     from compliance import self_test as compliance_test
     from clients import self_test as clients_test
+    from customers import self_test as customers_test
+    from invoice_list import self_test as invoice_list_test
+    from statements import self_test as statements_test
 
     failed += ledger_test()
     failed += packages_test()
     failed += compliance_test()
     failed += clients_test()
+    failed += customers_test()
+    failed += invoice_list_test()
+    failed += statements_test()
     conn.close()
     return failed
 
