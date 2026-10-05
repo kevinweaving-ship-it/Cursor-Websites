@@ -94,19 +94,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_do_events_dedup
     ON customer_do_events (action_date, customer, amount, result);
 """
 
-# Named D/O bounce / refund from the FNB register. Oct 5 is not a bounce.
-KNOWN_BOUNCES = [
-    {
-        "action_date": "2026-03-25",
-        "customer": "Havenga, Daniel",
-        "amount": 699.00,
-        "result": "bounced",
-        "note": "HAVENGA REFUND · D/O bounced",
-        "source": "fnb",
-    },
-]
-
-
 def _money(value) -> float:
     return round(float(value or 0), 2)
 
@@ -290,25 +277,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
         )
         n_credit += 1
 
-    n_bounce = 0
-    for row in KNOWN_BOUNCES:
-        name = display_name(row["customer"]) or row["customer"]
-        conn.execute(
-            """INSERT OR IGNORE INTO customer_do_events
-               (action_date, customer, amount, result, note, source)
-               VALUES (?,?,?,?,?,?)""",
-            (
-                row["action_date"],
-                name,
-                _money(row["amount"]),
-                row["result"],
-                row["note"],
-                row["source"],
-            ),
-        )
-        n_bounce += 1
-
-    n_nc = _apply_netcash_batch(conn)
+    n_nc = _apply_bank_matches(conn)
     n_synth = _synth_do(conn, kind_by_no)
     n_runs = 0
     try:
@@ -324,23 +293,20 @@ def ingest(conn: sqlite3.Connection) -> dict:
         "eft": n_pay,
         "do": n_do,
         "credits": n_credit,
-        "bounces": n_bounce,
         "netcash": n_nc,
         "do_synth": n_synth,
         "do_runs": n_runs,
     }
 
 
-def _apply_netcash_batch(conn: sqlite3.Connection) -> int:
-    """Match Netcash paid/unpaid per batch onto client accounts. Bing 599 is the example."""
+def _apply_bank_matches(conn: sqlite3.Connection) -> int:
+    """Sep invoice → Oct Netcash batch. Paid D/O or unpaid; named FNB EFT can catch up."""
     n = 0
     try:
         from recon import client_receipts, client_unpaid
     except Exception:
         return 0
     for rec in client_receipts(conn):
-        if rec.get("source") != "netcash-alloc":
-            continue
         name = display_name(rec.get("customer")) or rec.get("customer")
         if not name:
             continue
@@ -348,11 +314,19 @@ def _apply_netcash_batch(conn: sqlite3.Connection) -> int:
         amt = abs(_money(rec.get("amount")))
         if _already_paid(conn, canon_key(name), day, amt):
             continue
+        do = (rec.get("method") or "") == "do" or "netcash" in (rec.get("source") or "")
         conn.execute(
             """INSERT INTO customer_payments
                (paid_on, customer, amount, note, source, method)
                VALUES (?,?,?,?,?,?)""",
-            (day, name, -amt, "Debit order", "netcash-alloc", "do"),
+            (
+                day,
+                name,
+                -amt,
+                "Debit order" if do else "EFT",
+                rec.get("source") or ("netcash-alloc" if do else "fnb-alloc"),
+                "do" if do else "eft",
+            ),
         )
         n += 1
     for rec in client_unpaid(conn):
@@ -377,13 +351,17 @@ def _apply_netcash_batch(conn: sqlite3.Connection) -> int:
 
 
 def _do_unpaid_months(conn: sqlite3.Connection) -> set[tuple[str, str]]:
-    out = {(canon_key(r["customer"]), r["action_date"][:7]) for r in KNOWN_BOUNCES}
+    """Only a Netcash batch marked unpaid (Cupido Oct 2026). Not FNB clearing memos."""
+    out: set[tuple[str, str]] = set()
     try:
         for rec in conn.execute(
-            "SELECT action_date, customer, result FROM customer_do_events"
+            "SELECT action_date, customer, result, source FROM customer_do_events"
         ):
-            if (rec[2] or "").lower() in {"unpaid", "bounced"}:
-                out.add((canon_key(rec[1]), (rec[0] or "")[:7]))
+            if (rec[2] or "").lower() not in {"unpaid", "bounced"}:
+                continue
+            if "netcash" not in (rec[3] or "").lower():
+                continue
+            out.add((canon_key(rec[1]), (rec[0] or "")[:7]))
     except sqlite3.OperationalError:
         pass
     return out
@@ -489,10 +467,12 @@ def _rows(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
             "customer": r[2],
             "amount": r[3],
             "source": r[4] if len(r) > 4 else "",
+            "status": r[5] if len(r) > 5 else "",
         }
         for r in conn.execute(
             """SELECT invoice_number, invoice_date, customer, amount,
-                      COALESCE(source,'') FROM customer_invoices ORDER BY invoice_date"""
+                      COALESCE(source,''), COALESCE(status,'')
+               FROM customer_invoices ORDER BY invoice_date"""
         )
     ]
     payments = [
@@ -513,7 +493,11 @@ def _rows(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
 
 def _books_invoice(row: dict) -> bool:
     src = (row.get("source") or "qb-list").lower()
-    return not src.startswith("gowifi-")
+    if src.startswith("gowifi-"):
+        return False
+    if src == "quickbooks" and (row.get("status") or "").lower() == "historical":
+        return False
+    return True
 
 
 def _invoice_deleted(row: dict) -> bool:
@@ -1301,11 +1285,12 @@ def self_test() -> int:
     else:
         print("OK wantling-oct5-collected", want["due"])
     hav = account_as_at(conn, "Havenga, Daniel", today)
-    if not hav.get("bounces"):
-        print("FAIL havenga-bounce", hav)
+    hav_unpaid = [r for r in (hav.get("ledger") or []) if r.get("kind") == "unpaid"]
+    if hav.get("bounces") or hav_unpaid or abs(hav.get("due") or 0) > 0.02:
+        print("FAIL havenga-invented-unpaid", hav.get("due"), hav.get("bounces"), hav_unpaid)
         failed += 1
     else:
-        print("OK havenga-bounce-recorded")
+        print("OK havenga-no-invented-unpaid", hav.get("due"))
     if not PENDING_DO.get("collected"):
         print("FAIL oct5-not-collected", PENDING_DO)
         failed += 1
