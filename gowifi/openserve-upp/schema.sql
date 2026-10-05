@@ -229,6 +229,37 @@ CREATE TABLE IF NOT EXISTS package_prices (
     source TEXT
 );
 
+CREATE TABLE IF NOT EXISTS book_accounts (
+    name TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    parent TEXT
+);
+
+CREATE TABLE IF NOT EXISTS book_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    paid_on TEXT NOT NULL,
+    payee TEXT,
+    memo TEXT,
+    payment REAL,
+    deposit REAL,
+    amount REAL NOT NULL,
+    balance REAL,
+    qb_type TEXT,
+    account TEXT NOT NULL,
+    source TEXT,
+    filename TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_book_entries_dedup
+    ON book_entries (
+        paid_on,
+        COALESCE(payee, ''),
+        COALESCE(memo, ''),
+        COALESCE(payment, 0),
+        COALESCE(deposit, 0),
+        COALESCE(balance, 0),
+        account
+    );
+
 CREATE TABLE IF NOT EXISTS netcash_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_ref TEXT,

@@ -392,9 +392,43 @@ def draft_customer_invoices(conn: sqlite3.Connection, today: date | None = None)
     return rows
 
 
+def ingest_local_history(conn: sqlite3.Connection) -> dict:
+    """Load the QuickBooks FNB Account History.csv sitting next to the app."""
+    ensure_tables(conn)
+    from ledger import ensure_ledger, ingest_qb_history
+
+    ensure_ledger(conn)
+    roots = [
+        Path(os.environ.get("UPP_DATA", "/root/gowifi-upp/data")),
+        Path(__file__).resolve().parent / "data",
+    ]
+    out = {"files": 0, "inserted": 0}
+    for root in roots:
+        for path in sorted(root.glob("fnb-account-history*.csv")) + sorted(root.glob("Account_History*.csv")):
+            try:
+                text = path.read_text(encoding="utf-8-sig", errors="replace")
+            except OSError:
+                continue
+            got = ingest_qb_history(conn, text, path.name)
+            out["files"] += 1
+            out["inserted"] += got.get("inserted") or 0
+        for path in sorted(root.glob("netcash-account-history*.csv")) + sorted(root.glob("*Netcash*.csv")):
+            try:
+                text = path.read_text(encoding="utf-8-sig", errors="replace")
+            except OSError:
+                continue
+            from ledger import ingest_netcash_history
+
+            got = ingest_netcash_history(conn, text, path.name)
+            out["files"] += 1
+            out["inserted"] += got.get("inserted") or 0
+    return out
+
+
 def books_for_export(conn: sqlite3.Connection) -> dict:
     ensure_tables(conn)
     ingest_fnb_mail(conn)
+    ingest_local_history(conn)
     from qb_import import history_for_export, ingest_qb_mail
 
     ingest_qb_mail(conn)
@@ -436,12 +470,16 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
     except Exception:
         pass
     nc = netcash_status(conn)
+    from ledger import ledger_for_export
+
+    ledger = ledger_for_export(conn)
     next_no = max(history.get("next") or INVOICE_SERIES_AFTER + 1, INVOICE_SERIES_AFTER + 1)
     if drafts:
         next_no = drafts[0]["invoice_number"]
     return {
         "quickbooks": "skip — FNB + Netcash + Openserve/UISP cover the books",
         "company": COMPANY,
+        "ledger": ledger,
         "loop": (
             "Books are FNB (money in/out), Netcash (debit collections), "
             "and Openserve/UISP (fibre cost and lines). QuickBooks API is not required."
@@ -453,7 +491,10 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "fnb": {
             "accounts": bank_accounts,
             "gowifi_account": any(a["ours"] for a in bank_accounts),
-            "transactions": conn.execute("SELECT COUNT(*) FROM bank_tx WHERE ours=1").fetchone()[0],
+            "transactions": max(
+                conn.execute("SELECT COUNT(*) FROM bank_tx WHERE ours=1").fetchone()[0],
+                (ledger.get("bank") or {}).get("rows") or 0,
+            ),
             "rows": [
                 {
                     "paid_on": r[0],
@@ -467,10 +508,15 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
                 )
             ],
             "note": (
-                "Daily CSV: FNB Online scheduled export to accounts@go-wifi.co.za "
-                "(ACCOUNT TRANSACTION HISTORY). GoWiFi operating account not on the box yet."
-                if not any(a["ours"] for a in bank_accounts)
-                else "GoWiFi FNB history is on the box."
+                "QuickBooks FNB Account History (62860060278) from 27 Jul 2020. "
+                "Expense and loan accounts recreated from the same register."
+                if (ledger.get("bank") or {}).get("rows")
+                else (
+                    "Daily CSV: FNB Online scheduled export to accounts@go-wifi.co.za "
+                    "(ACCOUNT TRANSACTION HISTORY). GoWiFi operating account not on the box yet."
+                    if not any(a["ours"] for a in bank_accounts)
+                    else "GoWiFi FNB history is on the box."
+                )
             ),
         },
         "netcash": nc,
@@ -546,6 +592,9 @@ def self_test() -> int:
         print("OK netcash-key-present")
     else:
         print("OK netcash-awaiting-key")
+    from ledger import self_test as ledger_test
+
+    failed += ledger_test()
     conn.close()
     return failed
 

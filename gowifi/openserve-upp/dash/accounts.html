@@ -217,7 +217,34 @@ function render(data){
         <div class="card"><div class="k">Old invoices</div><div class="v">${(data.books&&data.books.history&&data.books.history.count)||0}</div><div class="meta">statement sits on the invoice · ${esc((data.books&&data.books.history&&data.books.history.payment_count)||(data.books&&data.books.history&&data.books.history.payments&&data.books.history.payments.length)||0)} payments</div></div>
         <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
         <div class="card"><div class="k">FNB</div><div class="v">${(data.books&&data.books.fnb&&data.books.fnb.transactions)||((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"")}</div></div>
-        <div class="card"><div class="k">Netcash</div><div class="v">${(data.books&&data.books.netcash&&data.books.netcash.items)||0}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||"")}</div></div>
+        <div class="card"><div class="k">Netcash</div><div class="v">${(data.books&&data.books.netcash&&data.books.netcash.items)||0}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||((data.books&&data.books.ledger&&data.books.ledger.checksum&&data.books.ledger.checksum.note)||""))}</div></div>
+        <div class="card"><div class="k">Clients</div><div class="v">${((data.books&&data.books.ledger&&data.books.ledger.clients)||[]).length}</div><div class="meta">A/R payees from FNB register</div></div>
+        <div class="card"><div class="k">Loans</div><div class="v">${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).length}</div><div class="meta">${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).map(a=>esc(a.name.split(":").slice(-1)[0])+" "+Number(a.net||0).toFixed(0)).join(" · ")||"Kevin / Walter"}</div></div>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Loan / expense</th><th>Kind</th><th>In</th><th>Out</th></tr></thead>
+          <tbody>${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).concat((data.books&&data.books.ledger&&data.books.ledger.expenses)||[]).slice(0,24).map(a=>`
+            <tr><td>${esc(a.name||"—")}</td><td>${esc(a.kind||"—")}</td>
+            <td class="num">${Number(a.received||0).toFixed(2)}</td>
+            <td class="num">${Number(a.spent||0).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No accounts yet</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Client</th><th>Pays</th><th>Received</th></tr></thead>
+          <tbody>${((data.books&&data.books.ledger&&data.books.ledger.clients)||[]).map(r=>`
+            <tr><td>${esc(r.name||"—")}</td><td class="num">${esc(r.payments||0)}</td>
+            <td class="num">${Number(r.received||0).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="3" class="meta">No client payments yet</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Date</th><th>Bounce / recovery</th><th>Amount</th></tr></thead>
+          <tbody>${((data.books&&data.books.ledger&&data.books.ledger.bounces)||[]).map(r=>`
+            <tr><td class="num">${esc(r.paid_on||"—")}</td><td>${esc(r.memo||r.payee||"—")}</td>
+            <td class="num">${r.amount==null?"—":Number(r.amount).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="3" class="meta">No bounce recoveries on FNB yet · waiting on Netcash history</td></tr>`}</tbody>
+        </table>
       </div>
       <div class="card scroll">
         <table class="compact">
