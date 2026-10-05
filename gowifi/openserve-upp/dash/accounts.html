@@ -217,6 +217,7 @@ function render(data){
         <div class="card"><div class="k">Old invoices</div><div class="v">${(data.books&&data.books.history&&data.books.history.count)||0}</div><div class="meta">statement sits on the invoice · ${esc((data.books&&data.books.history&&data.books.history.payment_count)||(data.books&&data.books.history&&data.books.history.payments&&data.books.history.payments.length)||0)} payments</div></div>
         <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
         <div class="card"><div class="k">FNB</div><div class="v">${((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"")}</div></div>
+        <div class="card"><div class="k">Netcash</div><div class="v">${(data.books&&data.books.netcash&&data.books.netcash.items)||0}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||"")}</div></div>
       </div>
       <div class="card scroll">
         <table class="compact">

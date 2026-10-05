@@ -207,16 +207,20 @@ def ingest_fnb_mail(conn: sqlite3.Connection) -> dict:
     return {"files": files, "inserted": inserted}
 
 
-def netcash_status() -> dict:
-    if NETCASH_ENV.exists():
-        return {
-            "ready": True,
-            "note": "Service key on the box. Debit batches + unpaid reports via NIWS_NIF.",
-        }
-    return {
-        "ready": False,
-        "note": "Put the Netcash debit service key in /root/secrets/netcash.env. API is NIWS_NIF BatchFileUpload / RequestFileUploadReport.",
-    }
+def netcash_status(conn: sqlite3.Connection | None = None) -> dict:
+    from netcash import items_for_export, status as nc_status
+
+    out = nc_status()
+    out["items"] = 0
+    out["rows"] = []
+    if conn is not None:
+        try:
+            rows = items_for_export(conn)
+            out["items"] = len(rows)
+            out["rows"] = rows
+        except sqlite3.Error:
+            pass
+    return out
 
 
 def _last_rate(conn: sqlite3.Connection, customer: str | None) -> tuple[float | None, str | None]:
@@ -331,7 +335,15 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         row["statement"] = statement_on_invoice(all_inv, pays, row.get("customer"))
         if row["statement"].get("total_due") is not None:
             row["balance_due"] = row["statement"]["total_due"]
-    nc = netcash_status()
+    try:
+        from netcash import pull as netcash_pull
+        from netcash import status as nc_ready
+
+        if nc_ready().get("ready"):
+            netcash_pull(conn)
+    except Exception:
+        pass
+    nc = netcash_status(conn)
     next_no = max(history.get("next") or INVOICE_SERIES_AFTER + 1, INVOICE_SERIES_AFTER + 1)
     if drafts:
         next_no = drafts[0]["invoice_number"]

@@ -72,7 +72,7 @@ python3 /root/gowifi-upp/audit_export.py
 GoWiFi books are three feeds, not a full ledger package:
 
 1. **We invoice / statement** active fibre lines (series continues after QuickBooks 3039)
-2. **Netcash** debit-order API (`NIWS_NIF`) — collections and unpaids
+2. **Netcash** debit-order API (`NIWS_NIF`) — collections and unpaids. Read-only pull via `python3 /root/gowifi-upp/netcash.py pull`. Keys in `/root/secrets/netcash.env` (`NETCASH_USERNAME`, `NETCASH_SERVICE_KEY`). Does not upload debit batches.
 3. **FNB daily CSV** — scheduled “ACCOUNT TRANSACTION HISTORY” to `accounts@go-wifi.co.za`
 4. **Openserve invoices** already on the box — fibre cost to match against FNB debits
 

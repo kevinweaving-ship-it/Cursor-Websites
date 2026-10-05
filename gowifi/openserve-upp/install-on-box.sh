@@ -9,14 +9,14 @@ if [ "$SRC" != "$DEST" ]; then
     "$SRC/status_events.py" "$SRC/invoice_import.py" \
     "$SRC/site_lines.py" "$SRC/client_stories.py" "$SRC/books.py" \
     "$SRC/qb_import.py" "$SRC/qb_oauth.py" "$SRC/qb_api.py" \
-    "$SRC/invoice_canned.py" "$SRC/company.py" \
+    "$SRC/netcash.py" "$SRC/invoice_canned.py" "$SRC/company.py" \
     "$SRC/checksum_accounts_mail.py" "$SRC/README.md" "$DEST/"
 fi
 chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" \
   "$DEST/audit_export.py" "$DEST/status_events.py" "$DEST/invoice_import.py" \
   "$DEST/site_lines.py" "$DEST/client_stories.py" "$DEST/books.py" \
   "$DEST/qb_import.py" "$DEST/qb_oauth.py" "$DEST/qb_api.py" \
-  "$DEST/invoice_canned.py" "$DEST/company.py"
+  "$DEST/netcash.py" "$DEST/invoice_canned.py" "$DEST/company.py"
 WWW=/home/user-data/www/default
 DASH="$WWW/dash"
 LEGAL="$WWW/legal"

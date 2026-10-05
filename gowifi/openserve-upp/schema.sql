@@ -239,6 +239,15 @@ CREATE TABLE IF NOT EXISTS netcash_items (
     batch_id TEXT,
     source TEXT
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_netcash_items_dedup
+    ON netcash_items (
+        COALESCE(account_ref, ''),
+        COALESCE(action_date, ''),
+        COALESCE(amount, 0),
+        COALESCE(batch_id, ''),
+        COALESCE(result, ''),
+        COALESCE(source, '')
+    );
 
 CREATE TABLE IF NOT EXISTS mail_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
