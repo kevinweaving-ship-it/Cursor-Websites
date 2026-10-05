@@ -455,6 +455,7 @@ def build(conn: sqlite3.Connection) -> dict:
     from clients import cards_for_export
 
     from books import books_for_export
+    from mail_forwards import forwards_for_export
 
     ingest_mail(conn)
     extras_map = extras_by_sn(conn)
@@ -463,6 +464,14 @@ def build(conn: sqlite3.Connection) -> dict:
     billing_accounts = billing_accounts_for_export(conn)
     line_charges = line_charges_for_export(conn)
     mail_coverage = mail_coverage_for_export(conn)
+    mail_forwards = forwards_for_export()
+    if not mail_forwards.get("mx_on_box"):
+        mail_coverage["gap"] = (
+            (mail_coverage.get("gap") or "")
+            + " go-wifi.co.za has no public MX — Openserve To: kevin@go-wifi.co.za "
+            "never reaches the box (iCloud still gets the copy)."
+        )
+        mail_coverage["go_wifi_mx"] = False
     books = books_for_export(conn)
     services = [dict(r) for r in conn.execute("SELECT * FROM services")]
     orders = [dict(r) for r in conn.execute("SELECT * FROM orders")]
@@ -705,6 +714,7 @@ def build(conn: sqlite3.Connection) -> dict:
         "billing_accounts": billing_accounts,
         "line_charges": line_charges,
         "mail_coverage": mail_coverage,
+        "mail_forwards": mail_forwards,
         "books": books,
         "payments": [],
     }

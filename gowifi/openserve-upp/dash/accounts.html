@@ -442,6 +442,24 @@ function render(data){
         <div class="meta">Statement accounts: ${esc((cov.statement_accounts||[]).join(", ")||"—")}</div>
         <div class="meta">Bank proof of payment: ${esc(cov.pop_status||"awaiting upload")}</div></div>
       ${(() => {
+        const fw = data.mail_forwards||{};
+        const rows = (fw.aliases||[]).map(r=>`
+          <tr>
+            <td>${esc(r.source)}</td>
+            <td>${esc(r.got||r.want||"—")}</td>
+            <td class="${r.forwarded?"ok":"bad"}">${r.forwarded?"fw → gowifi":"not fw yet"}</td>
+          </tr>`).join("");
+        return `<div class="card scroll">
+          <div class="k">go-wifi.co.za → gowifi.co.za</div>
+          <div class="meta">${esc(fw.note||"")}</div>
+          <div class="meta ${fw.mx_on_box?"":"bad"}">${esc(fw.dns_note||"")} · public MX: ${esc((fw.mx_go_wifi||[]).join(" · ")||"none")}</div>
+          <table class="compact">
+            <thead><tr><th>Old address</th><th>Forwards to</th><th></th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="3" class="meta">No alias map</td></tr>`}</tbody>
+          </table>
+        </div>`;
+      })()}
+      ${(() => {
         const miss = (cov.missing&&cov.missing.missing)||[];
         const fams = (cov.missing&&cov.missing.families)||[];
         if (!miss.length && !fams.length) return "";
