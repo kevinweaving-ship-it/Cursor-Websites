@@ -158,6 +158,8 @@ def _haystack(card: dict) -> str:
         card.get("access"),
         "wifi" if (card.get("access") or "") != "fibre" else "fibre",
         card.get("pay"),
+        "loss" if card.get("os_loss") else None,
+        card.get("os_cost_label"),
         "cancelled" if card.get("cancelled") else None,
     ]
     return " ".join(str(b) for b in bits if b).lower()
@@ -207,6 +209,30 @@ def _grace(acc: dict, today: date) -> dict:
     }
 
 
+def _apply_os_margin(card: dict, os_map: dict, charge: float | None) -> None:
+    """Openserve CSV cost (B-number lines + VAT) vs what we charge."""
+    if (card.get("access") or "") != "fibre":
+        return
+    os_row = os_map.get(card.get("b_number") or "") if card.get("b_number") else None
+    cost = (os_row or {}).get("cost")
+    card["os_cost"] = cost
+    card["os_ex_vat"] = (os_row or {}).get("ex_vat")
+    card["os_vat"] = (os_row or {}).get("vat")
+    card["os_cost_label"] = (os_row or {}).get("label")
+    card["os_period"] = (os_row or {}).get("period")
+    card["os_invoice"] = (os_row or {}).get("invoice_number")
+    card["os_on_invoice"] = bool(os_row)
+    card["charge"] = charge
+    margin = None
+    pct = None
+    if cost is not None and charge:
+        margin = round(float(charge) - float(cost), 2)
+        pct = round(margin / float(charge) * 100, 1) if charge else None
+    card["margin"] = margin
+    card["margin_pct"] = pct
+    card["os_loss"] = bool(margin is not None and margin < -0.004)
+
+
 def cards_for_export(
     conn: sqlite3.Connection | None,
     fibre_rows: list[dict] | None = None,
@@ -214,6 +240,14 @@ def cards_for_export(
 ) -> dict:
     today = today or date.today()
     fibre_rows = fibre_rows or []
+    os_map: dict = {}
+    if conn is not None:
+        try:
+            from invoice_import import cost_by_service
+
+            os_map = cost_by_service(conn)
+        except Exception:
+            os_map = {}
     by_line: dict[str, list[dict]] = {}
     unmatched: list[dict] = []
     for row in fibre_rows:
@@ -360,6 +394,11 @@ def cards_for_export(
             card["dot_label"] = "Cancelled"
             card["pay"] = acc.get("pay")
         card.update(grace)
+        _apply_os_margin(
+            card,
+            os_map,
+            float((book or {}).get("amount") or acc.get("do_amount") or acc.get("amount") or 0) or None,
+        )
         card["search"] = _haystack(card)
         if gone:
             cancelled.append(card)
@@ -434,6 +473,7 @@ def cards_for_export(
                     card.update(_grace(st, today))
             except Exception:
                 pass
+        _apply_os_margin(card, os_map, None)
         card["search"] = _haystack(card)
         if gone:
             cancelled.append(card)
@@ -448,6 +488,10 @@ def cards_for_export(
     )
     cancelled.sort(key=lambda r: (-float(r.get("due") or 0), (r.get("name") or "").lower()))
     still_owe = sum(1 for c in cancelled if float(c.get("due") or 0) > 0.004)
+    fibre_cards = [c for c in cards if (c.get("access") or "") == "fibre"]
+    missing_names = [c["name"] for c in fibre_cards if not c.get("os_on_invoice")]
+    loss_names = [c["name"] for c in fibre_cards if c.get("os_loss")]
+    invoice_date = next((v.get("invoice_date") for v in os_map.values()), None)
     return {
         "as_at": today.isoformat(),
         "grace_days": GRACE_DAYS,
@@ -459,10 +503,20 @@ def cards_for_export(
         "cancelled_due": still_owe,
         "cards": cards,
         "cancelled": cancelled,
+        "os": {
+            "invoice_date": invoice_date,
+            "fibre": len(fibre_cards),
+            "on_invoice": sum(1 for c in fibre_cards if c.get("os_on_invoice")),
+            "missing": len(missing_names),
+            "missing_names": missing_names,
+            "loss": len(loss_names),
+            "loss_names": loss_names,
+        },
         "note": (
             "Simple client cards. Cancelled clients are not on this list — "
             "they sit in the Cancelled card at the bottom. "
             "VK Pop incoming fibre is not a client. "
+            "Fibre cost is the latest Openserve invoice CSV per B-number + VAT. "
             "Later: auto suspend, WhatsApp, notes to admin."
         ),
     }
@@ -614,6 +668,84 @@ def self_test() -> int:
     else:
         print("OK client-cards")
         print("OK cancelled-own-list")
+    conn = sqlite3.connect(":memory:")
+    from invoice_import import ingest_csv_text
+
+    ingest_csv_text(
+        conn,
+        (
+            "Account Number,Invoice Number,Invoice Date,Service Name,Invoice Text,"
+            "Charge Amount,Product,Capacity,Activation Date,Charge Date,"
+            "Period Start Date,Period End Date\n"
+            "9400000004759,INATS099,20260131,B110034779,Rental - Openserve Webstream 200 Mbps,"
+            "775.00,Openserve Webstream,200,20240916,20260131,20260201,20260228\n"
+            "9400000004759,INATS099,20260131,B110034779,Dynamic IPV4 Recurring,"
+            "100.00,Openserve Webstream,200,20240916,20260131,20260201,20260228\n"
+            "9400000004759,INATS099,20260131,B110047678,Rental - Openserve Webstream 25 Mbps,"
+            "800.00,Openserve Webstream,25,20251008,20260131,20260201,20260228\n"
+            "9400000004759,INATS099,20260131,B110047678,Dynamic IPV4 Recurring,"
+            "100.00,Openserve Webstream,25,20251008,20260131,20260201,20260228\n"
+            "9400000004759,INATS099,20260131,B110033875,Rental - Openserve Webstream 500 Mbps,"
+            "1015.00,Openserve Webstream,500,20251224,20260131,20260201,20260228\n"
+            "9400000004759,INATS099,20260131,B110033875,Dynamic IPV4 Recurring,"
+            "100.00,Openserve Webstream,500,20251224,20260131,20260201,20260228\n"
+            "9400000004657,INATS098,20260131,B110034814,Rental - OOC - 500 Mbps,"
+            "1710.00,Openserve Office Connect,500,20250122,20260131,20260201,20260228\n"
+            "9400000004657,INATS098,20260131,B110034814,Dynamic IPV4 Recurring,"
+            "100.00,Openserve Office Connect,500,20250122,20260131,20260201,20260228\n"
+        ),
+        "multi.csv",
+        "test",
+    )
+    phillip_line = {
+        "service_number": "B110034779",
+        "customer": "Phillip De Gruchy",
+        "line_status": "active",
+        "access_status": "Active",
+        "partner_status": "IspActive",
+        "address": "HERMANUS",
+        "activated": "2024-09-16",
+        "product": "Webstream",
+        "speed": "200/100",
+    }
+    pack2 = cards_for_export(conn, [pop, hpp, phillip_line], today)
+    by2 = {c["name"]: c for c in pack2["cards"]}
+    ph = by2.get("Phillip De Gruchy") or {}
+    hpp2 = by2.get("HPP Control Room") or {}
+    os = pack2.get("os") or {}
+    names2 = [c["name"] for c in pack2["cards"]]
+    if any(c.get("b_number") in {"B110033875", "B110034814"} for c in pack2["cards"]):
+        print("FAIL vk-pop-not-on-client-cards", names2)
+        failed += 1
+    elif abs(float(ph.get("os_ex_vat") or 0) - 875) > 0.01 or "IP" not in (ph.get("os_cost_label") or ""):
+        print("FAIL phillip-200-ip", ph)
+        failed += 1
+    elif abs(float(ph.get("os_cost") or 0) - 1006.25) > 0.01:
+        print("FAIL phillip-cost-vat", ph)
+        failed += 1
+    elif abs(float(ph.get("charge") or 0) - 1219) > 0.01:
+        print("FAIL phillip-charge", ph)
+        failed += 1
+    elif abs(float(ph.get("margin") or 0) - 212.75) > 0.01 or ph.get("os_loss"):
+        print("FAIL phillip-margin", ph)
+        failed += 1
+    elif abs(float(hpp2.get("os_cost") or 0) - 1035) > 0.01 or not hpp2.get("os_loss"):
+        print("FAIL hpp-loss", hpp2)
+        failed += 1
+    elif "Phillip De Gruchy" in (os.get("missing_names") or []):
+        print("FAIL phillip-should-be-on-invoice", os)
+        failed += 1
+    elif "HPP Control Room" in (os.get("missing_names") or []) or "HPP Control Room" not in (
+        os.get("loss_names") or []
+    ):
+        print("FAIL hpp-loss-track", os)
+        failed += 1
+    elif "Bing Noordhoek Fibre" not in (os.get("missing_names") or []):
+        print("FAIL fibre-missing-track", os)
+        failed += 1
+    else:
+        print("OK cost-vs-charge", ph.get("os_cost_label"), ph.get("margin"), hpp2.get("os_cost_label"))
+    conn.close()
     return failed
 
 

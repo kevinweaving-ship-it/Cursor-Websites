@@ -430,6 +430,81 @@ def billing_accounts_for_export(conn: sqlite3.Connection) -> list[dict]:
     return out
 
 
+VAT_RATE = 0.15
+
+
+def cost_by_service(conn: sqlite3.Connection) -> dict[str, dict]:
+    """Latest invoice CSV: per B-number, forward-month lines + VAT = cost.
+
+    A client can have more than one cost line (Phillip 200 + IP;
+    VK Pop 500 + IP and the Office Connect line). Pro-rata / prior
+    periods on the same invoice are dropped — we take the latest
+    period_start per B-number.
+    """
+    ensure_tables(conn)
+    latest = conn.execute("SELECT MAX(invoice_date) FROM invoices").fetchone()[0]
+    if not latest:
+        return {}
+    rows = conn.execute(
+        """SELECT l.service_number, l.extra_kind, l.invoice_text, l.capacity,
+                  l.charge_amount, l.period_start, l.period_end, l.invoice_number
+           FROM invoice_lines l
+           JOIN invoices i USING (invoice_number)
+           WHERE i.invoice_date=?
+             AND IFNULL(l.extra_kind,'') != 'vat'
+             AND l.service_number IS NOT NULL AND l.service_number != ''
+           ORDER BY l.service_number, l.extra_kind""",
+        (latest,),
+    ).fetchall()
+    by: dict[str, list[dict]] = {}
+    for sn, kind, text, cap, amount, start, end, inv in rows:
+        by.setdefault(sn, []).append(
+            {
+                "kind": kind,
+                "text": text,
+                "capacity": cap,
+                "amount": float(amount or 0),
+                "period_start": start,
+                "period_end": end,
+                "invoice_number": inv,
+            }
+        )
+    out: dict[str, dict] = {}
+    for sn, items in by.items():
+        periods = [i["period_start"] for i in items if i.get("period_start")]
+        target = max(periods) if periods else None
+        chosen = [i for i in items if not target or i.get("period_start") == target]
+        if not chosen:
+            chosen = items
+        kind_rank = {"rental": 0, "ipv4": 1, "bridge": 2}
+        chosen.sort(key=lambda i: (kind_rank.get(i.get("kind") or "", 9), i.get("kind") or ""))
+        ex_vat = round(sum(i["amount"] for i in chosen), 2)
+        vat = round(ex_vat * VAT_RATE, 2)
+        cost = round(ex_vat + vat, 2)
+        bits = []
+        for i in chosen:
+            if i["kind"] == "rental":
+                bits.append(f"{i['capacity']} Mbps" if i.get("capacity") else (i.get("text") or "Rental"))
+            elif i["kind"] == "ipv4":
+                bits.append("IP")
+            elif i["kind"] == "bridge" and i["amount"]:
+                bits.append("bridge")
+            elif i["amount"]:
+                bits.append(extra_label(i["kind"] or "") or i.get("text") or "extra")
+        out[sn] = {
+            "service_number": sn,
+            "ex_vat": ex_vat,
+            "vat": vat,
+            "cost": cost,
+            "period": target,
+            "invoice_date": latest,
+            "invoice_number": chosen[0]["invoice_number"] if chosen else None,
+            "lines": chosen,
+            "label": " + ".join(bits) or "Openserve",
+        }
+    return out
+
+
 def line_charges_for_export(conn: sqlite3.Connection) -> list[dict]:
     ensure_tables(conn)
     rows = conn.execute(
@@ -572,6 +647,47 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK per-account-reconcile")
+    multi = (
+        "Account Number,Invoice Number,Invoice Date,Service Name,Invoice Text,"
+        "Charge Amount,Product,Capacity,Activation Date,Charge Date,"
+        "Period Start Date,Period End Date\n"
+        "9400000004759,INATS099,20260131,B110034779,Rental - Openserve Webstream 200 Mbps,"
+        "775.00,Openserve Webstream,200,20240916,20260131,20260201,20260228\n"
+        "9400000004759,INATS099,20260131,B110034779,Dynamic IPV4 Recurring,"
+        "100.00,Openserve Webstream,200,20240916,20260131,20260201,20260228\n"
+        "9400000004759,INATS099,20260131,B110033875,Rental - Openserve Webstream 500 Mbps,"
+        "261.94,Openserve Webstream,500,20251224,20260131,20251224,20251231\n"
+        "9400000004759,INATS099,20260131,B110033875,Rental - Openserve Webstream 500 Mbps,"
+        "1015.00,Openserve Webstream,500,20251224,20260131,20260201,20260228\n"
+        "9400000004759,INATS099,20260131,B110033875,Dynamic IPV4 Recurring,"
+        "100.00,Openserve Webstream,500,20251224,20260131,20260201,20260228\n"
+        "9400000004657,INATS098,20260131,B110034814,Rental - OOC - 500 Mbps,"
+        "1710.00,Openserve Office Connect,500,20250122,20260131,20260201,20260228\n"
+        "9400000004657,INATS098,20260131,B110034814,Dynamic IPV4 Recurring,"
+        "100.00,Openserve Office Connect,500,20250122,20260131,20260201,20260228\n"
+        "9400000004759,INATS099,20260131,,VAT @ 15%,165.00,Openserve Webstream,,,,20260131,\n"
+    )
+    conn2 = sqlite3.connect(":memory:")
+    ingest_csv_text(conn2, multi, "multi.csv", "test")
+    by = cost_by_service(conn2)
+    phillip = by.get("B110034779") or {}
+    pop500 = by.get("B110033875") or {}
+    pop_oc = by.get("B110034814") or {}
+    if abs((phillip.get("ex_vat") or 0) - 875) > 0.01 or "IP" not in (phillip.get("label") or ""):
+        print("FAIL phillip-200-ip", phillip)
+        failed += 1
+    elif abs((phillip.get("cost") or 0) - 1006.25) > 0.01:
+        print("FAIL phillip-cost-vat", phillip)
+        failed += 1
+    elif abs((pop500.get("ex_vat") or 0) - 1115) > 0.01 or abs((pop500.get("cost") or 0) - 1282.25) > 0.01:
+        print("FAIL vk-500-ip-not-prorata", pop500)
+        failed += 1
+    elif abs((pop_oc.get("ex_vat") or 0) - 1810) > 0.01 or "IP" not in (pop_oc.get("label") or ""):
+        print("FAIL vk-oc-ip", pop_oc)
+        failed += 1
+    else:
+        print("OK cost-per-b-plus-vat", phillip["label"], pop500["label"], pop_oc["label"])
+    conn2.close()
     conn.close()
     return failed
 

@@ -241,6 +241,11 @@ function card(c){
         ${field("Package", esc(c.package||"—"))}
         ${field("Balance", bal, {cls:"due "+dc})}
       </div>
+      ${c.access==="fibre" ? `<div class="band">
+        ${field("Cost", c.os_cost==null ? "— not on latest Openserve invoice" : `${esc(money(c.os_cost))} <span class="meta">${esc(c.os_cost_label||"incl VAT")}</span>`)}
+        ${field("Charge", esc(money(c.charge)))}
+        ${field("Margin", c.margin==null ? "—" : `${esc(money(c.margin))}${c.margin_pct!=null?` <span class="meta">${esc(c.margin_pct)}%</span>`:""}`, {cls: c.os_loss ? "due bad" : ""})}
+      </div>` : ""}
       ${stmtTable(c, id)}
       ${c.suspension_notice?`<div class="band"><div class="alert">Suspension notice · D/O bounced</div></div>`:""}
     </div>
@@ -291,9 +296,16 @@ function paint(pack){
   const shown = cards.filter(hit);
   const shownC = cancelled.filter(hit);
   const {wifi, fibre} = splitAccess(shown);
-  $("#counts").textContent = q
-    ? `${shown.length} match · ${wifi.length} wifi · ${fibre.length} fibre`
-    : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`;
+  const os = pack.os || {};
+  const osBits = [];
+  if (!q && os.fibre) osBits.push(`${os.on_invoice||0}/${os.fibre} fibre on invoice`);
+  if (!q && os.missing) osBits.push(`${os.missing} cost missing`);
+  if (!q && os.loss) osBits.push(`${os.loss} loss`);
+  $("#counts").textContent = (
+    q
+      ? `${shown.length} match · ${wifi.length} wifi · ${fibre.length} fibre`
+      : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`
+  ) + (osBits.length ? ` · ${osBits.join(" · ")}` : "");
   $("#grid").innerHTML = shown.length
     ? block("GoWiFi Wifi", wifi) + block("Fibre", fibre)
     : `<p class="empty">No clients match.</p>`;

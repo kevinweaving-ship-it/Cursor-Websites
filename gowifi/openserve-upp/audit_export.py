@@ -448,6 +448,7 @@ def build(conn: sqlite3.Connection) -> dict:
         invoices_for_export,
         line_charges_for_export,
         mail_coverage_for_export,
+        cost_by_service,
     )
 
     from site_lines import apply_site_line, incoming_fibre_for_export, incoming_related_label, pop_cost
@@ -612,6 +613,19 @@ def build(conn: sqlite3.Connection) -> dict:
             row["story_label"] = story_label(row, others, story)
 
     incoming_fibre = incoming_fibre_for_export(all_rows)
+    os_cost = cost_by_service(conn)
+    for row in incoming_fibre:
+        hit = os_cost.get(row.get("service_number") or "")
+        if hit:
+            row["cost"] = hit["cost"]
+            row["cost_label"] = hit.get("label")
+            row["cost_ex_vat"] = hit.get("ex_vat")
+            row["cost_vat"] = hit.get("vat")
+            row["cost_from"] = "invoice"
+        elif os_cost:
+            row["cost"] = None
+            row["cost_label"] = "not on latest Openserve invoice"
+            row["cost_from"] = "missing"
     billing = (books or {}).get("billing") or {}
     pop = pop_cost(incoming_fibre, billed_wireless=billing.get("billed_wireless"))
 

@@ -183,7 +183,7 @@ function render(data){
       <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
       <td>${pillFor(r.line_status)}${fibreFetch(r)}</td>
       <td class="num">${esc(r.speed)}<div class="meta">${esc(tenure(r))}</div></td>
-      <td class="num">${money(r.cost)}<div class="meta">incl VAT we pay</div></td>
+      <td class="num">${money(r.cost)}<div class="meta">${esc(r.cost_label||"incl VAT we pay")}</div></td>
     </tr>`).join("");
   const pop = data.pop_cost || {};
   const popBill = (data.books&&data.books.billing)||{};
