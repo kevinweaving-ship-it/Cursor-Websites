@@ -478,7 +478,7 @@ def self_test() -> int:
     }
     broken = {
         "service_number": "B110000001",
-        "customer": "Annette Bing HH",
+        "customer": "Bing Noordhoek Fibre",
         "line_status": "active",
         "access_status": "Fault",
         "partner_status": "IspActive",
@@ -538,8 +538,14 @@ def self_test() -> int:
     elif by["HPP Control Room"]["dot"] != "active":
         print("FAIL hpp-green", by["HPP Control Room"])
         failed += 1
-    elif by["Annette Bing HH"]["dot"] != "issue":
-        print("FAIL bing-red", by["Annette Bing HH"])
+    elif by["Bing Noordhoek Fibre"]["dot"] != "issue":
+        print("FAIL noordhoek-fibre-red", by["Bing Noordhoek Fibre"])
+        failed += 1
+    elif (by["Annette Bing HH"].get("access") or "") == "fibre" or by["Annette Bing HH"].get("b_number"):
+        print("FAIL bing-wifi-not-fibre", by["Annette Bing HH"])
+        failed += 1
+    elif (by["Bing Noordhoek Fibre"].get("access") or "") != "fibre":
+        print("FAIL noordhoek-not-fibre", by["Bing Noordhoek Fibre"])
         failed += 1
     elif by["Lategan"]["dot"] != "suspended":
         print("FAIL lategan-orange", by["Lategan"])

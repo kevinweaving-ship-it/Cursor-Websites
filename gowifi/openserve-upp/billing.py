@@ -25,16 +25,16 @@ DO_DAY = 1
 CLIENTS = [
     {"ref": "Wantling", "name": "David Wantling", "amount": 439.00, "method": "debit-order", "access": "wireless", "sku": None},
     {"ref": "DEV001", "name": "Dirk De Villiers", "amount": 399.00, "method": "debit-order", "access": "wireless", "sku": None},
-    {"ref": "BIN001", "name": "Annette Bing HH", "amount": 429.00, "method": "debit-order", "access": "fibre", "sku": "OWS25M"},
+    {"ref": "BIN001", "name": "Annette Bing HH", "amount": 429.00, "method": "debit-order", "access": "wireless", "sku": None},
     {"ref": "HUN001", "name": "Stan Hundermark", "amount": 329.00, "method": "debit-order", "access": "wireless", "sku": None},
     {"ref": "De Gruchy OS Fiber 200", "name": "Phillip De Gruchy", "amount": 1219.00, "method": "debit-order", "access": "fibre", "sku": "OWS300M", "discount": True},
     {"ref": "Jean de Villiers", "name": "Jean de Villiers", "amount": 550.00, "method": "debit-order", "access": "wireless", "sku": None},
     {"ref": "Havenga", "name": "Havenga", "amount": 699.00, "method": "debit-order", "access": "wireless", "sku": None},
-    {"ref": "HM Builders", "name": "Hermanus Builders", "amount": 759.00, "method": "debit-order", "access": "wireless", "sku": None},
-    {"ref": "GeoCorp", "name": "GeoCorp", "amount": 759.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "HM Builders", "name": "Hermanus Builders", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
+    {"ref": "GeoCorp", "name": "GeoCorp", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
     {"ref": "Bryant Michael", "name": "Bryant Michael", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
     {"ref": "Murray DH", "name": "Murray DH", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
-    {"ref": "Bing Noordhoek Fibre", "name": "Bing Noordhoek Fibre", "amount": 599.00, "method": "debit-order", "access": "wireless", "sku": None},
+    {"ref": "Bing Noordhoek Fibre", "name": "Bing Noordhoek Fibre", "amount": 599.00, "method": "debit-order", "access": "fibre", "sku": "OWS25M"},
     {"ref": "G Cupido", "name": "G Cupido", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
     {"ref": "Gordon Neethling", "name": "Gordon Neethling", "amount": 759.00, "method": "debit-order", "access": "fibre", "sku": "OWS50M"},
     {"ref": None, "name": "Lategan", "amount": 999.00, "method": "eft", "access": "fibre", "sku": "OWS100M"},
@@ -42,8 +42,8 @@ CLIENTS = [
     {"ref": None, "name": "Pearson, Philippa", "amount": 329.00, "method": "eft", "access": "wireless", "sku": None},
     {"ref": None, "name": "Phillipus May", "amount": 439.00, "method": "eft", "access": "wireless", "sku": None, "discount": True},
     {"ref": None, "name": "Amoroc Doors", "amount": 199.00, "method": "eft", "access": "wireless", "sku": None},
-    {"ref": None, "name": "WCC Tech", "amount": 1000.00, "method": "eft", "access": "wireless", "sku": None},
-    {"ref": None, "name": "Paltco", "amount": 1399.00, "method": "eft", "access": "wireless", "sku": None},
+    {"ref": None, "name": "WCC Tech", "amount": 1000.00, "method": "eft", "access": "fibre", "sku": None},
+    {"ref": None, "name": "Paltco", "amount": 1399.00, "method": "eft", "access": "fibre", "sku": None},
     {"ref": None, "name": "Mrs Marlene/Georg Van Eeden", "amount": 439.00, "method": "eft", "access": "wireless", "sku": None},
 ]
 
@@ -684,7 +684,20 @@ def self_test() -> int:
         print("OK do-1st-except-oct5")
     fibre_do = [c for c in DO_CLIENTS if c["access"] == "fibre"]
     wireless_do = [c for c in DO_CLIENTS if c["access"] == "wireless"]
-    if len(DO_CLIENTS) != 14 or not fibre_do or not wireless_do:
+    nord = next(c for c in CLIENTS if c["name"] == "Bing Noordhoek Fibre")
+    bing_wifi = next(c for c in CLIENTS if c["name"] == "Annette Bing HH")
+    builders = next(c for c in CLIENTS if c["name"] == "Hermanus Builders")
+    geo = next(c for c in CLIENTS if c["name"] == "GeoCorp")
+    if nord["access"] != "fibre" or nord.get("sku") != "OWS25M":
+        print("FAIL noordhoek-is-fibre", nord)
+        failed += 1
+    elif bing_wifi["access"] != "wireless" or bing_wifi.get("sku"):
+        print("FAIL bing-hh-is-wifi", bing_wifi)
+        failed += 1
+    elif builders["access"] != "fibre" or geo["access"] != "fibre":
+        print("FAIL builders-geocorp-fibre", builders, geo)
+        failed += 1
+    elif len(DO_CLIENTS) != 14 or not fibre_do or not wireless_do:
         print("FAIL do-mix", len(DO_CLIENTS), len(fibre_do), len(wireless_do))
         failed += 1
     elif not EFT_CLIENTS or not any(c["access"] == "fibre" for c in EFT_CLIENTS):
