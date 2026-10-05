@@ -16,6 +16,29 @@ THEME_CSS = f"""<style id="{THEME_MARKER}">
   --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a;
 }}
 html,body {{ background:#ffffff !important; color:#0b1f44 !important; }}
+.pill {{
+  background:transparent !important;
+  color:#0b1f44 !important;
+  font-weight:700;
+  padding:0 0 0 16px !important;
+  border-radius:0 !important;
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  text-transform:lowercase;
+}}
+.pill::before {{
+  content:"";
+  width:10px; height:10px; border-radius:50%;
+  position:absolute; left:0; top:50%; transform:translateY(-50%);
+  background:#4a5d7a;
+}}
+.pill.ok {{ color:#1a8f4a !important; }}
+.pill.ok::before {{ background:#1a8f4a; }}
+.pill.bad {{ color:#c62828 !important; }}
+.pill.bad::before {{ background:#c62828; }}
+.pill.warn {{ color:#c77800 !important; }}
+.pill.warn::before {{ background:#c77800; }}
 </style>
 """
 
@@ -166,8 +189,16 @@ def _ensure_incoming(text: str) -> str:
 
 
 def _ensure_theme(text: str) -> str:
-    if THEME_MARKER in text:
-        return text
+    text = text.replace(
+        'name="theme-color" content="#0b1220"',
+        'name="theme-color" content="#ffffff"',
+        1,
+    )
+    start = text.find(f'<style id="{THEME_MARKER}">')
+    if start >= 0:
+        end = text.find("</style>", start)
+        if end >= 0:
+            return text[:start] + THEME_CSS + text[end + len("</style>") :]
     if "</head>" in text:
         return text.replace("</head>", THEME_CSS + "</head>", 1)
     return THEME_CSS + text
