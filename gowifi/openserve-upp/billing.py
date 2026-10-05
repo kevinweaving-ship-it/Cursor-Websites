@@ -275,7 +275,15 @@ def apply_collected_do(conn: sqlite3.Connection, action_date: str, clients: list
     except sqlite3.OperationalError:
         have = set()
     n = 0
+    try:
+        from recon import BATCH_UNPAID
+
+        skip = BATCH_UNPAID.get(PENDING_DO.get("batch_id") or "", set())
+    except Exception:
+        skip = {"g cupido"}
     for row in clients:
+        if canon_key(row["name"]) in skip:
+            continue
         key = (action_date, canon_key(row["name"]), round(abs(float(row["amount"])), 2))
         if key in have:
             continue

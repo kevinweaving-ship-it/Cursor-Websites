@@ -165,7 +165,8 @@ def ingest(conn: sqlite3.Connection) -> dict:
     conn.execute("DELETE FROM customer_invoice_lines")
     conn.execute(
         "DELETE FROM customer_payments WHERE source IN "
-        "('qb-eft','qb-cash','qb-do','qb-credit','qb-do-synth','netcash-alloc','fnb-alloc')"
+        "('qb-eft','qb-cash','qb-do','qb-credit','qb-do-synth','netcash-alloc',"
+        "'fnb-alloc','fnb-eft','netcash-do')"
     )
     conn.execute(
         "DELETE FROM customer_do_events WHERE source IN "
@@ -440,12 +441,18 @@ def _synth_do(conn: sqlite3.Connection, kind_by_no: dict[str, str]) -> int:
             continue
         billed = 0.0
         paid = 0.0
+        seen_pay = set()
         for rec in conn.execute("SELECT customer, amount FROM customer_invoices"):
             if canon_key(rec[0]) == key:
                 billed += _money(rec[1])
-        for rec in conn.execute("SELECT customer, amount FROM customer_payments"):
-            if canon_key(rec[0]) == key:
-                paid += abs(_money(rec[1]))
+        for rec in conn.execute("SELECT paid_on, customer, amount FROM customer_payments"):
+            if canon_key(rec[1]) != key:
+                continue
+            stamp = (rec[0], round(abs(_money(rec[2])), 2))
+            if stamp in seen_pay:
+                continue
+            seen_pay.add(stamp)
+            paid += stamp[1]
         if paid + abs(_money(amount)) > billed + 0.02:
             continue
         name = display_name(customer) or customer
@@ -839,7 +846,10 @@ def fifo_statement(
             unique_pays.append(
                 next(
                     (i for i in items if str(i.get("source") or "").startswith("qb-sales")),
-                    items[0],
+                    next(
+                        (i for i in items if "netcash" in str(i.get("source") or "")),
+                        items[0],
+                    ),
                 )
             )
         else:
@@ -893,15 +903,29 @@ def fifo_statement(
         }
         lines.append(inv_row)
         need = amt
+        collect_day = due_on.isoformat() if due_on and book and book.get("method") == "debit-order" else None
+
+        def _is_do(p: dict) -> bool:
+            return (p.get("method") or "").lower() in {"do", "debit", "debit-order"} or (
+                p.get("note") or ""
+            ).lower().startswith("debit")
+
+        def _usable(p: dict) -> bool:
+            if p["left"] <= 0.004:
+                return False
+            if _is_do(p):
+                return bool(collect_day) and (p.get("date") or "")[:10] == collect_day
+            return True
+
         while need > 0.004:
             pick = None
             for i, p in enumerate(pool):
-                if p["left"] > 0.004 and abs(p["left"] - need) <= 0.02:
+                if _usable(p) and abs(p["left"] - need) <= 0.02:
                     pick = i
                     break
             if pick is None:
                 for i, p in enumerate(pool):
-                    if p["left"] > 0.004:
+                    if _usable(p):
                         pick = i
                         break
             if pick is None:
@@ -1313,6 +1337,33 @@ def self_test() -> int:
             print("OK nordhoek-one-line", nord_inv[0].get("what"), nord_last_pay.get("what"))
             print("OK newest-top")
             print("OK nord-matched-blue")
+    matched = fifo_statement(
+        [
+            {"invoice_number": "3063", "invoice_date": "2026-07-17", "customer": "Bing Noordhoek Fibre", "amount": 599, "source": "qb-list"},
+            {"invoice_number": "3090", "invoice_date": "2026-08-20", "customer": "Bing Noordhoek Fibre", "amount": 599, "source": "qb-list"},
+            {"invoice_number": "3115", "invoice_date": "2026-09-21", "customer": "Bing Noordhoek Fibre", "amount": 599, "source": "qb-list"},
+        ],
+        [
+            {
+                "paid_on": "2026-10-05",
+                "customer": "Bing Noordhoek Fibre",
+                "amount": -599,
+                "note": "Debit order",
+                "method": "do",
+                "source": "netcash-alloc",
+            }
+        ],
+        "Bing Noordhoek Fibre",
+        date(2026, 10, 5),
+    )
+    pay_3115 = [
+        r
+        for r in (matched.get("lines") or [])
+        if r.get("kind") == "payment" and "3115" in (r.get("what") or "")
+    ]
+    if not pay_3115:
+        print("FAIL bing-oct5-must-match-3115", matched.get("lines"))
+        failed += 1
     early = account_as_at(conn, "Bing Noordhoek Fibre", date(2026, 9, 22))
     early_3115 = next(
         (r for r in (early.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "3115"),
