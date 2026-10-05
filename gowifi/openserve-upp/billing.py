@@ -325,7 +325,22 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
             if canon_key(inv.get("customer")) == key:
                 last_inv = inv
                 break
-        due = stmt.get("total_due")
+        cycle_inv = None
+        for inv in invoices:
+            if canon_key(inv.get("customer")) == key and inv.get("invoice_date") == inv_day.isoformat():
+                cycle_inv = inv
+                break
+        cycle_inv = cycle_inv or last_inv
+        cycle_credit = 0.0
+        for pay in aliased_pay:
+            if canon_key(pay.get("customer")) != key:
+                continue
+            paid = pay.get("paid_on") or ""
+            if paid < inv_day.isoformat():
+                continue
+            cycle_credit += abs(float(pay.get("amount") or 0))
+        inv_amt = float((cycle_inv or {}).get("amount") or meta.get("do_amount") or 0)
+        due = round(inv_amt - cycle_credit, 2)
         pending_do = None
         if meta["method"] == "debit-order" and not pending["collected"]:
             pending_do = {
@@ -339,16 +354,22 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "ref": meta["ref"],
                 "method": meta["method"],
                 "do_amount": meta["do_amount"],
-                "last_invoice": (last_inv or {}).get("invoice_number"),
-                "last_invoice_date": (last_inv or {}).get("invoice_date"),
-                "period": (last_inv or {}).get("period") or period,
-                "invoice_amount": (last_inv or {}).get("amount"),
+                "last_invoice": (cycle_inv or {}).get("invoice_number"),
+                "last_invoice_date": (cycle_inv or {}).get("invoice_date"),
+                "period": (cycle_inv or {}).get("period") or period,
+                "invoice_amount": inv_amt or None,
                 "due": due,
-                "nil": due is not None and abs(float(due)) <= 0.004,
+                "nil": abs(due) <= 0.004,
                 "pending_do": pending_do,
                 "last_payment": stmt.get("last_payment"),
             }
         )
+    accounts = [
+        a
+        for a in accounts
+        if a["method"] == "debit-order"
+        or (a.get("last_invoice_date") or "") >= f"{inv_day.year:04d}-{inv_day.month:02d}-01"
+    ]
     accounts.sort(key=lambda r: (0 if r["method"] == "debit-order" else 1, r["name"] or ""))
     return {
         "invoice_day": inv_day.isoformat(),
