@@ -121,10 +121,31 @@ def _increase(down: int, up: int) -> float:
     return 20.00
 
 
+def _invoice_neighbors(down: int) -> float | None:
+    """Estimate a missing Webstream rental from the SKUs Openserve actually billed us."""
+    points = sorted(
+        (int("".join(ch for ch in sku if ch.isdigit()) or "0"), amt)
+        for sku, amt in COST_PRE_APRIL.items()
+        if sku.startswith("OWS")
+    )
+    if not points:
+        return None
+    if down <= points[0][0]:
+        return points[0][1]
+    if down >= points[-1][0]:
+        return points[-1][1]
+    for (d0, a0), (d1, a1) in zip(points, points[1:]):
+        if d0 <= down <= d1:
+            if d1 == d0:
+                return a0
+            return round(a0 + (a1 - a0) * (down - d0) / (d1 - d0), 2)
+    return None
+
+
 def _cost(sku: str, down: int, up: int, as_at: date, family: str) -> dict:
     pre = COST_PRE_APRIL.get(sku)
     inc = _increase(down, up)
-    pub = _published(down, up)
+    estimated = False
     if sku in {"OWS1000M", "OWS1G"}:
         available = as_at >= GIGABIT_FROM
         return {
@@ -134,22 +155,29 @@ def _cost(sku: str, down: int, up: int, as_at: date, family: str) -> dict:
             "cost_source": "Telecompaper / Openserve ISP notice 1 Jul 2026" if available else "not launched",
             "available_from": GIGABIT_FROM.isoformat(),
         }
+    if pre is None and family == "webstream":
+        pre = _invoice_neighbors(down)
+        estimated = pre is not None
     if as_at < APRIL_2026:
         cost = pre
         source = "Openserve invoice rental (pre-April 2026)"
     elif pre is not None:
         cost = round(pre + inc, 2)
-        source = f"Jan invoice {pre:.0f} + April +{inc:.0f}"
-    elif pub:
-        cost = round(pub["new_incl"] / VAT, 2)
-        source = "April 2026 published card ÷ 1.15 (no invoice yet)"
+        src_amt = f"{pre:.0f}"
+        source = (
+            f"invoice neighbours {src_amt} + April +{inc:.0f}"
+            if estimated
+            else f"Jan invoice {src_amt} + April +{inc:.0f}"
+        )
     else:
+        # Do not use the public 819–1559 card as our cost — that is not
+        # what Openserve invoices GoWiFi (Webstream 50 was 500, not 712).
         cost = None
         source = "awaiting Openserve invoice"
     return {
         "cost_ex_vat": cost,
         "cost_incl_vat": round(cost * VAT, 2) if cost is not None else None,
-        "cost_pre_april": pre,
+        "cost_pre_april": None if estimated else COST_PRE_APRIL.get(sku),
         "cost_source": source,
         "available_from": None,
     }
@@ -328,14 +356,21 @@ def self_test() -> int:
     elif ooc[-1]["cost_pre_april"] != 1710:
         print("FAIL ooc500-invoice", ooc[-1])
         failed += 1
+    elif ooc[0]["cost_ex_vat"] is not None:
+        print("FAIL ooc50-no-fake-cost", ooc[0])
+        failed += 1
     else:
         print("OK office-connect-50-to-500")
     ws = webstream(date(2026, 10, 5))
+    ows300 = by_sku("OWS300M", date(2026, 10, 5))
     if ws[0]["down"] != 25 or ws[-1]["down"] != 1000:
         print("FAIL ws-span", [r["speed"] for r in ws])
         failed += 1
     elif by_sku("OWS300M")["sell"] != 1219 or by_sku("OWS50M")["sell"] != 759:
         print("FAIL sell", by_sku("OWS300M"), by_sku("OWS50M"))
+        failed += 1
+    elif not ows300 or ows300["cost_incl_vat"] is None or ows300["cost_incl_vat"] >= 1219:
+        print("FAIL ows300-cost-below-sell", ows300)
         failed += 1
     else:
         print("OK webstream-25-to-gigabit")
