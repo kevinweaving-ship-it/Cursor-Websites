@@ -8,6 +8,7 @@ raises a suspension notice. 5 Oct 2026 batch 2571994 collected (unpaid R0).
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from calendar import monthrange
 from datetime import date
@@ -334,11 +335,21 @@ def _synth_do(conn: sqlite3.Connection, kind_by_no: dict[str, str]) -> int:
     rows = conn.execute(
         "SELECT invoice_number, invoice_date, customer, amount FROM customer_invoices"
     ).fetchall()
+    first_inv: dict[str, tuple[str, str]] = {}
+    for number, inv_date, customer, _amount in rows:
+        key = canon_key(customer)
+        prev = first_inv.get(key)
+        stamp = (inv_date or "", str(number))
+        if prev is None or stamp < prev:
+            first_inv[key] = stamp
     for number, inv_date, customer, amount in rows:
         book = client_row(customer)
         if not book or book.get("method") != "debit-order":
             continue
         if kind_by_no.get(str(number)) != "monthly":
+            continue
+        first = first_inv.get(canon_key(customer))
+        if first and str(number) == str(first[1]):
             continue
         try:
             day = date.fromisoformat(inv_date)
@@ -540,25 +551,46 @@ def living_books(name: str, path: Path | None = None) -> tuple[list[dict], list[
     return invoices, payments
 
 
-def _attach_invoice_lines(lines: list[dict], conn: sqlite3.Connection | None) -> list[dict]:
-    """Sales lines sit under the invoice. They do not change the running balance."""
+def _stmt_desc(text: str | None) -> str:
+    """One short label. We are GoWiFi — never repeat the name on a line."""
+    from invoice_canned import clean_description
+
+    t = clean_description(text)
+    t = re.sub(r"(?i)\bgowifi\b", "", t)
+    t = t.replace("Fiber", "Fibre")
+    t = re.sub(r"\s+", " ", t).strip(" -·")
+    low = t.lower()
+    if any(
+        w in low
+        for w in (
+            "month-to-month",
+            "one-time setup",
+            "free fibre installation",
+            "early cancellation",
+        )
+    ):
+        return "Fibre installation"
+    return t
+
+
+def _fold_invoice_what(lines: list[dict], conn: sqlite3.Connection | None) -> list[dict]:
+    """Invoice is one line: date, number, what, amount. No extra item rows."""
     out = []
     for row in lines:
-        out.append(row)
-        if row.get("kind") != "invoice":
+        if row.get("kind") == "line":
             continue
-        for item in _sales_lines(str(row.get("ref") or ""), conn):
-            out.append(
-                {
-                    "date": row.get("date"),
-                    "date_fmt": "",
-                    "kind": "line",
-                    "ref": "",
-                    "what": item.get("what") or "",
-                    "amount": _money(item.get("amount")),
-                    "balance": None,
-                }
-            )
+        if row.get("kind") != "invoice":
+            out.append(row)
+            continue
+        no = str(row.get("ref") or "")
+        bits = []
+        for item in _sales_lines(no, conn):
+            text = _stmt_desc(item.get("what") or "")
+            if text and text not in bits:
+                bits.append(text)
+        rec = dict(row)
+        rec["what"] = f"Invoice {no} {' · '.join(bits)}".strip() if bits else f"Invoice {no}"
+        out.append(rec)
     return out
 
 
@@ -682,6 +714,27 @@ def fifo_statement(
         (p for p in payments if canon_key(p.get("customer")) == key),
         key=lambda p: (p.get("paid_on") or "", str(p.get("note") or "")),
     )
+    from collections import defaultdict
+
+    grouped: dict[tuple, list[dict]] = defaultdict(list)
+    for p in pays:
+        grouped[(p.get("paid_on") or "", round(abs(_money(p.get("amount"))), 2))].append(p)
+    unique_pays = []
+    for items in grouped.values():
+        srcs = {i.get("source") for i in items}
+        if len(srcs) > 1:
+            unique_pays.append(
+                next(
+                    (i for i in items if str(i.get("source") or "").startswith("qb-sales")),
+                    items[0],
+                )
+            )
+        else:
+            unique_pays.extend(items)
+    pays = sorted(
+        unique_pays,
+        key=lambda p: (p.get("paid_on") or "", str(p.get("note") or "")),
+    )
     pool = [
         {
             "date": p.get("paid_on"),
@@ -699,13 +752,14 @@ def fifo_statement(
 
     def pay_what(note: str, method: str) -> str:
         n = (note or "").lower()
-        if n.startswith("debit"):
+        m = (method or "").lower()
+        if m in {"do", "debit", "debit-order"} or n.startswith("debit"):
             return "Debit order"
-        if method == "cash":
+        if m == "cash":
             return "Cash"
-        if method == "credit":
+        if m == "credit":
             return note or "Credit"
-        return "Payment"
+        return "EFT"
 
     for inv in invs:
         amt = _money(inv.get("amount"))
@@ -847,7 +901,7 @@ def account_as_at(
     ledger["master"] = meta.get("master") or ledger.get("master")
     ledger["sub"] = meta.get("sub") or ledger.get("sub")
     ledger["own_sub"] = meta.get("own_sub") if "own_sub" in meta else ledger.get("own_sub")
-    ledger["lines"] = present_ledger(_attach_invoice_lines(ledger.get("lines") or [], conn))
+    ledger["lines"] = present_ledger(_fold_invoice_what(ledger.get("lines") or [], conn))
     stmt = statement_on_invoice(invoices, payments, display, as_at=today)
     billed = ledger["billed"]
     paid = ledger["paid"]
@@ -1045,10 +1099,45 @@ def self_test() -> int:
     elif abs((marlene["due"] or 0) - 7180) <= 0.5 and len(marlene_open) < 2:
         print("FAIL arrears-must-show", len(marlene_open), marlene["due"])
         failed += 1
+    elif any(r.get("kind") == "line" for r in lines):
+        print("FAIL invoice-not-one-line")
+        failed += 1
+    elif any("gowifi" in (r.get("what") or "").lower() for r in lines):
+        print("FAIL gowifi-on-line", [r.get("what") for r in lines if "gowifi" in (r.get("what") or "").lower()])
+        failed += 1
     else:
         print("OK amoroc-statement", amoroc["due"], "newest", all_inv[0].get("ref"), "default", len(preview))
         print("OK deleted-invoices-never-show")
         print("OK arrears-show", len(marlene_open))
+    nord = account_as_at(conn, "Bing Noordhoek Fibre", today)
+    nord_led = nord.get("ledger") or []
+    nord_inv = [r for r in nord_led if r.get("kind") == "invoice"]
+    nord_prev = [r for r in nord_led if r.get("show") and r.get("kind") in {"invoice", "payment"}]
+    nord_first_pay = next((r for r in reversed(nord_led) if r.get("kind") == "payment"), None)
+    nord_last_pay = next((r for r in nord_led if r.get("kind") == "payment"), None)
+    if any(r.get("kind") == "line" for r in nord_led):
+        print("FAIL nord-not-one-line")
+        failed += 1
+    elif any("gowifi" in (r.get("what") or "").lower() for r in nord_led):
+        print("FAIL nord-gowifi-on-line", [r.get("what") for r in nord_led if "gowifi" in (r.get("what") or "").lower()])
+        failed += 1
+    elif not nord_inv or str(nord_inv[0].get("ref")) != "3115" or "WebStream" not in (nord_inv[0].get("what") or ""):
+        print("FAIL nord-3115-one-line", nord_inv[0] if nord_inv else None)
+        failed += 1
+    elif abs(nord.get("due") or 0) > 0.02:
+        print("FAIL nord-due", nord.get("due"), nord.get("billed"), nord.get("paid"))
+        failed += 1
+    elif not nord_first_pay or nord_first_pay.get("what") != "EFT":
+        print("FAIL nord-first-eft", nord_first_pay)
+        failed += 1
+    elif not nord_last_pay or nord_last_pay.get("what") != "Debit order":
+        print("FAIL nord-last-do", nord_last_pay)
+        failed += 1
+    elif len(nord_prev) != 2:
+        print("FAIL nord-default-last-two", nord_prev)
+        failed += 1
+    else:
+        print("OK nordhoek-one-line", nord_inv[0].get("what"), nord_last_pay.get("what"))
     conn.close()
     return failed
 
