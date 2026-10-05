@@ -235,7 +235,13 @@ def _netcash_alloc(row: dict) -> dict:
     account = (row.get("account") or "").lower()
     qb = (row.get("qb_type") or "").lower()
     client = _client_for(payee, row.get("memo") or "")
-    if "insufficient" in memo or "recoveries" in memo or "bounce" in memo:
+    if "interest" in memo or "interest" in account:
+        return {"alloc_kind": "expense", "alloc_to": "Netcash interest", "alloc_key": "", "result": "allocated"}
+    if "service fee" in memo or ("fee" in account and "insufficient" not in memo):
+        return {"alloc_kind": "fee", "alloc_to": "Netcash fee", "alloc_key": "", "result": "allocated"}
+    if "recoveries" in memo:
+        return {"alloc_kind": "clearing", "alloc_to": "D/O recoveries", "alloc_key": "", "result": "unpaid"}
+    if "insufficient" in memo or "bounce" in memo:
         if client:
             name, key = client
             return {
@@ -244,13 +250,7 @@ def _netcash_alloc(row: dict) -> dict:
                 "alloc_key": key,
                 "result": "unpaid",
             }
-        return {"alloc_kind": "unallocated", "alloc_to": payee or memo, "alloc_key": "", "result": "unpaid"}
-    if "service fee" in memo or "fee" in account:
-        return {"alloc_kind": "fee", "alloc_to": "Netcash fee", "alloc_key": "", "result": "allocated"}
-    if "interest" in memo or "interest" in account:
-        return {"alloc_kind": "expense", "alloc_to": "Netcash interest", "alloc_key": "", "result": "allocated"}
-    if "recoveries" in memo or "insufficient" in memo:
-        return {"alloc_kind": "clearing", "alloc_to": "D/O recoveries", "alloc_key": "", "result": "unpaid"}
+        return {"alloc_kind": "clearing", "alloc_to": "D/O unpaid", "alloc_key": "", "result": "unpaid"}
     if "fnb" in account or "62860060278" in account or memo.startswith("netcash"):
         return {"alloc_kind": "clearing", "alloc_to": "FNB settlement", "alloc_key": "", "result": "allocated"}
     if client:
