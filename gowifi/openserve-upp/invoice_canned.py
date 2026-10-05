@@ -35,7 +35,13 @@ def money(value, with_r: bool = True) -> str:
 
 def client_key(name: str | None) -> str:
     words = [w for w in re.findall(r"[a-z0-9]+", (name or "").lower()) if w not in TITLES]
-    return " ".join(words[:2])
+    key = " ".join(words[:2])
+    try:
+        from billing import _NAME_ALIASES
+
+        return _NAME_ALIASES.get(key, key)
+    except Exception:
+        return key
 
 
 def parse_day(value) -> date | None:
@@ -264,6 +270,7 @@ def statement_on_invoice(
                 "reference": "",
                 "description": "Balance forward" if kind == "forward" else "Payment",
                 "kind": kind,
+                "note": raw_note,
                 "signed": _signed(kind, amount) if kind == "payment" else amount,
             }
         )
@@ -279,7 +286,8 @@ def statement_on_invoice(
         elif row["kind"] == "forward":
             desc = "Balance Forward"
         else:
-            desc = "Payment"
+            note = (row.get("note") or "Payment")
+            desc = "Debit order" if note.lower().startswith("debit") else "Payment"
         ledger.append(
             {
                 "date": row["date"],

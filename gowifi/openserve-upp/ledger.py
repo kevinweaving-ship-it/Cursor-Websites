@@ -133,11 +133,12 @@ def parse_qb_account_history(text: str, filename: str = "") -> dict:
         return {"title": title, "rows": [], "balance": None}
 
     bal = None
-    m = re.search(r"Bank Balance:\s*([\d,.]+)", title)
+    m = re.search(r"(?:Bank Balance|Ending Balance):\s*(-?R?[\d,.]+)", title)
     if m:
         bal = _money(m.group(1))
+    register = "netcash" if "netcash" in title.lower() else "fnb"
     m = re.search(r"(62860060278)", title)
-    number = m.group(1) if m else GOWIFI_FNB
+    number = m.group(1) if m else (None if register == "netcash" else GOWIFI_FNB)
 
     rows = []
     for rec in rows_in[header_idx + 1 :]:
@@ -175,13 +176,14 @@ def parse_qb_account_history(text: str, filename: str = "") -> dict:
                 "account_number": number,
                 "account_name": COMPANY["bank_account_name"],
                 "ours": 1,
-                "source": "qb_fnb_history",
+                "source": "qb_netcash_history" if register == "netcash" else "qb_fnb_history",
                 "filename": filename,
                 "kind": kind_for_account(account, qb_type),
             }
         )
     return {
         "title": title,
+        "register": register,
         "account_number": number,
         "balance": bal,
         "rows": rows,
@@ -280,6 +282,8 @@ def ingest_qb_history(conn: sqlite3.Connection, text: str, filename: str = "") -
     parsed = parse_qb_account_history(text, filename)
     _upsert_accounts(conn, parsed["rows"])
     n = 0
+    nc_n = 0
+    register = parsed.get("register") or "fnb"
     for row in parsed["rows"]:
         cur = conn.execute(
             """INSERT OR IGNORE INTO book_entries
@@ -300,24 +304,60 @@ def ingest_qb_history(conn: sqlite3.Connection, text: str, filename: str = "") -
             ),
         )
         n += cur.rowcount or 0
-        conn.execute(
-            """INSERT OR IGNORE INTO bank_tx
-               (account_number, account_name, ours, paid_on, amount, balance, description, source, filename)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
-            (
-                row.get("account_number") or GOWIFI_FNB,
-                row.get("account_name") or COMPANY["bank_account_name"],
-                1,
-                row["paid_on"],
-                row["amount"],
-                row.get("balance"),
-                " | ".join(p for p in (row.get("payee"), row.get("memo"), row["account"]) if p),
-                "qb_fnb_history",
-                filename,
-            ),
-        )
+        if register == "fnb":
+            conn.execute(
+                """INSERT OR IGNORE INTO bank_tx
+                   (account_number, account_name, ours, paid_on, amount, balance, description, source, filename)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                (
+                    row.get("account_number") or GOWIFI_FNB,
+                    row.get("account_name") or COMPANY["bank_account_name"],
+                    1,
+                    row["paid_on"],
+                    row["amount"],
+                    row.get("balance"),
+                    " | ".join(p for p in (row.get("payee"), row.get("memo"), row["account"]) if p),
+                    "qb_fnb_history",
+                    filename,
+                ),
+            )
+        else:
+            memo = (row.get("memo") or "").lower()
+            acc = (row.get("account") or "").lower()
+            if "receivable" in acc:
+                result = "Paid"
+            elif "insufficient" in memo or "recoveries" in memo:
+                result = "Bounce"
+            elif "service fee" in memo or "bank charges" in acc:
+                result = "Fee"
+            elif "62860060278" in acc or "fnb" in acc:
+                result = "Settled to FNB"
+            else:
+                result = row.get("qb_type") or "Netcash"
+            cur2 = conn.execute(
+                """INSERT OR IGNORE INTO netcash_items
+                   (account_ref, service_number, amount, action_date, result, batch_id, source)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (
+                    row.get("payee") or row.get("memo"),
+                    None,
+                    abs(row.get("payment") or row.get("deposit") or 0),
+                    row["paid_on"],
+                    result,
+                    None,
+                    "qb_netcash_history",
+                ),
+            )
+            nc_n += cur2.rowcount or 0
     conn.commit()
-    return {"filename": filename, "rows": len(parsed["rows"]), "inserted": n, "balance": parsed.get("balance")}
+    return {
+        "filename": filename,
+        "register": register,
+        "rows": len(parsed["rows"]),
+        "inserted": n,
+        "netcash_items": nc_n,
+        "balance": parsed.get("balance"),
+    }
 
 
 def ingest_netcash_history(conn: sqlite3.Connection, text: str, filename: str = "") -> dict:
@@ -357,12 +397,20 @@ def checksum_fnb_netcash(conn: sqlite3.Connection) -> dict:
     fnb_in = _sum(
         conn,
         """SELECT COALESCE(SUM(deposit),0) FROM book_entries
-           WHERE account LIKE '%Netcash%' AND deposit>0""",
+           WHERE source='qb_fnb_history'
+             AND account LIKE '%Netcash%' AND deposit>0""",
     )
     fnb_out = _sum(
         conn,
         """SELECT COALESCE(SUM(payment),0) FROM book_entries
-           WHERE account LIKE '%Netcash%' AND payment>0""",
+           WHERE source='qb_fnb_history'
+             AND account LIKE '%Netcash%' AND payment>0""",
+    )
+    nc_to_fnb = _sum(
+        conn,
+        """SELECT COALESCE(SUM(payment),0) FROM book_entries
+           WHERE source='qb_netcash_history'
+             AND account LIKE '%62860060278%' AND payment>0""",
     )
     fnb_bounce_fees = _sum(
         conn,
@@ -387,14 +435,16 @@ def checksum_fnb_netcash(conn: sqlite3.Connection) -> dict:
     return {
         "fnb_netcash_in": round(fnb_in, 2),
         "fnb_netcash_out": round(fnb_out, 2),
+        "nc_to_fnb": round(nc_to_fnb, 2),
         "fnb_bounce_fees": round(fnb_bounce_fees, 2),
         "netcash_items": round(nc_all, 2),
         "netcash_paid": round(nc_paid, 2),
         "netcash_unpaid": round(nc_unpaid, 2),
+        "match_settlement": round(fnb_in - nc_to_fnb, 2) if nc_to_fnb else None,
         "match_paid": round(fnb_in - nc_paid, 2) if nc_paid else None,
         "note": (
-            "Checksum FNB Netcash credits against Netcash paid collections. "
-            "Unpaids stay on the client; bounce recoveries are FNB fees."
+            "FNB Netcash credit must match Netcash→FNB settlements. "
+            "Client invoices clear on the full D/O, not the FNB net after fees."
         ),
     }
 

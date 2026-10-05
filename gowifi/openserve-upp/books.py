@@ -335,10 +335,14 @@ def _last_rate(conn: sqlite3.Connection, customer: str | None) -> tuple[float | 
 
 
 def draft_customer_invoices(conn: sqlite3.Connection, today: date | None = None) -> list[dict]:
-    """One draft per active fibre line. Rate from last QuickBooks invoice for that client."""
+    """One draft per active fibre line, dated the 17th, month in advance."""
     ensure_tables(conn)
+    from billing import invoice_day_on, period_for, period_label
+    from invoice_canned import client_key
+
     today = today or date.today()
-    period = today.strftime("%Y-%m")
+    inv_day = invoice_day_on(today)
+    period = period_for(inv_day)
     rows = []
     try:
         services = conn.execute(
@@ -370,12 +374,25 @@ def draft_customer_invoices(conn: sqlite3.Connection, today: date | None = None)
         except sqlite3.OperationalError:
             pass
         rate, hist_desc = _last_rate(conn, customer)
-        desc = clean_description(hist_desc or product or "Monthly service")
+        desc = clean_description(
+            hist_desc or product or f"Fibre {period_label(period)} (month in advance)"
+        )
+        already = False
+        if customer:
+            for rec in conn.execute(
+                "SELECT customer FROM customer_invoices WHERE invoice_date=?",
+                (inv_day.isoformat(),),
+            ):
+                if client_key(rec[0]) == client_key(customer):
+                    already = True
+                    break
+        if already:
+            continue
         rows.append(
             {
                 "invoice_number": number,
-                "invoice_date": today.isoformat(),
-                "due_date": today.isoformat(),
+                "invoice_date": inv_day.isoformat(),
+                "due_date": inv_day.isoformat(),
                 "service_number": sn,
                 "customer": customer,
                 "description": desc,
@@ -403,23 +420,21 @@ def ingest_local_history(conn: sqlite3.Connection) -> dict:
         Path(__file__).resolve().parent / "data",
     ]
     out = {"files": 0, "inserted": 0}
+    seen: set[str] = set()
     for root in roots:
-        for path in sorted(root.glob("fnb-account-history*.csv")) + sorted(root.glob("Account_History*.csv")):
+        paths = (
+            list(root.glob("fnb-account-history*.csv"))
+            + list(root.glob("netcash-account-history*.csv"))
+        )
+        for path in paths:
+            if path.name in seen:
+                continue
+            seen.add(path.name)
             try:
                 text = path.read_text(encoding="utf-8-sig", errors="replace")
             except OSError:
                 continue
             got = ingest_qb_history(conn, text, path.name)
-            out["files"] += 1
-            out["inserted"] += got.get("inserted") or 0
-        for path in sorted(root.glob("netcash-account-history*.csv")) + sorted(root.glob("*Netcash*.csv")):
-            try:
-                text = path.read_text(encoding="utf-8-sig", errors="replace")
-            except OSError:
-                continue
-            from ledger import ingest_netcash_history
-
-            got = ingest_netcash_history(conn, text, path.name)
             out["files"] += 1
             out["inserted"] += got.get("inserted") or 0
     return out
@@ -432,6 +447,9 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
     from qb_import import history_for_export, ingest_qb_mail
 
     ingest_qb_mail(conn)
+    from billing import run_cycle
+
+    billing = run_cycle(conn)
     history = history_for_export(conn)
     openserve = conn.execute(
         "SELECT COUNT(*), COALESCE(SUM(total),0) FROM invoices"
@@ -480,9 +498,11 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "quickbooks": "skip — FNB + Netcash + Openserve/UISP cover the books",
         "company": COMPANY,
         "ledger": ledger,
+        "billing": billing.get("clients") if isinstance(billing, dict) else billing,
         "loop": (
-            "Books are FNB (money in/out), Netcash (debit collections), "
-            "and Openserve/UISP (fibre cost and lines). QuickBooks API is not required."
+            "Invoice on the 17th, month in advance. D/O is loaded with the invoice "
+            "and collected next month. Full D/O clears the client; Netcash fees "
+            "come off the FNB settlement, not the invoice."
         ),
         "openserve": {
             "invoices": openserve[0] if openserve else 0,
@@ -583,11 +603,19 @@ def self_test() -> int:
     )
     conn.execute("INSERT INTO services VALUES ('B110033875','active')")
     drafts = draft_customer_invoices(conn, date(2026, 10, 4))
-    if not drafts or drafts[0]["invoice_number"] != 3040:
+    if (
+        not drafts
+        or drafts[0]["invoice_number"] != 3040
+        or drafts[0]["invoice_date"] != "2026-09-17"
+        or drafts[0]["period"] != "2026-10"
+    ):
         print("FAIL invoice-series", drafts)
         failed += 1
     else:
         print("OK invoice-series")
+    from billing import self_test as billing_test
+
+    failed += billing_test()
     if netcash_status()["ready"]:
         print("OK netcash-key-present")
     else:
