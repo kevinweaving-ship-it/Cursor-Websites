@@ -219,7 +219,7 @@ function render(data){
         <div class="card"><div class="k">FNB</div><div class="v">${(data.books&&data.books.fnb&&data.books.fnb.transactions)||((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"")}</div></div>
         <div class="card"><div class="k">Netcash</div><div class="v">${(data.books&&data.books.netcash&&data.books.netcash.items)||0}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||((data.books&&data.books.ledger&&data.books.ledger.checksum&&data.books.ledger.checksum.note)||""))}</div></div>
         <div class="card"><div class="k">Clients</div><div class="v">${((data.books&&data.books.billing&&data.books.billing.accounts)||(data.books&&data.books.ledger&&data.books.ledger.clients)||[]).length}</div><div class="meta">${esc((data.books&&data.books.billing&&data.books.billing.rule)||"Invoice 17th · month in advance")}</div></div>
-        <div class="card"><div class="k">Packages</div><div class="v">${((data.books&&data.books.packages&&data.books.packages.webstream)||[]).length}</div><div class="meta">Webstream 25→1G · Office Connect 50→500 · from Apr 2026</div></div>
+        <div class="card"><div class="k">Packages</div><div class="v">${(data.books&&data.books.packages&&data.books.packages.count)||((data.books&&data.books.packages&&data.books.packages.table)||[]).length||0}</div><div class="meta">Openserve wholesale current · ex VAT · Apr 2026</div></div>
         <div class="card"><div class="k">Loans</div><div class="v">${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).length}</div><div class="meta">${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).map(a=>esc(a.name.split(":").slice(-1)[0])+" "+Number(a.net||0).toFixed(0)).join(" · ")||"Kevin / Walter"}</div></div>
       </div>
       <div class="card scroll">
@@ -235,20 +235,27 @@ function render(data){
         <table class="compact">
           <thead><tr><th>Client</th><th>Inv 17th</th><th>D/O</th><th>Due</th></tr></thead>
           <tbody>${((data.books&&data.books.billing&&data.books.billing.accounts)||[]).map(r=>`
-            <tr><td>${esc(r.name||"—")}<div class="meta">${esc(r.access||"")} · ${esc(r.package||r.method||"")}${r.pending_do?` · D/O ${esc(r.pending_do.action_date)} ${esc(r.pending_do.status)}`:""}</div></td>
+            <tr><td>${esc(r.name||"—")}<div class="meta">${esc(r.access||"")} · ${esc(r.package||r.method||"")}${r.discount?" · discount":""}${r.pending_do?` · D/O ${esc(r.pending_do.action_date)} ${esc(r.pending_do.status)}`:""}</div></td>
             <td class="num">${esc(r.last_invoice_date||"—")}${r.invoice_amount!=null?`<div class="meta">${Number(r.invoice_amount).toFixed(2)}</div>`:""}</td>
             <td class="num">${r.do_amount==null?"EFT":Number(r.do_amount).toFixed(2)}</td>
             <td class="num">${r.nil?"nil":(r.due==null?"—":Number(r.due).toFixed(2))}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No client accounts yet</td></tr>`}</tbody>
         </table>
       </div>
+      ${(() => {
+        const watch = data.books&&data.books.packages&&data.books.packages.increase_watch;
+        if (!watch) return "";
+        return `<div class="card ${watch.due?"warn":""}"><div class="k">${esc(watch.headline||"Openserve increase watch")}</div>
+          <div class="meta">${esc(watch.note||"")}</div>
+          <div class="meta">${esc(watch.action||"")} · ${esc(watch.channel||"whatsapp")} · effective ${esc(watch.effective||"1 April")}${watch.due?" · due now":""}</div></div>`;
+      })()}
       <div class="card scroll">
         <table class="compact">
-          <thead><tr><th>Package</th><th>Sell</th><th>Cost ex</th><th>Apr +</th></tr></thead>
-          <tbody>${((data.books&&data.books.packages&&(data.books.packages.webstream||[]).concat(data.books.packages.office_connect||[]))||[]).map(r=>`
-            <tr><td>${esc(r.label||"—")}<div class="meta">${esc(r.sku||"")}${r.available_from?` · from ${esc(r.available_from)}`:""}</div></td>
-            <td class="num">${r.sell==null?"—":Number(r.sell).toFixed(2)}</td>
-            <td class="num">${r.cost_ex_vat==null?"—":Number(r.cost_ex_vat).toFixed(2)}<div class="meta">${esc(r.cost_source||"")}</div></td>
-            <td class="num">${r.published_increase==null?"—":"+"+Number(r.published_increase).toFixed(0)}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No package card yet</td></tr>`}</tbody>
+          <thead><tr><th>Product</th><th>Speed</th><th>Now ex</th><th>Was</th></tr></thead>
+          <tbody>${((data.books&&data.books.packages&&data.books.packages.table)||[]).map(r=>`
+            <tr><td>${esc(r.product||"—")}<div class="meta">${esc(r.family||"")}${r.kind==="gigabit"?" · from 1 Jul 2026":""}</div></td>
+            <td class="num">${esc(r.speed||"—")}</td>
+            <td class="num">${r.cost_ex_vat==null?"—":Number(r.cost_ex_vat).toFixed(2)}</td>
+            <td class="num">${r.cost_pre_april==null?"—":Number(r.cost_pre_april).toFixed(2)}${r.increase!=null?`<div class="meta">+${Number(r.increase).toFixed(0)}</div>`:""}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No wholesale table yet</td></tr>`}</tbody>
         </table>
         <div class="meta" style="margin-top:8px">${esc((data.books&&data.books.packages&&data.books.packages.note)||"")}</div>
       </div>

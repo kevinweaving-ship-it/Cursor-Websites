@@ -78,12 +78,15 @@ GoWiFi books are three feeds, not a full ledger package:
 
 ### Packages (April 2026)
 
-`packages.py` is the Webstream + Office Connect rate card after the 1 April 2026
-increase, 25 Mbps through gigabit (Webstream 1000/500 from 1 July). Office
-Connect stays 50–500. Cost is Openserve rental (ex VAT); sell is the GoWiFi
-17th invoice. Monthly D/O is the line only — new install, equipment, add-ons
-and reconnection are once-off extras. Wireless clients sit on the same D/O
-file; some clients pay EFT.
+`packages.py` stores the **current Openserve wholesale table** (ex VAT) from the
+1 April 2026 partner letter, plus 1 Gbps from 1 July 2026 (OFC 1000 Lite
+R1 160, OWS 1000 R1 275). Rows live in SQLite `openserve_wholesale`.
+
+**Each March/April:** watch for the next Openserve increase and WhatsApp a
+mailshot to clients before 1 April.
+
+Monthly D/O is the line only. Phillipus May and Phillip De Gruchy are on a
+discount. Wireless and EFT clients sit on the same 17th cycle.
 
 QuickBooks / Xero are not required for this. An accountant can take a CSV export at year end.
 

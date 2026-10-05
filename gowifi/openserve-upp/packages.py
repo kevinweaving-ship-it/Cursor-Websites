@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
-"""GoWiFi fibre rate card: Openserve Webstream + Office Connect.
+"""Current Openserve wholesale rentals (ex VAT).
 
-Openserve raised the mid-to-top uncapped home-fibre wholesale card on
-1 April 2026 (+R20 to +R60). Gigabit Webstream 1000/500 is available to
-ISPs from 1 July 2026. Office Connect stays 50–500 Mbps (no gigabit).
+Source: Makgosi Mabaso partner letters —
+  • Pricing Updates effective 1 April 2026 (Table 2 postpaid, Table 4 prepaid)
+  • 1Gbps FTTH from 1 July 2026 (OFC 1000 Lite R1 160 / OWS 1000 R1 275)
 
-Two numbers per speed:
-  cost_ex_vat  — what Openserve bills GoWiFi (ex VAT)
-  sell         — what GoWiFi bills the client (incl VAT)
-
-Invoice CSVs on the box only run to January 2026. Later INATS files
-should overlay cost_ex_vat via overlay_invoice_costs().
+Each March/April, watch for the next Openserve increase and WhatsApp
+a mailshot to clients before the 1 April change.
 """
 from __future__ import annotations
 
@@ -20,244 +16,264 @@ from datetime import date
 VAT = 1.15
 APRIL_2026 = date(2026, 4, 1)
 GIGABIT_FROM = date(2026, 7, 1)
+SOURCE = "Openserve partner letter 1 Apr 2026 / 1 Gbps 1 Jul 2026"
 
-# Last rental Openserve billed us (ex VAT) from imported invoice_lines.
-COST_PRE_APRIL = {
-    "OWS25M": 350.00,
-    "OWS50M": 500.00,
-    "OWS200M": 775.00,
-    "OWS500M": 1015.00,
-    "OOCF500M": 1710.00,
+# Every year: look in March, mailshot before 1 April.
+INCREASE_WATCH = {
+    "months": (3, 4),
+    "channel": "whatsapp",
+    "headline": "Openserve increase watch",
+    "note": (
+        "Each March/April, check Openserve wholesale increases so we can "
+        "WhatsApp a mailshot to clients before 1 April."
+    ),
 }
 
-# Published 1 April 2026 wholesale card (incl VAT) for uncapped home fibre.
-# Source: Openserve partner rate-card notices republished by ISPs.
-PUBLISHED_APRIL = [
-    {"down": 50, "up": 25, "old_incl": 799.00, "new_incl": 819.00, "increase": 20.00},
-    {"down": 50, "up": 50, "old_incl": 849.00, "new_incl": 869.00, "increase": 20.00},
-    {"down": 100, "up": 50, "old_incl": 939.00, "new_incl": 969.00, "increase": 30.00},
-    {"down": 100, "up": 100, "old_incl": 1029.00, "new_incl": 1059.00, "increase": 30.00},
-    {"down": 200, "up": 100, "old_incl": 1149.00, "new_incl": 1189.00, "increase": 40.00},
-    {"down": 200, "up": 200, "old_incl": 1249.00, "new_incl": 1289.00, "increase": 40.00},
-    {"down": 300, "up": 150, "old_incl": 1349.00, "new_incl": 1399.00, "increase": 50.00},
-    {"down": 500, "up": 250, "old_incl": 1499.00, "new_incl": 1559.00, "increase": 60.00},
+FAMILIES = {
+    "OFC": "Fibre Connect",
+    "OFC-LITE": "Fibre Connect Lite",
+    "OWS": "Webstream",
+    "OFCP": "Fibre Connect Premium",
+    "OOC": "Office Connect",
+    "OCC": "Copper Connect",
+    "OPC": "Pure Connect",
+    "OWC": "Web Connect",
+    "OWCW": "Web Connect Wireless",
+    "OWCP": "Prepaid Web Connect",
+    "OWSP": "Prepaid Webstream",
+}
+
+# Table 1 (old) and Table 2 (current from 1 Apr 2026). Amounts ex VAT.
+# Blank cells in the letter are omitted.
+POSTPAID = [
+    # down, up, product, pre, current
+    (5, 1, "OCC", 220, 240),
+    (5, 1, "OPC", 220, 240),
+    (10, 1, "OCC", 300, 330),
+    (10, 1, "OPC", 300, 330),
+    (10, 1, "OWC", 210, 215),
+    (10, 5, "OFC", 220, 235),
+    (10, 5, "OWS", 245, 260),
+    (20, 2, "OCC", 430, 475),
+    (20, 2, "OPC", 430, 475),
+    (20, 10, "OWC", 240, 249),
+    (20, 10, "OWCW", 240, 249),
+    (25, 25, "OWS", 350, 370),
+    (30, 10, "OWCW", 285, 295),
+    (30, 30, "OFC", 325, 345),
+    (40, 2, "OCC", 480, 530),
+    (40, 2, "OPC", 480, 530),
+    (40, 20, "OWC", 285, 295),
+    (50, 25, "OFC", 475, 505),
+    (50, 25, "OWS", 500, 530),
+    (50, 50, "OFC", 530, 560),
+    (50, 50, "OFCP", 630, 670),
+    (50, 50, "OOC", 700, 740),
+    (100, 50, "OFC", 575, 610),
+    (100, 50, "OWS", 610, 650),
+    (100, 100, "OFC", 630, 670),
+    (100, 100, "OFCP", 720, 765),
+    (100, 100, "OOC", 820, 870),
+    (200, 100, "OFC", 730, 775),
+    (200, 100, "OWS", 775, 820),
+    (200, 200, "OFC", 775, 820),
+    (200, 200, "OFCP", 915, 970),
+    (200, 200, "OOC", 1065, 1130),
+    (300, 150, "OFC", 830, 880),
+    (300, 150, "OWS", 885, 940),
+    (300, 150, "OFCP", 1020, 1080),
+    (300, 150, "OOC", 1270, 1345),
+    (500, 250, "OFC", 930, 990),
+    (500, 250, "OWS", 1015, 1075),
+    (500, 250, "OFCP", 1210, 1285),
+    (500, 250, "OOC", 1710, 1815),
 ]
 
-# Gigabit Webstream / Fibre Connect Lite — ISP wholesale from 1 Jul 2026.
-GIGABIT_COST_EX = 1160.00
+GIGABIT = [
+    (1000, 500, "OFC-LITE", None, 1160.00, "OFC 1000Mbps Lite"),
+    (1000, 500, "OWS", None, 1275.00, "OWS 1000Mbps"),
+]
 
-# GoWiFi sell (incl VAT) from the live 17th invoices / D/O / EFT book.
+PREPAID = [
+    {"product": "OWCP", "down": 20, "up": None, "install": 155.00, "d3": 42.00, "d7": 75.00, "d14": 140.00, "d30": 260.00},
+    {"product": "OWSP", "down": 25, "up": None, "install": None, "d3": 65.00, "d7": 110.00, "d14": 200.00, "d30": 390.00},
+    {"product": "OWSP", "down": 50, "up": None, "install": 370.00, "d3": 85.00, "d7": 160.00, "d14": 285.00, "d30": 550.00},
+]
+
+# GoWiFi sell (incl VAT) for speeds we actually invoice. Phillip De Gruchy
+# 1219 on OWS300 is a client discount, not the list.
 SELL = {
-    "OWS25M": 429.00,  # Bing HH debit; HPP Control Room pays 599 EFT
-    "OWS50M": 759.00,  # Cupido, Neethling, Bryant, Murray
-    "OWS100M": 999.00,  # Lategan EFT
-    "OWS300M": 1219.00,  # De Gruchy (UPP OWS300M; Netcash ref says 200)
+    "OWS-25-25": 429.00,  # Bing HH; HPP EFT 599
+    "OWS-50-25": 759.00,
+    "OWS-100-50": 999.00,
 }
 
-# Once-off invoice choices. Never loaded on the monthly debit order.
 EXTRAS = [
-    {
-        "code": "new-install",
-        "label": "New install",
-        "amount": 0.00,
-        "note": "Openserve Connect first install is usually free. Charge only if we do the work or recover a truck roll.",
-        "on_monthly_do": False,
-        "kind": "once-off",
-    },
-    {
-        "code": "activation",
-        "label": "Service activation",
-        "amount": 575.00,
-        "note": "Openserve activation when an ONT is already on site or the client migrates ISP.",
-        "on_monthly_do": False,
-        "kind": "once-off",
-    },
-    {
-        "code": "equipment",
-        "label": "Equipment / router",
-        "amount": 650.00,
-        "note": "Client-owned router or extra AP. Not the monthly line.",
-        "on_monthly_do": False,
-        "kind": "once-off",
-    },
-    {
-        "code": "addon",
-        "label": "Add-on",
-        "amount": None,
-        "note": "Static IP, extra AP, extra month of a once-off product. Invoice separately.",
-        "on_monthly_do": False,
-        "kind": "once-off",
-    },
-    {
-        "code": "reconnect",
-        "label": "Reconnection",
-        "amount": 250.00,
-        "note": "Restore after a credit suspend. Not a new install.",
-        "on_monthly_do": False,
-        "kind": "once-off",
-    },
+    {"code": "new-install", "label": "New install", "amount": 0.00, "on_monthly_do": False, "kind": "once-off",
+     "note": "Openserve Connect first install is usually free."},
+    {"code": "activation", "label": "Service activation", "amount": 575.00, "on_monthly_do": False, "kind": "once-off",
+     "note": "Openserve activation when an ONT is already on site."},
+    {"code": "equipment", "label": "Equipment / router", "amount": 650.00, "on_monthly_do": False, "kind": "once-off",
+     "note": "Client-owned router or extra AP. Not the monthly line."},
+    {"code": "addon", "label": "Add-on", "amount": None, "on_monthly_do": False, "kind": "once-off",
+     "note": "Static IP, extra AP. Invoice separately."},
+    {"code": "reconnect", "label": "Reconnection", "amount": 250.00, "on_monthly_do": False, "kind": "once-off",
+     "note": "Restore after a credit suspend. Not a new install."},
 ]
 
-
-def _published(down: int, up: int) -> dict | None:
-    for row in PUBLISHED_APRIL:
-        if row["down"] == down and row["up"] == up:
-            return row
-    return None
-
-
-def _increase(down: int, up: int) -> float:
-    pub = _published(down, up)
-    if pub:
-        return pub["increase"]
-    if down >= 500:
-        return 60.00
-    if down >= 300:
-        return 50.00
-    if down >= 200:
-        return 40.00
-    if down >= 100:
-        return 30.00
-    return 20.00
-
-
-def _invoice_neighbors(down: int) -> float | None:
-    """Estimate a missing Webstream rental from the SKUs Openserve actually billed us."""
-    points = sorted(
-        (int("".join(ch for ch in sku if ch.isdigit()) or "0"), amt)
-        for sku, amt in COST_PRE_APRIL.items()
-        if sku.startswith("OWS")
-    )
-    if not points:
-        return None
-    if down <= points[0][0]:
-        return points[0][1]
-    if down >= points[-1][0]:
-        return points[-1][1]
-    for (d0, a0), (d1, a1) in zip(points, points[1:]):
-        if d0 <= down <= d1:
-            if d1 == d0:
-                return a0
-            return round(a0 + (a1 - a0) * (down - d0) / (d1 - d0), 2)
-    return None
+WHOLESALE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS openserve_wholesale (
+    sku TEXT PRIMARY KEY,
+    product TEXT NOT NULL,
+    family TEXT,
+    down INTEGER,
+    up INTEGER,
+    speed TEXT,
+    cost_ex_vat REAL,
+    cost_incl_vat REAL,
+    cost_pre_april REAL,
+    increase REAL,
+    effective_from TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    source TEXT,
+    install REAL,
+    recharge_3 REAL,
+    recharge_7 REAL,
+    recharge_14 REAL,
+    recharge_30 REAL
+);
+"""
 
 
-def _cost(sku: str, down: int, up: int, as_at: date, family: str) -> dict:
-    pre = COST_PRE_APRIL.get(sku)
-    inc = _increase(down, up)
-    estimated = False
-    if sku in {"OWS1000M", "OWS1G"}:
-        available = as_at >= GIGABIT_FROM
-        return {
-            "cost_ex_vat": GIGABIT_COST_EX if available else None,
-            "cost_incl_vat": round(GIGABIT_COST_EX * VAT, 2) if available else None,
-            "cost_pre_april": None,
-            "cost_source": "Telecompaper / Openserve ISP notice 1 Jul 2026" if available else "not launched",
-            "available_from": GIGABIT_FROM.isoformat(),
-        }
-    if pre is None and family == "webstream":
-        pre = _invoice_neighbors(down)
-        estimated = pre is not None
-    if as_at < APRIL_2026:
-        cost = pre
-        source = "Openserve invoice rental (pre-April 2026)"
-    elif pre is not None:
-        cost = round(pre + inc, 2)
-        src_amt = f"{pre:.0f}"
-        source = (
-            f"invoice neighbours {src_amt} + April +{inc:.0f}"
-            if estimated
-            else f"Jan invoice {src_amt} + April +{inc:.0f}"
+def sku_for(product: str, down: int | None, up: int | None = None) -> str:
+    if up:
+        return f"{product}-{down}-{up}"
+    return f"{product}-{down}"
+
+
+def _money(ex: float | None) -> tuple[float | None, float | None]:
+    if ex is None:
+        return None, None
+    return float(ex), round(float(ex) * VAT, 2)
+
+
+def wholesale_rows(as_at: date | None = None) -> list[dict]:
+    """Current Openserve wholesale card as a flat table."""
+    as_at = as_at or date.today()
+    rows = []
+    for down, up, product, pre, current in POSTPAID:
+        ex, incl = _money(current)
+        pre_ex = float(pre) if pre is not None else None
+        rows.append(
+            {
+                "sku": sku_for(product, down, up),
+                "product": product,
+                "family": FAMILIES.get(product, product),
+                "down": down,
+                "up": up,
+                "speed": f"{down}/{up}",
+                "cost_ex_vat": ex,
+                "cost_incl_vat": incl,
+                "cost_pre_april": pre_ex,
+                "increase": round(ex - pre_ex, 2) if ex is not None and pre_ex is not None else None,
+                "effective_from": APRIL_2026.isoformat(),
+                "kind": "postpaid",
+                "source": SOURCE,
+                "sell": SELL.get(sku_for(product, down, up)),
+                "label": f"{FAMILIES.get(product, product)} {down}/{up}",
+            }
         )
-    else:
-        # Do not use the public 819–1559 card as our cost — that is not
-        # what Openserve invoices GoWiFi (Webstream 50 was 500, not 712).
-        cost = None
-        source = "awaiting Openserve invoice"
-    return {
-        "cost_ex_vat": cost,
-        "cost_incl_vat": round(cost * VAT, 2) if cost is not None else None,
-        "cost_pre_april": None if estimated else COST_PRE_APRIL.get(sku),
-        "cost_source": source,
-        "available_from": None,
-    }
-
-
-def _row(
-    family: str,
-    sku: str,
-    down: int,
-    up: int,
-    *,
-    sell: float | None = None,
-    as_at: date | None = None,
-) -> dict:
-    as_at = as_at or date.today()
-    pub = _published(down, up)
-    money = _cost(sku, down, up, as_at, family)
-    sell_amt = SELL.get(sku) if sell is None else sell
-    cost_incl = money["cost_incl_vat"]
-    margin = (
-        round(sell_amt - cost_incl, 2)
-        if sell_amt is not None and cost_incl is not None
-        else None
-    )
-    return {
-        "family": family,
-        "sku": sku,
-        "down": down,
-        "up": up,
-        "speed": f"{down}/{up}",
-        "label": f"{'Webstream' if family == 'webstream' else 'Office Connect'} {down}/{up}",
-        "sell": sell_amt,
-        "published_old_incl": pub["old_incl"] if pub else None,
-        "published_new_incl": pub["new_incl"] if pub else None,
-        "published_increase": pub["increase"] if pub else None,
-        "margin": margin,
-        **money,
-    }
-
-
-def webstream(as_at: date | None = None) -> list[dict]:
-    """All Webstream packages we can sell, 25 Mbps through gigabit."""
-    as_at = as_at or date.today()
-    rows = [
-        _row("webstream", "OWS25M", 25, 25, as_at=as_at),
-        _row("webstream", "OWS50M", 50, 25, as_at=as_at),
-        _row("webstream", "OWS50S", 50, 50, as_at=as_at),
-        _row("webstream", "OWS100M", 100, 50, as_at=as_at),
-        _row("webstream", "OWS100S", 100, 100, as_at=as_at),
-        _row("webstream", "OWS200M", 200, 100, as_at=as_at),
-        _row("webstream", "OWS200S", 200, 200, as_at=as_at),
-        _row("webstream", "OWS300M", 300, 150, as_at=as_at),
-        _row("webstream", "OWS500M", 500, 250, as_at=as_at),
-        _row("webstream", "OWS1000M", 1000, 500, as_at=as_at),
-    ]
+    for down, up, product, pre, current, label in GIGABIT:
+        live = as_at >= GIGABIT_FROM
+        ex, incl = _money(current if live else None)
+        rows.append(
+            {
+                "sku": sku_for(product, down, up),
+                "product": product,
+                "family": FAMILIES.get(product, product),
+                "down": down,
+                "up": up,
+                "speed": f"{down}/{up}",
+                "cost_ex_vat": ex,
+                "cost_incl_vat": incl,
+                "cost_pre_april": pre,
+                "increase": None,
+                "effective_from": GIGABIT_FROM.isoformat(),
+                "kind": "gigabit",
+                "source": SOURCE,
+                "sell": None,
+                "label": label,
+                "available_from": GIGABIT_FROM.isoformat(),
+            }
+        )
+    for item in PREPAID:
+        rows.append(
+            {
+                "sku": sku_for(item["product"], item["down"]),
+                "product": item["product"],
+                "family": FAMILIES.get(item["product"], item["product"]),
+                "down": item["down"],
+                "up": item["up"],
+                "speed": f"{item['down']}",
+                "cost_ex_vat": item["d30"],
+                "cost_incl_vat": round(item["d30"] * VAT, 2),
+                "cost_pre_april": None,
+                "increase": None,
+                "effective_from": APRIL_2026.isoformat(),
+                "kind": "prepaid",
+                "source": SOURCE,
+                "sell": None,
+                "label": f"{FAMILIES.get(item['product'])} {item['down']} prepaid",
+                "install": item["install"],
+                "recharge_3": item["d3"],
+                "recharge_7": item["d7"],
+                "recharge_14": item["d14"],
+                "recharge_30": item["d30"],
+            }
+        )
+    rows.sort(key=lambda r: (0 if r["kind"] == "postpaid" else 1 if r["kind"] == "gigabit" else 2, r["down"] or 0, r["up"] or 0, r["product"]))
     return rows
 
 
+def current_table(as_at: date | None = None) -> list[dict]:
+    """Postpaid + gigabit current rentals only (the price table)."""
+    return [r for r in wholesale_rows(as_at) if r["kind"] in {"postpaid", "gigabit"}]
+
+
+def webstream(as_at: date | None = None) -> list[dict]:
+    return [r for r in current_table(as_at) if r["product"] == "OWS"]
+
+
 def office_connect(as_at: date | None = None) -> list[dict]:
-    """Office Connect 50–500. Openserve does not offer an OOC gigabit tier."""
-    as_at = as_at or date.today()
-    return [
-        _row("office-connect", "OOCF50M", 50, 50, as_at=as_at),
-        _row("office-connect", "OOCF100M", 100, 100, as_at=as_at),
-        _row("office-connect", "OOCF200M", 200, 200, as_at=as_at),
-        _row("office-connect", "OOCF300M", 300, 150, as_at=as_at),
-        _row("office-connect", "OOCF500M", 500, 250, as_at=as_at),
-    ]
+    return [r for r in current_table(as_at) if r["product"] == "OOC"]
 
 
-def all_packages(as_at: date | None = None) -> list[dict]:
-    return webstream(as_at) + office_connect(as_at)
+def fibre_connect(as_at: date | None = None) -> list[dict]:
+    return [r for r in current_table(as_at) if r["product"] in {"OFC", "OFC-LITE", "OFCP"}]
 
 
 def by_sku(sku: str | None, as_at: date | None = None) -> dict | None:
     if not sku:
         return None
     key = sku.strip().upper()
-    for row in all_packages(as_at):
-        if row["sku"] == key:
+    aliases = {
+        "OWS25M": "OWS-25-25",
+        "OWS50M": "OWS-50-25",
+        "OWS100M": "OWS-100-50",
+        "OWS200M": "OWS-200-100",
+        "OWS300M": "OWS-300-150",
+        "OWS500M": "OWS-500-250",
+        "OWS1000M": "OWS-1000-500",
+        "OOCF50M": "OOC-50-50",
+        "OOCF100M": "OOC-100-100",
+        "OOCF200M": "OOC-200-200",
+        "OOCF300M": "OOC-300-150",
+        "OOCF500M": "OOC-500-250",
+        "OFC1000M": "OFC-LITE-1000-500",
+    }
+    want = aliases.get(sku.strip().upper(), key)
+    for row in wholesale_rows(as_at):
+        if row["sku"] == want or row["sku"] == sku.strip().upper():
             return row
     return None
 
@@ -266,9 +282,67 @@ def extras() -> list[dict]:
     return [dict(row) for row in EXTRAS]
 
 
+def increase_watch(as_at: date | None = None) -> dict:
+    as_at = as_at or date.today()
+    due = as_at.month in INCREASE_WATCH["months"]
+    year = as_at.year if as_at.month >= 3 else as_at.year
+    return {
+        **INCREASE_WATCH,
+        "due": due,
+        "for_year": year,
+        "effective": f"{year}-04-01",
+        "action": (
+            "Check the Openserve partner letter, update this wholesale table, "
+            "then WhatsApp a mailshot to clients of the increase."
+        ),
+    }
+
+
+def all_packages(as_at: date | None = None) -> list[dict]:
+    return webstream(as_at) + office_connect(as_at)
+
+
+def ensure_wholesale(conn: sqlite3.Connection, as_at: date | None = None) -> int:
+    """Replace the current wholesale table in SQLite."""
+    conn.executescript(WHOLESALE_SCHEMA)
+    conn.execute("DELETE FROM openserve_wholesale")
+    n = 0
+    for row in wholesale_rows(as_at):
+        conn.execute(
+            """INSERT INTO openserve_wholesale
+               (sku, product, family, down, up, speed, cost_ex_vat, cost_incl_vat,
+                cost_pre_april, increase, effective_from, kind, source,
+                install, recharge_3, recharge_7, recharge_14, recharge_30)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                row["sku"],
+                row["product"],
+                row["family"],
+                row.get("down"),
+                row.get("up"),
+                row.get("speed"),
+                row.get("cost_ex_vat"),
+                row.get("cost_incl_vat"),
+                row.get("cost_pre_april"),
+                row.get("increase"),
+                row["effective_from"],
+                row["kind"],
+                row.get("source"),
+                row.get("install"),
+                row.get("recharge_3"),
+                row.get("recharge_7"),
+                row.get("recharge_14"),
+                row.get("recharge_30"),
+            ),
+        )
+        n += 1
+    conn.commit()
+    return n
+
+
 def overlay_invoice_costs(conn: sqlite3.Connection, rows: list[dict] | None = None) -> list[dict]:
-    """Replace estimated cost with the latest rental on invoice_lines when present."""
-    rows = [dict(r) for r in (rows or all_packages())]
+    """Keep official card; only stamp when an invoice rental matches a SKU."""
+    rows = [dict(r) for r in (rows or current_table())]
     try:
         billed = conn.execute(
             """SELECT product, capacity, charge_amount, invoice_date
@@ -282,100 +356,123 @@ def overlay_invoice_costs(conn: sqlite3.Connection, rows: list[dict] | None = No
     latest: dict[tuple[str, str], tuple[float, str]] = {}
     for product, capacity, amount, inv_date in billed:
         blob = f"{product or ''} {capacity or ''}".upper()
-        family = "webstream" if "WEBSTREAM" in blob else "office-connect" if "OFFICE" in blob else None
-        if not family:
-            continue
+        code = "OWS" if "WEBSTREAM" in blob else "OOC" if "OFFICE" in blob else "OFC" if "FIBRE CONNECT" in blob else None
         cap = "".join(ch for ch in str(capacity or "") if ch.isdigit())
-        if not cap:
-            continue
-        latest[(family, cap)] = (float(amount), inv_date or "")
+        if code and cap:
+            latest[(code, cap)] = (float(amount), inv_date or "")
     for row in rows:
-        hit = latest.get((row["family"], str(row["down"])))
+        hit = latest.get((row["product"] if row["product"] != "OFC-LITE" else "OFC", str(row["down"])))
         if not hit:
             continue
         amount, inv_date = hit
-        row["cost_ex_vat"] = amount
-        row["cost_incl_vat"] = round(amount * VAT, 2)
-        row["cost_source"] = f"Openserve invoice {inv_date}"
-        if row.get("sell") is not None:
-            row["margin"] = round(row["sell"] - row["cost_incl_vat"], 2)
+        row["invoice_ex_vat"] = amount
+        row["invoice_date"] = inv_date
     return rows
 
 
 def for_export(conn: sqlite3.Connection | None = None, as_at: date | None = None) -> dict:
     as_at = as_at or date.today()
-    rows = all_packages(as_at)
+    if conn is not None:
+        ensure_wholesale(conn, as_at)
+    rows = wholesale_rows(as_at)
     if conn is not None:
         rows = overlay_invoice_costs(conn, rows)
+    watch = increase_watch(as_at)
     return {
         "as_at": as_at.isoformat(),
         "effective": APRIL_2026.isoformat(),
         "gigabit_from": GIGABIT_FROM.isoformat(),
+        "source": SOURCE,
+        "currency": "ZAR ex VAT",
         "note": (
-            "Openserve Webstream and Office Connect went up 1 April 2026. "
-            "Webstream now runs 25 Mbps through gigabit (1000/500 from 1 July). "
-            "Office Connect stays 50–500. Monthly D/O is the line rental only — "
-            "install, equipment, add-ons and reconnection are once-off invoices."
+            "Current Openserve wholesale (ex VAT) from the 1 April 2026 partner letter. "
+            "Gigabit from 1 July 2026: OFC 1000 Lite R1 160, OWS 1000 R1 275. "
+            "Each March/April watch for the next increase and WhatsApp clients."
         ),
-        "webstream": [r for r in rows if r["family"] == "webstream"],
-        "office_connect": [r for r in rows if r["family"] == "office-connect"],
+        "increase_watch": watch,
+        "table": [r for r in rows if r["kind"] in {"postpaid", "gigabit"}],
+        "webstream": [r for r in rows if r["product"] == "OWS"],
+        "office_connect": [r for r in rows if r["product"] == "OOC"],
+        "fibre_connect": [r for r in rows if r["product"] in {"OFC", "OFC-LITE", "OFCP"}],
+        "prepaid": [r for r in rows if r["kind"] == "prepaid"],
         "extras": extras(),
         "vat": VAT,
+        "count": sum(1 for r in rows if r["kind"] in {"postpaid", "gigabit"}),
     }
 
 
 def self_test() -> int:
     failed = 0
-    before = by_sku("OWS50M", date(2026, 3, 31))
-    after = by_sku("OWS50M", date(2026, 4, 1))
-    if not before or before["cost_ex_vat"] != 500:
-        print("FAIL ws50-pre", before)
-        failed += 1
-    elif not after or after["cost_ex_vat"] != 520:
-        print("FAIL ws50-apr", after)
+    table = current_table(date(2026, 10, 5))
+    ows50 = by_sku("OWS50M", date(2026, 4, 1))
+    if not ows50 or ows50["cost_ex_vat"] != 530 or ows50["cost_pre_april"] != 500:
+        print("FAIL ows50-official", ows50)
         failed += 1
     else:
-        print("OK webstream-50-april")
+        print("OK ows50-official-530")
+    ows25 = by_sku("OWS25M", date(2026, 10, 5))
+    ows300 = by_sku("OWS300M", date(2026, 10, 5))
+    ooc500 = by_sku("OOCF500M", date(2026, 10, 5))
+    ooc300 = by_sku("OOCF300M", date(2026, 10, 5))
+    if not ows25 or ows25["cost_ex_vat"] != 370:
+        print("FAIL ows25", ows25)
+        failed += 1
+    elif not ows300 or ows300["cost_ex_vat"] != 940:
+        print("FAIL ows300", ows300)
+        failed += 1
+    elif not ooc500 or ooc500["cost_ex_vat"] != 1815 or ooc500["cost_pre_april"] != 1710:
+        print("FAIL ooc500", ooc500)
+        failed += 1
+    elif not ooc300 or ooc300["cost_ex_vat"] != 1345:
+        print("FAIL ooc300-sep-fnb", ooc300)
+        failed += 1
+    else:
+        print("OK official-ows-ooc")
+    gig_ows = by_sku("OWS1000M", date(2026, 7, 1))
+    gig_ofc = by_sku("OFC1000M", date(2026, 7, 1))
     gig_jun = by_sku("OWS1000M", date(2026, 6, 30))
-    gig_jul = by_sku("OWS1000M", date(2026, 7, 1))
-    if gig_jun and gig_jun["cost_ex_vat"] is not None:
+    if not gig_ows or gig_ows["cost_ex_vat"] != 1275:
+        print("FAIL ows-gig-1275", gig_ows)
+        failed += 1
+    elif not gig_ofc or gig_ofc["cost_ex_vat"] != 1160:
+        print("FAIL ofc-lite-1160", gig_ofc)
+        failed += 1
+    elif gig_jun and gig_jun["cost_ex_vat"] is not None:
         print("FAIL gig-before-july", gig_jun)
         failed += 1
-    elif not gig_jul or gig_jul["cost_ex_vat"] != 1160:
-        print("FAIL gig-july", gig_jul)
+    else:
+        print("OK gigabit-ows-1275-ofc-1160")
+    products = {r["product"] for r in table if r["kind"] == "postpaid"}
+    want = {"OFC", "OWS", "OFCP", "OOC", "OCC", "OPC", "OWC", "OWCW"}
+    if not want <= products:
+        print("FAIL all-products", products)
+        failed += 1
+    elif len(table) < 40:
+        print("FAIL table-short", len(table))
         failed += 1
     else:
-        print("OK webstream-gigabit-july")
-    ooc = office_connect(date(2026, 10, 5))
-    if [r["speed"] for r in ooc] != ["50/50", "100/100", "200/200", "300/150", "500/250"]:
-        print("FAIL ooc-ladder", ooc)
+        print("OK wholesale-table", len(table))
+    watch_mar = increase_watch(date(2026, 3, 15))
+    watch_oct = increase_watch(date(2026, 10, 5))
+    if not watch_mar["due"] or watch_mar["channel"] != "whatsapp":
+        print("FAIL watch-mar", watch_mar)
         failed += 1
-    elif any(r["down"] >= 1000 for r in ooc):
-        print("FAIL ooc-no-gigabit", ooc)
-        failed += 1
-    elif ooc[-1]["cost_pre_april"] != 1710:
-        print("FAIL ooc500-invoice", ooc[-1])
-        failed += 1
-    elif ooc[0]["cost_ex_vat"] is not None:
-        print("FAIL ooc50-no-fake-cost", ooc[0])
+    elif watch_oct["due"]:
+        print("FAIL watch-oct", watch_oct)
         failed += 1
     else:
-        print("OK office-connect-50-to-500")
-    ws = webstream(date(2026, 10, 5))
-    ows300 = by_sku("OWS300M", date(2026, 10, 5))
-    if ws[0]["down"] != 25 or ws[-1]["down"] != 1000:
-        print("FAIL ws-span", [r["speed"] for r in ws])
-        failed += 1
-    elif by_sku("OWS300M")["sell"] != 1219 or by_sku("OWS50M")["sell"] != 759:
-        print("FAIL sell", by_sku("OWS300M"), by_sku("OWS50M"))
-        failed += 1
-    elif not ows300 or ows300["cost_incl_vat"] is None or ows300["cost_incl_vat"] >= 1219:
-        print("FAIL ows300-cost-below-sell", ows300)
+        print("OK increase-watch-mar-apr-whatsapp")
+    conn = sqlite3.connect(":memory:")
+    n = ensure_wholesale(conn, date(2026, 10, 5))
+    stored = conn.execute("SELECT COUNT(*), SUM(cost_ex_vat) FROM openserve_wholesale WHERE kind='postpaid'").fetchone()
+    if n < 40 or not stored or stored[0] < 35:
+        print("FAIL store", n, stored)
         failed += 1
     else:
-        print("OK webstream-25-to-gigabit")
+        print("OK stored-in-sqlite", stored[0])
+    conn.close()
     if any(x["on_monthly_do"] for x in extras()):
-        print("FAIL extras-on-do", extras())
+        print("FAIL extras-on-do")
         failed += 1
     else:
         print("OK extras-not-on-monthly-do")

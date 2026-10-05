@@ -26,7 +26,7 @@ CLIENTS = [
     {"ref": "DEV001", "name": "Dirk De Villiers", "amount": 399.00, "method": "debit-order", "access": "wireless", "sku": None},
     {"ref": "BIN001", "name": "Annette Bing HH", "amount": 429.00, "method": "debit-order", "access": "fibre", "sku": "OWS25M"},
     {"ref": "HUN001", "name": "Stan Hundermark", "amount": 329.00, "method": "debit-order", "access": "wireless", "sku": None},
-    {"ref": "De Gruchy OS Fiber 200", "name": "Phillip De Gruchy", "amount": 1219.00, "method": "debit-order", "access": "fibre", "sku": "OWS300M"},
+    {"ref": "De Gruchy OS Fiber 200", "name": "Phillip De Gruchy", "amount": 1219.00, "method": "debit-order", "access": "fibre", "sku": "OWS300M", "discount": True},
     {"ref": "Jean de Villiers", "name": "Jean de Villiers", "amount": 550.00, "method": "debit-order", "access": "wireless", "sku": None},
     {"ref": "Havenga", "name": "Havenga", "amount": 699.00, "method": "debit-order", "access": "wireless", "sku": None},
     {"ref": "HM Builders", "name": "Hermanus Builders", "amount": 759.00, "method": "debit-order", "access": "wireless", "sku": None},
@@ -39,7 +39,7 @@ CLIENTS = [
     {"ref": None, "name": "Lategan", "amount": 999.00, "method": "eft", "access": "fibre", "sku": "OWS100M"},
     {"ref": None, "name": "HPP Control Room", "amount": 599.00, "method": "eft", "access": "fibre", "sku": "OWS25M"},
     {"ref": None, "name": "Pearson, Philippa", "amount": 329.00, "method": "eft", "access": "wireless", "sku": None},
-    {"ref": None, "name": "Phillipus May", "amount": 439.00, "method": "eft", "access": "wireless", "sku": None},
+    {"ref": None, "name": "Phillipus May", "amount": 439.00, "method": "eft", "access": "wireless", "sku": None, "discount": True},
     {"ref": None, "name": "Amoroc Doors", "amount": 199.00, "method": "eft", "access": "wireless", "sku": None},
     {"ref": None, "name": "WCC Tech", "amount": 1000.00, "method": "eft", "access": "wireless", "sku": None},
     {"ref": None, "name": "Paltco", "amount": 1399.00, "method": "eft", "access": "wireless", "sku": None},
@@ -80,6 +80,8 @@ _NAME_ALIASES = {
     "pearson philippa": "pearson philippa",
     "philippa pearson": "pearson philippa",
     "phillipus may": "phillipus may",
+    "philliup": "phillipus may",
+    "phillipus": "phillipus may",
     "amoroc doors": "amoroc doors",
     "amoroc": "amoroc doors",
     "wcc tech": "wcc tech",
@@ -165,10 +167,9 @@ def do_action_date(inv_day: date) -> date:
 
 def line_label(row: dict, period: str) -> str:
     pkg = by_sku(row.get("sku"))
-    if pkg:
-        return f"{pkg['label']} {period_label(period)} (month in advance)"
-    kind = "Fibre" if row.get("access") == "fibre" else "Wireless"
-    return f"{kind} {period_label(period)} (month in advance)"
+    head = pkg["label"] if pkg else ("Fibre" if row.get("access") == "fibre" else "Wireless")
+    extra = " · discount" if row.get("discount") else ""
+    return f"{head} {period_label(period)} (month in advance){extra}"
 
 
 def apply_named_receipts(conn: sqlite3.Connection) -> int:
@@ -374,6 +375,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
             "access": row.get("access"),
             "sku": row.get("sku"),
             "package": by_sku(row.get("sku")),
+            "discount": bool(row.get("discount")),
         }
     for pay in payments:
         key = canon_key(pay.get("customer"))
@@ -387,6 +389,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "access": None,
                 "sku": None,
                 "package": None,
+                "discount": False,
             }
     aliased_inv = [{**i, "customer": display_name(i.get("customer")) or i.get("customer")} for i in invoices]
     aliased_pay = [{**p, "customer": display_name(p.get("customer")) or p.get("customer")} for p in payments]
@@ -434,6 +437,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "access": meta.get("access"),
                 "sku": meta.get("sku"),
                 "package": (meta.get("package") or {}).get("label") if meta.get("package") else None,
+                "discount": bool(meta.get("discount")),
                 "do_amount": meta["do_amount"],
                 "last_invoice": (cycle_inv or {}).get("invoice_number"),
                 "last_invoice_date": (cycle_inv or {}).get("invoice_date"),
@@ -588,11 +592,16 @@ def self_test() -> int:
     else:
         print("OK once-off-extras")
     de = next(c for c in CLIENTS if c["name"] == "Phillip De Gruchy")
+    may = next(c for c in CLIENTS if c["name"] == "Phillipus May")
     if not by_sku(de["sku"]) or by_sku(de["sku"])["down"] != 300:
         print("FAIL de-gruchy-package", de)
         failed += 1
+    elif not de.get("discount") or not may.get("discount"):
+        print("FAIL phillip-discount", de, may)
+        failed += 1
     else:
         print("OK package-on-client")
+        print("OK phillipus-discount")
     conn.close()
     return failed
 

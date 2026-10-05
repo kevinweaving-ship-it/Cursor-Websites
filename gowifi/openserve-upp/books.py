@@ -71,6 +71,12 @@ CREATE TABLE IF NOT EXISTS netcash_items (
 
 def ensure_tables(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    try:
+        from packages import ensure_wholesale
+
+        ensure_wholesale(conn)
+    except Exception:
+        pass
 
 
 def is_gowifi_account(name: str | None, number: str | None) -> bool:
