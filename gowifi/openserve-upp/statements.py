@@ -590,6 +590,12 @@ def _rows(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
     return invoices, payments
 
 
+def _bank_money(row: dict) -> bool:
+    """FNB EFT or named Netcash D/O. Not a QuickBooks apply/split row."""
+    src = str(row.get("source") or "").lower()
+    return src.startswith("fnb") or "netcash" in src
+
+
 def _books_invoice(row: dict) -> bool:
     no = str(row.get("invoice_number") or row.get("number") or row.get("ref") or "")
     if no in NOT_CLIENT_INVOICE:
@@ -836,7 +842,11 @@ def invoice_tone(rec: dict, today: date) -> str:
     return "pending"
 
 
-def present_ledger(lines: list[dict], today: date | None = None) -> list[dict]:
+def present_ledger(
+    lines: list[dict],
+    today: date | None = None,
+    show_money: bool = False,
+) -> list[dict]:
     """Date order, newest at the top. Running balance after each row; top = amount due."""
     from invoice_canned import parse_day
 
@@ -871,7 +881,7 @@ def present_ledger(lines: list[dict], today: date | None = None) -> list[dict]:
         do_paid = rec.get("kind") == "payment" and (
             "D/O paid" in (rec.get("what") or "") or (rec.get("what") or "").startswith("Debit")
         )
-        rec["show"] = bool(due or pin or do_paid)
+        rec["show"] = bool(due or pin or do_paid or (show_money and rec.get("kind") == "payment"))
         rec["reconciled"] = not rec["show"]
         rec["tone"] = invoice_tone(rec, today)
     return tagged
@@ -962,9 +972,9 @@ def fifo_statement(
         if len(srcs) > 1:
             unique_pays.append(
                 next(
-                    (i for i in items if str(i.get("source") or "").startswith("qb-sales")),
+                    (i for i in items if _bank_money(i)),
                     next(
-                        (i for i in items if "netcash" in str(i.get("source") or "")),
+                        (i for i in items if str(i.get("source") or "").startswith("qb-sales")),
                         items[0],
                     ),
                 )
@@ -1296,10 +1306,18 @@ def account_as_at(
     all_inv, all_pay = _rows(conn)
     living = living_books(name)
     if living:
-        invoices, payments = living
+        invoices = [i for i in living[0] if _books_invoice(i) and not _invoice_deleted(i)]
+        # D/O clients: money is FNB + Netcash. QB sales "Payment" rows are apply.
+        if book and book.get("method") == "debit-order":
+            payments = [p for p in all_pay if _bank_money(p)]
+        else:
+            payments = living[1]
     else:
         invoices = [i for i in all_inv if _books_invoice(i) and not _invoice_deleted(i)]
-        payments = all_pay
+        if book and book.get("method") == "debit-order":
+            payments = [p for p in all_pay if _bank_money(p)]
+        else:
+            payments = all_pay
     display = display_name(name) or name
     cut = today.isoformat()
     invoices = [i for i in invoices if (i.get("invoice_date") or "")[:10] <= cut]
@@ -1324,7 +1342,11 @@ def account_as_at(
     ledger["master"] = meta.get("master") or ledger.get("master")
     ledger["sub"] = meta.get("sub") or ledger.get("sub")
     ledger["own_sub"] = meta.get("own_sub") if "own_sub" in meta else ledger.get("own_sub")
-    ledger["lines"] = present_ledger(_fold_invoice_what(ledger.get("lines") or [], conn), today)
+    ledger["lines"] = present_ledger(
+        _fold_invoice_what(ledger.get("lines") or [], conn),
+        today,
+        show_money=bool(book and book.get("method") == "debit-order"),
+    )
     stmt = statement_on_invoice(invoices, payments, display, as_at=today)
     billed = ledger["billed"]
     paid = ledger["paid"]
@@ -1728,6 +1750,22 @@ def self_test() -> int:
             failed += 1
         else:
             print("OK cupido-qb-checksum-not-qb-apply", qb_pay_sum, "sep8", qb_sep_sum)
+    cup_shown = [
+        r.get("what") or ""
+        for r in (cup.get("ledger") or [])
+        if r.get("show") and r.get("kind") == "payment"
+    ]
+    if not any("EFT 1950.00" in w for w in cup_shown):
+        print("FAIL cupido-eft-must-show", cup_shown)
+        failed += 1
+    elif not any("D/O paid" in w and "3125" in w for w in cup_shown):
+        print("FAIL cupido-oct-do-must-show", cup_shown)
+        failed += 1
+    elif not any("D/O paid" in w and "2715" in w for w in cup_shown):
+        print("FAIL cupido-2715-do-must-show", cup_shown)
+        failed += 1
+    else:
+        print("OK cupido-eft-and-do-show")
     cup_jun_do = [
         r
         for r in (cup.get("ledger") or [])
