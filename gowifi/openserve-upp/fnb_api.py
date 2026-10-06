@@ -16,7 +16,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -110,7 +110,7 @@ def status(env: dict[str, str] | None = None) -> dict:
     if has_login:
         note = (
             "FNB Online Banking live statement. Popup dismissed when it appears. "
-            "New rows only — no duplicates. Daily autofetch 06:15 SAST."
+            "New rows only — no duplicates. The box fetches FNB and allocates who paid."
         )
     elif has_api:
         note = "FNB Integration Channel Transaction History. Direct bank API, not QuickBooks."
@@ -522,17 +522,44 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
             )
     except sqlite3.OperationalError:
         rows = []
+    for row in rows:
+        row["tone"] = "posted"
+    posted_bal = overlay.get("system_balance")
+    if posted_bal is None and rows:
+        posted_bal = rows[0]["balance"]
+    running = posted_bal
+    pending_built = []
+    for raw in reversed(overlay.get("pending") or []):
+        amt = raw.get("amount")
+        try:
+            amt = float(amt or 0)
+        except (TypeError, ValueError):
+            amt = 0.0
+        if running is not None:
+            running = round(float(running) + amt, 2)
+        pending_built.append(
+            {
+                "paid_on": raw.get("paid_on"),
+                "description": raw.get("description"),
+                "spent": abs(amt) if amt < 0 else None,
+                "received": abs(amt) if amt > 0 else None,
+                "amount": amt,
+                "balance": running,
+                "source": "fnb_pending",
+                "tone": "pending",
+            }
+        )
+    pending_rows = list(reversed(pending_built))
+    rows = pending_rows + rows
     if conn is None:
         own.close()
     latest = rows[0] if rows else None
-    system_balance = overlay.get("system_balance")
-    if system_balance is None and latest:
-        system_balance = latest["balance"]
-    matched = bool(overlay.get("matched"))
+    system_balance = latest["balance"] if latest else posted_bal
+    matched = bool(overlay.get("matched")) and not pending_rows
     attention_amount = overlay.get("attention_amount") or 0
     if rows:
         note = (
-            "FNB system balance. Matched."
+            "FNB posted. Processed."
             if matched
             else f"New items not auto-reconciled · {attention_amount:.2f} needs attention."
         )
@@ -550,14 +577,18 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
         "has_login": st.get("has_login"),
         "has_api": st.get("has_api"),
         "balance": system_balance,
-        "system_balance": system_balance,
+        "system_balance": posted_bal,
         "as_at": latest["paid_on"] if latest else None,
         "last_fetched": overlay.get("last_fetched"),
         "last_fetched_label": overlay.get("last_fetched_label"),
         "matched": matched,
+        "last_ok": overlay.get("last_ok"),
+        "available": overlay.get("available"),
+        "pending": overlay.get("pending") or [],
+        "pending_amount": overlay.get("pending_amount") or 0,
         "attention": overlay.get("attention") or [],
         "attention_amount": attention_amount,
-        "daily": overlay.get("daily") or "Daily autofetch 06:15 SAST",
+        "choices": overlay.get("choices") or [],
         "transactions": len(rows),
         "rows": rows,
         "note": note,
@@ -638,13 +669,53 @@ class Handler(BaseHTTPRequestHandler):
             if path in {"/pull", "/legal/fnb-pull"}:
                 self._send(200, pull())
                 return
+            if path in {"/alloc", "/legal/fnb-alloc"}:
+                from fnb_statement import apply_alloc
+
+                own = sqlite3.connect(os.environ.get("UPP_DB", DB))
+                pack = apply_alloc(
+                    own,
+                    int(data.get("id") or 0),
+                    str(data.get("kind") or ""),
+                    str(data.get("to") or data.get("label") or ""),
+                )
+                own.close()
+                if pack.get("ok"):
+                    _refresh_accounts()
+                    pack.update(card())
+                self._send(200, pack)
+                return
         except SystemExit as exc:
             self._send(400, {"ok": False, "error": str(exc)})
             return
         self._send(404, {"error": "not found"})
 
 
+def _auto_fetch_loop() -> None:
+    time.sleep(8)
+    while True:
+        try:
+            from fnb_statement import last_fetch, login_ready
+
+            last = last_fetch() or {}
+            stale = True
+            if last.get("ok") and last.get("fetched_at"):
+                try:
+                    got = datetime.fromisoformat(last["fetched_at"])
+                    stale = (datetime.now(got.tzinfo) - got).total_seconds() > 20 * 60
+                except ValueError:
+                    stale = True
+            if login_ready() and stale:
+                pull()
+        except Exception as exc:
+            sys.stderr.write(f"fnb-auto: {exc}\n")
+        time.sleep(20 * 60)
+
+
 def serve() -> None:
+    import threading
+
+    threading.Thread(target=_auto_fetch_loop, daemon=True, name="fnb-auto").start()
     host, port = LISTEN.split(":")
     httpd = ThreadingHTTPServer((host, int(port)), Handler)
     print(f"fnb-api on {LISTEN}", flush=True)
@@ -712,11 +783,30 @@ def self_test() -> int:
     elif pack.get("last_fetched") is not None:
         print("FAIL card-no-fetch-yet", pack.get("last_fetched"))
         failed += 1
-    elif pack.get("matched") is not True or pack.get("attention_amount"):
+    elif pack.get("attention_amount"):
         print("FAIL card-matched", pack.get("matched"), pack.get("attention_amount"))
         failed += 1
     else:
         print("OK fnb-card-system-balance")
+    from fnb_statement import replace_pending
+
+    replace_pending(conn, [{"paid_on": "2026-10-03", "description": "WWW.UI.COM", "amount": -499.22}])
+    orange = card(conn)
+    if orange["rows"][0]["tone"] != "pending" or orange["rows"][0]["balance"] != 4055.44:
+        print("FAIL pending-on-register", orange["rows"][0])
+        failed += 1
+    elif orange["rows"][1]["tone"] != "posted":
+        print("FAIL posted-stays-blue", orange["rows"][1])
+        failed += 1
+    else:
+        print("OK pending-orange-then-posted-blue")
+    replace_pending(conn, [])
+    cleared = card(conn)
+    if cleared["rows"][0]["tone"] != "posted" or cleared["rows"][0]["source"] != "fnb_api":
+        print("FAIL pending-cleared-blue", cleared["rows"][0])
+        failed += 1
+    else:
+        print("OK pending-cleared-processed-blue")
     conn.close()
     return failed
 

@@ -105,6 +105,15 @@ CREATE TABLE IF NOT EXISTS fnb_fetch (
     ok INTEGER,
     note TEXT
 );
+CREATE TABLE IF NOT EXISTS fnb_pending (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    paid_on TEXT NOT NULL,
+    card TEXT,
+    description TEXT,
+    amount REAL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fnb_pending
+    ON fnb_pending (COALESCE(paid_on,''), COALESCE(description,''), COALESCE(amount,0));
 """
 
 
@@ -298,12 +307,14 @@ def allocate_live(row: dict) -> dict:
     blob = f"{row.get('payee') or ''} {row.get('memo') or ''} {row.get('description') or ''}".lower()
     client = _live_client(row)
     if alloc.get("alloc_kind") == "unallocated" and client and (row.get("deposit") or 0) > 0.004:
-        return {
-            "alloc_kind": "client_paid",
-            "alloc_to": client["name"],
-            "alloc_key": "",
-            "result": "allocated",
-        }
+            from billing import canon_key
+
+            return {
+                "alloc_kind": "client_paid",
+                "alloc_to": client["name"],
+                "alloc_key": canon_key(client["name"]),
+                "result": "paid",
+            }
     if alloc.get("alloc_kind") == "unallocated":
         if any(w in blob for w in FEE_WORDS):
             return {
@@ -478,7 +489,7 @@ def attention_open(conn: sqlite3.Connection) -> list[dict]:
     out = []
     try:
         for rec in conn.execute(
-            """SELECT paid_on, payee, memo, amount, alloc_kind, alloc_to, result
+            """SELECT id, paid_on, payee, memo, amount, alloc_kind, alloc_to, result
                FROM fnb_tx
                WHERE source IN ('fnb_live','fnb_online','fnb_api')
                  AND (result='need-recon' OR alloc_kind='unallocated')
@@ -486,11 +497,12 @@ def attention_open(conn: sqlite3.Connection) -> list[dict]:
         ):
             out.append(
                 {
-                    "paid_on": rec[0],
-                    "description": " / ".join(p for p in (rec[1], rec[2]) if p),
-                    "amount": rec[3],
-                    "kind": rec[4],
-                    "what": rec[5] or "Needs recon",
+                    "id": rec[0],
+                    "paid_on": rec[1],
+                    "description": " / ".join(p for p in (rec[2], rec[3]) if p),
+                    "amount": rec[4],
+                    "kind": rec[5],
+                    "what": rec[6] or "Needs recon",
                 }
             )
     except sqlite3.OperationalError:
@@ -648,6 +660,160 @@ def _read_page_rows(page) -> list[dict]:
     return out
 
 
+def parse_balances(text: str) -> dict:
+    """Posted balance first. Available is after pending."""
+    blob = " ".join((text or "").replace("\u00a0", " ").split())
+    money = r"R?\s*([\d]+(?:[ ,]\d{3})*(?:\.\d{2})?)"
+    available = None
+    balance = None
+    av = re.search(r"available(?:\s+balance)?\s*[:=]?\s*" + money, blob, re.I)
+    bal = re.search(r"(?:current|ledger|posted)?\s*balance\s*[:=]?\s*" + money, blob, re.I)
+    if av:
+        available = float(av.group(1).replace(" ", "").replace(",", ""))
+    if bal:
+        balance = float(bal.group(1).replace(" ", "").replace(",", ""))
+    return {"balance": balance, "available": available}
+
+
+def parse_pending_table(text: str) -> list[dict]:
+    """Pending card table: date/time, card, description, amount. Not posted."""
+    out = []
+    for raw in (text or "").replace("\u00a0", " ").splitlines():
+        line = " ".join(raw.split())
+        if not line:
+            continue
+        m = re.search(
+            r"(\d{1,2}[/\-]\d{1,2}[/\-]\d{4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})"
+            r"(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?"
+            r"(?:\s+(\d{4,6}\*+\d+))?"
+            r"\s+(.+?)\s+(-?[\d,.]+)$",
+            line,
+        )
+        if not m:
+            continue
+        day = m.group(1)
+        paid_on = day
+        if "/" in day:
+            p = day.split("/")
+            if len(p) == 3 and len(p[2]) == 4:
+                paid_on = f"{p[2]}-{int(p[1]):02d}-{int(p[0]):02d}"
+        elif re.match(r"\d{1,2}\s+[A-Za-z]+\s+\d{4}", day):
+            try:
+                paid_on = datetime.strptime(day, "%d %B %Y").strftime("%Y-%m-%d")
+            except ValueError:
+                try:
+                    paid_on = datetime.strptime(day, "%d %b %Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    paid_on = day
+        try:
+            amount = -abs(float(m.group(4).replace(",", "")))
+        except ValueError:
+            continue
+        desc = (m.group(3) or "").strip()
+        if desc.lower() in {"description", "amount"}:
+            continue
+        out.append(
+            {
+                "paid_on": paid_on,
+                "card": m.group(2) or "",
+                "description": desc,
+                "amount": amount,
+                "what": "Pending · not posted",
+            }
+        )
+    return out
+
+
+def _click_named(page, names: tuple[str, ...]) -> bool:
+    for name in names:
+        for role in ("tab", "link", "button"):
+            try:
+                loc = page.get_by_role(role, name=re.compile(rf"^{name}$", re.I))
+                if loc.count():
+                    loc.first.click(timeout=2000)
+                    return True
+            except Exception:
+                continue
+        try:
+            loc = page.get_by_text(re.compile(rf"^{name}$", re.I))
+            if loc.count():
+                loc.first.click(timeout=2000)
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def replace_pending(conn: sqlite3.Connection, rows: list[dict]) -> list[dict]:
+    conn.executescript(FETCH_SCHEMA)
+    conn.execute("DELETE FROM fnb_pending")
+    for row in rows:
+        conn.execute(
+            """INSERT OR IGNORE INTO fnb_pending (paid_on, card, description, amount)
+               VALUES (?,?,?,?)""",
+            (row.get("paid_on"), row.get("card") or "", row.get("description") or "", row.get("amount")),
+        )
+    conn.commit()
+    return pending_open(conn)
+
+
+def pending_open(conn: sqlite3.Connection) -> list[dict]:
+    out = []
+    try:
+        for rec in conn.execute(
+            "SELECT paid_on, card, description, amount FROM fnb_pending ORDER BY paid_on DESC, id DESC"
+        ):
+            out.append(
+                {
+                    "paid_on": rec[0],
+                    "card": rec[1],
+                    "description": rec[2],
+                    "amount": rec[3],
+                    "what": "Pending · not posted",
+                }
+            )
+    except sqlite3.OperationalError:
+        return []
+    return out
+
+
+def allocate_choices() -> list[dict]:
+    from billing import SERVICE_CLIENTS
+
+    out = [{"kind": "client_paid", "to": c["name"], "label": c["name"]} for c in SERVICE_CLIENTS]
+    out.extend(
+        (
+            {"kind": "fee", "to": "FNB bank charge", "label": "Bank charge"},
+            {"kind": "expense", "to": "Expense", "label": "Expense"},
+            {"kind": "deposit", "to": "Deposit", "label": "Deposit"},
+        )
+    )
+    return out
+
+
+def apply_alloc(conn: sqlite3.Connection, tx_id: int, kind: str, to: str) -> dict:
+    from billing import canon_key, client_row
+
+    kind = (kind or "").strip()
+    to = (to or "").strip()
+    if kind == "client_paid":
+        hit = client_row(to)
+        to = (hit or {}).get("name") or to
+        key = canon_key(to)
+        result = "paid"
+    elif kind in {"fee", "expense", "deposit", "clearing"}:
+        key = ""
+        result = "allocated"
+    else:
+        return {"ok": False, "error": "Unknown allocate choice"}
+    conn.execute(
+        """UPDATE fnb_tx SET alloc_kind=?, alloc_to=?, alloc_key=?, result=? WHERE id=?""",
+        (kind, to, key, result, int(tx_id)),
+    )
+    conn.commit()
+    return {"ok": True, "id": int(tx_id), "kind": kind, "to": to}
+
+
 def fetch_live(env: dict[str, str] | None = None) -> dict:
     env = env or _load_env()
     user = (env.get("FNB_USERNAME") or "").strip()
@@ -660,6 +826,8 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
     except ImportError:
         return {"ok": False, "error": "playwright not installed on the box", "rows": []}
     rows: list[dict] = []
+    pending: list[dict] = []
+    balances = {"balance": None, "available": None}
     note = ""
     with sync_playwright() as pw:
         browser = pw.chromium.launch(
@@ -685,13 +853,34 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
             _open_statement(page, account)
             page.wait_for_timeout(1200)
             _dismiss_popups(page)
+            _click_named(page, ("Successful", "Posted", "Transactions"))
+            page.wait_for_timeout(600)
             rows = _read_page_rows(page)
-            note = f"live {last} rows={len(rows)}"
+            balances = parse_balances(page.inner_text("body"))
+            _click_named(page, ("Pending",))
+            page.wait_for_timeout(800)
+            _dismiss_popups(page)
+            pending = parse_pending_table(page.inner_text("body"))
+            if not pending:
+                for table in page.locator("table").all():
+                    try:
+                        pending.extend(parse_pending_table(table.inner_text()))
+                    except Exception:
+                        continue
+            note = f"live {last} rows={len(rows)} pending={len(pending)}"
         except Exception as exc:
             note = f"live-failed: {exc}"
             rows = []
         browser.close()
-    return {"ok": bool(rows), "rows": rows, "note": note, "via": "fnb-live"}
+    return {
+        "ok": bool(rows or pending),
+        "rows": rows,
+        "pending": pending,
+        "balance": balances.get("balance"),
+        "available": balances.get("available"),
+        "note": note,
+        "via": "fnb-live",
+    }
 
 
 def pull(conn: sqlite3.Connection | None = None) -> dict:
@@ -700,20 +889,18 @@ def pull(conn: sqlite3.Connection | None = None) -> dict:
     live = fetch_live()
     rows = live.get("rows") or []
     added = insert_new(own, rows)
-    balance = None
-    if rows:
+    pending = replace_pending(own, live.get("pending") or [])
+    balance = live.get("balance")
+    if balance is None and rows:
         with_bal = [r for r in rows if r.get("balance") is not None]
         if with_bal:
             balance = with_bal[0].get("balance")
     if balance is None:
-        try:
-            rec = own.execute(
-                """SELECT balance FROM bank_tx WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api')
-                   ORDER BY paid_on DESC, id DESC LIMIT 1"""
-            ).fetchone()
-            balance = rec[0] if rec else None
-        except sqlite3.OperationalError:
-            balance = None
+        balance = system_balance(own)
+    pending_amt = round(sum(abs(float(p.get("amount") or 0)) for p in pending), 2)
+    available = live.get("available")
+    if available is None and balance is not None:
+        available = round(float(balance) - pending_amt, 2)
     pack = {
         "ok": bool(live.get("ok") or added.get("inserted")),
         "via": "fnb-live",
@@ -724,7 +911,10 @@ def pull(conn: sqlite3.Connection | None = None) -> dict:
         "need_recon": added["need_recon"],
         "need_recon_amount": added["need_recon_amount"],
         "attention": added["attention"],
+        "pending": pending,
+        "pending_amount": pending_amt,
         "balance": balance,
+        "available": available,
         "note": live.get("note") or live.get("error") or "",
         "error": None if live.get("ok") or rows else (live.get("error") or live.get("note")),
     }
@@ -769,20 +959,29 @@ def card_overlay(conn: sqlite3.Connection | None = None) -> dict:
     own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB))
     fetch = last_fetch(own) or {}
     attention = attention_open(own)
+    pending = pending_open(own)
     need_amt = round(sum(abs(float(a.get("amount") or 0)) for a in attention), 2)
+    pending_amt = round(sum(abs(float(p.get("amount") or 0)) for p in pending), 2)
     bal = system_balance(own)
+    available = None
+    if bal is not None:
+        available = round(float(bal) - pending_amt, 2)
     if conn is None:
         own.close()
+    last_ok = bool(fetch.get("ok"))
     return {
         "last_fetched": fetch.get("fetched_at"),
         "last_fetched_label": _when_label(fetch.get("fetched_at")),
         "last_inserted": fetch.get("inserted") or 0,
-        "last_ok": fetch.get("ok"),
+        "last_ok": last_ok,
         "system_balance": bal,
-        "matched": need_amt <= 0.004,
+        "available": available,
+        "pending": pending,
+        "pending_amount": pending_amt,
+        "matched": bool(last_ok and need_amt <= 0.004),
         "attention": attention,
         "attention_amount": need_amt,
-        "daily": "Daily autofetch 06:15 SAST",
+        "choices": allocate_choices(),
     }
 
 
@@ -886,6 +1085,14 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK preserve-live")
+    pend = parse_pending_table(
+        "03 October 2026 15:00:39  485442******9008  WWW.UI.COM  499.22"
+    )
+    if len(pend) != 1 or pend[0]["amount"] != -499.22 or pend[0]["paid_on"] != "2026-10-03":
+        print("FAIL pending-parse", pend)
+        failed += 1
+    else:
+        print("OK pending-parse")
     conn.close()
     return failed
 

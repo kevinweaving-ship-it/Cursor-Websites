@@ -89,6 +89,30 @@ main {
 .stmt-band { display:block; }
 .stmt-wrap { width:100%; max-height:380px; overflow:auto; }
 .stmt { width:100%; border-collapse:collapse; font-size:13px; }
+.fnb-reg-wrap { width:100%; max-height:380px; overflow:auto; }
+.fnb-reg {
+  width:100%; table-layout:fixed; border-collapse:collapse;
+  font-size:13px; font-variant-numeric:tabular-nums;
+}
+.fnb-reg col.d { width:7.6em; }
+.fnb-reg col.n { width:6.8em; }
+.fnb-reg th, .fnb-reg td {
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  vertical-align:middle; padding:7px 10px;
+  border-bottom:1px solid var(--line);
+  border-right:1px solid var(--line);
+}
+.fnb-reg th:last-child, .fnb-reg td:last-child { border-right:0; }
+.fnb-reg th {
+  text-align:left; color:var(--muted); font-size:11px; letter-spacing:.03em;
+  text-transform:uppercase; font-weight:700;
+  position:sticky; top:0; background:#fff;
+}
+.fnb-reg th.num, .fnb-reg td.num { text-align:right; }
+.fnb-reg tr:last-child td { border-bottom:0; }
+.fnb-reg tr.pending td { color:var(--warn); }
+.fnb-reg tr.posted td { color:var(--acc); }
+.fnb-choice { width:100%; max-width:100%; font:inherit; font-size:13px; }
 .stmt th {
   text-align:left; color:var(--muted); font-size:11px; letter-spacing:.03em;
   text-transform:uppercase; font-weight:700; padding:4px 8px 6px 0;
@@ -272,21 +296,24 @@ function card(c){
 function fnbCard(fnb){
   fnb = fnb || {};
   const id = "d-fnb";
-  const bal = fnb.balance==null && fnb.system_balance==null ? "—" : money(fnb.system_balance!=null?fnb.system_balance:fnb.balance);
+  const bal = fnb.balance==null ? "—" : money(fnb.balance);
   const last = fnb.last_fetched_label || fnb.last_fetched || "Never fetched";
   const need = Number(fnb.attention_amount||0);
-  const matched = fnb.matched!==false && need<=0.004;
-  const matchLabel = matched
-    ? "Matched · system balance"
-    : `Needs attention ${money(need)}`;
+  const hasPending = (fnb.rows||[]).some(r => r.tone==="pending");
+  const matched = fnb.last_ok && fnb.matched!==false && need<=0.004 && !hasPending;
+  const matchLabel = !fnb.last_ok
+    ? "Fetch failed · not matched"
+    : (hasPending ? "Pending on register" : (matched ? "Processed" : `Needs help ${money(need)}`));
+  const choices = [`<option value="">Allocate…</option>`].concat((fnb.choices||[]).map(c=>`<option value="${esc(c.kind)}|${esc(c.to)}">${esc(c.label||c.to)}</option>`)).join("");
   const attn = (fnb.attention||[]).map(r=>`<tr>
     <td>${esc(r.paid_on||"")}</td>
-    <td>${esc(r.what||r.description||"Needs recon")}</td>
+    <td title="${esc(r.what||r.description||"Needs recon")}">${esc(r.what||r.description||"Needs recon")}</td>
     <td class="num">${esc(money(r.amount))}</td>
+    <td><select class="fnb-choice" data-id="${esc(r.id||"")}">${choices}</select></td>
   </tr>`).join("");
-  const rows = (fnb.rows||[]).map(r=>`<tr>
+  const rows = (fnb.rows||[]).map(r=>`<tr class="${esc(r.tone==="pending"?"pending":"posted")}">
     <td>${esc(r.paid_on||"")}</td>
-    <td>${esc(r.description||"")}</td>
+    <td title="${esc(r.description||"")}">${esc(r.description||"")}</td>
     <td class="num">${r.spent==null?"":esc(money(r.spent))}</td>
     <td class="num">${r.received==null?"":esc(money(r.received))}</td>
     <td class="num">${esc(money(r.balance))}</td>
@@ -296,38 +323,41 @@ function fnbCard(fnb){
     <div class="cat-list">
       <article class="card">
         <button class="head" type="button" aria-expanded="true" aria-controls="${id}">
-          <span class="name"><span class="dot ${fnb.ready?"active":"issue"}"></span>FNB ${esc(fnb.account_number||"62860060278")}</span>
+          <span class="name"><span class="dot ${fnb.ready&&fnb.last_ok?"active":"issue"}"></span>FNB ${esc(fnb.account_number||"62860060278")}</span>
           <span class="head-right">
             <button type="button" class="fetch-btn fnb-fetch">Fetch</button>
             <span class="kind">Bank</span>
-            <span class="bal">${esc(bal)}</span>
+            <span class="bal ${hasPending?"attn":""}">${esc(bal)}</span>
           </span>
         </button>
         <div class="fnb-status">
           <div class="band">
             ${field("Last fetched", esc(last))}
-            ${field("Balance", esc(bal), {cls: matched?"match-ok":"attn"})}
-            ${field("Status", esc(matchLabel), {cls: matched?"match-ok":"attn"})}
+            ${field("Balance", esc(bal), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
+            ${field("Status", esc(matchLabel), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
           </div>
           ${need>0.004 ? `<div class="band stmt-band">
-            <div class="k">Needs attention ${esc(money(need))}</div>
-            <div class="stmt-wrap"><table class="stmt">
-              <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th></tr></thead>
-              <tbody>${attn || `<tr><td colspan="3" class="meta">Unreconciled amount on the last fetch.</td></tr>`}</tbody>
+            <div class="k">Issues ${esc(money(need))}</div>
+            <div class="fnb-reg-wrap"><table class="fnb-reg">
+              <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>
+              <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th>Allocate</th></tr></thead>
+              <tbody>${attn}</tbody>
             </table></div>
+            <p><button type="button" class="fetch-btn fnb-apply">Allocate selected</button></p>
           </div>` : ""}
         </div>
         <div class="detail" id="${id}">
           <div class="band">
             ${field("Account", esc(fnb.account_name||"GoWifi (Pty) Ltd"))}
             ${field("Branch", esc((fnb.branch||"Hermanus")+" "+(fnb.branch_code||"200412")))}
-            ${field("Daily", esc(fnb.daily||"Daily autofetch 06:15 SAST"))}
+            ${field("Status", esc(matchLabel), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
           </div>
           <div class="band stmt-band">
             <div class="k">FNB register</div>
-            <div class="stmt-wrap"><table class="stmt">
+            <div class="fnb-reg-wrap"><table class="fnb-reg">
+              <colgroup><col class="d"><col><col class="n"><col class="n"><col class="n"></colgroup>
               <thead><tr><th>Date</th><th>Description</th><th class="num">Spent</th><th class="num">Received</th><th class="num">Balance</th></tr></thead>
-              <tbody>${rows || `<tr><td colspan="5" class="meta">No FNB rows on the system yet. Fetch from FNB Online.</td></tr>`}</tbody>
+              <tbody>${rows || `<tr><td colspan="5" class="meta">No FNB rows on the system yet.</td></tr>`}</tbody>
             </table></div>
           </div>
         </div>
@@ -341,6 +371,29 @@ function block(title, list){
     <h2>${esc(title)} <span class="n">${list.length}</span></h2>
     <div class="cat-list">${list.map(card).join("")}</div>
   </section>`;
+}
+function bindFnbApply(root, pack){
+  const btn = root.querySelector(".fnb-apply");
+  if (!btn) return;
+  btn.addEventListener("click", ev=>{
+    ev.preventDefault();
+    ev.stopPropagation();
+    const picks = [...root.querySelectorAll(".fnb-choice")].filter(s => s.value && s.getAttribute("data-id"));
+    if (!picks.length) return;
+    btn.disabled = true;
+    Promise.all(picks.map(s=>{
+      const [kind, ...rest] = s.value.split("|");
+      return fetch("/legal/fnb-alloc", {
+        method:"POST",
+        credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({id: Number(s.getAttribute("data-id")), kind, to: rest.join("|")})
+      }).then(r=>r.json());
+    })).then(()=>fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"}))
+      .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+      .then(data=>{ Object.assign(pack, data.clients || {}); paint(pack); })
+      .catch(()=>{ btn.disabled = false; });
+  });
 }
 function bindFnbFetch(root, pack){
   root.querySelectorAll(".fnb-fetch").forEach(btn=>{
@@ -425,6 +478,7 @@ function paint(pack){
   $("#grid").innerHTML = body;
   bindToggles($("#grid"));
   bindFnbFetch($("#grid"), pack);
+  bindFnbApply($("#grid"), pack);
   const wrap = $("#cancelled-wrap");
   if (!cancelled.length) { wrap.classList.add("hidden"); return; }
   wrap.classList.remove("hidden");

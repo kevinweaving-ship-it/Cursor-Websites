@@ -120,7 +120,7 @@ GoWiFi books are three feeds, not a full ledger package:
 
 1. **We invoice / statement** active fibre lines (series continues after QuickBooks 3039)
 2. **Netcash** debit-order API (`NIWS_NIF`) — collections and unpaids. Read-only pull via `python3 /root/gowifi-upp/netcash.py pull`. Keys in `/root/secrets/netcash.env` (`NETCASH_USERNAME`, `NETCASH_SERVICE_KEY`). Does not upload debit batches.
-3. **FNB** — live Online Banking statement (login in `/root/secrets/fnb.env`) or Integration Channel API for `62860060278`. Card sits on top of `/dash/clients.html`: last fetched, system balance (matched unless new rows are not auto-reconciled — then amount / what needs attention), Fetch button, daily autofetch 06:15 SAST. New rows only — no duplicates. Not QuickBooks.
+3. **FNB** — the box fetches Online Banking itself (posted + pending) for `62860060278`. Card on `/dash/clients.html`: last fetched, posted balance, then pending, then available. New rows allocate who paid against what is due. Leftovers sit on the Issues tab with allocate choices. Not QuickBooks.
 4. **Openserve invoices** already on the box — fibre cost to match against FNB debits
 
 ### Packages (April 2026)

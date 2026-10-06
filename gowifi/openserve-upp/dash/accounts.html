@@ -56,6 +56,29 @@ h2.toggle .chev { color:var(--acc); font-size:14px; }
 .scroll { overflow:auto; }
 .err { background:#fdecec; color:#8a1212; padding:12px; border-radius:12px; }
 table.compact { width:100%; border-collapse:collapse; font-size:13px; }
+.fnb-reg-wrap { width:100%; overflow:auto; }
+.fnb-reg {
+  width:100%; table-layout:fixed; border-collapse:collapse;
+  font-size:13px; font-variant-numeric:tabular-nums;
+}
+.fnb-reg col.d { width:7.6em; }
+.fnb-reg col.n { width:6.8em; }
+.fnb-reg th, .fnb-reg td {
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  vertical-align:middle; padding:7px 10px;
+  border-bottom:1px solid var(--line);
+  border-right:1px solid var(--line);
+}
+.fnb-reg th:last-child, .fnb-reg td:last-child { border-right:0; }
+.fnb-reg th {
+  text-align:left; color:var(--muted); font-size:11px; letter-spacing:.04em;
+  text-transform:uppercase; font-weight:700;
+  position:sticky; top:0; background:#fff;
+}
+.fnb-reg th.num, .fnb-reg td.num { text-align:right; }
+.fnb-reg tr:last-child td { border-bottom:0; }
+.fnb-reg tr.pending td { color:var(--warn); }
+.fnb-reg tr.posted td { color:var(--acc); }
 table.compact th {
   text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase;
   letter-spacing:.04em; font-weight:700; padding:6px 6px 8px 0; border-bottom:1px solid var(--line);
@@ -403,14 +426,16 @@ function render(data){
         </table></div>`;
       })()}
       <div class="card scroll">
-        <table class="compact">
-          <thead><tr><th>Date</th><th>FNB</th><th>Spent</th><th>Received</th><th>Balance</th></tr></thead>
+        <div class="k">FNB register</div>
+        <div class="fnb-reg-wrap"><table class="fnb-reg">
+          <colgroup><col class="d"><col><col class="n"><col class="n"><col class="n"></colgroup>
+          <thead><tr><th>Date</th><th>Description</th><th class="num">Spent</th><th class="num">Received</th><th class="num">Balance</th></tr></thead>
           <tbody>${((data.books&&data.books.fnb&&data.books.fnb.rows)||[]).map(r=>`
-            <tr><td class="num">${esc(r.paid_on||"—")}</td><td>${esc(r.description||"—")}</td>
+            <tr class="${esc(r.tone==="pending"?"pending":"posted")}"><td>${esc(r.paid_on||"—")}</td><td title="${esc(r.description||"—")}">${esc(r.description||"—")}</td>
             <td class="num">${r.spent==null?"":Number(r.spent).toFixed(2)}</td>
             <td class="num">${r.received==null?"":Number(r.received).toFixed(2)}</td>
             <td class="num">${r.balance==null?"—":Number(r.balance).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="5" class="meta">No FNB rows on the system yet. Fetch from FNB Online.</td></tr>`}</tbody>
-        </table>
+        </table></div>
       </div>
       <div class="card scroll">
         <table class="compact">
