@@ -1446,7 +1446,7 @@ def account_as_at(
     bounced = bool(open_bounce) and due_today > 0.004
     if bounced:
         status = "bounced"
-    elif abs(due_today) <= 0.004 and not in_do_grace:
+    elif due_today <= 0.004 and not in_do_grace:
         status = "paid-up"
     elif in_do_grace and abs(due_today) <= 0.004:
         status = "do-pending"
@@ -1470,7 +1470,7 @@ def account_as_at(
         "bounced": bounced,
         "suspension_notice": bounced,
         "status": status,
-        "nil": abs(due_today) <= 0.004 and not bounced,
+        "nil": due_today <= 0.004 and not bounced,
         "statement": stmt,
         "ledger": ledger.get("lines") or [],
         "master": ledger.get("master"),
