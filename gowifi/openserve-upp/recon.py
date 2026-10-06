@@ -502,10 +502,68 @@ def ensure(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE netcash_tx ADD COLUMN {col} {typ}")
 
 
+FNB_TABLE_SOURCES = ("fnb_live", "fnb_online", "fnb_api", "fnb_history", "fnb_qb")
+
+
+def _mirror_bank_tx(conn: sqlite3.Connection) -> int:
+    """Keep the shared FNB table (including QuickBooks bank) on fnb_tx."""
+    from fnb_statement import allocate_live, to_fnb_row
+
+    try:
+        recs = list(
+            conn.execute(
+                """SELECT paid_on, amount, balance, description, source FROM bank_tx
+                   WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')"""
+            )
+        )
+    except sqlite3.OperationalError:
+        return 0
+    n = 0
+    for rec in recs:
+        raw = to_fnb_row(
+            {
+                "paid_on": rec[0],
+                "amount": rec[1],
+                "balance": rec[2],
+                "description": rec[3],
+                "source": rec[4],
+                "account_number": "62860060278",
+            }
+        )
+        alloc = allocate_live(raw)
+        conn.execute(
+            """INSERT OR IGNORE INTO fnb_tx
+               (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
+                account, bank_status, alloc_kind, alloc_to, alloc_key, result, source)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                raw["paid_on"],
+                raw.get("ref"),
+                raw.get("payee"),
+                raw.get("memo"),
+                raw.get("payment"),
+                raw.get("deposit"),
+                raw["amount"],
+                raw.get("balance"),
+                raw.get("qb_type"),
+                raw.get("account"),
+                raw.get("bank_status"),
+                alloc["alloc_kind"],
+                alloc["alloc_to"],
+                alloc.get("alloc_key") or "",
+                alloc["result"],
+                raw.get("source") or "fnb_live",
+            ),
+        )
+        n += 1
+    return n
+
+
 def ingest(conn: sqlite3.Connection) -> dict:
     ensure(conn)
     conn.execute(
-        "DELETE FROM fnb_tx WHERE COALESCE(source,'') NOT IN ('fnb_live','fnb_online','fnb_api')"
+        "DELETE FROM fnb_tx WHERE COALESCE(source,'') NOT IN "
+        "('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')"
     )
     conn.execute("DELETE FROM netcash_tx")
     fnb_n = 0
@@ -536,6 +594,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
             ),
         )
         fnb_n += 1
+    fnb_n += _mirror_bank_tx(conn)
     nc_n = 0
     for row in _xls_rows(NETCASH_XLS):
         alloc = _netcash_alloc(row)
