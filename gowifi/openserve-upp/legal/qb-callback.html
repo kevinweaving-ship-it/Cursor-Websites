@@ -33,7 +33,9 @@
       body: JSON.stringify({code: q.get("code"), realmId: q.get("realmId"), state: q.get("state")})
     }).then(function (r) { return r.json(); }).then(function (d) {
       title.textContent = d.ok ? "Connected" : "Not saved";
-      el.textContent = d.ok ? "Connected. You can close this tab." : (d.error || "Could not save tokens.");
+      el.textContent = d.ok
+        ? "Connected. You can close this tab."
+        : ((d.error || "Could not save tokens.") + " Open Connect and click the button once more.");
     }).catch(function () {
       title.textContent = "Not saved";
       el.textContent = "Could not reach the box.";

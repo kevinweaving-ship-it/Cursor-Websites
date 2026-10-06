@@ -143,24 +143,43 @@ def _basic(client_id: str, secret: str) -> str:
     return "Basic " + base64.b64encode(raw).decode()
 
 
+def _token_error(exc: urllib.error.HTTPError) -> str:
+    return exc.read().decode()[:400]
+
+
 def _post_token(client_id: str, secret: str, body: dict[str, str]) -> dict:
-    req = urllib.request.Request(
-        TOKEN_URL,
-        data=urllib.parse.urlencode(body).encode(),
-        method="POST",
-        headers={
-            "Authorization": _basic(client_id, secret),
+    """Intuit sometimes 401s Basic-only on a real code. Retry with body creds."""
+    attempts = (
+        (dict(body), True),
+        ({**body, "client_id": client_id, "client_secret": secret}, True),
+        ({**body, "client_id": client_id, "client_secret": secret}, False),
+    )
+    last = ""
+    last_code = 0
+    ctx = ssl.create_default_context()
+    for payload, use_basic in attempts:
+        headers = {
             "Accept": "application/json",
             "Content-Type": "application/x-www-form-urlencoded",
-        },
-    )
-    ctx = ssl.create_default_context()
-    try:
-        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
-            return json.loads(resp.read().decode())
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode()[:400]
-        raise SystemExit(f"token exchange failed {exc.code}: {detail}") from exc
+            "User-Agent": "GoWiFiBox/1.0",
+        }
+        if use_basic:
+            headers["Authorization"] = _basic(client_id, secret)
+        req = urllib.request.Request(
+            TOKEN_URL,
+            data=urllib.parse.urlencode(payload).encode(),
+            method="POST",
+            headers=headers,
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as exc:
+            last_code = exc.code
+            last = _token_error(exc)
+            if "invalid_client" not in last:
+                raise SystemExit(f"token exchange failed {last_code}: {last}") from exc
+    raise SystemExit(f"token exchange failed {last_code}: {last}")
 
 
 def exchange_code(code: str, realm_id: str) -> dict:
@@ -168,6 +187,7 @@ def exchange_code(code: str, realm_id: str) -> dict:
     client_id, secret, redirect = client_pair(env)
     if not client_id or not secret:
         raise SystemExit("QBO client id/secret missing in /root/secrets/qbo.env")
+    code = str(code or "").strip()
     if not code:
         raise SystemExit("missing authorization code")
     realm_id = (realm_id or env.get("QBO_REALM_ID") or KNOWN_REALM).strip()
