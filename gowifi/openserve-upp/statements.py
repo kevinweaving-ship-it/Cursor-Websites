@@ -43,8 +43,9 @@ from billing import (
     split_qb_name,
 )
 from invoice_canned import statement_on_invoice
+from invoice_list import NAMED_INVOICES
 from invoice_list import classify as classify_invoices
-from invoice_list import is_reconnect_text
+from invoice_list import is_do_return_text, is_reconnect_text
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 INVOICES_JSON = DATA_DIR / "qb_invoices.json"
@@ -56,6 +57,7 @@ SALES_REG_JSON = DATA_DIR / "qb_sales_register.json"
 DELETED_STATUSES = {"deleted", "void", "voided"}
 GRACE_DAYS = 7
 RECONNECT_LABEL = "Reconnection after unpaid · un-suspend penalty"
+DO_RETURN_LABEL = "D/O return · collect EFT"
 # (date, client key) -> FNB bank EFT total for that day (splits summed).
 BANK_EFT: dict[tuple[str, str], float] = {}
 NOT_ON_MONTHLY_DO = frozenset({"reconnect", "install", "do-return", "equipment", "fee"})
@@ -177,7 +179,7 @@ def _family_from_lines(line_kinds: list[str], memo: str = "", list_kind: str = "
     kinds = {k for k in line_kinds if k}
     if "reconnect" in kinds or is_reconnect_text(memo):
         return "reconnect"
-    if "do-return" in kinds:
+    if "do-return" in kinds or list_kind == "do-return" or is_do_return_text(memo):
         return "do-return"
     if list_kind == "monthly":
         return "monthly"
@@ -215,11 +217,63 @@ def _invoice_families(conn: sqlite3.Connection, kind_by_no: dict[str, str] | Non
         if listed == "reconnect":
             list_kind = "query"
             memo = memos.get(no) or "reconnection"
+        elif listed == "do-return":
+            list_kind = "do-return"
+            memo = memos.get(no) or "debit order return"
         else:
             list_kind = listed
             memo = memos.get(no) or ""
         out[no] = _family_from_lines(by_no.get(no) or [], memo, list_kind)
     return out
+
+
+def _ingest_named_invoices(conn: sqlite3.Connection, kind_by_no: dict[str, str]) -> int:
+    """Real QB invoices that landed after the last list dump. Do not invent paid."""
+    n = 0
+    for row in NAMED_INVOICES:
+        no = str(row.get("number") or "")
+        try:
+            number = int(no)
+        except (TypeError, ValueError):
+            continue
+        if not no or not row.get("name") or _money(row.get("amount")) <= 0.004:
+            continue
+        kind_by_no[no] = row.get("family") or "query"
+        cust = display_name(row.get("name")) or row.get("name")
+        conn.execute(
+            """INSERT OR REPLACE INTO customer_invoices
+               (invoice_number, invoice_date, due_date, customer, amount, balance_due,
+                status, source, description)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (
+                number,
+                row.get("date"),
+                row.get("due"),
+                cust,
+                _money(row.get("amount")),
+                _money(row.get("open") if row.get("open") is not None else row.get("amount")),
+                "open",
+                "qb-named",
+                row.get("memo") or "",
+            ),
+        )
+        conn.execute(
+            """INSERT OR REPLACE INTO customer_invoice_lines
+               (invoice_number, line_no, product, description, qty, price, amount, kind)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (
+                no,
+                1,
+                row.get("product") or "Other",
+                row.get("memo") or "",
+                row.get("qty") or 1,
+                _money(row.get("price") if row.get("price") is not None else row.get("amount")),
+                _money(row.get("amount")),
+                row.get("family") or "other",
+            ),
+        )
+        n += 1
+    return n
 
 
 def ingest(conn: sqlite3.Connection) -> dict:
@@ -277,6 +331,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
             ),
         )
         n_inv += 1
+    n_inv += _ingest_named_invoices(conn, kind_by_no)
 
     n_line = 0
     by_no: dict[str, list[dict]] = {}
@@ -725,6 +780,8 @@ def _stmt_desc(text: str | None, line_kind: str | None = None) -> str:
 
     if (line_kind or "") == "reconnect" or is_reconnect_text(text):
         return RECONNECT_LABEL
+    if (line_kind or "") == "do-return" or is_do_return_text(text):
+        return DO_RETURN_LABEL
     t = clean_description(text)
     t = re.sub(r"(?i)\bgowifi\b", "", t)
     t = t.replace("Fiber", "Fibre")
@@ -763,6 +820,8 @@ def _fold_invoice_what(lines: list[dict], conn: sqlite3.Connection | None) -> li
         rec = dict(row)
         if (row.get("family") or "") == "reconnect" or is_reconnect_text(row.get("what"), " ".join(bits)):
             rec["what"] = f"Invoice {no} · {RECONNECT_LABEL}"
+        elif (row.get("family") or "") == "do-return" or is_do_return_text(row.get("what"), " ".join(bits)):
+            rec["what"] = f"Invoice {no} · {DO_RETURN_LABEL}"
         else:
             rec["what"] = f"Invoice {no} {' · '.join(bits)}".strip() if bits else f"Invoice {no}"
         out.append(rec)
@@ -1102,7 +1161,13 @@ def fifo_statement(
             "date_fmt": fmt_date(inv.get("invoice_date")),
             "kind": "invoice",
             "ref": no,
-            "what": f"Invoice {no} · {RECONNECT_LABEL}" if family == "reconnect" else f"Invoice {no}",
+            "what": (
+                f"Invoice {no} · {RECONNECT_LABEL}"
+                if family == "reconnect"
+                else f"Invoice {no} · {DO_RETURN_LABEL}"
+                if family == "do-return"
+                else f"Invoice {no}"
+            ),
             "amount": amt,
             "balance": balance,
             "open": amt,
@@ -1644,7 +1709,7 @@ def self_test() -> int:
     elif not cup_3125 or _money(cup_3125.get("open")) > 0.02 or cup_3125_unpaid:
         print("FAIL cupido-oct-must-be-paid", cup.get("due"), cup_3125, cup_3125_unpaid)
         failed += 1
-    elif abs((cup.get("due") or 0) - 527) > 0.02:
+    elif abs((cup.get("due") or 0) - 760) > 0.02:
         print("FAIL cupido-due", cup.get("due"))
         failed += 1
     elif not amoroc_3107 or amoroc_3107.get("tone") != "matched":
@@ -1704,6 +1769,28 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK cupido-2715-eft-nil", "3013 unpaid 0")
+    cup_3130 = next(
+        (r for r in (cup.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "3130"),
+        None,
+    )
+    cup_3130_do = [
+        r
+        for r in (cup.get("ledger") or [])
+        if str(r.get("ref")) == "3130" and r.get("kind") == "payment" and "D/O" in (r.get("what") or "")
+    ]
+    if (
+        not cup_3130
+        or abs(_money(cup_3130.get("open")) - 233) > 0.02
+        or cup_3130.get("family") != "do-return"
+        or cup_3130_do
+    ):
+        print("FAIL cupido-3130-do-return-eft", cup_3130, cup_3130_do)
+        failed += 1
+    elif DO_RETURN_LABEL not in (cup_3130.get("what") or ""):
+        print("FAIL cupido-3130-label", cup_3130)
+        failed += 1
+    else:
+        print("OK cupido-3130-do-return-unpaid", cup_3130.get("open"))
     cup_sep8 = [
         r
         for r in (cup.get("ledger") or [])

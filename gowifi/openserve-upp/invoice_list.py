@@ -52,6 +52,22 @@ KNOWN_MONTHLY = {
     "aljo van": (699.0,),
 }
 
+# Real QB invoices after the last list dump. Yes / what-for / amount only.
+NAMED_INVOICES = [
+    {
+        "number": "3130",
+        "date": "2026-09-29",
+        "due": "2026-10-28",
+        "name": "Mr Godfrey Cupido",
+        "amount": 233.0,
+        "open": 233.0,
+        "memo": "Debit order Return >> Manual Payment EFT >> process",
+        "family": "do-return",
+        "product": "Other",
+        "qty": 1.0,
+        "price": 233.0,
+    },
+]
 ASK = "Need full invoice PDF — split install / equipment / fees"
 RECONNECT_MARKERS = (
     "reconnection",
@@ -65,6 +81,14 @@ RECONNECT_MARKERS = (
 RECONNECT_WHY = (
     "Reconnection after unpaid · un-suspend penalty. "
     "Once-off, not on the monthly D/O — so the client sees the cost of not paying."
+)
+DO_RETURN_MARKERS = (
+    "debit order return",
+    "do return",
+    "d/o return",
+)
+DO_RETURN_WHY = (
+    "D/O return · collect by EFT. Once-off, not on the monthly D/O."
 )
 MONTHLY_WHAT = {
     "fibre": "Fibre line rental (month in advance)",
@@ -84,7 +108,23 @@ def _load() -> dict:
 
 
 def invoices() -> list[dict]:
-    return [dict(r) for r in (_load().get("rows") or [])]
+    rows = [dict(r) for r in (_load().get("rows") or [])]
+    have = {str(r.get("number") or "") for r in rows}
+    for row in NAMED_INVOICES:
+        no = str(row.get("number") or "")
+        if no and no not in have:
+            rows.append(
+                {
+                    "date": row.get("date"),
+                    "number": no,
+                    "name": row.get("name"),
+                    "memo": row.get("memo") or "",
+                    "due": row.get("due"),
+                    "amount": row.get("amount"),
+                    "open": row.get("open") if row.get("open") is not None else row.get("amount"),
+                }
+            )
+    return rows
 
 
 def _rates_for(key: str) -> set[float]:
@@ -102,6 +142,11 @@ def _closed(name: str) -> bool:
 def is_reconnect_text(*parts: str) -> bool:
     blob = " ".join(str(p or "") for p in parts).lower()
     return any(m in blob for m in RECONNECT_MARKERS)
+
+
+def is_do_return_text(*parts: str) -> bool:
+    blob = " ".join(str(p or "") for p in parts).lower()
+    return any(m in blob for m in DO_RETURN_MARKERS)
 
 
 def _classify_amount(key: str, amount: float, count: int, counts: Counter) -> str:
@@ -126,6 +171,8 @@ def _why(inv: dict, kind: str, monthly_now: float | None, count: int) -> str:
     memo = (inv.get("memo") or "").strip()
     if is_reconnect_text(memo):
         return RECONNECT_WHY
+    if is_do_return_text(memo):
+        return DO_RETURN_WHY
     if "install" in memo.lower():
         return f"Memo says install — {ASK}"
     if count == 1 and monthly_now:
@@ -170,6 +217,8 @@ def classify(as_at: date | None = None) -> dict:
             amount = _money(inv["amount"])
             if is_reconnect_text(inv.get("memo") or ""):
                 kind = "query"
+            elif is_do_return_text(inv.get("memo") or ""):
+                kind = "query"
             else:
                 kind = _classify_amount(key, amount, counts[amount], counts)
             rec = {
@@ -181,7 +230,13 @@ def classify(as_at: date | None = None) -> dict:
                 "open": _money(inv.get("open")),
                 "memo": inv.get("memo") or "",
                 "kind": kind,
-                "family": "reconnect" if is_reconnect_text(inv.get("memo") or "") else kind,
+                "family": (
+                    "reconnect"
+                    if is_reconnect_text(inv.get("memo") or "")
+                    else "do-return"
+                    if is_do_return_text(inv.get("memo") or "")
+                    else kind
+                ),
                 "access": access,
                 "pay": pay,
                 "monthly_now": monthly_now,
@@ -294,6 +349,7 @@ def self_test() -> int:
         "2717",  # Paltco 1119.20
         "2715",  # Cupido 1467.25
         "3106",  # Cupido 200
+        "3130",  # Cupido 233 D/O return — EFT, not monthly
         "3055",  # Cupido 439 (not his 759 rental)
         "2716",  # Bing Noordhoek 578.70
         "2550",  # Bryant 894
@@ -308,7 +364,7 @@ def self_test() -> int:
         "2223",  # Pearson 300 rounding
         "2265",  # Marlene 400 rounding
     }
-    if pack["count"] != 672:
+    if pack["count"] != 673:
         print("FAIL invoice-count", pack["count"])
         failed += 1
     elif not expect_query <= query_nos:
@@ -341,6 +397,11 @@ def self_test() -> int:
         "WebStream 50/25 Uncapped"
     ):
         print("FAIL reconnect-text")
+        failed += 1
+    elif (by_no.get("3130") or {}).get("family") != "do-return" or (by_no.get("3130") or {}).get(
+        "amount"
+    ) != 233:
+        print("FAIL cupido-3130-do-return", by_no.get("3130"))
         failed += 1
     else:
         print(
