@@ -23,6 +23,8 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$SRC/dash/invoice.html" \
   "$SRC/dash/invoices.html" \
   "$BOX:/home/user-data/www/default/dash/"
+"${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp/legal"
+"${SCP[@]}" -r "$SRC/legal/." "$BOX:/root/gowifi-upp/legal/"
 "${SCP[@]}" -r "$SRC/legal/." "$BOX:/home/user-data/www/default/legal/"
 "${SCP[@]}" \
   "$SRC/clients.py" "$SRC/compliance.py" "$SRC/site_lines.py" \
