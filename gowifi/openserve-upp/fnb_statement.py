@@ -656,24 +656,21 @@ def _all_text(page) -> str:
     return "\n".join(bits)
 
 
-def _stay_online(page) -> bool:
-    """Own login is Online Banking. www.fnb.co.za is CAPTCHA — leave it."""
+def _stay_online(page, logged_in: bool = False) -> bool:
+    """Stay on Online Banking. Public fnb.co.za is not a fetch."""
     try:
         url = page.url or ""
     except Exception:
         return False
     if "online.fnb.co.za" in url and "validate.perfdrive.com" not in url:
         return False
+    dest = ONLINE_BANK if logged_in else LOGIN_URLS[0]
     set_progress("Opening FNB Online")
     try:
-        page.goto(ONLINE_BANK, wait_until="domcontentloaded", timeout=45000)
+        page.goto(dest, wait_until="domcontentloaded", timeout=45000)
         return True
     except Exception:
-        try:
-            page.goto(LOGIN_URLS[0], wait_until="domcontentloaded", timeout=45000)
-            return True
-        except Exception:
-            return False
+        return False
 
 
 def _looks_blocked(text: str, url: str = "") -> bool:
@@ -1046,14 +1043,14 @@ def _fill_login(page, username: str, password: str) -> None:
 
 def _wait_after_login(page, account: str) -> None:
     set_progress("Waiting for FNB after login")
-    for i in range(90):
+    for i in range(40):
         try:
             page.wait_for_timeout(2000)
         except Exception:
             break
         if "www.fnb.co.za" in ((getattr(page, "url", "") or "")) and "online.fnb.co.za" not in (page.url or ""):
             set_progress("Back to FNB Online")
-            _stay_online(page)
+            _stay_online(page, logged_in=_looks_logged_in(_all_text(page), account))
         _dismiss_popups(page)
         text = _all_text(page)
         low = text.lower()
@@ -1137,48 +1134,32 @@ def _click_account_register(page, account: str) -> bool:
 
 
 def _walk_to_statement(page, account: str) -> dict:
-    """Skip (if shown) → My bank accounts → Available → account register. Path varies."""
+    """Skip → My bank accounts → Gowifi FNB Main → Statements → Successful."""
     balances = {"balance": None, "available": None}
-    account_tries = 0
-    for _ in range(10):
-        page = _latest_page(page)
-        _dismiss_popups(page)
-        text = _all_text(page)
-        kind = page_kind(text, account)
-        if kind == "devices":
-            _skip_devices(page)
-            page.wait_for_timeout(900)
-            continue
-        if kind == "welcome":
-            set_progress("My bank accounts")
-            _click_named(page, ("My bank accounts", "My Bank Accounts"))
-            page.wait_for_timeout(900)
-            continue
-        if kind == "accounts":
-            got = parse_account_card(text, account)
-            if got.get("balance") is not None:
-                balances = got
-                avail = got.get("available")
-                record_live_card(got.get("balance"), avail)
-                set_progress(
-                    f"Available {avail if avail is not None else '—'} · opening statement"
-                )
-            account_tries += 1
-            _click_account_register(page, account)
-            if _wait_kind(page, account, "statement", 5000):
-                continue
-            if account_tries >= 3:
-                set_progress("On FNB accounts · register not open")
-                return balances
-            continue
-        if kind == "statement":
-            set_progress("On statement")
-            return balances
-        set_progress("Opening FNB pages")
-        _skip_devices(page)
-        _click_named(page, ("My bank accounts", "My Bank Accounts"))
-        _click_account_register(page, account)
-        page.wait_for_timeout(800)
+    _skip_devices(page)
+    page.wait_for_timeout(400)
+    set_progress("My bank accounts")
+    _click_named(page, ("My bank accounts", "My Bank Accounts"))
+    page.wait_for_timeout(1500)
+    _skip_devices(page)
+    got = parse_account_card(_all_text(page), account)
+    if got.get("balance") is not None:
+        balances = got
+        record_live_card(got.get("balance"), got.get("available"))
+        set_progress(f"Bank {got.get('balance')} · Available {got.get('available')}")
+    set_progress("Gowifi FNB Main")
+    _click_named(page, ("Gowifi FNB Main", "GoWifi FNB Main"))
+    page.wait_for_timeout(2000)
+    if page_kind(_all_text(page), account) != "statement":
+        set_progress("Statements")
+        _click_named(page, ("Statements",))
+        page.wait_for_timeout(2000)
+    if page_kind(_all_text(page), account) != "statement":
+        set_progress("Successful")
+        _click_named(page, ("Successful", "Successful transactions"))
+        page.wait_for_timeout(1500)
+    if page_kind(_all_text(page), account) == "statement":
+        set_progress("On statement")
     return balances
 
 
@@ -1703,40 +1684,31 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
         except Exception as exc:
             set_progress("FNB browser failed", done=True, error=str(exc)[:180])
             return {"ok": False, "error": f"fnb browser: {exc}", "rows": [], "pending": []}
-        last = ""
+        last = LOGIN_URLS[0]
         logged = False
-        for url in LOGIN_URLS:
-            try:
-                set_progress("Opening FNB login")
-                page.goto(url, wait_until="domcontentloaded", timeout=45000)
-                last = url
-                page.wait_for_timeout(1800)
-                if _looks_blocked(_all_text(page), page.url):
-                    set_progress("FNB asked for CAPTCHA · retrying Online")
-                    _dump_page(page, f"captcha {url}")
-                    _stay_online(page)
-                    continue
-                _dismiss_popups(page)
-                if _looks_logged_in(_all_text(page), account):
-                    set_progress("Already logged in to FNB")
-                    logged = True
-                    break
+        try:
+            set_progress("Opening FNB login")
+            page.goto(LOGIN_URLS[0], wait_until="domcontentloaded", timeout=45000)
+            page.wait_for_timeout(1800)
+            _stay_online(page, logged_in=False)
+            _dismiss_popups(page)
+            if _looks_blocked(_all_text(page), page.url):
+                raise RuntimeError("FNB asked for CAPTCHA")
+            if _looks_logged_in(_all_text(page), account):
+                set_progress("Already logged in to FNB")
+                logged = True
+            else:
                 set_progress("Logging in")
                 _fill_login(page, user, password)
-                _stay_online(page)
-                if "online.fnb.co.za" not in ((page.url or "")):
-                    raise RuntimeError("FNB stayed on the public site")
                 logged = True
-                break
-            except Exception as exc:
-                last = f"{url}: {exc}"
-                _dump_page(page, f"login-fail {url}")
-                continue
+        except Exception as exc:
+            last = f"{LOGIN_URLS[0]}: {exc}"
+            _dump_page(page, "login-fail")
         try:
             if not logged:
                 raise RuntimeError(last or "FNB login form not on the page")
-            _stay_online(page)
             _wait_after_login(page, account)
+            _stay_online(page, logged_in=True)
             set_progress("Checking popup")
             _dismiss_popups(page)
             page.wait_for_timeout(400)
