@@ -144,7 +144,8 @@ fi
 CRON_LINE='*/15 * * * * UPP_DB=/root/gowifi-upp/upp.db /usr/bin/python3 /root/gowifi-upp/sync.py >> /var/log/gowifi-upp-sync.log 2>&1'
 CRON_FNB='*/30 * * * * UPP_DB=/root/gowifi-upp/upp.db /usr/bin/python3 /root/gowifi-upp/fnb_api.py pull >> /var/log/gowifi-fnb-fetch.log 2>&1'
 (crontab -l 2>/dev/null | grep -v 'gowifi-upp/sync.py' | grep -v 'fnb_api.py pull' | grep -v 'fnb_statement.py pull' || true; echo "$CRON_LINE"; echo "$CRON_FNB") | crontab -
-apt-get install -y -qq xvfb >/dev/null 2>&1 || true
+apt-get install -y -qq xvfb x11-utils >/dev/null 2>&1 || true
+pgrep -f "Xvfb :99" >/dev/null || Xvfb :99 -screen 0 1400x900x24 -nolisten tcp -ac >/var/log/gowifi-xvfb.log 2>&1 &
 python3 -m pip install -q playwright >/dev/null 2>&1 || true
 python3 -m playwright install-deps chromium >/dev/null 2>&1 || true
 python3 -m playwright install chromium >/dev/null 2>&1 || true

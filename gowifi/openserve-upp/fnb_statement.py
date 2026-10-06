@@ -27,12 +27,17 @@ PROGRESS_PATH = Path(os.environ.get("FNB_PROGRESS", "/tmp/fnb-fetch.progress"))
 DUMP_PATH = Path(os.environ.get("FNB_DUMP", "/tmp/fnb-last-page.txt"))
 
 
+def _short(text: str | None, n: int = 160) -> str:
+    line = (text or "").splitlines()[0].strip()
+    return line[:n]
+
+
 def set_progress(step: str, done: bool = False, error: str | None = None, **extra) -> dict:
     pack = {
-        "step": step,
+        "step": _short(step),
         "at": datetime.now().strftime("%H:%M"),
         "done": done,
-        "error": error,
+        "error": _short(error) if error else None,
     }
     pack.update(extra)
     try:
@@ -595,28 +600,69 @@ def _looks_blocked(text: str, url: str = "") -> bool:
     )
 
 
-def _ensure_display() -> str:
-    """Headed Chrome on the box — FNB blocks HeadlessChrome. Own login only."""
-    current = (os.environ.get("DISPLAY") or "").strip()
-    if current:
-        return current
-    xvfb = shutil.which("Xvfb")
-    if not xvfb:
-        return ""
-    display = (os.environ.get("FNB_DISPLAY") or ":99").strip() or ":99"
-    lock = Path(f"/tmp/.X{display.lstrip(':')}-lock")
-    if not lock.exists():
+def _display_alive(display: str) -> bool:
+    env = os.environ.copy()
+    env["DISPLAY"] = display
+    xdpy = shutil.which("xdpyinfo")
+    if xdpy:
         try:
-            subprocess.Popen(
-                [xvfb, display, "-screen", "0", "1400x900x24", "-nolisten", "tcp", "-ac"],
+            return subprocess.run(
+                [xdpy, "-display", display],
+                env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-            )
-            time.sleep(0.5)
+                timeout=2,
+            ).returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+    return Path(f"/tmp/.X{display.lstrip(':')}-lock").exists() and bool(
+        subprocess.run(["pgrep", "-f", f"Xvfb {display}"], stdout=subprocess.DEVNULL).returncode == 0
+        if shutil.which("pgrep")
+        else Path(f"/tmp/.X{display.lstrip(':')}-lock").exists()
+    )
+
+
+def _ensure_display() -> str:
+    """Headed Chrome on the box — FNB blocks HeadlessChrome. Own login only."""
+    display = (os.environ.get("FNB_DISPLAY") or os.environ.get("DISPLAY") or ":99").strip() or ":99"
+    if _display_alive(display):
+        os.environ["DISPLAY"] = display
+        return display
+    xvfb = shutil.which("Xvfb")
+    if not xvfb:
+        os.environ.pop("DISPLAY", None)
+        return ""
+    lock = Path(f"/tmp/.X{display.lstrip(':')}-lock")
+    if lock.exists() and not _display_alive(display):
+        try:
+            lock.unlink()
         except OSError:
-            return ""
-    os.environ["DISPLAY"] = display
-    return display
+            pass
+    try:
+        subprocess.Popen(
+            [xvfb, display, "-screen", "0", "1400x900x24", "-nolisten", "tcp", "-ac"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        os.environ.pop("DISPLAY", None)
+        return ""
+    for _ in range(20):
+        time.sleep(0.15)
+        if _display_alive(display):
+            os.environ["DISPLAY"] = display
+            return display
+    os.environ.pop("DISPLAY", None)
+    return ""
+
+
+def _clear_stale_chrome() -> None:
+    for name in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
+        path = PROFILE_DIR / name
+        try:
+            path.unlink()
+        except OSError:
+            pass
 
 
 def _open_browser(pw):
@@ -626,9 +672,12 @@ def _open_browser(pw):
         os.chmod(PROFILE_DIR, 0o700)
     except OSError:
         pass
+    _clear_stale_chrome()
     display = _ensure_display()
+    if not display:
+        raise RuntimeError("FNB browser needs Xvfb on the box")
     kwargs = {
-        "headless": not bool(display),
+        "headless": False,
         "viewport": {"width": 1400, "height": 900},
         "user_agent": BROWSER_UA,
         "locale": "en-ZA",
@@ -642,21 +691,18 @@ def _open_browser(pw):
         "ignore_default_args": ["--enable-automation"],
     }
     last = None
-    for channel in ("chrome", "chromium"):
+    for channel in ("chrome", "chromium", None):
         try:
+            extra = {"channel": channel} if channel else {}
             return pw.chromium.launch_persistent_context(
                 str(PROFILE_DIR),
-                channel=channel,
+                **extra,
                 **kwargs,
             )
         except Exception as exc:
             last = exc
-    try:
-        return pw.chromium.launch_persistent_context(str(PROFILE_DIR), **kwargs)
-    except Exception:
-        if last:
-            raise last
-        raise
+            _clear_stale_chrome()
+    raise last or RuntimeError("FNB browser failed to open")
 
 
 def _dump_page(page, label: str) -> None:
@@ -1894,11 +1940,11 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK own-login-online-only")
-    open_fn = Path(__file__).read_text().split("def _open_browser", 1)[-1].split("def _dump_page", 1)[0]
+    open_fn = Path(__file__).read_text().split("def _display_alive", 1)[-1].split("def _dump_page", 1)[0]
     here = Path(__file__).read_text().split("def self_test", 1)[0]
     api = Path(__file__).with_name("fnb_api.py").read_text().split("def self_test", 1)[0]
     src = here + api
-    if "channel" not in open_fn or '"chrome"' not in open_fn or "_ensure_display" not in open_fn:
+    if "channel" not in open_fn or '"chrome"' not in open_fn or "_display_alive" not in open_fn:
         print("FAIL own-login-real-chrome")
         failed += 1
     elif any(w in src for w in ("Banklink", "Stitch", "OFX", "Scheduled Export")):

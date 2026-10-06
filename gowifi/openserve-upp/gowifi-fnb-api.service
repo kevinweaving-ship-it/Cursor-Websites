@@ -4,6 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
+Environment=DISPLAY=:99
+Environment=FNB_DISPLAY=:99
+ExecStartPre=/bin/sh -c 'pgrep -f "Xvfb :99" >/dev/null || Xvfb :99 -screen 0 1400x900x24 -nolisten tcp -ac >/var/log/gowifi-xvfb.log 2>&1 &'
 ExecStart=/usr/bin/python3 /root/gowifi-upp/fnb_api.py serve
 Restart=always
 User=root
