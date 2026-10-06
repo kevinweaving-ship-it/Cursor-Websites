@@ -282,24 +282,76 @@ def from_last_zero_newest(lines: list[dict]) -> list[dict]:
     return rows[:cut]
 
 
+def _is_do_line(row: dict) -> bool:
+    blob = f"{row.get('what') or ''} {row.get('description') or ''} {row.get('note') or ''}".lower()
+    return (row.get("kind") or "") == "payment" and ("d/o" in blob or "debit" in blob)
+
+
+def collapse_do_twins(lines: list[dict]) -> list[dict]:
+    """D/O is the payment. Same day + same amount: keep D/O, drop the extra Payment."""
+    rows = list(lines or [])
+    drop: set[int] = set()
+    for i, rec in enumerate(rows):
+        if (rec.get("kind") or "") != "payment" or i in drop:
+            continue
+        amt = round(abs(float(rec.get("amount") or rec.get("signed") or 0)), 2)
+        day = str(rec.get("date") or "")[:10]
+        group = [
+            j
+            for j, other in enumerate(rows)
+            if (other.get("kind") or "") == "payment"
+            and str(other.get("date") or "")[:10] == day
+            and round(abs(float(other.get("amount") or other.get("signed") or 0)), 2) == amt
+        ]
+        if len(group) < 2 or not any(_is_do_line(rows[j]) for j in group):
+            continue
+        winner = next((j for j in group if _is_do_line(rows[j])), group[0])
+        for j in group:
+            if j != winner:
+                drop.add(j)
+    return [rec for i, rec in enumerate(rows) if i not in drop]
+
+
 def statement_as_at_invoice(lines: list[dict], inv_no, inv_date: str | None = None) -> list[dict]:
-    """Child invoice statement: last 0.00 through this invoice, balances rebuilt."""
-    rows = from_last_zero_newest(lines)
+    """This invoice’s statement from the last 0.00. D/O is the payment — no extra Payment twin."""
+    rows = [dict(r) for r in (lines or []) if (r.get("kind") or "") != "line"]
+    rows = collapse_do_twins(rows)
     want = str(inv_no or "")
     idx = next(
         (
             i
             for i, rec in enumerate(rows)
-            if (rec.get("kind") or "") == "invoice" and str(rec.get("ref") or "") == want
+            if (rec.get("kind") or "") == "invoice" and str(rec.get("ref") or rec.get("invoice_number") or "") == want
         ),
         None,
     )
-    if idx is not None:
-        rows = rows[idx:]
-    elif inv_date:
+    if idx is None and inv_date:
         cut = str(inv_date)[:10]
         rows = [rec for rec in rows if str(rec.get("date") or "")[:10] <= cut]
-    chron = list(reversed(rows))
+        return rows
+    if idx is None:
+        return []
+    start = idx
+    while start > 0:
+        prev = rows[start - 1]
+        if (prev.get("kind") or "") == "payment" and str(prev.get("ref") or "") == want:
+            start -= 1
+            continue
+        break
+    window = rows[start:]
+    cut = len(window)
+    for i, rec in enumerate(window):
+        if i == 0:
+            continue
+        try:
+            bal = float(rec.get("balance") or 0)
+        except (TypeError, ValueError):
+            continue
+        if abs(bal) <= 0.004:
+            cut = i + 1
+            break
+    window = window[:cut]
+    chron = list(reversed(window))
     bal = 0.0
     out = []
     for i, rec in enumerate(chron):
@@ -368,6 +420,7 @@ def statement_on_invoice(
                 "signed": _signed(kind, amount) if kind == "payment" else amount,
             }
         )
+    rows = collapse_do_twins(rows)
     rows.sort(key=lambda r: (r.get("date") or "", r.get("kind") or "", r.get("reference") or ""))
     age_on = as_day or date.today()
     ledger = []
@@ -772,7 +825,7 @@ def self_test() -> int:
         print("OK one-invoice-card")
     dash = Path(__file__).resolve().parent.joinpath("dash/invoice.html")
     page = dash.read_text() if dash.exists() else ""
-    if "fromLastZero" not in page or "statementAsAtInvoice" not in page or "invoice-outer" not in page:
+    if "collapseDoTwins" not in page or "statementAsAtInvoice" not in page or "invoice-outer" not in page:
         print("FAIL invoice-html-child-url")
         failed += 1
     elif page.count("inner-card") < 3 or "ledger-card" not in page:
@@ -824,6 +877,29 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK child-invoice-statement", [r.get("ref") for r in child], child[0].get("balance"))
+    wantling = [
+        {"kind": "payment", "ref": "2713", "what": "D/O paid · Invoice 2713", "amount": -399, "balance": 0, "date": "2026-04-01", "show": True},
+        {"kind": "invoice", "ref": "2713", "what": "Invoice 2713", "amount": 399, "balance": 399, "date": "2026-03-17", "show": False},
+        {"kind": "payment", "ref": "2713", "what": "Payment", "amount": -399, "balance": 0, "date": "2026-04-01", "show": True},
+        {"kind": "payment", "ref": "2694", "what": "D/O paid · Invoice 2694", "amount": -399, "balance": 0, "date": "2026-03-01", "show": True},
+        {"kind": "invoice", "ref": "2694", "what": "Invoice 2694", "amount": 399, "balance": 399, "date": "2026-02-17", "show": False},
+    ]
+    w2713 = statement_as_at_invoice(wantling, "2713", "2026-03-17")
+    w_whats = [r.get("what") for r in w2713]
+    if [r.get("ref") for r in w2713] != ["2713", "2713", "2694"]:
+        print("FAIL wantling-2713-rows", [r.get("ref") for r in w2713], w_whats)
+        failed += 1
+    elif any((r.get("what") or "") == "Payment" for r in w2713):
+        print("FAIL wantling-invented-payment", w_whats)
+        failed += 1
+    elif w2713[0].get("kind") != "payment" or "D/O" not in (w2713[0].get("what") or ""):
+        print("FAIL wantling-do-is-payment", w2713[0])
+        failed += 1
+    elif abs(float(w2713[0].get("balance") or 0)) > 0.02 or abs(float(w2713[1].get("amount") or 0) - 399) > 0.02:
+        print("FAIL wantling-2713-bal", w2713)
+        failed += 1
+    else:
+        print("OK wantling-2713-do-only", w_whats)
     leftover = _ageing(
         [
             {"kind": "invoice", "signed": 439, "date": "2026-10-07", "reference": "3136"},

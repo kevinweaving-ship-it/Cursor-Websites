@@ -136,21 +136,44 @@ const sameClient = (a, b) => {
   const w = (b.customer||b.name||"").toLowerCase();
   return n && w && (n===w || (n.includes("marlene") && w.includes("marlene")) || (n.includes("van eeden") && w.includes("van eeden")));
 };
-const fromLastZero = lines => {
-  const rows = (lines||[]).filter(l => l.show !== false);
-  let cut = rows.length;
-  for (let i = 0; i < rows.length; i++) {
-    if (Math.abs(Number(rows[i].balance||0)) <= 0.004) { cut = i + 1; break; }
-  }
-  return rows.slice(0, cut);
+const isDoLine = l => {
+  const blob = `${l.what||""} ${l.description||""} ${l.note||""}`.toLowerCase();
+  return (l.kind||"")==="payment" && (blob.includes("d/o") || blob.includes("debit"));
 };
-const statementAsAtInvoice = (lines, invNo, invDate) => {
-  let rows = fromLastZero(lines).map(l => Object.assign({}, l));
+const collapseDoTwins = lines => {
+  const rows = (lines||[]).map(l => Object.assign({}, l));
+  const drop = new Set();
+  rows.forEach((rec, i) => {
+    if ((rec.kind||"")!=="payment" || drop.has(i)) return;
+    const amt = Math.round(Math.abs(Number(rec.amount||0))*100)/100;
+    const day = String(rec.date||"").slice(0,10);
+    const group = [];
+    rows.forEach((o, j) => {
+      if ((o.kind||"")!=="payment") return;
+      if (String(o.date||"").slice(0,10)!==day) return;
+      if (Math.round(Math.abs(Number(o.amount||0))*100)/100!==amt) return;
+      group.push(j);
+    });
+    if (group.length<2 || !group.some(j => isDoLine(rows[j]))) return;
+    const winner = group.find(j => isDoLine(rows[j]));
+    group.forEach(j => { if (j!==(winner==null?group[0]:winner)) drop.add(j); });
+  });
+  return rows.filter((_, i) => !drop.has(i));
+};
+const statementAsAtInvoice = (lines, invNo) => {
+  let rows = collapseDoTwins((lines||[]).filter(l => (l.kind||"")!=="line"));
   const want = String(invNo||"");
   const idx = rows.findIndex(l => (l.kind||"")==="invoice" && String(l.ref||l.invoice_number||"")===want);
-  if (idx >= 0) rows = rows.slice(idx);
-  else if (invDate) rows = rows.filter(l => String(l.date||"").slice(0,10) <= String(invDate).slice(0,10));
-  const chron = rows.slice().reverse();
+  if (idx < 0) return [];
+  let start = idx;
+  while (start>0 && (rows[start-1].kind||"")==="payment" && String(rows[start-1].ref||"")===want) start--;
+  let window = rows.slice(start);
+  let cut = window.length;
+  for (let i = 1; i < window.length; i++) {
+    if (Math.abs(Number(window[i].balance||0)) <= 0.004) { cut = i + 1; break; }
+  }
+  window = window.slice(0, cut);
+  const chron = window.slice().reverse();
   let bal = 0;
   chron.forEach((l, i) => {
     if (i===0 && Math.abs(Number(l.balance||0))<=0.004) { l.balance = 0; return; }
@@ -209,16 +232,17 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
     const card = cards.find(c => sameClient(c, r));
     const raw = r.statement && r.statement.lines && r.statement.lines.length ? r.statement : {lines:[], total_due: r.balance_due!=null?r.balance_due:r.amount, ageing:{}};
     const asAtInv = r.invoice_date || (data.clients&&data.clients.as_at) || raw.as_at;
-    const cardLines = statementAsAtInvoice(((card&&card.ledger)||[]), r.invoice_number, r.invoice_date);
+    const cardLines = statementAsAtInvoice(((card&&card.ledger)||[]), r.invoice_number);
     const cardAgeing = ageFromOpen(cardLines, asAtInv);
     const dueAt = cardLines.length ? Number(cardLines[0].balance||0) : (card&&card.due);
-    const stmt = cardLines.length
+    const qbLines = collapseDoTwins((raw.lines||[]).slice().reverse());
+    const stmt = card && (card.ledger||[]).length
       ? {lines: cardLines.map(l => ({
           date: l.date, date_fmt: l.date_fmt, description: l.what||l.description,
           invoice_number: l.kind==="invoice" ? l.ref : "", amount: l.amount,
           balance: l.balance, kind: l.kind, open: l.open, tone: l.tone||""
         })), total_due: dueAt, ageing: cardAgeing, as_at: asAtInv}
-      : toCurrent(Object.assign({}, raw, {lines: statementAsAtInvoice((raw.lines||[]).slice().reverse(), r.invoice_number, r.invoice_date)}));
+      : toCurrent(Object.assign({}, raw, {lines: statementAsAtInvoice(qbLines, r.invoice_number)}));
     const ageing = stmt.ageing || {};
     const due = stmt.total_due!=null ? stmt.total_due : (r.balance_due!=null?r.balance_due:r.amount);
     const desc = r.description || "Monthly service";
