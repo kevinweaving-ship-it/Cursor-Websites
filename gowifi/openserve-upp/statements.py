@@ -1046,6 +1046,25 @@ def _sales_lines(number: str, conn: sqlite3.Connection | None = None) -> list[di
             out = []
     if out:
         return out
+    if conn is not None:
+        try:
+            rec = conn.execute(
+                "SELECT description FROM customer_invoices WHERE CAST(invoice_number AS TEXT)=?",
+                (str(number),),
+            ).fetchone()
+            if rec and rec[0]:
+                out.append(
+                    {
+                        "what": clean_description(rec[0]),
+                        "amount": None,
+                        "kind": "line",
+                        "line_kind": "",
+                    }
+                )
+        except sqlite3.OperationalError:
+            pass
+    if out:
+        return out
     for row in _load(SALES_JSON).get("rows") or []:
         if str(row.get("number") or "") != str(number):
             continue

@@ -502,6 +502,21 @@ def ensure_cancel_invoices(
         except sqlite3.OperationalError:
             already = False
         if already:
+            desc = cancel_line(conn, row)
+            try:
+                for rec in conn.execute(
+                    "SELECT invoice_number, customer, description, source FROM customer_invoices"
+                ):
+                    if canon_key(rec[1]) != key or rec[3] != "gowifi-cancel":
+                        continue
+                    if "cancellation month" not in (rec[2] or "").lower():
+                        conn.execute(
+                            "UPDATE customer_invoices SET description=? WHERE invoice_number=?",
+                            (desc, rec[0]),
+                        )
+            except sqlite3.OperationalError:
+                pass
+            conn.commit()
             continue
         number += 1
         amt = float(row["amount"])

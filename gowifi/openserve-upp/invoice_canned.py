@@ -80,7 +80,9 @@ def clean_description(text: str | None) -> str:
         head = re.sub(r"(?i)^old\s*$", "", head.strip(" -/—"))
         label = re.sub(r"\s+", " ", last.group(0)).strip(" -")
         if head and len(head) <= 28 and not re.match(r"(?i)gw\d", head):
-            return f"{head} — {label}"
+            label = f"{head} — {label}"
+        if re.search(r"(?i)cancellation month", blob) and "cancellation month" not in label.lower():
+            label = f"{label} — cancellation month"
         return label
     blob = re.sub(r"\b(.{8,}?)\s+\1\b", r"\1", blob)
     blob = blob.replace("Fiber", "Fibre")
@@ -526,6 +528,10 @@ def self_test() -> int:
         ("NC Pop - 10 Mbps down / NC Pop - 10 Mbps down / 5 Mbps Up - 1 550.00 550.00", "NC Pop — 10 Mbps down / 5 Mbps Up"),
         ("WCC Tech - RSA Web WCC Tech - RSA Web Fiber Monthly 1 1,000.00 1,000.00", "WCC Tech - RSA Web Fibre Monthly"),
         ("Installation", "Installation"),
+        (
+            "7 Mbps down / 3.5 Mbps Up — cancellation month",
+            "7 Mbps down / 3.5 Mbps Up — cancellation month",
+        ),
     ]
     clean_ok = True
     for raw, want in mashed:
