@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 import sqlite3
 from calendar import monthrange
-from datetime import date
+from datetime import date, timedelta
 
 from invoice_canned import client_key, statement_on_invoice
 from packages import by_sku, extras as extra_charges
@@ -57,7 +57,15 @@ CLIENTS = [
             "Cash in against Kevin Weaving loan. Openserve fibre stays cost of service."
         ),
     },
-    {"ref": None, "name": "Mrs Marlene/Georg Van Eeden", "amount": 439.00, "method": "eft", "access": "wireless", "sku": None},
+    {
+        "ref": None,
+        "name": "Mrs Marlene/Georg Van Eeden",
+        "amount": 439.00,
+        "method": "eft",
+        "access": "wireless",
+        "sku": None,
+        "cancel": True,
+    },
 ]
 
 KEVIN_LOAN_ACCOUNT = "Share capital:Loan Account - Kevin Weaving 33%"
@@ -426,6 +434,122 @@ def ensure_cycle_invoices(
     return created
 
 
+def cancel_line(conn: sqlite3.Connection, row: dict) -> str:
+    """Same 7 Mb line as the card / last invoice, plus cancellation month."""
+    from invoice_canned import clean_description
+
+    key = canon_key(row["name"])
+    desc = None
+    try:
+        for rec in conn.execute(
+            """SELECT customer, description FROM customer_invoices
+               ORDER BY CAST(invoice_number AS INTEGER) DESC"""
+        ):
+            if canon_key(rec[0]) != key:
+                continue
+            text = clean_description(rec[1] or "")
+            if re.search(r"mbps", text, re.I):
+                desc = text
+                break
+    except sqlite3.OperationalError:
+        pass
+    if not desc:
+        desc = "7 Mbps down / 3.5 Mbps Up"
+    desc = re.sub(r"(?i)\s*[—\-]\s*cancellation month\s*$", "", desc).strip()
+    return f"{desc} — cancellation month"
+
+
+def _last_address(conn: sqlite3.Connection, name: str) -> str | None:
+    key = canon_key(name)
+    try:
+        for rec in conn.execute(
+            """SELECT customer, address FROM customer_invoices
+               WHERE address IS NOT NULL AND trim(address)!=''
+               ORDER BY CAST(invoice_number AS INTEGER) DESC"""
+        ):
+            if canon_key(rec[0]) == key:
+                return rec[1]
+    except sqlite3.OperationalError:
+        return None
+    return None
+
+
+def ensure_cancel_invoices(
+    conn: sqlite3.Connection,
+    today: date | None = None,
+) -> list[dict]:
+    """Last invoice on record + 1, dated tomorrow, from the client card."""
+    today = today or date.today()
+    inv_day = today + timedelta(days=1)
+    created = []
+    last = conn.execute("SELECT MAX(CAST(invoice_number AS INTEGER)) FROM customer_invoices").fetchone()
+    number = int(last[0] or 0)
+    for row in SERVICE_CLIENTS:
+        if not row.get("cancel"):
+            continue
+        key = canon_key(row["name"])
+        already = False
+        try:
+            for rec in conn.execute(
+                "SELECT customer, description, source FROM customer_invoices"
+            ):
+                if canon_key(rec[0]) != key:
+                    continue
+                blob = f"{rec[1] or ''} {rec[2] or ''}".lower()
+                if rec[2] == "gowifi-cancel" or "cancellation month" in blob:
+                    already = True
+                    break
+        except sqlite3.OperationalError:
+            already = False
+        if already:
+            continue
+        number += 1
+        amt = float(row["amount"])
+        desc = cancel_line(conn, row)
+        payload = {
+            "invoice_number": number,
+            "invoice_date": inv_day.isoformat(),
+            "due_date": inv_day.isoformat(),
+            "customer": row["name"],
+            "bill_to": row["name"],
+            "address": _last_address(conn, row["name"]),
+            "period": inv_day.strftime("%Y-%m"),
+            "description": desc,
+            "qty": 1,
+            "rate": amt,
+            "amount": amt,
+            "balance_due": amt,
+            "terms": "Due on receipt",
+            "status": "open",
+            "source": "gowifi-cancel",
+        }
+        try:
+            from qb_import import _upsert_invoice
+
+            _upsert_invoice(conn, payload)
+        except Exception:
+            conn.execute(
+                """INSERT OR IGNORE INTO customer_invoices
+                   (invoice_number, invoice_date, due_date, customer, period,
+                    description, amount, status, source)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                (
+                    number,
+                    inv_day.isoformat(),
+                    inv_day.isoformat(),
+                    row["name"],
+                    payload["period"],
+                    desc,
+                    amt,
+                    "open",
+                    "gowifi-cancel",
+                ),
+            )
+        created.append(payload)
+    conn.commit()
+    return created
+
+
 def _invoices(conn) -> list[dict]:
     out = []
     try:
@@ -644,6 +768,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
 def run_cycle(conn: sqlite3.Connection, today: date | None = None) -> dict:
     today = today or date.today()
     created = ensure_cycle_invoices(conn, today)
+    created.extend(ensure_cancel_invoices(conn, today))
     receipts = apply_named_receipts(conn)
     do_n = 0
     if PENDING_DO.get("collected") and today >= date.fromisoformat(PENDING_DO["action_date"]):
@@ -839,6 +964,36 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK paid-up-vs-owes")
+    last = conn.execute("SELECT MAX(invoice_number) FROM customer_invoices").fetchone()[0]
+    conn.execute(
+        """INSERT INTO customer_invoices
+           (invoice_number, invoice_date, customer, description, amount, source)
+           VALUES (3113,'2026-09-21','Mrs Marlene/Georg Van Eeden',
+                   '7 Mbps down / 3.5 Mbps Up',439,'qb-list')"""
+    )
+    last = conn.execute("SELECT MAX(invoice_number) FROM customer_invoices").fetchone()[0]
+    cancels = ensure_cancel_invoices(conn, date(2026, 10, 6))
+    again = ensure_cancel_invoices(conn, date(2026, 10, 6))
+    mar = next((c for c in cancels if "Marlene" in (c.get("customer") or "")), None)
+    if not mar or int(mar["invoice_number"]) != int(last) + 1:
+        print("FAIL marlene-cancel-no", last, cancels)
+        failed += 1
+    elif mar["invoice_date"] != "2026-10-07":
+        print("FAIL marlene-cancel-tomorrow", mar)
+        failed += 1
+    elif abs(float(mar["amount"]) - 439) > 0.01:
+        print("FAIL marlene-cancel-amt", mar)
+        failed += 1
+    elif "7 Mbps" not in (mar.get("description") or "") or "cancellation month" not in (
+        mar.get("description") or ""
+    ).lower():
+        print("FAIL marlene-cancel-line", mar.get("description"))
+        failed += 1
+    elif again:
+        print("FAIL marlene-cancel-twice", again)
+        failed += 1
+    else:
+        print("OK marlene-cancel-invoice", mar["invoice_number"], mar["description"])
     conn.close()
     return failed
 

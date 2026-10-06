@@ -358,40 +358,42 @@ def render_invoice(row: dict) -> str:
 <body>
 <p class="screen-only"><a class="back" href="/dash/accounts.html">← Fibre accounts</a></p>
 <article class="sheet">
-  <div class="card-row">
-    <section class="card">
-      <div class="label">From</div>
-      <div class="brand">{escape(c["name"])}</div>
-      {lines}
-      <div class="muted">{escape(c["phone"])} · {escape(c["email"])}</div>
-      <div class="muted">Business ID No. {escape(c["reg"])}</div>
-    </section>
-    <section class="card">
-      <div class="label">Bill to</div>
-      <div class="who">{escape(row.get("customer") or "—")}</div>
-      {_address_html(row.get("address"))}
-      <table class="meta">
-        <tr><th>Invoice</th><td>{escape(str(row.get("invoice_number") or ""))}</td></tr>
-        <tr><th>Date</th><td>{escape(row.get("invoice_date_fmt") or "—")}</td></tr>
-        <tr><th>Terms</th><td>{escape(row.get("terms") or "Due on receipt")}</td></tr>
-        <tr><th>Due date</th><td>{escape(row.get("due_date_fmt") or "—")}</td></tr>
+  <section class="card invoice-main">
+    <div class="card-row">
+      <div class="pane">
+        <div class="label">From</div>
+        <div class="brand">{escape(c["name"])}</div>
+        {lines}
+        <div class="muted">{escape(c["phone"])} · {escape(c["email"])}</div>
+        <div class="muted">Business ID No. {escape(c["reg"])}</div>
+      </div>
+      <div class="pane">
+        <div class="label">Bill to</div>
+        <div class="who">{escape(row.get("customer") or "—")}</div>
+        {_address_html(row.get("address"))}
+        <table class="meta">
+          <tr><th>Invoice</th><td>{escape(str(row.get("invoice_number") or ""))}</td></tr>
+          <tr><th>Date</th><td>{escape(row.get("invoice_date_fmt") or "—")}</td></tr>
+          <tr><th>Terms</th><td>{escape(row.get("terms") or "Due on receipt")}</td></tr>
+          <tr><th>Due date</th><td>{escape(row.get("due_date_fmt") or "—")}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="lines-wrap">
+      <h2><span>Invoice</span><span class="doc-title">INVOICE</span></h2>
+      <table class="lines">
+        <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>{desc}</td>
+            <td class="num">{escape(str(row.get("qty") or 1))}</td>
+            <td class="num">{money(row.get("rate") if row.get("rate") is not None else row.get("amount"), False)}</td>
+            <td class="num">{money(row.get("amount"), False)}</td>
+          </tr>
+        </tbody>
       </table>
-    </section>
-  </div>
-  <section class="card">
-    <h2><span>Invoice</span><span class="doc-title">INVOICE</span></h2>
-    <table class="lines">
-      <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
-      <tbody>
-        <tr>
-          <td>{desc}</td>
-          <td class="num">{escape(str(row.get("qty") or 1))}</td>
-          <td class="num">{money(row.get("rate") if row.get("rate") is not None else row.get("amount"), False)}</td>
-          <td class="num">{money(row.get("amount"), False)}</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="due">This invoice {money(row.get("amount"))}</div>
+      <div class="due">This invoice {money(row.get("amount"))}</div>
+    </div>
   </section>
   <section class="card">
   {statement_html(row)}
@@ -413,8 +415,10 @@ DOCUMENT_CSS = """
 body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#1a1a1a; background:#e8e8e8; margin:0; }
 .sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:10mm 12mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
 .card { border: 2.5px solid #1a3a6b; border-radius:8px; padding:12px 14px; margin:0 0 12px; background:#fff; }
-.card-row { display:flex; gap:12px; margin:0 0 12px; }
-.card-row .card { flex:1; margin:0; }
+.card-row { display:flex; gap:24px; margin:0 0 12px; }
+.invoice-main .card-row { margin:0 0 14px; }
+.invoice-main .pane { flex:1; min-width:0; }
+.invoice-main .lines-wrap { border-top:1.5px solid #1a3a6b; padding-top:10px; }
 .brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; color:#1a3a6b; }
 .doc-title { font-size:22px; font-weight:700; letter-spacing:.12em; color:#1a3a6b; }
 .muted { color:#555; }
@@ -456,6 +460,7 @@ def statement_html(row: dict) -> str:
             return f'<a href="?n={escape(number)}">{label}</a>'
         return label
 
+    shown = list(reversed(lines))
     body = "".join(
         "<tr>"
         f"<td>{escape(line.get('date_fmt') or fmt_date(line.get('date')))}</td>"
@@ -463,12 +468,12 @@ def statement_html(row: dict) -> str:
         f"<td class=\"num\">{money(line.get('amount'), False)}</td>"
         f"<td class=\"num\">{money(line.get('balance'), False)}</td>"
         "</tr>"
-        for line in lines
+        for line in shown
     )
     ageing = stmt.get("ageing") or {}
     as_at = fmt_date(stmt.get("as_at") or row.get("invoice_date"))
     return f"""
-<h2><span>Statement</span><span class="muted">from last paid up · as at {escape(as_at)}</span></h2>
+<h2><span>Statement</span><span class="muted">as at {escape(as_at)}</span></h2>
 <div class="due">Outstanding {money(due)}</div>
 <table class="soa">
   <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
@@ -638,6 +643,24 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK as-at-cutoff")
+    html = render_invoice(
+        {
+            "invoice_number": 3136,
+            "invoice_date": "2026-10-07",
+            "customer": "Mrs Marlene/Georg Van Eeden",
+            "description": "7 Mbps down / 3.5 Mbps Up — cancellation month",
+            "amount": 439,
+            "statement": stmt_m,
+        }
+    )
+    if 'class="card invoice-main"' not in html or html.count("invoice-main") < 2:
+        print("FAIL one-invoice-card")
+        failed += 1
+    elif "Invoice No.3113" not in html:
+        print("FAIL stmt-has-current")
+        failed += 1
+    else:
+        print("OK one-invoice-card")
     return failed
 
 

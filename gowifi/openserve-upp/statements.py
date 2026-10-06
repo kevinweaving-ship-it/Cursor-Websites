@@ -29,7 +29,7 @@ import json
 import re
 import sqlite3
 from calendar import monthrange
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from billing import (
@@ -720,7 +720,7 @@ def _books_invoice(row: dict) -> bool:
     if no in NOT_CLIENT_INVOICE:
         return False
     src = (row.get("source") or "qb-list").lower()
-    if src.startswith("gowifi-"):
+    if src.startswith("gowifi-") and src != "gowifi-cancel":
         return False
     if src == "quickbooks" and (row.get("status") or "").lower() == "historical":
         return False
@@ -1447,6 +1447,15 @@ def account_as_at(
             payments = [p for p in all_pay if _bank_money(p)]
         else:
             payments = living[1]
+        extra = [
+            i
+            for i in all_inv
+            if (i.get("source") or "").lower() == "gowifi-cancel"
+            and not _invoice_deleted(i)
+            and canon_key(i.get("customer")) == key
+        ]
+        have = {str(i.get("invoice_number") or "") for i in invoices}
+        invoices = invoices + [i for i in extra if str(i.get("invoice_number") or "") not in have]
     else:
         invoices = [i for i in all_inv if _books_invoice(i) and not _invoice_deleted(i)]
         if book and book.get("method") == "debit-order":
@@ -1455,7 +1464,15 @@ def account_as_at(
             payments = all_pay
     display = display_name(name) or name
     cut = today.isoformat()
-    invoices = [i for i in invoices if (i.get("invoice_date") or "")[:10] <= cut]
+    cancel_cut = (today + timedelta(days=1)).isoformat()
+
+    def _on_or_before(row: dict) -> bool:
+        day = (row.get("invoice_date") or "")[:10]
+        if (row.get("source") or "").lower() == "gowifi-cancel":
+            return bool(day) and day <= cancel_cut
+        return day <= cut
+
+    invoices = [i for i in invoices if _on_or_before(i)]
     payments = [p for p in payments if (p.get("paid_on") or "")[:10] <= cut]
     all_inv = [i for i in all_inv if (i.get("invoice_date") or "")[:10] <= cut]
     all_pay = [p for p in all_pay if (p.get("paid_on") or "")[:10] <= cut]
@@ -1694,6 +1711,35 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK marlene-full-statement", len(shown))
+    cancel_day = (today + timedelta(days=1)).isoformat()
+    conn.execute(
+        """INSERT OR REPLACE INTO customer_invoices
+           (invoice_number, invoice_date, customer, amount, balance_due, status, source, description)
+           VALUES (4000,?, 'Mrs Marlene/Georg Van Eeden',439,439,'open','gowifi-cancel',
+                   '7 Mbps down / 3.5 Mbps Up — cancellation month')""",
+        (cancel_day,),
+    )
+    marlene_c = account_as_at(conn, "Van Eeden, Marlene/Georg", today)
+    cancel_row = next(
+        (
+            r
+            for r in (marlene_c.get("ledger") or [])
+            if str(r.get("ref")) == "4000"
+        ),
+        None,
+    )
+    conn.execute("DELETE FROM customer_invoices WHERE invoice_number=4000")
+    if not cancel_row or abs(_money(cancel_row.get("amount")) - 439) > 0.02:
+        print("FAIL marlene-cancel-on-card", cancel_row, marlene_c.get("due"))
+        failed += 1
+    elif abs((marlene_c.get("due") or 0) - 7619) > 0.5:
+        print("FAIL marlene-cancel-due", marlene_c.get("due"))
+        failed += 1
+    elif (marlene_c.get("ledger") or [])[0].get("ref") not in {4000, "4000"}:
+        print("FAIL marlene-cancel-not-top", (marlene_c.get("ledger") or [])[:2])
+        failed += 1
+    else:
+        print("OK marlene-cancel-on-card", marlene_c.get("due"))
     want = account_as_at(conn, "Wantling, David", today)
     want_unpaid = [r for r in (want.get("ledger") or []) if r.get("kind") == "unpaid"]
     if want_unpaid:
