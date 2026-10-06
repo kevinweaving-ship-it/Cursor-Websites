@@ -722,6 +722,10 @@ def _dump_page(page, label: str) -> None:
         DUMP_PATH.write_text(f"{label}\nURL {url}\nFRAMES {frames}\n\n{text[:80000]}")
     except OSError:
         pass
+    try:
+        page.screenshot(path="/tmp/fnb-last.png", full_page=True, timeout=3000)
+    except Exception:
+        pass
 
 
 def _first_visible(page, selector: str, timeout: int = 8000):
@@ -817,7 +821,7 @@ def page_kind(text: str, account: str = ACCOUNT) -> str:
         return "devices"
     if "successful" in blob and "pending" in blob and ("description" in blob or "amount" in blob):
         return "statement"
-    if digits and digits in body_digits and "available" in blob:
+    if digits and digits in body_digits and ("available" in blob or "gowifi fnb main" in blob):
         return "accounts"
     if "integration channel" in blob or "transaction history" in blob and "subscribe" in blob:
         return "channel"
@@ -1049,7 +1053,7 @@ def _walk_to_statement(page, account: str) -> dict:
             continue
         if kind == "welcome":
             set_progress("My bank accounts")
-            _click_named(page, ("My bank accounts", "My Bank Accounts", "Accounts"))
+            _click_named(page, ("My bank accounts", "My Bank Accounts"))
             page.wait_for_timeout(900)
             continue
         if kind == "accounts":
@@ -1073,7 +1077,7 @@ def _walk_to_statement(page, account: str) -> dict:
             return balances
         set_progress("Opening FNB pages")
         _skip_devices(page)
-        _click_named(page, ("My bank accounts", "Accounts"))
+        _click_named(page, ("My bank accounts", "My Bank Accounts"))
         _click_account_register(page, account)
         page.wait_for_timeout(800)
     return balances
@@ -1404,28 +1408,22 @@ def _click_named(page, names: tuple[str, ...]) -> bool:
     if page not in frames:
         frames = [page, *frames]
     for name in names:
-        pat = re.compile(rf"^{name}$", re.I)
-        loose = re.compile(name, re.I)
+        if not name or name.lower() in {"accounts", "account", "statement"}:
+            continue
+        pat = re.compile(rf"^{re.escape(name)}$", re.I)
         for frame in frames:
             for role in ("tab", "link", "button"):
                 try:
                     loc = frame.get_by_role(role, name=pat)
                     if loc.count():
-                        loc.first.click(timeout=2000)
+                        loc.first.click(timeout=800, force=True)
                         return True
                 except Exception:
                     continue
             try:
                 loc = frame.get_by_text(pat)
                 if loc.count():
-                    loc.first.click(timeout=2000)
-                    return True
-            except Exception:
-                continue
-            try:
-                loc = frame.locator("button, a, [role='button'], [role='tab']").filter(has_text=loose)
-                if loc.count():
-                    loc.first.click(timeout=2000)
+                    loc.first.click(timeout=800, force=True)
                     return True
             except Exception:
                 continue
