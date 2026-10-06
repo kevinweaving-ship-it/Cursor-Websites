@@ -599,21 +599,50 @@ def _missing_text(missing: dict, dest: Path, copies: int) -> str:
     return "\n".join(lines) + "\n"
 
 
+def iter_dropped_parts(dest: Path | None = None):
+    """CSV / zip dropped by the Mac dump into openserve-mail (and mac-dump)."""
+    dest = dest or COLLECT_DIR
+    roots = [dest, dest / "mac-dump", dest / "mac-dump" / "attachments"]
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            if path.name in {"MANIFEST.json", "MISSING.txt", "INDEX.json"}:
+                continue
+            if not _keep_attachment(path.name) and path.suffix.lower() not in {".csv", ".zip"}:
+                continue
+            try:
+                payload = path.read_bytes()
+            except OSError:
+                continue
+            yield {
+                "filename": path.name,
+                "payload": payload,
+                "kind": _file_kind(path.name),
+                "source": "mac-dump",
+            }
+
+
 def ingest_mail(conn: sqlite3.Connection) -> dict:
     ensure_tables(conn)
     collected = collect_openserve_mail()
     seen: set[str] = set()
     files = 0
     lines = 0
-    for item in iter_openserve_parts():
-        if item["kind"] != "invoice_csv":
+    for item in list(iter_openserve_parts()) + list(iter_dropped_parts()):
+        if item["kind"] != "invoice_csv" and not str(item.get("filename") or "").lower().endswith(
+            (".csv", ".zip")
+        ):
             continue
         digest = hashlib.sha256(item["payload"]).hexdigest()
         if digest in seen:
             continue
         seen.add(digest)
         files += 1
-        lines += ingest_payload(conn, item["payload"], item["filename"], "mail")
+        source = item.get("source") or "mail"
+        lines += ingest_payload(conn, item["payload"], item["filename"], source)
     coverage = catalog_mail(conn)
     coverage["folder"] = collected.get("folder")
     coverage["unique_files"] = collected.get("unique_files")

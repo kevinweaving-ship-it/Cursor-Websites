@@ -15,6 +15,7 @@ if [ "$SRC" != "$DEST" ]; then
     "$SRC/checksum_accounts_mail.py" "$SRC/mail_forwards.py" \
     "$SRC/ensure_go_wifi_mail.sh" "$SRC/upp_emails.py" \
     "$SRC/upp_set_password.py" \
+    "$SRC/MAC_CURSOR_OPENSERVE_MAIL.md" \
     "$SRC/README.md" "$DEST/"
   mkdir -p "$DEST/data"
   if [ -d "$SRC/data" ]; then
