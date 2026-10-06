@@ -504,21 +504,24 @@ def _collapse_eft_to_bank(conn: sqlite3.Connection) -> None:
     """One EFT per client per day when FNB split the bank credit. FNB total wins."""
     BANK_EFT.clear()
     fnb: dict[tuple[str, str], tuple[float, int, str]] = {}
+    real_src = {"fnb_live", "fnb_online", "fnb_api", "fnb_history", "fnb_qb"}
     try:
+        grouped: dict[tuple[str, str], list] = {}
         for rec in conn.execute(
-            """SELECT paid_on, alloc_to, alloc_key, SUM(ABS(COALESCE(deposit, amount))), COUNT(*)
-               FROM fnb_tx WHERE alloc_kind='client_paid'
-               GROUP BY paid_on, alloc_key"""
+            """SELECT paid_on, alloc_to, alloc_key, ABS(COALESCE(deposit, amount)), source
+               FROM fnb_tx WHERE alloc_kind='client_paid'"""
         ):
             day = str(rec[0] or "")[:10]
             key = canon_key(rec[2] or rec[1])
-            fnb[(day, key)] = (
-                round(abs(_money(rec[3])), 2),
-                int(rec[4] or 0),
-                display_name(rec[1]) or rec[1],
-            )
-            if int(rec[4] or 0) >= 2:
-                BANK_EFT[(day, key)] = round(abs(_money(rec[3])), 2)
+            grouped.setdefault((day, key), []).append(rec)
+        for (day, key), items in grouped.items():
+            bank_items = [r for r in items if (r[4] or "") in real_src]
+            use = bank_items or items
+            total = round(sum(abs(_money(r[3])) for r in use), 2)
+            name = display_name((bank_items or items)[0][1]) or (bank_items or items)[0][1]
+            fnb[(day, key)] = (total, len(use), name)
+            if len(use) >= 2 or bank_items:
+                BANK_EFT[(day, key)] = total
     except sqlite3.OperationalError:
         return
     from collections import defaultdict
@@ -543,7 +546,9 @@ def _collapse_eft_to_bank(conn: sqlite3.Connection) -> None:
         # Only D/O clients: FNB split one day's EFT (Cupido 8 Sep). QB A/R
         # "Payment" rows that day are not four deposits — one bank EFT.
         # Leave EFT clients on their QB history so Marlene / Amoroc stay.
-        if n_fnb < 2 or not book or book.get("method") != "debit-order":
+        if not book or book.get("method") != "debit-order":
+            continue
+        if n_fnb < 2 and (day, key) not in BANK_EFT:
             continue
         BANK_EFT[(day, key)] = total
         if len(items) == 1 and abs(abs(_money(items[0][3])) - total) <= 0.02:
