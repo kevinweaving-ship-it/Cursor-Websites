@@ -100,6 +100,9 @@ _NAME_ALIASES = {
     "murray jakobie": "murray dh",
     "hermanus builders": "hermanus builders",
     "hm builders": "hermanus builders",
+    "collette brink": "hermanus builders",
+    "colllette brink": "hermanus builders",
+    "colette brink": "hermanus builders",
     "bing noordhoek": "bing noordhoek",
     "annette bing nordhoek": "bing noordhoek",
     "jean de": "jean de",
@@ -162,6 +165,8 @@ def canon_key(name: str | None) -> str:
         return "paltco"
     if "georgala" in raw:
         return "geocorp"
+    if "brink" in raw and "col" in raw:
+        return "hermanus builders"
     if "deleted" in raw and "leon" in raw:
         return "leon dykman"
     if "deleted" in raw and "pereira" in raw:
@@ -756,6 +761,9 @@ def self_test() -> int:
         failed += 1
     elif canon_key("Michael Georgala") != "geocorp" or display_name("Michael Georgala") != "GeoCorp":
         print("FAIL georgala-is-geocorp", canon_key("Michael Georgala"), display_name("Michael Georgala"))
+        failed += 1
+    elif canon_key("Collette Brink") != "hermanus builders" or display_name("Collette Brink") != "Hermanus Builders":
+        print("FAIL collette-is-builders", canon_key("Collette Brink"), display_name("Collette Brink"))
         failed += 1
     elif len(DO_CLIENTS) != 14 or not fibre_do or not wireless_do:
         print("FAIL do-mix", len(DO_CLIENTS), len(fibre_do), len(wireless_do))
