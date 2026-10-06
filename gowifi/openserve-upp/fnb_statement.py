@@ -713,8 +713,13 @@ def _dump_page(page, label: str) -> None:
         url = page.url
     except Exception:
         url = ""
+    frames = []
     try:
-        DUMP_PATH.write_text(f"{label}\nURL {url}\n\n{text[:80000]}")
+        frames = [f.url for f in page.frames]
+    except Exception:
+        frames = []
+    try:
+        DUMP_PATH.write_text(f"{label}\nURL {url}\nFRAMES {frames}\n\n{text[:80000]}")
     except OSError:
         pass
 
@@ -970,10 +975,71 @@ def _skip_devices(page) -> bool:
     return _click_named(page, ("Skip",))
 
 
+def _latest_page(page):
+    try:
+        pages = [p for p in page.context.pages if not p.is_closed()]
+    except Exception:
+        return page
+    return pages[-1] if pages else page
+
+
+def _wait_kind(page, account: str, want: str, timeout_ms: int = 8000) -> bool:
+    deadline = time.time() + timeout_ms / 1000.0
+    while time.time() < deadline:
+        if page_kind(_all_text(page), account) == want:
+            return True
+        try:
+            page.wait_for_timeout(400)
+        except Exception:
+            return False
+    return False
+
+
+def _click_account_register(page, account: str) -> bool:
+    """Live Successful/Pending register. Not Email / eZi / recreated statements."""
+    digits = re.sub(r"\D", "", account or "")
+    names = (
+        "Gowifi FNB Main",
+        "GoWifi FNB Main",
+        digits[-8:] if len(digits) >= 8 else digits,
+        digits,
+        "Successful",
+        "Successful transactions",
+    )
+    if _click_named(page, tuple(n for n in names if n)):
+        return True
+    frames = []
+    try:
+        frames = list(page.frames)
+    except Exception:
+        frames = [page]
+    for frame in frames:
+        try:
+            loc = frame.locator("a, button, [role='button'], [role='link']").filter(
+                has_text=re.compile(r"^Statements?$", re.I)
+            )
+            n = loc.count()
+        except Exception:
+            continue
+        for i in range(min(n, 6)):
+            el = loc.nth(i)
+            try:
+                nearby = (el.inner_text() or "") + " "
+                if re.search(r"email|recreated|ezi|older than", nearby, re.I):
+                    continue
+                el.click(timeout=2000)
+                return True
+            except Exception:
+                continue
+    return False
+
+
 def _walk_to_statement(page, account: str) -> dict:
-    """Skip (if shown) → My bank accounts → Available → Statements. Path is not always the same."""
+    """Skip (if shown) → My bank accounts → Available → account register. Path varies."""
     balances = {"balance": None, "available": None}
-    for _ in range(8):
+    account_tries = 0
+    for _ in range(10):
+        page = _latest_page(page)
         _dismiss_popups(page)
         text = _all_text(page)
         kind = page_kind(text, account)
@@ -994,8 +1060,13 @@ def _walk_to_statement(page, account: str) -> dict:
                 set_progress(
                     f"Available {avail if avail is not None else '—'} · opening statement"
                 )
-            _click_named(page, ("Statements", "Statement"))
-            page.wait_for_timeout(1100)
+            account_tries += 1
+            _click_account_register(page, account)
+            if _wait_kind(page, account, "statement", 5000):
+                continue
+            if account_tries >= 3:
+                set_progress("On FNB accounts · register not open")
+                return balances
             continue
         if kind == "statement":
             set_progress("On statement")
@@ -1003,7 +1074,7 @@ def _walk_to_statement(page, account: str) -> dict:
         set_progress("Opening FNB pages")
         _skip_devices(page)
         _click_named(page, ("My bank accounts", "Accounts"))
-        _click_named(page, ("Statements", "Statement"))
+        _click_account_register(page, account)
         page.wait_for_timeout(800)
     return balances
 
@@ -1572,6 +1643,7 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
             got = _walk_to_statement(page, account)
             if got.get("balance") is not None:
                 balances.update(got)
+            page = _latest_page(page)
             _dismiss_popups(page)
             set_progress("Reading posted")
             _click_named(page, ("Successful", "Posted", "Successful transactions", "Transactions"))
@@ -1581,7 +1653,11 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
                 set_progress("No rows yet · still reading FNB")
                 page.wait_for_timeout(2000)
                 rows = _read_page_rows(page)
-            balances = parse_balances(_all_text(page))
+            parsed_bal = parse_balances(_all_text(page))
+            if parsed_bal.get("balance") is not None or parsed_bal.get("available") is not None:
+                for key, val in parsed_bal.items():
+                    if val is not None:
+                        balances[key] = val
             set_progress(f"Posted {len(rows)} · reading pending")
             _click_named(page, ("Pending", "Pending transactions"))
             page.wait_for_timeout(800)
@@ -1597,6 +1673,12 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
             note = f"live {last} rows={len(rows)} pending={len(pending)}"
             if rows or pending:
                 set_progress(f"Got {len(rows)} posted, {len(pending)} pending")
+            elif balances.get("balance") is not None:
+                _dump_page(page, "no-rows")
+                set_progress(
+                    f"On FNB · Bank {balances.get('balance')} · no register lines yet"
+                )
+                note = f"live-balances {last} url={getattr(page, 'url', '')}"
             else:
                 _dump_page(page, "no-rows")
                 set_progress("On FNB but no statement rows", error="no statement rows")
@@ -1608,7 +1690,7 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
             rows = []
         context.close()
     return {
-        "ok": bool(rows or pending),
+        "ok": bool(rows or pending or balances.get("balance") is not None),
         "rows": rows,
         "pending": pending,
         "balance": balances.get("balance"),
@@ -1952,6 +2034,12 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK own-login-real-chrome")
+    click_reg = Path(__file__).read_text().split("def _click_account_register", 1)[-1].split("def _walk_to_statement", 1)[0]
+    if "Gowifi FNB Main" not in click_reg or "email" not in click_reg.lower():
+        print("FAIL account-register-click")
+        failed += 1
+    else:
+        print("OK account-register-click")
     conn.close()
     return failed
 
