@@ -12,20 +12,23 @@
 </header>
 <main class="card">
   <h1>Connect FNB</h1>
-  <p class="meta">FNB via QuickBooks bank while waiting for Enterprise · no FNB Online login</p>
-  <p>FNB is flagging the Online login. Until Enterprise / Integration Channel is on,
-     Fetch reads the FNB register from QuickBooks for <strong>62860060278</strong>.
-     Update FNB in QuickBooks first, then Fetch. New rows only. No FNB website login.</p>
+  <p class="meta">One FNB table · QuickBooks bank or FNB Online · they match when both are current</p>
+  <p>Both fetches write the same FNB register for <strong>62860060278</strong>.
+     Pull either first. Same date / amount / balance is not inserted twice.
+     Default Fetch is QuickBooks while waiting for Enterprise — FNB is flagging
+     the Online login. No cron.</p>
+  <h2>Fetch</h2>
+  <p><button type="button" id="pull-qb" class="btn">Fetch from QuickBooks</button>
+     <button type="button" id="pull-live" class="btn">Fetch from FNB Online</button></p>
+  <p class="meta">FNB Online logs in, then logs off. Do not use it while the bank is flagging the account.</p>
   <h2>Online Banking login</h2>
-  <p class="meta">Stored for later. Not used while FNB is flagging the account.</p>
   <label>Username</label>
   <input id="username" type="text" autocomplete="off" spellcheck="false">
   <label>Password</label>
   <input id="password" type="password" autocomplete="off">
   <label>Account</label>
   <input id="account" type="text" value="62860060278" autocomplete="off">
-  <p><button type="button" id="save-login" class="btn">Save FNB login</button>
-     <button type="button" id="pull" class="btn">Fetch FNB now</button></p>
+  <p><button type="button" id="save-login" class="btn">Save FNB login</button></p>
   <p class="meta" id="status">Checking…</p>
   <p class="meta" id="live" aria-live="polite"></p>
   <p class="meta" id="err"></p>
@@ -49,8 +52,22 @@
     };
     tick();
   }
+  function startPull(via) {
+    show(err, via === "live" ? "Fetching FNB Online…" : "Fetching FNB from QuickBooks…");
+    show(live, "Starting FNB fetch");
+    poll();
+    fetch("/legal/fnb-pull", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      credentials: "same-origin",
+      body: JSON.stringify({via: via})
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      var n = d.rows_seen || d.rows || 0;
+      show(err, d.ok || d.started ? (d.step || ("Fetch started · " + n + " rows")) : (d.error || d.note || "FNB pull failed."));
+    }).catch(function () { show(err, "Could not reach the box."); });
+  }
   fetch("/legal/fnb-status", {credentials: "same-origin"}).then(function (r) { return r.json(); }).then(function (d) {
-    show(status, d.note || (d.ready ? "FNB Online login is on the box." : "Need FNB Online login."));
+    show(status, d.note || (d.ready ? "FNB fetch is ready." : "Need QuickBooks or FNB Online login."));
   }).catch(function () { show(status, "Could not reach the FNB helper on the box."); });
   document.getElementById("save-login").addEventListener("click", function () {
     show(err, "Saving…");
@@ -64,24 +81,12 @@
         account_number: document.getElementById("account").value
       })
     }).then(function (r) { return r.json(); }).then(function (d) {
-      show(err, d.ok ? "Login saved on the box. Click Fetch FNB now." : (d.error || "Could not save."));
+      show(err, d.ok ? "Login saved on the box." : (d.error || "Could not save."));
       if (d.ok) show(status, d.note || "FNB login saved.");
     }).catch(function () { show(err, "Could not reach the box."); });
   });
-  document.getElementById("pull").addEventListener("click", function () {
-    show(err, "Fetching FNB…");
-    show(live, "Starting FNB fetch");
-    poll();
-    fetch("/legal/fnb-pull", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      credentials: "same-origin",
-      body: "{}"
-    }).then(function (r) { return r.json(); }).then(function (d) {
-      var n = d.rows_seen || d.rows || 0;
-      show(err, d.ok || d.started ? (d.step || ("Fetch started · " + n + " rows")) : (d.error || d.note || "FNB pull failed."));
-    }).catch(function () { show(err, "Could not reach the box."); });
-  });
+  document.getElementById("pull-qb").addEventListener("click", function () { startPull("qb"); });
+  document.getElementById("pull-live").addEventListener("click", function () { startPull("live"); });
 })();
 </script>
 </body>

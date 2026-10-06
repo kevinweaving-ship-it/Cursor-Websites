@@ -243,11 +243,11 @@ def parse_qb_fnb_report(payload: dict[str, Any], account_number: str = "62860060
 
 
 def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dict:
-    """FNB 62860060278 from QuickBooks bank while Enterprise is pending. No FNB Online login."""
-    from datetime import date, timedelta
+    """Read FNB 62860060278 from QuickBooks bank into the same FNB table."""
+    from datetime import date, datetime, timedelta
 
     from company import COMPANY, GOWIFI_FNB
-    from fnb_statement import insert_new, record_live_card, set_progress
+    from fnb_statement import _record_fetch, insert_new, set_progress, system_balance
 
     set_progress("Opening QuickBooks FNB")
     token, realm = access_token()
@@ -282,14 +282,13 @@ def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dic
     if conn is None:
         own.execute("PRAGMA busy_timeout=60000")
     added = insert_new(own, rows)
-    if qb_bal is not None:
-        record_live_card(qb_bal, note="FNB via QuickBooks", conn=own)
-    if conn is None:
-        own.commit()
-        own.close()
+    shown = system_balance(own)
+    if shown is None:
+        shown = qb_bal
     pack = {
         "ok": True,
         "via": "fnb-qb",
+        "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "inserted": added["inserted"],
         "allocated": added.get("allocated") or 0,
         "need_recon": added.get("need_recon") or 0,
@@ -297,11 +296,14 @@ def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dic
         "attention": added.get("attention") or [],
         "rows": len(rows),
         "rows_seen": len(rows),
-        "balance": qb_bal,
+        "balance": shown,
         "account_number": number,
         "account_name": COMPANY["bank_account_name"],
         "note": f"QB FNB {number} · {len(rows)} posted · {added['inserted']} new",
     }
+    _record_fetch(own, pack)
+    if conn is None:
+        own.close()
     set_progress(f"Done · {added['inserted']} new of {len(rows)} from QB", done=True)
     return pack
 

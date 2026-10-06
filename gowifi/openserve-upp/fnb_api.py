@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Direct FNB Integration Channel client. Not QuickBooks.
+"""FNB register for 62860060278.
 
-Read-only Transaction History for 62860060278. Keys stay in /root/secrets.
-Does not pay, collect, or go through Xero / Sage / QB bank feeds.
+One table (bank_tx / fnb_tx). Two independent fetches write the same rows:
+QuickBooks bank, or FNB Online. Either can run first. Same date/amount/balance
+is not inserted twice. They match when both are current. Default Fetch is
+QuickBooks while FNB flags the Online login / Enterprise is pending. No cron.
 """
 from __future__ import annotations
 
@@ -121,10 +123,11 @@ def status(env: dict[str, str] | None = None) -> dict:
         has_qb = QBO_TOKEN.exists() if from_disk else False
     except Exception:
         has_qb = False
-    via = "fnb-qb"
+    via = "fnb"
     note = (
-        "FNB via QuickBooks bank while waiting for Enterprise. "
-        "No FNB Online login."
+        "One FNB table. Fetch from QuickBooks bank or FNB Online — "
+        "they match when both are current. Default Fetch is QuickBooks "
+        "while waiting for Enterprise (FNB is flagging the login). No cron."
     )
     return {
         "ready": has_qb or has_login,
@@ -135,6 +138,7 @@ def status(env: dict[str, str] | None = None) -> dict:
         "account_name": COMPANY["bank_account_name"],
         "has_token": TOKEN_PATH.exists(),
         "via": via,
+        "default_via": "qb",
         "note": note,
     }
 
@@ -477,33 +481,47 @@ def _refresh_accounts() -> None:
         pass
 
 
-def pull(conn: sqlite3.Connection | None = None, days: int = 90, live: bool = True) -> dict:
-    """FNB register from QuickBooks bank while waiting for Enterprise. No FNB Online login."""
+def _via(raw: str | None) -> str:
+    text = (raw or "qb").strip().lower()
+    if text in {"live", "online", "fnb-live", "fnb_online"}:
+        return "live"
+    return "qb"
+
+
+def pull(conn: sqlite3.Connection | None = None, days: int = 90, via: str | None = None) -> dict:
+    """Either source writes the same FNB table. Default is QuickBooks bank."""
     from fnb_statement import set_progress
 
+    source = _via(via)
     if not _PULL_LOCK.acquire(blocking=False):
-        return {"ok": False, "busy": True, "error": "FNB fetch already running", "via": "fnb-qb"}
+        return {"ok": False, "busy": True, "error": "FNB fetch already running", "via": source}
     try:
-        set_progress("Opening QuickBooks FNB")
-        from qb_api import pull_fnb_bank
+        if source == "live":
+            from fnb_statement import pull as live_pull
 
-        pack = pull_fnb_bank(conn, days=days)
+            pack = live_pull(conn)
+        else:
+            set_progress("Opening QuickBooks FNB")
+            from qb_api import pull_fnb_bank
+
+            pack = pull_fnb_bank(conn, days=days)
     finally:
         _PULL_LOCK.release()
     _refresh_accounts()
     return pack
 
 
-def pull_async() -> dict:
+def pull_async(via: str | None = None) -> dict:
     from fnb_statement import read_progress, set_progress
 
+    source = _via(via)
     if _PULL_LOCK.locked():
         return {"ok": True, "started": False, "busy": True, "done": False, **read_progress()}
     set_progress("Starting FNB fetch")
 
     def run() -> None:
         try:
-            pack = pull()
+            pack = pull(via=source)
             if pack.get("busy"):
                 return
             if pack.get("ok"):
@@ -529,11 +547,11 @@ def pull_async() -> dict:
             mark("FNB fetch failed", done=True, error=str(exc)[:180])
 
     threading.Thread(target=run, daemon=True, name="fnb-pull-now").start()
-    return {"ok": True, "started": True, "done": False, "step": "Starting FNB fetch"}
+    return {"ok": True, "started": True, "done": False, "step": "Starting FNB fetch", "via": source}
 
 
 def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
-    """FNB card from bank rows we fetched. FNB via QB bank is allowed; not QB apply history."""
+    """FNB card from the shared register. QB bank and FNB Online both land here."""
     from fnb_statement import card_overlay
 
     st = status()
@@ -721,7 +739,7 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             if path in {"/pull", "/legal/fnb-pull"}:
-                self._send(200, pull_async())
+                self._send(200, pull_async(str(data.get("via") or "qb")))
                 return
             if path in {"/alloc", "/legal/fnb-alloc"}:
                 from fnb_statement import apply_alloc
@@ -821,11 +839,14 @@ def self_test() -> int:
     else:
         print("OK no-auto-login")
     pull_fn = Path(__file__).read_text().split("def pull(", 1)[-1].split("def pull_async", 1)[0]
-    if "pull_fnb_bank" not in pull_fn or "live_pull" in pull_fn:
-        print("FAIL pull-via-qb")
+    if "pull_fnb_bank" not in pull_fn or "live_pull" not in pull_fn:
+        print("FAIL pull-either-source", pull_fn[:200])
+        failed += 1
+    elif _via(None) != "qb" or _via("live") != "live":
+        print("FAIL pull-default-qb")
         failed += 1
     else:
-        print("OK pull-via-qb")
+        print("OK pull-either-source")
     from qb_api import find_fnb_account, parse_qb_fnb_report
 
     found = find_fnb_account(
@@ -883,6 +904,55 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK qb-fnb-from-quickbooks")
+    from fnb_statement import insert_new, system_balance
+
+    shared = sqlite3.connect(":memory:")
+    live_first = insert_new(
+        shared,
+        [
+            {
+                "paid_on": "2026-10-06",
+                "amount": 760.0,
+                "balance": 5314.66,
+                "description": "G CUPIDO",
+                "source": "fnb_live",
+                "account_number": "62860060278",
+                "filename": "fnb-live",
+            }
+        ],
+    )
+    qb_later = insert_new(
+        shared,
+        [
+            {
+                "paid_on": "2026-10-06",
+                "amount": 760.0,
+                "balance": 5314.66,
+                "description": "G CUPIDO",
+                "source": "fnb_qb",
+                "account_number": "62860060278",
+                "filename": "qb-fnb-bank",
+            },
+            {
+                "paid_on": "2026-10-01",
+                "amount": -2223.94,
+                "balance": 5074.66,
+                "description": "RSAWEB NETCASH",
+                "source": "fnb_qb",
+                "account_number": "62860060278",
+                "filename": "qb-fnb-bank",
+            },
+        ],
+    )
+    if live_first["inserted"] != 1 or qb_later["inserted"] != 1:
+        print("FAIL same-fnb-table", live_first, qb_later)
+        failed += 1
+    elif system_balance(shared) != 5314.66:
+        print("FAIL same-fnb-table-keeps-newer", system_balance(shared))
+        failed += 1
+    else:
+        print("OK same-fnb-table")
+    shared.close()
     conn = sqlite3.connect(":memory:")
     n = _upsert_bank(conn, rows + [{"paid_on": "2026-01-01", "amount": 1, "description": "QB", "source": "qb_fnb_history"}])
     if n != 3:
@@ -964,7 +1034,7 @@ if __name__ == "__main__":
             raise SystemExit("save CLIENT_ID CLIENT_SECRET [ACCOUNT]")
         print(json.dumps(save_keys(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else None)))
     elif cmd == "pull":
-        print(json.dumps(pull(), indent=2))
+        print(json.dumps(pull(via=sys.argv[2] if len(sys.argv) > 2 else "qb"), indent=2))
     elif cmd == "card":
         print(json.dumps(card(), indent=2))
     elif cmd == "serve":

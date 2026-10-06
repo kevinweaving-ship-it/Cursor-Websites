@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Live FNB statement fetch. Direct Online Banking, not QuickBooks.
+"""Live FNB Online statement fetch.
 
+Writes the same FNB table as a QuickBooks bank pull. Either can run first.
 Login can show a popup or not. Dismiss it when it is there, then open
 the live statement. Only new rows go into bank_tx / fnb_tx. New money
 is allocated (client payment, deposit, bank charge, expense) or flagged
@@ -560,12 +561,16 @@ def _record_fetch(conn: sqlite3.Connection, pack: dict) -> None:
 
 
 def last_live_figures(conn: sqlite3.Connection) -> dict:
-    """Last figures actually read off FNB Online. Ignore failed pulls that stored the old book."""
+    """Last figures actually read off the FNB Online account card.
+
+    QuickBooks bank writes the same FNB table. It must not overwrite a newer
+    Online card when QB is still old.
+    """
     try:
         rec = conn.execute(
             """SELECT fetched_at, balance, ok, note FROM fnb_fetch
                WHERE balance IS NOT NULL
-                 AND (ok=1 OR note LIKE 'FNB account card%')
+                 AND note LIKE 'FNB account card%'
                ORDER BY id DESC LIMIT 1"""
         ).fetchone()
     except sqlite3.OperationalError:
@@ -609,7 +614,7 @@ def attention_open(conn: sqlite3.Connection) -> list[dict]:
         for rec in conn.execute(
             """SELECT id, paid_on, payee, memo, amount, alloc_kind, alloc_to, result
                FROM fnb_tx
-               WHERE source IN ('fnb_live','fnb_online','fnb_api')
+               WHERE source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
                  AND (result='need-recon' OR alloc_kind='unallocated')
                ORDER BY paid_on DESC, id DESC LIMIT 40"""
         ):
@@ -1901,7 +1906,7 @@ def system_balance(conn: sqlite3.Connection) -> float | None:
            WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
            ORDER BY paid_on DESC, id DESC LIMIT 1""",
         """SELECT balance FROM fnb_tx
-           WHERE source IN ('fnb_live','fnb_online','fnb_api')
+           WHERE source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
            ORDER BY paid_on DESC, id DESC LIMIT 1""",
     ):
         try:
@@ -2168,6 +2173,26 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK live-card-balance")
+    _record_fetch(
+        live_conn,
+        {
+            "fetched_at": "2026-10-06 15:00",
+            "rows_seen": 2,
+            "inserted": 0,
+            "allocated": 0,
+            "need_recon": 0,
+            "need_recon_amount": 0,
+            "balance": 5074.66,
+            "ok": True,
+            "note": "QB FNB 62860060278 · 2 posted · 0 new",
+        },
+    )
+    stale = last_live_figures(live_conn)
+    if stale.get("balance") != 5314.66:
+        print("FAIL qb-does-not-clobber-live-card", stale)
+        failed += 1
+    else:
+        print("OK qb-does-not-clobber-live-card")
     class _F:
         def __init__(self, url):
             self.url = url

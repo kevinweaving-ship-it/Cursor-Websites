@@ -466,7 +466,7 @@ function bindFnbFetch(root, pack){
         method:"POST",
         credentials:"same-origin",
         headers:{"Content-Type":"application/json"},
-        body:"{}"
+        body: JSON.stringify({via:"qb"})
       }).catch(()=>{});
       pollProgress(p=>{
         if (p.error) {
