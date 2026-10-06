@@ -597,9 +597,14 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
     if conn is None:
         own.close()
     latest = rows[0] if rows else None
-    system_balance = latest["balance"] if latest else posted_bal
-    matched = bool(overlay.get("matched")) and not pending_rows
+    book = latest["balance"] if latest else posted_bal
+    live_bal = overlay.get("live_balance")
+    shown = live_bal if live_bal is not None else book
+    matched = bool(overlay.get("matched")) and not pending_rows and live_bal in (None, book)
     attention_amount = overlay.get("attention_amount") or 0
+    if live_bal is not None and book is not None and abs(float(live_bal) - float(book)) > 0.004:
+        attention_amount = round(attention_amount + abs(float(live_bal) - float(book)), 2)
+        matched = False
     if rows:
         note = (
             "FNB posted. Processed."
@@ -619,8 +624,9 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
         "via": st["via"],
         "has_login": st.get("has_login"),
         "has_api": st.get("has_api"),
-        "balance": system_balance,
+        "balance": shown,
         "system_balance": posted_bal,
+        "live_balance": live_bal,
         "as_at": latest["paid_on"] if latest else None,
         "last_fetched": overlay.get("last_fetched"),
         "last_fetched_label": overlay.get("last_fetched_label"),
@@ -856,6 +862,15 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK fnb-card-system-balance")
+    from fnb_statement import record_live_card
+
+    record_live_card(5314.66, 4815.44, conn=conn)
+    live_card = card(conn)
+    if live_card.get("balance") != 5314.66 or live_card.get("live_balance") != 5314.66:
+        print("FAIL card-shows-live-fnb", live_card.get("balance"), live_card.get("live_balance"))
+        failed += 1
+    else:
+        print("OK card-shows-live-fnb")
     from fnb_statement import replace_pending
 
     replace_pending(

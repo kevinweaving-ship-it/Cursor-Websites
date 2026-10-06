@@ -429,8 +429,17 @@ function bindFnbFetch(root, pack){
   const liveEl = root.querySelector(".fnb-live");
   const setLive = (text, cls) => {
     if (!liveEl) return;
-    liveEl.textContent = text || "";
+    let t = (text || "").split("\n")[0];
+    if (/target page|browser has been closed/i.test(t)) t = "FNB window closed";
+    liveEl.textContent = t.slice(0, 80);
     liveEl.className = "fnb-live" + (cls ? " " + cls : "");
+  };
+  const paintLiveBank = () => {
+    fetch("/legal/fnb-card", {credentials:"same-origin", cache:"no-store"})
+      .then(r=>r.json()).then(c=>{
+        const balEl = root.querySelector(".fnb-head .bal");
+        if (balEl && c.balance != null) balEl.textContent = money(c.balance);
+      }).catch(()=>{});
   };
   const pollProgress = done => {
     const t0 = Date.now();
@@ -438,6 +447,7 @@ function bindFnbFetch(root, pack){
       fetch("/legal/fnb-progress", {credentials:"same-origin", cache:"no-store"})
         .then(r=>r.json()).then(p=>{
           setLive(p.step || "Fetching FNB", p.error ? "fail" : (p.done ? "ok" : ""));
+          paintLiveBank();
           if (p.done || Date.now()-t0 > 180000) { done(p); return; }
           setTimeout(tick, 400);
         }).catch(()=>setTimeout(tick, 800));

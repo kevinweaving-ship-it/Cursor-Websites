@@ -29,6 +29,13 @@ DUMP_PATH = Path(os.environ.get("FNB_DUMP", "/tmp/fnb-last-page.txt"))
 
 def _short(text: str | None, n: int = 160) -> str:
     line = (text or "").splitlines()[0].strip()
+    low = line.lower()
+    if "target page" in low or "browser has been closed" in low:
+        return "FNB window closed"
+    if "captcha" in low or "perfdrive" in low:
+        return "FNB asked for CAPTCHA"
+    if "missing x server" in low or "xvfb" in low:
+        return "FNB browser has no display"
     return line[:n]
 
 
@@ -58,6 +65,7 @@ LOGIN_URLS = (
     "https://www.online.fnb.co.za/",
     "https://www.online.fnb.co.za/login",
 )
+ONLINE_BANK = "https://www.online.fnb.co.za/banking/main.jsp"
 PROFILE_DIR = Path(os.environ.get("FNB_CHROME", "/root/secrets/fnb-chrome"))
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -494,6 +502,41 @@ def insert_new(conn: sqlite3.Connection, rows: list[dict]) -> dict:
     }
 
 
+def record_live_card(balance, available=None, note: str = "FNB account card", conn=None) -> None:
+    """Write FNB's own Available/Balance the moment we see the account card."""
+    if balance is None:
+        return
+    fetched_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    own = conn
+    try:
+        if own is None:
+            own = sqlite3.connect(os.environ.get("UPP_DB", DB), timeout=60)
+            own.execute("PRAGMA busy_timeout=60000")
+        own.executescript(FETCH_SCHEMA)
+        own.execute(
+            """INSERT INTO fnb_fetch
+               (fetched_at, rows_seen, inserted, allocated, need_recon, need_recon_amount,
+                balance, ok, note)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (fetched_at, 0, 0, 0, 0, 0.0, float(balance), 1, note),
+        )
+        if conn is None:
+            own.commit()
+            own.close()
+        else:
+            own.commit()
+    except sqlite3.Error:
+        if conn is None and own is not None:
+            try:
+                own.close()
+            except sqlite3.Error:
+                pass
+        return
+    set_progress(
+        f"Bank {balance}" + (f" · Available {available}" if available is not None else "")
+    )
+
+
 def _record_fetch(conn: sqlite3.Connection, pack: dict) -> None:
     conn.executescript(FETCH_SCHEMA)
     conn.execute(
@@ -514,6 +557,22 @@ def _record_fetch(conn: sqlite3.Connection, pack: dict) -> None:
         ),
     )
     conn.commit()
+
+
+def last_live_figures(conn: sqlite3.Connection) -> dict:
+    """Last figures actually read off FNB Online. Ignore failed pulls that stored the old book."""
+    try:
+        rec = conn.execute(
+            """SELECT fetched_at, balance, ok, note FROM fnb_fetch
+               WHERE balance IS NOT NULL
+                 AND (ok=1 OR note LIKE 'FNB account card%')
+               ORDER BY id DESC LIMIT 1"""
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return {}
+    if not rec:
+        return {}
+    return {"fetched_at": rec[0], "balance": rec[1], "ok": bool(rec[2]), "note": rec[3]}
 
 
 def last_fetch(conn: sqlite3.Connection | None = None) -> dict | None:
@@ -584,6 +643,26 @@ def _all_text(page) -> str:
         except Exception:
             continue
     return "\n".join(bits)
+
+
+def _stay_online(page) -> bool:
+    """Own login is Online Banking. www.fnb.co.za is CAPTCHA — leave it."""
+    try:
+        url = page.url or ""
+    except Exception:
+        return False
+    if "online.fnb.co.za" in url and "validate.perfdrive.com" not in url:
+        return False
+    set_progress("Opening FNB Online")
+    try:
+        page.goto(ONLINE_BANK, wait_until="domcontentloaded", timeout=45000)
+        return True
+    except Exception:
+        try:
+            page.goto(LOGIN_URLS[0], wait_until="domcontentloaded", timeout=45000)
+            return True
+        except Exception:
+            return False
 
 
 def _looks_blocked(text: str, url: str = "") -> bool:
@@ -1061,6 +1140,7 @@ def _walk_to_statement(page, account: str) -> dict:
             if got.get("balance") is not None:
                 balances = got
                 avail = got.get("available")
+                record_live_card(got.get("balance"), avail)
                 set_progress(
                     f"Available {avail if avail is not None else '—'} · opening statement"
                 )
@@ -1615,6 +1695,7 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
                 if _looks_blocked(_all_text(page), page.url):
                     set_progress("FNB asked for CAPTCHA · retrying Online")
                     _dump_page(page, f"captcha {url}")
+                    _stay_online(page)
                     continue
                 _dismiss_popups(page)
                 if _looks_logged_in(_all_text(page), account):
@@ -1632,6 +1713,7 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
         try:
             if not logged:
                 raise RuntimeError(last or "FNB login form not on the page")
+            _stay_online(page)
             _wait_after_login(page, account)
             set_progress("Checking popup")
             _dismiss_popups(page)
@@ -1694,7 +1776,7 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
         "balance": balances.get("balance"),
         "available": balances.get("available"),
         "note": note,
-        "error": None if (rows or pending) else (note or "FNB statement not read"),
+        "error": None if (rows or pending or balances.get("balance") is not None) else (note or "FNB statement not read"),
         "via": "fnb-live",
     }
 
@@ -1717,8 +1799,7 @@ def pull(conn: sqlite3.Connection | None = None) -> dict:
             with_bal = [r for r in rows if r.get("balance") is not None]
             if with_bal:
                 balance = with_bal[0].get("balance")
-        if balance is None:
-            balance = system_balance(own)
+        # Failed live pull must not write the old book as if it were FNB.
         pending_amt = round(sum(abs(float(p.get("amount") or 0)) for p in pending), 2)
         available = live.get("available")
         if available is None and balance is not None:
@@ -1805,23 +1886,29 @@ def card_overlay(conn: sqlite3.Connection | None = None) -> dict:
     """Last fetch + unmatched items for the FNB card."""
     own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB))
     fetch = last_fetch(own) or {}
+    live = last_live_figures(own)
     attention = attention_open(own)
     pending = pending_open(own)
     need_amt = round(sum(abs(float(a.get("amount") or 0)) for a in attention), 2)
     pending_amt = round(sum(abs(float(p.get("amount") or 0)) for p in pending), 2)
-    bal = system_balance(own)
+    sys_bal = system_balance(own)
+    live_bal = live.get("balance")
     available = None
-    if bal is not None:
-        available = round(float(bal) - pending_amt, 2)
+    if live_bal is not None and pending_amt:
+        available = round(float(live_bal) - pending_amt, 2)
+    elif sys_bal is not None:
+        available = round(float(sys_bal) - pending_amt, 2)
     if conn is None:
         own.close()
-    last_ok = bool(fetch.get("ok"))
+    last_ok = bool(live.get("ok") or fetch.get("ok"))
+    stamp = live.get("fetched_at") or fetch.get("fetched_at")
     return {
-        "last_fetched": fetch.get("fetched_at"),
-        "last_fetched_label": _when_label(fetch.get("fetched_at")),
+        "last_fetched": stamp,
+        "last_fetched_label": _when_label(stamp),
         "last_inserted": fetch.get("inserted") or 0,
         "last_ok": last_ok,
-        "system_balance": bal,
+        "system_balance": sys_bal,
+        "live_balance": live_bal,
         "available": available,
         "pending": pending,
         "pending_amount": pending_amt,
@@ -2038,6 +2125,16 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK account-register-click")
+    live_conn = sqlite3.connect(":memory:")
+    record_live_card(5314.66, 4815.44, conn=live_conn)
+    figs = last_live_figures(live_conn)
+    ov = card_overlay(live_conn)
+    if figs.get("balance") != 5314.66 or ov.get("live_balance") != 5314.66:
+        print("FAIL live-card-balance", figs, ov)
+        failed += 1
+    else:
+        print("OK live-card-balance")
+    live_conn.close()
     conn.close()
     return failed
 
