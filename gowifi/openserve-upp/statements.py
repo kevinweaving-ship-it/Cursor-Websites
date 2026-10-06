@@ -54,6 +54,12 @@ RECONNECT_LABEL = "Reconnection after unpaid · un-suspend penalty"
 # (date, client key) -> FNB bank EFT total for that day (splits summed).
 BANK_EFT: dict[tuple[str, str], float] = {}
 NOT_ON_MONTHLY_DO = frozenset({"reconnect", "install", "do-return", "equipment", "fee"})
+# QB put these on the wrong client. Never show, never due.
+NOT_CLIENT_INVOICE = frozenset(
+    {
+        "3055",  # Cupido 7/3.5 wireless R439 — he is Fibre 50/25 R759
+    }
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS customer_invoices (
@@ -575,6 +581,9 @@ def _rows(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
 
 
 def _books_invoice(row: dict) -> bool:
+    no = str(row.get("invoice_number") or row.get("number") or row.get("ref") or "")
+    if no in NOT_CLIENT_INVOICE:
+        return False
     src = (row.get("source") or "qb-list").lower()
     if src.startswith("gowifi-"):
         return False
@@ -1659,6 +1668,9 @@ def self_test() -> int:
         failed += 1
     elif cup_3013 and abs(_money(cup_3013.get("balance")) - 759) > 0.02:
         print("FAIL cupido-3013-running-due", cup_3013)
+        failed += 1
+    elif any(str(r.get("ref")) == "3055" for r in (cup.get("ledger") or [])):
+        print("FAIL cupido-3055-not-his-line")
         failed += 1
     else:
         print("OK cupido-2715-do-nil", "3013 unpaid 0")
