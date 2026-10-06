@@ -27,6 +27,7 @@ from billing import (
     canon_key,
     client_row,
     display_name,
+    is_offset,
     split_qb_name,
 )
 from invoice_canned import statement_on_invoice
@@ -1233,13 +1234,15 @@ def for_export(conn: sqlite3.Connection, today: date | None = None) -> dict:
     cards = []
     seen = set()
     for row in CLIENTS:
+        if is_offset(row):
+            continue
         pack = account_as_at(conn, row["name"], today)
         seen.add(canon_key(row["name"]))
         cards.append(pack)
     invoices, _payments = _rows(conn)
     for inv in invoices:
         key = canon_key(inv.get("customer"))
-        if key in seen:
+        if key in seen or is_offset(client_row(inv.get("customer"))):
             continue
         seen.add(key)
         cards.append(account_as_at(conn, inv.get("customer"), today))

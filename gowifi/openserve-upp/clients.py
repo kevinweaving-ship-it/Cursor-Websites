@@ -8,7 +8,14 @@ from __future__ import annotations
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from billing import CLIENTS, canon_key, client_accounts
+from billing import (
+    CLIENTS,
+    OFFSET_DEALS,
+    canon_key,
+    client_accounts,
+    is_offset,
+    is_service_client,
+)
 from customers import lookup as customer_lookup
 from site_lines import is_incoming
 
@@ -209,6 +216,57 @@ def _grace(acc: dict, today: date) -> dict:
     }
 
 
+def _offset_card(row: dict) -> dict:
+    extra = customer_lookup(row.get("name"))
+    note = row.get("offset_note") or (
+        "Offset deal. Not a fibre or wifi client. No B-number. "
+        "Cash against Kevin Weaving loan. Fibre stays cost of service."
+    )
+    return {
+        "name": row.get("name"),
+        "address": (extra or {}).get("address") or None,
+        "phone": (extra or {}).get("phone") or None,
+        "email": (extra or {}).get("email"),
+        "started": None,
+        "started_label": "—",
+        "months": None,
+        "tenure": None,
+        "b_number": None,
+        "package": "Offset · Office Connect contribution",
+        "access": "offset",
+        "not_a_client": True,
+        "pay": "EFT",
+        "discount": False,
+        "billed": row.get("amount"),
+        "paid": 0,
+        "due": None,
+        "paid_up": False,
+        "charge": None,
+        "os_cost": None,
+        "os_on_invoice": False,
+        "loan_account": row.get("loan_account"),
+        "offset_note": note,
+        "dot": "active",
+        "dot_label": "Offset · KW loan",
+        "balance_label": "Offset · KW loan",
+        "ledger": [],
+        "notes": [note],
+        "search": " ".join(
+            p
+            for p in (
+                row.get("name"),
+                "paltco",
+                "patriot",
+                "offset",
+                "loan",
+                "kevin",
+                note,
+            )
+            if p
+        ).lower(),
+    }
+
+
 def _apply_os_margin(card: dict, os_map: dict, charge: float | None) -> None:
     """Openserve CSV cost (B-number lines + VAT) vs what we charge."""
     if (card.get("access") or "") != "fibre":
@@ -287,6 +345,7 @@ def cards_for_export(
                 "suspended": bool(c.get("suspended")),
             }
             for c in CLIENTS
+            if is_service_client(c)
         ]
 
     live_keys = {canon_key(c["name"]) for c in CLIENTS}
@@ -295,7 +354,7 @@ def cards_for_export(
     cancelled = []
     for acc in accounts:
         key = canon_key(acc.get("name"))
-        if key in used:
+        if key in used or is_offset(acc) or is_offset(next((c for c in CLIENTS if canon_key(c["name"]) == key), None)):
             continue
         used.add(key)
         fibre = (acc.get("access") or "") == "fibre"
@@ -492,6 +551,7 @@ def cards_for_export(
     missing_names = [c["name"] for c in fibre_cards if not c.get("os_on_invoice")]
     loss_names = [c["name"] for c in fibre_cards if c.get("os_loss")]
     invoice_date = next((v.get("invoice_date") for v in os_map.values()), None)
+    offsets = [_offset_card(row) for row in OFFSET_DEALS]
     return {
         "as_at": today.isoformat(),
         "grace_days": GRACE_DAYS,
@@ -503,6 +563,7 @@ def cards_for_export(
         "cancelled_due": still_owe,
         "cards": cards,
         "cancelled": cancelled,
+        "offsets": offsets,
         "os": {
             "invoice_date": invoice_date,
             "fibre": len(fibre_cards),
@@ -516,6 +577,7 @@ def cards_for_export(
             "Simple client cards. Cancelled clients are not on this list — "
             "they sit in the Cancelled card at the bottom. "
             "VK Pop incoming fibre is not a client. "
+            "Paltco is an offset deal — not fibre or wifi, no B-number; cash against Kevin loan. "
             "Fibre cost is the latest Openserve invoice CSV per B-number + VAT. "
             "Later: auto suspend, WhatsApp, notes to admin."
         ),
@@ -743,8 +805,21 @@ def self_test() -> int:
     elif "Bing Noordhoek Fibre" not in (os.get("missing_names") or []):
         print("FAIL fibre-missing-track", os)
         failed += 1
+    elif "Paltco" in names2 or "Paltco" in (os.get("missing_names") or []):
+        print("FAIL paltco-not-fibre-client", names2, os)
+        failed += 1
     else:
         print("OK cost-vs-charge", ph.get("os_cost_label"), ph.get("margin"), hpp2.get("os_cost_label"))
+    off = {c["name"]: c for c in pack2.get("offsets") or []}
+    pal = off.get("Paltco") or {}
+    if not pal or pal.get("b_number") or pal.get("access") != "offset" or not pal.get("not_a_client"):
+        print("FAIL paltco-offset-card", pal)
+        failed += 1
+    elif "loan" not in (pal.get("offset_note") or "").lower():
+        print("FAIL paltco-loan-note", pal)
+        failed += 1
+    else:
+        print("OK paltco-offset-no-b")
     conn.close()
     return failed
 

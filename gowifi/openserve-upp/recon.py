@@ -6,7 +6,16 @@ import sqlite3
 from collections import Counter
 from pathlib import Path
 
-from billing import CLIENTS, DO_CLIENTS, PENDING_DO, canon_key, client_row, display_name
+from billing import (
+    CLIENTS,
+    DO_CLIENTS,
+    KEVIN_LOAN_ACCOUNT,
+    PENDING_DO,
+    canon_key,
+    client_row,
+    display_name,
+    is_offset,
+)
 from invoice_canned import parse_day
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -183,6 +192,13 @@ def _fnb_alloc(row: dict) -> dict:
     qb = (row.get("qb_type") or "").lower()
     blob = f"{payee} {memo} {account}".lower()
     client = _client_for(payee, memo)
+    if client and is_offset(client_row(client[0])):
+        return {
+            "alloc_kind": "loan",
+            "alloc_to": (client_row(client[0]) or {}).get("loan_account") or KEVIN_LOAN_ACCOUNT,
+            "alloc_key": client[1],
+            "result": "allocated",
+        }
     if client and (row.get("deposit") or 0) > 0.004:
         name, key = client
         return {
@@ -713,6 +729,21 @@ def self_test() -> int:
             for rec in conn.execute("SELECT alloc_kind FROM fnb_tx"):
                 kinds[rec[0]] += 1
             print("OK fnb-kinds", dict(kinds))
+    sample = _fnb_alloc(
+        {
+            "payee": "Patriot SA / Paltco",
+            "memo": "Contribution",
+            "account": "Accounts Receivable (A/R)",
+            "deposit": 1399,
+            "payment": 0,
+            "qb_type": "Payment",
+        }
+    )
+    if sample.get("alloc_kind") != "loan" or "Kevin" not in (sample.get("alloc_to") or ""):
+        print("FAIL paltco-to-kw-loan", sample)
+        failed += 1
+    else:
+        print("OK paltco-fnb-to-kw-loan")
     conn.close()
     return failed
 

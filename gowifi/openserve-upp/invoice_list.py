@@ -56,6 +56,7 @@ ASK = "Need full invoice PDF — split install / equipment / fees"
 MONTHLY_WHAT = {
     "fibre": "Fibre line rental (month in advance)",
     "wireless": "Wireless line rental (month in advance)",
+    "offset": "Offset · Kevin loan (not a client)",
 }
 
 
@@ -304,6 +305,11 @@ def self_test() -> int:
         failed += 1
     elif any(r.get("ask") and r["kind"] != "query" for r in pack["monthly"]):
         print("FAIL ask-on-monthly")
+        failed += 1
+    elif (by_no.get("2772") or {}).get("access") != "offset" or "loan" not in (
+        (by_no.get("2772") or {}).get("what") or (by_no.get("2772") or {}).get("why") or ""
+    ).lower():
+        print("FAIL paltco-offset-invoice", by_no.get("2772"))
         failed += 1
     else:
         print(

@@ -176,7 +176,7 @@ const $ = (s,el=document)=>el.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
 const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
 const dueClass = c => c.suspension_notice||c.bounced ? "bad" : (c.paid_up ? "ok" : (c.in_grace ? "warn" : (Number(c.due) ? "bad" : "")));
-const accessLabel = c => (c.access||"") === "fibre" ? "Fibre" : "Wifi";
+const accessLabel = c => (c.access||"") === "fibre" ? "Fibre" : (c.access||"") === "offset" ? "Offset" : "Wifi";
 function field(label, value, extra){
   return `<div class="field"><span class="k">${esc(label)}</span><span class="v${extra&&extra.cls?" "+extra.cls:""}">${value}</span></div>`;
 }
@@ -214,10 +214,12 @@ function headBal(c){
 }
 function card(c){
   const id = "d-"+Math.random().toString(36).slice(2,8);
-  const bno = c.b_number || (c.access==="fibre" ? "—" : "Wireless");
+  const bno = c.access==="offset" ? "None · not a client" : (c.b_number || (c.access==="fibre" ? "—" : "Wireless"));
   const dc = dueClass(c);
   const kind = [accessLabel(c), c.pay, c.discount?"disc":""].filter(Boolean).join(" · ");
-  const bal = `${esc(c.balance_label||"—")} <span class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · due ${esc(money(c.due))}</span>`;
+  const bal = c.access==="offset"
+    ? `${esc(c.balance_label||"Offset · KW loan")} <span class="meta">Input ${esc(money(c.billed))} · cash against Kevin loan</span>`
+    : `${esc(c.balance_label||"—")} <span class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · due ${esc(money(c.due))}</span>`;
   return `<article class="card" data-search="${esc(c.search||"")}">
     <button class="head" type="button" aria-expanded="false" aria-controls="${id}">
       <span class="name"><span class="dot ${esc(c.dot||"active")}" title="${esc(c.dot_label||"")}"></span>${esc(c.name||"—")}</span>
@@ -241,6 +243,11 @@ function card(c){
         ${field("Package", esc(c.package||"—"))}
         ${field("Balance", bal, {cls:"due "+dc})}
       </div>
+      ${c.access==="offset" ? `<div class="band">
+        ${field("Deal", esc(c.offset_note||"Offset · not a fibre or wifi client"))}
+        ${field("Cash to", esc(c.loan_account||"Kevin Weaving loan"))}
+        ${field("Fibre cost", "Stays cost of service · no Paltco B-number")}
+      </div>` : ""}
       ${c.access==="fibre" ? `<div class="band">
         ${field("Cost", c.os_cost==null ? "— not on latest Openserve invoice" : `${esc(money(c.os_cost))} <span class="meta">${esc(c.os_cost_label||"incl VAT")}</span>`)}
         ${field("Charge", esc(money(c.charge)))}
@@ -284,7 +291,7 @@ function bindToggles(root){
 }
 function splitAccess(list){
   const name = c => (c.name||"").toLowerCase();
-  const wifi = list.filter(c => (c.access||"") !== "fibre").sort((a,b)=>name(a).localeCompare(name(b)));
+  const wifi = list.filter(c => (c.access||"") !== "fibre" && (c.access||"") !== "offset").sort((a,b)=>name(a).localeCompare(name(b)));
   const fibre = list.filter(c => (c.access||"") === "fibre").sort((a,b)=>name(a).localeCompare(name(b)));
   return {wifi, fibre};
 }
@@ -296,6 +303,7 @@ function paint(pack){
   const shown = cards.filter(hit);
   const shownC = cancelled.filter(hit);
   const {wifi, fibre} = splitAccess(shown);
+  const offsets = (pack.offsets||[]).filter(hit);
   const os = pack.os || {};
   const osBits = [];
   if (!q && os.fibre) osBits.push(`${os.on_invoice||0}/${os.fibre} fibre on invoice`);
@@ -306,9 +314,9 @@ function paint(pack){
       ? `${shown.length} match · ${wifi.length} wifi · ${fibre.length} fibre`
       : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`
   ) + (osBits.length ? ` · ${osBits.join(" · ")}` : "");
-  $("#grid").innerHTML = shown.length
-    ? block("GoWiFi Wifi", wifi) + block("Fibre", fibre)
-    : `<p class="empty">No clients match.</p>`;
+  const body = (shown.length ? block("GoWiFi Wifi", wifi) + block("Fibre", fibre) : "")
+    + (offsets.length ? block("Offset · Kevin loan", offsets) : "");
+  $("#grid").innerHTML = body || `<p class="empty">No clients match.</p>`;
   bindToggles($("#grid"));
   const wrap = $("#cancelled-wrap");
   if (!cancelled.length) { wrap.classList.add("hidden"); return; }

@@ -43,12 +43,40 @@ CLIENTS = [
     {"ref": None, "name": "Phillipus May", "amount": 439.00, "method": "eft", "access": "wireless", "sku": None, "discount": True},
     {"ref": None, "name": "Amoroc Doors", "amount": 199.00, "method": "eft", "access": "wireless", "sku": None},
     {"ref": None, "name": "WCC Tech", "amount": 1000.00, "method": "eft", "access": "fibre", "sku": None},
-    {"ref": None, "name": "Paltco", "amount": 1399.00, "method": "eft", "access": "fibre", "sku": None},
+    {
+        "ref": None,
+        "name": "Paltco",
+        "amount": 1399.00,
+        "method": "eft",
+        "access": "offset",
+        "sku": None,
+        "not_a_client": True,
+        "loan_account": "Share capital:Loan Account - Kevin Weaving 33%",
+        "offset_note": (
+            "Offset deal. Not a fibre or wifi client. No B-number. "
+            "Cash in against Kevin Weaving loan. Openserve fibre stays cost of service."
+        ),
+    },
     {"ref": None, "name": "Mrs Marlene/Georg Van Eeden", "amount": 439.00, "method": "eft", "access": "wireless", "sku": None},
 ]
 
+KEVIN_LOAN_ACCOUNT = "Share capital:Loan Account - Kevin Weaving 33%"
+
+
+def is_offset(row: dict | None) -> bool:
+    if not row:
+        return False
+    return bool(row.get("not_a_client") or (row.get("access") or "") == "offset")
+
+
+def is_service_client(row: dict | None) -> bool:
+    return bool(row) and not is_offset(row)
+
+
 DO_CLIENTS = [row for row in CLIENTS if row["method"] == "debit-order"]
-EFT_CLIENTS = [row for row in CLIENTS if row["method"] == "eft"]
+EFT_CLIENTS = [row for row in CLIENTS if row["method"] == "eft" and is_service_client(row)]
+OFFSET_DEALS = [row for row in CLIENTS if is_offset(row)]
+SERVICE_CLIENTS = [row for row in CLIENTS if is_service_client(row)]
 
 _NAME_ALIASES = {
     "godfrey cupido": "g cupido",
@@ -218,7 +246,12 @@ def do_action_date(inv_day: date) -> date:
 
 def line_label(row: dict, period: str) -> str:
     pkg = by_sku(row.get("sku"))
-    head = pkg["label"] if pkg else ("Fibre" if row.get("access") == "fibre" else "Wireless")
+    if is_offset(row):
+        head = "Offset · Kevin loan"
+    elif pkg:
+        head = pkg["label"]
+    else:
+        head = "Fibre" if row.get("access") == "fibre" else "Wireless"
     extra = " · discount" if row.get("discount") else ""
     return f"{head} {period_label(period)} (month in advance){extra}"
 
@@ -244,6 +277,8 @@ def apply_named_receipts(conn: sqlite3.Connection) -> int:
     for paid_on, payee, memo, deposit, source, account in rows:
         name = display_name(payee)
         if not name or name.lower() == "netcash":
+            continue
+        if is_offset(client_row(name) or client_row(payee)):
             continue
         do = (source or "").startswith("qb_netcash") or "netcash" in (account or "").lower()
         conn.execute(
@@ -315,11 +350,13 @@ def ensure_cycle_invoices(
     today = today or date.today()
     inv_day = invoice_day_on(today)
     period = period_for(inv_day)
-    clients = clients or CLIENTS
+    clients = clients or SERVICE_CLIENTS
     created = []
     last = conn.execute("SELECT MAX(invoice_number) FROM customer_invoices").fetchone()
     number = int(last[0] or 3113)
     for row in clients:
+        if is_offset(row):
+            continue
         key = canon_key(row["name"])
         existing = None
         month = inv_day.isoformat()[:7]
@@ -433,7 +470,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
     payments = _payments(conn)
     pending = dict(PENDING_DO)
     by_key = {}
-    for row in CLIENTS:
+    for row in SERVICE_CLIENTS:
         by_key[canon_key(row["name"])] = {
             "name": row["name"],
             "ref": row.get("ref"),
@@ -447,6 +484,8 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
             "address": row.get("address"),
         }
     for pay in payments:
+        if is_offset(client_row(pay.get("customer"))):
+            continue
         key = canon_key(pay.get("customer"))
         if key and key not in by_key:
             by_key[key] = {
@@ -729,6 +768,18 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK once-off-extras")
+    paltco = next(c for c in CLIENTS if c["name"] == "Paltco")
+    if paltco.get("access") != "offset" or not paltco.get("not_a_client") or paltco.get("sku"):
+        print("FAIL paltco-offset", paltco)
+        failed += 1
+    elif any(a.get("name") == "Paltco" for a in acc.get("fibre", []) + acc.get("wireless", []) + acc.get("accounts", [])):
+        print("FAIL paltco-not-a-service-client", acc.get("fibre_count"), acc.get("wireless_count"))
+        failed += 1
+    elif paltco.get("loan_account") != KEVIN_LOAN_ACCOUNT:
+        print("FAIL paltco-kw-loan", paltco.get("loan_account"))
+        failed += 1
+    else:
+        print("OK paltco-offset-kw-loan")
     de = next(c for c in CLIENTS if c["name"] == "Phillip De Gruchy")
     may = next(c for c in CLIENTS if c["name"] == "Phillipus May")
     if not by_sku(de["sku"]) or by_sku(de["sku"])["down"] != 300:
