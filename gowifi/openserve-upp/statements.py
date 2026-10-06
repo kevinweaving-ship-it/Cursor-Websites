@@ -1231,6 +1231,8 @@ def fifo_statement(
                 return (extra, r.get("date") or "", str(r.get("ref") or ""))
 
             def _eft_due(r: dict) -> bool:
+                if not (book and book.get("method") == "debit-order"):
+                    return True
                 pay_day = (p.get("date") or "")[:10]
                 inv_day = (r.get("date") or "")[:10]
                 due = (r.get("due_on") or inv_day)[:10]
