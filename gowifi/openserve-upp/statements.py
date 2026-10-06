@@ -289,7 +289,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
     conn.execute(
         "DELETE FROM customer_payments WHERE source IN "
         "('qb-eft','qb-cash','qb-do','qb-credit','qb-do-synth','netcash-alloc',"
-        "'fnb-alloc','fnb-eft','netcash-do')"
+        "'fnb-alloc','fnb-eft','netcash-do','quickbooks-statement')"
     )
     conn.execute(
         "DELETE FROM customer_do_events WHERE source IN "
@@ -674,6 +674,12 @@ def _pay_is_do(row: dict) -> bool:
     ).lower().startswith("debit")
 
 
+def _is_opening_balance(row: dict) -> bool:
+    """QB statement PDF opening line. Not a bank payment."""
+    note = (row.get("note") or "").lower()
+    return "balance forward" in note
+
+
 def _collapse_client_day_efts(pays: list[dict], name: str) -> list[dict]:
     """One EFT per day. Same-day QB/FNB apply rows are one bank payment."""
     from collections import defaultdict
@@ -681,6 +687,8 @@ def _collapse_client_day_efts(pays: list[dict], name: str) -> list[dict]:
     kept: list[dict] = []
     by_day: dict[str, list[dict]] = defaultdict(list)
     for row in pays:
+        if _is_opening_balance(row) or abs(_money(row.get("amount"))) <= 0.004:
+            continue
         method = (row.get("method") or "").lower()
         if _pay_is_do(row) or method in {"credit", "cash"}:
             kept.append(row)
@@ -1472,8 +1480,15 @@ def account_as_at(
     ledger["lines"] = present_ledger(
         _fold_invoice_what(ledger.get("lines") or [], conn),
         today,
-        show_money=bool(book and (book.get("method") == "debit-order" or is_offset(book))),
-        show_all=bool(is_offset(book)),
+        show_money=bool(
+            book
+            and (
+                book.get("method") == "debit-order"
+                or is_offset(book)
+                or key == "marlene georg"
+            )
+        ),
+        show_all=bool(is_offset(book) or key == "marlene georg"),
     )
     stmt = statement_on_invoice(invoices, payments, display, as_at=today)
     billed = ledger["billed"]
@@ -1644,6 +1659,41 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK marlene-oldest-first", "2130/2219 paid", "jul18", sorted(jul18_refs))
+    if abs((marlene.get("billed") or 0) - 25773) > 0.02 or abs((marlene.get("paid") or 0) - 18593) > 0.02:
+        print("FAIL marlene-qb-totals", marlene.get("billed"), marlene.get("paid"))
+        failed += 1
+    conn.execute(
+        """INSERT INTO customer_payments
+           (paid_on, customer, amount, note, source, method)
+           VALUES ('2024-02-29','Mrs Marlene/Georg Van Eeden',1197,'Balance Forward','quickbooks-statement',NULL)"""
+    )
+    marlene_bf = account_as_at(conn, "Van Eeden, Marlene/Georg", today)
+    conn.execute("DELETE FROM customer_payments WHERE note='Balance Forward'")
+    if abs((marlene_bf.get("due") or 0) - 7180) > 0.5:
+        print("FAIL marlene-ignore-pdf-bf", marlene_bf.get("due"), marlene_bf.get("paid"))
+        failed += 1
+    else:
+        print("OK marlene-qb-7180-no-pdf-bf", marlene.get("due"))
+    qb_m = DATA_DIR / "qbo_marlene_live.json"
+    if qb_m.exists():
+        live_m = json.loads(qb_m.read_text())
+        if abs(float((live_m.get("customer") or {}).get("balance") or 0) - 7180) > 0.02:
+            print("FAIL marlene-qb-customer-balance", live_m.get("customer"))
+            failed += 1
+        elif abs(float(live_m.get("open") or 0) - 7180) > 0.02:
+            print("FAIL marlene-qb-open", live_m.get("open"))
+            failed += 1
+        elif abs((marlene.get("due") or 0) - float(live_m.get("open") or 0)) > 0.5:
+            print("FAIL marlene-not-qb-due", marlene.get("due"), live_m.get("open"))
+            failed += 1
+        else:
+            print("OK marlene-matches-qb-balance", live_m.get("open"))
+    shown = [r for r in (marlene.get("ledger") or []) if r.get("show")]
+    if len(shown) < 50:
+        print("FAIL marlene-must-show-from-start", len(shown))
+        failed += 1
+    else:
+        print("OK marlene-full-statement", len(shown))
     want = account_as_at(conn, "Wantling, David", today)
     want_unpaid = [r for r in (want.get("ledger") or []) if r.get("kind") == "unpaid"]
     if want_unpaid:
