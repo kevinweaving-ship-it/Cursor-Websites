@@ -1796,6 +1796,12 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
             set_progress("FNB read failed", error=str(exc)[:180])
             _dump_page(page, "read-failed")
             rows = []
+        try:
+            set_progress("Logging off FNB")
+            _click_named(page, ("Log off", "Log Off", "Logout", "Log out"))
+            page.wait_for_timeout(800)
+        except Exception:
+            pass
         context.close()
     return {
         "ok": bool(rows or pending or balances.get("balance") is not None),
@@ -2170,6 +2176,12 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK skip-ad-frames")
+    live_src = Path(__file__).read_text().split("def fetch_live", 1)[-1].split("def pull", 1)[0]
+    if "Log off" not in live_src:
+        print("FAIL log-off-after-fetch")
+        failed += 1
+    else:
+        print("OK log-off-after-fetch")
     live_conn.close()
     conn.close()
     return failed

@@ -745,33 +745,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, {"error": "not found"})
 
 
-def _auto_fetch_loop() -> None:
-    time.sleep(8)
-    while True:
-        try:
-            from fnb_statement import last_fetch, login_ready
-
-            last = last_fetch() or {}
-            stale = True
-            if last.get("ok") and last.get("fetched_at"):
-                try:
-                    stamp = str(last["fetched_at"]).replace("T", " ").split(".")[0]
-                    stamp = stamp.split("+")[0].rstrip("Z").strip()
-                    got = datetime.strptime(stamp[:16], "%Y-%m-%d %H:%M")
-                    stale = (datetime.now() - got).total_seconds() > 20 * 60
-                except ValueError:
-                    stale = True
-            if login_ready() and stale:
-                pull()
-        except Exception as exc:
-            sys.stderr.write(f"fnb-auto: {exc}\n")
-        time.sleep(20 * 60)
-
-
 def serve() -> None:
-    import threading
-
-    threading.Thread(target=_auto_fetch_loop, daemon=True, name="fnb-auto").start()
     host, port = LISTEN.split(":")
     httpd = ThreadingHTTPServer((host, int(port)), Handler)
     print(f"fnb-api on {LISTEN}", flush=True)
@@ -840,6 +814,12 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK status-not-enterprise")
+    src = Path(__file__).read_text().split("def self_test", 1)[0]
+    if "_auto_fetch_loop" in src or "fnb-auto" in src:
+        print("FAIL no-auto-login")
+        failed += 1
+    else:
+        print("OK no-auto-login")
     conn = sqlite3.connect(":memory:")
     n = _upsert_bank(conn, rows + [{"paid_on": "2026-01-01", "amount": 1, "description": "QB", "source": "qb_fnb_history"}])
     if n != 3:
