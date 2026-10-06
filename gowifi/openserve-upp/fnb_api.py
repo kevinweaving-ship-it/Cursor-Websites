@@ -114,19 +114,16 @@ def status(env: dict[str, str] | None = None) -> dict:
     account = (env.get("FNB_ACCOUNT_NUMBER") or GOWIFI_FNB).strip()
     has_api = bool(client_id and secret)
     has_login = bool(username and password)
-    via = "fnb-api" if has_api else "fnb-live"
+    via = "fnb-live"
     if has_login:
         note = (
-            "FNB Online live statement. Not Online Banking Enterprise, so Integration Channel "
-            "Statements / retrieveTransactionHistory is no use. Skip devices when it shows, "
-            "then My bank accounts, Available, Statements. New rows only."
+            "FNB Online own login. Not Online Banking Enterprise. "
+            "Skip devices when it shows, then My bank accounts, Available, Statements. New rows only."
         )
-    elif has_api:
-        note = "FNB Integration Channel keys are on the box, but GoWiFi is not an Online Banking Enterprise user."
     else:
-        note = "Need FNB Online Banking login on the box. Integration Channel is no use without Enterprise."
+        note = "Need FNB Online Banking login on the box. Own login only — not Enterprise."
     return {
-        "ready": has_login or has_api,
+        "ready": has_login,
         "has_login": has_login,
         "has_api": has_api,
         "account_number": account,

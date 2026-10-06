@@ -1,5 +1,5 @@
 [Unit]
-Description=GoWiFi Box FNB Integration Channel helper
+Description=GoWiFi Box FNB Online own-login fetch
 After=network.target
 
 [Service]

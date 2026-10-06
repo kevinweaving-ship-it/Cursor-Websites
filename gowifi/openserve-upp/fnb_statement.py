@@ -11,7 +11,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import sqlite3
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -593,27 +595,68 @@ def _looks_blocked(text: str, url: str = "") -> bool:
     )
 
 
+def _ensure_display() -> str:
+    """Headed Chrome on the box — FNB blocks HeadlessChrome. Own login only."""
+    current = (os.environ.get("DISPLAY") or "").strip()
+    if current:
+        return current
+    xvfb = shutil.which("Xvfb")
+    if not xvfb:
+        return ""
+    display = (os.environ.get("FNB_DISPLAY") or ":99").strip() or ":99"
+    lock = Path(f"/tmp/.X{display.lstrip(':')}-lock")
+    if not lock.exists():
+        try:
+            subprocess.Popen(
+                [xvfb, display, "-screen", "0", "1400x900x24", "-nolisten", "tcp", "-ac"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            time.sleep(0.5)
+        except OSError:
+            return ""
+    os.environ["DISPLAY"] = display
+    return display
+
+
 def _open_browser(pw):
-    """Own FNB Online login. Look like a normal Chrome, keep the session on the box."""
+    """Own FNB Online login. Real Chrome when present, headed, keep the session."""
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
     try:
         os.chmod(PROFILE_DIR, 0o700)
     except OSError:
         pass
-    return pw.chromium.launch_persistent_context(
-        str(PROFILE_DIR),
-        headless=True,
-        viewport={"width": 1400, "height": 900},
-        user_agent=BROWSER_UA,
-        locale="en-ZA",
-        ignore_https_errors=False,
-        args=[
+    display = _ensure_display()
+    kwargs = {
+        "headless": not bool(display),
+        "viewport": {"width": 1400, "height": 900},
+        "user_agent": BROWSER_UA,
+        "locale": "en-ZA",
+        "timezone_id": "Africa/Johannesburg",
+        "ignore_https_errors": False,
+        "args": [
             "--disable-dev-shm-usage",
             "--no-sandbox",
             "--disable-blink-features=AutomationControlled",
         ],
-        ignore_default_args=["--enable-automation"],
-    )
+        "ignore_default_args": ["--enable-automation"],
+    }
+    last = None
+    for channel in ("chrome", "chromium"):
+        try:
+            return pw.chromium.launch_persistent_context(
+                str(PROFILE_DIR),
+                channel=channel,
+                **kwargs,
+            )
+        except Exception as exc:
+            last = exc
+    try:
+        return pw.chromium.launch_persistent_context(str(PROFILE_DIR), **kwargs)
+    except Exception:
+        if last:
+            raise last
+        raise
 
 
 def _dump_page(page, label: str) -> None:
@@ -856,8 +899,8 @@ def _fill_login(page, username: str, password: str) -> None:
 
 def _wait_after_login(page, account: str) -> None:
     set_progress("Waiting for FNB after login")
-    for i in range(40):
-        page.wait_for_timeout(1500)
+    for i in range(90):
+        page.wait_for_timeout(2000)
         _dismiss_popups(page)
         text = _all_text(page)
         low = text.lower()
@@ -1851,6 +1894,18 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK own-login-online-only")
+    open_fn = Path(__file__).read_text().split("def _open_browser", 1)[-1].split("def _dump_page", 1)[0]
+    here = Path(__file__).read_text().split("def self_test", 1)[0]
+    api = Path(__file__).with_name("fnb_api.py").read_text().split("def self_test", 1)[0]
+    src = here + api
+    if "channel" not in open_fn or '"chrome"' not in open_fn or "_ensure_display" not in open_fn:
+        print("FAIL own-login-real-chrome")
+        failed += 1
+    elif any(w in src for w in ("Banklink", "Stitch", "OFX", "Scheduled Export")):
+        print("FAIL no-third-party-fetch")
+        failed += 1
+    else:
+        print("OK own-login-real-chrome")
     conn.close()
     return failed
 
