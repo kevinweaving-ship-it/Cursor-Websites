@@ -211,6 +211,16 @@ main {
 const $ = (s,el=document)=>el.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
 const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
+const whenClock = v => {
+  if (!v) return "Never fetched";
+  const m = String(v).match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (m) {
+    const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+    return `${m[3]} ${months[+m[2]-1]} ${m[1]}, ${m[4]}:${m[5]}`;
+  }
+  const t = String(v).match(/(\d{2}):(\d{2})/);
+  return t ? t[1]+":"+t[2] : String(v);
+};
 const dueClass = c => c.suspension_notice||c.bounced ? "bad" : (c.paid_up ? "ok" : (c.in_grace ? "warn" : (Number(c.due) ? "bad" : "")));
 const accessLabel = c => (c.access||"") === "fibre" ? "Fibre" : (c.access||"") === "offset" ? "Offset" : "Wifi";
 function field(label, value, extra){
@@ -298,7 +308,7 @@ function fnbCard(fnb){
   fnb = fnb || {};
   const id = "d-fnb";
   const bal = fnb.balance==null ? "—" : money(fnb.balance);
-  const last = fnb.last_fetched_label || fnb.last_fetched || "Never fetched";
+  const last = whenClock(fnb.last_fetched_label || fnb.last_fetched);
   const need = Number(fnb.attention_amount||0);
   const hasPending = (fnb.rows||[]).some(r => r.tone==="pending");
   const matched = fnb.last_ok && fnb.matched!==false && need<=0.004 && !hasPending;

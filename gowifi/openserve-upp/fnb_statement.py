@@ -13,7 +13,7 @@ import os
 import re
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from company import COMPANY, GOWIFI_FNB
@@ -833,10 +833,13 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
     balances = {"balance": None, "available": None}
     note = ""
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(
-            headless=True,
-            args=["--disable-dev-shm-usage", "--no-sandbox"],
-        )
+        try:
+            browser = pw.chromium.launch(
+                headless=True,
+                args=["--disable-dev-shm-usage", "--no-sandbox"],
+            )
+        except Exception as exc:
+            return {"ok": False, "error": f"fnb browser: {exc}", "rows": [], "pending": []}
         page = browser.new_page(viewport={"width": 1400, "height": 900})
         last = ""
         for url in LOGIN_URLS:
@@ -888,7 +891,7 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
 
 def pull(conn: sqlite3.Connection | None = None) -> dict:
     own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB))
-    fetched_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    fetched_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     live = fetch_live()
     rows = live.get("rows") or []
     added = insert_new(own, rows)
@@ -927,13 +930,20 @@ def pull(conn: sqlite3.Connection | None = None) -> dict:
     return pack
 
 
-def _when_label(iso: str | None) -> str | None:
-    if not iso:
+def _when_label(stamp: str | None) -> str | None:
+    if not stamp:
         return None
-    try:
-        return datetime.fromisoformat(iso).strftime("%d %b %Y, %H:%M")
-    except ValueError:
-        return iso
+    text = str(stamp).replace("T", " ").split(".")[0]
+    text = re.sub(r"([+-]\d{2}:\d{2}|Z)$", "", text).strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            dt = datetime.strptime(text, fmt)
+            if fmt == "%Y-%m-%d":
+                return dt.strftime("%d %b %Y")
+            return dt.strftime("%d %b %Y, %H:%M")
+        except ValueError:
+            continue
+    return text
 
 
 def system_balance(conn: sqlite3.Connection) -> float | None:
@@ -1102,6 +1112,12 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK pending-parse")
+    label = _when_label("2026-10-06T13:04:00+02:00")
+    if label != "06 Oct 2026, 13:04" or "SAST" in (label or "") or "UTC" in (label or "") or "+" in (label or ""):
+        print("FAIL when-label", label)
+        failed += 1
+    else:
+        print("OK when-label")
     conn.close()
     return failed
 

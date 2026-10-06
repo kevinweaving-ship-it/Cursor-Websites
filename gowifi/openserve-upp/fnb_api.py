@@ -705,8 +705,10 @@ def _auto_fetch_loop() -> None:
             stale = True
             if last.get("ok") and last.get("fetched_at"):
                 try:
-                    got = datetime.fromisoformat(last["fetched_at"])
-                    stale = (datetime.now(got.tzinfo) - got).total_seconds() > 20 * 60
+                    stamp = str(last["fetched_at"]).replace("T", " ").split(".")[0]
+                    stamp = stamp.split("+")[0].rstrip("Z").strip()
+                    got = datetime.strptime(stamp[:16], "%Y-%m-%d %H:%M")
+                    stale = (datetime.now() - got).total_seconds() > 20 * 60
                 except ValueError:
                     stale = True
             if login_ready() and stale:

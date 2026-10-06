@@ -108,10 +108,18 @@ const $ = (s,el=document)=>el.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
 const clock = v => {
   if (!v) return "";
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return "";
-  const sa = new Date(d.getTime() + 2*60*60*1000);
-  return String(sa.getUTCHours()).padStart(2,"0")+":"+String(sa.getUTCMinutes()).padStart(2,"0");
+  const m = String(v).match(/(\d{2}):(\d{2})/);
+  return m ? m[1]+":"+m[2] : "";
+};
+const whenClock = v => {
+  if (!v) return "never";
+  const m = String(v).match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (m) {
+    const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+    return `${m[3]} ${months[+m[2]-1]} ${m[1]}, ${m[4]}:${m[5]}`;
+  }
+  const t = String(v).match(/(\d{2}):(\d{2})/);
+  return t ? t[1]+":"+t[2] : String(v);
 };
 const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
 const clientTable = (rows, empty) => {
@@ -336,7 +344,7 @@ function render(data){
       <div class="grid">
         <div class="card"><div class="k">Old invoices</div><div class="v">${(data.books&&data.books.history&&data.books.history.count)||0}</div><div class="meta">statement sits on the invoice · ${esc((data.books&&data.books.history&&data.books.history.payment_count)||(data.books&&data.books.history&&data.books.history.payments&&data.books.history.payments.length)||0)} payments</div></div>
         <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
-        <div class="card"><div class="k">FNB</div><div class="v">${(data.books&&data.books.fnb&&data.books.fnb.balance)!=null?Number(data.books.fnb.balance).toFixed(2):"—"}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.account_number)||"62860060278")} · last fetched ${esc((data.books&&data.books.fnb&&(data.books.fnb.last_fetched_label||data.books.fnb.last_fetched))||"never")}</div><div class="meta ${data.books&&data.books.fnb&&data.books.fnb.matched===false?"warn":"ok"}">${data.books&&data.books.fnb&&data.books.fnb.matched===false?`Needs attention ${Number(data.books.fnb.attention_amount||0).toFixed(2)}`:"Matched · system balance"}</div><div class="meta"><button type="button" class="pill fnb-fetch" id="fnb-fetch">Fetch FNB now</button> · <a href="/legal/fnb.html">Connect</a></div></div>
+        <div class="card"><div class="k">FNB</div><div class="v">${(data.books&&data.books.fnb&&data.books.fnb.balance)!=null?Number(data.books.fnb.balance).toFixed(2):"—"}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.account_number)||"62860060278")} · last fetched ${esc(whenClock(data.books&&data.books.fnb&&(data.books.fnb.last_fetched_label||data.books.fnb.last_fetched)))}</div><div class="meta ${data.books&&data.books.fnb&&data.books.fnb.matched===false?"warn":"ok"}">${data.books&&data.books.fnb&&data.books.fnb.matched===false?`Needs attention ${Number(data.books.fnb.attention_amount||0).toFixed(2)}`:"Matched · system balance"}</div><div class="meta"><button type="button" class="pill fnb-fetch" id="fnb-fetch">Fetch FNB now</button> · <a href="/legal/fnb.html">Connect</a></div></div>
         <div class="card"><div class="k">Netcash</div><div class="v">${(data.books&&data.books.netcash&&data.books.netcash.items)||((data.books&&data.books.netcash&&data.books.netcash.batches)||[]).length||0}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||"Paid / unpaid per batch")}</div></div>
         <div class="card"><div class="k">Clients</div><div class="v">${((data.books&&data.books.billing&&data.books.billing.accounts)||(data.books&&data.books.ledger&&data.books.ledger.clients)||[]).length}</div><div class="meta">${esc((data.books&&data.books.billing&&data.books.billing.rule)||"Invoice 17th · month in advance")}</div></div>
         <div class="card"><div class="k">Packages</div><div class="v">${(data.books&&data.books.packages&&data.books.packages.count)||((data.books&&data.books.packages&&data.books.packages.table)||[]).length||0}</div><div class="meta">Cost incl VAT · retail no VAT · markup to R99</div></div>
