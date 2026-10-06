@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 from billing import (
@@ -14,6 +15,7 @@ from billing import (
     canon_key,
     client_row,
     display_name,
+    do_action_date,
     is_offset,
 )
 from invoice_canned import parse_day
@@ -649,16 +651,129 @@ def ingest(conn: sqlite3.Connection) -> dict:
         )
         nc_n += 1
     named_n = _ingest_named_do(conn)
-    nc_n += named_n
+    monthly_n = _ingest_monthly_do(conn)
+    nc_n += named_n + monthly_n
     conn.commit()
     return {
         "fnb": fnb_n,
         "netcash": nc_n,
         "named_do": named_n,
+        "monthly_do": monthly_n,
         "oct5": 0,
         "checksum": checksum_real_money(conn),
         **summary(conn),
     }
+
+
+def _account_ref_for(key: str, book: dict | None) -> str:
+    for row in NAMED_DO:
+        if canon_key(row.get("customer")) == key and row.get("account_ref"):
+            return str(row["account_ref"])
+    ref = (book or {}).get("ref")
+    if ref:
+        return str(ref)
+    return key.replace(" ", "")[:22]
+
+
+def _ingest_monthly_do(conn: sqlite3.Connection, today: date | None = None) -> int:
+    """D/O for each monthly invoice on its collection day. Keep named unpaids."""
+    from invoice_list import classify
+
+    today = today or date.today()
+    unpaid_months: dict[str, set[str]] = {}
+    have_month: set[tuple[str, str]] = set()
+    eft_months: set[tuple[str, str]] = set()
+    try:
+        for rec in conn.execute(
+            """SELECT alloc_key, paid_on, alloc_kind FROM netcash_tx
+               WHERE alloc_kind IN ('client_paid','client_unpaid')"""
+        ):
+            key = str(rec[0] or "")
+            day = str(rec[1] or "")[:10]
+            if key and day:
+                have_month.add((key, day[:7]))
+            if rec[2] == "client_unpaid" and key and day:
+                unpaid_months.setdefault(key, set()).add(day[:7])
+        for rec in conn.execute(
+            """SELECT alloc_key, paid_on FROM fnb_tx WHERE alloc_kind='client_paid'"""
+        ):
+            eft_months.add((canon_key(rec[0]), str(rec[1] or "")[:7]))
+    except sqlite3.OperationalError:
+        return 0
+    monthly = classify(today).get("monthly") or []
+    first_inv: dict[str, str] = {}
+    for inv in monthly:
+        if inv.get("pay") != "D/O":
+            continue
+        k = canon_key(inv.get("name"))
+        d = str(inv.get("date") or "")[:10]
+        if k and d and (k not in first_inv or d < first_inv[k]):
+            first_inv[k] = d
+    n = 0
+    for inv in monthly:
+        if inv.get("pay") != "D/O":
+            continue
+        name = display_name(inv.get("name")) or inv.get("name")
+        book = client_row(name)
+        if not book or book.get("method") != "debit-order":
+            continue
+        key = canon_key(name)
+        inv_day = parse_day(inv.get("date"))
+        if not inv_day:
+            continue
+        collect = do_action_date(inv_day)
+        if collect > today:
+            continue
+        day = collect.isoformat()
+        if day[:7] in unpaid_months.get(key, set()):
+            continue
+        if (key, day[:7]) in have_month:
+            continue
+        if (key, day[:7]) in eft_months:
+            continue
+        if first_inv.get(key) == inv_day.isoformat() and (key, inv_day.isoformat()[:7]) in eft_months:
+            continue
+        amt = abs(_money(inv.get("amount")))
+        if amt <= 0.004:
+            continue
+        batch = (
+            PENDING_DO["batch_id"]
+            if day == PENDING_DO.get("action_date")
+            else day.replace("-", "")
+        )
+        conn.execute(
+            """INSERT OR IGNORE INTO netcash_tx
+               (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
+                account, bank_status, alloc_kind, alloc_to, alloc_key, result, batch_id,
+                account_ref, tracking_ref, extra_ref, unpaid_amount, source)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                day,
+                _account_ref_for(key, book),
+                name,
+                f"Debit order · Batch {batch} · Processed",
+                0,
+                amt,
+                amt,
+                None,
+                "Payment",
+                "Accounts Receivable (A/R)",
+                "Collected",
+                "client_paid",
+                name,
+                key,
+                "paid",
+                batch,
+                _account_ref_for(key, book),
+                None,
+                None,
+                0,
+                "netcash-masterfile",
+            ),
+        )
+        have_month.add((key, day[:7]))
+        n += 1
+    return n
 
 
 def _ingest_named_do(conn: sqlite3.Connection) -> int:
@@ -934,6 +1049,25 @@ def self_test() -> int:
             failed += 1
         elif cup_hist.get(("2026-05-04", "unpaid")) != "404830634":
             print("FAIL cupido-may-unpaid", cup_hist)
+            failed += 1
+        elif conn.execute(
+            """SELECT result FROM netcash_tx
+               WHERE alloc_key='g cupido' AND paid_on='2026-09-01'"""
+        ).fetchone()[0] != "unpaid":
+            print("FAIL cupido-sep-still-unpaid")
+            failed += 1
+        elif conn.execute(
+            """SELECT COUNT(DISTINCT alloc_key) FROM netcash_tx
+               WHERE batch_id='2571994' AND alloc_kind='client_paid'"""
+        ).fetchone()[0] < len(DO_CLIENTS):
+            print("FAIL oct-batch-all-do-clients")
+            failed += 1
+        elif not conn.execute(
+            """SELECT 1 FROM netcash_tx
+               WHERE alloc_key='david wantling' AND paid_on='2026-10-05'
+                 AND alloc_kind='client_paid'"""
+        ).fetchone():
+            print("FAIL wantling-oct-do")
             failed += 1
         elif pack.get("checksum"):
             print("FAIL money-checksum", pack.get("checksum"))
