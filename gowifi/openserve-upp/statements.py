@@ -1734,7 +1734,7 @@ def self_test() -> int:
     conn.execute(
         """INSERT OR REPLACE INTO customer_invoices
            (invoice_number, invoice_date, customer, amount, balance_due, status, source, description)
-           VALUES (4000,?, 'Mrs Marlene/Georg Van Eeden',439,439,'open','gowifi-cancel',
+           VALUES (4000,?, 'Mrs Marlene/Georg Van Eeden',399,399,'open','gowifi-cancel',
                    '7 Mbps down / 3.5 Mbps Up — cancellation month')""",
         (cancel_day,),
     )
@@ -1748,10 +1748,10 @@ def self_test() -> int:
         None,
     )
     conn.execute("DELETE FROM customer_invoices WHERE invoice_number=4000")
-    if not cancel_row or abs(_money(cancel_row.get("amount")) - 439) > 0.02:
+    if not cancel_row or abs(_money(cancel_row.get("amount")) - 399) > 0.02:
         print("FAIL marlene-cancel-on-card", cancel_row, marlene_c.get("due"))
         failed += 1
-    elif abs((marlene_c.get("due") or 0) - 7619) > 0.5:
+    elif abs((marlene_c.get("due") or 0) - 7579) > 0.5:
         print("FAIL marlene-cancel-due", marlene_c.get("due"))
         failed += 1
     elif (marlene_c.get("ledger") or [])[0].get("ref") not in {4000, "4000"}:

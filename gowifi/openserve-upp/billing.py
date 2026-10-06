@@ -60,7 +60,7 @@ CLIENTS = [
     {
         "ref": None,
         "name": "Mrs Marlene/Georg Van Eeden",
-        "amount": 439.00,
+        "amount": 399.00,
         "method": "eft",
         "access": "wireless",
         "sku": None,
@@ -503,17 +503,19 @@ def ensure_cancel_invoices(
             already = False
         if already:
             desc = cancel_line(conn, row)
+            amt = float(row["amount"])
             try:
                 for rec in conn.execute(
-                    "SELECT invoice_number, customer, description, source FROM customer_invoices"
+                    "SELECT invoice_number, customer, description, source, amount FROM customer_invoices"
                 ):
                     if canon_key(rec[1]) != key or rec[3] != "gowifi-cancel":
                         continue
-                    if "cancellation month" not in (rec[2] or "").lower():
-                        conn.execute(
-                            "UPDATE customer_invoices SET description=? WHERE invoice_number=?",
-                            (desc, rec[0]),
-                        )
+                    conn.execute(
+                        """UPDATE customer_invoices
+                           SET description=?, amount=?, rate=?, balance_due=?
+                           WHERE invoice_number=?""",
+                        (desc, amt, amt, amt, rec[0]),
+                    )
             except sqlite3.OperationalError:
                 pass
             conn.commit()
@@ -984,7 +986,7 @@ def self_test() -> int:
         """INSERT INTO customer_invoices
            (invoice_number, invoice_date, customer, description, amount, source)
            VALUES (3113,'2026-09-21','Mrs Marlene/Georg Van Eeden',
-                   '7 Mbps down / 3.5 Mbps Up',439,'qb-list')"""
+                   '7 Mbps down / 3.5 Mbps Up',399,'qb-list')"""
     )
     last = conn.execute("SELECT MAX(invoice_number) FROM customer_invoices").fetchone()[0]
     cancels = ensure_cancel_invoices(conn, date(2026, 10, 6))
@@ -996,7 +998,7 @@ def self_test() -> int:
     elif mar["invoice_date"] != "2026-10-07":
         print("FAIL marlene-cancel-tomorrow", mar)
         failed += 1
-    elif abs(float(mar["amount"]) - 439) > 0.01:
+    elif abs(float(mar["amount"]) - 399) > 0.01:
         print("FAIL marlene-cancel-amt", mar)
         failed += 1
     elif "7 Mbps" not in (mar.get("description") or "") or "cancellation month" not in (
