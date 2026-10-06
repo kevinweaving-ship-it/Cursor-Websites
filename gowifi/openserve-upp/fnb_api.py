@@ -617,7 +617,9 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
     latest = rows[0] if rows else None
     book = latest["balance"] if latest else posted_bal
     live_bal = overlay.get("live_balance")
-    shown = live_bal if live_bal is not None else book
+    shown = overlay.get("bank_balance")
+    if shown is None:
+        shown = live_bal if live_bal is not None else book
     matched = bool(overlay.get("matched")) and not pending_rows and live_bal in (None, book)
     attention_amount = overlay.get("attention_amount") or 0
     if live_bal is not None and book is not None and abs(float(live_bal) - float(book)) > 0.004:
@@ -860,8 +862,10 @@ def self_test() -> int:
             "Columns": {
                 "Column": [
                     {"ColTitle": "Date"},
+                    {"ColTitle": "Transaction Type"},
                     {"ColTitle": "Name"},
                     {"ColTitle": "Memo/Description"},
+                    {"ColTitle": "Account"},
                     {"ColTitle": "Amount"},
                     {"ColTitle": "Balance"},
                 ]
@@ -871,8 +875,10 @@ def self_test() -> int:
                     {
                         "ColData": [
                             {"value": "2026-10-06"},
+                            {"value": "Payment"},
                             {"value": "G CUPIDO"},
                             {"value": ""},
+                            {"value": "FNB - 62860060278 - Main"},
                             {"value": "760.00"},
                             {"value": "5314.66"},
                         ]
@@ -880,10 +886,23 @@ def self_test() -> int:
                     {
                         "ColData": [
                             {"value": "2026-10-05"},
+                            {"value": "Expense"},
                             {"value": "PAYFAST"},
                             {"value": "Host Africa Oct"},
+                            {"value": "Cash and cash equivalents:FNB - 62860060278 -  Main"},
                             {"value": "-520.00"},
                             {"value": "4554.66"},
+                        ]
+                    },
+                    {
+                        "ColData": [
+                            {"value": "2026-09-29"},
+                            {"value": "Invoice"},
+                            {"value": "Mr Godfrey Cupido"},
+                            {"value": ""},
+                            {"value": "Accounts Receivable (A/R)"},
+                            {"value": "233.00"},
+                            {"value": ""},
                         ]
                     },
                 ]
@@ -899,6 +918,7 @@ def self_test() -> int:
         or parsed[0]["balance"] != 5314.66
         or parsed[1]["amount"] != -520
         or parsed[0]["source"] != "fnb_qb"
+        or any(abs(r["amount"] - 233) < 0.004 for r in parsed)
     ):
         print("FAIL qb-fnb-parse", parsed)
         failed += 1
@@ -927,8 +947,8 @@ def self_test() -> int:
             {
                 "paid_on": "2026-10-06",
                 "amount": 760.0,
-                "balance": 5314.66,
-                "description": "G CUPIDO",
+                "balance": None,
+                "description": "Mr Godfrey Cupido",
                 "source": "fnb_qb",
                 "account_number": "62860060278",
                 "filename": "qb-fnb-bank",
@@ -936,8 +956,8 @@ def self_test() -> int:
             {
                 "paid_on": "2026-10-01",
                 "amount": -2223.94,
-                "balance": 5074.66,
-                "description": "RSAWEB NETCASH",
+                "balance": None,
+                "description": "RSA Webb / RSAWEB 436784018 NETCASH",
                 "source": "fnb_qb",
                 "account_number": "62860060278",
                 "filename": "qb-fnb-bank",

@@ -249,16 +249,21 @@ def normalize_desc(text: str | None) -> str:
     return blob.strip()
 
 
-def row_key(row: dict) -> tuple:
+def money_key(row: dict) -> tuple:
+    """Same FNB money from either source. Balance/description may differ until both are current."""
     acct = re.sub(r"\D", "", str(row.get("account_number") or ACCOUNT))
     day = str(row.get("paid_on") or "")[:10]
     amt = round(float(row.get("amount") or 0), 2)
+    return (acct, day, amt)
+
+
+def row_key(row: dict) -> tuple:
     bal = row.get("balance")
     try:
         bal = round(float(bal), 2) if bal is not None and bal != "" else None
     except (TypeError, ValueError):
         bal = None
-    return (acct, day, amt, bal)
+    return (*money_key(row), bal)
 
 
 def existing_keys(conn: sqlite3.Connection) -> set[tuple]:
@@ -331,7 +336,7 @@ def to_fnb_row(row: dict) -> dict:
         "deposit": amount if amount > 0 else 0.0,
         "amount": amount,
         "balance": row.get("balance"),
-        "qb_type": "",
+        "qb_type": row.get("qb_type") or "",
         "account": f"FNB {ACCOUNT}",
         "bank_status": "",
         "source": row.get("source") or "fnb_live",
@@ -424,6 +429,7 @@ def insert_new(conn: sqlite3.Connection, rows: list[dict]) -> dict:
     ensure_tables(conn)
     ensure_fnb(conn)
     have = existing_keys(conn)
+    have_money = {k[:3] for k in have}
     inserted = 0
     allocated = 0
     attention: list[dict] = []
@@ -432,9 +438,11 @@ def insert_new(conn: sqlite3.Connection, rows: list[dict]) -> dict:
             continue
         rec = to_fnb_row(raw)
         key = row_key(rec)
-        if key in have:
+        mkey = money_key(rec)
+        if key in have or mkey in have_money:
             continue
         have.add(key)
+        have_money.add(mkey)
         alloc = allocate_live(rec)
         rec.update(alloc)
         conn.execute(
@@ -1903,10 +1911,12 @@ def _when_label(stamp: str | None) -> str | None:
 def system_balance(conn: sqlite3.Connection) -> float | None:
     for sql in (
         """SELECT balance FROM bank_tx
-           WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
+           WHERE ours=1 AND balance IS NOT NULL
+             AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
            ORDER BY paid_on DESC, id DESC LIMIT 1""",
         """SELECT balance FROM fnb_tx
-           WHERE source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
+           WHERE balance IS NOT NULL
+             AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
            ORDER BY paid_on DESC, id DESC LIMIT 1""",
     ):
         try:
@@ -1932,15 +1942,24 @@ def card_overlay(conn: sqlite3.Connection | None = None) -> dict:
     pending_amt = round(sum(abs(float(p.get("amount") or 0)) for p in pending), 2)
     sys_bal = system_balance(own)
     live_bal = live.get("balance")
+    fetch_bal = fetch.get("balance") if fetch.get("ok") else None
+    if live_bal is not None and fetch_bal is not None and abs(float(live_bal) - float(fetch_bal)) > 0.004:
+        bank_bal = live_bal
+    elif fetch_bal is not None:
+        bank_bal = fetch_bal
+    elif live_bal is not None:
+        bank_bal = live_bal
+    else:
+        bank_bal = sys_bal
     available = None
     if live_bal is not None and pending_amt:
         available = round(float(live_bal) - pending_amt, 2)
-    elif sys_bal is not None:
-        available = round(float(sys_bal) - pending_amt, 2)
+    elif bank_bal is not None:
+        available = round(float(bank_bal) - pending_amt, 2)
     if conn is None:
         own.close()
     last_ok = bool(live.get("ok") or fetch.get("ok"))
-    stamp = live.get("fetched_at") or fetch.get("fetched_at")
+    stamp = fetch.get("fetched_at") or live.get("fetched_at")
     return {
         "last_fetched": stamp,
         "last_fetched_label": _when_label(stamp),
@@ -1948,6 +1967,7 @@ def card_overlay(conn: sqlite3.Connection | None = None) -> dict:
         "last_ok": last_ok,
         "system_balance": sys_bal,
         "live_balance": live_bal,
+        "bank_balance": bank_bal,
         "available": available,
         "pending": pending,
         "pending_amount": pending_amt,

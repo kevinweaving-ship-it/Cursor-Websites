@@ -190,9 +190,16 @@ def find_fnb_account(accounts: list[dict[str, Any]]) -> dict[str, Any] | None:
     return scored[0][1] if scored else None
 
 
+_SKIP_QB_TYPES = frozenset(
+    {"invoice", "bill", "credit memo", "creditmemo", "estimate", "sales receipt"}
+)
+
+
 def parse_qb_fnb_report(payload: dict[str, Any], account_number: str = "62860060278") -> list[dict]:
-    """FNB register rows from a QBO TransactionList. Do not invent amounts."""
+    """FNB bank lines from a QBO TransactionList. Invoices stay out of the FNB table."""
     titles = [c.get("ColTitle") or "" for c in ((payload.get("Columns") or {}).get("Column") or [])]
+    has_account = any(t.lower() == "account" for t in titles)
+    want = re.sub(r"\D", "", account_number or "")
     out: list[dict] = []
 
     def walk(rows: list[dict]) -> None:
@@ -209,6 +216,14 @@ def parse_qb_fnb_report(payload: dict[str, Any], account_number: str = "62860060
             day = (cells.get("date") or "")[:10]
             if len(day) < 10 or day[4] != "-":
                 continue
+            txn_type = (cells.get("transaction type") or cells.get("type") or "").strip().lower()
+            if txn_type in _SKIP_QB_TYPES:
+                continue
+            account_cell = cells.get("account") or ""
+            if has_account:
+                digits = re.sub(r"\D", "", account_cell)
+                if want not in digits and "fnb" not in account_cell.lower():
+                    continue
             raw_amt = cells.get("amount") or cells.get("foreign amount") or ""
             if raw_amt in ("", "-"):
                 continue
@@ -235,6 +250,7 @@ def parse_qb_fnb_report(payload: dict[str, Any], account_number: str = "62860060
                     "source": "fnb_qb",
                     "account_number": account_number,
                     "filename": "qb-fnb-bank",
+                    "qb_type": txn_type,
                 }
             )
 
@@ -282,9 +298,7 @@ def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dic
     if conn is None:
         own.execute("PRAGMA busy_timeout=60000")
     added = insert_new(own, rows)
-    shown = system_balance(own)
-    if shown is None:
-        shown = qb_bal
+    shown = qb_bal if qb_bal is not None else system_balance(own)
     pack = {
         "ok": True,
         "via": "fnb-qb",
