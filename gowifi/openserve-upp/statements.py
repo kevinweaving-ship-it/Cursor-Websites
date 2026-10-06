@@ -8,7 +8,7 @@ Three feeds. QB is not the books for paid / unpaid / D/O.
 
 Simple books:
 - First month (new fibre): install + pro-rata / first month. Payment is D/O
-  when Netcash / FNB shows a D/O settlement (Cupido 2715), otherwise EFT.
+  only when a named Netcash batch collected it. Otherwise FNB EFT.
 - Next months on D/O: invoice + D/O. Amounts still match after a price change.
 - D/O on the statement is only a named Netcash batch row (paid or unpaid).
   Nothing is invented. No synth. No auto-clear.
@@ -510,7 +510,7 @@ def _collapse_eft_to_bank(conn: sqlite3.Connection) -> None:
 
 
 def _label_do_settlements(conn: sqlite3.Connection) -> None:
-    """Named Netcash paid, or Cupido 2715 D/O 1467.25 — not an invented EFT."""
+    """Named Netcash paid only. No invented D/O."""
     named = set()
     try:
         for rec in conn.execute(
@@ -530,8 +530,6 @@ def _label_do_settlements(conn: sqlite3.Connection) -> None:
         if not book or book.get("method") != "debit-order":
             continue
         hit = (day, key, amt) in named
-        if key == "g cupido" and day == "2026-04-10" and abs(amt - 1467.25) <= 0.02:
-            hit = True
         if not hit:
             continue
         conn.execute(
@@ -1690,11 +1688,14 @@ def self_test() -> int:
     elif not cup_2715 or _money(cup_2715.get("open")) > 0.02:
         print("FAIL cupido-2715-must-be-nil", cup_2715)
         failed += 1
-    elif not cup_2715_pay or any("EFT" in (r.get("what") or "") for r in cup_2715_pay):
-        print("FAIL cupido-2715-must-be-do", cup_2715_pay)
+    elif not cup_2715_pay or any("D/O" in (r.get("what") or "") for r in cup_2715_pay):
+        print("FAIL cupido-2715-must-be-eft", cup_2715_pay)
+        failed += 1
+    elif not cup_2715_pay or "EFT 1467.25" not in (cup_2715_pay[0].get("what") or ""):
+        print("FAIL cupido-2715-eft-amount", cup_2715_pay)
         failed += 1
     elif not cup_2715_pay or abs(abs(_money(cup_2715_pay[0].get("amount"))) - 1467.25) > 0.02:
-        print("FAIL cupido-2715-do-amount", cup_2715_pay)
+        print("FAIL cupido-2715-eft-rand", cup_2715_pay)
         failed += 1
     elif not cup_3013_unpaid or cup_3013_unpaid.get("tone") != "overdue":
         print("FAIL cupido-do-unpaid-must-stay-red", cup_3013_unpaid)
@@ -1709,7 +1710,7 @@ def self_test() -> int:
         print("FAIL cupido-3055-not-his-line")
         failed += 1
     else:
-        print("OK cupido-2715-do-nil", "3013 unpaid 0")
+        print("OK cupido-2715-eft-nil", "3013 unpaid 0")
     cup_sep8 = [
         r
         for r in (cup.get("ledger") or [])
@@ -1761,8 +1762,8 @@ def self_test() -> int:
     elif not any("D/O paid" in w and "3125" in w for w in cup_shown):
         print("FAIL cupido-oct-do-must-show", cup_shown)
         failed += 1
-    elif not any("D/O paid" in w and "2715" in w for w in cup_shown):
-        print("FAIL cupido-2715-do-must-show", cup_shown)
+    elif not any("EFT 1467.25" in w and "2715" in w for w in cup_shown):
+        print("FAIL cupido-2715-eft-must-show", cup_shown)
         failed += 1
     else:
         print("OK cupido-eft-and-do-show")
