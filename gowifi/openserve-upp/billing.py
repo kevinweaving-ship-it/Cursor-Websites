@@ -197,14 +197,14 @@ PENDING_DO = {
     "status": "Collected",
     "volume": 14,
     "amount": 9217.00,
-    "unpaid_value": 759.00,
-    "unpaid_volume": 1,
+    "unpaid_value": 0.00,
+    "unpaid_volume": 0,
     "collected": True,
     "normal_day": DO_DAY,
     "note": (
         "Same-day batch 2571994 on 5 Oct (the 1st slot after the 17 Sep load was missed). "
-        "Cupido is the only 2026 Netcash unpaid. Every other D/O on that run is paid "
-        "and clears the invoice in full."
+        "Netcash debit masterfile shows no unpaids on that run. "
+        "Cupido 1763102147 / 4338169411 is Processed R759."
     ),
 }
 
@@ -316,7 +316,7 @@ def apply_collected_do(conn: sqlite3.Connection, action_date: str, clients: list
 
         skip = BATCH_UNPAID.get(PENDING_DO.get("batch_id") or "", set())
     except Exception:
-        skip = {"g cupido"}
+        skip = set()
     for row in clients:
         if canon_key(row["name"]) in skip:
             continue

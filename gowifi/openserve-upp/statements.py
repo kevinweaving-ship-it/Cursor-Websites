@@ -418,10 +418,13 @@ def _apply_bank_matches(conn: sqlite3.Connection) -> int:
     return n
 
 
-# Invoice 3106: D/O return ×2, EFT catch-up Aug/Sep. Oct 5 batch 2571994 unpaid.
-DO_RETURNED_MONTHS = {
-    "g cupido": {"2026-08", "2026-09"},
-}
+# Netcash debit masterfile (G Cupido Fibre 50-25). Oct 5 is Processed.
+try:
+    from recon import named_unpaid_months as _named_unpaid_months
+
+    DO_RETURNED_MONTHS = _named_unpaid_months()
+except Exception:
+    DO_RETURNED_MONTHS = {"g cupido": {"2026-05", "2026-08", "2026-09"}}
 
 
 def _do_unpaid_months(conn: sqlite3.Connection) -> set[tuple[str, str]]:
@@ -1361,7 +1364,8 @@ def for_export(conn: sqlite3.Connection, today: date | None = None) -> dict:
             "Due is as at today. D/O is grace until reconciled. "
             "A bounce stays due and raises a suspension notice. "
             "Reconnection / un-suspend is a once-off penalty, not on the monthly D/O. "
-            "5 Oct 2026 batch 2571994 collected — Cupido unpaid. No other 2026 Netcash unpaid."
+            "5 Oct 2026 batch 2571994 collected — Netcash shows no unpaids. "
+            "Cupido 1763102147 / 4338169411 Processed."
         ),
         "count": len(cards),
         "accounts": cards,
@@ -1560,11 +1564,14 @@ def self_test() -> int:
         for r in (marlene.get("ledger") or [])
         if r.get("kind") == "invoice" and r.get("tone") == "overdue"
     ]
+    cup_3125_unpaid = [
+        r for r in cup_unpaid if str(r.get("ref")) == "3125"
+    ]
     if not early_3115 or early_3115.get("tone") != "pending":
         print("FAIL nord-3115-should-be-orange-before-due", early_3115)
         failed += 1
-    elif not cup_unpaid or not cup_3125:
-        print("FAIL cupido-only-unpaid", cup.get("due"), cup_unpaid, cup_3125)
+    elif not cup_3125 or _money(cup_3125.get("open")) > 0.02 or cup_3125_unpaid:
+        print("FAIL cupido-oct-must-be-paid", cup.get("due"), cup_3125, cup_3125_unpaid)
         failed += 1
     elif not amoroc_3107 or amoroc_3107.get("tone") != "matched":
         print("FAIL amoroc-3107-not-blue", amoroc_3107)
@@ -1574,7 +1581,7 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK invoice-tones", "matched", "pending", "overdue")
-        print("OK cupido-unpaid", cup.get("due"))
+        print("OK cupido-oct-processed", cup.get("due"))
     ann = account_as_at(conn, "Annette Bing HH", today)
     ann_old = [
         r
@@ -1617,13 +1624,16 @@ def self_test() -> int:
         ]
         if opens:
             only_2026_unpaid.append((row, pack.get("due"), [(r.get("ref"), r.get("open")) for r in opens]))
-    if only_2026_unpaid != [("G Cupido", cup.get("due"), [("3125", 207.0)])] and not (
-        len(only_2026_unpaid) == 1 and only_2026_unpaid[0][0] == "G Cupido"
-    ):
-        print("FAIL 2026-netcash-unpaid-not-only-cupido", only_2026_unpaid)
+    others = [x for x in only_2026_unpaid if x[0] != "G Cupido"]
+    cup_opens = next((x[2] for x in only_2026_unpaid if x[0] == "G Cupido"), [])
+    if others:
+        print("FAIL 2026-invented-unpaid", others)
+        failed += 1
+    elif any(str(ref) == "3125" for ref, _open in cup_opens):
+        print("FAIL cupido-3125-oct-still-open", cup_opens)
         failed += 1
     else:
-        print("OK 2026-netcash-unpaid-cupido-only")
+        print("OK 2026-oct-no-netcash-unpaid", cup_opens)
     jean = account_as_at(conn, "Jean de Villiers", today)
     geo = account_as_at(conn, "GeoCorp", today)
     if abs(jean.get("due") or 0) > 0.02 or any(

@@ -563,6 +563,11 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         "netcash": {
             **(nc if isinstance(nc, dict) else {"items": nc}),
             "batches": netcash_batch_items(conn),
+            "note": (
+                "Named Netcash debit masterfile + 5 Oct batch 2571994. "
+                "Each row is a client, paid or unpaid, amount. No invented unpaids. "
+                "Cupido 1763102147 / 4338169411 Processed on 5 Oct."
+            ),
         },
         "customer_invoices": {
             "series_after_quickbooks": INVOICE_SERIES_AFTER,
