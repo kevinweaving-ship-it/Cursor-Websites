@@ -267,11 +267,16 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/status":
             token_ok = TOKEN_PATH.exists()
-            body: dict = {"connected": token_ok, "keyset": active_keyset()}
+            env = _load_env()
+            body: dict = {
+                "connected": token_ok,
+                "keyset": active_keyset(env),
+                "realmId": env.get("QBO_REALM_ID") or None,
+            }
             if token_ok:
                 try:
                     tokens = load_tokens()
-                    body["realmId"] = tokens.get("realmId")
+                    body["realmId"] = tokens.get("realmId") or body["realmId"]
                     body["api_host"] = tokens.get("api_host")
                 except Exception:
                     pass
