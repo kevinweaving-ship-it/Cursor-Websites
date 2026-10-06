@@ -264,7 +264,7 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
         </section>
         ${stmt.lines && stmt.lines.length ? `
         <section class="card ledger-card">
-        <h2><span>Ledger</span><span class="muted">as at ${esc(fmtDate(stmt.as_at||r.invoice_date))}</span></h2>
+        <h2><span>Statement</span><span class="muted">as at ${esc(fmtDate(stmt.as_at||r.invoice_date))}</span></h2>
         <div class="due">Outstanding ${money(due)}</div>
         <table class="stmt">
           <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>

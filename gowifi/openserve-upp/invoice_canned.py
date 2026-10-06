@@ -532,7 +532,7 @@ def statement_html(row: dict) -> str:
     ageing = stmt.get("ageing") or {}
     as_at = fmt_date(stmt.get("as_at") or row.get("invoice_date"))
     return f"""
-<h2><span>Ledger</span><span class="muted">as at {escape(as_at)}</span></h2>
+<h2><span>Statement</span><span class="muted">as at {escape(as_at)}</span></h2>
 <div class="due">Outstanding {money(due)}</div>
 <table class="soa stmt">
   <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
