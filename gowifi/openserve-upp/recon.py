@@ -81,7 +81,81 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_netcash_tx_dedup
 """
 
 # Paid / unpaid per batch. Only what Netcash named.
+# A row needs batch_id + account_ref. No batch = not a D/O.
 BATCH_UNPAID: dict[str, set[str]] = {}
+NAMED_DO = [
+    {
+        "paid_on": "2026-10-05",
+        "customer": "Bing Noordhoek Fibre",
+        "amount": 599.00,
+        "result": "paid",
+        "batch_id": "2571994",
+        "account_ref": "1311699279",
+        "tracking_ref": "198765",
+        "extra_ref": "429604040",
+        "service": "Same day debit order",
+    },
+    {
+        "paid_on": "2026-10-05",
+        "customer": "G Cupido",
+        "amount": 759.00,
+        "result": "paid",
+        "batch_id": "2571994",
+        "account_ref": "1763102147",
+        "tracking_ref": "4338169411",
+        "service": "Same day debit order",
+    },
+    {
+        "paid_on": "2026-09-01",
+        "customer": "G Cupido",
+        "amount": 759.00,
+        "result": "unpaid",
+        "batch_id": "20260901",
+        "account_ref": "1763102147",
+        "tracking_ref": "4296190922",
+        "service": "Two day debit order",
+    },
+    {
+        "paid_on": "2026-08-03",
+        "customer": "G Cupido",
+        "amount": 759.00,
+        "result": "unpaid",
+        "batch_id": "20260803",
+        "account_ref": "1763102147",
+        "tracking_ref": "4230985580",
+        "service": "Two day debit order",
+    },
+    {
+        "paid_on": "2026-07-01",
+        "customer": "G Cupido",
+        "amount": 759.00,
+        "result": "paid",
+        "batch_id": "20260701",
+        "account_ref": "1763102147",
+        "tracking_ref": "417420631",
+        "service": "Two day debit order",
+    },
+    {
+        "paid_on": "2026-06-01",
+        "customer": "G Cupido",
+        "amount": 759.00,
+        "result": "paid",
+        "batch_id": "20260601",
+        "account_ref": "1763102147",
+        "tracking_ref": "411331048",
+        "service": "Two day debit order",
+    },
+    {
+        "paid_on": "2026-05-04",
+        "customer": "G Cupido",
+        "amount": 759.00,
+        "result": "unpaid",
+        "batch_id": "20260504",
+        "account_ref": "1763102147",
+        "tracking_ref": "404830634",
+        "service": "Two day debit order",
+    },
+]
 
 
 def named_unpaid_months(conn: sqlite3.Connection | None = None) -> dict[str, set[str]]:
@@ -93,7 +167,8 @@ def named_unpaid_months(conn: sqlite3.Connection | None = None) -> dict[str, set
         rows = conn.execute(
             """SELECT alloc_key, paid_on FROM netcash_tx
                WHERE alloc_kind='client_unpaid'
-                 AND source IN ('netcash-xls','netcash-items')"""
+                 AND source IN ('netcash-xls','netcash-items','netcash-masterfile')
+                 AND COALESCE(batch_id,'') != ''"""
         )
     except sqlite3.OperationalError:
         return out
@@ -108,10 +183,11 @@ def checksum_real_money(conn: sqlite3.Connection) -> list[str]:
     errors: list[str] = []
     try:
         n = conn.execute(
-            "SELECT COUNT(*) FROM netcash_tx WHERE source='netcash-masterfile'"
+            """SELECT COUNT(*) FROM netcash_tx
+               WHERE source='netcash-masterfile' AND COALESCE(batch_id,'')=''"""
         ).fetchone()[0]
         if n:
-            errors.append(f"invented-masterfile:{n}")
+            errors.append(f"do-without-batch:{n}")
     except sqlite3.OperationalError:
         pass
     fnb_day: dict[tuple[str, str], float] = {}
@@ -136,7 +212,8 @@ def checksum_real_money(conn: sqlite3.Connection) -> list[str]:
             """SELECT paid_on, alloc_key, ABS(COALESCE(amount,0))
                FROM netcash_tx
                WHERE alloc_kind IN ('client_paid','client_unpaid')
-                 AND source IN ('netcash-xls','netcash-items')"""
+                 AND source IN ('netcash-xls','netcash-items','netcash-masterfile')
+                 AND (source != 'netcash-masterfile' OR COALESCE(batch_id,'') != '')"""
         ):
             nc_row.add((str(rec[0] or "")[:10], canon_key(rec[1]), round(abs(_money(rec[2])), 2)))
     except sqlite3.OperationalError:
@@ -153,7 +230,7 @@ def checksum_real_money(conn: sqlite3.Connection) -> list[str]:
         amt = round(abs(_money(rec[2])), 2)
         method = (rec[3] or "").lower()
         src = rec[4] or ""
-        if src == "netcash-masterfile" or src.endswith("-synth"):
+        if src.endswith("-synth"):
             errors.append(f"invented-pay:{day}:{key}:{amt}:{src}")
             continue
         book = client_row(rec[1])
@@ -496,15 +573,70 @@ def ingest(conn: sqlite3.Connection) -> dict:
             ),
         )
         nc_n += 1
+    named_n = _ingest_named_do(conn)
+    nc_n += named_n
     conn.commit()
     return {
         "fnb": fnb_n,
         "netcash": nc_n,
-        "named_do": 0,
+        "named_do": named_n,
         "oct5": 0,
         "checksum": checksum_real_money(conn),
         **summary(conn),
     }
+
+
+def _ingest_named_do(conn: sqlite3.Connection) -> int:
+    """Named Netcash batch rows only. Skip anything without a batch id."""
+    n = 0
+    for row in NAMED_DO:
+        if not row.get("batch_id") or not row.get("account_ref"):
+            continue
+        key = canon_key(row["customer"])
+        amt = abs(float(row["amount"]))
+        unpaid = (row.get("result") or "").lower() == "unpaid"
+        name = display_name(row["customer"]) or row["customer"]
+        exists = conn.execute(
+            """SELECT 1 FROM netcash_tx
+               WHERE paid_on=? AND alloc_key=? AND ABS(amount)>=? - 0.02
+                 AND result=? AND COALESCE(batch_id,'')=?""",
+            (row["paid_on"], key, amt, row["result"], row.get("batch_id") or ""),
+        ).fetchone()
+        if exists:
+            continue
+        conn.execute(
+            """INSERT OR IGNORE INTO netcash_tx
+               (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
+                account, bank_status, alloc_kind, alloc_to, alloc_key, result, batch_id,
+                account_ref, tracking_ref, extra_ref, unpaid_amount, source)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                row["paid_on"],
+                row.get("account_ref") or row.get("batch_id"),
+                name,
+                f"{row.get('service') or 'Debit order'} · {row.get('tracking_ref') or ''} · "
+                f"{'Unpaid' if unpaid else 'Processed'}".strip(" ·"),
+                amt if unpaid else 0,
+                0 if unpaid else amt,
+                amt,
+                None,
+                "Payment",
+                "Accounts Receivable (A/R)",
+                "Unpaid" if unpaid else "Collected",
+                "client_unpaid" if unpaid else "client_paid",
+                name,
+                key,
+                row["result"],
+                row.get("batch_id"),
+                row.get("account_ref"),
+                row.get("tracking_ref"),
+                row.get("extra_ref"),
+                amt if unpaid else 0,
+                "netcash-masterfile",
+            ),
+        )
+        n += 1
+    return n
 
 
 def summary(conn: sqlite3.Connection) -> dict:
@@ -540,7 +672,8 @@ def batch_items(conn: sqlite3.Connection) -> list[dict]:
                FROM netcash_tx
                WHERE alloc_kind IN ('client_paid','client_unpaid')
                  AND COALESCE(alloc_key,'') != ''
-                 AND source IN ('netcash-xls','netcash-items','netcash-batch')
+                 AND source IN ('netcash-masterfile','netcash-xls','netcash-items','netcash-batch')
+                 AND COALESCE(batch_id,'') != ''
                ORDER BY paid_on DESC, CASE result WHEN 'unpaid' THEN 0 ELSE 1 END, alloc_to"""
         ).fetchall()
     except sqlite3.OperationalError:
@@ -688,26 +821,44 @@ def self_test() -> int:
         print("FAIL fnb-client-paid", fnb)
         failed += 1
     else:
-        invented = conn.execute(
-            "SELECT COUNT(*) FROM netcash_tx WHERE source='netcash-masterfile'"
+        no_batch = conn.execute(
+            """SELECT COUNT(*) FROM netcash_tx
+               WHERE source='netcash-masterfile' AND COALESCE(batch_id,'')=''"""
         ).fetchone()[0]
         cup_fnb = conn.execute(
             """SELECT paid_on, SUM(ABS(COALESCE(deposit,amount))) FROM fnb_tx
                WHERE alloc_key='g cupido' AND alloc_kind='client_paid'
                GROUP BY paid_on ORDER BY paid_on"""
         ).fetchall()
-        cup_nc = conn.execute(
-            """SELECT paid_on, amount, source FROM netcash_tx
-               WHERE alloc_key='g cupido'"""
-        ).fetchall()
-        if invented:
-            print("FAIL invented-masterfile", invented)
+        cup = conn.execute(
+            """SELECT result, unpaid_amount, tracking_ref, account_ref FROM netcash_tx
+               WHERE batch_id='2571994' AND alloc_key='g cupido'"""
+        ).fetchone()
+        cup_hist = {
+            (r[0], r[1]): r[2]
+            for r in conn.execute(
+                """SELECT paid_on, result, tracking_ref FROM netcash_tx
+                   WHERE alloc_key='g cupido' AND source='netcash-masterfile'"""
+            )
+        }
+        apr10_do = conn.execute(
+            """SELECT 1 FROM netcash_tx
+               WHERE alloc_key='g cupido' AND paid_on='2026-04-10'"""
+        ).fetchone()
+        if no_batch:
+            print("FAIL do-without-batch", no_batch)
             failed += 1
         elif any(abs(r[1] - 1467.25) < 0.02 and r[0] == "2026-04-10" for r in cup_fnb) is False:
             print("FAIL cupido-apr10-must-be-fnb", cup_fnb)
             failed += 1
-        elif cup_nc:
-            print("FAIL cupido-do-not-in-netcash-table", cup_nc)
+        elif apr10_do:
+            print("FAIL cupido-apr10-must-not-be-do")
+            failed += 1
+        elif not cup or cup[0] != "paid" or cup[1] or cup[2] != "4338169411":
+            print("FAIL cupido-oct-must-be-processed", cup)
+            failed += 1
+        elif cup_hist.get(("2026-05-04", "unpaid")) != "404830634":
+            print("FAIL cupido-may-unpaid", cup_hist)
             failed += 1
         elif pack.get("checksum"):
             print("FAIL money-checksum", pack.get("checksum"))
@@ -726,7 +877,7 @@ def self_test() -> int:
                 "left",
                 nc["unallocated"],
             )
-            print("OK no-invented-masterfile")
+            print("OK cupido-named-do-with-batch")
             print("OK cupido-apr10-fnb-1467.25")
             kinds = Counter()
             for rec in conn.execute("SELECT alloc_kind FROM fnb_tx"):
