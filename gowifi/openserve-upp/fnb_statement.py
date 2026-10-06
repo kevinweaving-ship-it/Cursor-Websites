@@ -1133,14 +1133,49 @@ def _click_account_register(page, account: str) -> bool:
     return False
 
 
+def _wait_text(page, needles: tuple[str, ...], timeout_ms: int = 8000) -> bool:
+    deadline = time.time() + timeout_ms / 1000.0
+    while time.time() < deadline:
+        blob = _all_text(page).lower()
+        if any((n or "").lower() in blob for n in needles if n):
+            return True
+        try:
+            page.wait_for_timeout(400)
+        except Exception:
+            return False
+    return False
+
+
+def _click_href(page, pattern: str) -> bool:
+    """Click a real link. FNB nav is a frameset — text clicks miss the content frame."""
+    pat = re.compile(pattern, re.I)
+    frames = []
+    try:
+        frames = list(page.frames)
+    except Exception:
+        frames = [page]
+    for frame in frames:
+        if not _frame_ok(frame):
+            continue
+        try:
+            loc = frame.locator("a").filter(has_text=pat)
+            if loc.count():
+                loc.first.click(timeout=800, force=True)
+                return True
+        except Exception:
+            continue
+    return _click_named(page, (pattern,))
+
+
 def _walk_to_statement(page, account: str) -> dict:
     """Skip → My bank accounts → Gowifi FNB Main → Statements → Successful."""
     balances = {"balance": None, "available": None}
+    digits = re.sub(r"\D", "", account or "")
     _skip_devices(page)
     page.wait_for_timeout(400)
     set_progress("My bank accounts")
-    _click_named(page, ("My bank accounts", "My Bank Accounts"))
-    page.wait_for_timeout(1500)
+    _click_href(page, r"My bank accounts")
+    _wait_text(page, ("Gowifi FNB Main", "Gowifi", digits[-8:] if len(digits) >= 8 else digits), 8000)
     _skip_devices(page)
     got = parse_account_card(_all_text(page), account)
     if got.get("balance") is not None:
@@ -1148,16 +1183,15 @@ def _walk_to_statement(page, account: str) -> dict:
         record_live_card(got.get("balance"), got.get("available"))
         set_progress(f"Bank {got.get('balance')} · Available {got.get('available')}")
     set_progress("Gowifi FNB Main")
-    _click_named(page, ("Gowifi FNB Main", "GoWifi FNB Main"))
-    page.wait_for_timeout(2000)
-    if page_kind(_all_text(page), account) != "statement":
+    _click_href(page, r"Gowifi FNB Main")
+    if not _wait_text(page, ("Successful", "Pending", "Statement"), 5000):
         set_progress("Statements")
-        _click_named(page, ("Statements",))
-        page.wait_for_timeout(2000)
+        _click_href(page, r"^Statements?$")
+        _wait_text(page, ("Successful", "Pending"), 5000)
     if page_kind(_all_text(page), account) != "statement":
         set_progress("Successful")
-        _click_named(page, ("Successful", "Successful transactions"))
-        page.wait_for_timeout(1500)
+        _click_href(page, r"Successful")
+        _wait_text(page, ("Successful", "Pending", "CUPIDO", digits), 5000)
     if page_kind(_all_text(page), account) == "statement":
         set_progress("On statement")
     return balances
