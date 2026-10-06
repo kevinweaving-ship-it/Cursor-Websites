@@ -65,6 +65,8 @@ h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 
 .ledger-card .stmt tr.invoice.unpaid td,
 .ledger-card .stmt tr.invoice.overdue td { color:#6b2d8b; }
 .ledger-card .stmt tr.unpaid td { color:#c62828; }
+.ledger-card .stmt tr.here td { background:#eef3fa; }
+.ledger-card .stmt a { color:inherit; text-decoration:underline; font-weight:700; }
 a.back { font: 13px/1.4 sans-serif; color:#345; }
 .screen-only { max-width:210mm; margin:12px auto 0; padding:0 16px; }
 .index-wrap { width:210mm; margin:16px auto 32px; background:#fff; padding:14mm 16mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); border: 2.5px solid #123a7a; border-radius:8px; }
@@ -134,21 +136,6 @@ const sameClient = (a, b) => {
   const w = (b.customer||b.name||"").toLowerCase();
   return n && w && (n===w || (n.includes("marlene") && w.includes("marlene")) || (n.includes("van eeden") && w.includes("van eeden")));
 };
-const latestInvoice = (rows, seed) => {
-  const usable = (rows||[]).filter(x => {
-    if (!sameClient(x, seed)) return false;
-    const src = String(x.source||"").toLowerCase();
-    return !src.startsWith("gowifi-") || src === "gowifi-cancel";
-  });
-  const pool = usable.length ? usable : (rows||[]).filter(x => sameClient(x, seed));
-  return pool.reduce((best, x) => {
-    if (!best) return x;
-    const bd = String(best.invoice_date||""), xd = String(x.invoice_date||"");
-    if (xd > bd) return x;
-    if (xd === bd && (Number(x.invoice_number)||0) > (Number(best.invoice_number)||0)) return x;
-    return best;
-  }, seed);
-};
 const fromLastZero = lines => {
   const rows = (lines||[]).filter(l => l.show !== false);
   let cut = rows.length;
@@ -156,6 +143,21 @@ const fromLastZero = lines => {
     if (Math.abs(Number(rows[i].balance||0)) <= 0.004) { cut = i + 1; break; }
   }
   return rows.slice(0, cut);
+};
+const statementAsAtInvoice = (lines, invNo, invDate) => {
+  let rows = fromLastZero(lines).map(l => Object.assign({}, l));
+  const want = String(invNo||"");
+  const idx = rows.findIndex(l => (l.kind||"")==="invoice" && String(l.ref||l.invoice_number||"")===want);
+  if (idx >= 0) rows = rows.slice(idx);
+  else if (invDate) rows = rows.filter(l => String(l.date||"").slice(0,10) <= String(invDate).slice(0,10));
+  const chron = rows.slice().reverse();
+  let bal = 0;
+  chron.forEach((l, i) => {
+    if (i===0 && Math.abs(Number(l.balance||0))<=0.004) { l.balance = 0; return; }
+    if ((l.kind||"") !== "unpaid") bal = Math.round((bal + Number(l.amount||0))*100)/100;
+    l.balance = bal;
+  });
+  return chron.reverse();
 };
 const toCurrent = stmt => {
   const today = new Date();
@@ -201,26 +203,22 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
         </div>`;
       return;
     }
-    const seed = all.find(x => String(x.invoice_number)===String(want));
-    if (!seed) { document.getElementById("app").innerHTML = `<p class="err">No invoice ${esc(want)}</p>`; return; }
+    const r = all.find(x => String(x.invoice_number)===String(want));
+    if (!r) { document.getElementById("app").innerHTML = `<p class="err">No invoice ${esc(want)}</p>`; return; }
     const cards = ((data.clients||{}).cards||[]).concat((data.clients||{}).offsets||[]);
-    const card = cards.find(c => sameClient(c, seed));
-    const topInv = ((card&&card.ledger)||[]).find(l => l.kind==="invoice");
-    const topHit = topInv && all.find(x => String(x.invoice_number)===String(topInv.ref));
-    const r = topHit || latestInvoice(all, seed);
+    const card = cards.find(c => sameClient(c, r));
     const raw = r.statement && r.statement.lines && r.statement.lines.length ? r.statement : {lines:[], total_due: r.balance_due!=null?r.balance_due:r.amount, ageing:{}};
-    const cardLines = fromLastZero(((card&&card.ledger)||[]));
-    const asAt = (data.clients&&data.clients.as_at)||raw.as_at;
-    const cardAgeing = card && card.ageing && (card.ageing.current!=null || card.ageing.d30!=null)
-      ? card.ageing
-      : ageFromOpen(cardLines, asAt);
+    const asAtInv = r.invoice_date || (data.clients&&data.clients.as_at) || raw.as_at;
+    const cardLines = statementAsAtInvoice(((card&&card.ledger)||[]), r.invoice_number, r.invoice_date);
+    const cardAgeing = ageFromOpen(cardLines, asAtInv);
+    const dueAt = cardLines.length ? Number(cardLines[0].balance||0) : (card&&card.due);
     const stmt = cardLines.length
       ? {lines: cardLines.map(l => ({
           date: l.date, date_fmt: l.date_fmt, description: l.what||l.description,
           invoice_number: l.kind==="invoice" ? l.ref : "", amount: l.amount,
           balance: l.balance, kind: l.kind, open: l.open, tone: l.tone||""
-        })), total_due: card.due, ageing: cardAgeing, as_at: asAt}
-      : toCurrent(Object.assign({}, raw, {lines: fromLastZero((raw.lines||[]).slice().reverse())}));
+        })), total_due: dueAt, ageing: cardAgeing, as_at: asAtInv}
+      : toCurrent(Object.assign({}, raw, {lines: statementAsAtInvoice((raw.lines||[]).slice().reverse(), r.invoice_number, r.invoice_date)}));
     const ageing = stmt.ageing || {};
     const due = stmt.total_due!=null ? stmt.total_due : (r.balance_due!=null?r.balance_due:r.amount);
     const desc = r.description || "Monthly service";
@@ -270,10 +268,14 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
           <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>
           <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
           <tbody>${stmt.lines.map(line=>{
-            const cls = [line.kind||"", line.tone||""].filter(Boolean).join(" ");
+            const n = line.invoice_number || (line.kind==="invoice" ? line.ref : "");
+            const here = n && String(n)===String(r.invoice_number);
+            const cls = [line.kind||"", line.tone||"", here?"here":""].filter(Boolean).join(" ");
+            const what = stripUncapped(line.description||"");
+            const label = n ? `<a href="?n=${esc(n)}">${esc(what)}</a>` : esc(what);
             return `<tr class="${esc(cls)}">
             <td class="date">${esc(line.date_fmt||fmtDate(line.date))}</td>
-            <td>${esc(stripUncapped(line.description||""))}</td>
+            <td>${label}</td>
             <td class="num">${money(line.amount,false)}</td>
             <td class="num">${money(line.balance,false)}</td>
           </tr>`;

@@ -282,6 +282,40 @@ def from_last_zero_newest(lines: list[dict]) -> list[dict]:
     return rows[:cut]
 
 
+def statement_as_at_invoice(lines: list[dict], inv_no, inv_date: str | None = None) -> list[dict]:
+    """Child invoice statement: last 0.00 through this invoice, balances rebuilt."""
+    rows = from_last_zero_newest(lines)
+    want = str(inv_no or "")
+    idx = next(
+        (
+            i
+            for i, rec in enumerate(rows)
+            if (rec.get("kind") or "") == "invoice" and str(rec.get("ref") or "") == want
+        ),
+        None,
+    )
+    if idx is not None:
+        rows = rows[idx:]
+    elif inv_date:
+        cut = str(inv_date)[:10]
+        rows = [rec for rec in rows if str(rec.get("date") or "")[:10] <= cut]
+    chron = list(reversed(rows))
+    bal = 0.0
+    out = []
+    for i, rec in enumerate(chron):
+        rec = dict(rec)
+        if i == 0 and abs(float(rec.get("balance") or 0)) <= 0.004:
+            rec["balance"] = 0.0
+        elif rec.get("kind") != "unpaid":
+            bal = round(bal + float(rec.get("amount") or 0), 2)
+            rec["balance"] = bal
+        else:
+            rec["balance"] = bal
+        out.append(rec)
+    out.reverse()
+    return out
+
+
 def statement_on_invoice(
     invoices: list[dict],
     payments: list[dict],
@@ -738,8 +772,8 @@ def self_test() -> int:
         print("OK one-invoice-card")
     dash = Path(__file__).resolve().parent.joinpath("dash/invoice.html")
     page = dash.read_text() if dash.exists() else ""
-    if "fromLastZero" not in page or "latestInvoice" not in page or "invoice-outer" not in page:
-        print("FAIL invoice-html-latest-ledger")
+    if "fromLastZero" not in page or "statementAsAtInvoice" not in page or "invoice-outer" not in page:
+        print("FAIL invoice-html-child-url")
         failed += 1
     elif page.count("inner-card") < 3 or "ledger-card" not in page:
         print("FAIL invoice-html-three-inner")
@@ -747,12 +781,18 @@ def self_test() -> int:
     elif "stripUncapped" not in page or "font-size:12px" not in page:
         print("FAIL invoice-html-uncapped-or-type")
         failed += 1
+    elif "?n=" not in page:
+        print("FAIL invoice-html-child-links")
+        failed += 1
     else:
-        print("OK invoice-html-latest-and-ledger")
+        print("OK invoice-html-child-statement")
     clients_page = Path(__file__).resolve().parent.joinpath("dash/clients.html")
     cpage = clients_page.read_text() if clients_page.exists() else ""
     if "stripUncapped" not in cpage:
         print("FAIL clients-html-uncapped")
+        failed += 1
+    elif "invoice.html?n=" not in cpage:
+        print("FAIL clients-html-child-url")
         failed += 1
     else:
         print("OK clients-html-uncapped")
@@ -772,6 +812,18 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK from-last-zero-newest")
+    child = statement_as_at_invoice(newest, "2533", "2025-05-17")
+    if [r.get("ref") for r in child] != ["2533", "2472"]:
+        print("FAIL child-2533-rows", [r.get("ref") for r in child])
+        failed += 1
+    elif abs(float(child[0].get("balance") or 0) - 399) > 0.02 or abs(float(child[-1].get("balance") or 0)) > 0.02:
+        print("FAIL child-2533-bal", child)
+        failed += 1
+    elif [r.get("ref") for r in statement_as_at_invoice(newest, "3136")][0] != "3136":
+        print("FAIL child-3136-top")
+        failed += 1
+    else:
+        print("OK child-invoice-statement", [r.get("ref") for r in child], child[0].get("balance"))
     leftover = _ageing(
         [
             {"kind": "invoice", "signed": 439, "date": "2026-10-07", "reference": "3136"},
