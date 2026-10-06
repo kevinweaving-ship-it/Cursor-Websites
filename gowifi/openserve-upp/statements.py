@@ -7,8 +7,10 @@ Simple books:
 - Next months on D/O: invoice + D/O. Amounts still match after a price change.
 - D/O on the statement is only a named Netcash batch row (paid or unpaid).
   Nothing is invented. No synth. No auto-clear.
-- Unpaid D/O can be caught up by a named FNB EFT. EFT applies to the oldest
-  open invoice first.
+- D/O matches the invoice for that Netcash batch (collection month). Never
+  steal another month's invoice.
+- Named FNB EFT is one bank total for that day. It pays the oldest open
+  invoice first.
 - Reconnection / un-suspend is a once-off penalty after non-payment — not a
   standard monthly invoice and not on the D/O. It stays due until a named EFT
   so the client sees the cost of not paying.
@@ -48,6 +50,8 @@ SALES_REG_JSON = DATA_DIR / "qb_sales_register.json"
 DELETED_STATUSES = {"deleted", "void", "voided"}
 GRACE_DAYS = 7
 RECONNECT_LABEL = "Reconnection after unpaid · un-suspend penalty"
+# (date, client key) -> FNB bank EFT total for that day (splits summed).
+BANK_EFT: dict[tuple[str, str], float] = {}
 NOT_ON_MONTHLY_DO = frozenset({"reconnect", "install", "do-return", "equipment", "fee"})
 
 SCHEMA = """
@@ -329,6 +333,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
 
     n_nc = _apply_bank_matches(conn)
     _label_do_settlements(conn)
+    _collapse_eft_to_bank(conn)
     n_synth = 0
     n_runs = 0
     conn.commit()
@@ -428,6 +433,63 @@ def _do_unpaid_months(conn: sqlite3.Connection) -> set[tuple[str, str]]:
     except sqlite3.OperationalError:
         pass
     return out
+
+
+def _collapse_eft_to_bank(conn: sqlite3.Connection) -> None:
+    """One EFT per client per day when FNB split the bank credit. FNB total wins."""
+    BANK_EFT.clear()
+    fnb: dict[tuple[str, str], tuple[float, int, str]] = {}
+    try:
+        for rec in conn.execute(
+            """SELECT paid_on, alloc_to, alloc_key, SUM(ABS(COALESCE(deposit, amount))), COUNT(*)
+               FROM fnb_tx WHERE alloc_kind='client_paid'
+               GROUP BY paid_on, alloc_key"""
+        ):
+            day = str(rec[0] or "")[:10]
+            key = canon_key(rec[2] or rec[1])
+            fnb[(day, key)] = (
+                round(abs(_money(rec[3])), 2),
+                int(rec[4] or 0),
+                display_name(rec[1]) or rec[1],
+            )
+            if int(rec[4] or 0) >= 2:
+                BANK_EFT[(day, key)] = round(abs(_money(rec[3])), 2)
+    except sqlite3.OperationalError:
+        return
+    from collections import defaultdict
+
+    by: dict[tuple[str, str], list] = defaultdict(list)
+    for rec in conn.execute(
+        "SELECT id, paid_on, customer, amount, source, method FROM customer_payments"
+    ):
+        method = (rec[5] or "eft").lower()
+        src = rec[4] or ""
+        if method in {"do", "debit", "debit-order"} or src in {"qb-credit", "qb-cash"}:
+            continue
+        if "netcash" in src or src.startswith("qb-do"):
+            continue
+        by[(str(rec[1] or "")[:10], canon_key(rec[2]))].append(rec)
+    for (day, key), items in by.items():
+        bank = fnb.get((day, key))
+        if not bank:
+            continue
+        total, n_fnb, name = bank
+        book = client_row(name)
+        # Only D/O clients: FNB split one day's EFT (Cupido 8 Sep). Leave EFT
+        # clients on their QB history so Marlene / Amoroc stay as they are.
+        if n_fnb < 2 or not book or book.get("method") != "debit-order":
+            continue
+        BANK_EFT[(day, key)] = total
+        if len(items) == 1 and abs(abs(_money(items[0][3])) - total) <= 0.02:
+            continue
+        for item in items:
+            conn.execute("DELETE FROM customer_payments WHERE id=?", (item[0],))
+        conn.execute(
+            """INSERT INTO customer_payments
+               (paid_on, customer, amount, note, source, method)
+               VALUES (?,?,?,?,?,?)""",
+            (day, name, -total, "EFT", "fnb-alloc", "eft"),
+        )
 
 
 def _label_do_settlements(conn: sqlite3.Connection) -> None:
@@ -840,7 +902,7 @@ def fifo_statement(
     today: date | None = None,
     unpaid_do: list[dict] | None = None,
 ) -> dict:
-    """Oldest invoice, then the payment(s) that clear it, then the next invoice."""
+    """D/O matches its batch invoice. EFT is one bank amount, oldest invoice first."""
     from invoice_canned import fmt_date
 
     key = canon_key(name)
@@ -1048,32 +1110,48 @@ def fifo_statement(
                     }
                 )
     open_invs = [r for r in lines if r.get("kind") == "invoice" and _money(r.get("open")) > 0.004]
-    for inv_row in open_invs:
-        need = _money(inv_row.get("open"))
-        no = str(inv_row.get("ref") or "")
-        while need > 0.004:
-            pick = None
-            for i, p in enumerate(pool):
-                if p["left"] <= 0.004:
-                    continue
-                if _is_do(p):
-                    continue
-                pick = i
-                break
-            if pick is None:
-                break
-            use = min(pool[pick]["left"], need)
-            pool[pick]["left"] = round(pool[pick]["left"] - use, 2)
+    for p in pool:
+        if _is_do(p) or p["left"] <= 0.004:
+            continue
+        applied = []
+        for inv_row in open_invs:
+            need = _money(inv_row.get("open"))
+            if need <= 0.004 or p["left"] <= 0.004:
+                continue
+            use = min(p["left"], need)
+            p["left"] = round(p["left"] - use, 2)
+            inv_row["open"] = round(need - use, 2)
             paid = round(paid + use, 2)
             balance = round(balance - use, 2)
-            rec = _pay_line(pool[pick], no, use)
-            rec["balance"] = balance
-            lines.append(rec)
-            need = round(need - use, 2)
-        inv_row["open"] = need
+            applied.append((str(inv_row.get("ref") or ""), use))
+        leftover = p["left"]
+        bits = [f"Invoice {no} {use:.2f}" for no, use in applied]
+        how = pay_what(p["note"], p["method"])
+        what = f"{how} {p['orig']:.2f}"
+        if bits:
+            what += " · " + " · ".join(bits)
+        if leftover > 0.004:
+            what += f" · leftover {leftover:.2f}"
+            paid = round(paid + leftover, 2)
+            balance = round(balance - leftover, 2)
+        p["left"] = 0.0
+        lines.append(
+            {
+                "date": p["date"],
+                "date_fmt": fmt_date(p["date"]),
+                "kind": "payment",
+                "ref": ",".join(no for no, _u in applied),
+                "what": what,
+                "amount": -p["orig"],
+                "balance": balance,
+                "paid_amt": p["orig"],
+                "leftover": leftover,
+                "bank": p["orig"],
+            }
+        )
     for p in pool:
         left = p["left"]
-        if left <= 0.004:
+        if left <= 0.004 or _is_do(p):
             continue
         paid = round(paid + left, 2)
         balance = round(balance - left, 2)
@@ -1540,6 +1618,37 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK cupido-2715-do-nil", "3013 unpaid 0")
+    cup_sep8 = [
+        r
+        for r in (cup.get("ledger") or [])
+        if r.get("kind") == "payment" and (r.get("date") or "") == "2026-09-08"
+    ]
+    if len(cup_sep8) != 1:
+        print("FAIL cupido-sep8-must-be-one-fnb-eft", cup_sep8)
+        failed += 1
+    elif abs(abs(_money(cup_sep8[0].get("amount"))) - 1191) > 0.02:
+        print("FAIL cupido-sep8-fnb-total", cup_sep8[0])
+        failed += 1
+    elif "EFT 1191.00" not in (cup_sep8[0].get("what") or ""):
+        print("FAIL cupido-sep8-must-show-bank-total", cup_sep8[0].get("what"))
+        failed += 1
+    else:
+        print("OK cupido-sep8-one-fnb-eft", cup_sep8[0].get("what"))
+    cup_jun_do = [
+        r
+        for r in (cup.get("ledger") or [])
+        if r.get("kind") == "payment"
+        and (r.get("date") or "") == "2026-06-01"
+        and "Debit" in (r.get("what") or "")
+    ]
+    if not cup_jun_do or "3034" not in (cup_jun_do[0].get("what") or ""):
+        print("FAIL cupido-june-do-must-match-batch-inv", cup_jun_do)
+        failed += 1
+    elif "3013" in (cup_jun_do[0].get("what") or ""):
+        print("FAIL cupido-june-do-stole-oldest", cup_jun_do)
+        failed += 1
+    else:
+        print("OK cupido-do-matches-batch-invoice", cup_jun_do[0].get("what"))
     ann = account_as_at(conn, "Annette Bing HH", today)
     ann_old = [
         r
