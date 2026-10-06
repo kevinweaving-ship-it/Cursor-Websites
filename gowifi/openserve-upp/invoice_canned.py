@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from html import escape
+from pathlib import Path
 
 from company import COMPANY
 
@@ -253,6 +254,21 @@ def _from_last_paid_up(ledger: list[dict]) -> list[dict]:
     return ledger[last_zero:]
 
 
+def from_last_zero_newest(lines: list[dict]) -> list[dict]:
+    """Newest-first ledger from the last 0.00 balance (arrears + every payment)."""
+    rows = [r for r in (lines or []) if r.get("show") is not False]
+    cut = len(rows)
+    for i, row in enumerate(rows):
+        try:
+            bal = float(row.get("balance") or 0)
+        except (TypeError, ValueError):
+            continue
+        if abs(bal) <= 0.004:
+            cut = i + 1
+            break
+    return rows[:cut]
+
+
 def statement_on_invoice(
     invoices: list[dict],
     payments: list[dict],
@@ -386,16 +402,16 @@ def render_invoice(row: dict) -> str:
 <body>
 <p class="screen-only"><a class="back" href="/dash/accounts.html">← Fibre accounts</a></p>
 <article class="sheet">
-  <section class="card invoice-main">
+  <section class="invoice-outer invoice-main">
     <div class="card-row">
-      <div class="pane">
+      <div class="inner-card pane">
         <div class="label">From</div>
         <div class="brand">{escape(c["name"])}</div>
         {lines}
         <div class="muted">{escape(c["phone"])} · {escape(c["email"])}</div>
         <div class="muted">Business ID No. {escape(c["reg"])}</div>
       </div>
-      <div class="pane">
+      <div class="inner-card pane">
         <div class="label">Bill to</div>
         <div class="who">{escape(row.get("customer") or "—")}</div>
         {_address_html(row.get("address"))}
@@ -407,7 +423,7 @@ def render_invoice(row: dict) -> str:
         </table>
       </div>
     </div>
-    <div class="lines-wrap">
+    <div class="inner-card lines-wrap">
       <h2><span>Invoice</span><span class="doc-title">INVOICE</span></h2>
       <table class="lines">
         <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
@@ -423,7 +439,7 @@ def render_invoice(row: dict) -> str:
       <div class="due">This invoice {money(row.get("amount"))}</div>
     </div>
   </section>
-  <section class="card">
+  <section class="card ledger-card">
   {statement_html(row)}
   </section>
   <footer class="card bank">
@@ -443,10 +459,12 @@ DOCUMENT_CSS = """
 body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#1a1a1a; background:#e8e8e8; margin:0; }
 .sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:10mm 12mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
 .card { border: 2.5px solid #1a3a6b; border-radius:8px; padding:12px 14px; margin:0 0 12px; background:#fff; }
-.card-row { display:flex; gap:24px; margin:0 0 12px; }
-.invoice-main .card-row { margin:0 0 14px; }
+.invoice-outer { border:4px solid #0b1f44; border-radius:10px; padding:10px; margin:0 0 12px; background:#fff; }
+.inner-card { border:1.5px solid #8aa4c8; border-radius:8px; padding:12px 14px; background:#fff; }
+.card-row { display:flex; gap:10px; margin:0 0 10px; }
+.invoice-outer .card-row .inner-card { flex:1; min-width:0; }
 .invoice-main .pane { flex:1; min-width:0; }
-.invoice-main .lines-wrap { border-top:1.5px solid #1a3a6b; padding-top:10px; }
+.invoice-main .lines-wrap { margin:0; }
 .brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; color:#1a3a6b; }
 .doc-title { font-size:22px; font-weight:700; letter-spacing:.12em; color:#1a3a6b; }
 .muted { color:#555; }
@@ -501,10 +519,10 @@ def statement_html(row: dict) -> str:
     ageing = stmt.get("ageing") or {}
     as_at = fmt_date(stmt.get("as_at") or row.get("invoice_date"))
     return f"""
-<h2><span>Statement</span><span class="muted">as at {escape(as_at)}</span></h2>
+<h2><span>Ledger</span><span class="muted">as at {escape(as_at)}</span></h2>
 <div class="due">Outstanding {money(due)}</div>
-<table class="soa">
-  <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+<table class="soa stmt">
+  <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
   <tbody>{body}</tbody>
 </table>
 <table class="ageing">
@@ -685,14 +703,43 @@ def self_test() -> int:
             "statement": stmt_m,
         }
     )
-    if 'class="card invoice-main"' not in html or html.count("invoice-main") < 2:
-        print("FAIL one-invoice-card")
+    if "invoice-outer" not in html or html.count("inner-card") < 3 or "ledger-card" not in html:
+        print("FAIL one-invoice-card", html[html.find("sheet"):html.find("sheet")+400] if "sheet" in html else html[:200])
         failed += 1
     elif "Invoice No.3113" not in html:
         print("FAIL stmt-has-current")
         failed += 1
+    elif ">What<" not in html or "439.00" not in html:
+        print("FAIL last-invoice-439-or-ledger")
+        failed += 1
     else:
         print("OK one-invoice-card")
+    dash = Path(__file__).resolve().parent.joinpath("dash/invoice.html")
+    page = dash.read_text() if dash.exists() else ""
+    if "fromLastZero" not in page or "latestInvoice" not in page or "invoice-outer" not in page:
+        print("FAIL invoice-html-latest-ledger")
+        failed += 1
+    elif page.count("inner-card") < 3 or "ledger-card" not in page:
+        print("FAIL invoice-html-three-inner")
+        failed += 1
+    else:
+        print("OK invoice-html-latest-and-ledger")
+    newest = [
+        {"kind": "invoice", "ref": "3136", "amount": 439, "balance": 7619, "date": "2026-10-07"},
+        {"kind": "invoice", "ref": "3113", "amount": 439, "balance": 7180, "date": "2026-09-21"},
+        {"kind": "invoice", "ref": "2533", "amount": 399, "balance": 399, "date": "2025-05-17"},
+        {"kind": "payment", "ref": "2472", "amount": -399, "balance": 0, "date": "2025-03-05"},
+        {"kind": "invoice", "ref": "2130", "amount": 1100, "balance": 0, "date": "2022-07-13"},
+    ]
+    cut = from_last_zero_newest(newest)
+    if [r.get("ref") for r in cut] != ["3136", "3113", "2533", "2472"]:
+        print("FAIL from-last-zero", [r.get("ref") for r in cut])
+        failed += 1
+    elif any(abs(float(r.get("balance") or 0)) <= 0.004 for r in cut[:-1]):
+        print("FAIL last-zero-not-end", cut)
+        failed += 1
+    else:
+        print("OK from-last-zero-newest")
     leftover = _ageing(
         [
             {"kind": "invoice", "signed": 439, "date": "2026-10-07", "reference": "3136"},
