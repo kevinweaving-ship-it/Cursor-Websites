@@ -482,8 +482,9 @@ def _collapse_eft_to_bank(conn: sqlite3.Connection) -> None:
             continue
         total, n_fnb, name = bank
         book = client_row(name)
-        # Only D/O clients: FNB split one day's EFT (Cupido 8 Sep). Leave EFT
-        # clients on their QB history so Marlene / Amoroc stay as they are.
+        # Only D/O clients: FNB split one day's EFT (Cupido 8 Sep). QB A/R
+        # "Payment" rows that day are not four deposits — one bank EFT.
+        # Leave EFT clients on their QB history so Marlene / Amoroc stay.
         if n_fnb < 2 or not book or book.get("method") != "debit-order":
             continue
         BANK_EFT[(day, key)] = total
@@ -915,7 +916,11 @@ def fifo_statement(
     today: date | None = None,
     unpaid_do: list[dict] | None = None,
 ) -> dict:
-    """D/O matches its batch invoice. EFT is one bank amount, oldest invoice first."""
+    """D/O matches its batch invoice. EFT is one bank amount, oldest invoice first.
+
+    Not QuickBooks apply. Full EFT on the first invoice, then EFT B/F on the
+    next. FNB + Netcash are the money. QB is the invoice list / checksum.
+    """
     from invoice_canned import fmt_date
 
     key = canon_key(name)
@@ -1699,6 +1704,21 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK cupido-sep8-eft-bf", sep8_what)
+    live_path = DATA_DIR / "qbo_cupido_live.json"
+    if live_path.exists():
+        live = json.loads(live_path.read_text())
+        qb_pays = live.get("payments") or []
+        qb_sep = [p for p in qb_pays if (p.get("date") or "") == "2026-09-08"]
+        qb_pay_sum = round(sum(float(p.get("total") or 0) for p in qb_pays), 2)
+        qb_sep_sum = round(sum(float(p.get("total") or 0) for p in qb_sep), 2)
+        if abs(qb_pay_sum - 3417.25) > 0.02 or abs(qb_sep_sum - 1950) > 0.02:
+            print("FAIL cupido-qb-bank-checksum", qb_pay_sum, qb_sep_sum)
+            failed += 1
+        elif len(qb_sep) == 4 and len(cup_sep8) != 3:
+            print("FAIL cupido-must-not-copy-qb-splits", len(qb_sep), len(cup_sep8))
+            failed += 1
+        else:
+            print("OK cupido-qb-checksum-not-qb-apply", qb_pay_sum, "sep8", qb_sep_sum)
     cup_jun_do = [
         r
         for r in (cup.get("ledger") or [])
