@@ -49,7 +49,12 @@ def read_progress() -> dict:
 
 LOGIN_URLS = (
     "https://www.online.fnb.co.za/",
-    "https://www.fnb.co.za/",
+    "https://www.online.fnb.co.za/login",
+)
+PROFILE_DIR = Path(os.environ.get("FNB_CHROME", "/root/secrets/fnb-chrome"))
+BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 )
 USER_SEL = (
     "input[name='username' i], input[name='user' i], input[name='userid' i], "
@@ -572,6 +577,43 @@ def _all_text(page) -> str:
         except Exception:
             continue
     return "\n".join(bits)
+
+
+def _looks_blocked(text: str, url: str = "") -> bool:
+    blob = f"{text or ''} {url or ''}".lower()
+    return any(
+        w in blob
+        for w in (
+            "please solve this captcha",
+            "validate.perfdrive.com",
+            "i am human",
+            "before granting access",
+            "shieldsquare",
+        )
+    )
+
+
+def _open_browser(pw):
+    """Own FNB Online login. Look like a normal Chrome, keep the session on the box."""
+    PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(PROFILE_DIR, 0o700)
+    except OSError:
+        pass
+    return pw.chromium.launch_persistent_context(
+        str(PROFILE_DIR),
+        headless=True,
+        viewport={"width": 1400, "height": 900},
+        user_agent=BROWSER_UA,
+        locale="en-ZA",
+        ignore_https_errors=False,
+        args=[
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-blink-features=AutomationControlled",
+        ],
+        ignore_default_args=["--enable-automation"],
+    )
 
 
 def _dump_page(page, label: str) -> None:
@@ -1398,14 +1440,12 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
     set_progress("Opening FNB")
     with sync_playwright() as pw:
         try:
-            browser = pw.chromium.launch(
-                headless=True,
-                args=["--disable-dev-shm-usage", "--no-sandbox"],
-            )
+            context = _open_browser(pw)
+            page = context.pages[0] if context.pages else context.new_page()
+            page.add_init_script("Object.defineProperty(navigator,'webdriver',{get:()=>undefined})")
         except Exception as exc:
             set_progress("FNB browser failed", done=True, error=str(exc)[:180])
             return {"ok": False, "error": f"fnb browser: {exc}", "rows": [], "pending": []}
-        page = browser.new_page(viewport={"width": 1400, "height": 900})
         last = ""
         logged = False
         for url in LOGIN_URLS:
@@ -1413,8 +1453,16 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
                 set_progress("Opening FNB login")
                 page.goto(url, wait_until="domcontentloaded", timeout=45000)
                 last = url
-                page.wait_for_timeout(1200)
+                page.wait_for_timeout(1800)
+                if _looks_blocked(_all_text(page), page.url):
+                    set_progress("FNB asked for CAPTCHA · retrying Online")
+                    _dump_page(page, f"captcha {url}")
+                    continue
                 _dismiss_popups(page)
+                if _looks_logged_in(_all_text(page), account):
+                    set_progress("Already logged in to FNB")
+                    logged = True
+                    break
                 set_progress("Logging in")
                 _fill_login(page, user, password)
                 logged = True
@@ -1469,7 +1517,7 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
             set_progress("FNB read failed", error=str(exc)[:180])
             _dump_page(page, "read-failed")
             rows = []
-        browser.close()
+        context.close()
     return {
         "ok": bool(rows or pending),
         "rows": rows,
@@ -1483,7 +1531,9 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
 
 
 def pull(conn: sqlite3.Connection | None = None) -> dict:
-    own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB))
+    own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB), timeout=60)
+    if conn is None:
+        own.execute("PRAGMA busy_timeout=60000")
     fetched_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     set_progress("Fetching FNB")
     try:
@@ -1793,6 +1843,14 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK channel-keys")
+    if not _looks_blocked("Please solve this CAPTCHA", "https://validate.perfdrive.com/x"):
+        print("FAIL captcha-detect")
+        failed += 1
+    elif any("www.fnb.co.za/" == u.rstrip("/") or u.rstrip("/") == "https://www.fnb.co.za" for u in LOGIN_URLS):
+        print("FAIL no-fnb-homepage", LOGIN_URLS)
+        failed += 1
+    else:
+        print("OK own-login-online-only")
     conn.close()
     return failed
 
