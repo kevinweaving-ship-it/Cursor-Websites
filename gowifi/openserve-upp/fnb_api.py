@@ -12,6 +12,7 @@ import os
 import sqlite3
 import ssl
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -35,16 +36,23 @@ TOKEN_CANDIDATES = (
     "https://openapi.fnb.co.za/oauth2/token",
 )
 TX_GET_CANDIDATES = (
+    "/retrieveTransactionHistory",
+    "/enterprise/retrieveTransactionHistory",
+    "/za/enterprise/retrieveTransactionHistory",
+    "/transaction-history/v1/retrieveTransactionHistory",
     "/transaction-history/v1/accounts/{account}/transactions",
     "/enterprise/transaction-history/v1/accounts/{account}/transactions",
     "/za/enterprise/transaction-history/v1/accounts/{account}/transactions",
 )
 TX_POST_CANDIDATES = (
+    "/retrieveTransactionHistory",
+    "/enterprise/retrieveTransactionHistory",
     "/transaction-history/v1/transactions",
     "/enterprise/transaction-history/v1/transactions",
 )
 FNB_SOURCES = frozenset({"fnb_api", "fnb_live", "fnb_online", "fnb_history"})
 QB_SOURCES = frozenset({"qb_fnb_history", "qb-fnb", "quickbooks"})
+_PULL_LOCK = threading.Lock()
 
 
 def _load_env(path: Path = ENV_PATH) -> dict[str, str]:
@@ -106,19 +114,17 @@ def status(env: dict[str, str] | None = None) -> dict:
     account = (env.get("FNB_ACCOUNT_NUMBER") or GOWIFI_FNB).strip()
     has_api = bool(client_id and secret)
     has_login = bool(username and password)
-    via = "fnb-live" if has_login else "fnb-api"
+    via = "fnb-api" if has_api else "fnb-live"
     if has_login:
         note = (
-            "FNB Online Banking live statement. Popup dismissed when it appears. "
-            "New rows only — no duplicates. The box fetches FNB and allocates who paid."
+            "FNB Online live statement. Not Online Banking Enterprise, so Integration Channel "
+            "Statements / retrieveTransactionHistory is no use. Skip devices when it shows, "
+            "then My bank accounts, Available, Statements. New rows only."
         )
     elif has_api:
-        note = "FNB Integration Channel Transaction History. Direct bank API, not QuickBooks."
+        note = "FNB Integration Channel keys are on the box, but GoWiFi is not an Online Banking Enterprise user."
     else:
-        note = (
-            "Save FNB Online Banking login at /legal/fnb.html (box secrets only), "
-            "or Integration Channel Client ID and Secret. Not QuickBooks."
-        )
+        note = "Need FNB Online Banking login on the box. Integration Channel is no use without Enterprise."
     return {
         "ready": has_login or has_api,
         "has_login": has_login,
@@ -470,27 +476,63 @@ def _refresh_accounts() -> None:
 
 
 def pull(conn: sqlite3.Connection | None = None, days: int = 90, live: bool = True) -> dict:
-    """Live Online Banking first. Integration Channel only when there is no login."""
+    """Online Banking live statement. Integration Channel is no use — we are not Enterprise."""
+    from fnb_statement import login_ready, set_progress
+
     env = _load_env()
-    if live:
-        from fnb_statement import login_ready
+    if live and login_ready(env):
         from fnb_statement import pull as live_pull
 
-        if login_ready(env):
+        set_progress("Opening FNB")
+        if not _PULL_LOCK.acquire(blocking=False):
+            return {"ok": False, "busy": True, "error": "FNB fetch already running", "via": "fnb-live"}
+        try:
             pack = live_pull(conn)
-            _refresh_accounts()
-            return pack
-    if status(env).get("has_api"):
-        pack = pull_api(conn, days=days)
+        finally:
+            _PULL_LOCK.release()
         _refresh_accounts()
         return pack
-    return {
-        "ok": False,
-        "error": status(env)["note"],
-        "inserted": 0,
-        "rows": 0,
-        "via": "fnb-live",
-    }
+    err = "Need FNB Online login on the box. Integration Channel is no use — not Enterprise."
+    set_progress(err, done=True, error=err)
+    return {"ok": False, "error": err, "inserted": 0, "rows": 0, "via": "fnb-live"}
+
+
+def pull_async() -> dict:
+    from fnb_statement import read_progress, set_progress
+
+    if _PULL_LOCK.locked():
+        return {"ok": True, "started": False, "busy": True, "done": False, **read_progress()}
+    set_progress("Starting FNB fetch")
+
+    def run() -> None:
+        try:
+            pack = pull()
+            if pack.get("busy"):
+                return
+            if pack.get("ok"):
+                from fnb_statement import set_progress as mark
+
+                mark(
+                    f"Done · {pack.get('inserted') or 0} new of {pack.get('rows_seen') or pack.get('rows') or 0} posted",
+                    done=True,
+                    inserted=pack.get("inserted") or 0,
+                    rows_seen=pack.get("rows_seen") or pack.get("rows") or 0,
+                )
+            else:
+                from fnb_statement import set_progress as mark
+
+                mark(
+                    pack.get("error") or pack.get("note") or "FNB fetch failed",
+                    done=True,
+                    error=pack.get("error") or pack.get("note"),
+                )
+        except Exception as exc:
+            from fnb_statement import set_progress as mark
+
+            mark("FNB fetch failed", done=True, error=str(exc)[:180])
+
+    threading.Thread(target=run, daemon=True, name="fnb-pull-now").start()
+    return {"ok": True, "started": True, "done": False, "step": "Starting FNB fetch"}
 
 
 def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
@@ -634,6 +676,11 @@ class Handler(BaseHTTPRequestHandler):
         if path in {"/card", "/legal/fnb-card"}:
             self._send(200, card())
             return
+        if path in {"/progress", "/legal/fnb-progress"}:
+            from fnb_statement import read_progress
+
+            self._send(200, read_progress())
+            return
         self._send(404, {"error": "not found"})
 
     def do_POST(self) -> None:
@@ -671,7 +718,7 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             if path in {"/pull", "/legal/fnb-pull"}:
-                self._send(200, pull())
+                self._send(200, pull_async())
                 return
             if path in {"/alloc", "/legal/fnb-alloc"}:
                 from fnb_statement import apply_alloc
@@ -772,6 +819,24 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK fnb-api-parse")
+    if "/retrieveTransactionHistory" not in TX_GET_CANDIDATES:
+        print("FAIL retrieveTransactionHistory-path")
+        failed += 1
+    else:
+        print("OK retrieveTransactionHistory-path")
+    login_only = status(
+        {
+            "FNB_CLIENT_ID": "",
+            "FNB_CLIENT_SECRET": "",
+            "FNB_USERNAME": "x",
+            "FNB_PASSWORD": "y",
+        }
+    )
+    if login_only.get("has_api") or "Enterprise" not in (login_only.get("note") or ""):
+        print("FAIL status-not-enterprise", login_only)
+        failed += 1
+    else:
+        print("OK status-not-enterprise")
     conn = sqlite3.connect(":memory:")
     n = _upsert_bank(conn, rows + [{"paid_on": "2026-01-01", "amount": 1, "description": "QB", "source": "qb_fnb_history"}])
     if n != 3:

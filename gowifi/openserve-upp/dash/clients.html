@@ -155,6 +155,22 @@ main {
 .match-ok { color:var(--ok); font-weight:700; }
 .attn { color:var(--warn); font-weight:700; }
 .fnb-status { border-top:1px solid var(--line); }
+.fnb-head {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  width:100%; padding:12px 14px; min-height:48px; flex-wrap:wrap;
+}
+.fnb-toggle {
+  display:flex; align-items:center; gap:8px; padding:0; border:0;
+  background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer;
+  min-height:40px;
+}
+.fnb-top .kind { display:inline; }
+.fnb-live {
+  color:var(--acc); font-size:13px; font-weight:700; white-space:nowrap;
+  max-width:22em; overflow:hidden; text-overflow:ellipsis;
+}
+.fnb-live.fail { color:var(--bad); }
+.fnb-live.ok { color:var(--ok); }
 
 /* ML — landscape phone full width. Mac / wide tablet: same ML column, centred. */
 @media (min-width: 600px) {
@@ -333,14 +349,17 @@ function fnbCard(fnb){
     <h2>FNB <span class="n">${esc(fnb.account_number||"62860060278")}</span></h2>
     <div class="cat-list">
       <article class="card">
-        <button class="head" type="button" aria-expanded="true" aria-controls="${id}">
-          <span class="name"><span class="dot ${fnb.ready&&fnb.last_ok?"active":"issue"}"></span>FNB ${esc(fnb.account_number||"62860060278")}</span>
+        <div class="head fnb-head">
+          <button class="fnb-toggle" type="button" aria-expanded="true" aria-controls="${id}">
+            <span class="name"><span class="dot ${fnb.ready&&fnb.last_ok?"active":"issue"}"></span>FNB ${esc(fnb.account_number||"62860060278")}</span>
+          </button>
           <span class="head-right">
             <button type="button" class="fetch-btn fnb-fetch">Fetch</button>
             <span class="kind">Bank</span>
             <span class="bal ${hasPending?"attn":""}">${esc(bal)}</span>
+            <span class="fnb-live" aria-live="polite"></span>
           </span>
-        </button>
+        </div>
         <div class="fnb-status">
           <div class="band">
             ${field("Last fetched", esc(last))}
@@ -407,6 +426,24 @@ function bindFnbApply(root, pack){
   });
 }
 function bindFnbFetch(root, pack){
+  const liveEl = root.querySelector(".fnb-live");
+  const setLive = (text, cls) => {
+    if (!liveEl) return;
+    liveEl.textContent = text || "";
+    liveEl.className = "fnb-live" + (cls ? " " + cls : "");
+  };
+  const pollProgress = done => {
+    const t0 = Date.now();
+    const tick = () => {
+      fetch("/legal/fnb-progress", {credentials:"same-origin", cache:"no-store"})
+        .then(r=>r.json()).then(p=>{
+          setLive(p.step || "Fetching FNB", p.error ? "fail" : (p.done ? "ok" : ""));
+          if (p.done || Date.now()-t0 > 180000) { done(p); return; }
+          setTimeout(tick, 400);
+        }).catch(()=>setTimeout(tick, 800));
+    };
+    tick();
+  };
   root.querySelectorAll(".fnb-fetch").forEach(btn=>{
     btn.addEventListener("click", ev=>{
       ev.preventDefault();
@@ -414,28 +451,34 @@ function bindFnbFetch(root, pack){
       btn.disabled = true;
       const prev = btn.textContent;
       btn.textContent = "Fetching…";
+      setLive("Starting FNB fetch");
       fetch("/legal/fnb-pull", {
         method:"POST",
         credentials:"same-origin",
         headers:{"Content-Type":"application/json"},
         body:"{}"
-      }).then(r=>r.json()).then(d=>{
-        if (!d.ok) throw new Error(d.error || d.note || "FNB pull failed");
-        return fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"});
-      }).then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); }).then(data=>{
-        Object.assign(pack, data.clients || {});
-        paint(pack);
-      }).catch(err=>{
-        btn.disabled = false;
-        btn.textContent = prev;
-        const note = root.querySelector(".fnb-status .attn") || root.querySelector(".fnb-status .v");
-        if (note) note.textContent = err.message || "FNB fetch failed";
+      }).catch(()=>{});
+      pollProgress(p=>{
+        if (p.error) {
+          btn.disabled = false;
+          btn.textContent = prev;
+          setLive(p.step || p.error, "fail");
+          return;
+        }
+        fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
+          .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+          .then(data=>{ Object.assign(pack, data.clients || {}); paint(pack); })
+          .catch(err=>{
+            btn.disabled = false;
+            btn.textContent = prev;
+            setLive(err.message || "FNB fetch failed", "fail");
+          });
       });
     });
   });
 }
 function bindToggles(root){
-  root.querySelectorAll(".head").forEach(btn=>{
+  root.querySelectorAll(".head:not(.fnb-head), .fnb-toggle").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const open = btn.getAttribute("aria-expanded")==="true";
       const panel = document.getElementById(btn.getAttribute("aria-controls"));

@@ -13,6 +13,7 @@ import os
 import re
 import sqlite3
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -20,9 +21,55 @@ from company import COMPANY, GOWIFI_FNB
 
 ENV_PATH = Path(os.environ.get("FNB_ENV", "/root/secrets/fnb.env"))
 DB = os.environ.get("UPP_DB", "/root/gowifi-upp/upp.db")
+PROGRESS_PATH = Path(os.environ.get("FNB_PROGRESS", "/tmp/fnb-fetch.progress"))
+DUMP_PATH = Path(os.environ.get("FNB_DUMP", "/tmp/fnb-last-page.txt"))
+
+
+def set_progress(step: str, done: bool = False, error: str | None = None, **extra) -> dict:
+    pack = {
+        "step": step,
+        "at": datetime.now().strftime("%H:%M"),
+        "done": done,
+        "error": error,
+    }
+    pack.update(extra)
+    try:
+        PROGRESS_PATH.write_text(json.dumps(pack))
+    except OSError:
+        pass
+    return pack
+
+
+def read_progress() -> dict:
+    try:
+        return json.loads(PROGRESS_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {"step": "", "done": True, "error": None, "at": ""}
+
+
 LOGIN_URLS = (
     "https://www.online.fnb.co.za/",
     "https://www.fnb.co.za/",
+)
+USER_SEL = (
+    "input[name='username' i], input[name='user' i], input[name='userid' i], "
+    "input[name='userId' i], input[name='user_id' i], input#username, input#user, "
+    "input#userId, input#userid, input[type='text'][id*='user' i], "
+    "input[type='text'][name*='user' i], input[autocomplete='username'], "
+    "input[placeholder*='user' i], input[aria-label*='user' i], "
+    "input[placeholder*='ID' i], input[aria-label*='ID number' i]"
+)
+PHONE_CONFIRM = (
+    "one-time pin",
+    "once-off pin",
+    "one time pin",
+    "otp",
+    "approve this",
+    "approve the login",
+    "notification sent",
+    "sent a notification",
+    "confirm on the app",
+    "fnb app",
 )
 ACCOUNT = GOWIFI_FNB
 FNB_DIRECT = frozenset({"fnb_live", "fnb_online", "fnb_api", "fnb_history"})
@@ -510,154 +557,573 @@ def attention_open(conn: sqlite3.Connection) -> list[dict]:
     return out
 
 
+def _all_text(page) -> str:
+    bits = []
+    frames = []
+    try:
+        frames = list(page.frames)
+    except Exception:
+        frames = []
+    if not frames:
+        frames = [page]
+    for frame in frames:
+        try:
+            bits.append(frame.inner_text("body"))
+        except Exception:
+            continue
+    return "\n".join(bits)
+
+
+def _dump_page(page, label: str) -> None:
+    text = _all_text(page)
+    text = re.sub(r"(password|pin|otp)[:\s]+\S+", r"\1: ***", text, flags=re.I)
+    url = ""
+    try:
+        url = page.url
+    except Exception:
+        url = ""
+    try:
+        DUMP_PATH.write_text(f"{label}\nURL {url}\n\n{text[:80000]}")
+    except OSError:
+        pass
+
+
+def _first_visible(page, selector: str, timeout: int = 8000):
+    deadline = time.time() + timeout / 1000.0
+    while time.time() < deadline:
+        frames = []
+        try:
+            frames = list(page.frames)
+        except Exception:
+            frames = []
+        if not frames:
+            frames = [page]
+        for frame in frames:
+            try:
+                loc = frame.locator(selector)
+                n = loc.count()
+            except Exception:
+                continue
+            for i in range(min(n, 12)):
+                el = loc.nth(i)
+                try:
+                    if el.is_visible():
+                        return el
+                except Exception:
+                    continue
+        try:
+            page.wait_for_timeout(250)
+        except Exception:
+            break
+    return None
+
+
+def _username_box(page):
+    el = _first_visible(page, USER_SEL, timeout=12000)
+    if el:
+        return el
+    frames = []
+    try:
+        frames = list(page.frames)
+    except Exception:
+        frames = []
+    for frame in frames:
+        try:
+            if frame.locator("input[type='password']").count() == 0:
+                continue
+        except Exception:
+            continue
+        for sel in ("input[type='text']", "input[type='email']", "input[type='tel']", "input:not([type])"):
+            try:
+                loc = frame.locator(sel)
+                n = loc.count()
+            except Exception:
+                continue
+            for i in range(min(n, 8)):
+                cand = loc.nth(i)
+                try:
+                    if cand.is_visible():
+                        return cand
+                except Exception:
+                    continue
+    return None
+
+
+def _looks_logged_in(text: str, account: str) -> bool:
+    blob = (text or "").lower()
+    digits = re.sub(r"\D", "", account or "")
+    if digits and digits[-4:] in re.sub(r"\D", "", text or ""):
+        return True
+    return any(
+        w in blob
+        for w in (
+            "transaction history",
+            "live statement",
+            "successful",
+            "pending transactions",
+            "gowifi",
+            "available balance",
+            "account summary",
+            "devices and browsers",
+            "my bank accounts",
+            "business solutions",
+            "integration channel",
+        )
+    )
+
+
+def page_kind(text: str, account: str = ACCOUNT) -> str:
+    """After login FNB is not always the same page. Skip / accounts / statement vary."""
+    blob = (text or "").lower()
+    digits = re.sub(r"\D", "", account or "")
+    body_digits = re.sub(r"\D", "", text or "")
+    if "devices and browsers" in blob or ("manage devices" in blob and "skip" in blob):
+        return "devices"
+    if "successful" in blob and "pending" in blob and ("description" in blob or "amount" in blob):
+        return "statement"
+    if digits and digits in body_digits and "available" in blob:
+        return "accounts"
+    if "integration channel" in blob or "transaction history" in blob and "subscribe" in blob:
+        return "channel"
+    if "my bank accounts" in blob or "welcome" in blob:
+        return "welcome"
+    return "other"
+
+
+def parse_account_card(text: str, account: str = ACCOUNT) -> dict:
+    """Balance then Available on My Bank Accounts. Do not invent."""
+    digits = re.sub(r"\D", "", account or "")
+    blob = " ".join((text or "").replace("\u00a0", " ").split())
+    money = r"R\s*([\d]+(?:[ ,]\d{3})*\.\d{2})"
+    if digits:
+        m = re.search(rf"{digits}\s+{money}\s+{money}", blob, re.I)
+        if m:
+            return {
+                "balance": float(m.group(1).replace(" ", "").replace(",", "")),
+                "available": float(m.group(2).replace(" ", "").replace(",", "")),
+            }
+    m = re.search(rf"available(?:\s+balance)?\s*{money}", blob, re.I)
+    b = re.search(rf"(?:(?<!available )balance)\s*{money}", blob, re.I)
+    out = {"balance": None, "available": None}
+    if b:
+        out["balance"] = float(b.group(1).replace(" ", "").replace(",", ""))
+    if m:
+        out["available"] = float(m.group(1).replace(" ", "").replace(",", ""))
+    return out
+
+
+def keys_from_channel_text(text: str) -> dict:
+    """Read Client ID / Secret off the Integration Channel page. Never log the secret."""
+    blob = text or ""
+    cid = re.search(r"client\s*id\s*[:#]?\s*([A-Za-z0-9._-]{12,})", blob, re.I)
+    secret = re.search(r"client\s*secret\s*[:#]?\s*([A-Za-z0-9._-]{12,})", blob, re.I)
+    return {
+        "client_id": cid.group(1) if cid else "",
+        "client_secret": secret.group(1) if secret else "",
+    }
+
+
 def _dismiss_popups(page) -> int:
     """Login sometimes has a popup, sometimes not. Never fail if none."""
     closed = 0
+    try:
+        page.keyboard.press("Escape")
+    except Exception:
+        pass
     for _ in range(4):
         labels = []
+        frames = []
         try:
-            labels = page.locator(
-                "button, [role='button'], a, [aria-label='Close'], .close, .modal-close"
-            ).all_text_contents()
+            frames = list(page.frames)
         except Exception:
-            labels = []
-        extra = []
-        try:
-            extra = page.locator("[aria-label]").evaluate_all(
-                "els => els.map(e => e.getAttribute('aria-label') || '')"
-            )
-        except Exception:
-            extra = []
-        choice = pick_dismiss([*(labels or []), *(extra or [])])
+            frames = [page]
+        for frame in frames:
+            try:
+                labels.extend(
+                    frame.locator(
+                        "button, [role='button'], a, [aria-label='Close'], .close, .modal-close"
+                    ).all_text_contents()
+                )
+            except Exception:
+                pass
+            try:
+                labels.extend(
+                    frame.locator("[aria-label]").evaluate_all(
+                        "els => els.map(e => e.getAttribute('aria-label') || '')"
+                    )
+                )
+            except Exception:
+                pass
+        choice = pick_dismiss(labels)
         if not choice:
             break
-        try:
-            loc = page.get_by_role("button", name=re.compile(re.escape(choice), re.I))
-            if loc.count():
-                loc.first.click(timeout=1500)
+        clicked = False
+        for frame in frames:
+            try:
+                loc = frame.get_by_role("button", name=re.compile(re.escape(choice), re.I))
+                if loc.count():
+                    loc.first.click(timeout=1500)
+                    closed += 1
+                    clicked = True
+                    page.wait_for_timeout(400)
+                    break
+            except Exception:
+                pass
+            try:
+                frame.locator("button, [aria-label='Close'], .close").filter(
+                    has_text=re.compile(re.escape(choice), re.I)
+                ).first.click(timeout=1500)
                 closed += 1
+                clicked = True
                 page.wait_for_timeout(400)
+                break
+            except Exception:
                 continue
-        except Exception:
-            pass
-        try:
-            page.locator("button, [aria-label='Close'], .close").filter(
-                has_text=re.compile(re.escape(choice), re.I)
-            ).first.click(timeout=1500)
-            closed += 1
-            page.wait_for_timeout(400)
-        except Exception:
+        if not clicked:
             break
     return closed
 
 
 def _fill_login(page, username: str, password: str) -> None:
-    user_sel = (
-        "input[name='username'], input[name='user'], input#username, "
-        "input[type='text'][id*='user' i], input[autocomplete='username']"
-    )
-    pass_sel = "input[type='password'], input[name='password'], input#password"
-    page.wait_for_timeout(500)
-    if page.locator(user_sel).count():
-        page.locator(user_sel).first.fill(username)
-    else:
-        page.get_by_label(re.compile("user", re.I)).first.fill(username)
-    if page.locator(pass_sel).count():
-        page.locator(pass_sel).first.fill(password)
-    else:
-        page.get_by_label(re.compile("pass", re.I)).first.fill(password)
-    clicked = False
-    for name in ("Log on", "Log in", "Login", "Sign in", "Continue"):
-        try:
-            btn = page.get_by_role("button", name=re.compile(name, re.I))
-            if btn.count():
-                btn.first.click()
-                clicked = True
-                break
-        except Exception:
-            continue
+    """Wait for FNB's real form (SPA / iframe). Do not hang 30s on a missing label."""
+    set_progress("Looking for FNB login")
+    if _first_visible(page, "input[type='password']", timeout=2000) is None:
+        _click_named(page, ("Log on", "Log in", "Login", "Sign in"))
+        page.wait_for_timeout(800)
+        _dismiss_popups(page)
+    user_el = _username_box(page)
+    if not user_el:
+        _dump_page(page, "no-username")
+        raise RuntimeError("FNB login form not on the page")
+    set_progress("Typing FNB username")
+    user_el.fill(username, timeout=5000)
+    pass_el = _first_visible(page, "input[type='password'], input[name='password'], input#password", timeout=8000)
+    if not pass_el:
+        _dump_page(page, "no-password")
+        raise RuntimeError("FNB password field not on the page")
+    set_progress("Typing FNB password")
+    pass_el.fill(password, timeout=5000)
+    set_progress("Submitting FNB login")
+    clicked = _click_named(page, ("Log on", "Log in", "Login", "Sign in", "Continue"))
     if not clicked:
-        page.locator(pass_sel).first.press("Enter")
-
-
-def _open_statement(page, account: str) -> None:
-    for name in (
-        "Accounts",
-        "My Bank Accounts",
-        "Bank accounts",
-        "Transactional",
-        "Account summary",
-    ):
         try:
-            link = page.get_by_role("link", name=re.compile(name, re.I))
-            if link.count():
-                link.first.click(timeout=3000)
-                page.wait_for_timeout(600)
-                _dismiss_popups(page)
-                break
+            pass_el.press("Enter")
         except Exception:
+            pass
+
+
+def _wait_after_login(page, account: str) -> None:
+    set_progress("Waiting for FNB after login")
+    for i in range(40):
+        page.wait_for_timeout(1500)
+        _dismiss_popups(page)
+        text = _all_text(page)
+        low = text.lower()
+        if any(w in low for w in PHONE_CONFIRM) and not _looks_logged_in(text, account):
+            set_progress(f"Waiting for FNB phone confirm ({(i + 1) * 2}s)")
             continue
-    try:
-        acc = page.get_by_text(account)
-        if acc.count():
-            acc.first.click(timeout=4000)
-            page.wait_for_timeout(600)
-    except Exception:
-        pass
-    for name in (
-        "Transaction history",
-        "Transactions",
-        "Live statement",
-        "Statement",
-        "Account activity",
-    ):
-        try:
-            link = page.get_by_role("link", name=re.compile(name, re.I))
-            if link.count():
-                link.first.click(timeout=3000)
-                page.wait_for_timeout(800)
-                _dismiss_popups(page)
-                break
-            btn = page.get_by_role("button", name=re.compile(name, re.I))
-            if btn.count():
-                btn.first.click(timeout=3000)
-                page.wait_for_timeout(800)
-                break
-        except Exception:
+        if _looks_logged_in(text, account):
+            set_progress("Logged in to FNB")
+            return
+        if _first_visible(page, "input[type='password']", timeout=200) is None and i > 3:
+            set_progress("Logged in to FNB")
+            return
+    _dump_page(page, "after-login")
+
+
+def _skip_devices(page) -> bool:
+    text = _all_text(page)
+    if page_kind(text) != "devices":
+        return False
+    set_progress("Skip devices")
+    return _click_named(page, ("Skip",))
+
+
+def _walk_to_statement(page, account: str) -> dict:
+    """Skip (if shown) → My bank accounts → Available → Statements. Path is not always the same."""
+    balances = {"balance": None, "available": None}
+    for _ in range(8):
+        _dismiss_popups(page)
+        text = _all_text(page)
+        kind = page_kind(text, account)
+        if kind == "devices":
+            _skip_devices(page)
+            page.wait_for_timeout(900)
             continue
+        if kind == "welcome":
+            set_progress("My bank accounts")
+            _click_named(page, ("My bank accounts", "My Bank Accounts", "Accounts"))
+            page.wait_for_timeout(900)
+            continue
+        if kind == "accounts":
+            got = parse_account_card(text, account)
+            if got.get("balance") is not None:
+                balances = got
+                avail = got.get("available")
+                set_progress(
+                    f"Available {avail if avail is not None else '—'} · opening statement"
+                )
+            _click_named(page, ("Statements", "Statement"))
+            page.wait_for_timeout(1100)
+            continue
+        if kind == "statement":
+            set_progress("On statement")
+            return balances
+        set_progress("Opening FNB pages")
+        _skip_devices(page)
+        _click_named(page, ("My bank accounts", "Accounts"))
+        _click_named(page, ("Statements", "Statement"))
+        page.wait_for_timeout(800)
+    return balances
 
 
-def _read_page_rows(page) -> list[dict]:
-    from books import parse_fnb_history, parse_fnb_online_table
+def _open_statement(page, account: str) -> dict:
+    return _walk_to_statement(page, account)
 
-    text = page.inner_text("body")
-    parsed = parse_fnb_online_table(text, "fnb-live")
-    rows = parsed.get("rows") or []
-    if not rows:
-        parsed = parse_fnb_history(text, "fnb-live")
-        rows = parsed.get("rows") or []
+
+def _tag_rows(rows: list[dict]) -> list[dict]:
+    out = []
     for row in rows:
+        row = dict(row)
         row["source"] = "fnb_live"
         row["account_number"] = row.get("account_number") or ACCOUNT
         row["account_name"] = row.get("account_name") or COMPANY["bank_account_name"]
         row["ours"] = 1
         row["filename"] = "fnb-live"
+        out.append(row)
+    return out
+
+
+def _read_page_rows(page) -> list[dict]:
+    from books import parse_fnb_history, parse_fnb_online_table
+
+    text = _all_text(page)
+    parsed = parse_fnb_online_table(text, "fnb-live")
+    rows = parsed.get("rows") or []
+    if not rows:
+        parsed = parse_fnb_history(text, "fnb-live")
+        rows = parsed.get("rows") or []
+    if not rows:
+        rows = parse_fnb_live_text(text)
     if rows:
-        return rows
-    # Table scrape when FNB paints a real HTML table.
-    tables = page.locator("table").all()
+        return _tag_rows(rows)
     out = []
-    for table in tables:
+    frames = []
+    try:
+        frames = list(page.frames)
+    except Exception:
+        frames = [page]
+    for frame in frames:
         try:
-            html_text = table.inner_text()
+            tables = frame.locator("table").all()
+        except Exception:
+            tables = []
+        for table in tables:
+            try:
+                html_text = table.inner_text()
+            except Exception:
+                continue
+            parsed = parse_fnb_online_table(html_text, "fnb-live")
+            if parsed.get("rows"):
+                out.extend(parsed["rows"])
+                continue
+            live = parse_fnb_live_text(html_text)
+            if live:
+                out.extend(live)
+                continue
+            try:
+                for tr in table.locator("tr").all():
+                    cells = [c.inner_text().strip() for c in tr.locator("th,td").all()]
+                    row = _row_from_cells(cells)
+                    if row:
+                        out.append(row)
+            except Exception:
+                continue
+        try:
+            for row_el in frame.locator("[role=row]").all():
+                cells = [
+                    c.inner_text().strip()
+                    for c in row_el.locator("[role=cell], [role=gridcell], [role=columnheader]").all()
+                ]
+                row = _row_from_cells(cells)
+                if row:
+                    out.append(row)
         except Exception:
             continue
-        parsed = parse_fnb_online_table(html_text, "fnb-live")
-        if parsed.get("rows"):
-            for row in parsed["rows"]:
-                row["source"] = "fnb_live"
-            out.extend(parsed["rows"])
-    return out
+    return _tag_rows(out)
+
+
+def _live_money(raw: str) -> float | None:
+    text = (raw or "").replace("\u00a0", " ").strip()
+    if not text:
+        return None
+    cr = bool(re.search(r"\bcr\b", text, re.I))
+    dr = bool(re.search(r"\bdr\b", text, re.I))
+    m = re.search(r"-?R?\s*([\d]+(?:[ ,]\d{3})*\.\d{2})", text)
+    if not m:
+        return None
+    val = float(m.group(1).replace(" ", "").replace(",", ""))
+    if text.lstrip().startswith("-") or dr:
+        val = -abs(val)
+    elif cr:
+        val = abs(val)
+    return val
+
+
+def _live_date(raw: str) -> str | None:
+    text = " ".join((raw or "").replace("\u00a0", " ").split())
+    m = re.match(r"^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$", text)
+    if m:
+        mon = {
+            "jan": "01",
+            "feb": "02",
+            "mar": "03",
+            "apr": "04",
+            "may": "05",
+            "jun": "06",
+            "jul": "07",
+            "aug": "08",
+            "sep": "09",
+            "oct": "10",
+            "nov": "11",
+            "dec": "12",
+        }.get(m.group(2)[:3].lower())
+        if mon:
+            return f"{m.group(3)}-{mon}-{int(m.group(1)):02d}"
+    m = re.match(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$", text)
+    if m:
+        day, month, year = int(m.group(1)), int(m.group(2)), m.group(3)
+        if month > 12 and day <= 12:
+            day, month = month, day
+        if 1 <= month <= 12 and 1 <= day <= 31:
+            return f"{year}-{month:02d}-{day:02d}"
+    m = re.match(r"^(\d{4})[/-](\d{2})[/-](\d{2})$", text)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+    return None
+
+
+def _live_date_prefix(line: str) -> tuple[str | None, str]:
+    text = (line or "").replace("\u00a0", " ").strip()
+    m = re.match(
+        r"^(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{4}|\d{4}[/-]\d{2}[/-]\d{2})",
+        text,
+    )
+    if not m:
+        return None, text
+    return _live_date(m.group(1)), text[m.end() :].strip()
+
+
+def _row_from_cells(cells: list[str]) -> dict | None:
+    if len(cells) < 3:
+        return None
+    day = None
+    day_i = None
+    for i, cell in enumerate(cells):
+        got = _live_date(cell)
+        if got:
+            day, day_i = got, i
+            break
+    if not day:
+        return None
+    monies = []
+    for i, cell in enumerate(cells):
+        if i == day_i:
+            continue
+        if not re.search(r"\.\d{2}", cell.replace(",", "")):
+            continue
+        val = _live_money(cell)
+        if val is not None:
+            monies.append((i, val))
+    if len(monies) < 2:
+        return None
+    amount, balance = monies[-2][1], monies[-1][1]
+    skip = {day_i, monies[-2][0], monies[-1][0]}
+    desc = " ".join(cells[i] for i in range(len(cells)) if i not in skip and cells[i] and _live_money(cells[i]) is None)
+    if not desc or desc.lower() in {"description", "details", "what"}:
+        return None
+    return {
+        "paid_on": day,
+        "amount": amount,
+        "balance": balance,
+        "description": desc,
+        "source": "fnb_live",
+    }
+
+
+def parse_fnb_live_text(text: str) -> list[dict]:
+    """FNB register as one line or 4 stacked cells. Not the old 6-line paste only."""
+    lines = [ln.replace("\u00a0", " ").rstrip() for ln in (text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    rows: list[dict] = []
+    i = 0
+    while i < len(lines):
+        day = _live_date(lines[i].strip())
+        if not day:
+            i += 1
+            continue
+        block = [ln.strip() for ln in lines[i + 1 : i + 6]]
+        if len(block) >= 5:
+            amount = _live_money(block[3])
+            balance = _live_money(block[4])
+            if amount is not None and balance is not None and _live_date(block[0]) is None:
+                desc = block[0]
+                if block[1]:
+                    desc = f"{desc} / {block[1]}".strip(" /")
+                rows.append(
+                    {
+                        "paid_on": day,
+                        "amount": amount,
+                        "balance": balance,
+                        "description": desc,
+                        "source": "fnb_live",
+                    }
+                )
+                i += 6
+                continue
+        if len(block) >= 3:
+            amount = _live_money(block[1])
+            balance = _live_money(block[2])
+            if amount is not None and balance is not None and block[0] and _live_money(block[0]) is None:
+                rows.append(
+                    {
+                        "paid_on": day,
+                        "amount": amount,
+                        "balance": balance,
+                        "description": block[0],
+                        "source": "fnb_live",
+                    }
+                )
+                i += 4
+                continue
+        i += 1
+    if rows:
+        return rows
+    money_re = re.compile(r"-?R?\s*[\d]+(?:[ ,]\d{3})*\.\d{2}")
+    for raw in lines:
+        day, rest = _live_date_prefix(raw)
+        if not day or not rest:
+            continue
+        rest = re.sub(r"^\d{1,2}:\d{2}(?::\d{2})?\s+", "", rest)
+        hits = list(money_re.finditer(rest))
+        if len(hits) < 2:
+            continue
+        amount = _live_money(hits[-2].group())
+        balance = _live_money(hits[-1].group())
+        desc = rest[: hits[-2].start()].strip()
+        if amount is None or balance is None or not desc:
+            continue
+        if desc.lower() in {"description", "details", "amount", "balance", "date"}:
+            continue
+        rows.append(
+            {
+                "paid_on": day,
+                "amount": amount,
+                "balance": balance,
+                "description": desc,
+                "source": "fnb_live",
+            }
+        )
+    return rows
 
 
 def parse_balances(text: str) -> dict:
@@ -728,22 +1194,39 @@ def parse_pending_table(text: str) -> list[dict]:
 
 
 def _click_named(page, names: tuple[str, ...]) -> bool:
+    frames = []
+    try:
+        frames = list(page.frames)
+    except Exception:
+        frames = [page]
+    if page not in frames:
+        frames = [page, *frames]
     for name in names:
-        for role in ("tab", "link", "button"):
+        pat = re.compile(rf"^{name}$", re.I)
+        loose = re.compile(name, re.I)
+        for frame in frames:
+            for role in ("tab", "link", "button"):
+                try:
+                    loc = frame.get_by_role(role, name=pat)
+                    if loc.count():
+                        loc.first.click(timeout=2000)
+                        return True
+                except Exception:
+                    continue
             try:
-                loc = page.get_by_role(role, name=re.compile(rf"^{name}$", re.I))
+                loc = frame.get_by_text(pat)
                 if loc.count():
                     loc.first.click(timeout=2000)
                     return True
             except Exception:
                 continue
-        try:
-            loc = page.get_by_text(re.compile(rf"^{name}$", re.I))
-            if loc.count():
-                loc.first.click(timeout=2000)
-                return True
-        except Exception:
-            continue
+            try:
+                loc = frame.locator("button, a, [role='button'], [role='tab']").filter(has_text=loose)
+                if loc.count():
+                    loc.first.click(timeout=2000)
+                    return True
+            except Exception:
+                continue
     return False
 
 
@@ -817,21 +1300,21 @@ def apply_alloc(conn: sqlite3.Connection, tx_id: int, kind: str, to: str) -> dic
     return {"ok": True, "id": int(tx_id), "kind": kind, "to": to}
 
 
-def fetch_live(env: dict[str, str] | None = None) -> dict:
+def ensure_channel_keys(env: dict[str, str] | None = None) -> dict:
+    """Subscribe On my own behalf and save Client ID/Secret. Same path Sage/Xero use."""
     env = env or _load_env()
+    if (env.get("FNB_CLIENT_ID") or "").strip() and (env.get("FNB_CLIENT_SECRET") or "").strip():
+        return {"ok": True, "has_api": True, "note": "keys already on the box"}
     user = (env.get("FNB_USERNAME") or "").strip()
     password = (env.get("FNB_PASSWORD") or "").strip()
-    account = (env.get("FNB_ACCOUNT_NUMBER") or ACCOUNT).strip()
     if not user or not password:
-        return {"ok": False, "error": "FNB username/password missing in /root/secrets/fnb.env", "rows": []}
+        return {"ok": False, "has_api": False, "note": "need FNB login to open Integration Channel"}
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        return {"ok": False, "error": "playwright not installed on the box", "rows": []}
-    rows: list[dict] = []
-    pending: list[dict] = []
-    balances = {"balance": None, "available": None}
-    note = ""
+        return {"ok": False, "has_api": False, "note": "playwright not installed on the box"}
+    found = {"client_id": "", "client_secret": ""}
+    set_progress("Opening FNB Integration Channel")
     with sync_playwright() as pw:
         try:
             browser = pw.chromium.launch(
@@ -839,43 +1322,152 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
                 args=["--disable-dev-shm-usage", "--no-sandbox"],
             )
         except Exception as exc:
+            return {"ok": False, "has_api": False, "note": f"fnb browser: {exc}"}
+        page = browser.new_page(viewport={"width": 1400, "height": 900})
+        try:
+            for url in LOGIN_URLS:
+                try:
+                    page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                    page.wait_for_timeout(1000)
+                    _fill_login(page, user, password)
+                    break
+                except Exception:
+                    continue
+            _wait_after_login(page, env.get("FNB_ACCOUNT_NUMBER") or ACCOUNT)
+            _skip_devices(page)
+            page.wait_for_timeout(800)
+            set_progress("Business solutions")
+            _click_named(page, ("Business solutions", "Business Solutions"))
+            page.wait_for_timeout(800)
+            set_progress("Integration Channel")
+            _click_named(page, ("Integration Channel", "Get Started"))
+            page.wait_for_timeout(1000)
+            _click_named(page, ("API",))
+            page.wait_for_timeout(600)
+            _click_named(page, ("Transaction History", "Transaction history"))
+            page.wait_for_timeout(600)
+            found = keys_from_channel_text(_all_text(page))
+            if not (found["client_id"] and found["client_secret"]):
+                set_progress("Subscribe On my own behalf")
+                _click_named(page, ("Subscribe",))
+                page.wait_for_timeout(700)
+                _click_named(page, ("On my own behalf", "On my own behalf "))
+                page.wait_for_timeout(500)
+                _click_named(page, ("REST API", "REST"))
+                page.wait_for_timeout(800)
+                found = keys_from_channel_text(_all_text(page))
+            if found["client_id"] and found["client_secret"]:
+                _save_env(
+                    {
+                        "FNB_CLIENT_ID": found["client_id"],
+                        "FNB_CLIENT_SECRET": found["client_secret"],
+                        "FNB_ACCOUNT_NUMBER": (env.get("FNB_ACCOUNT_NUMBER") or ACCOUNT),
+                    }
+                )
+                set_progress("Saved FNB API keys")
+                browser.close()
+                return {"ok": True, "has_api": True, "note": "Integration Channel keys saved"}
+            _dump_page(page, "channel-no-keys")
+            set_progress("No Client ID on Integration Channel")
+        except Exception as exc:
+            set_progress("Integration Channel failed", error=str(exc)[:180])
+            _dump_page(page, "channel-failed")
+            browser.close()
+            return {"ok": False, "has_api": False, "note": str(exc)[:180]}
+        browser.close()
+    return {"ok": False, "has_api": False, "note": "Client ID not on Integration Channel page"}
+
+
+def fetch_live(env: dict[str, str] | None = None) -> dict:
+    env = env or _load_env()
+    user = (env.get("FNB_USERNAME") or "").strip()
+    password = (env.get("FNB_PASSWORD") or "").strip()
+    account = (env.get("FNB_ACCOUNT_NUMBER") or ACCOUNT).strip()
+    if not user or not password:
+        set_progress("Need FNB login on the box", done=True, error="no login")
+        return {"ok": False, "error": "FNB username/password missing in /root/secrets/fnb.env", "rows": []}
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        set_progress("Playwright missing", done=True, error="playwright")
+        return {"ok": False, "error": "playwright not installed on the box", "rows": []}
+    rows: list[dict] = []
+    pending: list[dict] = []
+    balances = {"balance": None, "available": None}
+    note = ""
+    set_progress("Opening FNB")
+    with sync_playwright() as pw:
+        try:
+            browser = pw.chromium.launch(
+                headless=True,
+                args=["--disable-dev-shm-usage", "--no-sandbox"],
+            )
+        except Exception as exc:
+            set_progress("FNB browser failed", done=True, error=str(exc)[:180])
             return {"ok": False, "error": f"fnb browser: {exc}", "rows": [], "pending": []}
         page = browser.new_page(viewport={"width": 1400, "height": 900})
         last = ""
+        logged = False
         for url in LOGIN_URLS:
             try:
+                set_progress("Opening FNB login")
                 page.goto(url, wait_until="domcontentloaded", timeout=45000)
                 last = url
+                page.wait_for_timeout(1200)
+                _dismiss_popups(page)
+                set_progress("Logging in")
+                _fill_login(page, user, password)
+                logged = True
                 break
             except Exception as exc:
                 last = f"{url}: {exc}"
+                _dump_page(page, f"login-fail {url}")
                 continue
         try:
-            _fill_login(page, user, password)
-            page.wait_for_timeout(2500)
+            if not logged:
+                raise RuntimeError(last or "FNB login form not on the page")
+            _wait_after_login(page, account)
+            set_progress("Checking popup")
             _dismiss_popups(page)
-            page.wait_for_timeout(800)
+            page.wait_for_timeout(400)
+            _skip_devices(page)
+            page.wait_for_timeout(400)
+            got = _walk_to_statement(page, account)
+            if got.get("balance") is not None:
+                balances.update(got)
             _dismiss_popups(page)
-            _open_statement(page, account)
-            page.wait_for_timeout(1200)
-            _dismiss_popups(page)
-            _click_named(page, ("Successful", "Posted", "Transactions"))
-            page.wait_for_timeout(600)
+            set_progress("Reading posted")
+            _click_named(page, ("Successful", "Posted", "Successful transactions", "Transactions"))
+            page.wait_for_timeout(900)
             rows = _read_page_rows(page)
-            balances = parse_balances(page.inner_text("body"))
-            _click_named(page, ("Pending",))
+            if not rows:
+                set_progress("No rows yet · still reading FNB")
+                page.wait_for_timeout(2000)
+                rows = _read_page_rows(page)
+            balances = parse_balances(_all_text(page))
+            set_progress(f"Posted {len(rows)} · reading pending")
+            _click_named(page, ("Pending", "Pending transactions"))
             page.wait_for_timeout(800)
             _dismiss_popups(page)
-            pending = parse_pending_table(page.inner_text("body"))
+            pending = parse_pending_table(_all_text(page))
             if not pending:
-                for table in page.locator("table").all():
+                for frame in list(getattr(page, "frames", []) or []):
                     try:
-                        pending.extend(parse_pending_table(table.inner_text()))
+                        for table in frame.locator("table").all():
+                            pending.extend(parse_pending_table(table.inner_text()))
                     except Exception:
                         continue
             note = f"live {last} rows={len(rows)} pending={len(pending)}"
+            if rows or pending:
+                set_progress(f"Got {len(rows)} posted, {len(pending)} pending")
+            else:
+                _dump_page(page, "no-rows")
+                set_progress("On FNB but no statement rows", error="no statement rows")
+                note = f"live-empty {last} url={getattr(page, 'url', '')}"
         except Exception as exc:
             note = f"live-failed: {exc}"
+            set_progress("FNB read failed", error=str(exc)[:180])
+            _dump_page(page, "read-failed")
             rows = []
         browser.close()
     return {
@@ -885,6 +1477,7 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
         "balance": balances.get("balance"),
         "available": balances.get("available"),
         "note": note,
+        "error": None if (rows or pending) else (note or "FNB statement not read"),
         "via": "fnb-live",
     }
 
@@ -892,42 +1485,64 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
 def pull(conn: sqlite3.Connection | None = None) -> dict:
     own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB))
     fetched_at = datetime.now().strftime("%Y-%m-%d %H:%M")
-    live = fetch_live()
-    rows = live.get("rows") or []
-    added = insert_new(own, rows)
-    pending = replace_pending(own, live.get("pending") or [])
-    balance = live.get("balance")
-    if balance is None and rows:
-        with_bal = [r for r in rows if r.get("balance") is not None]
-        if with_bal:
-            balance = with_bal[0].get("balance")
-    if balance is None:
-        balance = system_balance(own)
-    pending_amt = round(sum(abs(float(p.get("amount") or 0)) for p in pending), 2)
-    available = live.get("available")
-    if available is None and balance is not None:
-        available = round(float(balance) - pending_amt, 2)
-    pack = {
-        "ok": bool(live.get("ok") or added.get("inserted")),
-        "via": "fnb-live",
-        "fetched_at": fetched_at,
-        "rows_seen": len(rows),
-        "inserted": added["inserted"],
-        "allocated": added["allocated"],
-        "need_recon": added["need_recon"],
-        "need_recon_amount": added["need_recon_amount"],
-        "attention": added["attention"],
-        "pending": pending,
-        "pending_amount": pending_amt,
-        "balance": balance,
-        "available": available,
-        "note": live.get("note") or live.get("error") or "",
-        "error": None if live.get("ok") or rows else (live.get("error") or live.get("note")),
-    }
-    _record_fetch(own, pack)
-    if conn is None:
-        own.close()
-    return pack
+    set_progress("Fetching FNB")
+    try:
+        live = fetch_live()
+        rows = live.get("rows") or []
+        if rows:
+            set_progress(f"Allocating {len(rows)} rows")
+        added = insert_new(own, rows)
+        pending = replace_pending(own, live.get("pending") or [])
+        balance = live.get("balance")
+        if balance is None and rows:
+            with_bal = [r for r in rows if r.get("balance") is not None]
+            if with_bal:
+                balance = with_bal[0].get("balance")
+        if balance is None:
+            balance = system_balance(own)
+        pending_amt = round(sum(abs(float(p.get("amount") or 0)) for p in pending), 2)
+        available = live.get("available")
+        if available is None and balance is not None:
+            available = round(float(balance) - pending_amt, 2)
+        pack = {
+            "ok": bool(live.get("ok") or added.get("inserted")),
+            "via": "fnb-live",
+            "fetched_at": fetched_at,
+            "rows_seen": len(rows),
+            "inserted": added["inserted"],
+            "allocated": added["allocated"],
+            "need_recon": added["need_recon"],
+            "need_recon_amount": added["need_recon_amount"],
+            "attention": added["attention"],
+            "pending": pending,
+            "pending_amount": pending_amt,
+            "balance": balance,
+            "available": available,
+            "note": live.get("note") or live.get("error") or "",
+            "error": None if live.get("ok") or rows else (live.get("error") or live.get("note")),
+        }
+        _record_fetch(own, pack)
+        if pack.get("ok"):
+            set_progress(
+                f"Done · {pack['inserted']} new of {pack['rows_seen']} posted",
+                done=True,
+                inserted=pack["inserted"],
+                rows_seen=pack["rows_seen"],
+            )
+        else:
+            set_progress(
+                pack.get("error") or pack.get("note") or "FNB fetch failed",
+                done=True,
+                error=pack.get("error") or pack.get("note"),
+            )
+        if conn is None:
+            own.close()
+        return pack
+    except Exception as exc:
+        if conn is None:
+            own.close()
+        set_progress("FNB fetch failed", done=True, error=str(exc)[:180])
+        raise
 
 
 def _when_label(stamp: str | None) -> str | None:
@@ -1118,6 +1733,66 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK when-label")
+    live_rows = parse_fnb_live_text(
+        "06 Oct 2026 G CUPIDO 760.00 5,314.66\n"
+        "05 Oct 2026 PAYFAST*Host Africa Oct -520.00 4,554.66\n"
+        "01 Oct 2026 RSAWEB 436784018 NETCASH 0.00 -2,223.94 5,074.66\n"
+    )
+    stacked = parse_fnb_live_text("06 Oct 2026\nG CUPIDO\n760.00\n5,314.66\n")
+    if (
+        len(live_rows) != 3
+        or live_rows[0]["amount"] != 760
+        or live_rows[0]["balance"] != 5314.66
+        or live_rows[0]["paid_on"] != "2026-10-06"
+        or "CUPIDO" not in live_rows[0]["description"]
+        or live_rows[1]["amount"] != -520
+        or live_rows[2]["amount"] != -2223.94
+        or len(stacked) != 1
+        or stacked[0]["amount"] != 760
+    ):
+        print("FAIL live-parse", live_rows, stacked)
+        failed += 1
+    else:
+        print("OK live-parse")
+    fill = Path(__file__).read_text().split("def _fill_login", 1)[-1].split("def _wait_after_login", 1)[0]
+    if "get_by_label" in fill:
+        print("FAIL login-no-label-hang")
+        failed += 1
+    else:
+        print("OK login-waits-for-form")
+    set_progress("Opening FNB")
+    prog = read_progress()
+    if prog.get("step") != "Opening FNB" or prog.get("done"):
+        print("FAIL progress", prog)
+        failed += 1
+    else:
+        print("OK progress")
+    if page_kind("My Devices and Browsers Manage devices Skip") != "devices":
+        print("FAIL page-devices")
+        failed += 1
+    elif page_kind("Welcome Kevin Weaving My bank accounts") != "welcome":
+        print("FAIL page-welcome")
+        failed += 1
+    elif page_kind("Gowifi FNB Main 62860060278 R 5,314.66 R 4,815.44 Available Balance") != "accounts":
+        print("FAIL page-accounts")
+        failed += 1
+    elif page_kind("Successful Pending Date Description Amount Balance 06 Oct 2026 G CUPIDO") != "statement":
+        print("FAIL page-statement")
+        failed += 1
+    else:
+        print("OK page-kind-varies")
+    card_bal = parse_account_card("Gowifi FNB Main 62860060278 R 5,314.66 R 4,815.44")
+    if card_bal.get("balance") != 5314.66 or card_bal.get("available") != 4815.44:
+        print("FAIL account-card", card_bal)
+        failed += 1
+    else:
+        print("OK account-available")
+    keys = keys_from_channel_text("Client ID: abcdefghijklmnop\nClient Secret: qrstuvwxyz1234567890")
+    if keys["client_id"] != "abcdefghijklmnop" or keys["client_secret"] != "qrstuvwxyz1234567890":
+        print("FAIL channel-keys", keys)
+        failed += 1
+    else:
+        print("OK channel-keys")
     conn.close()
     return failed
 

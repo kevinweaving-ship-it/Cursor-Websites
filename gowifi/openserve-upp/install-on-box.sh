@@ -123,7 +123,7 @@ import sys
 conf, block = Path(sys.argv[1]), Path(sys.argv[2]).read_text()
 text = conf.read_text()
 pat = re.compile(
-    r"(?:# Included from[^\n]*\n)?location = /legal/fnb-status \{.*?location = /legal/fnb-card \{.*?\n\}",
+    r"(?:# Included from[^\n]*\n)?(?:location = /legal/fnb-[a-z]+ \{.*?\n\}\n*)+",
     re.S,
 )
 if pat.search(text):
@@ -145,6 +145,7 @@ CRON_LINE='*/15 * * * * UPP_DB=/root/gowifi-upp/upp.db /usr/bin/python3 /root/go
 CRON_FNB='*/30 * * * * UPP_DB=/root/gowifi-upp/upp.db /usr/bin/python3 /root/gowifi-upp/fnb_api.py pull >> /var/log/gowifi-fnb-fetch.log 2>&1'
 (crontab -l 2>/dev/null | grep -v 'gowifi-upp/sync.py' | grep -v 'fnb_api.py pull' | grep -v 'fnb_statement.py pull' || true; echo "$CRON_LINE"; echo "$CRON_FNB") | crontab -
 python3 -m pip install -q playwright >/dev/null 2>&1 || true
+python3 -m playwright install-deps chromium >/dev/null 2>&1 || true
 python3 -m playwright install chromium >/dev/null 2>&1 || true
 if [ -f "$DEST/ensure_go_wifi_mail.sh" ]; then
   bash "$DEST/ensure_go_wifi_mail.sh"
