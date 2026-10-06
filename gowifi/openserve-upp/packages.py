@@ -127,7 +127,7 @@ EXTRAS = [
     {"code": "addon", "label": "Add-on", "amount": None, "on_monthly_do": False, "kind": "once-off",
      "note": "Static IP, extra AP. Invoice separately."},
     {"code": "reconnect", "label": "Reconnection", "amount": 250.00, "on_monthly_do": False, "kind": "once-off",
-     "note": "Restore after a credit suspend. Not a new install."},
+     "note": "Un-suspend after non-payment. Once-off penalty so the client sees the cost of not paying. Not on the monthly D/O. Not a new install."},
 ]
 
 WHOLESALE_SCHEMA = """
@@ -542,11 +542,17 @@ def self_test() -> int:
     else:
         print("OK stored-in-sqlite", stored[0])
     conn.close()
-    if any(x["on_monthly_do"] for x in extras()):
+    extra = extras()
+    rec = next((x for x in extra if x["code"] == "reconnect"), None)
+    if any(x["on_monthly_do"] for x in extra):
         print("FAIL extras-on-do")
+        failed += 1
+    elif not rec or rec.get("on_monthly_do") or "penalty" not in (rec.get("note") or "").lower():
+        print("FAIL reconnect-penalty", rec)
         failed += 1
     else:
         print("OK extras-not-on-monthly-do")
+        print("OK reconnect-once-off-penalty")
     return failed
 
 

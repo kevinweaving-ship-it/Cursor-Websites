@@ -53,6 +53,19 @@ KNOWN_MONTHLY = {
 }
 
 ASK = "Need full invoice PDF — split install / equipment / fees"
+RECONNECT_MARKERS = (
+    "reconnection",
+    "reconnect",
+    "un-suspend",
+    "unsuspend",
+    "un suspend",
+    "restore after suspend",
+    "restore after a credit suspend",
+)
+RECONNECT_WHY = (
+    "Reconnection after unpaid · un-suspend penalty. "
+    "Once-off, not on the monthly D/O — so the client sees the cost of not paying."
+)
 MONTHLY_WHAT = {
     "fibre": "Fibre line rental (month in advance)",
     "wireless": "Wireless line rental (month in advance)",
@@ -86,6 +99,11 @@ def _closed(name: str) -> bool:
     return "deleted" in (name or "").lower()
 
 
+def is_reconnect_text(*parts: str) -> bool:
+    blob = " ".join(str(p or "") for p in parts).lower()
+    return any(m in blob for m in RECONNECT_MARKERS)
+
+
 def _classify_amount(key: str, amount: float, count: int, counts: Counter) -> str:
     amount = _money(amount)
     known = _rates_for(key)
@@ -106,6 +124,8 @@ def _why(inv: dict, kind: str, monthly_now: float | None, count: int) -> str:
         what = MONTHLY_WHAT.get((client_row(inv["name"]) or {}).get("access") or "", "Monthly line rental")
         return f"{what} · R{_money(inv['amount']):.2f}"
     memo = (inv.get("memo") or "").strip()
+    if is_reconnect_text(memo):
+        return RECONNECT_WHY
     if "install" in memo.lower():
         return f"Memo says install — {ASK}"
     if count == 1 and monthly_now:
@@ -148,7 +168,10 @@ def classify(as_at: date | None = None) -> dict:
         history = sorted({_money(a) for a, n in counts.items() if _classify_amount(key, a, n, counts) == "monthly"})
         for inv in sorted(items, key=lambda r: (r.get("date") or "", r.get("number") or "")):
             amount = _money(inv["amount"])
-            kind = _classify_amount(key, amount, counts[amount], counts)
+            if is_reconnect_text(inv.get("memo") or ""):
+                kind = "query"
+            else:
+                kind = _classify_amount(key, amount, counts[amount], counts)
             rec = {
                 "number": str(inv.get("number") or ""),
                 "date": inv.get("date"),
@@ -158,6 +181,7 @@ def classify(as_at: date | None = None) -> dict:
                 "open": _money(inv.get("open")),
                 "memo": inv.get("memo") or "",
                 "kind": kind,
+                "family": "reconnect" if is_reconnect_text(inv.get("memo") or "") else kind,
                 "access": access,
                 "pay": pay,
                 "monthly_now": monthly_now,
@@ -214,6 +238,8 @@ def classify(as_at: date | None = None) -> dict:
             "Repeating mid-month amounts are monthly line rental. "
             "Odd amounts are queries — send the full invoice PDF so we can "
             "split install / equipment / fees. Do not put those on the monthly D/O. "
+            "Reconnection / un-suspend is a once-off penalty after non-payment, "
+            "not a standard monthly invoice. "
             "QB open is historical, not current cycle due. "
             "5 Oct 2026 D/O is authorised, not collected."
         ),
@@ -310,6 +336,11 @@ def self_test() -> int:
         (by_no.get("2772") or {}).get("what") or (by_no.get("2772") or {}).get("why") or ""
     ).lower():
         print("FAIL paltco-offset-invoice", by_no.get("2772"))
+        failed += 1
+    elif not is_reconnect_text("Un-suspend after credit suspend", "Reconnection") or is_reconnect_text(
+        "WebStream 50/25 Uncapped"
+    ):
+        print("FAIL reconnect-text")
         failed += 1
     else:
         print(

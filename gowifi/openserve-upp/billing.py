@@ -604,7 +604,8 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
             "and collected next month on the 1st (5 Oct this cycle only). "
             "Full D/O clears the invoice; Netcash fees are a company cost. "
             "Wireless and EFT clients are on the same 17th cycle. "
-            "Install, equipment, add-ons and reconnection are once-off, not on the D/O."
+            "Install, equipment, add-ons and reconnection (un-suspend after non-payment) "
+            "are once-off penalties, not on the D/O."
         ),
         "pending_do": pending,
         "do_action_date": do_action_date(inv_day).isoformat(),
@@ -768,6 +769,12 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK once-off-extras")
+    rec = next((x for x in extra if x["code"] == "reconnect"), None)
+    if rec and "penalty" not in (rec.get("note") or "").lower():
+        print("FAIL reconnect-penalty-note", rec)
+        failed += 1
+    else:
+        print("OK reconnect-not-on-do")
     paltco = next(c for c in CLIENTS if c["name"] == "Paltco")
     if paltco.get("access") != "offset" or not paltco.get("not_a_client") or paltco.get("sku"):
         print("FAIL paltco-offset", paltco)

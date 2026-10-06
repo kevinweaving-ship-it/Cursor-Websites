@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Client statements from QB invoices + FNB EFT + Netcash D/O.
+"""Client statements: invoices vs EFT / D/O. Forget QuickBooks open flags.
 
-Books rule (not rocket science):
-- Invoice on the 17th, month in advance. Sep invoice → Oct D/O batch.
-- Collection is the 1st of the next month (5 Oct 2026 was the missed-load slot).
-- Look up that Netcash batch for the client: paid or unpaid.
-- Paid D/O clears that invoice in full. Unpaid stays due.
-- If unpaid, a named FNB EFT (client ref) can catch up. Next month is a new batch.
-- Payment source is Netcash (D/O) or FNB (named EFT). Do not invent unpaids from
-  Netcash clearing / refund memos on FNB (HAVENGA REFUND is not a client bounce).
-- Cupido is the only 2026 Netcash unpaid.
+Simple books:
+- First month (new fibre): install + pro-rata / first month invoice. Payment is
+  usually EFT.
+- Next months on D/O: invoice + D/O. Amounts still match after a price change.
+- D/O is paid unless that Netcash batch says unpaid / returned.
+- Unpaid D/O can be caught up by a named FNB EFT. EFT applies to the oldest
+  open invoice first.
+- Reconnection / un-suspend is a once-off penalty after non-payment — not a
+  standard monthly invoice and not on the D/O. It stays due until a named EFT
+  so the client sees the cost of not paying.
+- Statement is every invoice vs every EFT or D/O. No invented unpaids from
+  FNB Netcash clearing / HAVENGA REFUND.
 """
 from __future__ import annotations
 
@@ -32,6 +35,7 @@ from billing import (
 )
 from invoice_canned import statement_on_invoice
 from invoice_list import classify as classify_invoices
+from invoice_list import is_reconnect_text
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 INVOICES_JSON = DATA_DIR / "qb_invoices.json"
@@ -42,6 +46,8 @@ SALES_XLS = DATA_DIR / "sales.xls"
 SALES_REG_JSON = DATA_DIR / "qb_sales_register.json"
 DELETED_STATUSES = {"deleted", "void", "voided"}
 GRACE_DAYS = 7
+RECONNECT_LABEL = "Reconnection after unpaid · un-suspend penalty"
+NOT_ON_MONTHLY_DO = frozenset({"reconnect", "install", "do-return", "equipment", "fee"})
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS customer_invoices (
@@ -129,9 +135,13 @@ def _kind_of_line(product: str, description: str, amount: float) -> str:
     blob = f"{product} {description}".lower()
     if amount < 0:
         return "credit"
+    if is_reconnect_text(blob):
+        return "reconnect"
     if any(w in blob for w in ("install", "cabling", "setup fee", "fibre installation")):
         return "install"
-    if any(w in blob for w in ("router", "hardware", "ubiquiti", "aircube", "nano", "cudy", "bracket", "ont")):
+    if any(w in blob for w in ("router", "hardware", "ubiquiti", "aircube", "cudy")):
+        return "equipment"
+    if re.search(r"\b(nano|ont|bracket)\b", blob):
         return "equipment"
     if "rental" in blob:
         return "rental"
@@ -139,11 +149,60 @@ def _kind_of_line(product: str, description: str, amount: float) -> str:
         return "monthly"
     if "debit order return" in blob or "do return" in blob:
         return "do-return"
-    if any(w in blob for w in ("cancel", "reconnection", "reconnect")):
+    if any(w in blob for w in ("cancel", "early cancellation")):
         return "fee"
     if any(w in blob for w in ("monthly", "webstream", "wifi -", "gowifi", "fibre", "fiber", "uncapped", "contribution")):
         return "monthly"
     return "other"
+
+
+def _family_from_lines(line_kinds: list[str], memo: str = "", list_kind: str = "") -> str:
+    kinds = {k for k in line_kinds if k}
+    if "reconnect" in kinds or is_reconnect_text(memo):
+        return "reconnect"
+    if "do-return" in kinds:
+        return "do-return"
+    if list_kind == "monthly":
+        return "monthly"
+    if "install" in kinds:
+        return "install"
+    if "equipment" in kinds:
+        return "equipment"
+    if "fee" in kinds and not (kinds & {"monthly", "rental"}):
+        return "fee"
+    if list_kind and list_kind != "monthly":
+        return "extra"
+    return "monthly"
+
+
+def _invoice_families(conn: sqlite3.Connection, kind_by_no: dict[str, str] | None = None) -> dict[str, str]:
+    """monthly vs once-off (reconnect / install / D/O return). Memo + lines win over amount."""
+    if kind_by_no is None:
+        classified = classify_invoices()
+        kind_by_no = {
+            r["number"]: r.get("family") or r["kind"]
+            for r in (classified.get("queries") or []) + (classified.get("monthly") or [])
+        }
+    by_no: dict[str, list[str]] = {}
+    memos: dict[str, str] = {}
+    try:
+        for rec in conn.execute("SELECT invoice_number, kind FROM customer_invoice_lines"):
+            by_no.setdefault(str(rec[0]), []).append(rec[1] or "")
+        for rec in conn.execute("SELECT invoice_number, description FROM customer_invoices"):
+            memos[str(rec[0])] = rec[1] or ""
+    except sqlite3.OperationalError:
+        pass
+    out: dict[str, str] = {}
+    for no in set(by_no) | set(memos) | set(kind_by_no):
+        listed = kind_by_no.get(no) or ""
+        if listed == "reconnect":
+            list_kind = "query"
+            memo = memos.get(no) or "reconnection"
+        else:
+            list_kind = listed
+            memo = memos.get(no) or ""
+        out[no] = _family_from_lines(by_no.get(no) or [], memo, list_kind)
+    return out
 
 
 def ingest(conn: sqlite3.Connection) -> dict:
@@ -171,7 +230,10 @@ def ingest(conn: sqlite3.Connection) -> dict:
     lines = list(sales.get("rows") or [])
     credits = list(sales.get("credits") or [])
     classified = classify_invoices()
-    kind_by_no = {r["number"]: r["kind"] for r in (classified.get("queries") or []) + (classified.get("monthly") or [])}
+    kind_by_no = {
+        r["number"]: r.get("family") or r["kind"]
+        for r in (classified.get("queries") or []) + (classified.get("monthly") or [])
+    }
 
     n_inv = 0
     for row in invoices:
@@ -356,9 +418,18 @@ def _apply_bank_matches(conn: sqlite3.Connection) -> int:
     return n
 
 
+# Invoice 3106: D/O return ×2, EFT catch-up Aug/Sep. Oct 5 batch 2571994 unpaid.
+DO_RETURNED_MONTHS = {
+    "g cupido": {"2026-08", "2026-09"},
+}
+
+
 def _do_unpaid_months(conn: sqlite3.Connection) -> set[tuple[str, str]]:
-    """Only a Netcash batch marked unpaid (Cupido Oct 2026). Not FNB clearing memos."""
+    """Netcash unpaid / D/O return months. Not FNB clearing memos. Not invented."""
     out: set[tuple[str, str]] = set()
+    for key, months in DO_RETURNED_MONTHS.items():
+        for month in months:
+            out.add((key, month))
     try:
         for rec in conn.execute(
             "SELECT action_date, customer, result, source FROM customer_do_events"
@@ -366,6 +437,12 @@ def _do_unpaid_months(conn: sqlite3.Connection) -> set[tuple[str, str]]:
             if (rec[2] or "").lower() not in {"unpaid", "bounced"}:
                 continue
             if "netcash" not in (rec[3] or "").lower():
+                continue
+            out.add((canon_key(rec[1]), (rec[0] or "")[:7]))
+        for rec in conn.execute(
+            "SELECT paid_on, alloc_to, result FROM netcash_tx WHERE alloc_kind='client_unpaid'"
+        ):
+            if (rec[2] or "").lower() not in {"unpaid", "bounced"}:
                 continue
             out.add((canon_key(rec[1]), (rec[0] or "")[:7]))
     except sqlite3.OperationalError:
@@ -387,6 +464,7 @@ def _already_paid(conn: sqlite3.Connection, key: str, day: str, amount: float) -
 def _synth_do(conn: sqlite3.Connection, kind_by_no: dict[str, str]) -> int:
     """Collected D/O for monthly invoices. Skip unpaid / bounced months from Netcash."""
     bounced = _do_unpaid_months(conn)
+    families = _invoice_families(conn, kind_by_no)
     cutoff = date.fromisoformat(PENDING_DO["action_date"])
     if PENDING_DO.get("collected"):
         cutoff = add_months(cutoff, 0)
@@ -401,7 +479,8 @@ def _synth_do(conn: sqlite3.Connection, kind_by_no: dict[str, str]) -> int:
         book = client_row(customer)
         if not book or book.get("method") != "debit-order":
             continue
-        if kind_by_no.get(str(number)) != "monthly":
+        family = families.get(str(number)) or kind_by_no.get(str(number)) or "monthly"
+        if family != "monthly":
             continue
         try:
             day = date.fromisoformat(inv_date)
@@ -615,15 +694,19 @@ def living_books(name: str, path: Path | None = None) -> tuple[list[dict], list[
     return invoices, payments
 
 
-def _stmt_desc(text: str | None) -> str:
+def _stmt_desc(text: str | None, line_kind: str | None = None) -> str:
     """One short label. We are GoWiFi — never repeat the name on a line."""
     from invoice_canned import clean_description
 
+    if (line_kind or "") == "reconnect" or is_reconnect_text(text):
+        return RECONNECT_LABEL
     t = clean_description(text)
     t = re.sub(r"(?i)\bgowifi\b", "", t)
     t = t.replace("Fiber", "Fibre")
     t = re.sub(r"\s+", " ", t).strip(" -·")
     low = t.lower()
+    if (line_kind or "") == "reconnect" or is_reconnect_text(low):
+        return RECONNECT_LABEL
     if any(
         w in low
         for w in (
@@ -649,11 +732,14 @@ def _fold_invoice_what(lines: list[dict], conn: sqlite3.Connection | None) -> li
         no = str(row.get("ref") or "")
         bits = []
         for item in _sales_lines(no, conn):
-            text = _stmt_desc(item.get("what") or "")
+            text = _stmt_desc(item.get("what") or "", item.get("line_kind"))
             if text and text not in bits:
                 bits.append(text)
         rec = dict(row)
-        rec["what"] = f"Invoice {no} {' · '.join(bits)}".strip() if bits else f"Invoice {no}"
+        if (row.get("family") or "") == "reconnect" or is_reconnect_text(row.get("what"), " ".join(bits)):
+            rec["what"] = f"Invoice {no} · {RECONNECT_LABEL}"
+        else:
+            rec["what"] = f"Invoice {no} {' · '.join(bits)}".strip() if bits else f"Invoice {no}"
         out.append(rec)
     return out
 
@@ -697,6 +783,9 @@ def invoice_due_on(inv: dict, book: dict | None) -> date | None:
     from invoice_canned import parse_day
 
     raw = inv.get("due_date") or inv.get("due") or inv.get("due_on")
+    family = (inv.get("family") or "").lower()
+    if family in NOT_ON_MONTHLY_DO:
+        return parse_day(raw) or parse_day(inv.get("invoice_date") or inv.get("date"))
     if book and book.get("method") == "debit-order":
         inv_day = parse_day(inv.get("invoice_date") or inv.get("date"))
         if inv_day:
@@ -765,7 +854,7 @@ def _sales_lines(number: str, conn: sqlite3.Connection | None = None) -> list[di
     if conn is not None:
         try:
             for rec in conn.execute(
-                """SELECT product, description, amount FROM customer_invoice_lines
+                """SELECT product, description, amount, kind FROM customer_invoice_lines
                    WHERE invoice_number=? ORDER BY line_no""",
                 (str(number),),
             ):
@@ -774,6 +863,7 @@ def _sales_lines(number: str, conn: sqlite3.Connection | None = None) -> list[di
                         "what": clean_description(rec[1] or rec[0]),
                         "amount": _money(rec[2]),
                         "kind": "line",
+                        "line_kind": rec[3] or "",
                     }
                 )
         except sqlite3.OperationalError:
@@ -788,6 +878,11 @@ def _sales_lines(number: str, conn: sqlite3.Connection | None = None) -> list[di
                 "what": clean_description(row.get("description") or row.get("product")),
                 "amount": _money(row.get("amount")),
                 "kind": "line",
+                "line_kind": _kind_of_line(
+                    row.get("product") or "",
+                    row.get("description") or "",
+                    _money(row.get("amount")),
+                ),
             }
         )
     return out
@@ -877,21 +972,28 @@ def fifo_statement(
         billed = round(billed + amt, 2)
         balance = round(balance + amt, 2)
         no = str(inv.get("invoice_number") or "")
+        family = (inv.get("family") or "monthly").lower()
         due_on = invoice_due_on(inv, book)
         inv_row = {
             "date": inv.get("invoice_date"),
             "date_fmt": fmt_date(inv.get("invoice_date")),
             "kind": "invoice",
             "ref": no,
-            "what": f"Invoice {no}",
+            "what": f"Invoice {no} · {RECONNECT_LABEL}" if family == "reconnect" else f"Invoice {no}",
             "amount": amt,
             "balance": balance,
             "open": amt,
             "due_on": due_on.isoformat() if due_on else None,
+            "family": family,
         }
         lines.append(inv_row)
         need = amt
-        collect_day = due_on.isoformat() if due_on and book and book.get("method") == "debit-order" else None
+        monthly_do = (
+            book
+            and book.get("method") == "debit-order"
+            and family not in NOT_ON_MONTHLY_DO
+        )
+        collect_day = due_on.isoformat() if due_on and monthly_do else None
 
         def _is_do(p: dict) -> bool:
             return (p.get("method") or "").lower() in {"do", "debit", "debit-order"} or (
@@ -940,8 +1042,7 @@ def fifo_statement(
         inv_row["open"] = need
         if (
             need > 0.004
-            and book
-            and book.get("method") == "debit-order"
+            and monthly_do
         ):
             try:
                 inv_day = date.fromisoformat(str(inv.get("invoice_date") or "")[:10])
@@ -1006,6 +1107,8 @@ def fifo_statement(
             continue
         if not book or book.get("method") != "debit-order":
             continue
+        if (inv_row.get("family") or "monthly") in NOT_ON_MONTHLY_DO:
+            continue
         try:
             inv_day = date.fromisoformat(str(inv_row.get("date") or "")[:10])
             collect = collection_for(inv_day)
@@ -1015,7 +1118,7 @@ def fifo_statement(
             continue
         if (key, collect.isoformat()[:7]) in unpaid_months:
             continue
-        # Paid Netcash run (or no unpaid recorded) clears the invoice in full.
+        # Paid Netcash run (or no unpaid recorded) clears the monthly invoice in full.
         paid = round(paid + need, 2)
         balance = round(balance - need, 2)
         no = str(inv_row.get("ref") or "")
@@ -1137,6 +1240,11 @@ def account_as_at(
     payments = [p for p in payments if (p.get("paid_on") or "")[:10] <= cut]
     all_inv = [i for i in all_inv if (i.get("invoice_date") or "")[:10] <= cut]
     all_pay = [p for p in all_pay if (p.get("paid_on") or "")[:10] <= cut]
+    families = _invoice_families(conn)
+    for row in invoices + all_inv:
+        no = str(row.get("invoice_number") or "")
+        if no in families:
+            row["family"] = families[no]
     do_events = _bounces(conn, key)
     unpaid_do = [
         b
@@ -1252,6 +1360,7 @@ def for_export(conn: sqlite3.Connection, today: date | None = None) -> dict:
         "note": (
             "Due is as at today. D/O is grace until reconciled. "
             "A bounce stays due and raises a suspension notice. "
+            "Reconnection / un-suspend is a once-off penalty, not on the monthly D/O. "
             "5 Oct 2026 batch 2571994 collected — Cupido unpaid. No other 2026 Netcash unpaid."
         ),
         "count": len(cards),
@@ -1441,6 +1550,10 @@ def self_test() -> int:
     )
     cup = account_as_at(conn, "G Cupido", today)
     cup_unpaid = [r for r in (cup.get("ledger") or []) if r.get("kind") == "unpaid"]
+    cup_3125 = next(
+        (r for r in (cup.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "3125"),
+        None,
+    )
     amoroc_3107 = next((r for r in all_inv if str(r.get("ref")) == "3107"), None)
     marlene_over = [
         r
@@ -1450,8 +1563,8 @@ def self_test() -> int:
     if not early_3115 or early_3115.get("tone") != "pending":
         print("FAIL nord-3115-should-be-orange-before-due", early_3115)
         failed += 1
-    elif not cup_unpaid or (cup.get("due") or 0) < 0.02:
-        print("FAIL cupido-only-unpaid", cup.get("due"), cup_unpaid)
+    elif not cup_unpaid or not cup_3125:
+        print("FAIL cupido-only-unpaid", cup.get("due"), cup_unpaid, cup_3125)
         failed += 1
     elif not amoroc_3107 or amoroc_3107.get("tone") != "matched":
         print("FAIL amoroc-3107-not-blue", amoroc_3107)
@@ -1525,6 +1638,97 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK jean-geocorp-do-paid", jean.get("due"), geo.get("due"))
+    if _kind_of_line("Reconnection", "Un-suspend after credit suspend", 250) != "reconnect":
+        print("FAIL reconnect-line-kind")
+        failed += 1
+    elif _kind_of_line("WebStream", "50/25 Uncapped", 759) != "monthly":
+        print("FAIL monthly-not-reconnect")
+        failed += 1
+    elif _stmt_desc("Reconnection fee") != RECONNECT_LABEL:
+        print("FAIL reconnect-label", _stmt_desc("Reconnection fee"))
+        failed += 1
+    else:
+        rec_open = fifo_statement(
+            [
+                {
+                    "invoice_number": "4001",
+                    "invoice_date": "2026-08-17",
+                    "customer": "G Cupido",
+                    "amount": 759,
+                    "source": "qb-list",
+                    "family": "monthly",
+                },
+                {
+                    "invoice_number": "4002",
+                    "invoice_date": "2026-09-10",
+                    "customer": "G Cupido",
+                    "amount": 250,
+                    "source": "qb-list",
+                    "family": "reconnect",
+                    "description": "Reconnection after unpaid",
+                },
+            ],
+            [],
+            "G Cupido",
+            date(2026, 10, 5),
+        )
+        rec_inv = next(
+            (r for r in (rec_open.get("lines") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "4002"),
+            None,
+        )
+        rec_do = [
+            r
+            for r in (rec_open.get("lines") or [])
+            if str(r.get("ref")) == "4002" and r.get("kind") == "payment"
+        ]
+        mon_inv = next(
+            (r for r in (rec_open.get("lines") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "4001"),
+            None,
+        )
+        rec_paid = fifo_statement(
+            [
+                {
+                    "invoice_number": "4002",
+                    "invoice_date": "2026-09-10",
+                    "customer": "G Cupido",
+                    "amount": 250,
+                    "source": "qb-list",
+                    "family": "reconnect",
+                }
+            ],
+            [
+                {
+                    "paid_on": "2026-09-12",
+                    "customer": "G Cupido",
+                    "amount": -250,
+                    "note": "EFT",
+                    "method": "eft",
+                    "source": "fnb-eft",
+                }
+            ],
+            "G Cupido",
+            date(2026, 10, 5),
+        )
+        if not mon_inv or _money(mon_inv.get("open")) > 0.02:
+            print("FAIL reconnect-must-not-block-monthly-do", mon_inv)
+            failed += 1
+        elif not rec_inv or _money(rec_inv.get("open")) != 250 or rec_do:
+            print("FAIL reconnect-must-stay-due", rec_inv, rec_do, rec_open.get("due"))
+            failed += 1
+        elif RECONNECT_LABEL not in (rec_inv.get("what") or ""):
+            print("FAIL reconnect-penalty-label", rec_inv)
+            failed += 1
+        elif abs(_money(rec_open.get("due")) - 250) > 0.02:
+            print("FAIL reconnect-due", rec_open.get("due"))
+            failed += 1
+        elif rec_inv.get("tone") == "matched" or rec_inv.get("due_on") != "2026-09-10":
+            print("FAIL reconnect-due-now-not-do", rec_inv)
+            failed += 1
+        elif abs(_money(rec_paid.get("due"))) > 0.02:
+            print("FAIL reconnect-eft-clears", rec_paid.get("due"), rec_paid.get("lines"))
+            failed += 1
+        else:
+            print("OK reconnect-once-off-penalty", rec_open.get("due"))
     conn.close()
     return failed
 
