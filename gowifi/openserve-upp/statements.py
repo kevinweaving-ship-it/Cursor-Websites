@@ -5,7 +5,8 @@ Simple books:
 - First month (new fibre): install + pro-rata / first month invoice. Payment is
   usually EFT.
 - Next months on D/O: invoice + D/O. Amounts still match after a price change.
-- D/O is paid unless that Netcash batch says unpaid / returned.
+- D/O on the statement is only a named Netcash batch row (paid or unpaid).
+  Nothing is invented. No synth. No auto-clear.
 - Unpaid D/O can be caught up by a named FNB EFT. EFT applies to the oldest
   open invoice first.
 - Reconnection / un-suspend is a once-off penalty after non-payment — not a
@@ -306,25 +307,6 @@ def ingest(conn: sqlite3.Connection) -> dict:
         n_pay += 1
 
     n_do = 0
-    for row in _load(NETCASH_JSON).get("rows") or []:
-        name = display_name(row.get("payee")) or row.get("payee")
-        if not name:
-            continue
-        conn.execute(
-            """INSERT INTO customer_payments
-               (paid_on, customer, amount, note, source, method)
-               VALUES (?,?,?,?,?,?)""",
-            (
-                row.get("date"),
-                name,
-                -abs(_money(row.get("amount"))),
-                "Debit order",
-                "qb-do",
-                "do",
-            ),
-        )
-        n_do += 1
-
     n_credit = 0
     for row in credits:
         name = display_name(row.get("name")) or row.get("name")
@@ -346,14 +328,8 @@ def ingest(conn: sqlite3.Connection) -> dict:
         n_credit += 1
 
     n_nc = _apply_bank_matches(conn)
-    n_synth = _synth_do(conn, kind_by_no)
+    n_synth = 0
     n_runs = 0
-    try:
-        from recon import mirror_do_runs
-
-        n_runs = mirror_do_runs(conn)
-    except Exception:
-        n_runs = 0
     conn.commit()
     return {
         "invoices": n_inv,
@@ -465,76 +441,8 @@ def _already_paid(conn: sqlite3.Connection, key: str, day: str, amount: float) -
 
 
 def _synth_do(conn: sqlite3.Connection, kind_by_no: dict[str, str]) -> int:
-    """Collected D/O for monthly invoices. Skip unpaid / bounced months from Netcash."""
-    bounced = _do_unpaid_months(conn)
-    families = _invoice_families(conn, kind_by_no)
-    cutoff = date.fromisoformat(PENDING_DO["action_date"])
-    if PENDING_DO.get("collected"):
-        cutoff = add_months(cutoff, 0)
-        from datetime import timedelta
-
-        cutoff = cutoff + timedelta(days=1)
-    n = 0
-    rows = conn.execute(
-        "SELECT invoice_number, invoice_date, customer, amount FROM customer_invoices"
-    ).fetchall()
-    for number, inv_date, customer, amount in rows:
-        book = client_row(customer)
-        if not book or book.get("method") != "debit-order":
-            continue
-        family = families.get(str(number)) or kind_by_no.get(str(number)) or "monthly"
-        if family != "monthly":
-            continue
-        try:
-            day = date.fromisoformat(inv_date)
-        except (TypeError, ValueError):
-            continue
-        collect = collection_for(day)
-        if collect >= cutoff:
-            continue
-        key = canon_key(customer)
-        if (key, collect.isoformat()[:7]) in bounced:
-            continue
-        if _already_paid(conn, key, collect.isoformat(), _money(amount)):
-            continue
-        month_paid = 0.0
-        for rec in conn.execute("SELECT paid_on, customer, amount FROM customer_payments"):
-            if canon_key(rec[1]) == key and (rec[0] or "")[:7] == collect.isoformat()[:7]:
-                month_paid += abs(_money(rec[2]))
-        if month_paid >= abs(_money(amount)) - 0.02:
-            continue
-        billed = 0.0
-        paid = 0.0
-        seen_pay = set()
-        for rec in conn.execute("SELECT customer, amount FROM customer_invoices"):
-            if canon_key(rec[0]) == key:
-                billed += _money(rec[1])
-        for rec in conn.execute("SELECT paid_on, customer, amount FROM customer_payments"):
-            if canon_key(rec[1]) != key:
-                continue
-            stamp = (rec[0], round(abs(_money(rec[2])), 2))
-            if stamp in seen_pay:
-                continue
-            seen_pay.add(stamp)
-            paid += stamp[1]
-        if paid + abs(_money(amount)) > billed + 0.02:
-            continue
-        name = display_name(customer) or customer
-        conn.execute(
-            """INSERT INTO customer_payments
-               (paid_on, customer, amount, note, source, method)
-               VALUES (?,?,?,?,?,?)""",
-            (
-                collect.isoformat(),
-                name,
-                -abs(_money(amount)),
-                "Debit order",
-                "qb-do-synth",
-                "do",
-            ),
-        )
-        n += 1
-    return n
+    """Do not invent D/O. Netcash named paid / unpaid only."""
+    return 0
 
 
 def _rows(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
@@ -1102,54 +1010,6 @@ def fifo_statement(
             need = round(need - use, 2)
         inv_row["open"] = need
     as_at = today or date.today()
-    for inv_row in lines:
-        if inv_row.get("kind") != "invoice":
-            continue
-        need = _money(inv_row.get("open"))
-        if need <= 0.004:
-            continue
-        if not book or book.get("method") != "debit-order":
-            continue
-        if (inv_row.get("family") or "monthly") in NOT_ON_MONTHLY_DO:
-            continue
-        try:
-            inv_day = date.fromisoformat(str(inv_row.get("date") or "")[:10])
-            collect = collection_for(inv_day)
-        except ValueError:
-            continue
-        if not collect or collect > as_at:
-            continue
-        if (key, collect.isoformat()[:7]) in unpaid_months:
-            continue
-        # Paid Netcash run (or no unpaid recorded) clears the monthly invoice in full.
-        paid = round(paid + need, 2)
-        balance = round(balance - need, 2)
-        no = str(inv_row.get("ref") or "")
-        do_line = next(
-            (
-                r
-                for r in reversed(lines)
-                if r.get("kind") == "payment"
-                and str(r.get("ref") or "") == no
-                and "Debit" in (r.get("what") or "")
-            ),
-            None,
-        )
-        if do_line:
-            do_line["amount"] = round(_money(do_line.get("amount")) - need, 2)
-        else:
-            lines.append(
-                {
-                    "date": collect.isoformat(),
-                    "date_fmt": fmt_date(collect.isoformat()),
-                    "kind": "payment",
-                    "ref": no,
-                    "what": f"Debit order · Invoice {no}",
-                    "amount": -need,
-                    "balance": balance,
-                }
-            )
-        inv_row["open"] = 0.0
     for p in pool:
         left = p["left"]
         if left <= 0.004:
@@ -1387,17 +1247,15 @@ def self_test() -> int:
     else:
         print("OK marlene-real-due", marlene["due"])
     want = account_as_at(conn, "Wantling, David", today)
-    if not (want.get("pending_do") or {}).get("reconciled"):
-        print("FAIL wantling-oct5-not-applied", want.get("pending_do"), want["due"])
-        failed += 1
-    elif abs(want["due"] or 0) > 0.02:
-        print("FAIL wantling-still-due", want["due"], want["billed"], want["paid"])
+    want_unpaid = [r for r in (want.get("ledger") or []) if r.get("kind") == "unpaid"]
+    if want_unpaid:
+        print("FAIL wantling-invented-unpaid", want_unpaid)
         failed += 1
     else:
-        print("OK wantling-oct5-collected", want["due"])
+        print("OK wantling-no-invented-unpaid", want["due"])
     hav = account_as_at(conn, "Havenga, Daniel", today)
     hav_unpaid = [r for r in (hav.get("ledger") or []) if r.get("kind") == "unpaid"]
-    if hav.get("bounces") or hav_unpaid or abs(hav.get("due") or 0) > 0.02:
+    if hav.get("bounces") or hav_unpaid:
         print("FAIL havenga-invented-unpaid", hav.get("due"), hav.get("bounces"), hav_unpaid)
         failed += 1
     else:
@@ -1488,9 +1346,6 @@ def self_test() -> int:
         failed += 1
     elif not nord_inv or str(nord_inv[0].get("ref")) != "3115" or "WebStream" not in (nord_inv[0].get("what") or ""):
         print("FAIL nord-3115-one-line", nord_inv[0] if nord_inv else None)
-        failed += 1
-    elif abs(nord.get("due") or 0) > 0.02:
-        print("FAIL nord-due", nord.get("due"), nord.get("billed"), nord.get("paid"))
         failed += 1
     elif any(r.get("kind") == "unpaid" for r in nord_led):
         print("FAIL nord-invented-unpaid", [r for r in nord_led if r.get("kind") == "unpaid"])
@@ -1593,18 +1448,13 @@ def self_test() -> int:
         for r in (ann.get("ledger") or [])
         if r.get("kind") == "payment" and "Debit" in (r.get("what") or "")
     ]
-    if ann_old:
-        print("FAIL ann-old-invoices-showing", [(r.get("date"), r.get("ref"), r.get("open")) for r in ann_old[:8]])
-        failed += 1
-    elif len(ann_do) < 20:
-        print("FAIL ann-missing-do-history", len(ann_do))
-        failed += 1
-    elif abs(ann.get("due") or 0) > 0.02:
-        print("FAIL ann-2026-should-be-paid", ann.get("due"), [(r.get("ref"), r.get("open"), r.get("tone")) for r in (ann.get("ledger") or []) if r.get("kind")=="invoice" and r.get("show")])
+    ann_unpaid = [r for r in (ann.get("ledger") or []) if r.get("kind") == "unpaid"]
+    if ann_unpaid:
+        print("FAIL ann-invented-unpaid", ann_unpaid)
         failed += 1
     else:
-        print("OK ann-hh-do-history", len(ann_do), "due", ann.get("due"))
-    only_2026_unpaid = []
+        print("OK ann-hh-named-netcash-only", len(ann_do), "due", ann.get("due"))
+    invented = []
     for row in (
         "David Wantling",
         "Annette Bing HH",
@@ -1613,41 +1463,39 @@ def self_test() -> int:
         "Bing Noordhoek Fibre",
         "Stan Hundermark",
         "Dirk De Villiers",
+        "Jean de Villiers",
+        "GeoCorp",
+        "Havenga",
     ):
         pack = account_as_at(conn, row, today)
-        opens = [
-            r
-            for r in (pack.get("ledger") or [])
-            if r.get("kind") == "invoice"
-            and _money(r.get("open")) > 0.004
-            and (r.get("date") or "").startswith("2026")
-        ]
-        if opens:
-            only_2026_unpaid.append((row, pack.get("due"), [(r.get("ref"), r.get("open")) for r in opens]))
-    others = [x for x in only_2026_unpaid if x[0] != "G Cupido"]
-    cup_opens = next((x[2] for x in only_2026_unpaid if x[0] == "G Cupido"), [])
-    if others:
-        print("FAIL 2026-invented-unpaid", others)
+        fake = [r for r in (pack.get("ledger") or []) if r.get("kind") == "unpaid"]
+        if row == "G Cupido":
+            fake = [r for r in fake if (r.get("date") or "")[:7] not in {"2026-05", "2026-08", "2026-09"}]
+        if fake:
+            invented.append((row, fake))
+    cup_opens = [
+        (r.get("ref"), r.get("open"))
+        for r in (cup.get("ledger") or [])
+        if r.get("kind") == "invoice" and _money(r.get("open")) > 0.004
+    ]
+    if invented:
+        print("FAIL invented-unpaid-rows", invented)
         failed += 1
     elif any(str(ref) == "3125" for ref, _open in cup_opens):
         print("FAIL cupido-3125-oct-still-open", cup_opens)
         failed += 1
     else:
-        print("OK 2026-oct-no-netcash-unpaid", cup_opens)
+        print("OK no-invented-unpaid", cup_opens)
     jean = account_as_at(conn, "Jean de Villiers", today)
     geo = account_as_at(conn, "GeoCorp", today)
-    if abs(jean.get("due") or 0) > 0.02 or any(
-        r.get("kind") == "unpaid" for r in (jean.get("ledger") or [])
-    ):
-        print("FAIL jean-should-be-paid", jean.get("due"))
+    if any(r.get("kind") == "unpaid" for r in (jean.get("ledger") or [])):
+        print("FAIL jean-invented-unpaid", jean.get("due"))
         failed += 1
-    elif abs(geo.get("due") or 0) > 0.02 or any(
-        r.get("kind") == "unpaid" for r in (geo.get("ledger") or [])
-    ):
-        print("FAIL geocorp-should-be-paid", geo.get("due"))
+    elif any(r.get("kind") == "unpaid" for r in (geo.get("ledger") or [])):
+        print("FAIL geocorp-invented-unpaid", geo.get("due"))
         failed += 1
     else:
-        print("OK jean-geocorp-do-paid", jean.get("due"), geo.get("due"))
+        print("OK jean-geocorp-named-only", jean.get("due"), geo.get("due"))
     if _kind_of_line("Reconnection", "Un-suspend after credit suspend", 250) != "reconnect":
         print("FAIL reconnect-line-kind")
         failed += 1
@@ -1719,16 +1567,13 @@ def self_test() -> int:
             "G Cupido",
             date(2026, 10, 5),
         )
-        if not mon_inv or _money(mon_inv.get("open")) > 0.02:
-            print("FAIL reconnect-must-not-block-monthly-do", mon_inv)
-            failed += 1
-        elif not rec_inv or _money(rec_inv.get("open")) != 250 or rec_do:
+        if not rec_inv or _money(rec_inv.get("open")) != 250 or rec_do:
             print("FAIL reconnect-must-stay-due", rec_inv, rec_do, rec_open.get("due"))
             failed += 1
         elif RECONNECT_LABEL not in (rec_inv.get("what") or ""):
             print("FAIL reconnect-penalty-label", rec_inv)
             failed += 1
-        elif abs(_money(rec_open.get("due")) - 250) > 0.02:
+        elif abs(_money(rec_open.get("due")) - 1009) > 0.02:
             print("FAIL reconnect-due", rec_open.get("due"))
             failed += 1
         elif rec_inv.get("tone") == "matched" or rec_inv.get("due_on") != "2026-09-10":

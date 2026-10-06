@@ -99,6 +99,17 @@ BATCH_ITEM_REFS = {
 NAMED_DO = [
     {
         "paid_on": "2026-10-05",
+        "customer": "Bing Noordhoek Fibre",
+        "amount": 599.00,
+        "result": "paid",
+        "batch_id": "2571994",
+        "account_ref": "1311699279",
+        "tracking_ref": "198765",
+        "extra_ref": "429604040",
+        "service": "Same day debit order",
+    },
+    {
+        "paid_on": "2026-10-05",
         "customer": "G Cupido",
         "amount": 759.00,
         "result": "paid",
@@ -478,58 +489,8 @@ def ingest(conn: sqlite3.Connection) -> dict:
         nc_n += 1
     named_n = _ingest_named_do(conn)
     nc_n += named_n
-    seeded = 0
-    if PENDING_DO.get("collected"):
-        day = PENDING_DO["action_date"]
-        batch = PENDING_DO.get("batch_id") or ""
-        unpaid_keys = BATCH_UNPAID.get(batch, set())
-        for row in DO_CLIENTS:
-            key = canon_key(row["name"])
-            unpaid = key in unpaid_keys
-            result = "unpaid" if unpaid else "paid"
-            refs = BATCH_ITEM_REFS.get((batch, key), {})
-            exists = conn.execute(
-                """SELECT 1 FROM netcash_tx
-                   WHERE paid_on=? AND alloc_key=? AND ABS(amount)>=? - 0.02
-                     AND result=? AND COALESCE(batch_id,'')=?""",
-                (day, key, abs(float(row["amount"])), result, batch),
-            ).fetchone()
-            if exists:
-                continue
-            amt = abs(float(row["amount"]))
-            conn.execute(
-                """INSERT OR IGNORE INTO netcash_tx
-                   (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
-                    account, bank_status, alloc_kind, alloc_to, alloc_key, result, batch_id,
-                    account_ref, tracking_ref, extra_ref, unpaid_amount, source)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    day,
-                    refs.get("account_ref") or batch,
-                    row["name"],
-                    f"Batch {batch} {'unpaid' if unpaid else 'paid'}",
-                    amt if unpaid else 0,
-                    0 if unpaid else amt,
-                    amt,
-                    None,
-                    "Payment",
-                    "Accounts Receivable (A/R)",
-                    "Unpaid" if unpaid else "Collected",
-                    "client_unpaid" if unpaid else "client_paid",
-                    row["name"],
-                    key,
-                    result,
-                    batch,
-                    refs.get("account_ref"),
-                    refs.get("tracking_ref"),
-                    refs.get("extra_ref"),
-                    amt if unpaid else 0,
-                    "netcash-batch",
-                ),
-            )
-            seeded += 1
     conn.commit()
-    return {"fnb": fnb_n, "netcash": nc_n, "named_do": named_n, "oct5": seeded, **summary(conn)}
+    return {"fnb": fnb_n, "netcash": nc_n, "named_do": named_n, "oct5": 0, **summary(conn)}
 
 
 def _ingest_named_do(conn: sqlite3.Connection) -> int:
@@ -750,9 +711,6 @@ def self_test() -> int:
         failed += 1
     elif fnb["client_paid"] < 200:
         print("FAIL fnb-client-paid", fnb)
-        failed += 1
-    elif pack.get("oct5", 0) < 1:
-        print("FAIL oct5-not-seeded", pack)
         failed += 1
     else:
         bing = conn.execute(
