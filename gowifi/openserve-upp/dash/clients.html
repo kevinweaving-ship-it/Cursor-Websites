@@ -154,10 +154,11 @@ main {
 .fetch-btn:disabled { opacity:.6; cursor:wait; }
 .match-ok { color:var(--ok); font-weight:700; }
 .attn { color:var(--warn); font-weight:700; }
-.fnb-status { border-top:1px solid var(--line); }
+.fnb-status { border-top:0; }
+.fnb-top > h2 { cursor:pointer; }
 .fnb-head {
   display:flex; align-items:center; justify-content:space-between; gap:12px;
-  width:100%; padding:12px 14px; min-height:48px; flex-wrap:wrap;
+  width:100%; padding:12px 14px; min-height:48px; flex-wrap:wrap; cursor:pointer;
 }
 .fnb-toggle {
   display:flex; align-items:center; gap:8px; padding:0; border:0;
@@ -348,7 +349,7 @@ function fnbCard(fnb){
     <div class="cat-list">
       <article class="card">
         <div class="head fnb-head">
-          <button class="fnb-toggle" type="button" aria-expanded="true" aria-controls="${id}">
+          <button class="fnb-toggle" type="button" aria-expanded="false" aria-controls="${id}">
             <span class="name"><span class="dot ${fnb.ready&&fnb.last_ok?"active":"issue"}"></span>FNB ${esc(fnb.account_number||"62860060278")}</span>
           </button>
           <span class="head-right">
@@ -358,23 +359,23 @@ function fnbCard(fnb){
             <span class="fnb-live" aria-live="polite"></span>
           </span>
         </div>
-        <div class="fnb-status">
-          <div class="band">
-            ${field("Last fetched", esc(last))}
-            ${field("Balance", esc(bal), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
-            ${field("Status", esc(matchLabel), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
+        <div class="detail hidden" id="${id}">
+          <div class="fnb-status">
+            <div class="band">
+              ${field("Last fetched", esc(last))}
+              ${field("Balance", esc(bal), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
+              ${field("Status", esc(matchLabel), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
+            </div>
+            ${need>0.004 ? `<div class="band stmt-band">
+              <div class="k">Issues ${esc(money(need))}</div>
+              <div class="fnb-reg-wrap"><table class="fnb-reg">
+                <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>
+                <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th>Allocate</th></tr></thead>
+                <tbody>${attn}</tbody>
+              </table></div>
+              <p><button type="button" class="fetch-btn fnb-apply">Allocate selected</button></p>
+            </div>` : ""}
           </div>
-          ${need>0.004 ? `<div class="band stmt-band">
-            <div class="k">Issues ${esc(money(need))}</div>
-            <div class="fnb-reg-wrap"><table class="fnb-reg">
-              <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>
-              <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th>Allocate</th></tr></thead>
-              <tbody>${attn}</tbody>
-            </table></div>
-            <p><button type="button" class="fetch-btn fnb-apply">Allocate selected</button></p>
-          </div>` : ""}
-        </div>
-        <div class="detail" id="${id}">
           <div class="band">
             ${field("Account", esc(fnb.account_name||"GoWifi (Pty) Ltd"))}
             ${field("Branch", esc((fnb.branch||"Hermanus")+" "+(fnb.branch_code||"200412")))}
@@ -486,7 +487,7 @@ function bindFnbFetch(root, pack){
   });
 }
 function bindToggles(root){
-  root.querySelectorAll(".head:not(.fnb-head), .fnb-toggle").forEach(btn=>{
+  root.querySelectorAll(".head:not(.fnb-head)").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const open = btn.getAttribute("aria-expanded")==="true";
       const panel = document.getElementById(btn.getAttribute("aria-controls"));
@@ -494,6 +495,21 @@ function bindToggles(root){
       if (panel) panel.classList.toggle("hidden", open);
     });
   });
+  const fnbToggle = root.querySelector(".fnb-toggle");
+  const fnbPanel = fnbToggle && document.getElementById(fnbToggle.getAttribute("aria-controls"));
+  const flipFnb = () => {
+    if (!fnbToggle || !fnbPanel) return;
+    const open = fnbToggle.getAttribute("aria-expanded")==="true";
+    fnbToggle.setAttribute("aria-expanded", open?"false":"true");
+    fnbPanel.classList.toggle("hidden", open);
+  };
+  const fnbHead = root.querySelector(".fnb-head");
+  if (fnbHead) fnbHead.addEventListener("click", ev=>{
+    if (ev.target.closest(".fnb-fetch,.fnb-apply,.fnb-choice")) return;
+    flipFnb();
+  });
+  const fnbTitle = root.querySelector(".fnb-top > h2");
+  if (fnbTitle) fnbTitle.addEventListener("click", flipFnb);
   root.querySelectorAll(".stmt-toggle").forEach(btn=>{
     btn.addEventListener("click", e=>{
       e.stopPropagation();
