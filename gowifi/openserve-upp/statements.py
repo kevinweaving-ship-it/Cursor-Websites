@@ -353,6 +353,8 @@ def ingest(conn: sqlite3.Connection) -> dict:
     n_synth = 0
     n_runs = 0
     conn.commit()
+    from recon import checksum_real_money
+
     return {
         "invoices": n_inv,
         "lines": n_line,
@@ -362,6 +364,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
         "netcash": n_nc,
         "do_synth": n_synth,
         "do_runs": n_runs,
+        "checksum": checksum_real_money(conn),
     }
 
 
@@ -416,21 +419,9 @@ def _apply_bank_matches(conn: sqlite3.Connection) -> int:
     return n
 
 
-# Netcash debit masterfile (G Cupido Fibre 50-25). Oct 5 is Processed.
-try:
-    from recon import named_unpaid_months as _named_unpaid_months
-
-    DO_RETURNED_MONTHS = _named_unpaid_months()
-except Exception:
-    DO_RETURNED_MONTHS = {"g cupido": {"2026-05", "2026-08", "2026-09"}}
-
-
 def _do_unpaid_months(conn: sqlite3.Connection) -> set[tuple[str, str]]:
-    """Netcash unpaid / D/O return months. Not FNB clearing memos. Not invented."""
+    """Unpaid D/O months from Netcash tables only. Not a typed list."""
     out: set[tuple[str, str]] = set()
-    for key, months in DO_RETURNED_MONTHS.items():
-        for month in months:
-            out.add((key, month))
     try:
         for rec in conn.execute(
             "SELECT action_date, customer, result, source FROM customer_do_events"
@@ -441,7 +432,9 @@ def _do_unpaid_months(conn: sqlite3.Connection) -> set[tuple[str, str]]:
                 continue
             out.add((canon_key(rec[1]), (rec[0] or "")[:7]))
         for rec in conn.execute(
-            "SELECT paid_on, alloc_to, result FROM netcash_tx WHERE alloc_kind='client_unpaid'"
+            """SELECT paid_on, alloc_to, result, source FROM netcash_tx
+               WHERE alloc_kind='client_unpaid'
+                 AND source IN ('netcash-xls','netcash-items')"""
         ):
             if (rec[2] or "").lower() not in {"unpaid", "bounced"}:
                 continue
@@ -1458,7 +1451,10 @@ def for_export(conn: sqlite3.Connection, today: date | None = None) -> dict:
 def self_test() -> int:
     failed = 0
     conn = sqlite3.connect(":memory:")
-    ingest(conn)
+    pack = ingest(conn)
+    if pack.get("checksum"):
+        print("FAIL money-checksum", pack.get("checksum"))
+        failed += 1
     today = date(2026, 10, 5)
     marlene = account_as_at(conn, "Van Eeden, Marlene/Georg", today)
     if abs((marlene["due"] or 0) - 7180) > 0.5:
@@ -1573,16 +1569,13 @@ def self_test() -> int:
     elif any(r.get("kind") == "unpaid" for r in nord_led):
         print("FAIL nord-invented-unpaid", [r for r in nord_led if r.get("kind") == "unpaid"])
         failed += 1
-    elif nord_inv and nord_inv[0].get("tone") != "matched":
-        print("FAIL nord-3115-not-blue", nord_inv[0])
-        failed += 1
-    elif not nord_first_pay or not (nord_first_pay.get("what") or "").startswith("EFT"):
-        print("FAIL nord-first-eft", nord_first_pay)
-        failed += 1
-    elif not nord_last_pay or "D/O paid" not in (nord_last_pay.get("what") or "") or "3115" not in (
-        nord_last_pay.get("what") or ""
+    elif nord_inv and nord_inv[0].get("tone") == "matched" and any(
+        "D/O paid" in (r.get("what") or "") and "3115" in (r.get("what") or "") for r in nord_led
     ):
-        print("FAIL nord-last-do-for-3115", nord_last_pay)
+        print("FAIL nord-3115-do-not-in-table", nord_last_pay)
+        failed += 1
+    elif nord_inv and _money(nord_inv[0].get("open")) <= 0.02:
+        print("FAIL nord-3115-must-stay-open-without-netcash-row", nord_inv[0])
         failed += 1
     elif abs((nord_led[0].get("balance") if nord_led else 0) or 0) - abs(nord.get("due") or 0) > 0.02:
         print("FAIL nord-top-balance-is-due", nord_led[0] if nord_led else None, nord.get("due"))
@@ -1595,9 +1588,9 @@ def self_test() -> int:
             print("FAIL nord-not-newest-top", [(r.get("date_fmt"), r.get("kind"), r.get("what")) for r in nord_led[:8]])
             failed += 1
         else:
-            print("OK nordhoek-one-line", nord_inv[0].get("what"), nord_last_pay.get("what"))
+            print("OK nordhoek-one-line", nord_inv[0].get("what"))
             print("OK newest-top")
-            print("OK nord-matched-blue")
+            print("OK nord-3115-open-until-netcash-table")
     matched = fifo_statement(
         [
             {"invoice_number": "3063", "invoice_date": "2026-07-17", "customer": "Bing Noordhoek Fibre", "amount": 599, "source": "qb-list"},
@@ -1648,8 +1641,14 @@ def self_test() -> int:
     if not early_3115 or early_3115.get("tone") != "pending":
         print("FAIL nord-3115-should-be-orange-before-due", early_3115)
         failed += 1
-    elif not cup_3125 or _money(cup_3125.get("open")) > 0.02 or cup_3125_unpaid:
-        print("FAIL cupido-oct-must-be-paid", cup.get("due"), cup_3125, cup_3125_unpaid)
+    elif not cup_3125 or _money(cup_3125.get("open")) <= 0.02:
+        print("FAIL cupido-oct-must-stay-open-without-netcash-row", cup.get("due"), cup_3125)
+        failed += 1
+    elif cup_3125_unpaid:
+        print("FAIL cupido-invented-oct-unpaid", cup_3125_unpaid)
+        failed += 1
+    elif abs((cup.get("due") or 0) - 2804) > 0.02:
+        print("FAIL cupido-fnb-only-due", cup.get("due"))
         failed += 1
     elif not amoroc_3107 or amoroc_3107.get("tone") != "matched":
         print("FAIL amoroc-3107-not-blue", amoroc_3107)
@@ -1659,7 +1658,7 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK invoice-tones", "matched", "pending", "unpaid")
-        print("OK cupido-oct-processed", cup.get("due"))
+        print("OK cupido-fnb-only", cup.get("due"))
     cup_2715 = next(
         (r for r in (cup.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "2715"),
         None,
@@ -1697,20 +1696,17 @@ def self_test() -> int:
     elif not cup_2715_pay or abs(abs(_money(cup_2715_pay[0].get("amount"))) - 1467.25) > 0.02:
         print("FAIL cupido-2715-eft-rand", cup_2715_pay)
         failed += 1
-    elif not cup_3013_unpaid or cup_3013_unpaid.get("tone") != "overdue":
-        print("FAIL cupido-do-unpaid-must-stay-red", cup_3013_unpaid)
+    elif cup_3013_unpaid:
+        print("FAIL cupido-invented-do-unpaid", cup_3013_unpaid)
         failed += 1
-    elif not cup_3013_unpaid or abs(_money(cup_3013_unpaid.get("amount"))) > 0.02:
-        print("FAIL cupido-3013-unpaid-must-be-zero", cup_3013_unpaid)
-        failed += 1
-    elif cup_3013 and abs(_money(cup_3013.get("balance")) - 759) > 0.02:
-        print("FAIL cupido-3013-running-due", cup_3013)
+    elif cup_3013 and _money(cup_3013.get("open")) > 0.02:
+        print("FAIL cupido-3013-cleared-by-eft", cup_3013)
         failed += 1
     elif any(str(r.get("ref")) == "3055" for r in (cup.get("ledger") or [])):
         print("FAIL cupido-3055-not-his-line")
         failed += 1
     else:
-        print("OK cupido-2715-eft-nil", "3013 unpaid 0")
+        print("OK cupido-2715-eft-nil")
     cup_sep8 = [
         r
         for r in (cup.get("ledger") or [])
@@ -1728,11 +1724,11 @@ def self_test() -> int:
     elif "EFT 1950.00 · Invoice 3013" not in sep8_what[0]:
         print("FAIL cupido-sep8-oldest-first", sep8_what)
         failed += 1
-    elif "EFT B/F 1191.00 · Invoice 3074" not in sep8_what[1]:
-        print("FAIL cupido-sep8-bf-3074", sep8_what)
+    elif "EFT B/F 1191.00 · Invoice 3034" not in sep8_what[1]:
+        print("FAIL cupido-sep8-bf-3034", sep8_what)
         failed += 1
-    elif "EFT B/F 432.00 · Invoice 3101" not in sep8_what[2]:
-        print("FAIL cupido-sep8-bf-3101", sep8_what)
+    elif "EFT B/F 432.00 · Invoice 3054" not in sep8_what[2]:
+        print("FAIL cupido-sep8-bf-3054", sep8_what)
         failed += 1
     else:
         print("OK cupido-sep8-eft-bf", sep8_what)
@@ -1759,14 +1755,14 @@ def self_test() -> int:
     if not any("EFT 1950.00" in w for w in cup_shown):
         print("FAIL cupido-eft-must-show", cup_shown)
         failed += 1
-    elif not any("D/O paid" in w and "3125" in w for w in cup_shown):
-        print("FAIL cupido-oct-do-must-show", cup_shown)
+    elif any("D/O" in w for w in cup_shown):
+        print("FAIL cupido-invented-do-on-card", cup_shown)
         failed += 1
     elif not any("EFT 1467.25" in w and "2715" in w for w in cup_shown):
         print("FAIL cupido-2715-eft-must-show", cup_shown)
         failed += 1
     else:
-        print("OK cupido-eft-and-do-show")
+        print("OK cupido-fnb-eft-only")
     cup_jun_do = [
         r
         for r in (cup.get("ledger") or [])
@@ -1774,14 +1770,11 @@ def self_test() -> int:
         and (r.get("date") or "") == "2026-06-01"
         and "D/O paid" in (r.get("what") or "")
     ]
-    if not cup_jun_do or "3034" not in (cup_jun_do[0].get("what") or ""):
-        print("FAIL cupido-june-do-must-match-batch-inv", cup_jun_do)
-        failed += 1
-    elif "3013" in (cup_jun_do[0].get("what") or ""):
-        print("FAIL cupido-june-do-stole-oldest", cup_jun_do)
+    if cup_jun_do:
+        print("FAIL cupido-june-do-not-in-netcash-table", cup_jun_do)
         failed += 1
     else:
-        print("OK cupido-do-matches-batch-invoice", cup_jun_do[0].get("what"))
+        print("OK cupido-no-invented-june-do")
     ann = account_as_at(conn, "Annette Bing HH", today)
     ann_old = [
         r
@@ -1814,8 +1807,6 @@ def self_test() -> int:
     ):
         pack = account_as_at(conn, row, today)
         fake = [r for r in (pack.get("ledger") or []) if r.get("kind") == "unpaid"]
-        if row == "G Cupido":
-            fake = [r for r in fake if (r.get("date") or "")[:7] not in {"2026-05", "2026-08", "2026-09"}]
         if fake:
             invented.append((row, fake))
     cup_opens = [
@@ -1826,8 +1817,8 @@ def self_test() -> int:
     if invented:
         print("FAIL invented-unpaid-rows", invented)
         failed += 1
-    elif any(str(ref) == "3125" for ref, _open in cup_opens):
-        print("FAIL cupido-3125-oct-still-open", cup_opens)
+    elif not any(str(ref) == "3125" for ref, _open in cup_opens):
+        print("FAIL cupido-3125-must-stay-open-without-netcash-row", cup_opens)
         failed += 1
     else:
         print("OK no-invented-unpaid", cup_opens)
