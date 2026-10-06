@@ -10,7 +10,7 @@
 <style>
 :root {
   --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
-  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a; --pad:16px;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --unpaid:#6b2d8b; --acc:#123a7a; --pad:16px;
   --ml:844px;
 }
 * { box-sizing:border-box; }
@@ -101,7 +101,8 @@ main {
 .stmt tr.invoice td,
 .stmt tr.invoice.pending td { color:var(--warn); }
 .stmt tr.invoice.matched td { color:var(--acc); }
-.stmt tr.invoice.overdue td,
+.stmt tr.invoice.unpaid td,
+.stmt tr.invoice.overdue td { color:var(--unpaid); }
 .stmt tr.unpaid td { color:var(--bad); }
 .stmt-toggle {
   display:block; width:100%; margin:0 0 8px; padding:8px 0; border:0;

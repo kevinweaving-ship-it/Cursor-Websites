@@ -657,24 +657,36 @@ def client_receipts(conn: sqlite3.Connection) -> list[dict]:
         ("netcash_tx", "do", "netcash-alloc"),
     ):
         try:
-            rows = conn.execute(
-                f"""SELECT paid_on, alloc_to, amount, deposit, payment
-                    FROM {table} WHERE alloc_kind='client_paid' ORDER BY paid_on, id"""
-            ).fetchall()
+            if table == "netcash_tx":
+                rows = conn.execute(
+                    """SELECT paid_on, alloc_to, amount, deposit, payment, COALESCE(batch_id,'')
+                       FROM netcash_tx WHERE alloc_kind='client_paid' ORDER BY paid_on, id"""
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    f"""SELECT paid_on, alloc_to, amount, deposit, payment, ''
+                        FROM {table} WHERE alloc_kind='client_paid' ORDER BY paid_on, id"""
+                ).fetchall()
         except sqlite3.OperationalError:
             continue
         for rec in rows:
             amt = abs(_money(rec[2]) or _money(rec[3]) or _money(rec[4]))
             if amt <= 0.004:
                 continue
+            batch = str(rec[5] or "").strip()
+            if method == "do":
+                note = f"D/O paid · Batch {batch}" if batch else "D/O paid"
+            else:
+                note = "EFT"
             out.append(
                 {
                     "paid_on": rec[0],
                     "customer": rec[1],
                     "amount": -amt,
-                    "note": "EFT" if method == "eft" else "Debit order",
+                    "note": note,
                     "source": source,
                     "method": method,
+                    "batch_id": batch,
                 }
             )
     return out

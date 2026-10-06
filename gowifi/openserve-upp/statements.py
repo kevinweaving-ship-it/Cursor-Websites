@@ -374,7 +374,7 @@ def _apply_bank_matches(conn: sqlite3.Connection) -> int:
                 day,
                 name,
                 -amt,
-                "Debit order" if do else "EFT",
+                rec.get("note") or ("D/O paid" if do else "EFT"),
                 rec.get("source") or ("netcash-alloc" if do else "fnb-alloc"),
                 "do" if do else "eft",
             ),
@@ -520,7 +520,7 @@ def _label_do_settlements(conn: sqlite3.Connection) -> None:
             continue
         conn.execute(
             """UPDATE customer_payments
-               SET method='do', note='Debit order'
+               SET method='do', note='D/O paid'
                WHERE id=?""",
             (rec[0],),
         )
@@ -802,7 +802,7 @@ def invoice_due_on(inv: dict, book: dict | None) -> date | None:
 
 
 def invoice_tone(rec: dict, today: date) -> str:
-    """Blue when matched; orange while allowed; red after 7 days past due."""
+    """Blue matched; orange pending; purple unpaid invoice; red D/O unpaid."""
     if rec.get("kind") == "unpaid":
         return "overdue"
     if rec.get("kind") != "invoice":
@@ -813,7 +813,7 @@ def invoice_tone(rec: dict, today: date) -> str:
 
     due = parse_day(rec.get("due_on")) or parse_day(rec.get("date"))
     if due and (today - due).days > GRACE_DAYS:
-        return "overdue"
+        return "unpaid"
     return "pending"
 
 
@@ -849,7 +849,10 @@ def present_ledger(lines: list[dict], today: date | None = None) -> list[dict]:
         due = _money(rec.get("open")) > 0.004 or rec.get("kind") == "unpaid"
         pin = rec is last_inv or rec is last_pay
         rec["due_row"] = due
-        rec["show"] = bool(due or pin)
+        do_paid = rec.get("kind") == "payment" and (
+            "D/O paid" in (rec.get("what") or "") or (rec.get("what") or "").startswith("Debit")
+        )
+        rec["show"] = bool(due or pin or do_paid)
         rec["reconciled"] = not rec["show"]
         rec["tone"] = invoice_tone(rec, today)
     return tagged
@@ -967,8 +970,8 @@ def fifo_statement(
     def pay_what(note: str, method: str) -> str:
         n = (note or "").lower()
         m = (method or "").lower()
-        if m in {"do", "debit", "debit-order"} or n.startswith("debit"):
-            return "Debit order"
+        if m in {"do", "debit", "debit-order"} or n.startswith("debit") or n.startswith("d/o"):
+            return "D/O paid"
         if m == "cash":
             return "Cash"
         if m == "credit":
@@ -983,9 +986,20 @@ def fifo_statement(
     def _pay_line(p: dict, no: str, use: float) -> dict:
         how = pay_what(p["note"], p["method"])
         left = p["left"]
-        what = f"{how} {p['orig']:.2f} · Invoice {no}"
-        if abs(p["orig"] - use) > 0.02:
-            what = f"{how} {p['orig']:.2f} · Invoice {no} · paid {use:.2f}"
+        note = p.get("note") or ""
+        batch = ""
+        if "batch" in note.lower():
+            parts = note.split("Batch", 1)
+            if len(parts) == 2:
+                batch = parts[1].strip().split()[0].strip("·")
+        if how == "D/O paid":
+            what = f"D/O paid · Invoice {no}"
+            if batch:
+                what = f"D/O paid · Batch {batch} · Invoice {no}"
+        else:
+            what = f"{how} {p['orig']:.2f} · Invoice {no}"
+            if abs(p["orig"] - use) > 0.02:
+                what = f"{how} {p['orig']:.2f} · Invoice {no} · paid {use:.2f}"
         rec = {
             "date": p["date"],
             "date_fmt": fmt_date(p["date"]),
@@ -1522,7 +1536,7 @@ def self_test() -> int:
     elif not nord_first_pay or not (nord_first_pay.get("what") or "").startswith("EFT"):
         print("FAIL nord-first-eft", nord_first_pay)
         failed += 1
-    elif not nord_last_pay or "Debit order" not in (nord_last_pay.get("what") or "") or "3115" not in (
+    elif not nord_last_pay or "D/O paid" not in (nord_last_pay.get("what") or "") or "3115" not in (
         nord_last_pay.get("what") or ""
     ):
         print("FAIL nord-last-do-for-3115", nord_last_pay)
@@ -1583,7 +1597,7 @@ def self_test() -> int:
     marlene_over = [
         r
         for r in (marlene.get("ledger") or [])
-        if r.get("kind") == "invoice" and r.get("tone") == "overdue"
+        if r.get("kind") == "invoice" and r.get("tone") == "unpaid"
     ]
     cup_3125_unpaid = [
         r for r in cup_unpaid if str(r.get("ref")) == "3125"
@@ -1598,10 +1612,10 @@ def self_test() -> int:
         print("FAIL amoroc-3107-not-blue", amoroc_3107)
         failed += 1
     elif abs((marlene["due"] or 0) - 7180) <= 0.5 and not marlene_over:
-        print("FAIL marlene-overdue-red", [r.get("tone") for r in (marlene.get("ledger") or []) if r.get("kind") == "invoice"][:6])
+        print("FAIL marlene-unpaid-purple", [r.get("tone") for r in (marlene.get("ledger") or []) if r.get("kind") == "invoice"][:6])
         failed += 1
     else:
-        print("OK invoice-tones", "matched", "pending", "overdue")
+        print("OK invoice-tones", "matched", "pending", "unpaid")
         print("OK cupido-oct-processed", cup.get("due"))
     cup_2715 = next(
         (r for r in (cup.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "2715"),
@@ -1636,6 +1650,9 @@ def self_test() -> int:
         failed += 1
     elif not cup_2715_pay or abs(abs(_money(cup_2715_pay[0].get("amount"))) - 1467.25) > 0.02:
         print("FAIL cupido-2715-do-amount", cup_2715_pay)
+        failed += 1
+    elif not cup_3013_unpaid or cup_3013_unpaid.get("tone") != "overdue":
+        print("FAIL cupido-do-unpaid-must-stay-red", cup_3013_unpaid)
         failed += 1
     elif not cup_3013_unpaid or abs(_money(cup_3013_unpaid.get("amount"))) > 0.02:
         print("FAIL cupido-3013-unpaid-must-be-zero", cup_3013_unpaid)
@@ -1675,7 +1692,7 @@ def self_test() -> int:
         for r in (cup.get("ledger") or [])
         if r.get("kind") == "payment"
         and (r.get("date") or "") == "2026-06-01"
-        and "Debit" in (r.get("what") or "")
+        and "D/O paid" in (r.get("what") or "")
     ]
     if not cup_jun_do or "3034" not in (cup_jun_do[0].get("what") or ""):
         print("FAIL cupido-june-do-must-match-batch-inv", cup_jun_do)
@@ -1694,7 +1711,7 @@ def self_test() -> int:
     ann_do = [
         r
         for r in (ann.get("ledger") or [])
-        if r.get("kind") == "payment" and "Debit" in (r.get("what") or "")
+        if r.get("kind") == "payment" and "D/O paid" in (r.get("what") or "")
     ]
     ann_unpaid = [r for r in (ann.get("ledger") or []) if r.get("kind") == "unpaid"]
     if ann_unpaid:
