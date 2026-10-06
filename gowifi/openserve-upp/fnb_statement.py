@@ -92,7 +92,7 @@ PHONE_CONFIRM = (
     "fnb app",
 )
 ACCOUNT = GOWIFI_FNB
-FNB_DIRECT = frozenset({"fnb_live", "fnb_online", "fnb_api", "fnb_history"})
+FNB_DIRECT = frozenset({"fnb_live", "fnb_online", "fnb_api", "fnb_history", "fnb_qb"})
 QB_SOURCES = frozenset({"qb_fnb_history", "qb-fnb", "quickbooks"})
 SAFE_DISMISS = (
     "close",
@@ -1898,7 +1898,7 @@ def _when_label(stamp: str | None) -> str | None:
 def system_balance(conn: sqlite3.Connection) -> float | None:
     for sql in (
         """SELECT balance FROM bank_tx
-           WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history')
+           WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
            ORDER BY paid_on DESC, id DESC LIMIT 1""",
         """SELECT balance FROM fnb_tx
            WHERE source IN ('fnb_live','fnb_online','fnb_api')

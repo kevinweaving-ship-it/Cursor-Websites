@@ -12,14 +12,12 @@
 </header>
 <main class="card">
   <h1>Connect FNB</h1>
-  <p class="meta">Direct from FNB Online · not QuickBooks · not Enterprise</p>
-  <p>GoWiFi is <strong>not</strong> an Online Banking Enterprise user. Integration Channel
-     <code>POST RetrieveRealtimeStatement</code> / Sage / Xero is no use here.
-     The box logs in to FNB Online for <strong>62860060278</strong>, skips Devices when that page shows,
-     opens My bank accounts, reads Available, then Statements. New rows only. Login stays in
-     <code>/root/secrets/fnb.env</code>.</p>
+  <p class="meta">FNB via QuickBooks bank while waiting for Enterprise · no FNB Online login</p>
+  <p>FNB is flagging the Online login. Until Enterprise / Integration Channel is on,
+     Fetch reads the FNB register from QuickBooks for <strong>62860060278</strong>.
+     Update FNB in QuickBooks first, then Fetch. New rows only. No FNB website login.</p>
   <h2>Online Banking login</h2>
-  <p class="meta">Fetch uses this. Path varies: Skip sometimes, then My bank accounts, then Statements.</p>
+  <p class="meta">Stored for later. Not used while FNB is flagging the account.</p>
   <label>Username</label>
   <input id="username" type="text" autocomplete="off" spellcheck="false">
   <label>Password</label>

@@ -50,7 +50,7 @@ TX_POST_CANDIDATES = (
     "/transaction-history/v1/transactions",
     "/enterprise/transaction-history/v1/transactions",
 )
-FNB_SOURCES = frozenset({"fnb_api", "fnb_live", "fnb_online", "fnb_history"})
+FNB_SOURCES = frozenset({"fnb_api", "fnb_live", "fnb_online", "fnb_history", "fnb_qb"})
 QB_SOURCES = frozenset({"qb_fnb_history", "qb-fnb", "quickbooks"})
 _PULL_LOCK = threading.Lock()
 
@@ -106,6 +106,7 @@ def _day(value) -> str | None:
 
 
 def status(env: dict[str, str] | None = None) -> dict:
+    from_disk = env is None
     env = _load_env() if env is None else env
     client_id = (env.get("FNB_CLIENT_ID") or "").strip()
     secret = (env.get("FNB_CLIENT_SECRET") or "").strip()
@@ -114,18 +115,22 @@ def status(env: dict[str, str] | None = None) -> dict:
     account = (env.get("FNB_ACCOUNT_NUMBER") or GOWIFI_FNB).strip()
     has_api = bool(client_id and secret)
     has_login = bool(username and password)
-    via = "fnb-live"
-    if has_login:
-        note = (
-            "FNB Online own login. Not Online Banking Enterprise. "
-            "Skip devices when it shows, then My bank accounts, Available, Statements. New rows only."
-        )
-    else:
-        note = "Need FNB Online Banking login on the box. Own login only — not Enterprise."
+    try:
+        from qb_oauth import TOKEN_PATH as QBO_TOKEN
+
+        has_qb = QBO_TOKEN.exists() if from_disk else False
+    except Exception:
+        has_qb = False
+    via = "fnb-qb"
+    note = (
+        "FNB via QuickBooks bank while waiting for Enterprise. "
+        "No FNB Online login."
+    )
     return {
-        "ready": has_login,
+        "ready": has_qb or has_login,
         "has_login": has_login,
         "has_api": has_api,
+        "has_qb": has_qb,
         "account_number": account,
         "account_name": COMPANY["bank_account_name"],
         "has_token": TOKEN_PATH.exists(),
@@ -473,25 +478,20 @@ def _refresh_accounts() -> None:
 
 
 def pull(conn: sqlite3.Connection | None = None, days: int = 90, live: bool = True) -> dict:
-    """Online Banking live statement. Integration Channel is no use — we are not Enterprise."""
-    from fnb_statement import login_ready, set_progress
+    """FNB register from QuickBooks bank while waiting for Enterprise. No FNB Online login."""
+    from fnb_statement import set_progress
 
-    env = _load_env()
-    if live and login_ready(env):
-        from fnb_statement import pull as live_pull
+    if not _PULL_LOCK.acquire(blocking=False):
+        return {"ok": False, "busy": True, "error": "FNB fetch already running", "via": "fnb-qb"}
+    try:
+        set_progress("Opening QuickBooks FNB")
+        from qb_api import pull_fnb_bank
 
-        set_progress("Opening FNB")
-        if not _PULL_LOCK.acquire(blocking=False):
-            return {"ok": False, "busy": True, "error": "FNB fetch already running", "via": "fnb-live"}
-        try:
-            pack = live_pull(conn)
-        finally:
-            _PULL_LOCK.release()
-        _refresh_accounts()
-        return pack
-    err = "Need FNB Online login on the box. Integration Channel is no use — not Enterprise."
-    set_progress(err, done=True, error=err)
-    return {"ok": False, "error": err, "inserted": 0, "rows": 0, "via": "fnb-live"}
+        pack = pull_fnb_bank(conn, days=days)
+    finally:
+        _PULL_LOCK.release()
+    _refresh_accounts()
+    return pack
 
 
 def pull_async() -> dict:
@@ -533,7 +533,7 @@ def pull_async() -> dict:
 
 
 def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
-    """FNB card from bank rows we fetched. Never QuickBooks history."""
+    """FNB card from bank rows we fetched. FNB via QB bank is allowed; not QB apply history."""
     from fnb_statement import card_overlay
 
     st = status()
@@ -543,7 +543,7 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
     try:
         for rec in own.execute(
             """SELECT paid_on, amount, balance, description, source FROM bank_tx
-               WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history')
+               WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
                ORDER BY paid_on DESC, id DESC LIMIT ?""",
             (limit,),
         ):
@@ -820,6 +820,69 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK no-auto-login")
+    pull_fn = Path(__file__).read_text().split("def pull(", 1)[-1].split("def pull_async", 1)[0]
+    if "pull_fnb_bank" not in pull_fn or "live_pull" in pull_fn:
+        print("FAIL pull-via-qb")
+        failed += 1
+    else:
+        print("OK pull-via-qb")
+    from qb_api import find_fnb_account, parse_qb_fnb_report
+
+    found = find_fnb_account(
+        [
+            {"Id": "1", "Name": "Petty cash", "AccountType": "Bank"},
+            {"Id": "9", "Name": "FNB", "AcctNum": "62860060278", "AccountType": "Bank", "CurrentBalance": 5314.66},
+        ]
+    )
+    parsed = parse_qb_fnb_report(
+        {
+            "Columns": {
+                "Column": [
+                    {"ColTitle": "Date"},
+                    {"ColTitle": "Name"},
+                    {"ColTitle": "Memo/Description"},
+                    {"ColTitle": "Amount"},
+                    {"ColTitle": "Balance"},
+                ]
+            },
+            "Rows": {
+                "Row": [
+                    {
+                        "ColData": [
+                            {"value": "2026-10-06"},
+                            {"value": "G CUPIDO"},
+                            {"value": ""},
+                            {"value": "760.00"},
+                            {"value": "5314.66"},
+                        ]
+                    },
+                    {
+                        "ColData": [
+                            {"value": "2026-10-05"},
+                            {"value": "PAYFAST"},
+                            {"value": "Host Africa Oct"},
+                            {"value": "-520.00"},
+                            {"value": "4554.66"},
+                        ]
+                    },
+                ]
+            },
+        }
+    )
+    if (found or {}).get("Id") != "9":
+        print("FAIL qb-fnb-account", found)
+        failed += 1
+    elif (
+        len(parsed) != 2
+        or parsed[0]["amount"] != 760
+        or parsed[0]["balance"] != 5314.66
+        or parsed[1]["amount"] != -520
+        or parsed[0]["source"] != "fnb_qb"
+    ):
+        print("FAIL qb-fnb-parse", parsed)
+        failed += 1
+    else:
+        print("OK qb-fnb-from-quickbooks")
     conn = sqlite3.connect(":memory:")
     n = _upsert_bank(conn, rows + [{"paid_on": "2026-01-01", "amount": 1, "description": "QB", "source": "qb_fnb_history"}])
     if n != 3:

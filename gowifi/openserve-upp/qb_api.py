@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import ssl
 import urllib.error
@@ -146,6 +147,163 @@ def invoice_row(inv: dict) -> dict | None:
         "source": "quickbooks-api",
         "filename": f"qbo:{inv.get('Id')}",
     }
+
+
+def _report(realm: str, token: str, name: str, params: dict[str, str]) -> dict[str, Any]:
+    last_err: Exception | None = None
+    q = urllib.parse.urlencode(params)
+    for host, base in _hosts():
+        url = f"{base}/{realm}/reports/{name}?{q}&minorversion=75"
+        try:
+            data = _get(url, token)
+            if TOKEN_PATH.exists():
+                tokens = load_tokens()
+                tokens["api_host"] = host
+                save_tokens(tokens)
+            return data
+        except SystemExit as exc:
+            last_err = exc
+            continue
+    raise SystemExit(str(last_err) if last_err else "QBO report failed")
+
+
+def find_fnb_account(accounts: list[dict[str, Any]]) -> dict[str, Any] | None:
+    want = "62860060278"
+    scored: list[tuple[int, dict[str, Any]]] = []
+    for acc in accounts:
+        blob = " ".join(
+            str(acc.get(k) or "")
+            for k in ("AcctNum", "Name", "FullyQualifiedName", "Description")
+        ).lower()
+        score = 0
+        if want in re.sub(r"\D", "", blob):
+            score += 10
+        if "fnb" in blob:
+            score += 3
+        if "gowifi" in blob or "go-wifi" in blob:
+            score += 2
+        if (acc.get("AccountType") or "") == "Bank":
+            score += 1
+        if score:
+            scored.append((score, acc))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return scored[0][1] if scored else None
+
+
+def parse_qb_fnb_report(payload: dict[str, Any], account_number: str = "62860060278") -> list[dict]:
+    """FNB register rows from a QBO TransactionList. Do not invent amounts."""
+    titles = [c.get("ColTitle") or "" for c in ((payload.get("Columns") or {}).get("Column") or [])]
+    out: list[dict] = []
+
+    def walk(rows: list[dict]) -> None:
+        for row in rows:
+            kids = ((row.get("Rows") or {}).get("Row")) or []
+            if kids:
+                walk(kids)
+            data = row.get("ColData") or []
+            if not data:
+                continue
+            cells = {}
+            for i, title in enumerate(titles):
+                cells[title.lower()] = (data[i].get("value") if i < len(data) else "") or ""
+            day = (cells.get("date") or "")[:10]
+            if len(day) < 10 or day[4] != "-":
+                continue
+            raw_amt = cells.get("amount") or cells.get("foreign amount") or ""
+            if raw_amt in ("", "-"):
+                continue
+            try:
+                amount = float(str(raw_amt).replace(",", "").replace("R", "").strip())
+            except ValueError:
+                continue
+            name = (cells.get("name") or "").strip()
+            memo = (cells.get("memo/description") or cells.get("memo") or cells.get("description") or "").strip()
+            desc = " / ".join(p for p in (name, memo) if p) or name or memo
+            raw_bal = cells.get("balance") or cells.get("foreign balance") or ""
+            balance = None
+            if raw_bal not in ("", "-"):
+                try:
+                    balance = float(str(raw_bal).replace(",", "").replace("R", "").strip())
+                except ValueError:
+                    balance = None
+            out.append(
+                {
+                    "paid_on": day,
+                    "amount": round(amount, 2),
+                    "balance": balance,
+                    "description": desc,
+                    "source": "fnb_qb",
+                    "account_number": account_number,
+                    "filename": "qb-fnb-bank",
+                }
+            )
+
+    walk(((payload.get("Rows") or {}).get("Row")) or [])
+    return out
+
+
+def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dict:
+    """FNB 62860060278 from QuickBooks bank while Enterprise is pending. No FNB Online login."""
+    from datetime import date, timedelta
+
+    from company import COMPANY, GOWIFI_FNB
+    from fnb_statement import insert_new, record_live_card, set_progress
+
+    set_progress("Opening QuickBooks FNB")
+    token, realm = access_token()
+    accounts = _query(realm, token, "Account")
+    acc = find_fnb_account(accounts)
+    if not acc:
+        err = "No FNB bank account on QuickBooks"
+        set_progress(err, done=True, error=err)
+        return {"ok": False, "error": err, "inserted": 0, "rows": 0, "via": "fnb-qb"}
+    acct_id = str(acc.get("Id") or "")
+    number = str(acc.get("AcctNum") or GOWIFI_FNB).strip() or GOWIFI_FNB
+    qb_bal = acc.get("CurrentBalance")
+    try:
+        qb_bal = float(qb_bal) if qb_bal is not None else None
+    except (TypeError, ValueError):
+        qb_bal = None
+    set_progress(f"Reading FNB {number} from QB")
+    end = date.today()
+    start = end - timedelta(days=max(1, days))
+    report = _report(
+        realm,
+        token,
+        "TransactionList",
+        {
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "account": acct_id,
+        },
+    )
+    rows = parse_qb_fnb_report(report, number)
+    own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB), timeout=60)
+    if conn is None:
+        own.execute("PRAGMA busy_timeout=60000")
+    added = insert_new(own, rows)
+    if qb_bal is not None:
+        record_live_card(qb_bal, note="FNB via QuickBooks", conn=own)
+    if conn is None:
+        own.commit()
+        own.close()
+    pack = {
+        "ok": True,
+        "via": "fnb-qb",
+        "inserted": added["inserted"],
+        "allocated": added.get("allocated") or 0,
+        "need_recon": added.get("need_recon") or 0,
+        "need_recon_amount": added.get("need_recon_amount") or 0,
+        "attention": added.get("attention") or [],
+        "rows": len(rows),
+        "rows_seen": len(rows),
+        "balance": qb_bal,
+        "account_number": number,
+        "account_name": COMPANY["bank_account_name"],
+        "note": f"QB FNB {number} · {len(rows)} posted · {added['inserted']} new",
+    }
+    set_progress(f"Done · {added['inserted']} new of {len(rows)} from QB", done=True)
+    return pack
 
 
 def pull(conn: sqlite3.Connection) -> dict[str, int]:
