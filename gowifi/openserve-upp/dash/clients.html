@@ -561,6 +561,11 @@ fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"
     const pack = data.clients || {};
     if (location.hash) $("#q").value = decodeURIComponent(location.hash.slice(1));
     paint(pack);
+    fetch("/legal/fnb-card", {credentials:"same-origin", cache:"no-store"})
+      .then(r=>r.json()).then(c=>{
+        pack.fnb = Object.assign(pack.fnb || {}, c);
+        paint(pack);
+      }).catch(()=>{});
     const first = $("#grid .cat-card:not(.fnb-top) .head");
     if (location.hash && first) first.click();
     $("#q").addEventListener("input", ()=>paint(pack));

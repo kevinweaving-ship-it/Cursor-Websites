@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """FNB register for 62860060278.
 
-One table (bank_tx / fnb_tx). Two independent fetches write the same rows:
-QuickBooks bank, or FNB Online. Either can run first. Same date/amount/balance
-is not inserted twice. They match when both are current. Default Fetch is
-QuickBooks while FNB flags the Online login / Enterprise is pending. No cron.
+One table owns the running balance. QuickBooks bank and FNB Online both write
+the same rows. Same-day client credits are one EFT. The table rolls forward
+from the last FNB posted line and checksums that tip against FNB or QB.
+Income is FNB EFT and Netcash D/O; expenses are FNB only. Default Fetch is
+QuickBooks while Enterprise is pending. No cron.
 """
 from __future__ import annotations
 
@@ -125,9 +126,10 @@ def status(env: dict[str, str] | None = None) -> dict:
         has_qb = False
     via = "fnb"
     note = (
-        "One FNB table. Fetch from QuickBooks bank or FNB Online — "
-        "they match when both are current. Default Fetch is QuickBooks "
-        "while waiting for Enterprise (FNB is flagging the login). No cron."
+        "One FNB table owns the running balance. Income is FNB EFT and Netcash D/O; "
+        "expenses are FNB only. Netcash only pays FNB after its fees. "
+        "Checksum the table tip against FNB Online or QuickBooks FNB. "
+        "Default Fetch is QuickBooks while waiting for Enterprise. No cron."
     )
     return {
         "ready": has_qb or has_login,
@@ -552,7 +554,7 @@ def pull_async(via: str | None = None) -> dict:
 
 def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
     """FNB card from the shared register. QB bank and FNB Online both land here."""
-    from fnb_statement import card_overlay
+    from fnb_statement import card_overlay, checksum_table
 
     st = status()
     own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB))
@@ -617,13 +619,16 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
     latest = rows[0] if rows else None
     book = latest["balance"] if latest else posted_bal
     live_bal = overlay.get("live_balance")
-    shown = overlay.get("bank_balance")
+    shown = overlay.get("table_balance")
     if shown is None:
-        shown = live_bal if live_bal is not None else book
-    matched = bool(overlay.get("matched")) and not pending_rows and live_bal in (None, book)
+        shown = overlay.get("bank_balance")
+    if shown is None:
+        shown = book
+    check = overlay.get("checksum") or checksum_table(shown, overlay.get("external_balance") or live_bal)
+    matched = bool(check.get("ok")) and not pending_rows
     attention_amount = overlay.get("attention_amount") or 0
-    if live_bal is not None and book is not None and abs(float(live_bal) - float(book)) > 0.004:
-        attention_amount = round(attention_amount + abs(float(live_bal) - float(book)), 2)
+    if check.get("delta") and abs(float(check["delta"])) > 0.004:
+        attention_amount = round(attention_amount + abs(float(check["delta"])), 2)
         matched = False
     if rows:
         note = (
@@ -646,6 +651,9 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
         "has_api": st.get("has_api"),
         "balance": shown,
         "system_balance": posted_bal,
+        "table_balance": overlay.get("table_balance"),
+        "external_balance": overlay.get("external_balance"),
+        "checksum": check,
         "live_balance": live_bal,
         "as_at": latest["paid_on"] if latest else None,
         "last_fetched": overlay.get("last_fetched"),
@@ -876,11 +884,22 @@ def self_test() -> int:
                         "ColData": [
                             {"value": "2026-10-06"},
                             {"value": "Payment"},
-                            {"value": "G CUPIDO"},
+                            {"value": "Mr Godfrey Cupido"},
                             {"value": ""},
                             {"value": "FNB - 62860060278 - Main"},
-                            {"value": "760.00"},
-                            {"value": "5314.66"},
+                            {"value": "527.00"},
+                            {"value": ""},
+                        ]
+                    },
+                    {
+                        "ColData": [
+                            {"value": "2026-10-06"},
+                            {"value": "Payment"},
+                            {"value": "Mr Godfrey Cupido"},
+                            {"value": ""},
+                            {"value": "FNB - 62860060278 - Main"},
+                            {"value": "233.00"},
+                            {"value": ""},
                         ]
                     },
                     {
@@ -915,10 +934,10 @@ def self_test() -> int:
     elif (
         len(parsed) != 2
         or parsed[0]["amount"] != 760
-        or parsed[0]["balance"] != 5314.66
         or parsed[1]["amount"] != -520
         or parsed[0]["source"] != "fnb_qb"
-        or any(abs(r["amount"] - 233) < 0.004 for r in parsed)
+        or any(abs((r.get("amount") or 0) - 233) < 0.004 for r in parsed)
+        or any(abs((r.get("amount") or 0) - 527) < 0.004 for r in parsed)
     ):
         print("FAIL qb-fnb-parse", parsed)
         failed += 1
@@ -999,11 +1018,14 @@ def self_test() -> int:
 
     record_live_card(5314.66, 4815.44, conn=conn)
     live_card = card(conn)
-    if live_card.get("balance") != 5314.66 or live_card.get("live_balance") != 5314.66:
-        print("FAIL card-shows-live-fnb", live_card.get("balance"), live_card.get("live_balance"))
+    if live_card.get("table_balance") != 4554.66 or live_card.get("live_balance") != 5314.66:
+        print("FAIL card-table-vs-fnb", live_card.get("table_balance"), live_card.get("live_balance"))
+        failed += 1
+    elif (live_card.get("checksum") or {}).get("ok"):
+        print("FAIL card-checksum-too-early", live_card.get("checksum"))
         failed += 1
     else:
-        print("OK card-shows-live-fnb")
+        print("OK card-table-owns-balance")
     from fnb_statement import replace_pending
 
     replace_pending(
@@ -1039,6 +1061,30 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK pending-cleared-processed-blue")
+    from fnb_statement import insert_new
+
+    insert_new(
+        conn,
+        [
+            {
+                "paid_on": "2026-10-06",
+                "amount": 760.0,
+                "description": "G Cupido",
+                "source": "fnb_qb",
+                "account_number": "62860060278",
+                "filename": "qb-fnb-bank",
+            }
+        ],
+    )
+    paid = card(conn)
+    if paid.get("balance") != 5314.66 or not (paid.get("checksum") or {}).get("ok"):
+        print("FAIL table-checksum-after-eft", paid.get("balance"), paid.get("checksum"))
+        failed += 1
+    elif abs((paid.get("rows") or [{}])[0].get("received") or 0) != 760:
+        print("FAIL one-eft-not-splits", paid.get("rows")[0] if paid.get("rows") else None)
+        failed += 1
+    else:
+        print("OK table-checksum-after-eft")
     conn.close()
     return failed
 

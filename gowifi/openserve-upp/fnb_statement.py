@@ -421,6 +421,236 @@ def allocate_live(row: dict) -> dict:
     return alloc
 
 
+def collapse_same_day_client_credits(rows: list[dict]) -> list[dict]:
+    """One FNB EFT per client per day. QB apply splits (527+233) are not two deposits."""
+    from billing import canon_key, client_row
+
+    buckets: dict[tuple, list] = {}
+    index: list = []
+    for raw in rows:
+        try:
+            amt = float(raw.get("amount") or 0)
+        except (TypeError, ValueError):
+            index.append(("row", raw))
+            continue
+        hit = client_row(raw.get("description") or raw.get("payee") or "") if amt > 0.004 else None
+        if not hit:
+            index.append(("row", raw))
+            continue
+        key = (str(raw.get("paid_on") or "")[:10], canon_key(hit["name"]))
+        if key not in buckets:
+            buckets[key] = []
+            index.append(("grp", key, hit))
+        buckets[key].append(raw)
+    out: list[dict] = []
+    for item in index:
+        if item[0] == "row":
+            out.append(item[1])
+            continue
+        _kind, key, hit = item
+        items = buckets.pop(key, [])
+        if not items:
+            continue
+        if len(items) == 1:
+            out.append(items[0])
+            continue
+        total = round(sum(float(r.get("amount") or 0) for r in items), 2)
+        bals = [r.get("balance") for r in items if r.get("balance") is not None]
+        first = dict(items[0])
+        first["amount"] = total
+        first["balance"] = bals[-1] if bals else first.get("balance")
+        first["description"] = hit["name"]
+        out.append(first)
+    return out
+
+
+def roll_posted_balances(rows: list[dict]) -> list[dict]:
+    """FNB table owns the running balance. Forward from the last trusted posted line."""
+    if not rows:
+        return rows
+    trusted = {"fnb_live", "fnb_online", "fnb_api", "fnb_history"}
+    ordered = sorted(
+        rows,
+        key=lambda r: (str(r.get("paid_on") or ""), int(r.get("id") or 0)),
+    )
+    anchor_i = None
+    for i, row in enumerate(ordered):
+        if row.get("balance") is None:
+            continue
+        if (row.get("source") or "") in trusted:
+            anchor_i = i
+    if anchor_i is None:
+        for i, row in enumerate(ordered):
+            if row.get("balance") is not None:
+                anchor_i = i
+    if anchor_i is None:
+        return ordered
+    try:
+        running = round(float(ordered[anchor_i]["balance"]), 2)
+    except (TypeError, ValueError):
+        return ordered
+    for row in ordered[anchor_i + 1 :]:
+        try:
+            amt = float(row.get("amount") or 0)
+        except (TypeError, ValueError):
+            amt = 0.0
+        running = round(running + amt, 2)
+        row["balance"] = running
+    return ordered
+
+
+def checksum_table(table_bal, external_bal) -> dict:
+    """Table tip vs FNB Online card or QuickBooks FNB bank. Do not copy either onto the table."""
+    if table_bal is None or external_bal is None or external_bal == "":
+        return {"ok": False, "table": table_bal, "external": external_bal, "delta": None}
+    try:
+        table_n = round(float(table_bal), 2)
+        ext_n = round(float(external_bal), 2)
+    except (TypeError, ValueError):
+        return {"ok": False, "table": table_bal, "external": external_bal, "delta": None}
+    delta = round(table_n - ext_n, 2)
+    return {"ok": abs(delta) < 0.004, "table": table_n, "external": ext_n, "delta": delta}
+
+
+def persist_rolled_balances(conn: sqlite3.Connection, rows: list[dict]) -> None:
+    for row in rows:
+        if row.get("id") is None or row.get("balance") is None:
+            continue
+        try:
+            conn.execute(
+                "UPDATE bank_tx SET balance=? WHERE id=?",
+                (float(row["balance"]), int(row["id"])),
+            )
+        except sqlite3.Error:
+            continue
+    try:
+        conn.commit()
+    except sqlite3.Error:
+        pass
+
+
+def merge_same_day_client_credits(conn: sqlite3.Connection) -> int:
+    """One EFT per client per day on the shared FNB table."""
+    from billing import canon_key, client_row
+
+    try:
+        recs = list(
+            conn.execute(
+                """SELECT id, paid_on, amount, description, source FROM bank_tx
+                   WHERE ours=1 AND amount > 0
+                     AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
+                   ORDER BY paid_on, id"""
+            )
+        )
+    except sqlite3.OperationalError:
+        return 0
+    groups: dict[tuple, list] = {}
+    for rec in recs:
+        hit = client_row(rec[3] or "")
+        if not hit:
+            continue
+        key = (str(rec[1] or "")[:10], canon_key(hit["name"]))
+        groups.setdefault(key, []).append((rec, hit))
+    merged = 0
+    for items in groups.values():
+        if len(items) < 2:
+            continue
+        keep_id = items[0][0][0]
+        hit = items[0][1]
+        total = round(sum(float(r[0][2] or 0) for r in items), 2)
+        drop = [r[0][0] for r in items[1:]]
+        conn.execute(
+            "UPDATE bank_tx SET amount=?, description=? WHERE id=?",
+            (total, hit["name"], keep_id),
+        )
+        conn.execute(
+            f"DELETE FROM bank_tx WHERE id IN ({','.join('?' * len(drop))})",
+            drop,
+        )
+        day = str(items[0][0][1] or "")[:10]
+        try:
+            conn.execute(
+                """DELETE FROM fnb_tx
+                   WHERE substr(paid_on,1,10)=? AND alloc_key=? AND amount > 0
+                     AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')""",
+                (day, canon_key(hit["name"])),
+            )
+            keep = to_fnb_row(
+                {
+                    "paid_on": day,
+                    "amount": total,
+                    "description": hit["name"],
+                    "source": items[0][0][4] or "fnb_qb",
+                    "account_number": ACCOUNT,
+                }
+            )
+            alloc = allocate_live(keep)
+            conn.execute(
+                """INSERT OR IGNORE INTO fnb_tx
+                   (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
+                    account, bank_status, alloc_kind, alloc_to, alloc_key, result, source)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    keep["paid_on"],
+                    keep.get("ref"),
+                    keep.get("payee"),
+                    keep.get("memo"),
+                    keep.get("payment"),
+                    keep.get("deposit"),
+                    keep["amount"],
+                    keep.get("balance"),
+                    keep.get("qb_type"),
+                    keep.get("account"),
+                    keep.get("bank_status"),
+                    alloc["alloc_kind"],
+                    alloc["alloc_to"],
+                    alloc.get("alloc_key") or "",
+                    alloc["result"],
+                    keep.get("source"),
+                ),
+            )
+        except sqlite3.OperationalError:
+            pass
+        merged += 1
+    if merged:
+        conn.commit()
+    return merged
+
+
+def refresh_table_balances(conn: sqlite3.Connection) -> dict:
+    """Roll the shared FNB table, then return its own tip."""
+    merge_same_day_client_credits(conn)
+    try:
+        recs = list(
+            conn.execute(
+                """SELECT id, paid_on, amount, balance, description, source FROM bank_tx
+                   WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
+                   ORDER BY paid_on ASC, id ASC"""
+            )
+        )
+    except sqlite3.OperationalError:
+        return {"table_balance": None, "rows": []}
+    rows = [
+        {
+            "id": rec[0],
+            "paid_on": rec[1],
+            "amount": rec[2],
+            "balance": rec[3],
+            "description": rec[4],
+            "source": rec[5],
+        }
+        for rec in recs
+    ]
+    rolled = roll_posted_balances(rows)
+    persist_rolled_balances(conn, rolled)
+    tip = rolled[-1]["balance"] if rolled else None
+    try:
+        tip = round(float(tip), 2) if tip is not None else None
+    except (TypeError, ValueError):
+        tip = None
+    return {"table_balance": tip, "rows": rolled}
+
+
 def insert_new(conn: sqlite3.Connection, rows: list[dict]) -> dict:
     """Add only rows not already on the FNB tables. Allocate each new one."""
     from books import ensure_tables
@@ -428,6 +658,7 @@ def insert_new(conn: sqlite3.Connection, rows: list[dict]) -> dict:
 
     ensure_tables(conn)
     ensure_fnb(conn)
+    rows = collapse_same_day_client_credits(rows)
     have = existing_keys(conn)
     have_money = {k[:3] for k in have}
     inserted = 0
@@ -1934,23 +2165,20 @@ def system_balance(conn: sqlite3.Connection) -> float | None:
 def card_overlay(conn: sqlite3.Connection | None = None) -> dict:
     """Last fetch + unmatched items for the FNB card."""
     own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB))
+    rolled = refresh_table_balances(own)
     fetch = last_fetch(own) or {}
     live = last_live_figures(own)
     attention = attention_open(own)
     pending = pending_open(own)
     need_amt = round(sum(abs(float(a.get("amount") or 0)) for a in attention), 2)
     pending_amt = round(sum(abs(float(p.get("amount") or 0)) for p in pending), 2)
-    sys_bal = system_balance(own)
+    table_bal = rolled.get("table_balance")
+    sys_bal = table_bal if table_bal is not None else system_balance(own)
     live_bal = live.get("balance")
     fetch_bal = fetch.get("balance") if fetch.get("ok") else None
-    if live_bal is not None and fetch_bal is not None and abs(float(live_bal) - float(fetch_bal)) > 0.004:
-        bank_bal = live_bal
-    elif fetch_bal is not None:
-        bank_bal = fetch_bal
-    elif live_bal is not None:
-        bank_bal = live_bal
-    else:
-        bank_bal = sys_bal
+    external = live_bal if live_bal is not None else fetch_bal
+    check = checksum_table(table_bal, external)
+    bank_bal = table_bal if table_bal is not None else sys_bal
     available = None
     if live_bal is not None and pending_amt:
         available = round(float(live_bal) - pending_amt, 2)
@@ -1967,6 +2195,9 @@ def card_overlay(conn: sqlite3.Connection | None = None) -> dict:
         "last_ok": last_ok,
         "system_balance": sys_bal,
         "live_balance": live_bal,
+        "table_balance": table_bal,
+        "external_balance": external,
+        "checksum": check,
         "bank_balance": bank_bal,
         "available": available,
         "pending": pending,
@@ -2213,6 +2444,43 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK qb-does-not-clobber-live-card")
+    rolled = roll_posted_balances(
+        [
+            {
+                "id": 1,
+                "paid_on": "2026-10-01",
+                "amount": -2223.94,
+                "balance": 5074.66,
+                "source": "fnb_online",
+            },
+            {
+                "id": 2,
+                "paid_on": "2026-10-05",
+                "amount": -520.0,
+                "balance": None,
+                "source": "fnb_qb",
+            },
+            {
+                "id": 3,
+                "paid_on": "2026-10-06",
+                "amount": 760.0,
+                "balance": None,
+                "source": "fnb_qb",
+            },
+        ]
+    )
+    check = checksum_table(rolled[-1]["balance"], 5314.66)
+    if rolled[-2]["balance"] != 4554.66 or rolled[-1]["balance"] != 5314.66:
+        print("FAIL table-rolls-own-balance", rolled)
+        failed += 1
+    elif not check.get("ok"):
+        print("FAIL table-checksum-fnb-qb", check)
+        failed += 1
+    elif checksum_table(5314.66, 5074.66).get("ok"):
+        print("FAIL checksum-must-see-stale-qb")
+        failed += 1
+    else:
+        print("OK table-rolls-and-checksums")
     class _F:
         def __init__(self, url):
             self.url = url

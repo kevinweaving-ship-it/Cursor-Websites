@@ -255,7 +255,9 @@ def parse_qb_fnb_report(payload: dict[str, Any], account_number: str = "62860060
             )
 
     walk(((payload.get("Rows") or {}).get("Row")) or [])
-    return out
+    from fnb_statement import collapse_same_day_client_credits
+
+    return collapse_same_day_client_credits(out)
 
 
 def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dict:
@@ -263,7 +265,13 @@ def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dic
     from datetime import date, datetime, timedelta
 
     from company import COMPANY, GOWIFI_FNB
-    from fnb_statement import _record_fetch, insert_new, set_progress, system_balance
+    from fnb_statement import (
+        _record_fetch,
+        checksum_table,
+        insert_new,
+        refresh_table_balances,
+        set_progress,
+    )
 
     set_progress("Opening QuickBooks FNB")
     token, realm = access_token()
@@ -298,7 +306,9 @@ def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dic
     if conn is None:
         own.execute("PRAGMA busy_timeout=60000")
     added = insert_new(own, rows)
-    shown = qb_bal if qb_bal is not None else system_balance(own)
+    rolled = refresh_table_balances(own)
+    table_bal = rolled.get("table_balance")
+    check = checksum_table(table_bal, qb_bal)
     pack = {
         "ok": True,
         "via": "fnb-qb",
@@ -310,10 +320,15 @@ def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dic
         "attention": added.get("attention") or [],
         "rows": len(rows),
         "rows_seen": len(rows),
-        "balance": shown,
+        "balance": table_bal,
+        "external_balance": qb_bal,
+        "checksum": check,
         "account_number": number,
         "account_name": COMPANY["bank_account_name"],
-        "note": f"QB FNB {number} · {len(rows)} posted · {added['inserted']} new",
+        "note": (
+            f"QB FNB {number} · table {table_bal} · QB {qb_bal} · "
+            + ("checksum match" if check.get("ok") else "checksum not matched")
+        ),
     }
     _record_fetch(own, pack)
     if conn is None:
