@@ -20,7 +20,7 @@ INVOICE_DAY = 17
 DO_DAY = 1
 
 # Monthly book: fibre + wireless, debit-order + EFT. D/O order matches the
-# Netcash masterfile (batch 2571994). Amount is the line rental only —
+# Monthly book. Amount is the line rental only —
 # install / equipment / add-ons / reconnect are extras, not on the D/O.
 CLIENTS = [
     {"ref": "Wantling", "name": "David Wantling", "amount": 439.00, "method": "debit-order", "access": "wireless", "sku": None},
@@ -202,9 +202,8 @@ PENDING_DO = {
     "collected": True,
     "normal_day": DO_DAY,
     "note": (
-        "Same-day batch 2571994 on 5 Oct (the 1st slot after the 17 Sep load was missed). "
-        "Netcash debit masterfile shows no unpaids on that run. "
-        "Cupido 1763102147 / 4338169411 is Processed R759."
+        "Same-day batch 2571994 on 5 Oct. "
+        "Client paid/unpaid comes from the Netcash table, not this note."
     ),
 }
 

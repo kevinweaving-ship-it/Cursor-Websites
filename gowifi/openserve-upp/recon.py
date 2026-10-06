@@ -80,96 +80,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_netcash_tx_dedup
     );
 """
 
-# Paid / unpaid per batch. Only what Netcash named. 2571994 has no unpaids.
+# Paid / unpaid per batch. Only what Netcash named.
 BATCH_UNPAID: dict[str, set[str]] = {}
-BATCH_ITEM_REFS = {
-    ("2571994", "bing noordhoek"): {
-        "account_ref": "1311699279",
-        "tracking_ref": "198765",
-        "extra_ref": "429604040",
-    },
-    ("2571994", "g cupido"): {
-        "account_ref": "1763102147",
-        "tracking_ref": "4338169411",
-        "extra_ref": None,
-    },
-}
-
-# Screenshot candidates only. Never money until netcash_items or the
-# Netcash xls already has the same account / day / amount.
-NAMED_DO = [
-    {
-        "paid_on": "2026-10-05",
-        "customer": "Bing Noordhoek Fibre",
-        "amount": 599.00,
-        "result": "paid",
-        "batch_id": "2571994",
-        "account_ref": "1311699279",
-        "tracking_ref": "198765",
-        "extra_ref": "429604040",
-        "service": "Same day debit order",
-    },
-    {
-        "paid_on": "2026-10-05",
-        "customer": "G Cupido",
-        "amount": 759.00,
-        "result": "paid",
-        "batch_id": "2571994",
-        "account_ref": "1763102147",
-        "tracking_ref": "4338169411",
-        "service": "Same day debit order",
-    },
-    {
-        "paid_on": "2026-09-01",
-        "customer": "G Cupido",
-        "amount": 759.00,
-        "result": "unpaid",
-        "batch_id": "20260901",
-        "account_ref": "1763102147",
-        "tracking_ref": "4296190922",
-        "service": "Two day debit order",
-    },
-    {
-        "paid_on": "2026-08-03",
-        "customer": "G Cupido",
-        "amount": 759.00,
-        "result": "unpaid",
-        "batch_id": "20260803",
-        "account_ref": "1763102147",
-        "tracking_ref": "4230985580",
-        "service": "Two day debit order",
-    },
-    {
-        "paid_on": "2026-07-01",
-        "customer": "G Cupido",
-        "amount": 759.00,
-        "result": "paid",
-        "batch_id": "20260701",
-        "account_ref": "1763102147",
-        "tracking_ref": "417420631",
-        "service": "Two day debit order",
-    },
-    {
-        "paid_on": "2026-06-01",
-        "customer": "G Cupido",
-        "amount": 759.00,
-        "result": "paid",
-        "batch_id": "20260601",
-        "account_ref": "1763102147",
-        "tracking_ref": "411331048",
-        "service": "Two day debit order",
-    },
-    {
-        "paid_on": "2026-05-04",
-        "customer": "G Cupido",
-        "amount": 759.00,
-        "result": "unpaid",
-        "batch_id": "20260504",
-        "account_ref": "1763102147",
-        "tracking_ref": "404830634",
-        "service": "Two day debit order",
-    },
-]
 
 
 def named_unpaid_months(conn: sqlite3.Connection | None = None) -> dict[str, set[str]]:
@@ -189,39 +101,6 @@ def named_unpaid_months(conn: sqlite3.Connection | None = None) -> dict[str, set
         if key and day:
             out.setdefault(str(key), set()).add(str(day)[:7])
     return out
-
-
-def _named_do_in_real_table(conn: sqlite3.Connection, row: dict) -> bool:
-    """True only when Netcash items or the Netcash xls already has this row."""
-    day = (row.get("paid_on") or "")[:10]
-    amt = abs(float(row.get("amount") or 0))
-    key = canon_key(row.get("customer"))
-    refs = [r for r in (row.get("account_ref"), row.get("tracking_ref"), row.get("batch_id")) if r]
-    try:
-        for ref in refs:
-            hit = conn.execute(
-                """SELECT 1 FROM netcash_items
-                   WHERE (account_ref=? OR batch_id=?)
-                     AND ABS(COALESCE(amount,0)-?)<=0.02
-                     AND substr(COALESCE(action_date,''),1,10)=?""",
-                (ref, ref, amt, day),
-            ).fetchone()
-            if hit:
-                return True
-    except sqlite3.OperationalError:
-        pass
-    try:
-        hit = conn.execute(
-            """SELECT 1 FROM netcash_tx
-               WHERE source='netcash-xls'
-                 AND alloc_key=?
-                 AND substr(paid_on,1,10)=?
-                 AND ABS(COALESCE(amount,0)-?)<=0.02""",
-            (key, day, amt),
-        ).fetchone()
-        return bool(hit)
-    except sqlite3.OperationalError:
-        return False
 
 
 def checksum_real_money(conn: sqlite3.Connection) -> list[str]:
@@ -617,22 +496,15 @@ def ingest(conn: sqlite3.Connection) -> dict:
             ),
         )
         nc_n += 1
-    named_n = _ingest_named_do(conn)
-    nc_n += named_n
     conn.commit()
     return {
         "fnb": fnb_n,
         "netcash": nc_n,
-        "named_do": named_n,
+        "named_do": 0,
         "oct5": 0,
         "checksum": checksum_real_money(conn),
         **summary(conn),
     }
-
-
-def _ingest_named_do(conn: sqlite3.Connection) -> int:
-    """Do not write typed D/O into the books. Tables only."""
-    return 0
 
 
 def summary(conn: sqlite3.Connection) -> dict:
@@ -668,7 +540,7 @@ def batch_items(conn: sqlite3.Connection) -> list[dict]:
                FROM netcash_tx
                WHERE alloc_kind IN ('client_paid','client_unpaid')
                  AND COALESCE(alloc_key,'') != ''
-                 AND source IN ('netcash-masterfile','netcash-xls','netcash-batch')
+                 AND source IN ('netcash-xls','netcash-items','netcash-batch')
                ORDER BY paid_on DESC, CASE result WHEN 'unpaid' THEN 0 ELSE 1 END, alloc_to"""
         ).fetchall()
     except sqlite3.OperationalError:

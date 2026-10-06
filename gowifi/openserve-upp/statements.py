@@ -1440,8 +1440,7 @@ def for_export(conn: sqlite3.Connection, today: date | None = None) -> dict:
             "Due is as at today. D/O is grace until reconciled. "
             "A bounce stays due and raises a suspension notice. "
             "Reconnection / un-suspend is a once-off penalty, not on the monthly D/O. "
-            "5 Oct 2026 batch 2571994 collected — Netcash shows no unpaids. "
-            "Cupido 1763102147 / 4338169411 Processed."
+            "Money is FNB EFT and named Netcash table rows only."
         ),
         "count": len(cards),
         "accounts": cards,
