@@ -182,30 +182,53 @@ const statementAsAtInvoice = (lines, invNo) => {
   });
   return chron.reverse();
 };
-const toCurrent = stmt => {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const ageing = {current:0, d30:0, d60:0, d90:0, older:0};
-  (stmt.outstanding||[]).forEach(l => {
-    const d = parseDay(l.date) || today;
-    const days = Math.round((today - d) / 86400000);
-    const bucket = days<=0 ? "current" : days<=30 ? "d30" : days<=60 ? "d60" : days<=90 ? "d90" : "older";
-    ageing[bucket] += Number(l.amount!=null?l.amount:l.debit||0);
+const invoiceFromLedger = (card, invNo) => {
+  const line = ((card&&card.ledger)||[]).find(l =>
+    (l.kind||"")==="invoice" && String(l.ref||l.invoice_number||"")===String(invNo)
+  );
+  if (!line) return null;
+  return {
+    invoice_number: invNo,
+    invoice_date: line.date,
+    due_date: line.date,
+    customer: card.customer || card.name,
+    address: card.address,
+    description: stripUncapped(line.what || line.description || "Monthly service"),
+    qty: 1,
+    rate: line.amount,
+    amount: line.amount,
+    terms: "Due on receipt"
+  };
+};
+const cardForInvoice = (cards, invNo, inv) => {
+  const n = String(invNo||"");
+  const byRef = (cards||[]).find(c => ((c&&c.ledger)||[]).some(l =>
+    (l.kind||"")==="invoice" && String(l.ref||l.invoice_number||"")===n
+  ));
+  if (byRef) return byRef;
+  return inv ? (cards||[]).find(c => sameClient(c, inv)) : null;
+};
+const tableInvoices = data => {
+  const byN = {};
+  const hist = ((data.books||{}).history||{}).invoices || [];
+  const drafts = ((data.books||{}).customer_invoices||{}).rows || [];
+  hist.concat(drafts).forEach(x => {
+    const n = String(x.invoice_number||"");
+    if (!n) return;
+    const row = Object.assign({}, x);
+    delete row.statement;
+    byN[n] = row;
   });
-  if (!(stmt.outstanding||[]).length) Object.assign(ageing, stmt.ageing||{});
-  Object.keys(ageing).forEach(k => { ageing[k] = Math.max(0, Math.round(ageing[k]*100)/100); });
-  const iso = today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
-  return Object.assign({}, stmt, {ageing, as_at: iso});
+  return Object.keys(byN).sort((a,b)=>Number(a)-Number(b)).map(k => byN[k]);
 };
 const params = new URLSearchParams(location.search);
 fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store"})
   .then(r => { if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
   .then(data => {
-    const hist = ((data.books||{}).history||{}).invoices || [];
-    const drafts = ((data.books||{}).customer_invoices||{}).rows || [];
-    const all = hist.concat(drafts);
+    const all = tableInvoices(data);
     const want = params.get("n");
     const c = (data.books&&data.books.company) || {};
+    const cards = ((data.clients||{}).cards||[]).concat((data.clients||{}).offsets||[]);
     if (!want) {
       document.title = "GoWifi invoices";
       document.getElementById("app").innerHTML = `
@@ -226,25 +249,25 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
         </div>`;
       return;
     }
-    const r = all.find(x => String(x.invoice_number)===String(want));
+    let r = all.find(x => String(x.invoice_number)===String(want));
+    const card = cardForInvoice(cards, want, r);
+    if (!r) r = invoiceFromLedger(card, want);
     if (!r) { document.getElementById("app").innerHTML = `<p class="err">No invoice ${esc(want)}</p>`; return; }
-    const cards = ((data.clients||{}).cards||[]).concat((data.clients||{}).offsets||[]);
-    const card = cards.find(c => sameClient(c, r));
-    const raw = r.statement && r.statement.lines && r.statement.lines.length ? r.statement : {lines:[], total_due: r.balance_due!=null?r.balance_due:r.amount, ageing:{}};
-    const asAtInv = r.invoice_date || (data.clients&&data.clients.as_at) || raw.as_at;
+    const asAtInv = r.invoice_date || (data.clients&&data.clients.as_at);
     const cardLines = statementAsAtInvoice(((card&&card.ledger)||[]), r.invoice_number);
-    const cardAgeing = ageFromOpen(cardLines, asAtInv);
-    const dueAt = cardLines.length ? Number(cardLines[0].balance||0) : (card&&card.due);
-    const qbLines = collapseDoTwins((raw.lines||[]).slice().reverse());
-    const stmt = card && (card.ledger||[]).length
-      ? {lines: cardLines.map(l => ({
+    const lines = cardLines.length ? cardLines : [{
+      date: r.invoice_date, description: r.description, ref: r.invoice_number,
+      amount: r.amount, balance: r.amount, kind: "invoice", open: r.amount
+    }];
+    const cardAgeing = ageFromOpen(lines, asAtInv);
+    const dueAt = Number(lines[0].balance!=null ? lines[0].balance : r.amount);
+    const stmt = {lines: lines.map(l => ({
           date: l.date, date_fmt: l.date_fmt, description: l.what||l.description,
-          invoice_number: l.kind==="invoice" ? l.ref : "", amount: l.amount,
+          invoice_number: l.kind==="invoice" ? (l.ref||l.invoice_number||"") : "", amount: l.amount,
           balance: l.balance, kind: l.kind, open: l.open, tone: l.tone||""
-        })), total_due: dueAt, ageing: cardAgeing, as_at: asAtInv}
-      : toCurrent(Object.assign({}, raw, {lines: statementAsAtInvoice(qbLines, r.invoice_number)}));
+        })), total_due: dueAt, ageing: cardAgeing, as_at: asAtInv};
     const ageing = stmt.ageing || {};
-    const due = stmt.total_due!=null ? stmt.total_due : (r.balance_due!=null?r.balance_due:r.amount);
+    const due = stmt.total_due;
     const desc = r.description || "Monthly service";
     document.title = "Invoice "+r.invoice_number;
     document.getElementById("app").innerHTML = `

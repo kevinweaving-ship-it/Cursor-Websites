@@ -486,15 +486,11 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
             }
         )
     drafts = draft_customer_invoices(conn)
-    from invoice_canned import prepare_invoice, statement_on_invoice
+    from invoice_canned import prepare_invoice
 
-    all_inv = (history.get("invoices") or []) + drafts
-    pays = history.get("payments") or []
     for row in drafts:
         row.update(prepare_invoice(row))
-        row["statement"] = statement_on_invoice(all_inv, pays, row.get("customer"))
-        if row["statement"].get("total_due") is not None:
-            row["balance_due"] = row["statement"]["total_due"]
+        row.pop("statement", None)
     try:
         from netcash import pull as netcash_pull
         from netcash import status as nc_ready

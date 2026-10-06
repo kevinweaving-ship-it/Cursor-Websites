@@ -30,7 +30,7 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$SRC/clients.py" "$SRC/compliance.py" "$SRC/site_lines.py" \
   "$SRC/billing.py" "$SRC/books.py" "$SRC/packages.py" \
   "$SRC/customers.py" "$SRC/invoice_list.py" "$SRC/statements.py" "$SRC/netcash.py" \
-  "$SRC/audit_export.py" "$SRC/hook_dash_index.py" "$SRC/invoice_import.py" \
+  "$SRC/audit_export.py" "$SRC/hook_dash_index.py" "$SRC/invoice_import.py" "$SRC/qb_import.py" \
   "$SRC/mail_forwards.py" "$SRC/ensure_go_wifi_mail.sh" \
   "$SRC/upp_emails.py" "$SRC/upp_set_password.py" \
   "$SRC/qb_oauth.py" "$SRC/qb_api.py" "$SRC/fnb_api.py" "$SRC/fnb_statement.py" \

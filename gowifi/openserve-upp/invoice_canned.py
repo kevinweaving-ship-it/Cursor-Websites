@@ -837,6 +837,12 @@ def self_test() -> int:
     elif "?n=" not in page:
         print("FAIL invoice-html-child-links")
         failed += 1
+    elif "r.statement" in page or "qbLines" in page or "toCurrent" in page:
+        print("FAIL invoice-html-qb-statement")
+        failed += 1
+    elif "tableInvoices" not in page or "cardForInvoice" not in page or "card.ledger" not in page:
+        print("FAIL invoice-html-tables-only")
+        failed += 1
     else:
         print("OK invoice-html-child-statement")
     clients_page = Path(__file__).resolve().parent.joinpath("dash/clients.html")

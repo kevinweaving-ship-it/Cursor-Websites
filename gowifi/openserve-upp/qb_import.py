@@ -684,15 +684,13 @@ def history_for_export(conn: sqlite3.Connection) -> dict:
                ORDER BY paid_on, id"""
         )
     ]
-    from invoice_canned import prepare_invoice, statement_on_invoice
+    from invoice_canned import prepare_invoice
 
     fill_invoice_fields(invoices)
     _persist_filled_invoices(conn, invoices)
     for inv in invoices:
         inv.update(prepare_invoice(inv))
-        inv["statement"] = statement_on_invoice(
-            invoices, payments, inv.get("customer")
-        )
+        inv.pop("statement", None)
     last = invoices[-1]["invoice_number"] if invoices else 0
     return {
         "invoices": invoices,
@@ -881,6 +879,9 @@ Voelklip
         failed += 1
     elif by_n[2373]["qty"] != 1 or by_n[2373]["rate"] != 399:
         print("FAIL qty-rate", by_n[2373])
+        failed += 1
+    elif any(r.get("statement") for r in hist["invoices"]):
+        print("FAIL history-has-qb-statement")
         failed += 1
     else:
         print("OK recreate-from-statement")
