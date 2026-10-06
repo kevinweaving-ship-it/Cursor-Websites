@@ -539,16 +539,14 @@ def _collapse_eft_to_bank(conn: sqlite3.Connection) -> None:
         by[(str(rec[1] or "")[:10], canon_key(rec[2]))].append(rec)
     for (day, key), items in by.items():
         bank = fnb.get((day, key))
-        if not bank:
-            continue
-        total, n_fnb, name = bank
-        book = client_row(name)
-        # Only D/O clients: FNB split one day's EFT (Cupido 8 Sep). QB A/R
-        # "Payment" rows that day are not four deposits — one bank EFT.
-        # Leave EFT clients on their QB history so Marlene / Amoroc stay.
-        if not book or book.get("method") != "debit-order":
-            continue
-        if n_fnb < 2 and (day, key) not in BANK_EFT:
+        name = bank[2] if bank else (display_name(items[0][2]) or items[0][2])
+        if bank:
+            total = bank[0]
+        else:
+            total = _day_eft_total(
+                [{"amount": item[3], "source": item[4]} for item in items]
+            )
+        if total <= 0.004:
             continue
         BANK_EFT[(day, key)] = total
         if len(items) == 1 and abs(abs(_money(items[0][3])) - total) <= 0.02:
@@ -559,7 +557,7 @@ def _collapse_eft_to_bank(conn: sqlite3.Connection) -> None:
             """INSERT INTO customer_payments
                (paid_on, customer, amount, note, source, method)
                VALUES (?,?,?,?,?,?)""",
-            (day, name, -total, "EFT", "fnb-alloc", "eft"),
+            (day, name, -total, "EFT", "fnb-alloc" if bank else "qb-eft", "eft"),
         )
 
 
@@ -646,6 +644,67 @@ def _bank_money(row: dict) -> bool:
     """FNB EFT or named Netcash D/O. Not a QuickBooks apply/split row."""
     src = str(row.get("source") or "").lower()
     return src.startswith("fnb") or "netcash" in src
+
+
+def _payment_bucket(source: str | None) -> str:
+    src = str(source or "").lower()
+    if src in {"fnb_live", "fnb_online", "fnb_api", "fnb_qb"}:
+        return "fnb_live"
+    if src.startswith("fnb"):
+        return "fnb_xls"
+    if "netcash" in src:
+        return "netcash"
+    return "qb"
+
+
+def _day_eft_total(items: list[dict]) -> float:
+    """One bank EFT for the day. QB apply splits are not extra deposits."""
+    buckets = {"fnb_live": 0.0, "fnb_xls": 0.0, "qb": 0.0}
+    for row in items:
+        src = _payment_bucket(row.get("source"))
+        if src == "netcash":
+            continue
+        buckets[src] += abs(_money(row.get("amount")))
+    return round(buckets["fnb_live"] or buckets["fnb_xls"] or buckets["qb"] or 0.0, 2)
+
+
+def _pay_is_do(row: dict) -> bool:
+    return (row.get("method") or "").lower() in {"do", "debit", "debit-order"} or (
+        row.get("note") or ""
+    ).lower().startswith("debit")
+
+
+def _collapse_client_day_efts(pays: list[dict], name: str) -> list[dict]:
+    """One EFT per day. Same-day QB/FNB apply rows are one bank payment."""
+    from collections import defaultdict
+
+    kept: list[dict] = []
+    by_day: dict[str, list[dict]] = defaultdict(list)
+    for row in pays:
+        method = (row.get("method") or "").lower()
+        if _pay_is_do(row) or method in {"credit", "cash"}:
+            kept.append(row)
+            continue
+        by_day[str(row.get("paid_on") or "")[:10]].append(row)
+    for day, items in by_day.items():
+        if not day:
+            kept.extend(items)
+            continue
+        amt = _day_eft_total(items)
+        if amt <= 0.004:
+            continue
+        src = next((i.get("source") for i in items if _bank_money(i)), items[0].get("source") or "qb-eft")
+        kept.append(
+            {
+                "paid_on": day,
+                "customer": name,
+                "amount": -amt,
+                "note": "EFT",
+                "method": "eft",
+                "source": src,
+            }
+        )
+    return kept
 
 
 def _books_invoice(row: dict) -> bool:
@@ -937,7 +996,14 @@ def present_ledger(
         do_paid = rec.get("kind") == "payment" and (
             "D/O paid" in (rec.get("what") or "") or (rec.get("what") or "").startswith("Debit")
         )
-        rec["show"] = bool(due or pin or do_paid or (show_money and rec.get("kind") == "payment"))
+        same_eft = (
+            rec.get("kind") == "payment"
+            and last_pay
+            and (rec.get("date") or "") == (last_pay.get("date") or "")
+        )
+        rec["show"] = bool(
+            due or pin or do_paid or same_eft or (show_money and rec.get("kind") == "payment")
+        )
         rec["reconciled"] = not rec["show"]
         rec["tone"] = invoice_tone(rec, today)
     return tagged
@@ -1017,28 +1083,8 @@ def fifo_statement(
         (p for p in payments if canon_key(p.get("customer")) == key),
         key=lambda p: (p.get("paid_on") or "", str(p.get("note") or "")),
     )
-    from collections import defaultdict
-
-    grouped: dict[tuple, list[dict]] = defaultdict(list)
-    for p in pays:
-        grouped[(p.get("paid_on") or "", round(abs(_money(p.get("amount"))), 2))].append(p)
-    unique_pays = []
-    for items in grouped.values():
-        srcs = {i.get("source") for i in items}
-        if len(srcs) > 1:
-            unique_pays.append(
-                next(
-                    (i for i in items if _bank_money(i)),
-                    next(
-                        (i for i in items if str(i.get("source") or "").startswith("qb-sales")),
-                        items[0],
-                    ),
-                )
-            )
-        else:
-            unique_pays.extend(items)
     pays = sorted(
-        unique_pays,
+        _collapse_client_day_efts(pays, name),
         key=lambda p: (p.get("paid_on") or "", str(p.get("note") or "")),
     )
     pool = [
@@ -1546,6 +1592,29 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK marlene-real-due", marlene["due"])
+    marlene_pays = [
+        r
+        for r in (marlene.get("ledger") or [])
+        if r.get("kind") == "payment"
+    ]
+    marlene_jun18 = [r for r in marlene_pays if (r.get("date") or "") == "2024-06-18"]
+    marlene_jul18 = [r for r in marlene_pays if (r.get("date") or "") == "2025-07-18"]
+    jun18_sum = round(sum(abs(_money(r.get("amount"))) for r in marlene_jun18), 2)
+    jul18_sum = round(sum(abs(_money(r.get("amount"))) for r in marlene_jul18), 2)
+    if jun18_sum != 2000:
+        print("FAIL marlene-jun18-one-eft-2000", jun18_sum, [r.get("what") for r in marlene_jun18])
+        failed += 1
+    elif jul18_sum != 1000:
+        print("FAIL marlene-jul18-one-eft-1000", jul18_sum, [r.get("what") for r in marlene_jul18])
+        failed += 1
+    elif not any("EFT 2000.00" in (r.get("what") or "") for r in marlene_jun18):
+        print("FAIL marlene-jun18-not-split", [r.get("what") for r in marlene_jun18])
+        failed += 1
+    elif len(marlene_jun18) < 2:
+        print("FAIL marlene-jun18-must-bf-invoices", [r.get("what") for r in marlene_jun18])
+        failed += 1
+    else:
+        print("OK marlene-one-eft-many-invoices", "jun18", jun18_sum, "jul18", jul18_sum)
     want = account_as_at(conn, "Wantling, David", today)
     want_unpaid = [r for r in (want.get("ledger") or []) if r.get("kind") == "unpaid"]
     if want_unpaid:
