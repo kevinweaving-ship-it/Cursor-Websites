@@ -128,6 +128,8 @@ def _line_account_key(row: dict) -> str:
         return "bing noordhoek"
     if any(w in blob for w in ("hermanus heights", "francolin")):
         return "annette bing"
+    if "albertyn" in blob:
+        return "geocorp"
     return canon_key(row.get("customer"))
 
 
@@ -190,16 +192,13 @@ def _grace(acc: dict, today: date) -> dict:
     bounced = bool(acc.get("bounced") or acc.get("suspension_notice"))
     pending = acc.get("pending_do") or {}
     do_grace = bool(acc.get("in_do_grace") or (pending and not pending.get("reconciled") and not paid_up))
-    collected = bool(pending.get("reconciled"))
     inv = _parse(acc.get("last_invoice_date") or acc.get("last_paid_on"))
     days = (today - inv).days if inv else None
     in_grace = do_grace or ((not paid_up) and (not bounced) and days is not None and 0 <= days <= GRACE_DAYS)
     if bounced:
         label = f"D/O bounced · Due {due:.2f} · Suspension notice"
     elif paid_up:
-        label = "Paid up"
-        if collected:
-            label = f"Paid up · D/O {pending.get('action_date')}"
+        label = "Paid Up"
     elif do_grace:
         label = f"D/O pending · {pending.get('action_date')} · not due until reconciled"
     elif in_grace:
@@ -662,7 +661,18 @@ def self_test() -> int:
         "product": "Webstream",
         "speed": "100/50",
     }
-    pack = cards_for_export(None, [pop, hpp, broken, held, aljo, aman, johannes], today)
+    georgala = {
+        "service_number": "B110037269",
+        "customer": "Michael Georgala",
+        "line_status": "active",
+        "access_status": "Active",
+        "partner_status": "IspActive",
+        "address": "26 ALBERTYN ST,HERMANUS,HERMANUS",
+        "activated": "2025-03-20",
+        "product": "Webstream",
+        "speed": "50/25",
+    }
+    pack = cards_for_export(None, [pop, hpp, broken, held, aljo, aman, johannes, georgala], today)
     names = [c["name"] for c in pack["cards"]]
     by = {c["name"]: c for c in pack["cards"]}
     cancelled_names = [c["name"] for c in pack.get("cancelled") or []]
@@ -735,6 +745,22 @@ def self_test() -> int:
         failed += 1
     elif canon_key("Such, James (deleted)") != "james such":
         print("FAIL deleted-key", canon_key("Such, James (deleted)"))
+        failed += 1
+    elif "Michael Georgala" in names or "Michael Georgala" in cancelled_names:
+        print("FAIL georgala-is-geocorp-not-own-card", names, cancelled_names)
+        failed += 1
+    elif by["GeoCorp"].get("b_number") != "B110037269":
+        print("FAIL geocorp-b-from-georgala", by["GeoCorp"])
+        failed += 1
+    elif _grace(
+        {
+            "nil": True,
+            "status": "paid-up",
+            "pending_do": {"action_date": "2026-10-05", "reconciled": True},
+        },
+        today,
+    )["balance_label"] != "Paid Up":
+        print("FAIL paid-up-plain-label")
         failed += 1
     else:
         print("OK client-cards")

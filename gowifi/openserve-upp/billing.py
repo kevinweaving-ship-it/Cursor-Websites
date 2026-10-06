@@ -127,6 +127,9 @@ _NAME_ALIASES = {
     "daniel havenga": "havenga",
     "geocorp cc": "geocorp",
     "geocorp": "geocorp",
+    "michael georgala": "geocorp",
+    "georgala michael": "geocorp",
+    "georgala": "geocorp",
     "steyn irene": "irene steyn",
     "irene steyn": "irene steyn",
     "terence pereira": "terence pereira",
@@ -157,6 +160,8 @@ def canon_key(name: str | None) -> str:
         return "lategan"
     if "paltco" in raw or "patriot" in raw:
         return "paltco"
+    if "georgala" in raw:
+        return "geocorp"
     if "deleted" in raw and "leon" in raw:
         return "leon dykman"
     if "deleted" in raw and "pereira" in raw:
@@ -748,6 +753,9 @@ def self_test() -> int:
         failed += 1
     elif builders["access"] != "fibre" or geo["access"] != "fibre":
         print("FAIL builders-geocorp-fibre", builders, geo)
+        failed += 1
+    elif canon_key("Michael Georgala") != "geocorp" or display_name("Michael Georgala") != "GeoCorp":
+        print("FAIL georgala-is-geocorp", canon_key("Michael Georgala"), display_name("Michael Georgala"))
         failed += 1
     elif len(DO_CLIENTS) != 14 or not fibre_do or not wireless_do:
         print("FAIL do-mix", len(DO_CLIENTS), len(fibre_do), len(wireless_do))
