@@ -91,6 +91,13 @@ if [ -f "$SRC/nginx-qb.conf" ] && [ -f "$WWWCONF" ]; then
   if ! grep -q 'location = /legal/qb-start' "$WWWCONF"; then
     cat "$SRC/nginx-qb.conf" >> "$WWWCONF"
     nginx -t && systemctl reload nginx || true
+  elif ! grep -q 'location = /legal/qb-callback.html' "$WWWCONF"; then
+    printf '%s\n' \
+      'location = /legal/qb-callback.html {' \
+      '	proxy_pass http://127.0.0.1:8799/callback;' \
+      '	proxy_set_header Host $host;' \
+      '}' >> "$WWWCONF"
+    nginx -t && systemctl reload nginx || true
   fi
 fi
 if [ -f "$SRC/gowifi-qb-oauth.service" ]; then

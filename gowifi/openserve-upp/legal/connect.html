@@ -13,10 +13,10 @@
 <main class="card">
   <h1>Connect QuickBooks</h1>
   <p class="meta">GoWiFi Box</p>
-  <p>Click Connect. Sign in if Intuit asks. Click <strong>Allow</strong> on the live GoWifi company. This is Production, not sandbox.</p>
+  <p>Click Connect. Sign in if Intuit asks. Click <strong>Allow</strong> on the live GoWifi company. The box now catches the bounce itself.</p>
   <p><a id="connect" class="btn" href="https://appcenter.intuit.com/connect/oauth2?client_id=ABuRsGyeZTQuOqil7wEeIWsIjzSQU6UQv4hOg1R0vXzPDVEjXL&amp;response_type=code&amp;scope=com.intuit.quickbooks.accounting&amp;redirect_uri=https%3A%2F%2Fgowifi.co.za%2Flegal%2Fqb-callback.html&amp;state=gowifi-box">Connect to QuickBooks</a></p>
-  <p>If Intuit drops you on Playground instead of this site, paste the address bar here.</p>
-  <textarea id="paste" rows="3" placeholder="Paste the Intuit result URL here"></textarea>
+  <p>If that page still says Not saved, open <a href="https://developer.intuit.com/v2/OAuth2Playground">Intuit Playground</a>, use the Production keys, connect GoWifi (Pty) Ltd, then paste the <strong>refresh token</strong> here.</p>
+  <textarea id="paste" rows="3" placeholder="Paste refresh token, or the Playground URL"></textarea>
   <p><button type="button" id="save" class="btn">Save connection</button></p>
   <p id="err" class="meta"></p>
   <p>Questions: <a href="mailto:accounts@go-wifi.co.za">accounts@go-wifi.co.za</a> · 076 263 9937</p>
@@ -39,7 +39,8 @@
       out.realmId = u.searchParams.get("realmId") || out.realmId;
       out.refresh_token = u.searchParams.get("refresh_token") || "";
     } catch (e) {
-      out.code = text;
+      if (text.indexOf("XAB") === 0) out.code = text;
+      else out.refresh_token = text;
     }
     return out;
   }

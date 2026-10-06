@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import html
 import json
 import os
 import ssl
@@ -138,6 +139,21 @@ def authorize_url(env: dict[str, str] | None = None) -> str:
     return f"{AUTHORIZE}?{q}"
 
 
+def parse_oauth_query(raw: str) -> dict[str, str]:
+    """Keep '+' in the Intuit code. Do not treat it as a space."""
+    if raw.startswith("?"):
+        raw = raw[1:]
+    out: dict[str, str] = {}
+    if not raw:
+        return out
+    for part in raw.split("&"):
+        if "=" not in part:
+            continue
+        key, val = part.split("=", 1)
+        out[urllib.parse.unquote(key)] = urllib.parse.unquote(val)
+    return out
+
+
 def _basic(client_id: str, secret: str) -> str:
     raw = f"{client_id}:{secret}".encode()
     return "Basic " + base64.b64encode(raw).decode()
@@ -190,6 +206,9 @@ def exchange_code(code: str, realm_id: str) -> dict:
     code = str(code or "").strip()
     if not code:
         raise SystemExit("missing authorization code")
+    sys.stderr.write(
+        f"qb-oauth: exchange code_len={len(code)} plus={'+' in code} space={' ' in code}\n"
+    )
     realm_id = (realm_id or env.get("QBO_REALM_ID") or KNOWN_REALM).strip()
     payload = _post_token(
         client_id,
@@ -321,6 +340,22 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
+    def _send_html(self, code: int, title: str, msg: str) -> None:
+        page = (
+            "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+            "<title>GoWiFi Box QuickBooks</title>"
+            "<link rel=\"stylesheet\" href=\"legal.css\"></head><body>"
+            "<header><div class=\"brand\">GoWifi (Pty) Ltd</div></header>"
+            f"<main class=\"card\"><h1>{html.escape(title)}</h1><p>{html.escape(msg)}</p>"
+            "<p><a href=\"connect.html\">Connect</a></p></main></body></html>"
+        ).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(page)))
+        self.end_headers()
+        self.wfile.write(page)
+
     def do_GET(self) -> None:
         path = urllib.parse.urlparse(self.path).path
         if path == "/start":
@@ -357,6 +392,25 @@ class Handler(BaseHTTPRequestHandler):
                     pass
             self._send(200, body)
             return
+        if path in {"/callback", "/legal/qb-callback.html"}:
+            q = parse_oauth_query(urllib.parse.urlparse(self.path).query)
+            if not q.get("code"):
+                self._send_html(
+                    200,
+                    "Wrong page",
+                    "This page only saves the bounce-back from Intuit.",
+                )
+                return
+            try:
+                result = exchange_code(q.get("code") or "", q.get("realmId") or "")
+                self._send_html(
+                    200,
+                    "Connected",
+                    f"Connected to company {result.get('realmId')}. You can close this tab.",
+                )
+            except SystemExit as exc:
+                self._send_html(400, "Not saved", str(exc))
+            return
         self._send(404, {"error": "not found"})
 
     def do_POST(self) -> None:
@@ -371,12 +425,17 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": "bad json"})
             return
         try:
-            if data.get("refresh_token") and data.get("realmId"):
+            if data.get("raw") and not data.get("code") and not data.get("refresh_token"):
+                parsed = parse_oauth_query(str(data.get("raw") or ""))
+                data["code"] = parsed.get("code") or ""
+                data["realmId"] = data.get("realmId") or parsed.get("realmId") or ""
+                data["refresh_token"] = parsed.get("refresh_token") or ""
+            if data.get("refresh_token") and (data.get("realmId") or KNOWN_REALM):
                 self._send(
                     200,
                     ingest_tokens(
                         str(data.get("refresh_token") or ""),
-                        str(data.get("realmId") or ""),
+                        str(data.get("realmId") or KNOWN_REALM),
                         str(data.get("access_token") or "") or None,
                         int(data.get("expires_in") or 3600),
                     ),
