@@ -60,7 +60,7 @@ CLIENTS = [
     {
         "ref": None,
         "name": "Mrs Marlene/Georg Van Eeden",
-        "amount": 399.00,
+        "amount": 439.00,
         "method": "eft",
         "access": "wireless",
         "sku": None,
@@ -998,7 +998,7 @@ def self_test() -> int:
     elif mar["invoice_date"] != "2026-10-07":
         print("FAIL marlene-cancel-tomorrow", mar)
         failed += 1
-    elif abs(float(mar["amount"]) - 399) > 0.01:
+    elif abs(float(mar["amount"]) - 439) > 0.01:
         print("FAIL marlene-cancel-amt", mar)
         failed += 1
     elif "7 Mbps" not in (mar.get("description") or "") or "cancellation month" not in (

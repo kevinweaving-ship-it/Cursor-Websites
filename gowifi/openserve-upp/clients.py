@@ -284,6 +284,7 @@ def _offset_card(
             card["due"] = due
             card["paid_up"] = bool(st.get("nil") or st.get("status") == "paid-up")
             card["ledger"] = st.get("ledger") or []
+            card["ageing"] = st.get("ageing") or {}
             card["earlier_paid"] = st.get("earlier_paid") or 0
             card["status"] = st.get("status")
             first = next(
@@ -437,6 +438,7 @@ def cards_for_export(
                         "in_do_grace": st.get("in_do_grace"),
                         "monthly": st.get("monthly"),
                         "ledger": st.get("ledger") or [],
+                        "ageing": st.get("ageing") or {},
                         "master": st.get("master"),
                         "sub": st.get("sub"),
                         "own_sub": st.get("own_sub"),
@@ -486,6 +488,7 @@ def cards_for_export(
             "due": due,
             "paid_up": bool(acc.get("nil") or acc.get("status") == "paid-up"),
             "ledger": acc.get("ledger") or [],
+            "ageing": acc.get("ageing") or {},
             "master": acc.get("master"),
             "sub": acc.get("sub"),
             "own_sub": acc.get("own_sub"),
@@ -580,6 +583,7 @@ def cards_for_export(
                     card["due"] = st.get("due")
                     card["paid_up"] = bool(st.get("nil"))
                     card["ledger"] = st.get("ledger") or []
+                    card["ageing"] = st.get("ageing") or {}
                     card["master"] = st.get("master")
                     card["sub"] = st.get("sub")
                     card["own_sub"] = st.get("own_sub")

@@ -42,7 +42,7 @@ from billing import (
     is_offset,
     split_qb_name,
 )
-from invoice_canned import statement_on_invoice
+from invoice_canned import age_from_opens, statement_on_invoice
 from invoice_list import NAMED_INVOICES
 from invoice_list import classify as classify_invoices
 from invoice_list import is_do_return_text, is_reconnect_text
@@ -1527,6 +1527,7 @@ def account_as_at(
         show_all=bool(is_offset(book) or key == "marlene georg"),
     )
     stmt = statement_on_invoice(invoices, payments, display, as_at=today)
+    ageing = age_from_opens(ledger.get("lines") or [], today)
     billed = ledger["billed"]
     paid = ledger["paid"]
     balance = ledger["due"]
@@ -1600,6 +1601,7 @@ def account_as_at(
             if not r.get("show") and r.get("kind") in {"invoice", "payment"}
         ),
         "last_payment": stmt.get("last_payment"),
+        "ageing": ageing,
     }
 
 
@@ -1734,7 +1736,7 @@ def self_test() -> int:
     conn.execute(
         """INSERT OR REPLACE INTO customer_invoices
            (invoice_number, invoice_date, customer, amount, balance_due, status, source, description)
-           VALUES (4000,?, 'Mrs Marlene/Georg Van Eeden',399,399,'open','gowifi-cancel',
+           VALUES (4000,?, 'Mrs Marlene/Georg Van Eeden',439,439,'open','gowifi-cancel',
                    '7 Mbps down / 3.5 Mbps Up — cancellation month')""",
         (cancel_day,),
     )
@@ -1748,17 +1750,28 @@ def self_test() -> int:
         None,
     )
     conn.execute("DELETE FROM customer_invoices WHERE invoice_number=4000")
-    if not cancel_row or abs(_money(cancel_row.get("amount")) - 399) > 0.02:
+    aged = marlene_c.get("ageing") or {}
+    aged_sum = round(sum(float(v or 0) for v in aged.values()), 2)
+    if not cancel_row or abs(_money(cancel_row.get("amount")) - 439) > 0.02:
         print("FAIL marlene-cancel-on-card", cancel_row, marlene_c.get("due"))
         failed += 1
-    elif abs((marlene_c.get("due") or 0) - 7579) > 0.5:
+    elif abs((marlene_c.get("due") or 0) - 7619) > 0.5:
         print("FAIL marlene-cancel-due", marlene_c.get("due"))
         failed += 1
     elif (marlene_c.get("ledger") or [])[0].get("ref") not in {4000, "4000"}:
         print("FAIL marlene-cancel-not-top", (marlene_c.get("ledger") or [])[:2])
         failed += 1
+    elif any(float(v or 0) < -0.001 for v in aged.values()):
+        print("FAIL marlene-ageing-neg", aged)
+        failed += 1
+    elif abs(aged_sum - (marlene_c.get("due") or 0)) > 0.5:
+        print("FAIL marlene-ageing-sum", aged, marlene_c.get("due"))
+        failed += 1
+    elif abs(float(aged.get("current") or 0) - 439) > 0.02:
+        print("FAIL marlene-ageing-current", aged)
+        failed += 1
     else:
-        print("OK marlene-cancel-on-card", marlene_c.get("due"))
+        print("OK marlene-cancel-on-card", marlene_c.get("due"), aged)
     want = account_as_at(conn, "Wantling, David", today)
     want_unpaid = [r for r in (want.get("ledger") or []) if r.get("kind") == "unpaid"]
     if want_unpaid:

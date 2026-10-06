@@ -161,6 +161,25 @@ def _open_items(rows: list[dict]) -> tuple[list[dict], float]:
     return open_inv, credit
 
 
+def age_from_opens(lines: list[dict], as_at: date | None = None) -> dict:
+    """Age each invoice's leftover `open` by how old that invoice is. Never negative."""
+    age_on = as_at or date.today()
+    buckets = {"current": 0.0, "d30": 0.0, "d60": 0.0, "d90": 0.0, "older": 0.0}
+    for row in lines or []:
+        if (row.get("kind") or "") != "invoice":
+            continue
+        try:
+            open_amt = float(row.get("open") or 0)
+        except (TypeError, ValueError):
+            continue
+        if open_amt <= 0.004:
+            continue
+        day = parse_day(row.get("date")) or age_on
+        key = _bucket((age_on - day).days)
+        buckets[key] = round(buckets[key] + open_amt, 2)
+    return {key: max(0.0, round(val, 2)) for key, val in buckets.items()}
+
+
 def _age_items(items: list[dict], age_on: date, credit: float = 0.0) -> tuple[list[dict], dict, float]:
     buckets = {"current": 0.0, "d30": 0.0, "d60": 0.0, "d90": 0.0, "older": 0.0}
     lines = []
@@ -186,9 +205,16 @@ def _age_items(items: list[dict], age_on: date, credit: float = 0.0) -> tuple[li
                 "bucket": bucket,
             }
         )
-    if credit:
-        buckets["current"] = round(buckets["current"] - credit, 2)
-        running = round(running - credit, 2)
+    leftover = max(0.0, float(credit or 0))
+    if leftover:
+        for key in ("current", "d30", "d60", "d90", "older"):
+            if leftover <= 0.004:
+                break
+            take = min(leftover, max(0.0, buckets[key]))
+            buckets[key] = round(buckets[key] - take, 2)
+            leftover = round(leftover - take, 2)
+        applied = round(float(credit or 0) - leftover, 2)
+        running = max(0.0, round(running - applied, 2))
         lines.append(
             {
                 "date": age_on.isoformat(),
@@ -196,16 +222,16 @@ def _age_items(items: list[dict], age_on: date, credit: float = 0.0) -> tuple[li
                 "reference": "",
                 "description": "Unallocated credit",
                 "days": 0,
-                "amount": -credit,
+                "amount": -applied,
                 "debit": None,
-                "credit": credit,
+                "credit": applied,
                 "balance": running,
                 "kind": "credit",
                 "bucket": "current",
             }
         )
-    ageing = {key: round(val, 2) for key, val in buckets.items()}
-    return lines, ageing, running
+    ageing = {key: max(0.0, round(val, 2)) for key, val in buckets.items()}
+    return lines, ageing, max(0.0, running)
 
 
 def _ageing(rows: list[dict], as_at: date | None) -> dict:
@@ -667,6 +693,40 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK one-invoice-card")
+    leftover = _ageing(
+        [
+            {"kind": "invoice", "signed": 439, "date": "2026-10-07", "reference": "3136"},
+            {"kind": "payment", "signed": -16433, "date": "2026-10-01", "reference": ""},
+        ],
+        date(2026, 10, 6),
+    )
+    if any(v < 0 for v in leftover.values()):
+        print("FAIL ageing-neg", leftover)
+        failed += 1
+    elif leftover != {"current": 0.0, "d30": 0.0, "d60": 0.0, "d90": 0.0, "older": 0.0}:
+        print("FAIL ageing-credit-clamp", leftover)
+        failed += 1
+    else:
+        print("OK ageing-no-neg")
+    opens = age_from_opens(
+        [
+            {"kind": "invoice", "date": "2026-10-07", "open": 439},
+            {"kind": "invoice", "date": "2026-09-21", "open": 439},
+            {"kind": "invoice", "date": "2026-08-20", "open": 439},
+            {"kind": "invoice", "date": "2026-07-17", "open": 878},
+            {"kind": "invoice", "date": "2026-04-17", "open": 5424},
+            {"kind": "payment", "date": "2025-07-18", "open": 1000},
+        ],
+        date(2026, 10, 6),
+    )
+    if opens != {"current": 439.0, "d30": 439.0, "d60": 439.0, "d90": 878.0, "older": 5424.0}:
+        print("FAIL age-from-opens", opens)
+        failed += 1
+    elif any(v < 0 for v in opens.values()) or round(sum(opens.values()), 2) != 7619:
+        print("FAIL age-from-opens-sum", opens)
+        failed += 1
+    else:
+        print("OK age-from-opens", opens)
     return failed
 
 

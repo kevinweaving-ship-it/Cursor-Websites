@@ -74,6 +74,23 @@ const parseDay = v => {
   if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
   return null;
 };
+const ageFromOpen = (lines, asAt) => {
+  const ageing = {current:0, d30:0, d60:0, d90:0, older:0};
+  let day0 = parseDay(asAt);
+  if (!day0) { day0 = new Date(); }
+  day0.setHours(0,0,0,0);
+  (lines||[]).forEach(l => {
+    if ((l.kind||"") !== "invoice") return;
+    const open = Number(l.open!=null ? l.open : 0);
+    if (open <= 0.004) return;
+    const d = parseDay(l.date) || day0;
+    const days = Math.round((day0 - d) / 86400000);
+    const bucket = days<=0 ? "current" : days<=30 ? "d30" : days<=60 ? "d60" : days<=90 ? "d90" : "older";
+    ageing[bucket] += open;
+  });
+  Object.keys(ageing).forEach(k => { ageing[k] = Math.max(0, Math.round(ageing[k]*100)/100); });
+  return ageing;
+};
 const toCurrent = stmt => {
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -85,7 +102,7 @@ const toCurrent = stmt => {
     ageing[bucket] += Number(l.amount!=null?l.amount:l.debit||0);
   });
   if (!(stmt.outstanding||[]).length) Object.assign(ageing, stmt.ageing||{});
-  Object.keys(ageing).forEach(k => { ageing[k] = Math.round(ageing[k]*100)/100; });
+  Object.keys(ageing).forEach(k => { ageing[k] = Math.max(0, Math.round(ageing[k]*100)/100); });
   const iso = today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
   return Object.assign({}, stmt, {ageing, as_at: iso});
 };
@@ -128,12 +145,16 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
       return n && who && (n===who || (n.includes("marlene") && who.includes("marlene")) || (n.includes("van eeden") && who.includes("van eeden")));
     });
     const cardLines = ((card&&card.ledger)||[]).filter(l => l.show!==false);
+    const asAt = (data.clients&&data.clients.as_at)||raw.as_at;
+    const cardAgeing = card && card.ageing && (card.ageing.current!=null || card.ageing.d30!=null)
+      ? card.ageing
+      : ageFromOpen(cardLines, asAt);
     const stmt = cardLines.length
       ? {lines: cardLines.map(l => ({
           date: l.date, date_fmt: l.date_fmt, description: l.what||l.description,
           invoice_number: l.kind==="invoice" ? l.ref : "", amount: l.amount,
-          balance: l.balance, kind: l.kind
-        })), total_due: card.due, ageing: raw.ageing||{}, as_at: (data.clients&&data.clients.as_at)||raw.as_at}
+          balance: l.balance, kind: l.kind, open: l.open
+        })), total_due: card.due, ageing: cardAgeing, as_at: asAt}
       : toCurrent(Object.assign({}, raw, {lines: (raw.lines||[]).slice().reverse()}));
     const ageing = stmt.ageing || {};
     const due = stmt.total_due!=null ? stmt.total_due : (r.balance_due!=null?r.balance_due:r.amount);
