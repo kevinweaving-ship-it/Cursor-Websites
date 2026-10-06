@@ -22,6 +22,10 @@ TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
 SCOPE = "com.intuit.quickbooks.accounting"
 STATE = "gowifi-box"
 BOX_REDIRECT = "https://gowifi.co.za/legal/qb-callback.html"
+# Janishia Noronha, Intuit Developer Group, 6 Oct 2026 — typos in the IDs we sent.
+INTUIT_APP_ID = "29bf4b87-d9b1-438f-9e35-52362429db57"
+INTUIT_DEV_CLIENT_ID = "ABs2E5POp4qzGRxLNEmMvP0LC2fGgXKzcHzYs1RUl4bsBhhvjD"
+INTUIT_PROD_CLIENT_ID = "ABuRsGyeZTQuOqil7wEeIWsIjzSQU6UQv4hOg1R0vXzPDVEjXL"
 API_PROD = "https://quickbooks.api.intuit.com/v3/company"
 API_SANDBOX = "https://sandbox-quickbooks.api.intuit.com/v3/company"
 
@@ -69,6 +73,26 @@ def client_pair(env: dict[str, str] | None = None) -> tuple[str, str, str]:
         client_id = env.get("QBO_DEV_CLIENT_ID") or env.get("QBO_CLIENT_ID") or ""
         secret = env.get("QBO_DEV_CLIENT_SECRET") or env.get("QBO_CLIENT_SECRET") or ""
     return client_id, secret, redirect
+
+
+def ids_match_intuit(env: dict[str, str] | None = None) -> dict:
+    """Local check only. Does not call Intuit or pull books."""
+    env = env or _load_env()
+    dev = (env.get("QBO_DEV_CLIENT_ID") or "").strip()
+    prod = (env.get("QBO_PROD_CLIENT_ID") or "").strip()
+    app = (env.get("QBO_APP_ID") or "").strip()
+    return {
+        "ok": dev == INTUIT_DEV_CLIENT_ID
+        and prod == INTUIT_PROD_CLIENT_ID
+        and app == INTUIT_APP_ID,
+        "dev": dev == INTUIT_DEV_CLIENT_ID,
+        "prod": prod == INTUIT_PROD_CLIENT_ID,
+        "app": app == INTUIT_APP_ID,
+        "keyset": active_keyset(env),
+        "has_dev_secret": bool((env.get("QBO_DEV_CLIENT_SECRET") or "").strip()),
+        "has_prod_secret": bool((env.get("QBO_PROD_CLIENT_SECRET") or "").strip()),
+        "connected": TOKEN_PATH.exists(),
+    }
 
 
 def authorize_url(env: dict[str, str] | None = None) -> str:
@@ -272,7 +296,8 @@ class Handler(BaseHTTPRequestHandler):
                 "connected": token_ok,
                 "keyset": active_keyset(env),
                 "realmId": env.get("QBO_REALM_ID") or None,
-                "appId": env.get("QBO_APP_ID") or None,
+                "appId": env.get("QBO_APP_ID") or INTUIT_APP_ID,
+                "ids": ids_match_intuit(env),
             }
             if token_ok:
                 try:
@@ -327,6 +352,8 @@ if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "serve"
     if cmd == "url":
         print(authorize_url())
+    elif cmd == "ids":
+        print(json.dumps(ids_match_intuit(), indent=2))
     elif cmd == "serve":
         serve()
     elif cmd == "refresh":
@@ -344,4 +371,4 @@ if __name__ == "__main__":
     elif cmd == "probe":
         print(json.dumps(probe_company(), indent=2))
     else:
-        raise SystemExit("url | serve | refresh | redeem | ingest | probe")
+        raise SystemExit("url | ids | serve | refresh | redeem | ingest | probe")

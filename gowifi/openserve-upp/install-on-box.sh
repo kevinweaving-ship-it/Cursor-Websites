@@ -77,9 +77,10 @@ chmod 600 /root/secrets/upp.token
 if [ ! -f /root/secrets/qbo.env ]; then
   printf '%s\n' \
     'QBO_KEYSET=development' \
-    'QBO_DEV_CLIENT_ID=' \
+    'QBO_APP_ID=29bf4b87-d9b1-438f-9e35-52362429db57' \
+    'QBO_DEV_CLIENT_ID=ABs2E5POp4qzGRxLNEmMvP0LC2fGgXKzcHzYs1RUl4bsBhhvjD' \
     'QBO_DEV_CLIENT_SECRET=' \
-    'QBO_PROD_CLIENT_ID=' \
+    'QBO_PROD_CLIENT_ID=ABuRsGyeZTQuOqil7wEeIWsIjzSQU6UQv4hOg1R0vXzPDVEjXL' \
     'QBO_PROD_CLIENT_SECRET=' \
     'QBO_REDIRECT_URI=https://gowifi.co.za/legal/qb-callback.html' \
     > /root/secrets/qbo.env
