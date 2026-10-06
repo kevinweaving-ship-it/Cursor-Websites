@@ -684,14 +684,14 @@ def parse_pending_table(text: str) -> list[dict]:
             continue
         m = re.search(
             r"(\d{1,2}[/\-]\d{1,2}[/\-]\d{4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})"
-            r"(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?"
+            r"(?:\s+(\d{1,2}:\d{2}(?::\d{2})?))?"
             r"(?:\s+(\d{4,6}\*+\d+))?"
             r"\s+(.+?)\s+(-?[\d,.]+)$",
             line,
         )
         if not m:
             continue
-        day = m.group(1)
+        day, clock, card, desc = m.group(1), m.group(2) or "", m.group(3) or "", (m.group(4) or "").strip()
         paid_on = day
         if "/" in day:
             p = day.split("/")
@@ -705,17 +705,20 @@ def parse_pending_table(text: str) -> list[dict]:
                     paid_on = datetime.strptime(day, "%d %b %Y").strftime("%Y-%m-%d")
                 except ValueError:
                     paid_on = day
+        if clock:
+            paid_on = f"{paid_on} {clock}"
         try:
-            amount = -abs(float(m.group(4).replace(",", "")))
+            amount = -abs(float(m.group(5).replace(",", "")))
         except ValueError:
             continue
-        desc = (m.group(3) or "").strip()
         if desc.lower() in {"description", "amount"}:
             continue
+        if card and card not in desc:
+            desc = f"{desc} / {card}"
         out.append(
             {
                 "paid_on": paid_on,
-                "card": m.group(2) or "",
+                "card": card,
                 "description": desc,
                 "amount": amount,
                 "what": "Pending · not posted",
@@ -1088,7 +1091,13 @@ def self_test() -> int:
     pend = parse_pending_table(
         "03 October 2026 15:00:39  485442******9008  WWW.UI.COM  499.22"
     )
-    if len(pend) != 1 or pend[0]["amount"] != -499.22 or pend[0]["paid_on"] != "2026-10-03":
+    if (
+        len(pend) != 1
+        or pend[0]["amount"] != -499.22
+        or pend[0]["paid_on"] != "2026-10-03 15:00:39"
+        or "WWW.UI.COM" not in pend[0]["description"]
+        or "485442" not in pend[0]["description"]
+    ):
         print("FAIL pending-parse", pend)
         failed += 1
     else:

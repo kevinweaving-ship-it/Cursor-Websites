@@ -537,10 +537,14 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
             amt = 0.0
         if running is not None:
             running = round(float(running) + amt, 2)
+        desc = (raw.get("description") or "").strip()
+        card = (raw.get("card") or "").strip()
+        if card and card not in desc:
+            desc = f"{desc} / {card}".strip(" /")
         pending_built.append(
             {
                 "paid_on": raw.get("paid_on"),
-                "description": raw.get("description"),
+                "description": desc,
                 "spent": abs(amt) if amt < 0 else None,
                 "received": abs(amt) if amt > 0 else None,
                 "amount": amt,
@@ -790,9 +794,25 @@ def self_test() -> int:
         print("OK fnb-card-system-balance")
     from fnb_statement import replace_pending
 
-    replace_pending(conn, [{"paid_on": "2026-10-03", "description": "WWW.UI.COM", "amount": -499.22}])
+    replace_pending(
+        conn,
+        [
+            {
+                "paid_on": "2026-10-03 15:00:39",
+                "card": "485442******9008",
+                "description": "WWW.UI.COM",
+                "amount": -499.22,
+            }
+        ],
+    )
     orange = card(conn)
-    if orange["rows"][0]["tone"] != "pending" or orange["rows"][0]["balance"] != 4055.44:
+    if (
+        orange["rows"][0]["tone"] != "pending"
+        or orange["rows"][0]["balance"] != 4055.44
+        or orange["rows"][0]["paid_on"] != "2026-10-03 15:00:39"
+        or "WWW.UI.COM" not in (orange["rows"][0]["description"] or "")
+        or "485442" not in (orange["rows"][0]["description"] or "")
+    ):
         print("FAIL pending-on-register", orange["rows"][0])
         failed += 1
     elif orange["rows"][1]["tone"] != "posted":
