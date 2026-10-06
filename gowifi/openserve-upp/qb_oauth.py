@@ -55,8 +55,10 @@ def _save_env(data: dict[str, str], path: Path = ENV_PATH) -> None:
 
 def active_keyset(env: dict[str, str] | None = None) -> str:
     env = env or _load_env()
-    raw = (env.get("QBO_KEYSET") or "development").strip().lower()
-    return "production" if raw.startswith("prod") else "development"
+    raw = (env.get("QBO_KEYSET") or "production").strip().lower()
+    if raw.startswith("dev"):
+        return "development"
+    return "production"
 
 
 def use_box_callback(env: dict[str, str] | None = None) -> bool:
@@ -70,9 +72,9 @@ def use_box_callback(env: dict[str, str] | None = None) -> bool:
 
 
 def active_redirect(env: dict[str, str] | None = None) -> str:
-    """Redirect sent to Intuit. Playground unless callback mode is forced."""
+    """Live company uses the box callback. Dev/sandbox uses Playground."""
     env = env or _load_env()
-    if use_box_callback(env):
+    if active_keyset(env) == "production" or use_box_callback(env):
         return (env.get("QBO_REDIRECT_URI") or BOX_REDIRECT).strip()
     return PLAYGROUND_REDIRECT
 

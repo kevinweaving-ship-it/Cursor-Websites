@@ -16,16 +16,14 @@
 <main class="card">
   <h1>Connect QuickBooks</h1>
   <p class="meta">GoWiFi Box</p>
-  <p>Open <a href="connect.html">Connect</a>. Click the blue button. Sign in if asked. Click Allow. You will land on Intuit Playground — copy the address bar back onto Connect and click Save connection.</p>
-  <p><strong>Sorry, but undefined didn’t connect</strong> is an Intuit App Center bug on Production client IDs. Settings, logo, redirect URIs, and geolocation do not fix it. Connect now uses the Development client ID, which still resolves the app name and can reach the live company.</p>
-  <p><strong>redirect_uri is invalid</strong> means Intuit Development Keys do not have our <code>gowifi.co.za</code> callback. The portal often refuses to save that custom URI and keeps only the Playground URI. Connect therefore uses the Playground redirect.</p>
+  <p>Open <a href="connect.html">Connect</a>. Click the blue button. Sign in if asked. Click Allow on the live GoWifi company.</p>
+  <p><strong>There is no sandbox company</strong> means Connect was using the Development client ID. That keyset only sees sandbox. GoWifi books are Production. Connect now uses the Production client ID.</p>
   <h2>Intuit IDs — do not mix these up</h2>
   <p>Intuit Developer Support asked for Client ID, Company ID, App ID, and the Authorization URL. Use only the values below. Do not send the CIPC number <strong>2020/514776/07</strong> as Company ID. Do not send a Client ID as App ID.</p>
-  <p class="meta">Redirect URI in use: https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl</p>
-  <p class="meta">Box callback (only if Intuit Keys actually saves it): https://gowifi.co.za/legal/qb-callback.html</p>
-  <p class="meta">Development Client ID (active, Janishia Noronha 6 Oct 2026, no spaces): ABs2E5POp4qzGRxLNEmMvP0LC2fGgXKzcHzYs1RUl4bsBhhvjD</p>
-  <p class="meta">Production Client ID (Janishia Noronha 6 Oct 2026, no spaces): ABuRsGyeZTQuOqil7wEeIWsIjzSQU6UQv4hOg1R0vXzPDVEjXL</p>
-  <p class="meta">Authorization URL (live /legal/qb-start, Development keyset, Playground redirect): https://appcenter.intuit.com/connect/oauth2?client_id=ABs2E5POp4qzGRxLNEmMvP0LC2fGgXKzcHzYs1RUl4bsBhhvjD&amp;response_type=code&amp;scope=com.intuit.quickbooks.accounting&amp;redirect_uri=https%3A%2F%2Fdeveloper.intuit.com%2Fv2%2FOAuth2Playground%2FRedirectUrl&amp;state=gowifi-box</p>
+  <p class="meta">Redirect URI in use: https://gowifi.co.za/legal/qb-callback.html</p>
+  <p class="meta">Development Client ID (Janishia Noronha 6 Oct 2026, no spaces): ABs2E5POp4qzGRxLNEmMvP0LC2fGgXKzcHzYs1RUl4bsBhhvjD</p>
+  <p class="meta">Production Client ID (active, Janishia Noronha 6 Oct 2026, no spaces): ABuRsGyeZTQuOqil7wEeIWsIjzSQU6UQv4hOg1R0vXzPDVEjXL</p>
+  <p class="meta">Authorization URL (live /legal/qb-start, Production keyset): https://appcenter.intuit.com/connect/oauth2?client_id=ABuRsGyeZTQuOqil7wEeIWsIjzSQU6UQv4hOg1R0vXzPDVEjXL&amp;response_type=code&amp;scope=com.intuit.quickbooks.accounting&amp;redirect_uri=https%3A%2F%2Fgowifi.co.za%2Flegal%2Fqb-callback.html&amp;state=gowifi-box</p>
   <p>Company ID / realmId (from the live QuickBooks company GoWifi (Pty) Ltd, no spaces): <strong>9130354340040586</strong></p>
   <p>App ID (Intuit, not a Client ID): <strong>29bf4b87-d9b1-438f-9e35-52362429db57</strong></p>
 </main>
