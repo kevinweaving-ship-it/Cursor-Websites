@@ -128,8 +128,6 @@ def _line_account_key(row: dict) -> str:
         return "bing noordhoek"
     if any(w in blob for w in ("hermanus heights", "francolin")):
         return "annette bing"
-    if "albertyn" in blob:
-        return "geocorp"
     return canon_key(row.get("customer"))
 
 
@@ -672,7 +670,16 @@ def self_test() -> int:
         "product": "Webstream",
         "speed": "50/25",
     }
-    pack = cards_for_export(None, [pop, hpp, broken, held, aljo, aman, johannes, georgala], today)
+    derek = {
+        "service_number": "B110064628",
+        "customer": "Derek van Zyl",
+        "line_status": "active",
+        "address": "42 ALBERTYN ST,HERMANUS,HERMANUS",
+        "activated": "2026-09-26",
+        "product": "Webstream",
+        "speed": "50/25",
+    }
+    pack = cards_for_export(None, [pop, hpp, broken, held, aljo, aman, johannes, georgala, derek], today)
     names = [c["name"] for c in pack["cards"]]
     by = {c["name"]: c for c in pack["cards"]}
     cancelled_names = [c["name"] for c in pack.get("cancelled") or []]
@@ -751,6 +758,9 @@ def self_test() -> int:
         failed += 1
     elif by["GeoCorp"].get("b_number") != "B110037269":
         print("FAIL geocorp-b-from-georgala", by["GeoCorp"])
+        failed += 1
+    elif "Derek van Zyl" not in names or by["Derek van Zyl"].get("b_number") != "B110064628":
+        print("FAIL derek-not-geocorp", names, by.get("Derek van Zyl"))
         failed += 1
     elif _grace(
         {
