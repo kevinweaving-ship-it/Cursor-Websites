@@ -169,6 +169,14 @@ NAMED_DO = [
         "tracking_ref": "404830634",
         "service": "Two day debit order",
     },
+    {
+        "paid_on": "2026-04-10",
+        "customer": "G Cupido",
+        "amount": 1467.25,
+        "result": "paid",
+        "account_ref": "1763102147",
+        "service": "Install + prorate + April D/O",
+    },
 ]
 
 

@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Client statements: invoices vs EFT / D/O. Forget QuickBooks open flags.
 
+Three feeds. QB is not the books for paid / unpaid / D/O.
+- QB invoice: yes or no, what it is for, amount. Not apply. Not D/O paid.
+- EFT: FNB bank total, then EFT B/F down oldest invoices.
+- D/O: named Netcash batch only (paid or unpaid). QB never shows that.
+
 Simple books:
 - First month (new fibre): install + pro-rata / first month. Payment is D/O
   when Netcash / FNB shows a D/O settlement (Cupido 2715), otherwise EFT.
@@ -300,6 +305,10 @@ def ingest(conn: sqlite3.Connection) -> dict:
     for row in _load(PAYMENTS_JSON).get("rows") or []:
         name = display_name(row.get("payee")) or row.get("payee")
         if not name:
+            continue
+        book = client_row(name)
+        # D/O clients: FNB + Netcash only. QB A/R payments are apply, not cash.
+        if book and book.get("method") == "debit-order":
             continue
         method = row.get("method") or "eft"
         conn.execute(
