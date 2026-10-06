@@ -1273,7 +1273,9 @@ def fifo_statement(
         while p["left"] > 0.004:
             def _eft_rank(r: dict) -> tuple:
                 fam = (r.get("family") or "monthly").lower()
-                extra = 1 if fam in {"extra", "other", "query"} or fam in NOT_ON_MONTHLY_DO else 0
+                extra = 0
+                if book and book.get("method") == "debit-order":
+                    extra = 1 if fam in {"extra", "other", "query"} or fam in NOT_ON_MONTHLY_DO else 0
                 return (extra, r.get("date") or "", str(r.get("ref") or ""))
 
             def _eft_due(r: dict) -> bool:
@@ -1615,6 +1617,26 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK marlene-one-eft-many-invoices", "jun18", jun18_sum, "jul18", jul18_sum)
+    marlene_2130 = next(
+        (r for r in (marlene.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "2130"),
+        None,
+    )
+    marlene_2219 = next(
+        (r for r in (marlene.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "2219"),
+        None,
+    )
+    jul18_refs = {str(r.get("ref") or "") for r in marlene_jul18}
+    if not marlene_2130 or _money(marlene_2130.get("open")) > 0.02:
+        print("FAIL marlene-2130-install-eft", marlene_2130)
+        failed += 1
+    elif not marlene_2219 or _money(marlene_2219.get("open")) > 0.02:
+        print("FAIL marlene-2219-aircube-eft", marlene_2219)
+        failed += 1
+    elif jul18_refs & {"2999", "3000", "3079", "3104", "3113"}:
+        print("FAIL marlene-jul18-stole-future", jul18_refs)
+        failed += 1
+    else:
+        print("OK marlene-oldest-first", "2130/2219 paid", "jul18", sorted(jul18_refs))
     want = account_as_at(conn, "Wantling, David", today)
     want_unpaid = [r for r in (want.get("ledger") or []) if r.get("kind") == "unpaid"]
     if want_unpaid:
