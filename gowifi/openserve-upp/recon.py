@@ -676,13 +676,16 @@ def _account_ref_for(key: str, book: dict | None) -> str:
 
 
 def _ingest_monthly_do(conn: sqlite3.Connection, today: date | None = None) -> int:
-    """D/O for each monthly invoice on its collection day. Keep named unpaids."""
+    """Each monthly invoice gets its D/O. EFT stays on FNB. FIFO allocates both.
+
+    Skip only a month already on the Netcash table (paid or named unpaid).
+    Do not skip because an EFT exists — that EFT is the other payment.
+    """
     from invoice_list import classify
 
     today = today or date.today()
     unpaid_months: dict[str, set[str]] = {}
     have_month: set[tuple[str, str]] = set()
-    eft_months: set[tuple[str, str]] = set()
     try:
         for rec in conn.execute(
             """SELECT alloc_key, paid_on, alloc_kind FROM netcash_tx
@@ -694,23 +697,10 @@ def _ingest_monthly_do(conn: sqlite3.Connection, today: date | None = None) -> i
                 have_month.add((key, day[:7]))
             if rec[2] == "client_unpaid" and key and day:
                 unpaid_months.setdefault(key, set()).add(day[:7])
-        for rec in conn.execute(
-            """SELECT alloc_key, paid_on FROM fnb_tx WHERE alloc_kind='client_paid'"""
-        ):
-            eft_months.add((canon_key(rec[0]), str(rec[1] or "")[:7]))
     except sqlite3.OperationalError:
         return 0
-    monthly = classify(today).get("monthly") or []
-    first_inv: dict[str, str] = {}
-    for inv in monthly:
-        if inv.get("pay") != "D/O":
-            continue
-        k = canon_key(inv.get("name"))
-        d = str(inv.get("date") or "")[:10]
-        if k and d and (k not in first_inv or d < first_inv[k]):
-            first_inv[k] = d
     n = 0
-    for inv in monthly:
+    for inv in classify(today).get("monthly") or []:
         if inv.get("pay") != "D/O":
             continue
         name = display_name(inv.get("name")) or inv.get("name")
@@ -728,10 +718,6 @@ def _ingest_monthly_do(conn: sqlite3.Connection, today: date | None = None) -> i
         if day[:7] in unpaid_months.get(key, set()):
             continue
         if (key, day[:7]) in have_month:
-            continue
-        if (key, day[:7]) in eft_months:
-            continue
-        if first_inv.get(key) == inv_day.isoformat() and (key, inv_day.isoformat()[:7]) in eft_months:
             continue
         amt = abs(_money(inv.get("amount")))
         if amt <= 0.004:
@@ -1068,6 +1054,20 @@ def self_test() -> int:
                  AND alloc_kind='client_paid'"""
         ).fetchone():
             print("FAIL wantling-oct-do")
+            failed += 1
+        elif not conn.execute(
+            """SELECT 1 FROM netcash_tx
+               WHERE alloc_key='gordon neethling' AND paid_on='2026-09-01'
+                 AND alloc_kind='client_paid'"""
+        ).fetchone():
+            print("FAIL neethling-sep-do")
+            failed += 1
+        elif not conn.execute(
+            """SELECT 1 FROM netcash_tx
+               WHERE alloc_key='murray dh' AND paid_on='2026-06-01'
+                 AND alloc_kind='client_paid'"""
+        ).fetchone():
+            print("FAIL murray-jun-do")
             failed += 1
         elif pack.get("checksum"):
             print("FAIL money-checksum", pack.get("checksum"))

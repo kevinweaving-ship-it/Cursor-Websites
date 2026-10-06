@@ -1227,14 +1227,23 @@ def fifo_statement(
         while p["left"] > 0.004:
             def _eft_rank(r: dict) -> tuple:
                 fam = (r.get("family") or "monthly").lower()
-                extra = 1 if fam in {"extra", "other"} else 0
+                extra = 1 if fam in {"extra", "other", "query"} or fam in NOT_ON_MONTHLY_DO else 0
                 return (extra, r.get("date") or "", str(r.get("ref") or ""))
+
+            def _eft_due(r: dict) -> bool:
+                pay_day = (p.get("date") or "")[:10]
+                inv_day = (r.get("date") or "")[:10]
+                due = (r.get("due_on") or inv_day)[:10]
+                fam = (r.get("family") or "monthly").lower()
+                if fam in NOT_ON_MONTHLY_DO or fam in {"extra", "other", "query"}:
+                    return bool(inv_day) and inv_day <= pay_day
+                return bool(due) and due <= pay_day
 
             inv_row = next(
                 (
                     r
                     for r in sorted(open_invs, key=_eft_rank)
-                    if _money(r.get("open")) > 0.004
+                    if _money(r.get("open")) > 0.004 and _eft_due(r)
                 ),
                 None,
             )
