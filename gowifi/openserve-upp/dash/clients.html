@@ -279,9 +279,7 @@ function card(c){
   const bno = c.access==="offset" ? "None · not a client" : (c.b_number || (c.access==="fibre" ? "—" : "Wireless"));
   const dc = dueClass(c);
   const kind = [accessLabel(c), c.pay, c.discount?"disc":""].filter(Boolean).join(" · ");
-  const bal = c.access==="offset"
-    ? `${esc(c.balance_label||"Offset · KW loan")} <span class="meta">Input ${esc(money(c.billed))} · cash against Kevin loan</span>`
-    : `${esc(c.balance_label||"—")} <span class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · due ${esc(money(c.due))}</span>`;
+  const bal = `${esc(c.balance_label||"—")} <span class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · due ${esc(money(c.due))}</span>`;
   return `<article class="card" data-search="${esc(c.search||"")}">
     <button class="head" type="button" aria-expanded="false" aria-controls="${id}">
       <span class="name"><span class="dot ${esc(c.dot||"active")}" title="${esc(c.dot_label||"")}"></span>${esc(c.name||"—")}</span>

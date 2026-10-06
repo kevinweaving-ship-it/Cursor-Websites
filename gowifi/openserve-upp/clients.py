@@ -213,13 +213,17 @@ def _grace(acc: dict, today: date) -> dict:
     }
 
 
-def _offset_card(row: dict) -> dict:
+def _offset_card(
+    row: dict,
+    conn: sqlite3.Connection | None = None,
+    today: date | None = None,
+) -> dict:
     extra = customer_lookup(row.get("name"))
     note = row.get("offset_note") or (
         "Offset deal. Not a fibre or wifi client. No B-number. "
         "Cash against Kevin Weaving loan. Fibre stays cost of service."
     )
-    return {
+    card = {
         "name": row.get("name"),
         "address": (extra or {}).get("address") or None,
         "phone": (extra or {}).get("phone") or None,
@@ -247,21 +251,74 @@ def _offset_card(row: dict) -> dict:
         "dot_label": "Offset · KW loan",
         "balance_label": "Offset · KW loan",
         "ledger": [],
+        "earlier_paid": 0,
         "notes": [note],
-        "search": " ".join(
-            p
-            for p in (
-                row.get("name"),
-                "paltco",
-                "patriot",
-                "offset",
-                "loan",
-                "kevin",
-                note,
-            )
-            if p
-        ).lower(),
     }
+    if conn is not None:
+        try:
+            from statements import account_as_at
+
+            st = account_as_at(conn, row.get("name"), today)
+            if not ((st.get("billed") or 0) > 0.004 or (st.get("ledger") or [])):
+                card["search"] = " ".join(
+                    p
+                    for p in (
+                        row.get("name"),
+                        "paltco",
+                        "patriot",
+                        "offset",
+                        "loan",
+                        "kevin",
+                        note,
+                    )
+                    if p
+                ).lower()
+                return card
+            billed = st.get("billed")
+            paid = st.get("paid") or 0
+            due = st.get("due")
+            card["billed"] = billed
+            card["paid"] = paid
+            card["due"] = due
+            card["paid_up"] = bool(st.get("nil") or st.get("status") == "paid-up")
+            card["ledger"] = st.get("ledger") or []
+            card["earlier_paid"] = st.get("earlier_paid") or 0
+            card["status"] = st.get("status")
+            first = next(
+                (
+                    r.get("date")
+                    for r in reversed(card["ledger"])
+                    if r.get("kind") == "invoice" and r.get("date")
+                ),
+                None,
+            )
+            if first:
+                card["started"] = first
+                card["started_label"] = _day_label(first)
+                card["months"] = _months(_parse(first), today or date.today())
+                card["tenure"] = _tenure(card["months"])
+            due_amt = float(due or 0)
+            if card["paid_up"] or due_amt <= 0.004:
+                card["balance_label"] = "Paid Up"
+            else:
+                card["balance_label"] = f"Due {due_amt:.2f}"
+        except Exception:
+            pass
+    card["search"] = " ".join(
+        p
+        for p in (
+            row.get("name"),
+            "paltco",
+            "patriot",
+            "offset",
+            "loan",
+            "kevin",
+            note,
+            card.get("balance_label"),
+        )
+        if p
+    ).lower()
+    return card
 
 
 def _apply_os_margin(card: dict, os_map: dict, charge: float | None) -> None:
@@ -548,7 +605,7 @@ def cards_for_export(
     missing_names = [c["name"] for c in fibre_cards if not c.get("os_on_invoice")]
     loss_names = [c["name"] for c in fibre_cards if c.get("os_loss")]
     invoice_date = next((v.get("invoice_date") for v in os_map.values()), None)
-    offsets = [_offset_card(row) for row in OFFSET_DEALS]
+    offsets = [_offset_card(row, conn, today) for row in OFFSET_DEALS]
     fnb = None
     if conn is not None:
         try:
@@ -865,6 +922,44 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK paltco-offset-no-b")
+    from statements import ingest as books_ingest
+
+    books = sqlite3.connect(":memory:")
+    books_ingest(books)
+    pack3 = cards_for_export(books, [pop, hpp], today)
+    names3 = [c["name"] for c in pack3["cards"]]
+    pal3 = {c["name"]: c for c in pack3.get("offsets") or []}.get("Paltco") or {}
+    pal_led = pal3.get("ledger") or []
+    pal_inv = [r for r in pal_led if r.get("kind") == "invoice"]
+    pal_pay = [r for r in pal_led if r.get("kind") == "payment"]
+    pal_3111 = next((r for r in pal_inv if str(r.get("ref")) == "3111"), None)
+    if "Paltco" in names3:
+        print("FAIL paltco-not-on-client-list", names3)
+        failed += 1
+    elif abs(float(pal3.get("due") or 0) - 1399) > 0.02:
+        print("FAIL paltco-due", pal3.get("due"), pal3.get("billed"), pal3.get("paid"))
+        failed += 1
+    elif "Due 1399" not in (pal3.get("balance_label") or ""):
+        print("FAIL paltco-due-label", pal3.get("balance_label"))
+        failed += 1
+    elif abs(float(pal3.get("billed") or 0) - 16508.2) > 0.02:
+        print("FAIL paltco-billed", pal3.get("billed"))
+        failed += 1
+    elif not pal_3111 or abs(float(pal_3111.get("open") or 0) - 1399) > 0.02:
+        print("FAIL paltco-3111-open", pal_3111)
+        failed += 1
+    elif len(pal_inv) < 12 or len(pal_pay) < 2:
+        print("FAIL paltco-full-statement", len(pal_inv), len(pal_pay))
+        failed += 1
+    elif any(not r.get("show") for r in pal_led):
+        print("FAIL paltco-hide-applied", [r.get("what") for r in pal_led if not r.get("show")])
+        failed += 1
+    elif not any("EFT" in (r.get("what") or "") and "Invoice" in (r.get("what") or "") for r in pal_pay):
+        print("FAIL paltco-eft-applied", [r.get("what") for r in pal_pay[:4]])
+        failed += 1
+    else:
+        print("OK paltco-due-and-statement", pal3.get("due"), len(pal_inv), "inv", len(pal_pay), "pay")
+    books.close()
     conn.close()
     return failed
 

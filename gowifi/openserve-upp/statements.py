@@ -961,6 +961,7 @@ def present_ledger(
     lines: list[dict],
     today: date | None = None,
     show_money: bool = False,
+    show_all: bool = False,
 ) -> list[dict]:
     """Date order, newest at the top. Running balance after each row; top = amount due."""
     from invoice_canned import parse_day
@@ -1002,7 +1003,12 @@ def present_ledger(
             and (rec.get("date") or "") == (last_pay.get("date") or "")
         )
         rec["show"] = bool(
-            due or pin or do_paid or same_eft or (show_money and rec.get("kind") == "payment")
+            due
+            or pin
+            or do_paid
+            or same_eft
+            or show_all
+            or (show_money and rec.get("kind") == "payment")
         )
         rec["reconciled"] = not rec["show"]
         rec["tone"] = invoice_tone(rec, today)
@@ -1466,7 +1472,8 @@ def account_as_at(
     ledger["lines"] = present_ledger(
         _fold_invoice_what(ledger.get("lines") or [], conn),
         today,
-        show_money=bool(book and book.get("method") == "debit-order"),
+        show_money=bool(book and (book.get("method") == "debit-order" or is_offset(book))),
+        show_all=bool(is_offset(book)),
     )
     stmt = statement_on_invoice(invoices, payments, display, as_at=today)
     billed = ledger["billed"]
@@ -1644,6 +1651,24 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK wantling-no-invented-unpaid", want["due"])
+    pal = account_as_at(conn, "Paltco", today)
+    pal_inv = [r for r in (pal.get("ledger") or []) if r.get("kind") == "invoice"]
+    pal_pay = [r for r in (pal.get("ledger") or []) if r.get("kind") == "payment"]
+    pal_3111 = next((r for r in pal_inv if str(r.get("ref")) == "3111"), None)
+    if abs((pal.get("due") or 0) - 1399) > 0.02:
+        print("FAIL paltco-due", pal.get("due"), pal.get("billed"), pal.get("paid"))
+        failed += 1
+    elif not pal_3111 or abs(_money(pal_3111.get("open")) - 1399) > 0.02:
+        print("FAIL paltco-3111-still-due", pal_3111)
+        failed += 1
+    elif len(pal_inv) < 12 or not pal_pay:
+        print("FAIL paltco-statement-rows", len(pal_inv), len(pal_pay))
+        failed += 1
+    elif any(not r.get("show") for r in (pal.get("ledger") or [])):
+        print("FAIL paltco-must-show-applied")
+        failed += 1
+    else:
+        print("OK paltco-invoiced-due", pal.get("due"), len(pal_inv), "inv")
     hav = account_as_at(conn, "Havenga, Daniel", today)
     hav_unpaid = [r for r in (hav.get("ledger") or []) if r.get("kind") == "unpaid"]
     if hav.get("bounces") or hav_unpaid:
