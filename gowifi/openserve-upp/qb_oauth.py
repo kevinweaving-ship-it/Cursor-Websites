@@ -272,6 +272,7 @@ class Handler(BaseHTTPRequestHandler):
                 "connected": token_ok,
                 "keyset": active_keyset(env),
                 "realmId": env.get("QBO_REALM_ID") or None,
+                "appId": env.get("QBO_APP_ID") or None,
             }
             if token_ok:
                 try:
