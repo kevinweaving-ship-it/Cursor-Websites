@@ -43,7 +43,7 @@ TX_POST_CANDIDATES = (
     "/transaction-history/v1/transactions",
     "/enterprise/transaction-history/v1/transactions",
 )
-FNB_SOURCES = frozenset({"fnb_api"})
+FNB_SOURCES = frozenset({"fnb_api", "fnb_live", "fnb_online", "fnb_history"})
 QB_SOURCES = frozenset({"qb_fnb_history", "qb-fnb", "quickbooks"})
 
 
@@ -98,30 +98,36 @@ def _day(value) -> str | None:
 
 
 def status(env: dict[str, str] | None = None) -> dict:
-    env = env or _load_env()
+    env = _load_env() if env is None else env
     client_id = (env.get("FNB_CLIENT_ID") or "").strip()
     secret = (env.get("FNB_CLIENT_SECRET") or "").strip()
+    username = (env.get("FNB_USERNAME") or "").strip()
+    password = (env.get("FNB_PASSWORD") or "").strip()
     account = (env.get("FNB_ACCOUNT_NUMBER") or GOWIFI_FNB).strip()
-    if client_id and secret:
-        return {
-            "ready": True,
-            "account_number": account,
-            "account_name": COMPANY["bank_account_name"],
-            "has_token": TOKEN_PATH.exists(),
-            "via": "fnb-api",
-            "note": "FNB Integration Channel Transaction History. Direct bank API, not QuickBooks.",
-        }
+    has_api = bool(client_id and secret)
+    has_login = bool(username and password)
+    via = "fnb-live" if has_login else "fnb-api"
+    if has_login:
+        note = (
+            "FNB Online Banking live statement. Popup dismissed when it appears. "
+            "New rows only — no duplicates. Daily autofetch 06:15 SAST."
+        )
+    elif has_api:
+        note = "FNB Integration Channel Transaction History. Direct bank API, not QuickBooks."
+    else:
+        note = (
+            "Save FNB Online Banking login at /legal/fnb.html (box secrets only), "
+            "or Integration Channel Client ID and Secret. Not QuickBooks."
+        )
     return {
-        "ready": False,
+        "ready": has_login or has_api,
+        "has_login": has_login,
+        "has_api": has_api,
         "account_number": account,
         "account_name": COMPANY["bank_account_name"],
-        "has_token": False,
-        "via": "fnb-api",
-        "note": (
-            "FNB Online Banking Enterprise → Business Solutions → Integration Channel → "
-            "API → Transaction History → On my own behalf (not a third party). "
-            "Paste Client ID and Secret at /legal/fnb.html."
-        ),
+        "has_token": TOKEN_PATH.exists(),
+        "via": via,
+        "note": note,
     }
 
 
@@ -421,10 +427,10 @@ def _upsert_bank(conn: sqlite3.Connection, rows: list[dict]) -> int:
     return n
 
 
-def pull(conn: sqlite3.Connection | None = None, days: int = 90) -> dict:
+def pull_api(conn: sqlite3.Connection | None = None, days: int = 90) -> dict:
     env = _load_env()
     st = status(env)
-    if not st["ready"]:
+    if not st.get("has_api"):
         return {"ok": False, "error": st["note"], "inserted": 0, "rows": 0, "via": "fnb-api"}
     own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB))
     inserted = 0
@@ -454,15 +460,51 @@ def pull(conn: sqlite3.Connection | None = None, days: int = 90) -> dict:
     }
 
 
+def _refresh_accounts() -> None:
+    try:
+        from audit_export import main as export_accounts
+
+        export_accounts()
+    except Exception:
+        pass
+
+
+def pull(conn: sqlite3.Connection | None = None, days: int = 90, live: bool = True) -> dict:
+    """Live Online Banking first. Integration Channel only when there is no login."""
+    env = _load_env()
+    if live:
+        from fnb_statement import login_ready
+        from fnb_statement import pull as live_pull
+
+        if login_ready(env):
+            pack = live_pull(conn)
+            _refresh_accounts()
+            return pack
+    if status(env).get("has_api"):
+        pack = pull_api(conn, days=days)
+        _refresh_accounts()
+        return pack
+    return {
+        "ok": False,
+        "error": status(env)["note"],
+        "inserted": 0,
+        "rows": 0,
+        "via": "fnb-live",
+    }
+
+
 def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
-    """Bank card from FNB API rows only. Never QuickBooks history."""
+    """FNB card from bank rows we fetched. Never QuickBooks history."""
+    from fnb_statement import card_overlay
+
     st = status()
     own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB))
+    overlay = card_overlay(own)
     rows = []
     try:
         for rec in own.execute(
             """SELECT paid_on, amount, balance, description, source FROM bank_tx
-               WHERE ours=1 AND source='fnb_api'
+               WHERE ours=1 AND source IN ('fnb_live','fnb_online','fnb_api','fnb_history')
                ORDER BY paid_on DESC, id DESC LIMIT ?""",
             (limit,),
         ):
@@ -483,6 +525,19 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
     if conn is None:
         own.close()
     latest = rows[0] if rows else None
+    system_balance = overlay.get("system_balance")
+    if system_balance is None and latest:
+        system_balance = latest["balance"]
+    matched = bool(overlay.get("matched"))
+    attention_amount = overlay.get("attention_amount") or 0
+    if rows:
+        note = (
+            "FNB system balance. Matched."
+            if matched
+            else f"New items not auto-reconciled · {attention_amount:.2f} needs attention."
+        )
+    else:
+        note = st["note"]
     return {
         "name": "FNB",
         "account_number": st["account_number"],
@@ -491,12 +546,21 @@ def card(conn: sqlite3.Connection | None = None, limit: int = 80) -> dict:
         "branch_code": COMPANY["branch_code"],
         "bank": COMPANY["bank"],
         "ready": st["ready"],
-        "via": "fnb-api",
-        "balance": latest["balance"] if latest else None,
+        "via": st["via"],
+        "has_login": st.get("has_login"),
+        "has_api": st.get("has_api"),
+        "balance": system_balance,
+        "system_balance": system_balance,
         "as_at": latest["paid_on"] if latest else None,
+        "last_fetched": overlay.get("last_fetched"),
+        "last_fetched_label": overlay.get("last_fetched_label"),
+        "matched": matched,
+        "attention": overlay.get("attention") or [],
+        "attention_amount": attention_amount,
+        "daily": overlay.get("daily") or "Daily autofetch 06:15 SAST",
         "transactions": len(rows),
         "rows": rows,
-        "note": st["note"] if not rows else "FNB Integration Channel. Direct bank API, not QuickBooks.",
+        "note": note,
         "connect": "/legal/fnb.html",
     }
 
@@ -505,18 +569,24 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
         sys.stderr.write("fnb-api: " + fmt % args + "\n")
 
+    def _origin(self) -> str:
+        origin = self.headers.get("Origin") or ""
+        if origin in {"https://gowifi.co.za", "https://box.gowifi.co.za"}:
+            return origin
+        return "https://gowifi.co.za"
+
     def _send(self, code: int, body: dict) -> None:
         raw = json.dumps(body).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(raw)))
-        self.send_header("Access-Control-Allow-Origin", "https://gowifi.co.za")
+        self.send_header("Access-Control-Allow-Origin", self._origin())
         self.end_headers()
         self.wfile.write(raw)
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "https://gowifi.co.za")
+        self.send_header("Access-Control-Allow-Origin", self._origin())
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -541,6 +611,19 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             if path in {"/save", "/legal/fnb-save"}:
+                username = str(data.get("username") or data.get("user") or "").strip()
+                password = str(data.get("password") or "").strip()
+                if username and password:
+                    from fnb_statement import save_login
+
+                    pack = save_login(
+                        username,
+                        password,
+                        str(data.get("account_number") or data.get("accountNumber") or "") or None,
+                    )
+                    pack["username"] = username
+                    self._send(200, {**status(), **pack})
+                    return
                 self._send(
                     200,
                     save_keys(
@@ -620,14 +703,20 @@ def self_test() -> int:
     else:
         print("OK fnb-api-upsert-ignores-qb")
     pack = card(conn)
-    if pack["via"] != "fnb-api" or pack["balance"] != 4554.66 or pack["rows"][0]["spent"] != 520:
+    if pack["balance"] != 4554.66 or pack["rows"][0]["spent"] != 520:
         print("FAIL card", pack)
         failed += 1
     elif pack["rows"][0]["source"] != "fnb_api":
         print("FAIL card-source", pack["rows"][0])
         failed += 1
+    elif pack.get("last_fetched") is not None:
+        print("FAIL card-no-fetch-yet", pack.get("last_fetched"))
+        failed += 1
+    elif pack.get("matched") is not True or pack.get("attention_amount"):
+        print("FAIL card-matched", pack.get("matched"), pack.get("attention_amount"))
+        failed += 1
     else:
-        print("OK fnb-card-api-only")
+        print("OK fnb-card-system-balance")
     conn.close()
     return failed
 

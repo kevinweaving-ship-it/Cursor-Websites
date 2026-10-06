@@ -10,7 +10,7 @@ class FnbApi(unittest.TestCase):
         st = fnb_api.status({"FNB_CLIENT_ID": "", "FNB_CLIENT_SECRET": ""})
         self.assertFalse(st["ready"])
         self.assertEqual(st["via"], "fnb-api")
-        self.assertIn("own behalf", st["note"].lower())
+        self.assertIn("not quickbooks", st["note"].lower())
 
     def test_parse_and_card_are_fnb_only(self):
         self.assertEqual(fnb_api.self_test(), 0)

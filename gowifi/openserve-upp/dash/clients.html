@@ -120,6 +120,16 @@ main {
 .fold-head .name { font-size:16px; }
 .fold-head[aria-expanded="true"] { border-color:var(--acc); }
 .hidden { display:none; }
+.fnb-top { order:-1; }
+.fetch-btn {
+  display:inline-block; margin:0; padding:8px 14px; border:0; border-radius:8px;
+  background:var(--acc); color:#fff; font:inherit; font-size:14px; font-weight:700;
+  cursor:pointer; min-height:40px;
+}
+.fetch-btn:disabled { opacity:.6; cursor:wait; }
+.match-ok { color:var(--ok); font-weight:700; }
+.attn { color:var(--warn); font-weight:700; }
+.fnb-status { border-top:1px solid var(--line); }
 
 /* ML — landscape phone full width. Mac / wide tablet: same ML column, centred. */
 @media (min-width: 600px) {
@@ -260,10 +270,20 @@ function card(c){
   </article>`;
 }
 function fnbCard(fnb){
-  if (!fnb) return "";
+  fnb = fnb || {};
   const id = "d-fnb";
-  const bal = fnb.balance==null ? "—" : money(fnb.balance);
-  const asAt = fnb.as_at ? `As at ${esc(fnb.as_at)}` : (fnb.ready ? "Connected · no FNB rows yet" : "FNB API not connected");
+  const bal = fnb.balance==null && fnb.system_balance==null ? "—" : money(fnb.system_balance!=null?fnb.system_balance:fnb.balance);
+  const last = fnb.last_fetched_label || fnb.last_fetched || "Never fetched";
+  const need = Number(fnb.attention_amount||0);
+  const matched = fnb.matched!==false && need<=0.004;
+  const matchLabel = matched
+    ? "Matched · system balance"
+    : `Needs attention ${money(need)}`;
+  const attn = (fnb.attention||[]).map(r=>`<tr>
+    <td>${esc(r.paid_on||"")}</td>
+    <td>${esc(r.what||r.description||"Needs recon")}</td>
+    <td class="num">${esc(money(r.amount))}</td>
+  </tr>`).join("");
   const rows = (fnb.rows||[]).map(r=>`<tr>
     <td>${esc(r.paid_on||"")}</td>
     <td>${esc(r.description||"")}</td>
@@ -271,33 +291,43 @@ function fnbCard(fnb){
     <td class="num">${r.received==null?"":esc(money(r.received))}</td>
     <td class="num">${esc(money(r.balance))}</td>
   </tr>`).join("");
-  return `<section class="cat-card">
+  return `<section class="cat-card fnb-top">
     <h2>FNB <span class="n">${esc(fnb.account_number||"62860060278")}</span></h2>
     <div class="cat-list">
       <article class="card">
-        <button class="head" type="button" aria-expanded="false" aria-controls="${id}">
-          <span class="name"><span class="dot ${fnb.ready?"active":"issue"}"></span>FNB ${esc(fnb.account_number||"")}</span>
+        <button class="head" type="button" aria-expanded="true" aria-controls="${id}">
+          <span class="name"><span class="dot ${fnb.ready?"active":"issue"}"></span>FNB ${esc(fnb.account_number||"62860060278")}</span>
           <span class="head-right">
+            <button type="button" class="fetch-btn fnb-fetch">Fetch</button>
             <span class="kind">Bank</span>
             <span class="bal">${esc(bal)}</span>
           </span>
         </button>
-        <div class="detail hidden" id="${id}">
+        <div class="fnb-status">
+          <div class="band">
+            ${field("Last fetched", esc(last))}
+            ${field("Balance", esc(bal), {cls: matched?"match-ok":"attn"})}
+            ${field("Status", esc(matchLabel), {cls: matched?"match-ok":"attn"})}
+          </div>
+          ${need>0.004 ? `<div class="band stmt-band">
+            <div class="k">Needs attention ${esc(money(need))}</div>
+            <div class="stmt-wrap"><table class="stmt">
+              <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th></tr></thead>
+              <tbody>${attn || `<tr><td colspan="3" class="meta">Unreconciled amount on the last fetch.</td></tr>`}</tbody>
+            </table></div>
+          </div>` : ""}
+        </div>
+        <div class="detail" id="${id}">
           <div class="band">
             ${field("Account", esc(fnb.account_name||"GoWifi (Pty) Ltd"))}
             ${field("Branch", esc((fnb.branch||"Hermanus")+" "+(fnb.branch_code||"200412")))}
-            ${field("Updated", esc(asAt))}
-          </div>
-          <div class="band">
-            ${field("Feed", "FNB Integration Channel API")}
-            ${field("Connect", `<a href="${esc(fnb.connect||"/legal/fnb.html")}">Connect FNB</a>`)}
-            ${field("Note", esc(fnb.note||""))}
+            ${field("Daily", esc(fnb.daily||"Daily autofetch 06:15 SAST"))}
           </div>
           <div class="band stmt-band">
             <div class="k">FNB register</div>
             <div class="stmt-wrap"><table class="stmt">
               <thead><tr><th>Date</th><th>Description</th><th class="num">Spent</th><th class="num">Received</th><th class="num">Balance</th></tr></thead>
-              <tbody>${rows || `<tr><td colspan="5" class="meta">No FNB API rows yet. Connect at /legal/fnb.html.</td></tr>`}</tbody>
+              <tbody>${rows || `<tr><td colspan="5" class="meta">No FNB rows on the system yet. Fetch from FNB Online.</td></tr>`}</tbody>
             </table></div>
           </div>
         </div>
@@ -311,6 +341,34 @@ function block(title, list){
     <h2>${esc(title)} <span class="n">${list.length}</span></h2>
     <div class="cat-list">${list.map(card).join("")}</div>
   </section>`;
+}
+function bindFnbFetch(root, pack){
+  root.querySelectorAll(".fnb-fetch").forEach(btn=>{
+    btn.addEventListener("click", ev=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      btn.disabled = true;
+      const prev = btn.textContent;
+      btn.textContent = "Fetching…";
+      fetch("/legal/fnb-pull", {
+        method:"POST",
+        credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},
+        body:"{}"
+      }).then(r=>r.json()).then(d=>{
+        if (!d.ok) throw new Error(d.error || d.note || "FNB pull failed");
+        return fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"});
+      }).then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); }).then(data=>{
+        Object.assign(pack, data.clients || {});
+        paint(pack);
+      }).catch(err=>{
+        btn.disabled = false;
+        btn.textContent = prev;
+        const note = root.querySelector(".fnb-status .attn") || root.querySelector(".fnb-status .v");
+        if (note) note.textContent = err.message || "FNB fetch failed";
+      });
+    });
+  });
 }
 function bindToggles(root){
   root.querySelectorAll(".head").forEach(btn=>{
@@ -361,11 +419,12 @@ function paint(pack){
       ? `${shown.length} match · ${wifi.length} wifi · ${fibre.length} fibre`
       : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`
   ) + (osBits.length ? ` · ${osBits.join(" · ")}` : "");
-  const body = (!q ? fnbCard(pack.fnb) : "")
+  const body = fnbCard(pack.fnb)
     + (shown.length ? block("GoWiFi Wifi", wifi) + block("Fibre", fibre) : "")
     + (offsets.length ? block("Offset · Kevin loan", offsets) : "");
-  $("#grid").innerHTML = body || `<p class="empty">No clients match.</p>`;
+  $("#grid").innerHTML = body;
   bindToggles($("#grid"));
+  bindFnbFetch($("#grid"), pack);
   const wrap = $("#cancelled-wrap");
   if (!cancelled.length) { wrap.classList.add("hidden"); return; }
   wrap.classList.remove("hidden");
@@ -384,7 +443,7 @@ fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"
     const pack = data.clients || {};
     if (location.hash) $("#q").value = decodeURIComponent(location.hash.slice(1));
     paint(pack);
-    const first = $("#grid .head");
+    const first = $("#grid .cat-card:not(.fnb-top) .head");
     if (location.hash && first) first.click();
     $("#q").addEventListener("input", ()=>paint(pack));
     const tog = $("#cancelled-toggle");

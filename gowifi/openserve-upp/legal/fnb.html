@@ -12,8 +12,19 @@
 </header>
 <main class="card">
   <h1>Connect FNB</h1>
-  <p class="meta">Direct bank API · not QuickBooks</p>
-  <p>GoWiFi Box pulls <strong>62860060278</strong> from FNB Integration Channel Transaction History. On our own behalf. Not Xero. Not Sage. Not QuickBooks.</p>
+  <p class="meta">Direct from FNB · not QuickBooks</p>
+  <p>GoWiFi Box pulls <strong>62860060278</strong> from FNB Online Banking (live statement) or Integration Channel. Login stays in <code>/root/secrets/fnb.env</code> on the box. Not Xero. Not Sage. Not QuickBooks.</p>
+  <h2>Online Banking login</h2>
+  <p class="meta">Used for live fetch. Popup is dismissed when it appears, then the statement is read. New rows only.</p>
+  <label>Username</label>
+  <input id="username" type="text" autocomplete="off" spellcheck="false">
+  <label>Password</label>
+  <input id="password" type="password" autocomplete="off">
+  <label>Account</label>
+  <input id="account" type="text" value="62860060278" autocomplete="off">
+  <p><button type="button" id="save-login" class="btn">Save FNB login</button>
+     <button type="button" id="pull" class="btn">Fetch FNB now</button></p>
+  <h2>Integration Channel API</h2>
   <ol>
     <li>Log in to FNB Online Banking Enterprise.</li>
     <li>Business Solutions → Integration Channel → Get Started.</li>
@@ -27,10 +38,7 @@
   <input id="client_id" type="text" autocomplete="off" spellcheck="false">
   <label>Client Secret</label>
   <input id="client_secret" type="password" autocomplete="off" spellcheck="false">
-  <label>Account</label>
-  <input id="account" type="text" value="62860060278" autocomplete="off">
-  <p><button type="button" id="save" class="btn">Save FNB keys</button>
-     <button type="button" id="pull" class="btn">Fetch FNB now</button></p>
+  <p><button type="button" id="save" class="btn">Save FNB keys</button></p>
   <p class="meta" id="err"></p>
   <p>Catalogue: <a href="https://www.fnb.co.za/integration-channel/index.html">FNB Integration Channel</a></p>
 </main>
@@ -40,8 +48,24 @@
   var err = document.getElementById("err");
   function show(el, text) { el.textContent = text || ""; }
   fetch("/legal/fnb-status", {credentials: "same-origin"}).then(function (r) { return r.json(); }).then(function (d) {
-    show(status, d.ready ? "FNB API keys are on the box. Fetch when you want a pull." : (d.note || "Need FNB Client ID and Secret."));
+    show(status, d.ready ? (d.note || "FNB is ready on the box.") : (d.note || "Need FNB Online login or Client ID and Secret."));
   }).catch(function () { show(status, "Could not reach the FNB helper on the box."); });
+  document.getElementById("save-login").addEventListener("click", function () {
+    show(err, "Saving…");
+    fetch("/legal/fnb-save", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      credentials: "same-origin",
+      body: JSON.stringify({
+        username: document.getElementById("username").value,
+        password: document.getElementById("password").value,
+        account_number: document.getElementById("account").value
+      })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      show(err, d.ok ? "Login saved on the box. Click Fetch FNB now." : (d.error || "Could not save."));
+      if (d.ok) show(status, d.note || "FNB login saved.");
+    }).catch(function () { show(err, "Could not reach the box."); });
+  });
   document.getElementById("save").addEventListener("click", function () {
     show(err, "Saving…");
     fetch("/legal/fnb-save", {
@@ -66,7 +90,8 @@
       credentials: "same-origin",
       body: "{}"
     }).then(function (r) { return r.json(); }).then(function (d) {
-      show(err, d.ok ? ("Fetched " + (d.rows || 0) + " FNB rows, inserted " + (d.inserted || 0) + ".") : (d.error || d.note || "FNB pull failed."));
+      var n = d.rows_seen || d.rows || 0;
+      show(err, d.ok ? ("Fetched " + n + " FNB rows, inserted " + (d.inserted || 0) + ".") : (d.error || d.note || "FNB pull failed."));
     }).catch(function () { show(err, "Could not reach the box."); });
   });
 })();

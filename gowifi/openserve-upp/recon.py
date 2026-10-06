@@ -504,7 +504,9 @@ def ensure(conn: sqlite3.Connection) -> None:
 
 def ingest(conn: sqlite3.Connection) -> dict:
     ensure(conn)
-    conn.execute("DELETE FROM fnb_tx")
+    conn.execute(
+        "DELETE FROM fnb_tx WHERE COALESCE(source,'') NOT IN ('fnb_live','fnb_online','fnb_api')"
+    )
     conn.execute("DELETE FROM netcash_tx")
     fnb_n = 0
     for row in _xls_rows(FNB_XLS):

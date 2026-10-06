@@ -452,12 +452,12 @@ def ingest_local_history(conn: sqlite3.Connection) -> dict:
 def books_for_export(conn: sqlite3.Connection) -> dict:
     ensure_tables(conn)
     from fnb_api import card as fnb_card
-    from fnb_api import pull as fnb_pull
+    from fnb_api import pull_api
     from fnb_api import status as fnb_status
 
-    if fnb_status().get("ready"):
+    if fnb_status().get("has_api"):
         try:
-            fnb_pull(conn)
+            pull_api(conn)
         except Exception:
             pass
     from qb_import import history_for_export, ingest_qb_mail
