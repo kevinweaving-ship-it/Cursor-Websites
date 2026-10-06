@@ -9,8 +9,9 @@ Simple books:
   Nothing is invented. No synth. No auto-clear.
 - D/O matches the invoice for that Netcash batch (collection month). Never
   steal another month's invoice.
-- Named FNB EFT is one bank total for that day. It pays the oldest open
-  invoice first.
+- Named FNB EFT is one bank total. First line shows that total and pays
+  the oldest open invoice. Next lines are EFT B/F (what is left) on the
+  next oldest invoice, until the EFT is used.
 - Reconnection / un-suspend is a once-off penalty after non-payment — not a
   standard monthly invoice and not on the D/O. It stays due until a named EFT
   so the client sees the cost of not paying.
@@ -1113,42 +1114,68 @@ def fifo_statement(
     for p in pool:
         if _is_do(p) or p["left"] <= 0.004:
             continue
-        applied = []
-        for inv_row in open_invs:
+        first = True
+        while p["left"] > 0.004:
+            def _eft_rank(r: dict) -> tuple:
+                fam = (r.get("family") or "monthly").lower()
+                extra = 1 if fam in {"extra", "other"} else 0
+                return (extra, r.get("date") or "", str(r.get("ref") or ""))
+
+            inv_row = next(
+                (
+                    r
+                    for r in sorted(open_invs, key=_eft_rank)
+                    if _money(r.get("open")) > 0.004
+                ),
+                None,
+            )
+            if inv_row is None:
+                break
             need = _money(inv_row.get("open"))
-            if need <= 0.004 or p["left"] <= 0.004:
-                continue
             use = min(p["left"], need)
+            pot = p["orig"] if first else p["left"]
             p["left"] = round(p["left"] - use, 2)
             inv_row["open"] = round(need - use, 2)
             paid = round(paid + use, 2)
             balance = round(balance - use, 2)
-            applied.append((str(inv_row.get("ref") or ""), use))
+            no = str(inv_row.get("ref") or "")
+            if first:
+                what = f"EFT {p['orig']:.2f} · Invoice {no} · paid -{use:.2f}"
+            else:
+                what = f"EFT B/F {pot:.2f} · Invoice {no} · paid -{use:.2f}"
+            lines.append(
+                {
+                    "date": p["date"],
+                    "date_fmt": fmt_date(p["date"]),
+                    "kind": "payment",
+                    "ref": no,
+                    "what": what,
+                    "amount": -use,
+                    "balance": balance,
+                    "paid_amt": use,
+                    "leftover": p["left"],
+                    "bank": p["orig"],
+                }
+            )
+            first = False
         leftover = p["left"]
-        bits = [f"Invoice {no} {use:.2f}" for no, use in applied]
-        how = pay_what(p["note"], p["method"])
-        what = f"{how} {p['orig']:.2f}"
-        if bits:
-            what += " · " + " · ".join(bits)
         if leftover > 0.004:
-            what += f" · leftover {leftover:.2f}"
             paid = round(paid + leftover, 2)
             balance = round(balance - leftover, 2)
-        p["left"] = 0.0
-        lines.append(
-            {
-                "date": p["date"],
-                "date_fmt": fmt_date(p["date"]),
-                "kind": "payment",
-                "ref": ",".join(no for no, _u in applied),
-                "what": what,
-                "amount": -p["orig"],
-                "balance": balance,
-                "paid_amt": p["orig"],
-                "leftover": leftover,
-                "bank": p["orig"],
-            }
-        )
+            lines.append(
+                {
+                    "date": p["date"],
+                    "date_fmt": fmt_date(p["date"]),
+                    "kind": "payment",
+                    "ref": "",
+                    "what": f"EFT B/F {leftover:.2f} leftover",
+                    "amount": -leftover,
+                    "balance": balance,
+                    "leftover": leftover,
+                    "bank": p["orig"],
+                }
+            )
+            p["left"] = 0.0
     for p in pool:
         left = p["left"]
         if left <= 0.004 or _is_do(p):
@@ -1623,17 +1650,26 @@ def self_test() -> int:
         for r in (cup.get("ledger") or [])
         if r.get("kind") == "payment" and (r.get("date") or "") == "2026-09-08"
     ]
-    if len(cup_sep8) != 1:
-        print("FAIL cupido-sep8-must-be-one-fnb-eft", cup_sep8)
+    cup_sep8_chrono = list(reversed(cup_sep8))
+    sep8_what = [r.get("what") or "" for r in cup_sep8_chrono]
+    sep8_sum = round(sum(abs(_money(r.get("amount"))) for r in cup_sep8), 2)
+    if sep8_sum != 1950:
+        print("FAIL cupido-sep8-not-1950", sep8_sum, sep8_what)
         failed += 1
-    elif abs(abs(_money(cup_sep8[0].get("amount"))) - 1191) > 0.02:
-        print("FAIL cupido-sep8-fnb-total", cup_sep8[0])
+    elif len(cup_sep8) != 3:
+        print("FAIL cupido-sep8-must-be-eft-then-bf", sep8_what)
         failed += 1
-    elif "EFT 1191.00" not in (cup_sep8[0].get("what") or ""):
-        print("FAIL cupido-sep8-must-show-bank-total", cup_sep8[0].get("what"))
+    elif "EFT 1950.00 · Invoice 3013" not in sep8_what[0]:
+        print("FAIL cupido-sep8-oldest-first", sep8_what)
+        failed += 1
+    elif "EFT B/F 1191.00 · Invoice 3074" not in sep8_what[1]:
+        print("FAIL cupido-sep8-bf-3074", sep8_what)
+        failed += 1
+    elif "EFT B/F 432.00 · Invoice 3101" not in sep8_what[2]:
+        print("FAIL cupido-sep8-bf-3101", sep8_what)
         failed += 1
     else:
-        print("OK cupido-sep8-one-fnb-eft", cup_sep8[0].get("what"))
+        print("OK cupido-sep8-eft-bf", sep8_what)
     cup_jun_do = [
         r
         for r in (cup.get("ledger") or [])

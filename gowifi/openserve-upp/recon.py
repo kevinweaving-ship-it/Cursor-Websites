@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS fnb_tx (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fnb_tx_dedup
     ON fnb_tx (
         COALESCE(paid_on,''), COALESCE(payee,''), COALESCE(memo,''),
-        COALESCE(payment,0), COALESCE(deposit,0), COALESCE(account,'')
+        COALESCE(payment,0), COALESCE(deposit,0), COALESCE(account,''),
+        COALESCE(balance,0)
     );
 CREATE TABLE IF NOT EXISTS netcash_tx (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -415,6 +416,15 @@ def _netcash_alloc(row: dict) -> dict:
 
 def ensure(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    conn.execute("DROP INDEX IF EXISTS idx_fnb_tx_dedup")
+    conn.execute(
+        """CREATE UNIQUE INDEX IF NOT EXISTS idx_fnb_tx_dedup
+           ON fnb_tx (
+               COALESCE(paid_on,''), COALESCE(payee,''), COALESCE(memo,''),
+               COALESCE(payment,0), COALESCE(deposit,0), COALESCE(account,''),
+               COALESCE(balance,0)
+           )"""
+    )
     have = {r[1] for r in conn.execute("PRAGMA table_info(netcash_tx)")}
     for col, typ in (
         ("account_ref", "TEXT"),
