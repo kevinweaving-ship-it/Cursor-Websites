@@ -259,6 +259,52 @@ function card(c){
     </div>
   </article>`;
 }
+function fnbCard(fnb){
+  if (!fnb) return "";
+  const id = "d-fnb";
+  const bal = fnb.balance==null ? "—" : money(fnb.balance);
+  const asAt = fnb.as_at ? `As at ${esc(fnb.as_at)}` : (fnb.ready ? "Connected · no FNB rows yet" : "FNB API not connected");
+  const rows = (fnb.rows||[]).map(r=>`<tr>
+    <td>${esc(r.paid_on||"")}</td>
+    <td>${esc(r.description||"")}</td>
+    <td class="num">${r.spent==null?"":esc(money(r.spent))}</td>
+    <td class="num">${r.received==null?"":esc(money(r.received))}</td>
+    <td class="num">${esc(money(r.balance))}</td>
+  </tr>`).join("");
+  return `<section class="cat-card">
+    <h2>FNB <span class="n">${esc(fnb.account_number||"62860060278")}</span></h2>
+    <div class="cat-list">
+      <article class="card">
+        <button class="head" type="button" aria-expanded="false" aria-controls="${id}">
+          <span class="name"><span class="dot ${fnb.ready?"active":"issue"}"></span>FNB ${esc(fnb.account_number||"")}</span>
+          <span class="head-right">
+            <span class="kind">Bank</span>
+            <span class="bal">${esc(bal)}</span>
+          </span>
+        </button>
+        <div class="detail hidden" id="${id}">
+          <div class="band">
+            ${field("Account", esc(fnb.account_name||"GoWifi (Pty) Ltd"))}
+            ${field("Branch", esc((fnb.branch||"Hermanus")+" "+(fnb.branch_code||"200412")))}
+            ${field("Updated", esc(asAt))}
+          </div>
+          <div class="band">
+            ${field("Feed", "FNB Integration Channel API")}
+            ${field("Connect", `<a href="${esc(fnb.connect||"/legal/fnb.html")}">Connect FNB</a>`)}
+            ${field("Note", esc(fnb.note||""))}
+          </div>
+          <div class="band stmt-band">
+            <div class="k">FNB register</div>
+            <div class="stmt-wrap"><table class="stmt">
+              <thead><tr><th>Date</th><th>Description</th><th class="num">Spent</th><th class="num">Received</th><th class="num">Balance</th></tr></thead>
+              <tbody>${rows || `<tr><td colspan="5" class="meta">No FNB API rows yet. Connect at /legal/fnb.html.</td></tr>`}</tbody>
+            </table></div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>`;
+}
 function block(title, list){
   if (!list.length) return "";
   return `<section class="cat-card">
@@ -315,7 +361,8 @@ function paint(pack){
       ? `${shown.length} match · ${wifi.length} wifi · ${fibre.length} fibre`
       : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`
   ) + (osBits.length ? ` · ${osBits.join(" · ")}` : "");
-  const body = (shown.length ? block("GoWiFi Wifi", wifi) + block("Fibre", fibre) : "")
+  const body = (!q ? fnbCard(pack.fnb) : "")
+    + (shown.length ? block("GoWiFi Wifi", wifi) + block("Fibre", fibre) : "")
     + (offsets.length ? block("Offset · Kevin loan", offsets) : "");
   $("#grid").innerHTML = body || `<p class="empty">No clients match.</p>`;
   bindToggles($("#grid"));

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connect FNB</title>
+<link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<header>
+  <div class="brand">GoWifi (Pty) Ltd</div>
+</header>
+<main class="card">
+  <h1>Connect FNB</h1>
+  <p class="meta">Direct bank API · not QuickBooks</p>
+  <p>GoWiFi Box pulls <strong>62860060278</strong> from FNB Integration Channel Transaction History. On our own behalf. Not Xero. Not Sage. Not QuickBooks.</p>
+  <ol>
+    <li>Log in to FNB Online Banking Enterprise.</li>
+    <li>Business Solutions → Integration Channel → Get Started.</li>
+    <li>Change Host-to-Host to <strong>API</strong>.</li>
+    <li>Subscribe to <strong>Transaction History</strong>.</li>
+    <li>Consume <strong>On my own behalf</strong> — do not pick a third party.</li>
+    <li>Add connectivity protocol <strong>REST API</strong>. Client ID and Secret show once.</li>
+  </ol>
+  <p class="meta" id="status">Checking…</p>
+  <label>Client ID</label>
+  <input id="client_id" type="text" autocomplete="off" spellcheck="false">
+  <label>Client Secret</label>
+  <input id="client_secret" type="password" autocomplete="off" spellcheck="false">
+  <label>Account</label>
+  <input id="account" type="text" value="62860060278" autocomplete="off">
+  <p><button type="button" id="save" class="btn">Save FNB keys</button>
+     <button type="button" id="pull" class="btn">Fetch FNB now</button></p>
+  <p class="meta" id="err"></p>
+  <p>Catalogue: <a href="https://www.fnb.co.za/integration-channel/index.html">FNB Integration Channel</a></p>
+</main>
+<script>
+(function () {
+  var status = document.getElementById("status");
+  var err = document.getElementById("err");
+  function show(el, text) { el.textContent = text || ""; }
+  fetch("/legal/fnb-status", {credentials: "same-origin"}).then(function (r) { return r.json(); }).then(function (d) {
+    show(status, d.ready ? "FNB API keys are on the box. Fetch when you want a pull." : (d.note || "Need FNB Client ID and Secret."));
+  }).catch(function () { show(status, "Could not reach the FNB helper on the box."); });
+  document.getElementById("save").addEventListener("click", function () {
+    show(err, "Saving…");
+    fetch("/legal/fnb-save", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      credentials: "same-origin",
+      body: JSON.stringify({
+        client_id: document.getElementById("client_id").value,
+        client_secret: document.getElementById("client_secret").value,
+        account_number: document.getElementById("account").value
+      })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      show(err, d.ok ? "Saved. Click Fetch FNB now." : (d.error || "Could not save."));
+      if (d.ok) show(status, d.note || "FNB API keys saved.");
+    }).catch(function () { show(err, "Could not reach the box."); });
+  });
+  document.getElementById("pull").addEventListener("click", function () {
+    show(err, "Fetching FNB…");
+    fetch("/legal/fnb-pull", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      credentials: "same-origin",
+      body: "{}"
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      show(err, d.ok ? ("Fetched " + (d.rows || 0) + " FNB rows, inserted " + (d.inserted || 0) + ".") : (d.error || d.note || "FNB pull failed."));
+    }).catch(function () { show(err, "Could not reach the box."); });
+  });
+})();
+</script>
+</body>
+</html>

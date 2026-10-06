@@ -311,7 +311,7 @@ function render(data){
       <div class="grid">
         <div class="card"><div class="k">Old invoices</div><div class="v">${(data.books&&data.books.history&&data.books.history.count)||0}</div><div class="meta">statement sits on the invoice · ${esc((data.books&&data.books.history&&data.books.history.payment_count)||(data.books&&data.books.history&&data.books.history.payments&&data.books.history.payments.length)||0)} payments</div></div>
         <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
-        <div class="card"><div class="k">FNB</div><div class="v">${(data.books&&data.books.fnb&&data.books.fnb.transactions)||((data.books&&data.books.fnb&&data.books.fnb.accounts)||[]).length}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.note)||"")}</div></div>
+        <div class="card"><div class="k">FNB</div><div class="v">${(data.books&&data.books.fnb&&data.books.fnb.balance)!=null?Number(data.books.fnb.balance).toFixed(2):"—"}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.account_number)||"62860060278")} · ${esc((data.books&&data.books.fnb&&data.books.fnb.as_at)||"FNB API")} · <a href="/legal/fnb.html">Connect</a></div></div>
         <div class="card"><div class="k">Netcash</div><div class="v">${(data.books&&data.books.netcash&&data.books.netcash.items)||((data.books&&data.books.netcash&&data.books.netcash.batches)||[]).length||0}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||"Paid / unpaid per batch")}</div></div>
         <div class="card"><div class="k">Clients</div><div class="v">${((data.books&&data.books.billing&&data.books.billing.accounts)||(data.books&&data.books.ledger&&data.books.ledger.clients)||[]).length}</div><div class="meta">${esc((data.books&&data.books.billing&&data.books.billing.rule)||"Invoice 17th · month in advance")}</div></div>
         <div class="card"><div class="k">Packages</div><div class="v">${(data.books&&data.books.packages&&data.books.packages.count)||((data.books&&data.books.packages&&data.books.packages.table)||[]).length||0}</div><div class="meta">Cost incl VAT · retail no VAT · markup to R99</div></div>
@@ -393,11 +393,12 @@ function render(data){
       </div>
       <div class="card scroll">
         <table class="compact">
-          <thead><tr><th>Date</th><th>FNB</th><th>Amount</th><th>Balance</th></tr></thead>
+          <thead><tr><th>Date</th><th>FNB</th><th>Spent</th><th>Received</th><th>Balance</th></tr></thead>
           <tbody>${((data.books&&data.books.fnb&&data.books.fnb.rows)||[]).map(r=>`
             <tr><td class="num">${esc(r.paid_on||"—")}</td><td>${esc(r.description||"—")}</td>
-            <td class="num">${r.amount==null?"—":Number(r.amount).toFixed(2)}</td>
-            <td class="num">${r.balance==null?"—":Number(r.balance).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No FNB history yet</td></tr>`}</tbody>
+            <td class="num">${r.spent==null?"":Number(r.spent).toFixed(2)}</td>
+            <td class="num">${r.received==null?"":Number(r.received).toFixed(2)}</td>
+            <td class="num">${r.balance==null?"—":Number(r.balance).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="5" class="meta">No FNB API rows. Connect at /legal/fnb.html — not QuickBooks.</td></tr>`}</tbody>
         </table>
       </div>
       <div class="card scroll">

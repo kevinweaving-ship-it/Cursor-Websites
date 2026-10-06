@@ -552,6 +552,14 @@ def cards_for_export(
     loss_names = [c["name"] for c in fibre_cards if c.get("os_loss")]
     invoice_date = next((v.get("invoice_date") for v in os_map.values()), None)
     offsets = [_offset_card(row) for row in OFFSET_DEALS]
+    fnb = None
+    if conn is not None:
+        try:
+            from fnb_api import card as fnb_card
+
+            fnb = fnb_card(conn)
+        except Exception:
+            fnb = None
     return {
         "as_at": today.isoformat(),
         "grace_days": GRACE_DAYS,
@@ -564,6 +572,7 @@ def cards_for_export(
         "cards": cards,
         "cancelled": cancelled,
         "offsets": offsets,
+        "fnb": fnb,
         "os": {
             "invoice_date": invoice_date,
             "fibre": len(fibre_cards),

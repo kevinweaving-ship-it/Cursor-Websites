@@ -451,8 +451,15 @@ def ingest_local_history(conn: sqlite3.Connection) -> dict:
 
 def books_for_export(conn: sqlite3.Connection) -> dict:
     ensure_tables(conn)
-    ingest_fnb_mail(conn)
-    ingest_local_history(conn)
+    from fnb_api import card as fnb_card
+    from fnb_api import pull as fnb_pull
+    from fnb_api import status as fnb_status
+
+    if fnb_status().get("ready"):
+        try:
+            fnb_pull(conn)
+        except Exception:
+            pass
     from qb_import import history_for_export, ingest_qb_mail
 
     ingest_qb_mail(conn)
@@ -530,35 +537,12 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
             "charged": openserve[1] if openserve else 0,
         },
         "fnb": {
-            "accounts": bank_accounts,
-            "gowifi_account": any(a["ours"] for a in bank_accounts),
-            "transactions": max(
-                conn.execute("SELECT COUNT(*) FROM bank_tx WHERE ours=1").fetchone()[0],
-                (ledger.get("bank") or {}).get("rows") or 0,
-            ),
-            "rows": [
-                {
-                    "paid_on": r[0],
-                    "amount": r[1],
-                    "balance": r[2],
-                    "description": r[3],
-                }
-                for r in conn.execute(
-                    """SELECT paid_on, amount, balance, description FROM bank_tx
-                       WHERE ours=1 ORDER BY paid_on DESC, id DESC LIMIT 80"""
-                )
+            **fnb_card(conn),
+            "accounts": [
+                a
+                for a in bank_accounts
+                if a.get("ours") and (a.get("account_number") or "") == GOWIFI_FNB
             ],
-            "note": (
-                "QuickBooks FNB Account History (62860060278) from 27 Jul 2020. "
-                "Expense and loan accounts recreated from the same register."
-                if (ledger.get("bank") or {}).get("rows")
-                else (
-                    "Daily CSV: FNB Online scheduled export to accounts@go-wifi.co.za "
-                    "(ACCOUNT TRANSACTION HISTORY). GoWiFi operating account not on the box yet."
-                    if not any(a["ours"] for a in bank_accounts)
-                    else "GoWiFi FNB history is on the box."
-                )
-            ),
         },
         "netcash": {
             **(nc if isinstance(nc, dict) else {"items": nc}),
@@ -650,6 +634,7 @@ def self_test() -> int:
         print("OK netcash-key-present")
     else:
         print("OK netcash-awaiting-key")
+    from fnb_api import self_test as fnb_api_test
     from ledger import self_test as ledger_test
     from packages import self_test as packages_test
     from compliance import self_test as compliance_test
@@ -658,6 +643,7 @@ def self_test() -> int:
     from invoice_list import self_test as invoice_list_test
     from statements import self_test as statements_test
 
+    failed += fnb_api_test()
     failed += ledger_test()
     failed += packages_test()
     failed += compliance_test()
