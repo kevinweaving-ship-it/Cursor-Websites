@@ -112,6 +112,7 @@ main {
 .fnb-reg tr:last-child td { border-bottom:0; }
 .fnb-reg tr.pending td { color:var(--warn); }
 .fnb-reg tr.posted td { color:var(--acc); }
+.fnb-reg td.spent { color:var(--bad); }
 .fnb-choice { width:100%; max-width:100%; font:inherit; font-size:13px; }
 .stmt th {
   text-align:left; color:var(--muted); font-size:11px; letter-spacing:.03em;
@@ -314,7 +315,7 @@ function fnbCard(fnb){
   const rows = (fnb.rows||[]).map(r=>`<tr class="${esc(r.tone==="pending"?"pending":"posted")}">
     <td>${esc(r.paid_on||"")}</td>
     <td title="${esc(r.description||"")}">${esc(r.description||"")}</td>
-    <td class="num">${r.spent==null?"":esc(money(r.spent))}</td>
+    <td class="num spent">${r.spent==null?"":esc("-"+money(Math.abs(r.spent)))}</td>
     <td class="num">${r.received==null?"":esc(money(r.received))}</td>
     <td class="num">${esc(money(r.balance))}</td>
   </tr>`).join("");

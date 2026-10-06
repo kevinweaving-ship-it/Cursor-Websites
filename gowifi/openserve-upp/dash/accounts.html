@@ -79,6 +79,7 @@ table.compact { width:100%; border-collapse:collapse; font-size:13px; }
 .fnb-reg tr:last-child td { border-bottom:0; }
 .fnb-reg tr.pending td { color:var(--warn); }
 .fnb-reg tr.posted td { color:var(--acc); }
+.fnb-reg td.spent { color:var(--bad); }
 table.compact th {
   text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase;
   letter-spacing:.04em; font-weight:700; padding:6px 6px 8px 0; border-bottom:1px solid var(--line);
@@ -432,7 +433,7 @@ function render(data){
           <thead><tr><th>Date</th><th>Description</th><th class="num">Spent</th><th class="num">Received</th><th class="num">Balance</th></tr></thead>
           <tbody>${((data.books&&data.books.fnb&&data.books.fnb.rows)||[]).map(r=>`
             <tr class="${esc(r.tone==="pending"?"pending":"posted")}"><td>${esc(r.paid_on||"—")}</td><td title="${esc(r.description||"—")}">${esc(r.description||"—")}</td>
-            <td class="num">${r.spent==null?"":Number(r.spent).toFixed(2)}</td>
+            <td class="num spent">${r.spent==null?"":"-"+Number(Math.abs(r.spent)).toFixed(2)}</td>
             <td class="num">${r.received==null?"":Number(r.received).toFixed(2)}</td>
             <td class="num">${r.balance==null?"—":Number(r.balance).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="5" class="meta">No FNB rows on the system yet. Fetch from FNB Online.</td></tr>`}</tbody>
         </table></div>
