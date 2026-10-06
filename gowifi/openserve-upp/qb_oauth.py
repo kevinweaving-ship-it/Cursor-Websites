@@ -22,6 +22,10 @@ TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
 SCOPE = "com.intuit.quickbooks.accounting"
 STATE = "gowifi-box"
 BOX_REDIRECT = "https://gowifi.co.za/legal/qb-callback.html"
+# Intuit Development Keys keep this URI. Custom host URIs often fail to save
+# and Connect then dies with "redirect_uri query parameter value is invalid".
+PLAYGROUND_REDIRECT = "https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl"
+KNOWN_REALM = "9130354340040586"
 # Janishia Noronha, Intuit Developer Group, 6 Oct 2026 — typos in the IDs we sent.
 INTUIT_APP_ID = "29bf4b87-d9b1-438f-9e35-52362429db57"
 INTUIT_DEV_CLIENT_ID = "ABs2E5POp4qzGRxLNEmMvP0LC2fGgXKzcHzYs1RUl4bsBhhvjD"
@@ -55,6 +59,24 @@ def active_keyset(env: dict[str, str] | None = None) -> str:
     return "production" if raw.startswith("prod") else "development"
 
 
+def use_box_callback(env: dict[str, str] | None = None) -> bool:
+    env = env or _load_env()
+    return (env.get("QBO_USE_CALLBACK") or "").strip().lower() in {
+        "1",
+        "yes",
+        "true",
+        "callback",
+    }
+
+
+def active_redirect(env: dict[str, str] | None = None) -> str:
+    """Redirect sent to Intuit. Playground unless callback mode is forced."""
+    env = env or _load_env()
+    if use_box_callback(env):
+        return (env.get("QBO_REDIRECT_URI") or BOX_REDIRECT).strip()
+    return PLAYGROUND_REDIRECT
+
+
 def client_pair(env: dict[str, str] | None = None) -> tuple[str, str, str]:
     """Return (client_id, client_secret, redirect) for the active keyset.
 
@@ -64,7 +86,7 @@ def client_pair(env: dict[str, str] | None = None) -> tuple[str, str, str]:
     with QBO_KEYSET=development|production.
     """
     env = env or _load_env()
-    redirect = env.get("QBO_REDIRECT_URI") or BOX_REDIRECT
+    redirect = active_redirect(env)
     keyset = active_keyset(env)
     if keyset == "production":
         client_id = env.get("QBO_PROD_CLIENT_ID") or env.get("QBO_CLIENT_ID") or ""
@@ -92,6 +114,8 @@ def ids_match_intuit(env: dict[str, str] | None = None) -> dict:
         "has_dev_secret": bool((env.get("QBO_DEV_CLIENT_SECRET") or "").strip()),
         "has_prod_secret": bool((env.get("QBO_PROD_CLIENT_SECRET") or "").strip()),
         "connected": TOKEN_PATH.exists(),
+        "redirect": active_redirect(env),
+        "callback": use_box_callback(env),
     }
 
 
@@ -144,6 +168,7 @@ def exchange_code(code: str, realm_id: str) -> dict:
         raise SystemExit("QBO client id/secret missing in /root/secrets/qbo.env")
     if not code:
         raise SystemExit("missing authorization code")
+    realm_id = (realm_id or env.get("QBO_REALM_ID") or KNOWN_REALM).strip()
     payload = _post_token(
         client_id,
         secret,
@@ -284,6 +309,7 @@ class Handler(BaseHTTPRequestHandler):
                     {
                         "url": authorize_url(env),
                         "keyset": active_keyset(env),
+                        "redirect": active_redirect(env),
                     },
                 )
             except SystemExit as exc:
@@ -295,8 +321,9 @@ class Handler(BaseHTTPRequestHandler):
             body: dict = {
                 "connected": token_ok,
                 "keyset": active_keyset(env),
-                "realmId": env.get("QBO_REALM_ID") or None,
+                "realmId": env.get("QBO_REALM_ID") or KNOWN_REALM,
                 "appId": env.get("QBO_APP_ID") or INTUIT_APP_ID,
+                "redirect": active_redirect(env),
                 "ids": ids_match_intuit(env),
             }
             if token_ok:
