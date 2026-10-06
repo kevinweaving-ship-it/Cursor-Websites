@@ -128,7 +128,9 @@ main {
 }
 .stmt th.num, .stmt td.num { text-align:right; white-space:nowrap; }
 .stmt td.date { white-space:nowrap; }
-.stmt a { color:inherit; text-decoration:underline; font-weight:700; }
+.stmt a.inv-link { color:inherit; text-decoration:underline; font-weight:700; }
+.stmt tr.inv-row { cursor:pointer; }
+.stmt tr.inv-row:hover td { text-decoration:underline; }
 .stmt tr:last-child td { border-bottom:0; }
 .stmt tr.payment td { color:var(--ok); }
 .stmt tr.invoice td,
@@ -258,15 +260,24 @@ const accessLabel = c => (c.access||"") === "fibre" ? "Fibre" : (c.access||"") =
 function field(label, value, extra){
   return `<div class="field"><span class="k">${esc(label)}</span><span class="v${extra&&extra.cls?" "+extra.cls:""}">${value}</span></div>`;
 }
+function invoiceRef(r){
+  if ((r.kind||"")==="invoice" && r.ref) return String(r.ref);
+  const m = String(r.what||r.ref||"").match(/Invoice\s+(\d+)/i);
+  return m ? m[1] : "";
+}
 function stmtRows(rows){
   return rows.map(r=>{
     const hide = r.reconciled ? " hidden" : "";
-    const cls = [r.kind||"", r.tone||"", r.due_row?"due_row":"", r.reconciled?"paid":""].filter(Boolean).join(" ");
-    return `<tr class="${esc(cls)}${hide}">
+    const n = invoiceRef(r);
+    const href = n ? `/dash/invoice.html?n=${esc(n)}` : "";
+    const cls = [r.kind||"", r.tone||"", r.due_row?"due_row":"", r.reconciled?"paid":"", href?"inv-row":""].filter(Boolean).join(" ");
+    const what = stripUncapped(r.what||"");
+    const whatHtml = href
+      ? `<a class="inv-link" href="${href}">${esc(what)}</a>`
+      : esc(what);
+    return `<tr class="${esc(cls)}${hide}"${href?` data-href="${href}"`:""}>
     <td class="date">${esc(r.date_fmt||r.date||"")}</td>
-    <td>${r.kind==="invoice"&&r.ref
-      ? `<a href="/dash/invoice.html?n=${esc(r.ref)}">${esc(stripUncapped(r.what||""))}</a>`
-      : esc(stripUncapped(r.what||""))}</td>
+    <td>${whatHtml}</td>
     <td class="num">${esc(money(r.amount))}</td>
     <td class="num">${esc(money(r.balance))}</td>
   </tr>`;
@@ -587,6 +598,12 @@ function paint(pack){
     : `<p class="empty">No deleted clients match.</p>`;
   bindToggles($("#cancelled-grid"));
 }
+document.addEventListener("click", ev => {
+  if (ev.target.closest("a.inv-link")) return;
+  const tr = ev.target.closest("tr.inv-row[data-href]");
+  if (!tr) return;
+  location.href = tr.getAttribute("data-href");
+});
 fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
   .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
   .then(data=>{

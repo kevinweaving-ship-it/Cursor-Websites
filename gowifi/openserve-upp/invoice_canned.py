@@ -791,7 +791,7 @@ def self_test() -> int:
     if "stripUncapped" not in cpage:
         print("FAIL clients-html-uncapped")
         failed += 1
-    elif "invoice.html?n=" not in cpage:
+    elif "invoice.html?n=" not in cpage or "inv-link" not in cpage:
         print("FAIL clients-html-child-url")
         failed += 1
     else:
