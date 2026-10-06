@@ -628,6 +628,15 @@ def attention_open(conn: sqlite3.Connection) -> list[dict]:
     return out
 
 
+def _frame_ok(frame) -> bool:
+    try:
+        url = frame.url or ""
+    except Exception:
+        return False
+    junk = ("doubleclick", "googletag", "metrics.fnb", "fls.doubleclick", "facebook", "hotjar")
+    return not any(x in url for x in junk)
+
+
 def _all_text(page) -> str:
     bits = []
     frames = []
@@ -638,6 +647,8 @@ def _all_text(page) -> str:
     if not frames:
         frames = [page]
     for frame in frames:
+        if not _frame_ok(frame):
+            continue
         try:
             bits.append(frame.inner_text("body"))
         except Exception:
@@ -818,6 +829,8 @@ def _first_visible(page, selector: str, timeout: int = 8000):
         if not frames:
             frames = [page]
         for frame in frames:
+            if not _frame_ok(frame):
+                continue
             try:
                 loc = frame.locator(selector)
                 n = loc.count()
@@ -1034,7 +1047,13 @@ def _fill_login(page, username: str, password: str) -> None:
 def _wait_after_login(page, account: str) -> None:
     set_progress("Waiting for FNB after login")
     for i in range(90):
-        page.wait_for_timeout(2000)
+        try:
+            page.wait_for_timeout(2000)
+        except Exception:
+            break
+        if "www.fnb.co.za" in ((getattr(page, "url", "") or "")) and "online.fnb.co.za" not in (page.url or ""):
+            set_progress("Back to FNB Online")
+            _stay_online(page)
         _dismiss_popups(page)
         text = _all_text(page)
         low = text.lower()
@@ -1704,6 +1723,9 @@ def fetch_live(env: dict[str, str] | None = None) -> dict:
                     break
                 set_progress("Logging in")
                 _fill_login(page, user, password)
+                _stay_online(page)
+                if "online.fnb.co.za" not in ((page.url or "")):
+                    raise RuntimeError("FNB stayed on the public site")
                 logged = True
                 break
             except Exception as exc:
@@ -2134,6 +2156,14 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK live-card-balance")
+    class _F:
+        def __init__(self, url):
+            self.url = url
+    if _frame_ok(_F("https://9689447.fls.doubleclick.net/x")) or not _frame_ok(_F("https://www.online.fnb.co.za/banking/main.jsp")):
+        print("FAIL skip-ad-frames")
+        failed += 1
+    else:
+        print("OK skip-ad-frames")
     live_conn.close()
     conn.close()
     return failed
