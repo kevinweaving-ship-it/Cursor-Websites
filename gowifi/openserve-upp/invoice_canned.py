@@ -19,10 +19,10 @@ TITLES = {"mr", "mrs", "ms", "miss", "dr"}
 KEEP_MONTHS = 12
 MAX_STATEMENT_LINES = 20
 SPEED_RE = re.compile(
-    r"(\d+(?:\.\d+)?)\s*Mbps\s+down\s*/\s*(\d+(?:\.\d+)?)\s*Mbps\s+Up"
-    r"(?:\s*-\s*Uncapped(?:\s*\(FUP\s*\d+\))?)?",
+    r"(\d+(?:\.\d+)?)\s*Mbps\s+down\s*/\s*(\d+(?:\.\d+)?)\s*Mbps\s+Up",
     re.I,
 )
+UNCAPPED_RE = re.compile(r"\s*[-–—]?\s*uncapped\b[\s\S]*", re.I)
 
 
 def money(value, with_r: bool = True) -> str:
@@ -67,6 +67,19 @@ def fmt_date(value) -> str:
     return day.strftime("%d/%m/%Y") if day else (str(value).strip() if value else "—")
 
 
+def strip_uncapped(text: str | None) -> str:
+    """Drop Uncapped and everything after it. Keep cancellation month."""
+    blob = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not blob:
+        return ""
+    cancel = bool(re.search(r"(?i)cancellation month", blob))
+    blob = UNCAPPED_RE.sub("", blob)
+    blob = re.sub(r"\s+[-–—/]\s*$", "", blob).strip(" -–—")
+    if cancel and "cancellation month" not in blob.lower():
+        blob = f"{blob} — cancellation month" if blob else "cancellation month"
+    return blob
+
+
 def clean_description(text: str | None) -> str:
     """Undo mashed QuickBooks ACTIVITY+DESCRIPTION+qty/rate/amount lines."""
     if not text:
@@ -84,11 +97,11 @@ def clean_description(text: str | None) -> str:
             label = f"{head} — {label}"
         if re.search(r"(?i)cancellation month", blob) and "cancellation month" not in label.lower():
             label = f"{label} — cancellation month"
-        return label
+        return strip_uncapped(label) or "Monthly service"
     blob = re.sub(r"\b(.{8,}?)\s+\1\b", r"\1", blob)
     blob = blob.replace("Fiber", "Fibre")
     blob = re.sub(r"\s+[-/]\s*$", "", blob).strip(" -")
-    return blob or "Monthly service"
+    return strip_uncapped(blob) or "Monthly service"
 
 
 def _cutoff(as_at: date | None) -> date | None:
@@ -500,7 +513,7 @@ def statement_html(row: dict) -> str:
     if not lines:
         return f'<div class="due">Balance due {money(due)}</div>'
     def _stmt_desc(line: dict) -> str:
-        label = escape(line.get("description") or "")
+        label = escape(strip_uncapped(line.get("description") or ""))
         number = str(line.get("invoice_number") or line.get("reference") or "")
         if line.get("kind") == "invoice" and number:
             return f'<a href="?n={escape(number)}">{label}</a>'
@@ -576,6 +589,15 @@ def self_test() -> int:
             "7 Mbps down / 3.5 Mbps Up — cancellation month",
             "7 Mbps down / 3.5 Mbps Up — cancellation month",
         ),
+        (
+            "7 Mbps down / 3.5 Mbps Up - Uncapped (FUP 400)",
+            "7 Mbps down / 3.5 Mbps Up",
+        ),
+        (
+            "7 Mbps down / 3.5 Mbps Up - Uncapped (FUP 400) — cancellation month",
+            "7 Mbps down / 3.5 Mbps Up — cancellation month",
+        ),
+        ("WebStream 50/25 Uncapped", "WebStream 50/25"),
     ]
     clean_ok = True
     for raw, want in mashed:
@@ -722,8 +744,18 @@ def self_test() -> int:
     elif page.count("inner-card") < 3 or "ledger-card" not in page:
         print("FAIL invoice-html-three-inner")
         failed += 1
+    elif "stripUncapped" not in page or "font-size:12px" not in page:
+        print("FAIL invoice-html-uncapped-or-type")
+        failed += 1
     else:
         print("OK invoice-html-latest-and-ledger")
+    clients_page = Path(__file__).resolve().parent.joinpath("dash/clients.html")
+    cpage = clients_page.read_text() if clients_page.exists() else ""
+    if "stripUncapped" not in cpage:
+        print("FAIL clients-html-uncapped")
+        failed += 1
+    else:
+        print("OK clients-html-uncapped")
     newest = [
         {"kind": "invoice", "ref": "3136", "amount": 439, "balance": 7619, "date": "2026-10-07"},
         {"kind": "invoice", "ref": "3113", "amount": 439, "balance": 7180, "date": "2026-09-21"},

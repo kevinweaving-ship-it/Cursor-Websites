@@ -88,7 +88,9 @@ main {
 .alert { color:var(--bad); font-weight:700; }
 .stmt-band { display:block; }
 .stmt-wrap { width:100%; max-height:380px; overflow:auto; }
-.stmt { width:100%; border-collapse:collapse; font-size:13px; }
+.stmt { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; line-height:1.35; }
+.stmt col.d { width:6.4em; }
+.stmt col.n { width:5.4em; }
 .fnb-reg-wrap { width:100%; max-height:380px; overflow:auto; }
 .fnb-reg {
   width:100%; table-layout:fixed; border-collapse:collapse;
@@ -114,13 +116,18 @@ main {
 .fnb-reg tr.posted td { color:var(--acc); }
 .fnb-reg td.spent { color:var(--bad); }
 .fnb-choice { width:100%; max-width:100%; font:inherit; font-size:13px; }
+.stmt th, .stmt td {
+  font-size:12px; line-height:1.35; font-weight:600;
+  padding:5px 6px 5px 0; vertical-align:top;
+  border-bottom:1px solid var(--line);
+}
 .stmt th {
-  text-align:left; color:var(--muted); font-size:11px; letter-spacing:.03em;
-  text-transform:uppercase; font-weight:700; padding:4px 8px 6px 0;
-  border-bottom:1px solid var(--line); position:sticky; top:0; background:#fff;
+  text-align:left; color:var(--muted); letter-spacing:.03em;
+  text-transform:uppercase; font-weight:700;
+  position:sticky; top:0; background:#fff;
 }
 .stmt th.num, .stmt td.num { text-align:right; white-space:nowrap; }
-.stmt td { padding:5px 8px 5px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+.stmt td.date { white-space:nowrap; }
 .stmt tr:last-child td { border-bottom:0; }
 .stmt tr.payment td { color:var(--ok); }
 .stmt tr.invoice td,
@@ -227,6 +234,13 @@ main {
 <script>
 const $ = (s,el=document)=>el.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const stripUncapped = s => {
+  const raw = String(s||"");
+  const cancel = /cancellation month/i.test(raw);
+  let out = raw.replace(/\s*[-–—]?\s*uncapped\b[\s\S]*/i, "").replace(/\s+[-–—/]\s*$/, "").trim();
+  if (cancel && !/cancellation month/i.test(out)) out = out ? out + " — cancellation month" : "cancellation month";
+  return out;
+};
 const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
 const whenClock = v => {
   if (!v) return "Never fetched";
@@ -248,8 +262,8 @@ function stmtRows(rows){
     const hide = r.reconciled ? " hidden" : "";
     const cls = [r.kind||"", r.tone||"", r.due_row?"due_row":"", r.reconciled?"paid":""].filter(Boolean).join(" ");
     return `<tr class="${esc(cls)}${hide}">
-    <td>${esc(r.date_fmt||r.date||"")}</td>
-    <td>${esc(r.what||"")}</td>
+    <td class="date">${esc(r.date_fmt||r.date||"")}</td>
+    <td>${esc(stripUncapped(r.what||""))}</td>
     <td class="num">${esc(money(r.amount))}</td>
     <td class="num">${esc(money(r.balance))}</td>
   </tr>`;
@@ -266,6 +280,7 @@ function stmtTable(c, id){
   return `<div class="band stmt-band">
     ${toggle}
     <div class="stmt-wrap" id="${hid}"><table class="stmt">
+      <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>
       <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
       <tbody>${stmtRows(rows)}</tbody>
     </table></div>

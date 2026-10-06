@@ -855,6 +855,9 @@ def _stmt_desc(text: str | None, line_kind: str | None = None) -> str:
     if (line_kind or "") == "do-return" or is_do_return_text(text):
         return DO_RETURN_LABEL
     t = clean_description(text)
+    from invoice_canned import strip_uncapped
+
+    t = strip_uncapped(t)
     t = re.sub(r"(?i)\bgowifi\b", "", t)
     t = t.replace("Fiber", "Fibre")
     t = re.sub(r"\s+", " ", t).strip(" -·")

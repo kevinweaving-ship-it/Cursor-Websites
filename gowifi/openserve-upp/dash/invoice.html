@@ -7,7 +7,10 @@
 <style>
 @page { size: A4; margin: 12mm; }
 body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#0b1f44; background:#ffffff; margin:0; }
-.sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:10mm 12mm 14mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
+.sheet { width:100%; max-width:210mm; min-height:0; margin:12px auto; background:#fff; padding:12px 14px 16px; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
+@media (min-width: 700px) {
+  .sheet { width:210mm; min-height:297mm; margin:16px auto; padding:10mm 12mm 14mm; }
+}
 .card { border: 2.5px solid #123a7a; border-radius:8px; padding:12px 14px; margin:0 0 12px; background:#fff; }
 .invoice-outer { border:4px solid #0b1f44; border-radius:10px; padding:10px; margin:0 0 12px; background:#fff; }
 .inner-card { border:1.5px solid #8aa4c8; border-radius:8px; padding:12px 14px; background:#fff; }
@@ -25,7 +28,10 @@ body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#0b
 .meta td { text-align:right; font-weight:600; }
 table.lines, table.soa, table.index { width:100%; border-collapse:collapse; }
 table.lines th, table.soa th, table.index th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:2px solid #123a7a; padding:6px 4px; color:#123a7a; }
-table.lines td, table.index td { padding:5px 4px; border-bottom:1.5px solid #123a7a; vertical-align:top; }
+table.lines td, table.index td { padding:5px 4px; border-bottom:1.5px solid #123a7a; vertical-align:top; font-size:13px; }
+@media (max-width: 600px) {
+  .card-row { flex-direction:column; }
+}
 table.soa td { padding:4px; border-bottom:1.5px solid #123a7a; vertical-align:top; }
 table.soa a, table.index a { color:#123a7a; text-decoration:underline; font-weight:600; }
 .num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
@@ -36,14 +42,21 @@ h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 
 .ageing td { text-align:right; font-weight:600; padding:6px; font-variant-numeric:tabular-nums; border-top:1.5px solid #123a7a; }
 .ageing td.total, .ageing th.total { font-size:13px; }
 .bank { color:#333; margin-bottom:0; }
-.ledger-card .stmt { width:100%; border-collapse:collapse; font-size:13px; }
-.ledger-card .stmt th {
-  text-align:left; color:#4a5d7a; font-size:11px; letter-spacing:.03em;
-  text-transform:uppercase; font-weight:700; padding:4px 8px 6px 0;
+.ledger-card .stmt { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; line-height:1.35; }
+.ledger-card .stmt col.d { width:6.4em; }
+.ledger-card .stmt col.n { width:5.4em; }
+.ledger-card .stmt th,
+.ledger-card .stmt td {
+  font-size:12px; line-height:1.35; font-weight:600;
+  padding:5px 6px 5px 0; vertical-align:top;
   border-bottom:1px solid #d5deea;
 }
+.ledger-card .stmt th {
+  text-align:left; color:#4a5d7a; letter-spacing:.03em;
+  text-transform:uppercase; font-weight:700;
+}
 .ledger-card .stmt th.num, .ledger-card .stmt td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.ledger-card .stmt td { padding:5px 8px 5px 0; border-bottom:1px solid #d5deea; vertical-align:top; }
+.ledger-card .stmt td.date { white-space:nowrap; }
 .ledger-card .stmt tr:last-child td { border-bottom:0; }
 .ledger-card .stmt tr.payment td { color:#1a8f4a; }
 .ledger-card .stmt tr.invoice td,
@@ -66,6 +79,13 @@ a.back { font: 13px/1.4 sans-serif; color:#345; }
 <div id="app">Loading…</div>
 <script>
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const stripUncapped = s => {
+  const raw = String(s||"");
+  const cancel = /cancellation month/i.test(raw);
+  let out = raw.replace(/\s*[-–—]?\s*uncapped\b[\s\S]*/i, "").replace(/\s+[-–—/]\s*$/, "").trim();
+  if (cancel && !/cancellation month/i.test(out)) out = out ? out + " — cancellation month" : "cancellation month";
+  return out;
+};
 const money = (v, withR=true) => {
   if (v==null || v==="") return "";
   const n = Number(v);
@@ -247,12 +267,13 @@ fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store
         <h2><span>Ledger</span><span class="muted">as at ${esc(fmtDate(stmt.as_at||r.invoice_date))}</span></h2>
         <div class="due">Outstanding ${money(due)}</div>
         <table class="stmt">
+          <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>
           <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
           <tbody>${stmt.lines.map(line=>{
             const cls = [line.kind||"", line.tone||""].filter(Boolean).join(" ");
             return `<tr class="${esc(cls)}">
-            <td>${esc(line.date_fmt||fmtDate(line.date))}</td>
-            <td>${esc(line.description||"")}</td>
+            <td class="date">${esc(line.date_fmt||fmtDate(line.date))}</td>
+            <td>${esc(stripUncapped(line.description||""))}</td>
             <td class="num">${money(line.amount,false)}</td>
             <td class="num">${money(line.balance,false)}</td>
           </tr>`;
