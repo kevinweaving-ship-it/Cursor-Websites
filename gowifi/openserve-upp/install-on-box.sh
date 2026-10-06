@@ -14,6 +14,7 @@ if [ "$SRC" != "$DEST" ]; then
     "$SRC/customers.py" "$SRC/invoice_list.py" "$SRC/statements.py" "$SRC/recon.py" \
     "$SRC/checksum_accounts_mail.py" "$SRC/mail_forwards.py" \
     "$SRC/ensure_go_wifi_mail.sh" "$SRC/upp_emails.py" \
+    "$SRC/upp_set_password.py" \
     "$SRC/README.md" "$DEST/"
   mkdir -p "$DEST/data"
   if [ -d "$SRC/data" ]; then
@@ -28,7 +29,7 @@ chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" \
   "$DEST/compliance.py" "$DEST/clients.py" \
   "$DEST/customers.py" "$DEST/invoice_list.py" "$DEST/statements.py" "$DEST/recon.py" \
   "$DEST/mail_forwards.py" "$DEST/ensure_go_wifi_mail.sh" \
-  "$DEST/upp_emails.py"
+  "$DEST/upp_emails.py" "$DEST/upp_set_password.py"
 WWW=/home/user-data/www/default
 DASH="$WWW/dash"
 LEGAL="$WWW/legal"

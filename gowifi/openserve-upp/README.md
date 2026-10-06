@@ -16,6 +16,11 @@ services. Runs on `box.gowifi.co.za`. Does not place orders or change services.
 ```bash
 python3 /root/gowifi-upp/upp_emails.py
 ```
+- First-login password change for `kevin@gowifi.co.za` (Openserve requires upper, lower, number, and a symbol). Secrets stay in `/root/secrets/openserve-upp.env`:
+
+```bash
+OPENSERVE_UPP_TEMP_PASS='…' OPENSERVE_UPP_NEW_PASS='…' python3 /root/gowifi-upp/upp_set_password.py
+```
 - Checksum the two copies:
 
 ```bash
