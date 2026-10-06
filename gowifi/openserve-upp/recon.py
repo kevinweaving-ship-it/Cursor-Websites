@@ -518,8 +518,19 @@ def _mirror_bank_tx(conn: sqlite3.Connection) -> int:
         )
     except sqlite3.OperationalError:
         return 0
+    have = {
+        (str(r[0] or "")[:10], round(float(r[1] or 0), 2))
+        for r in conn.execute("SELECT paid_on, amount FROM fnb_tx")
+    }
     n = 0
     for rec in recs:
+        try:
+            key = (str(rec[0] or "")[:10], round(float(rec[1] or 0), 2))
+        except (TypeError, ValueError):
+            continue
+        if key in have:
+            continue
+        have.add(key)
         raw = to_fnb_row(
             {
                 "paid_on": rec[0],
@@ -595,6 +606,9 @@ def ingest(conn: sqlite3.Connection) -> dict:
         )
         fnb_n += 1
     fnb_n += _mirror_bank_tx(conn)
+    from fnb_statement import restore_existing_alloc
+
+    restore_existing_alloc(conn)
     nc_n = 0
     for row in _xls_rows(NETCASH_XLS):
         alloc = _netcash_alloc(row)

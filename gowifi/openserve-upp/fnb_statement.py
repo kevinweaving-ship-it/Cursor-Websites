@@ -158,6 +158,10 @@ EXPENSE_WORDS = (
     "rsa web",
     "openserve",
     "dues and subscriptions",
+    "intuit",
+    "qboo",
+    "www.ui.com",
+    "ui.com",
 )
 
 FETCH_SCHEMA = """
@@ -847,7 +851,105 @@ def last_fetch(conn: sqlite3.Connection | None = None) -> dict | None:
     }
 
 
+_XLS_ALLOC = None
+
+
+def _xls_alloc_for(day: str, amt: float) -> dict | None:
+    """Same-day same-amount row already allocated on the FNB xls. Do not invent."""
+    global _XLS_ALLOC
+    if _XLS_ALLOC is None:
+        from recon import FNB_XLS, _fnb_alloc, _xls_rows
+
+        found: dict[tuple, dict] = {}
+        for row in _xls_rows(FNB_XLS):
+            try:
+                key = (str(row.get("paid_on") or "")[:10], round(float(row.get("amount") or 0), 2))
+            except (TypeError, ValueError):
+                continue
+            alloc = _fnb_alloc(row)
+            if alloc.get("alloc_kind") in {"unallocated", "deposit"}:
+                continue
+            if alloc.get("result") in {"need-recon", None, ""}:
+                continue
+            found[key] = alloc
+        _XLS_ALLOC = found
+    return _XLS_ALLOC.get((day, amt))
+
+
+def restore_existing_alloc(conn: sqlite3.Connection) -> int:
+    """Put back allocations we already had. Do not ask to allocate them again."""
+    n = 0
+    try:
+        open_rows = list(
+            conn.execute(
+                """SELECT id, paid_on, amount, payee, memo FROM fnb_tx
+                   WHERE result='need-recon' OR alloc_kind IN ('unallocated','deposit')"""
+            )
+        )
+    except sqlite3.OperationalError:
+        return 0
+    for rec in open_rows:
+        day = str(rec[1] or "")[:10]
+        try:
+            amt = round(float(rec[2] or 0), 2)
+        except (TypeError, ValueError):
+            continue
+        twin = conn.execute(
+            """SELECT alloc_kind, alloc_to, alloc_key, result FROM fnb_tx
+               WHERE id!=?
+                 AND substr(paid_on,1,10)=?
+                 AND ROUND(amount,2)=?
+                 AND alloc_kind NOT IN ('unallocated','deposit')
+                 AND COALESCE(result,'') NOT IN ('need-recon','')
+               ORDER BY id LIMIT 1""",
+            (rec[0], day, amt),
+        ).fetchone()
+        alloc = None
+        if twin:
+            alloc = {
+                "alloc_kind": twin[0],
+                "alloc_to": twin[1],
+                "alloc_key": twin[2] or "",
+                "result": twin[3],
+            }
+        if not alloc:
+            alloc = _xls_alloc_for(day, amt)
+        if not alloc:
+            raw = to_fnb_row(
+                {
+                    "paid_on": day,
+                    "amount": rec[2],
+                    "description": " / ".join(p for p in (rec[3], rec[4]) if p),
+                    "source": "fnb_online",
+                }
+            )
+            guess = allocate_live(raw)
+            # Expenses / fees / Netcash only. Do not guess a client.
+            if guess.get("alloc_kind") in {"expense", "fee", "clearing"} and guess.get(
+                "result"
+            ) not in {"need-recon", None, ""}:
+                alloc = guess
+        if not alloc:
+            continue
+        conn.execute(
+            """UPDATE fnb_tx SET alloc_kind=?, alloc_to=?, alloc_key=?, result=?
+               WHERE id=?""",
+            (
+                alloc["alloc_kind"],
+                alloc.get("alloc_to") or "",
+                alloc.get("alloc_key") or "",
+                alloc["result"],
+                rec[0],
+            ),
+        )
+        n += 1
+    if n:
+        conn.commit()
+    return n
+
+
 def attention_open(conn: sqlite3.Connection) -> list[dict]:
+    restore_existing_alloc(conn)
     out = []
     try:
         for rec in conn.execute(
@@ -855,6 +957,14 @@ def attention_open(conn: sqlite3.Connection) -> list[dict]:
                FROM fnb_tx
                WHERE source IN ('fnb_live','fnb_online','fnb_api','fnb_history','fnb_qb')
                  AND (result='need-recon' OR alloc_kind='unallocated')
+                 AND NOT EXISTS (
+                   SELECT 1 FROM fnb_tx AS done
+                   WHERE done.id != fnb_tx.id
+                     AND substr(done.paid_on,1,10)=substr(fnb_tx.paid_on,1,10)
+                     AND ROUND(done.amount,2)=ROUND(fnb_tx.amount,2)
+                     AND done.alloc_kind NOT IN ('unallocated','deposit')
+                     AND COALESCE(done.result,'') NOT IN ('need-recon','')
+                 )
                ORDER BY paid_on DESC, id DESC LIMIT 40"""
         ):
             out.append(
@@ -2293,6 +2403,54 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK needs-attention", mystery["attention"][0]["what"])
+    conn.execute(
+        """INSERT INTO fnb_tx
+           (paid_on, payee, amount, alloc_kind, alloc_to, result, source)
+           VALUES (?,?,?,?,?,?,?)""",
+        ("2026-09-23", "Amoroc Doors", 199.0, "client_paid", "Amoroc Doors", "paid", "fnb-xls"),
+    )
+    conn.execute(
+        """INSERT INTO fnb_tx
+           (paid_on, payee, amount, alloc_kind, alloc_to, result, source)
+           VALUES (?,?,?,?,?,?,?)""",
+        ("2026-09-23", "ABSA BANK AmorocInv", 199.0, "deposit", "ABSA BANK AmorocInv", "need-recon", "fnb_online"),
+    )
+    conn.commit()
+    if any("Amoroc" in (a.get("description") or "") for a in attention_open(conn)):
+        print("FAIL already-allocated-not-an-issue", attention_open(conn))
+        failed += 1
+    else:
+        print("OK already-allocated-not-an-issue")
+    clones = [
+        ("2026-09-30", "ABSA BANK 3110 hermanus whalec", 439.0),
+        ("2026-09-25", "FNB OB PMT WCC TECHNOLOGIES (PTY)", 1000.0),
+        ("2026-09-22", "INVESTEC PB 31099", 999.0),
+        ("2026-09-15", "INTUIT *QBoo", -322.0),
+        ("2026-09-05", "WWW.UI.COM", -483.0),
+        ("2026-08-21", "ABSA BANK AmorocInv Aug", 199.0),
+        ("2026-08-21", "INVESTEC PB 31000", 999.0),
+        ("2026-08-20", "ABSA BANK 3084 hermanus whalec", 439.0),
+        ("2026-08-19", "FNB OB PMT WCC TECHNOLOGIES (PTY)", 1000.0),
+    ]
+    for day, payee, amt in clones:
+        conn.execute(
+            """INSERT INTO fnb_tx
+               (paid_on, payee, amount, alloc_kind, alloc_to, result, source)
+               VALUES (?,?,?,?,?,?,?)""",
+            (day, payee, amt, "deposit", payee, "need-recon", "fnb_online"),
+        )
+    conn.commit()
+    restored = restore_existing_alloc(conn)
+    leftover = attention_open(conn)
+    leftover_desc = " ".join((a.get("description") or "") for a in leftover)
+    if restored < 9 or any(
+        w in leftover_desc
+        for w in ("Amoroc", "WCC", "INVESTEC", "hermanus", "INTUIT", "UI.COM")
+    ):
+        print("FAIL restore-xls-alloc", restored, leftover)
+        failed += 1
+    else:
+        print("OK restore-xls-alloc", restored)
     overlay = card_overlay(conn)
     if overlay["matched"] or overlay["attention_amount"] != 88 or overlay["system_balance"] != 4642.66:
         print("FAIL overlay", overlay)
