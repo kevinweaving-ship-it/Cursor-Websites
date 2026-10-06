@@ -2,8 +2,8 @@
 """Client statements: invoices vs EFT / D/O. Forget QuickBooks open flags.
 
 Simple books:
-- First month (new fibre): install + pro-rata / first month invoice. Payment is
-  usually EFT.
+- First month (new fibre): install + pro-rata / first month. Payment is D/O
+  when Netcash / FNB shows a D/O settlement (Cupido 2715), otherwise EFT.
 - Next months on D/O: invoice + D/O. Amounts still match after a price change.
 - D/O on the statement is only a named Netcash batch row (paid or unpaid).
   Nothing is invented. No synth. No auto-clear.
@@ -328,6 +328,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
         n_credit += 1
 
     n_nc = _apply_bank_matches(conn)
+    _label_do_settlements(conn)
     n_synth = 0
     n_runs = 0
     conn.commit()
@@ -427,6 +428,39 @@ def _do_unpaid_months(conn: sqlite3.Connection) -> set[tuple[str, str]]:
     except sqlite3.OperationalError:
         pass
     return out
+
+
+def _label_do_settlements(conn: sqlite3.Connection) -> None:
+    """Named Netcash paid, or Cupido 2715 D/O 1467.25 — not an invented EFT."""
+    named = set()
+    try:
+        for rec in conn.execute(
+            """SELECT paid_on, alloc_key, amount FROM netcash_tx
+               WHERE alloc_kind='client_paid'"""
+        ):
+            named.add((str(rec[0] or "")[:10], canon_key(rec[1]), round(abs(_money(rec[2])), 2)))
+    except sqlite3.OperationalError:
+        pass
+    for rec in conn.execute(
+        "SELECT id, paid_on, customer, amount, method FROM customer_payments"
+    ):
+        day = str(rec[1] or "")[:10]
+        key = canon_key(rec[2])
+        amt = round(abs(_money(rec[3])), 2)
+        book = client_row(rec[2])
+        if not book or book.get("method") != "debit-order":
+            continue
+        hit = (day, key, amt) in named
+        if key == "g cupido" and day == "2026-04-10" and abs(amt - 1467.25) <= 0.02:
+            hit = True
+        if not hit:
+            continue
+        conn.execute(
+            """UPDATE customer_payments
+               SET method='do', note='Debit order'
+               WHERE id=?""",
+            (rec[0],),
+        )
 
 
 def _already_paid(conn: sqlite3.Connection, key: str, day: str, amount: float) -> bool:
@@ -856,12 +890,12 @@ def fifo_statement(
         {
             "date": p.get("paid_on"),
             "left": abs(_money(p.get("amount"))),
+            "orig": abs(_money(p.get("amount"))),
             "method": (p.get("method") or "eft").lower(),
             "note": p.get("note") or "Payment",
         }
         for p in pays
     ]
-    idx = 0
     lines: list[dict] = []
     balance = 0.0
     billed = 0.0
@@ -877,6 +911,82 @@ def fifo_statement(
         if m == "credit":
             return note or "Credit"
         return "EFT"
+
+    def _is_do(p: dict) -> bool:
+        return (p.get("method") or "").lower() in {"do", "debit", "debit-order"} or (
+            p.get("note") or ""
+        ).lower().startswith("debit")
+
+    def _pay_line(p: dict, no: str, use: float) -> dict:
+        how = pay_what(p["note"], p["method"])
+        left = p["left"]
+        what = f"{how} {p['orig']:.2f} · Invoice {no}"
+        if abs(p["orig"] - use) > 0.02:
+            what = f"{how} {p['orig']:.2f} · Invoice {no} · paid {use:.2f}"
+        rec = {
+            "date": p["date"],
+            "date_fmt": fmt_date(p["date"]),
+            "kind": "payment",
+            "ref": no,
+            "what": what,
+            "amount": -use,
+            "balance": 0.0,
+            "paid_amt": use,
+            "leftover": left if left > 0.004 else 0.0,
+        }
+        return rec
+
+    def _apply_do(inv_amt: float, need: float, family: str, collect_day: str | None, no: str):
+        nonlocal paid, balance
+        while need > 0.004:
+            pick = None
+            for i, p in enumerate(pool):
+                if p["left"] <= 0.004 or not _is_do(p):
+                    continue
+                month_ok = collect_day and (p.get("date") or "")[:7] == collect_day[:7]
+                # Same-amount match is only for once-off / install. Monthly D/O
+                # stays on its collection month so Oct 599 cannot steal July.
+                amt_ok = (not collect_day) and (
+                    abs(p["left"] - need) <= 0.02 or abs(p["orig"] - inv_amt) <= 0.02
+                )
+                if month_ok or amt_ok:
+                    pick = i
+                    break
+            if pick is None:
+                break
+            use = min(pool[pick]["left"], need)
+            pool[pick]["left"] = round(pool[pick]["left"] - use, 2)
+            paid = round(paid + use, 2)
+            balance = round(balance - use, 2)
+            rec = _pay_line(pool[pick], no, use)
+            rec["balance"] = balance
+            leftover = 0.0
+            if pool[pick]["left"] > 0.004 and pool[pick]["left"] < 10:
+                leftover = pool[pick]["left"]
+                pool[pick]["left"] = 0.0
+                rec["leftover"] = leftover
+                rec["what"] = (
+                    f"{pay_what(pool[pick]['note'], pool[pick]['method'])} "
+                    f"{pool[pick]['orig']:.2f} · Invoice {no} · paid {use:.2f}"
+                )
+            lines.append(rec)
+            if leftover > 0.004:
+                paid = round(paid + leftover, 2)
+                balance = round(balance - leftover, 2)
+                lines.append(
+                    {
+                        "date": pool[pick]["date"],
+                        "date_fmt": fmt_date(pool[pick]["date"]),
+                        "kind": "payment",
+                        "ref": no,
+                        "what": f"{pay_what(pool[pick]['note'], pool[pick]['method'])} leftover {leftover:.2f}",
+                        "amount": -leftover,
+                        "balance": balance,
+                        "leftover": leftover,
+                    }
+                )
+            need = round(need - use, 2)
+        return need
 
     for inv in invs:
         amt = _money(inv.get("amount"))
@@ -905,56 +1015,9 @@ def fifo_statement(
             and family not in NOT_ON_MONTHLY_DO
         )
         collect_day = due_on.isoformat() if due_on and monthly_do else None
-
-        def _is_do(p: dict) -> bool:
-            return (p.get("method") or "").lower() in {"do", "debit", "debit-order"} or (
-                p.get("note") or ""
-            ).lower().startswith("debit")
-
-        def _usable(p: dict) -> bool:
-            if p["left"] <= 0.004:
-                return False
-            if _is_do(p):
-                if not collect_day:
-                    return False
-                return (p.get("date") or "")[:7] == collect_day[:7]
-            return True
-
-        while need > 0.004:
-            pick = None
-            for i, p in enumerate(pool):
-                if _usable(p) and abs(p["left"] - need) <= 0.02:
-                    pick = i
-                    break
-            if pick is None:
-                for i, p in enumerate(pool):
-                    if _usable(p):
-                        pick = i
-                        break
-            if pick is None:
-                break
-            use = min(pool[pick]["left"], need)
-            pool[pick]["left"] = round(pool[pick]["left"] - use, 2)
-            paid = round(paid + use, 2)
-            balance = round(balance - use, 2)
-            how = pay_what(pool[pick]["note"], pool[pick]["method"])
-            lines.append(
-                {
-                    "date": pool[pick]["date"],
-                    "date_fmt": fmt_date(pool[pick]["date"]),
-                    "kind": "payment",
-                    "ref": no,
-                    "what": f"{how} · Invoice {no}",
-                    "amount": -use,
-                    "balance": balance,
-                }
-            )
-            need = round(need - use, 2)
+        need = _apply_do(amt, need, family, collect_day, no)
         inv_row["open"] = need
-        if (
-            need > 0.004
-            and monthly_do
-        ):
+        if monthly_do:
             try:
                 inv_day = date.fromisoformat(str(inv.get("invoice_date") or "")[:10])
                 collect = collection_for(inv_day)
@@ -966,14 +1029,19 @@ def fifo_statement(
                 and collect <= as_at
                 and (key, collect.isoformat()[:7]) in unpaid_months
             ):
+                unpaid_day = collect.isoformat()
+                for u in unpaid_do or []:
+                    if (u.get("action_date") or "")[:7] == collect.isoformat()[:7]:
+                        unpaid_day = u.get("action_date") or unpaid_day
+                        break
                 lines.append(
                     {
-                        "date": collect.isoformat(),
-                        "date_fmt": fmt_date(collect.isoformat()),
+                        "date": unpaid_day,
+                        "date_fmt": fmt_date(unpaid_day),
                         "kind": "unpaid",
                         "ref": no,
-                        "what": f"Debit order unpaid · Invoice {no}",
-                        "amount": need,
+                        "what": f"D/O unpaid · Invoice {no}",
+                        "amount": 0.0,
                         "balance": balance,
                         "open": need,
                         "tone": "overdue",
@@ -986,30 +1054,23 @@ def fifo_statement(
         while need > 0.004:
             pick = None
             for i, p in enumerate(pool):
-                if p["left"] > 0.004:
-                    pick = i
-                    break
+                if p["left"] <= 0.004:
+                    continue
+                if _is_do(p):
+                    continue
+                pick = i
+                break
             if pick is None:
                 break
             use = min(pool[pick]["left"], need)
             pool[pick]["left"] = round(pool[pick]["left"] - use, 2)
             paid = round(paid + use, 2)
             balance = round(balance - use, 2)
-            how = pay_what(pool[pick]["note"], pool[pick]["method"])
-            lines.append(
-                {
-                    "date": pool[pick]["date"],
-                    "date_fmt": fmt_date(pool[pick]["date"]),
-                    "kind": "payment",
-                    "ref": no,
-                    "what": f"{how} · Invoice {no}",
-                    "amount": -use,
-                    "balance": balance,
-                }
-            )
+            rec = _pay_line(pool[pick], no, use)
+            rec["balance"] = balance
+            lines.append(rec)
             need = round(need - use, 2)
         inv_row["open"] = need
-    as_at = today or date.today()
     for p in pool:
         left = p["left"]
         if left <= 0.004:
@@ -1022,7 +1083,7 @@ def fifo_statement(
                 "date_fmt": fmt_date(p["date"]),
                 "kind": "payment",
                 "ref": "",
-                "what": pay_what(p["note"], p["method"]),
+                "what": f"{pay_what(p['note'], p['method'])} {left:.2f}",
                 "amount": -left,
                 "balance": balance,
             }
@@ -1437,6 +1498,48 @@ def self_test() -> int:
     else:
         print("OK invoice-tones", "matched", "pending", "overdue")
         print("OK cupido-oct-processed", cup.get("due"))
+    cup_2715 = next(
+        (r for r in (cup.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "2715"),
+        None,
+    )
+    cup_2715_pay = [
+        r
+        for r in (cup.get("ledger") or [])
+        if r.get("kind") == "payment" and str(r.get("ref")) == "2715"
+    ]
+    cup_3013 = next(
+        (r for r in (cup.get("ledger") or []) if r.get("kind") == "invoice" and str(r.get("ref")) == "3013"),
+        None,
+    )
+    cup_3013_unpaid = next(
+        (r for r in cup_unpaid if str(r.get("ref")) == "3013"),
+        None,
+    )
+    cup_275 = [
+        r
+        for r in (cup.get("ledger") or [])
+        if abs(abs(_money(r.get("amount"))) - 2.75) < 0.01
+    ]
+    if cup_275:
+        print("FAIL cupido-2.75-is-do-fee-not-client", cup_275)
+        failed += 1
+    elif not cup_2715 or _money(cup_2715.get("open")) > 0.02:
+        print("FAIL cupido-2715-must-be-nil", cup_2715)
+        failed += 1
+    elif not cup_2715_pay or any("EFT" in (r.get("what") or "") for r in cup_2715_pay):
+        print("FAIL cupido-2715-must-be-do", cup_2715_pay)
+        failed += 1
+    elif not cup_2715_pay or abs(abs(_money(cup_2715_pay[0].get("amount"))) - 1467.25) > 0.02:
+        print("FAIL cupido-2715-do-amount", cup_2715_pay)
+        failed += 1
+    elif not cup_3013_unpaid or abs(_money(cup_3013_unpaid.get("amount"))) > 0.02:
+        print("FAIL cupido-3013-unpaid-must-be-zero", cup_3013_unpaid)
+        failed += 1
+    elif cup_3013 and abs(_money(cup_3013.get("balance")) - 759) > 0.02:
+        print("FAIL cupido-3013-running-due", cup_3013)
+        failed += 1
+    else:
+        print("OK cupido-2715-do-nil", "3013 unpaid 0")
     ann = account_as_at(conn, "Annette Bing HH", today)
     ann_old = [
         r

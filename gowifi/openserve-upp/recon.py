@@ -288,6 +288,16 @@ def _fnb_alloc(row: dict) -> dict:
         }
     if client and (row.get("deposit") or 0) > 0.004:
         name, key = client
+        deposit = abs(float(row.get("deposit") or 0))
+        book = client_row(name)
+        # Tiny named deposit on a D/O client is the collection cost, not client money.
+        if deposit < 10 and book and book.get("method") == "debit-order":
+            return {
+                "alloc_kind": "fee",
+                "alloc_to": "D/O collection cost",
+                "alloc_key": "",
+                "result": "allocated",
+            }
         return {
             "alloc_kind": "client_paid",
             "alloc_to": name,
@@ -779,6 +789,15 @@ def self_test() -> int:
             for rec in conn.execute("SELECT alloc_kind FROM fnb_tx"):
                 kinds[rec[0]] += 1
             print("OK fnb-kinds", dict(kinds))
+            fee275 = conn.execute(
+                """SELECT alloc_kind, alloc_to FROM fnb_tx
+                   WHERE paid_on='2026-04-10' AND ABS(deposit-2.75)<0.01"""
+            ).fetchone()
+            if not fee275 or fee275[0] != "fee":
+                print("FAIL cupido-2.75-must-be-do-fee", fee275)
+                failed += 1
+            else:
+                print("OK cupido-2.75-do-fee")
     sample = _fnb_alloc(
         {
             "payee": "Patriot SA / Paltco",
