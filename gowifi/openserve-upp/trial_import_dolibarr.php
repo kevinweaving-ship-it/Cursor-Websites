@@ -137,6 +137,7 @@ foreach (array(
 	"DELETE FROM ".MAIN_DB_PREFIX."societe_remise_except",
 	"DELETE FROM ".MAIN_DB_PREFIX."facturedet",
 	"DELETE FROM ".MAIN_DB_PREFIX."facture",
+	"DELETE cs FROM ".MAIN_DB_PREFIX."categorie_societe cs JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid=cs.fk_soc WHERE s.client=1 AND s.fournisseur=0",
 	"DELETE e FROM ".MAIN_DB_PREFIX."societe_extrafields e JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid=e.fk_object WHERE s.client=1 AND s.fournisseur=0",
 	"DELETE FROM ".MAIN_DB_PREFIX."societe WHERE client=1 AND fournisseur=0",
 ) as $wipe) {
@@ -193,6 +194,8 @@ foreach ($payload['clients'] as $cli) {
 		fwrite(STDERR, "FAIL socid ".$cli['name']."\n");
 		exit(7);
 	}
+	$cat = (stripos((string) ($cli['access'] ?? ''), 'fibre') !== false) ? 2 : 1;
+	$db->query("INSERT IGNORE INTO ".MAIN_DB_PREFIX."categorie_societe (fk_categorie, fk_soc) VALUES (".$cat.", ".$socid.")");
 
 	$facids = array();
 	$remain = array();
