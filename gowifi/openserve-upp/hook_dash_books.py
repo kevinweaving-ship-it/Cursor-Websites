@@ -9,8 +9,6 @@ INDEX = Path(os.environ.get("GOWIFI_DASH_INDEX", "/home/user-data/www/default/da
 CLIENTS = Path(os.environ.get("GOWIFI_DASH_CLIENTS", "/home/user-data/www/default/dash/clients.html"))
 SRC_CLIENTS = Path("/root/gowifi-upp/clients.html")
 MARKER = "gowifi-dolibarr-books-hook"
-CLIENTS_MARK = "gowifi-dolibarr-books-clients"
-API_MARK = "gowifi-dolibarr-books-api"
 
 
 def _backup(path: Path) -> None:
@@ -45,6 +43,11 @@ def hook_index(text: str) -> str:
 
 
 def hook_clients(text: str) -> str:
+    """Do not rewrite client cards, money, or the accounts.json fetch.
+
+    The 22-client view was already reconciled. Hooks may only strip a
+    public Dolibarr link if one was injected earlier.
+    """
     text = text.replace(
         '<div class="sub">Dolibarr books · click the name for details · '
         '<a href="/dolibarr/">open ledger</a></div>',
@@ -55,49 +58,6 @@ def hook_clients(text: str) -> str:
         '      <a href="/dolibarr/">Dolibarr</a>',
         '      <a href="/dash/invoices.html">Invoices</a>',
     )
-    if CLIENTS_MARK not in text:
-        old = (
-            '      : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`\n'
-            "  ) + (osBits.length ? ` · ${osBits.join(\" · \")}` : \"\");"
-        )
-        new = (
-            f'      : `${{cards.length}} clients · ${{wifi.length}} wifi · ${{fibre.length}} fibre`\n'
-            "  ) + (osBits.length ? ` · ${osBits.join(\" · \")}` : \"\")\n"
-            f"    + ((pack.books && pack.books.source===\"dolibarr\") ? "
-            f"` · AR ${{money(pack.books.ar)}} · net ${{money(pack.books.net)}}` : \"\"); "
-            f"/* {CLIENTS_MARK} */"
-        )
-        if old not in text:
-            # already hooked with older Dolibarr AR label
-            text = text.replace(
-                "` · Dolibarr AR ${money(pack.books.ar)} · net ${money(pack.books.net)}`",
-                "` · AR ${money(pack.books.ar)} · net ${money(pack.books.net)}`",
-            )
-        else:
-            text = text.replace(old, new, 1)
-    if API_MARK not in text:
-        old_fetch = (
-            'fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})\n'
-            '  .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })\n'
-            "  .then(data=>{\n"
-            "    const pack = data.clients || {};"
-        )
-        new_fetch = (
-            'fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})\n'
-            '  .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })\n'
-            "  .then(data=>{\n"
-            f"    const pack = data.clients || {{}}; /* {API_MARK} */\n"
-            "    return fetch(\"/dash/api/books?v=\"+Date.now(),{credentials:\"same-origin\", cache:\"no-store\"})\n"
-            "      .then(r=> r.ok ? r.json() : null).catch(()=>null)\n"
-            "      .then(books=>{\n"
-            "        if (books && books.books) pack.books = books.books;\n"
-            "        return {data, pack};\n"
-            "      });\n"
-            "  }).then(({data, pack})=>{"
-        )
-        if old_fetch not in text:
-            raise SystemExit("clients fetch block not found")
-        text = text.replace(old_fetch, new_fetch, 1)
     return text
 
 

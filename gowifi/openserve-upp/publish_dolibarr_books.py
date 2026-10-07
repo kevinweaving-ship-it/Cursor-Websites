@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Publish Dolibarr 22-client books onto the GoWiFi dash.
+"""Publish Dolibarr 22-client books to /dash/dolibarr-books.json only.
 
-Overlays billed / paid / due on the existing client cards and writes
-/dash/dolibarr-books.json. Does not write upp.db, enable billing cron,
-or touch QuickBooks.
+The live dash client cards in accounts.json were reconciled over days of
+statement work. This script must never overlay billed / paid / due /
+advance / balance_label / paid_up onto those cards. Unused historic
+receipts stay on the statement as Paid Up — they are not dash credits.
 """
 from __future__ import annotations
 
@@ -12,7 +13,6 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-ACCOUNTS = Path("/home/user-data/www/default/dash/accounts.json")
 OUT = Path("/home/user-data/www/default/dash/dolibarr-books.json")
 DOLIBARR_URL = "/dash/clients.html"
 
@@ -36,11 +36,9 @@ def _money(value) -> float:
         return 0.0
 
 
-def _label(due: float, advance: float) -> str:
-    if advance > 0.004:
-        return f"Credit {advance:,.2f}"
-    if due > 0.004:
-        return f"Due {due:,.2f}"
+def _label(remain: float) -> str:
+    if remain > 0.004:
+        return f"Due {remain:,.2f}"
     return "Paid Up"
 
 
@@ -84,11 +82,11 @@ def load_books() -> dict[str, dict]:
         )
         rec["advance"] = round(rec["advance"] + _money(amount), 2)
     for rec in books.values():
-        rec["due"] = round(rec["remain"] - rec["advance"], 2)
+        rec["due"] = rec["remain"] if rec["remain"] > 0.004 else 0.0
         rec["paid"] = round(rec["billed"] - rec["due"], 2)
-        rec["ar"] = rec["remain"] if rec["remain"] > 0.004 else 0.0
-        rec["paid_up"] = abs(rec["due"]) <= 0.004
-        rec["balance_label"] = _label(rec["remain"], rec["advance"])
+        rec["ar"] = rec["due"]
+        rec["paid_up"] = rec["due"] <= 0.004
+        rec["balance_label"] = _label(rec["remain"])
     return books
 
 
@@ -96,7 +94,7 @@ def totals(books: dict[str, dict]) -> dict:
     billed = round(sum(r["billed"] for r in books.values()), 2)
     ar = round(sum(r["ar"] for r in books.values()), 2)
     advances = round(sum(r["advance"] for r in books.values()), 2)
-    paid = round(billed - ar + advances, 2)
+    paid = round(billed - ar, 2)
     return {
         "source": "dolibarr",
         "url": DOLIBARR_URL,
@@ -108,25 +106,6 @@ def totals(books: dict[str, dict]) -> dict:
         "net": round(ar - advances, 2),
         "as_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
-
-
-def overlay(accounts: dict, books: dict[str, dict], summary: dict) -> dict:
-    clients = accounts.setdefault("clients", {})
-    cards = clients.get("cards") or []
-    for card in cards:
-        rec = books.get(card.get("name") or "")
-        if not rec:
-            continue
-        card["billed"] = rec["billed"]
-        card["paid"] = rec["paid"]
-        card["due"] = rec["due"]
-        card["advance"] = rec["advance"]
-        card["paid_up"] = rec["paid_up"]
-        card["balance_label"] = rec["balance_label"]
-        card["books"] = "dolibarr"
-    clients["books"] = summary
-    accounts["books"] = summary
-    return accounts
 
 
 def main() -> int:
@@ -148,14 +127,6 @@ def main() -> int:
     OUT.write_text(json.dumps(pack, indent=2) + "\n")
     OUT.chmod(0o644)
 
-    if ACCOUNTS.exists():
-        accounts = json.loads(ACCOUNTS.read_text())
-        overlay(accounts, books, summary)
-        tmp = ACCOUNTS.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(accounts, separators=(",", ":")))
-        tmp.replace(ACCOUNTS)
-        ACCOUNTS.chmod(0o644)
-
     print(
         "dolibarr-books",
         f"clients={summary['clients']}",
@@ -164,6 +135,7 @@ def main() -> int:
         f"ar={summary['ar']:.2f}",
         f"advances={summary['advances']:.2f}",
         f"net={summary['net']:.2f}",
+        "accounts.json=untouched",
     )
     return 0
 
