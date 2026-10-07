@@ -79,21 +79,31 @@ table.dev tr:last-child td { border-bottom:0; }
 table.dev td.ok { color:var(--ok); font-weight:700; }
 table.dev td.bad { color:var(--bad); font-weight:700; }
 .gauges { display:flex; flex-direction:column; gap:0; }
-.gauge-pair { display:flex; justify-content:space-around; gap:8px; margin-top:12px; }
-.dial { position:relative; width:148px; height:148px; flex:0 0 auto; }
-.dial-ring {
-  position:absolute; inset:0; border-radius:50%;
-  background: conic-gradient(var(--fill, var(--ok)) calc(var(--pct) * 1%), var(--line) 0);
+.gauge.stale { opacity:.72; }
+.gauge.stale .name::after { content:" · stale"; color:var(--warn); font-weight:700; font-size:13px; }
+.meter { margin-top:10px; }
+.meter-head {
+  display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+  min-height:22px;
 }
-.dial-ring::after {
-  content:""; position:absolute; inset:16px; border-radius:50%; background:#fff;
+.meter-read { font-size:14px; color:var(--text); text-align:right; }
+.meter-read b { font-size:16px; color:var(--acc); }
+.meter-track {
+  margin-top:6px; height:10px; border-radius:6px; background:var(--line); overflow:hidden;
 }
-.dial-read {
-  position:absolute; inset:16px; z-index:1;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  text-align:center; padding:4px;
+.meter-fill { height:100%; width:0; border-radius:6px; background:var(--ok); }
+.meter-fill.warn { background:var(--warn); }
+.meter-fill.bad { background:var(--bad); }
+.meter-fill.empty { width:0; }
+.sparks { display:flex; gap:10px; margin-top:10px; }
+.spark-col { flex:1; min-width:0; }
+.spark-col .k { margin-bottom:2px; }
+svg.spark { display:block; width:100%; height:36px; color:var(--acc); }
+.spark-empty { height:36px; color:var(--muted); font-size:14px; display:flex; align-items:center; }
+@media (max-width: 480px) {
+  .meter-head { flex-wrap:wrap; }
+  .meter-read { width:100%; text-align:left; }
 }
-.dial-num { font-size:22px; font-weight:700; color:var(--acc); line-height:1.1; }
 @media (min-width: 600px) {
   header.app, main {
     width:100%; max-width:var(--ml);
@@ -133,9 +143,15 @@ table.dev td.bad { color:var(--bad); font-weight:700; }
 </main>
 <script>
 const KEY = "gowifi-unifi-share";
+const HIST_MAX = 90;
+const STALE_MS = 10000;
 let HOSTS = [];
 let CURRENT = null;
 let CONNECTOR = null;
+let HISTORY = {};
+let LAST_OK_MS = 0;
+let LAST_AS_AT = "";
+let STALE = false;
 
 function loadShare() {
   try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; }
@@ -171,17 +187,11 @@ function mbpsText(n) {
   if (!Number.isFinite(v)) return "—";
   return v.toFixed(2);
 }
-function fillFor(pct, statusCls) {
-  if (pct == null || pct === "") return { pct:0, fill:"var(--line)" };
-  const p = Math.max(0, Math.min(100, Number(pct)));
-  let fill = "var(--ok)";
-  if (statusCls === "bad") fill = "var(--bad)";
-  else if (p >= 80) fill = "var(--warn)";
-  return { pct:p, fill };
-}
 function usedPct(used, cap) {
   if (used == null || used === "" || cap == null || cap === "" || !Number(cap)) return null;
-  return Math.round(Math.max(0, Math.min(100, Number(used) / Number(cap) * 100)) * 10) / 10;
+  const v = Number(used);
+  if (!Number.isFinite(v)) return null;
+  return Math.round(Math.max(0, Math.min(100, v / Number(cap) * 100)) * 10) / 10;
 }
 function mergeGauges(base, live) {
   if (!live || !live.length) return base || [];
@@ -203,35 +213,72 @@ function mergeGauges(base, live) {
     });
   });
 }
-function paintDial(used, cap, pct, dir, statusCls) {
-  const hasCap = cap != null && cap !== "";
-  const fill = fillFor(hasCap ? pct : null, statusCls);
+function pushHist(gauges) {
+  (gauges || []).forEach(g => {
+    if (!HISTORY[g.id]) HISTORY[g.id] = { down: [], up: [] };
+    HISTORY[g.id].down.push(g.used_down_mbps);
+    HISTORY[g.id].up.push(g.used_up_mbps);
+    if (HISTORY[g.id].down.length > HIST_MAX) HISTORY[g.id].down.shift();
+    if (HISTORY[g.id].up.length > HIST_MAX) HISTORY[g.id].up.shift();
+  });
+}
+function sparkline(values) {
+  const nums = (values || []).map(v => (v == null || v === "" ? null : Number(v)))
+    .filter(v => v != null && Number.isFinite(v));
+  if (!nums.length) return `<div class="spark-empty">—</div>`;
+  const w = 120, h = 36, pad = 2;
+  const min = Math.min(0, ...nums);
+  const max = Math.max(...nums);
+  const span = max - min || 1;
+  const step = (w - pad * 2) / Math.max(values.length - 1, 1);
+  const pts = values.map((v, i) => {
+    const n = v == null || v === "" ? null : Number(v);
+    if (n == null || !Number.isFinite(n)) return null;
+    const x = pad + i * step;
+    const y = h - pad - ((n - min) / span) * (h - pad * 2);
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).filter(Boolean).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="1.5" points="${pts}"/></svg>`;
+}
+function paintBar(label, used, cap, pct, statusCls) {
+  const hasUsed = used != null && used !== "" && Number.isFinite(Number(used));
+  const hasCap = cap != null && cap !== "" && Number(cap);
+  const width = hasUsed && hasCap && pct != null ? Math.max(0, Math.min(100, Number(pct))) : 0;
+  let fillCls = "empty";
+  if (hasUsed && hasCap) {
+    fillCls = statusCls === "bad" ? "bad" : (width >= 80 ? "warn" : "");
+  }
   const capTxt = hasCap
-    ? ("of " + cap + " · " + (pct != null && pct !== "" ? Number(pct).toFixed(1) + "%" : "—"))
+    ? ("of " + cap + " · " + (pct != null ? Number(pct).toFixed(1) + "%" : "—"))
     : "capacity not in API";
-  return `<div class="dial">
-    <div class="dial-ring" style="--pct:${fill.pct};--fill:${fill.fill}"></div>
-    <div class="dial-read">
-      <div class="dial-num">${esc(mbpsText(used))}</div>
-      <div class="k">Mbps ${esc(dir)}</div>
-      <div class="meta">${esc(capTxt)}</div>
+  return `<div class="meter">
+    <div class="meter-head">
+      <div class="k">${esc(label)}</div>
+      <div class="meter-read"><b>${esc(mbpsText(used))}</b> Mbps <span class="meta">${esc(capTxt)}</span></div>
     </div>
+    <div class="meter-track"><div class="meter-fill ${fillCls}" style="width:${hasUsed && hasCap ? width : 0}%"></div></div>
   </div>`;
 }
-function paintGauges(gauges) {
+function lteStatus(g, st) {
+  if (g.kind !== "lte") return st.text;
+  if (st.text === "Online" && g.failover_active === false) return "Online · Standby";
+  if (st.text === "Online" && g.failover_active === true) return "Online · Failed over";
+  return st.text;
+}
+function paintGauges(gauges, stale) {
   if (!gauges || !gauges.length) return "";
   return `<h2>WAN gauges</h2><div class="gauges">` + gauges.map(g => {
     const st = wanStatus(g.status);
-    const bits = [
-      g.kind === "fibre" ? "fibre" : g.kind === "lte" ? "backup LTE" : "",
-      g.failover_active === true ? "failed over" : g.failover_active === false ? "standby" : "",
-      g.operator,
-      g.signal,
-      g.ip,
-      g.latency_ms != null ? (Number(g.latency_ms) + " ms") : "",
-      g.availability != null ? ("avail " + Number(g.availability).toFixed(1) + "%") : ""
-    ].filter(Boolean);
-    return `<article class="card gauge">
+    const statusTxt = lteStatus(g, st);
+    const bits = g.kind === "lte"
+      ? [g.operator, g.signal, g.ip].filter(Boolean)
+      : [
+          g.kind === "fibre" ? "fibre" : "",
+          g.ip,
+          g.latency_ms != null ? (Number(g.latency_ms) + " ms") : ""
+        ].filter(Boolean);
+    const hist = HISTORY[g.id] || { down: [], up: [] };
+    return `<article class="card gauge${stale ? " stale" : ""}">
       <div class="row">
         <div>
           <div class="name">${esc(g.name)}</div>
@@ -239,12 +286,14 @@ function paintGauges(gauges) {
         </div>
         <div>
           <div class="k">Status</div>
-          <div class="v ${st.cls}">${esc(st.text)}</div>
+          <div class="v ${st.cls}">${esc(statusTxt)}</div>
         </div>
       </div>
-      <div class="gauge-pair">
-        ${paintDial(g.used_down_mbps, g.capacity_down_mbps, g.used_down_pct, "down", st.cls)}
-        ${paintDial(g.used_up_mbps, g.capacity_up_mbps, g.used_up_pct, "up", st.cls)}
+      ${paintBar("Down", g.used_down_mbps, g.capacity_down_mbps, g.used_down_pct, st.cls)}
+      ${paintBar("Up", g.used_up_mbps, g.capacity_up_mbps, g.used_up_pct, st.cls)}
+      <div class="sparks">
+        <div class="spark-col"><div class="k">Down · this page</div>${sparkline(hist.down)}</div>
+        <div class="spark-col"><div class="k">Up · this page</div>${sparkline(hist.up)}</div>
       </div>
     </article>`;
   }).join("") + `</div>`;
@@ -317,7 +366,7 @@ function paintChild(h, connector) {
     ["Wi‑Fi clients", h.wifi_clients != null ? String(h.wifi_clients) : ""],
     ["Wired clients", h.wired_clients != null ? String(h.wired_clients) : ""],
   ].filter(r => r[1]);
-  const gaugesHtml = paintGauges(h.gauges || []);
+  const gaugesHtml = paintGauges(h.gauges || [], STALE);
   const wans = gaugesHtml ? "" : (h.wans || []).map(w => {
     const bits = [w.isp, w.external_ip, w.uptime != null ? ("uptime " + Number(w.uptime).toFixed(1) + "%") : "", w.port_up === true ? "port up" : w.port_up === false ? "port down" : ""].filter(Boolean);
     return `<div class="card"><div class="k">${esc(w.name)}</div><div class="v">${esc(bits.join(" · "))}</div></div>`;
@@ -363,35 +412,54 @@ document.getElementById("list").addEventListener("change", ev => {
 const want = childParam();
 const POLL_MS = 2000;
 const api = "/dash/api/unifi" + (want ? ("?h=" + encodeURIComponent(want)) : "");
-function setLiveBanner(kind, asAt) {
+function setLiveBanner(kind, asAt, stale) {
   const banner = document.getElementById("banner");
+  LAST_AS_AT = fmtAsAt(asAt || LAST_AS_AT);
+  if (stale) {
+    banner.className = "banner";
+    banner.innerHTML = "<strong>Stale.</strong> as at " + esc(LAST_AS_AT);
+    return;
+  }
   banner.className = "banner ok";
-  banner.innerHTML = "<strong>Live from " + kind + ".</strong> as at " + esc(fmtAsAt(asAt));
+  banner.innerHTML = "<strong>Live from " + kind + ".</strong> as at " + esc(LAST_AS_AT);
+}
+function markStale() {
+  STALE = true;
+  if (CURRENT) paintChild(CURRENT, CONNECTOR);
+  setLiveBanner(want ? "this machine" : "Site Manager", LAST_AS_AT, true);
 }
 function pollTick() {
-  if (document.hidden) return;
+  if (document.hidden) {
+    if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+    return;
+  }
   if (want && CURRENT) {
     fetch(api + "&live=1", { credentials:"same-origin", cache:"no-store" })
       .then(r => r.json())
       .then(data => {
-        if (!data || !data.ok) return;
+        if (!data || !data.ok) { markStale(); return; }
+        STALE = false;
+        LAST_OK_MS = Date.now();
         CURRENT.gauges = mergeGauges(CURRENT.gauges, data.gauges || []);
+        pushHist(CURRENT.gauges);
         paintChild(CURRENT, CONNECTOR);
         setLiveBanner("this machine", data.as_at);
       })
-      .catch(() => {});
+      .catch(() => { markStale(); });
     return;
   }
   if (!want) {
     fetch("/dash/api/unifi", { credentials:"same-origin", cache:"no-store" })
       .then(r => r.json())
       .then(data => {
-        if (!data || !data.live) return;
+        if (!data || !data.live) { markStale(); return; }
+        STALE = false;
+        LAST_OK_MS = Date.now();
         HOSTS = data.hosts || [];
         paintList();
         setLiveBanner("Site Manager", data.as_at);
       })
-      .catch(() => {});
+      .catch(() => { markStale(); });
   }
 }
 fetch(api, { credentials:"same-origin", cache:"no-store" })
@@ -408,12 +476,17 @@ fetch(api, { credentials:"same-origin", cache:"no-store" })
     if (want) {
       CURRENT = data.host;
       CONNECTOR = data.connector || null;
+      LAST_OK_MS = Date.now();
+      STALE = false;
+      pushHist(CURRENT.gauges || []);
       paintChild(CURRENT, CONNECTOR);
       setLiveBanner("this machine", data.as_at);
       setInterval(pollTick, POLL_MS);
       return;
     }
     HOSTS = data.hosts || [];
+    LAST_OK_MS = Date.now();
+    STALE = false;
     paintList();
     setLiveBanner("Site Manager", data.as_at);
     setInterval(pollTick, POLL_MS);
