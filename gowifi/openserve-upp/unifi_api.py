@@ -268,9 +268,11 @@ def _wan_gauges(key: str, host_id: str) -> list[dict]:
 
     gw = {}
     health_wan = {}
+    device_rows: list[dict] = []
     try:
         devices = _classic(key, host_id, "/api/s/default/stat/device")
-        for dev in devices.get("data") or []:
+        device_rows = [d for d in (devices.get("data") or []) if isinstance(d, dict)]
+        for dev in device_rows:
             if (dev.get("type") or "") in {"udm", "ugw"} or "Dream Machine" in (dev.get("name") or ""):
                 gw = dev
                 break
@@ -284,6 +286,13 @@ def _wan_gauges(key: str, host_id: str) -> list[dict]:
 
     status_map = gw.get("last_wan_status") if isinstance(gw.get("last_wan_status"), dict) else {}
     uptime_stats = health_wan.get("uptime_stats") if isinstance(health_wan.get("uptime_stats"), dict) else {}
+    lte_dev = {}
+    for dev in device_rows:
+        model = (dev.get("model") or "").upper()
+        name = (dev.get("name") or "")
+        if model.startswith("ULTE") or "LTE" in name:
+            lte_dev = dev
+            break
     specs = [
         ("wan", "WAN", "wan1", names["wan"], "fibre"),
         ("wan2", "WAN2", "wan2", names["wan2"], "fibre"),
@@ -300,6 +309,19 @@ def _wan_gauges(key: str, host_id: str) -> list[dict]:
         stats = uptime_stats.get(status_key) if isinstance(uptime_stats.get(status_key), dict) else {}
         down_mbps = rates["down_mbps"]
         up_mbps = rates["up_mbps"]
+        ip = (block.get("ip") or "").strip()
+        operator = ""
+        signal = ""
+        failover_active = None
+        if kind == "lte" and lte_dev:
+            if not ip:
+                ip = (lte_dev.get("lte_ip") or "").strip()
+            operator = (lte_dev.get("lte_networkoperator") or "").strip()
+            signal = (lte_dev.get("lte_signal") or "").strip()
+            if lte_dev.get("lte_failover") is not None:
+                failover_active = bool(lte_dev.get("lte_failover"))
+            if not raw_status and str(lte_dev.get("lte_connected") or "").lower() == "yes":
+                raw_status = "online"
         gauges.append(
             {
                 "id": key_id,
@@ -314,7 +336,10 @@ def _wan_gauges(key: str, host_id: str) -> list[dict]:
                 "used_up_pct": _pct(up_mbps, cap_up),
                 "latency_ms": block.get("latency") if block.get("latency") is not None else (stats.get("latency_average")),
                 "availability": block.get("availability") if block.get("availability") is not None else stats.get("availability"),
-                "ip": (block.get("ip") or "").strip(),
+                "ip": ip,
+                "operator": operator or None,
+                "signal": signal or None,
+                "failover_active": failover_active,
                 "up": bool(block.get("up")) if block else raw_status == "online",
             }
         )
