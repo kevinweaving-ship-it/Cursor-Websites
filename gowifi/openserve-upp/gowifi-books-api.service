@@ -1,0 +1,13 @@
+[Unit]
+Description=GoWiFi dash books API (Dolibarr loopback)
+After=network.target php8.0-fpm.service mariadb.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/gowifi-upp
+ExecStart=/usr/bin/python3 /root/gowifi-upp/books_api.py serve
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target

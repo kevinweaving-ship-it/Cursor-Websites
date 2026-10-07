@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Idempotent hook: Dolibarr books card + clients page label."""
+"""Idempotent hook: dash is the books UI. Dolibarr stays backend-only."""
 from __future__ import annotations
 
 import os
@@ -10,6 +10,7 @@ CLIENTS = Path(os.environ.get("GOWIFI_DASH_CLIENTS", "/home/user-data/www/defaul
 SRC_CLIENTS = Path("/root/gowifi-upp/clients.html")
 MARKER = "gowifi-dolibarr-books-hook"
 CLIENTS_MARK = "gowifi-dolibarr-books-clients"
+API_MARK = "gowifi-dolibarr-books-api"
 
 
 def _backup(path: Path) -> None:
@@ -19,6 +20,11 @@ def _backup(path: Path) -> None:
 
 
 def hook_index(text: str) -> str:
+    text = text.replace(
+        "      <div class=\"meta\">22 clients · invoices and payments · "
+        '<a href="/dolibarr/" style="color:inherit">open ledger</a></div>\n',
+        '      <div class="meta">22 clients · invoices and payments</div>\n',
+    )
     if MARKER in text:
         return text
     card = (
@@ -26,8 +32,7 @@ def hook_index(text: str) -> str:
         'style="display:block;margin-bottom:10px">\n'
         '      <div class="row"><span class="name">Books</span>'
         '<span class="pill ok">Dolibarr</span></div>\n'
-        "      <div class=\"meta\">22 clients · invoices and payments · "
-        '<a href="/dolibarr/" style="color:inherit">open ledger</a></div>\n'
+        '      <div class="meta">22 clients · invoices and payments</div>\n'
         "    </a>\n"
     )
     needle = (
@@ -40,34 +45,60 @@ def hook_index(text: str) -> str:
 
 
 def hook_clients(text: str) -> str:
-    if CLIENTS_MARK in text:
-        return text
     text = text.replace(
-        '<div class="sub">One line each · click the name for details</div>',
         '<div class="sub">Dolibarr books · click the name for details · '
         '<a href="/dolibarr/">open ledger</a></div>',
-        1,
+        '<div class="sub">Books · click the name for details</div>',
     )
     text = text.replace(
-        '      <a href="/dash/invoices.html">Invoices</a>',
         '      <a href="/dash/invoices.html">Invoices</a>\n'
         '      <a href="/dolibarr/">Dolibarr</a>',
-        1,
+        '      <a href="/dash/invoices.html">Invoices</a>',
     )
-    old = (
-        '      : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`\n'
-        "  ) + (osBits.length ? ` · ${osBits.join(\" · \")}` : \"\");"
-    )
-    new = (
-        f'      : `${{cards.length}} clients · ${{wifi.length}} wifi · ${{fibre.length}} fibre`\n'
-        "  ) + (osBits.length ? ` · ${osBits.join(\" · \")}` : \"\")\n"
-        f"    + ((pack.books && pack.books.source===\"dolibarr\") ? "
-        f"` · Dolibarr AR ${{money(pack.books.ar)}} · net ${{money(pack.books.net)}}` : \"\"); "
-        f"/* {CLIENTS_MARK} */"
-    )
-    if old not in text:
-        raise SystemExit("clients counts line not found")
-    return text.replace(old, new, 1)
+    if CLIENTS_MARK not in text:
+        old = (
+            '      : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`\n'
+            "  ) + (osBits.length ? ` · ${osBits.join(\" · \")}` : \"\");"
+        )
+        new = (
+            f'      : `${{cards.length}} clients · ${{wifi.length}} wifi · ${{fibre.length}} fibre`\n'
+            "  ) + (osBits.length ? ` · ${osBits.join(\" · \")}` : \"\")\n"
+            f"    + ((pack.books && pack.books.source===\"dolibarr\") ? "
+            f"` · AR ${{money(pack.books.ar)}} · net ${{money(pack.books.net)}}` : \"\"); "
+            f"/* {CLIENTS_MARK} */"
+        )
+        if old not in text:
+            # already hooked with older Dolibarr AR label
+            text = text.replace(
+                "` · Dolibarr AR ${money(pack.books.ar)} · net ${money(pack.books.net)}`",
+                "` · AR ${money(pack.books.ar)} · net ${money(pack.books.net)}`",
+            )
+        else:
+            text = text.replace(old, new, 1)
+    if API_MARK not in text:
+        old_fetch = (
+            'fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})\n'
+            '  .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })\n'
+            "  .then(data=>{\n"
+            "    const pack = data.clients || {};"
+        )
+        new_fetch = (
+            'fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})\n'
+            '  .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })\n'
+            "  .then(data=>{\n"
+            f"    const pack = data.clients || {{}}; /* {API_MARK} */\n"
+            "    return fetch(\"/dash/api/books?v=\"+Date.now(),{credentials:\"same-origin\", cache:\"no-store\"})\n"
+            "      .then(r=> r.ok ? r.json() : null).catch(()=>null)\n"
+            "      .then(books=>{\n"
+            "        if (books && books.books) pack.books = books.books;\n"
+            "        return {data, pack};\n"
+            "      });\n"
+            "  }).then(({data, pack})=>{"
+        )
+        if old_fetch not in text:
+            raise SystemExit("clients fetch block not found")
+        text = text.replace(old_fetch, new_fetch, 1)
+    return text
 
 
 def apply(path: Path, transform) -> str:
