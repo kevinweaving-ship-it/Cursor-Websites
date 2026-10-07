@@ -90,7 +90,10 @@ if ($upd < 0) {
 	exit(1);
 }
 
-$set = $u->setPassword($actor, $pass, 0, 1);
+// Existing dashboard password is shorter than Dolibarr's generator minimum.
+// Hash it with Dolibarr's own function and store the hash so both prompts match.
+$crypted = dol_hash($pass);
+$set = $u->setPassword($actor, $crypted, 0, 1, 0, 1);
 if ($set <= 0) {
 	fwrite(STDERR, 'setPassword failed: '.$u->error."\n");
 	exit(1);
