@@ -43,6 +43,14 @@ def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
 
 
+def _as_at(when: datetime | None = None) -> str:
+    """Always YYYY-MM-DD HH:MM. No T, no seconds, no Z. 2026-10-07T07:44:52Z → 2026-10-07 07:44."""
+    now = when or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M")
+
+
 def _get(path: str, key: str) -> dict:
     req = urllib.request.Request(
         BASE + path,
@@ -346,6 +354,101 @@ def _wan_gauges(key: str, host_id: str) -> list[dict]:
     return gauges
 
 
+def _wan_live(key: str, host_id: str) -> list[dict]:
+    """Rates + status only. One Connector call. Names/capacity stay on the first load."""
+    if not host_id:
+        return []
+    device_rows: list[dict] = []
+    gw = {}
+    try:
+        devices = _classic(key, host_id, "/api/s/default/stat/device")
+        device_rows = [d for d in (devices.get("data") or []) if isinstance(d, dict)]
+        for dev in device_rows:
+            if (dev.get("type") or "") in {"udm", "ugw"} or "Dream Machine" in (dev.get("name") or ""):
+                gw = dev
+                break
+    except Exception:
+        return []
+    status_map = gw.get("last_wan_status") if isinstance(gw.get("last_wan_status"), dict) else {}
+    lte_dev = {}
+    for dev in device_rows:
+        model = (dev.get("model") or "").upper()
+        name = (dev.get("name") or "")
+        if model.startswith("ULTE") or "LTE" in name:
+            lte_dev = dev
+            break
+    specs = [
+        ("wan", "WAN", "wan1", "fibre"),
+        ("wan2", "WAN2", "wan2", "fibre"),
+        ("lte", "WAN_LTE_FAILOVER", "wan3", "lte"),
+    ]
+    gauges = []
+    for key_id, status_key, block_key, kind in specs:
+        block = gw.get(block_key) if isinstance(gw.get(block_key), dict) else {}
+        rates = _iface_rates(block)
+        raw_status = (status_map.get(status_key) or "").strip()
+        if not raw_status:
+            raw_status = "online" if block.get("up") or block.get("alive") else ("offline" if block else "")
+        ip = (block.get("ip") or "").strip()
+        operator = ""
+        signal = ""
+        failover_active = None
+        if kind == "lte" and lte_dev:
+            if not ip:
+                ip = (lte_dev.get("lte_ip") or "").strip()
+            operator = (lte_dev.get("lte_networkoperator") or "").strip()
+            signal = (lte_dev.get("lte_signal") or "").strip()
+            if lte_dev.get("lte_failover") is not None:
+                failover_active = bool(lte_dev.get("lte_failover"))
+            if not raw_status and str(lte_dev.get("lte_connected") or "").lower() == "yes":
+                raw_status = "online"
+        down_mbps = rates["down_mbps"]
+        up_mbps = rates["up_mbps"]
+        gauges.append(
+            {
+                "id": key_id,
+                "kind": kind,
+                "status": raw_status,
+                "used_down_mbps": down_mbps,
+                "used_up_mbps": up_mbps,
+                "latency_ms": block.get("latency"),
+                "ip": ip,
+                "operator": operator or None,
+                "signal": signal or None,
+                "failover_active": failover_active,
+                "up": bool(block.get("up")) if block else raw_status == "online",
+            }
+        )
+    return gauges
+
+
+def host_live(want: str) -> dict:
+    env = _load_env()
+    key = env.get("UNIFI_API_KEY") or ""
+    if not key:
+        return {"ok": False, "live": False, "error": "no UNIFI_API_KEY in /root/secrets/unifi.env"}
+    try:
+        hosts = _get("/v1/hosts", key).get("data") or []
+    except urllib.error.HTTPError as exc:
+        return {"ok": False, "live": False, "error": f"UniFi HTTP {exc.code}"}
+    except Exception as exc:
+        return {"ok": False, "live": False, "error": str(exc)[:200]}
+    host = _find_host(want, hosts)
+    if not host:
+        return {"ok": False, "live": True, "error": "host not found", "want": want}
+    try:
+        gauges = _wan_live(key, host.get("id") or "")
+    except Exception as exc:
+        return {"ok": False, "live": True, "error": str(exc)[:200], "gauges": []}
+    return {
+        "ok": True,
+        "live": True,
+        "as_at": _as_at(),
+        "poll_ms": 2000,
+        "gauges": gauges,
+    }
+
+
 def summary() -> dict:
     env = _load_env()
     key = env.get("UNIFI_API_KEY") or ""
@@ -365,7 +468,7 @@ def summary() -> dict:
     return {
         "ok": True,
         "live": True,
-        "as_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "as_at": _as_at(),
         "hosts": cards,
         "online": sum(1 for c in cards if c.get("state") == "connected"),
         "offline": sum(1 for c in cards if c.get("state") == "disconnected"),
@@ -400,7 +503,7 @@ def host_detail(want: str) -> dict:
     return {
         "ok": True,
         "live": True,
-        "as_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "as_at": _as_at(),
         "host": card,
         "connector": connector,
         "child": "/dash/unifi.html?h=" + urllib.parse.quote(card.get("slug") or card.get("id") or ""),
@@ -425,8 +528,12 @@ class Handler(BaseHTTPRequestHandler):
         path = parsed.path
         qs = urllib.parse.parse_qs(parsed.query)
         want = (qs.get("h") or qs.get("host") or [""])[0]
+        live = (qs.get("live") or [""])[0].strip().lower() in {"1", "true", "yes"}
         if path in {"/", "/summary", "/dash/api/unifi", "/host"}:
-            pack = host_detail(want) if want else summary()
+            if live and want:
+                pack = host_live(want)
+            else:
+                pack = host_detail(want) if want else summary()
             self._send(200 if pack.get("ok") else 404 if pack.get("error") == "host not found" else 503, pack)
             return
         self._send(404, {"ok": False, "error": "not found"})
@@ -489,6 +596,12 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK iface-rates")
+    stamped = _as_at(datetime(2026, 10, 7, 7, 44, 52, tzinfo=timezone.utc))
+    if stamped != "2026-10-07 07:44":
+        print("FAIL as-at", stamped)
+        failed += 1
+    else:
+        print("OK as-at")
     return failed
 
 
@@ -502,10 +615,13 @@ def main(argv: list[str] | None = None) -> int:
     if args[0] == "host":
         print(json.dumps(host_detail(args[1] if len(args) > 1 else ""), indent=2))
         return 0
+    if args[0] == "live":
+        print(json.dumps(host_live(args[1] if len(args) > 1 else ""), indent=2))
+        return 0
     if args[0] == "serve":
         serve()
         return 0
-    print("usage: unifi_api.py self-test|summary|host <slug>|serve")
+    print("usage: unifi_api.py self-test|summary|host <slug>|live <slug>|serve")
     return 2
 
 

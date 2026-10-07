@@ -149,6 +149,11 @@ function esc(s) {
     "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
   }[c]));
 }
+function fmtAsAt(s) {
+  const raw = String(s || "").trim();
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  return m ? (m[1] + " " + m[2]) : raw;
+}
 function statusLabel(state) {
   if (state === "connected") return { text:"Online", cls:"ok" };
   if (state === "disconnected") return { text:"Offline", cls:"bad" };
@@ -173,6 +178,30 @@ function fillFor(pct, statusCls) {
   if (statusCls === "bad") fill = "var(--bad)";
   else if (p >= 80) fill = "var(--warn)";
   return { pct:p, fill };
+}
+function usedPct(used, cap) {
+  if (used == null || used === "" || cap == null || cap === "" || !Number(cap)) return null;
+  return Math.round(Math.max(0, Math.min(100, Number(used) / Number(cap) * 100)) * 10) / 10;
+}
+function mergeGauges(base, live) {
+  if (!live || !live.length) return base || [];
+  if (!base || !base.length) return live;
+  const byId = Object.fromEntries(live.map(g => [g.id, g]));
+  return base.map(g => {
+    const n = byId[g.id];
+    if (!n) return g;
+    const down = n.used_down_mbps;
+    const up = n.used_up_mbps;
+    return Object.assign({}, g, n, {
+      name: g.name,
+      capacity_down_mbps: g.capacity_down_mbps,
+      capacity_up_mbps: g.capacity_up_mbps,
+      used_down_mbps: down,
+      used_up_mbps: up,
+      used_down_pct: usedPct(down, g.capacity_down_mbps),
+      used_up_pct: usedPct(up, g.capacity_up_mbps)
+    });
+  });
 }
 function paintDial(used, cap, pct, dir, statusCls) {
   const hasCap = cap != null && cap !== "";
@@ -332,7 +361,39 @@ document.getElementById("list").addEventListener("change", ev => {
 });
 
 const want = childParam();
+const POLL_MS = 2000;
 const api = "/dash/api/unifi" + (want ? ("?h=" + encodeURIComponent(want)) : "");
+function setLiveBanner(kind, asAt) {
+  const banner = document.getElementById("banner");
+  banner.className = "banner ok";
+  banner.innerHTML = "<strong>Live from " + kind + ".</strong> as at " + esc(fmtAsAt(asAt));
+}
+function pollTick() {
+  if (document.hidden) return;
+  if (want && CURRENT) {
+    fetch(api + "&live=1", { credentials:"same-origin", cache:"no-store" })
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.ok) return;
+        CURRENT.gauges = mergeGauges(CURRENT.gauges, data.gauges || []);
+        paintChild(CURRENT, CONNECTOR);
+        setLiveBanner("this machine", data.as_at);
+      })
+      .catch(() => {});
+    return;
+  }
+  if (!want) {
+    fetch("/dash/api/unifi", { credentials:"same-origin", cache:"no-store" })
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.live) return;
+        HOSTS = data.hosts || [];
+        paintList();
+        setLiveBanner("Site Manager", data.as_at);
+      })
+      .catch(() => {});
+  }
+}
 fetch(api, { credentials:"same-origin", cache:"no-store" })
   .then(r => r.json().then(data => ({ ok:r.ok, data })))
   .then(({ data }) => {
@@ -344,17 +405,18 @@ fetch(api, { credentials:"same-origin", cache:"no-store" })
       if (!want) paintList();
       return;
     }
-    banner.className = "banner ok";
-    banner.innerHTML = "<strong>Live from this machine.</strong> as at " + esc(data.as_at || "");
     if (want) {
       CURRENT = data.host;
       CONNECTOR = data.connector || null;
       paintChild(CURRENT, CONNECTOR);
+      setLiveBanner("this machine", data.as_at);
+      setInterval(pollTick, POLL_MS);
       return;
     }
-    banner.innerHTML = "<strong>Live from Site Manager.</strong> as at " + esc(data.as_at || "") + ". Click a router.";
     HOSTS = data.hosts || [];
     paintList();
+    setLiveBanner("Site Manager", data.as_at);
+    setInterval(pollTick, POLL_MS);
   })
   .catch(err => {
     document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong> " + esc(err.message || err);
