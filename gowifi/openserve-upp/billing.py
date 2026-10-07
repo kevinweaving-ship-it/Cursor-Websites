@@ -10,6 +10,7 @@ import re
 import sqlite3
 from calendar import monthrange
 from datetime import date, timedelta
+from pathlib import Path
 
 from invoice_canned import client_key, statement_on_invoice
 from packages import by_sku, extras as extra_charges
@@ -633,23 +634,6 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
             "discount": bool(row.get("discount")),
             "address": row.get("address"),
         }
-    for pay in payments:
-        if is_offset(client_row(pay.get("customer"))):
-            continue
-        key = canon_key(pay.get("customer"))
-        if key and key not in by_key:
-            by_key[key] = {
-                "name": display_name(pay.get("customer")),
-                "ref": None,
-                "do_amount": None,
-                "amount": None,
-                "method": "eft",
-                "access": None,
-                "sku": None,
-                "package": None,
-                "discount": False,
-                "address": None,
-            }
     aliased_inv = [{**i, "customer": display_name(i.get("customer")) or i.get("customer")} for i in invoices]
     aliased_pay = [{**p, "customer": display_name(p.get("customer")) or p.get("customer")} for p in payments]
     accounts = []
@@ -682,6 +666,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
         )
         paid = round(cycle_credit, 2)
         due = round(inv_amt - cycle_credit, 2)
+        billed = meta.get("amount") or inv_amt or None
         paid_up = abs(due) <= 0.004
         last_pay = stmt.get("last_payment") or {}
         pending_do = None
@@ -699,6 +684,24 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "status": "authorised · not collected",
                 "reconciled": False,
             }
+        try:
+            from statements import account_as_at
+
+            st = account_as_at(conn, meta["name"], today)
+            if (st.get("billed") or 0) > 0.004 or (st.get("ledger") or []):
+                billed = st.get("billed")
+                paid = st.get("paid") or 0
+                due = st.get("due")
+                paid_up = bool(
+                    st.get("nil")
+                    or st.get("status") == "paid-up"
+                    or abs(float(due or 0)) <= 0.004
+                )
+                last_pay = st.get("last_payment") or last_pay
+                if st.get("pending_do"):
+                    pending_do = st.get("pending_do")
+        except Exception:
+            pass
         pkg = meta.get("package") or {}
         accounts.append(
             {
@@ -712,7 +715,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "speed": pkg.get("speed"),
                 "discount": bool(meta.get("discount")),
                 "do_amount": meta["do_amount"],
-                "billed": meta.get("amount") or inv_amt or None,
+                "billed": billed,
                 "paid": paid,
                 "last_invoice": (cycle_inv or {}).get("invoice_number"),
                 "last_invoice_date": (cycle_inv or {}).get("invoice_date"),
@@ -1011,6 +1014,16 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK marlene-cancel-invoice", mar["invoice_number"], mar["description"])
+    page = Path(__file__).resolve().parent.joinpath("dash/accounts.html")
+    html = page.read_text() if page.exists() else ""
+    if "cardMoney" not in html or "splitMoney" not in html or "pack.cards" not in html:
+        print("FAIL accounts-html-uses-cards")
+        failed += 1
+    elif "bill.wireless_owes" in html or "this cycle" in html:
+        print("FAIL accounts-html-old-billing")
+        failed += 1
+    else:
+        print("OK accounts-html-card-balances")
     conn.close()
     return failed
 

@@ -122,6 +122,36 @@ const whenClock = v => {
   return t ? t[1]+":"+t[2] : String(v);
 };
 const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
+const cardMoney = c => {
+  const due = Number(c.due||0);
+  const paidUp = Boolean(c.paid_up || c.nil || c.status==="paid-up" || due<=0.004);
+  return {
+    name: c.name,
+    package: c.package,
+    speed: c.speed,
+    pay: c.pay,
+    discount: c.discount,
+    pending_do: c.pending_do,
+    last_paid_on: c.last_paid_on,
+    last_payment: c.last_payment,
+    billed: c.billed,
+    paid: c.paid||0,
+    due: paidUp ? Math.max(0, due) : due,
+    nil: paidUp,
+    status: paidUp ? "paid-up" : "owes",
+    access: c.access||"wireless",
+  };
+};
+const splitMoney = rows => {
+  const owes = (rows||[]).filter(r => r.status==="owes").sort((a,b)=>(b.due||0)-(a.due||0));
+  const paid = (rows||[]).filter(r => r.status==="paid-up").sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  return {
+    owes, paid,
+    due: owes.reduce((s,r)=>s+Number(r.due||0),0),
+    billed: (rows||[]).reduce((s,r)=>s+Number(r.billed||0),0),
+    received: (rows||[]).reduce((s,r)=>s+Number(r.paid||0),0),
+  };
+};
 const clientTable = (rows, empty) => {
   const body = (rows||[]).map(r=>{
     const paidUp = r.status==="paid-up" || r.nil;
@@ -132,7 +162,7 @@ const clientTable = (rows, empty) => {
         <div class="meta">${esc(r.package||r.speed||"Wireless")} · ${esc(r.pay||"")}${r.discount?" · discount":""}${r.pending_do?` · D/O ${esc(r.pending_do.action_date)} not collected`:""}${last?` · last paid ${esc(last)}`:""}</div></td>
       <td class="num">${esc(money(r.billed??r.invoice_amount))}</td>
       <td class="num">${esc(money(r.paid||0))}</td>
-      <td class="num">${paidUp?`<span class="pill ok">Paid up</span>`:`<span class="pill bad">Owes ${esc(money(r.due))}</span>`}</td>
+      <td class="num">${paidUp?`<span class="pill ok">Paid Up</span>`:`<span class="pill bad">Owes ${esc(money(r.due))}</span>`}</td>
     </tr>`;
   }).join("");
   return `<table class="compact">
@@ -140,17 +170,17 @@ const clientTable = (rows, empty) => {
     <tbody>${body || `<tr><td colspan="4" class="meta">${esc(empty||"None")}</td></tr>`}</tbody>
   </table>`;
 };
-const clientBlock = (title, bill, owes, paid, due, billedAmt, paidAmt) => `
+const clientBlock = (title, pack) => `
     <h2>${esc(title)}</h2>
     <div class="grid">
-      <div class="card"><div class="k">Still owe</div><div class="v">${(owes||[]).length}</div><div class="meta">${money(due)}</div></div>
-      <div class="card"><div class="k">Paid up</div><div class="v">${(paid||[]).length}</div><div class="meta">of ${(owes||[]).length+(paid||[]).length} billed ${money(billedAmt)}</div></div>
-      <div class="card"><div class="k">Received</div><div class="v">${money(paidAmt)}</div><div class="meta">this cycle</div></div>
+      <div class="card"><div class="k">Still owe</div><div class="v">${(pack.owes||[]).length}</div><div class="meta">${money(pack.due)}</div></div>
+      <div class="card"><div class="k">Paid Up</div><div class="v">${(pack.paid||[]).length}</div><div class="meta">of ${(pack.owes||[]).length+(pack.paid||[]).length} billed ${money(pack.billed)}</div></div>
+      <div class="card"><div class="k">Paid</div><div class="v">${money(pack.received)}</div><div class="meta">on statements</div></div>
     </div>
     <h2 class="k" style="margin-top:8px">Still owe</h2>
-    <div class="card scroll">${clientTable(owes, "Everyone paid up")}</div>
-    <h2 class="k">Paid up</h2>
-    <div class="card scroll">${clientTable(paid, "Nobody paid up yet")}</div>
+    <div class="card scroll">${clientTable(pack.owes, "Everyone paid up")}</div>
+    <h2 class="k">Paid Up</h2>
+    <div class="card scroll">${clientTable(pack.paid, "Nobody paid up yet")}</div>
 `;
 const pillFor = (status) => {
   const s=(status||"").toLowerCase();
@@ -295,7 +325,13 @@ function render(data){
     ${(() => {
       const pkg = data.books&&data.books.packages||{};
       const prices = (pkg.webstream||[]).concat(pkg.office_connect||[]);
-      const bill = data.books&&data.books.billing||{};
+      const pack = data.clients||{};
+      const moneyRows = (pack.cards||[]).concat(pack.offsets||[])
+        .filter(c => (Number(c.billed||0)>0.004) || (Number(c.due||0)>0.004) || (Number(c.paid||0)>0.004) || ((c.ledger||[]).length>0))
+        .map(cardMoney);
+      const wireless = splitMoney(moneyRows.filter(r => r.access!=="fibre" && r.access!=="offset"));
+      const fibre = splitMoney(moneyRows.filter(r => r.access==="fibre"));
+      const offset = splitMoney(moneyRows.filter(r => r.access==="offset"));
       const priceBody = prices.map(r=>`
         <tr>
           <td>${esc(r.product||"—")}<div class="meta">${esc(r.label||r.family||"")}${r.retail_source==="live"?" · live":""}</div></td>
@@ -313,8 +349,9 @@ function render(data){
         <tbody>${priceBody || `<tr><td colspan="5" class="meta">No package card yet</td></tr>`}</tbody>
       </table>
     </div>
-    ${clientBlock("Wireless — who owes / who is paid up", bill, bill.wireless_owes, bill.wireless_paid, bill.due_wireless, bill.billed_wireless, bill.paid_wireless)}
-    ${clientBlock("Fibre — who owes / who is paid up", bill, bill.fibre_owes, bill.fibre_paid, bill.due_fibre, bill.billed_fibre, bill.paid_fibre)}`;
+    ${clientBlock("Wireless — who owes / who is paid up", wireless)}
+    ${clientBlock("Fibre — who owes / who is paid up", fibre)}
+    ${((offset.owes.length||offset.paid.length) ? clientBlock("Offset — invoiced / due", offset) : "")}`;
     })()}
     ${(() => {
       const inv = (data.books&&data.books.invoice_list) || data.invoice_list || {};
