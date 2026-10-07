@@ -24,7 +24,8 @@ Official docs (as at 7 Oct 2026):
 | `https://gowifi.co.za/dash/unifi.html` | UniFi audit dash. Five Site Manager host cards. Share ticks are browser-only until a key exists. **No live UniFi status.** | Page only |
 | `/dash/api/sites` + `/dash/api/devices` | nginx → `https://gowifi.uisp.com/nms/api/v2.1/{sites,devices}` | UISP NMS |
 | `/root/secrets/unifi.env` | Site Manager API key (never expires). Mode 600. Not in git. | Key only |
-| `/dash/api/unifi` | Box `unifi_api.py` → `api.ui.com` `/v1/hosts|sites|devices`. Htpasswd. | Live summary |
+| `/dash/unifi.html?h=` | Child URL per console. Slug from the host name, e.g. `?h=1-dream-machine-pro-hermanus`. | Live machine |
+| `/dash/api/unifi?h=` | Same key, that host only: WAN, clients, devices. Connector `/v1/info` if the console answers. | Live machine |
 
 The box (`102.209.119.186`) is a VPS. It is **not** on any of these UniFi
 LANs, so `https://192.168.1.1/proxy/network/...` is not reachable from here

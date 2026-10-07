@@ -66,6 +66,18 @@ h2 {
 }
 .share input { width:18px; height:18px; accent-color:var(--acc); }
 .empty { color:var(--muted); padding:20px 0; }
+a.card { display:block; color:inherit; }
+a.card:hover { text-decoration:none; border-color:var(--acc); }
+.grid3 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+table.dev { width:100%; border-collapse:collapse; font-size:13px; }
+table.dev th {
+  text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase;
+  letter-spacing:.04em; font-weight:700; padding:6px 6px 8px 0; border-bottom:1px solid var(--line);
+}
+table.dev td { padding:7px 8px 7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+table.dev tr:last-child td { border-bottom:0; }
+table.dev td.ok { color:var(--ok); font-weight:700; }
+table.dev td.bad { color:var(--bad); font-weight:700; }
 @media (min-width: 600px) {
   header.app, main {
     width:100%; max-width:var(--ml);
@@ -81,10 +93,11 @@ h2 {
 <header class="app">
   <div class="bar">
     <div>
-      <h1>UniFi</h1>
-      <div class="sub">Own dash · tick what landing and other URLs may show</div>
+      <h1 id="title">UniFi</h1>
+      <div class="sub" id="sub">Own dash · click a router for its child URL</div>
     </div>
     <nav class="nav">
+      <a href="/dash/unifi.html" id="back">UniFi</a>
       <a href="/dash/#/">Home</a>
       <a href="/dash/clients.html">Clients</a>
       <a href="/dash/accounts.html">Accounts</a>
@@ -94,9 +107,9 @@ h2 {
 <main>
   <div class="banner" id="banner">Loading Site Manager…</div>
   <div class="counts" id="counts"></div>
-  <h2>Site Manager hosts</h2>
+  <h2 id="section">Site Manager hosts</h2>
   <div id="list"></div>
-  <h2>Share</h2>
+  <h2 id="share-head">Share</h2>
   <div class="card">
     <div class="meta">Ticks stay on this browser. Landing does not read them yet.</div>
     <div class="meta" id="share-note"></div>
@@ -105,6 +118,8 @@ h2 {
 <script>
 const KEY = "gowifi-unifi-share";
 let HOSTS = [];
+let CURRENT = null;
+let CONNECTOR = null;
 
 function loadShare() {
   try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; }
@@ -124,10 +139,18 @@ function statusLabel(state) {
   return { text: state || "unknown", cls:"" };
 }
 
-function paint() {
+function childParam() {
+  return new URLSearchParams(location.search).get("h") || "";
+}
+function childHref(h) {
+  return "/dash/unifi.html?h=" + encodeURIComponent(h.slug || h.id);
+}
+function paintList() {
   const share = loadShare();
-  const banner = document.getElementById("banner");
   const live = HOSTS.filter(Boolean);
+  document.getElementById("title").textContent = "UniFi";
+  document.getElementById("sub").textContent = "Own dash · click a router for its child URL";
+  document.getElementById("section").textContent = "Site Manager hosts";
   document.getElementById("counts").textContent = live.length
     ? (live.length + " hosts · " + live.filter(h => h.state==="connected").length + " online · " + live.filter(h => h.state==="disconnected").length + " offline · UISP radios stay on Home")
     : "No hosts";
@@ -144,7 +167,7 @@ function paint() {
     if (h.wan_uptime != null) extra.push("WAN uptime " + Number(h.wan_uptime).toFixed(1) + "%");
     if (h.device_state === "updateAvailable") extra.push("update available");
     return `<article class="card" data-id="${esc(h.id)}">
-      <div class="row">
+      <a class="row" href="${esc(childHref(h))}">
         <div>
           <div class="name">${esc(h.name)}</div>
           <div class="meta">${esc(bits.join(" · "))}${clients.length ? " · " + esc(clients.join(" · ")) : ""}</div>
@@ -154,7 +177,7 @@ function paint() {
           <div class="k">Status</div>
           <div class="v ${st.cls}">${esc(st.text)}</div>
         </div>
-      </div>
+      </a>
       <div class="share">
         <label><input type="checkbox" data-share="landing" ${landing ? "checked" : ""}> Landing</label>
       </div>
@@ -163,6 +186,49 @@ function paint() {
   const n = live.filter(h => share[h.id] && share[h.id].landing).length;
   document.getElementById("share-note").textContent =
     n ? (n + " ticked for landing — not published") : "Nothing ticked";
+}
+function paintChild(h, connector) {
+  const share = loadShare();
+  const landing = !!(share[h.id] && share[h.id].landing);
+  const st = statusLabel(h.state);
+  document.title = "GoWifi · " + (h.name || "UniFi");
+  document.getElementById("title").textContent = h.name || "UniFi";
+  document.getElementById("sub").textContent = "Child URL · data from this machine";
+  document.getElementById("section").textContent = "This machine";
+  document.getElementById("counts").textContent = childHref(h);
+  const fields = [
+    ["Status", st.text, st.cls],
+    ["Hardware", h.hardware || h.shortname || ""],
+    ["Firmware", h.firmware || ""],
+    ["ISP", h.isp || ""],
+    ["Timezone", h.timezone || ""],
+    ["Apps", (h.apps || []).join(" · ")],
+    ["Wi‑Fi clients", h.wifi_clients != null ? String(h.wifi_clients) : ""],
+    ["Wired clients", h.wired_clients != null ? String(h.wired_clients) : ""],
+  ].filter(r => r[1]);
+  const wans = (h.wans || []).map(w => {
+    const bits = [w.isp, w.external_ip, w.uptime != null ? ("uptime " + Number(w.uptime).toFixed(1) + "%") : "", w.port_up === true ? "port up" : w.port_up === false ? "port down" : ""].filter(Boolean);
+    return `<div class="card"><div class="k">${esc(w.name)}</div><div class="v">${esc(bits.join(" · "))}</div></div>`;
+  }).join("");
+  const rows = ((h.devices || {}).rows) || [];
+  const table = rows.length
+    ? `<div class="card"><table class="dev"><thead><tr><th>Device</th><th>Model</th><th>Status</th><th>Version</th><th>IP</th></tr></thead><tbody>` +
+      rows.map(d => `<tr><td>${esc(d.name)}${d.is_console ? " · console" : ""}</td><td>${esc(d.model)}</td><td class="${d.status==="online"?"ok":d.status==="offline"?"bad":""}">${esc(d.status)}</td><td>${esc(d.version)}</td><td>${esc(d.ip)}</td></tr>`).join("") +
+      `</tbody></table></div>`
+    : `<div class="empty">No devices on this host.</div>`;
+  const conn = connector && connector.ok
+    ? `<div class="meta">Network app ${esc(connector.application_version || "")}</div>`
+    : (connector && connector.error ? `<div class="meta">Connector: ${esc(connector.error)}</div>` : "");
+  document.getElementById("list").innerHTML =
+    `<div class="card" data-id="${esc(h.id)}">
+      <div class="grid3">${fields.map(f => `<div><div class="k">${esc(f[0])}</div><div class="v ${f[2]||""}">${esc(f[1])}</div></div>`).join("")}</div>
+      ${conn}
+      <div class="share"><label><input type="checkbox" data-share="landing" ${landing ? "checked" : ""}> Landing</label></div>
+    </div>` +
+    (wans ? `<h2>WAN</h2>${wans}` : "") +
+    `<h2>Devices</h2>${table}`;
+  document.getElementById("share-note").textContent =
+    landing ? "Ticked for landing — not published" : "Nothing ticked";
 }
 
 document.getElementById("list").addEventListener("change", ev => {
@@ -175,29 +241,39 @@ document.getElementById("list").addEventListener("change", ev => {
   share[id] = share[id] || {};
   share[id][input.getAttribute("data-share")] = input.checked;
   saveShare(share);
-  paint();
+  if (CURRENT) paintChild(CURRENT, CONNECTOR);
+  else paintList();
 });
 
-fetch("/dash/api/unifi", { credentials:"same-origin", cache:"no-store" })
+const want = childParam();
+const api = "/dash/api/unifi" + (want ? ("?h=" + encodeURIComponent(want)) : "");
+fetch(api, { credentials:"same-origin", cache:"no-store" })
   .then(r => r.json().then(data => ({ ok:r.ok, data })))
   .then(({ data }) => {
     const banner = document.getElementById("banner");
-    if (!data || !data.live) {
+    if (!data || !data.live || (want && !data.host)) {
       banner.className = "banner";
       banner.innerHTML = "<strong>Not live from UniFi.</strong> " + esc(data && data.error || "No summary");
       HOSTS = [];
-      paint();
+      if (!want) paintList();
       return;
     }
     banner.className = "banner ok";
-    banner.innerHTML = "<strong>Live from Site Manager.</strong> as at " + esc(data.as_at || "") + ". Tick what landing may show.";
+    banner.innerHTML = "<strong>Live from this machine.</strong> as at " + esc(data.as_at || "");
+    if (want) {
+      CURRENT = data.host;
+      CONNECTOR = data.connector || null;
+      paintChild(CURRENT, CONNECTOR);
+      return;
+    }
+    banner.innerHTML = "<strong>Live from Site Manager.</strong> as at " + esc(data.as_at || "") + ". Click a router.";
     HOSTS = data.hosts || [];
-    paint();
+    paintList();
   })
   .catch(err => {
     document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong> " + esc(err.message || err);
     HOSTS = [];
-    paint();
+    if (!want) paintList();
   });
 </script>
 </body>
