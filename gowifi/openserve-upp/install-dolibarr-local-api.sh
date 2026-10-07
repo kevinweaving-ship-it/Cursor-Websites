@@ -15,6 +15,13 @@ if [ -z "$DASH_API_KEY" ]; then
   mysql --protocol=socket -u root -e \
     "UPDATE dolibarr.llx_user SET api_key='${DASH_API_KEY}' WHERE login='dash';"
 fi
+mysql --protocol=socket -u root -e "
+UPDATE dolibarr.llx_user SET entity=0, admin=1, statut=1 WHERE login='dash';
+INSERT IGNORE INTO dolibarr.llx_user_rights (entity, fk_user, fk_id)
+SELECT 1, u.rowid, r.id FROM dolibarr.llx_user u
+JOIN dolibarr.llx_rights_def r
+WHERE u.login='dash';
+"
 if grep -q '^DOLIBARR_API_KEY=' "$ENV"; then
   sed -i "s/^DOLIBARR_API_KEY=.*/DOLIBARR_API_KEY=${DASH_API_KEY}/" "$ENV"
 else
