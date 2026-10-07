@@ -11,6 +11,7 @@ INCOMING_MARKER = "gowifi-incoming-fibre-hook"
 CLIENTS_MARKER = "gowifi-simple-clients-hook"
 INVOICES_MARKER = "gowifi-invoice-list-hook"
 THEME_MARKER = "gowifi-light-theme"
+OUTAGE_MARKER = "gowifi-outages-online-out"
 THEME_CSS = f"""<style id="{THEME_MARKER}">
 :root {{
   --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
@@ -236,6 +237,36 @@ def _ensure_incoming(text: str) -> str:
     return text
 
 
+OUTAGE_JS = f"""function outageRows(sites, devices){{ /* {OUTAGE_MARKER} */
+  const rows=[], seen=new Set();
+  devices.forEach(d=>{{
+    const st=ov(d).status;
+    if (onOff(st).text==="online") return;
+    const id=sid(d); if(seen.has("d:"+id)) return; seen.add("d:"+id);
+    rows.push({{kind:"device", id, name:ident(d).name, where:(ident(d).site||{{}}).name, status:st, score:ov(d).outageScore||0, last:ov(d).lastSeen, siteType:(ident(d).site||{{}}).type, siteId:(ident(d).site||{{}}).id}});
+  }});
+  sites.forEach(s=>{{
+    const st=ident(s).status;
+    if (onOff(st).text==="online") return;
+    const n=s.description?.deviceOutageCount||0;
+    const id=sid(s); if(seen.has("s:"+id)) return; seen.add("s:"+id);
+    rows.push({{kind:"site", id, name:ident(s).name, where:ident(s).parent?.name||"", status:st, score:n, last:ident(s).updated, siteType:ident(s).type, siteId:id}});
+  }});
+  return rows;
+}}
+"""
+
+
+def _ensure_outages(text: str) -> str:
+    """Green / online is up. Active outages is offline only."""
+    text = _strip_block(text, "function outageRows")
+    if OUTAGE_MARKER in text:
+        return text
+    if "function hdr(" in text:
+        return text.replace("function hdr(", OUTAGE_JS + "function hdr(", 1)
+    return text.replace("let DATA=null;", OUTAGE_JS + "let DATA=null;", 1)
+
+
 def _ensure_theme(text: str) -> str:
     text = text.replace(
         'name="theme-color" content="#0b1220"',
@@ -262,6 +293,28 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK theme-header-white")
+    old = (
+        "function siteSectors(){}\n"
+        "function outageRows(sites, devices){\n"
+        "  const st=ov(d).status, score=ov(d).outageScore||0;\n"
+        "  if (st===\"active\" && score<=0) return;\n"
+        "}\n"
+        "function hdr(title, back){}\n"
+        "let DATA=null;\n"
+    )
+    fixed = _ensure_outages(old)
+    again = _ensure_outages(fixed)
+    if OUTAGE_MARKER not in fixed or 'onOff(st).text==="online"' not in fixed:
+        print("FAIL outage-hook-missing")
+        failed += 1
+    elif "score<=0" in fixed:
+        print("FAIL outage-still-score-gate")
+        failed += 1
+    elif again.count("function outageRows") != 1:
+        print("FAIL outage-hook-dup", again.count("function outageRows"))
+        failed += 1
+    else:
+        print("OK outage-online-out")
     return failed
 
 
@@ -273,6 +326,7 @@ def main() -> int:
     text = _ensure_clients(text)
     text = _ensure_invoices(text)
     text = _ensure_incoming(text)
+    text = _ensure_outages(text)
     if text == original:
         print("already hooked")
         return 0
@@ -280,7 +334,7 @@ def main() -> int:
         _backup(INDEX)
     INDEX.write_text(text)
     print(f"hooked {INDEX}")
-    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER, CLIENTS_MARKER, INVOICES_MARKER, THEME_MARKER) if m not in text]
+    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER, CLIENTS_MARKER, INVOICES_MARKER, THEME_MARKER, OUTAGE_MARKER) if m not in text]
     if missing:
         print("WARN missing", missing)
         return 1
