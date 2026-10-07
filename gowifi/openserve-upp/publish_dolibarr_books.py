@@ -14,7 +14,7 @@ from pathlib import Path
 
 ACCOUNTS = Path("/home/user-data/www/default/dash/accounts.json")
 OUT = Path("/home/user-data/www/default/dash/dolibarr-books.json")
-DOLIBARR_URL = "https://gowifi.co.za/dolibarr/"
+DOLIBARR_URL = "/dash/clients.html"
 
 
 def _sql(query: str) -> list[list[str]]:
