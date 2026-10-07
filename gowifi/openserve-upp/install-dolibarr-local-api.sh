@@ -21,10 +21,13 @@ else
   echo "DOLIBARR_API_KEY=$DASH_API_KEY" >> "$ENV"
 fi
 
-cp -f "$SRC/dolibarr_local.py" "$SRC/books_api.py" "$SRC/publish_dolibarr_books.py" \
-  "$SRC/hook_dash_books.py" /root/gowifi-upp/
-chmod +x /root/gowifi-upp/dolibarr_local.py /root/gowifi-upp/books_api.py \
-  /root/gowifi-upp/publish_dolibarr_books.py /root/gowifi-upp/hook_dash_books.py
+DEST=/root/gowifi-upp
+if [ "$SRC" != "$DEST" ]; then
+  cp -f "$SRC/dolibarr_local.py" "$SRC/books_api.py" "$SRC/publish_dolibarr_books.py" \
+    "$SRC/hook_dash_books.py" "$DEST/"
+fi
+chmod +x "$DEST/dolibarr_local.py" "$DEST/books_api.py" \
+  "$DEST/publish_dolibarr_books.py" "$DEST/hook_dash_books.py"
 
 cp -f "$SRC/nginx-dolibarr-local.conf" /etc/nginx/conf.d/gowifi-dolibarr-local.conf
 if [ -f "$SRC/nginx-dash-books.conf" ] && [ -f "$WWWCONF" ]; then
