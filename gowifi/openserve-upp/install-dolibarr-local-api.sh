@@ -5,15 +5,21 @@ SRC=$(cd "$(dirname "$0")" && pwd)
 WWWCONF=/home/user-data/www/gowifi.co.za.conf
 ENV=/root/secrets/dolibarr.env
 
-# API key on the dash Dolibarr user (same secret file).
+# Unique API key for the dash Dolibarr user (uk_user_api_key is unique).
 # shellcheck disable=SC1090
 source "$ENV"
-if [ -z "${DOLIBARR_API_KEY:-}" ]; then
-  DOLIBARR_API_KEY=$(openssl rand -hex 16)
-  echo "DOLIBARR_API_KEY=$DOLIBARR_API_KEY" >> "$ENV"
+DASH_API_KEY=$(mysql --protocol=socket -u root -N -e \
+  "SELECT IFNULL(api_key,'') FROM dolibarr.llx_user WHERE login='dash';")
+if [ -z "$DASH_API_KEY" ]; then
+  DASH_API_KEY=$(openssl rand -hex 16)
+  mysql --protocol=socket -u root -e \
+    "UPDATE dolibarr.llx_user SET api_key='${DASH_API_KEY}' WHERE login='dash';"
 fi
-mysql --protocol=socket -u root -e \
-  "UPDATE dolibarr.llx_user SET api_key='${DOLIBARR_API_KEY}' WHERE login='dash';"
+if grep -q '^DOLIBARR_API_KEY=' "$ENV"; then
+  sed -i "s/^DOLIBARR_API_KEY=.*/DOLIBARR_API_KEY=${DASH_API_KEY}/" "$ENV"
+else
+  echo "DOLIBARR_API_KEY=$DASH_API_KEY" >> "$ENV"
+fi
 
 cp -f "$SRC/dolibarr_local.py" "$SRC/books_api.py" "$SRC/publish_dolibarr_books.py" \
   "$SRC/hook_dash_books.py" /root/gowifi-upp/
