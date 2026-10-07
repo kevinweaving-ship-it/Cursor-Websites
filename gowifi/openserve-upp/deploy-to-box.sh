@@ -35,6 +35,7 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$SRC/mail_forwards.py" "$SRC/ensure_go_wifi_mail.sh" \
   "$SRC/upp_emails.py" "$SRC/upp_set_password.py" \
   "$SRC/qb_oauth.py" "$SRC/qb_api.py" "$SRC/fnb_api.py" "$SRC/fnb_statement.py" \
+  "$SRC/unifi_api.py" "$SRC/nginx-unifi.conf" "$SRC/gowifi-unifi-api.service" \
   "$SRC/nginx-fnb.conf" "$SRC/gowifi-fnb-api.service" \
   "$SRC/install-on-box.sh" "$SRC/company.py" "$SRC/invoice_canned.py" "$SRC/recon.py" \
   "$BOX:/root/gowifi-upp/"

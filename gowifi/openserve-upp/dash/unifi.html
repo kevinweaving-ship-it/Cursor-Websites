@@ -36,7 +36,11 @@ main {
   margin:0 0 12px; padding:12px 14px; border:1px solid var(--line); border-radius:12px;
   background:#fff8e8; color:var(--text);
 }
+.banner.ok { background:#eef8f1; }
 .banner strong { color:var(--warn); }
+.banner.ok strong { color:var(--ok); }
+.v.ok { color:var(--ok); font-weight:700; }
+.v.bad { color:var(--bad); font-weight:700; }
 .counts { color:var(--muted); font-size:13px; margin:0 0 10px; }
 h2 {
   margin:18px 0 8px; font-size:13px; font-weight:700; letter-spacing:.06em;
@@ -88,31 +92,19 @@ h2 {
   </div>
 </header>
 <main>
-  <div class="banner">
-    <strong>Not live from UniFi.</strong>
-    No API key on the box. These cards are the Site Manager hosts from the
-    7 Oct screenshot. Online / offline is not shown until
-    <code>/root/secrets/unifi.env</code> is set and
-    <code>GET /v1/hosts</code> returns them.
-  </div>
+  <div class="banner" id="banner">Loading Site Manager…</div>
   <div class="counts" id="counts"></div>
   <h2>Site Manager hosts</h2>
   <div id="list"></div>
   <h2>Share</h2>
   <div class="card">
-    <div class="meta">Ticks stay on this browser until the box has a UniFi key and a share file. Landing does not read these ticks yet.</div>
+    <div class="meta">Ticks stay on this browser. Landing does not read them yet.</div>
     <div class="meta" id="share-note"></div>
   </div>
 </main>
 <script>
 const KEY = "gowifi-unifi-share";
-const HOSTS = [
-  { id:"udm-pro-hermanus", name:"UDM Pro Hermanus", hardware:"UDM Pro", wan:"Telkom", extra:"" },
-  { id:"bing", name:"Bing", hardware:"UCG Ultra", wan:"Telkom", extra:"" },
-  { id:"hyc-cloud-gateway", name:"HYC Cloud Gateway", hardware:"UCG Ultra", wan:"Telkom", extra:"Backup 28 Aug 2025" },
-  { id:"lategan-le-paradis", name:"Lategan No 5 Le Paradis Express", hardware:"UX", wan:"Telkom", extra:"" },
-  { id:"onguard-network", name:"Onguard Network", hardware:"UCG Ultra", wan:"Afrihost", extra:"Invited" },
-];
+let HOSTS = [];
 
 function loadShare() {
   try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; }
@@ -126,30 +118,49 @@ function esc(s) {
     "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
   }[c]));
 }
+function statusLabel(state) {
+  if (state === "connected") return { text:"Online", cls:"ok" };
+  if (state === "disconnected") return { text:"Offline", cls:"bad" };
+  return { text: state || "unknown", cls:"" };
+}
 
 function paint() {
   const share = loadShare();
-  document.getElementById("counts").textContent =
-    HOSTS.length + " hosts · status not live · UISP radios stay on Home";
-  document.getElementById("list").innerHTML = HOSTS.map(h => {
+  const banner = document.getElementById("banner");
+  const live = HOSTS.filter(Boolean);
+  document.getElementById("counts").textContent = live.length
+    ? (live.length + " hosts · " + live.filter(h => h.state==="connected").length + " online · " + live.filter(h => h.state==="disconnected").length + " offline · UISP radios stay on Home")
+    : "No hosts";
+  document.getElementById("list").innerHTML = live.map(h => {
     const landing = !!(share[h.id] && share[h.id].landing);
+    const st = statusLabel(h.state);
+    const bits = [h.hardware, h.isp, (h.apps||[]).join(" · ")].filter(Boolean);
+    const clients = [];
+    if (h.wifi_clients != null) clients.push(h.wifi_clients + " wifi");
+    if (h.wired_clients != null) clients.push(h.wired_clients + " wired");
+    const dev = h.devices || {};
+    const extra = [];
+    if (dev.devices) extra.push(dev.online + "/" + dev.devices + " devices online");
+    if (h.wan_uptime != null) extra.push("WAN uptime " + Number(h.wan_uptime).toFixed(1) + "%");
+    if (h.device_state === "updateAvailable") extra.push("update available");
     return `<article class="card" data-id="${esc(h.id)}">
       <div class="row">
         <div>
           <div class="name">${esc(h.name)}</div>
-          <div class="meta">${esc(h.hardware)} · WAN on card ${esc(h.wan)}${h.extra ? " · " + esc(h.extra) : ""}</div>
+          <div class="meta">${esc(bits.join(" · "))}${clients.length ? " · " + esc(clients.join(" · ")) : ""}</div>
+          ${extra.length ? `<div class="meta">${esc(extra.join(" · "))}</div>` : ""}
         </div>
         <div>
           <div class="k">Status</div>
-          <div class="v">Not live</div>
+          <div class="v ${st.cls}">${esc(st.text)}</div>
         </div>
       </div>
       <div class="share">
         <label><input type="checkbox" data-share="landing" ${landing ? "checked" : ""}> Landing</label>
       </div>
     </article>`;
-  }).join("");
-  const n = HOSTS.filter(h => share[h.id] && share[h.id].landing).length;
+  }).join("") || `<div class="empty">No hosts from UniFi.</div>`;
+  const n = live.filter(h => share[h.id] && share[h.id].landing).length;
   document.getElementById("share-note").textContent =
     n ? (n + " ticked for landing — not published") : "Nothing ticked";
 }
@@ -167,7 +178,27 @@ document.getElementById("list").addEventListener("change", ev => {
   paint();
 });
 
-paint();
+fetch("/dash/api/unifi", { credentials:"same-origin", cache:"no-store" })
+  .then(r => r.json().then(data => ({ ok:r.ok, data })))
+  .then(({ data }) => {
+    const banner = document.getElementById("banner");
+    if (!data || !data.live) {
+      banner.className = "banner";
+      banner.innerHTML = "<strong>Not live from UniFi.</strong> " + esc(data && data.error || "No summary");
+      HOSTS = [];
+      paint();
+      return;
+    }
+    banner.className = "banner ok";
+    banner.innerHTML = "<strong>Live from Site Manager.</strong> as at " + esc(data.as_at || "") + ". Tick what landing may show.";
+    HOSTS = data.hosts || [];
+    paint();
+  })
+  .catch(err => {
+    document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong> " + esc(err.message || err);
+    HOSTS = [];
+    paint();
+  });
 </script>
 </body>
 </html>
