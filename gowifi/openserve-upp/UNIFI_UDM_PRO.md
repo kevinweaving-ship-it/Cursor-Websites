@@ -1,9 +1,12 @@
-# UniFi UDM Pro — own dash, then share
+# UniFi — own dash, then share
 
-UDM Pro has **its own dash**. Landing (`https://gowifi.co.za/`) and any other
-public URL only show what is **selected on that dash**. Nothing is public by
-default. Do not invent status. Do not scrape `unifi.ui.com`. Do not mix this
-with UISP radios.
+UniFi (Site Manager + every console on that account) has **its own dash**.
+Landing (`https://gowifi.co.za/`) and any other public URL only show what is
+**selected on that dash**. Nothing is public by default. Do not invent status.
+Do not scrape `unifi.ui.com`. Do not mix this with UISP radios.
+
+This is **not** one UDM Pro. Site Manager is the inventory. Each host is a
+card on the UniFi dash. Share is per host / site / field.
 
 Official docs (as at 7 Oct 2026):
 
@@ -23,9 +26,36 @@ Official docs (as at 7 Oct 2026):
 | `/root/secrets/` | FNB, Netcash, QBO, Openserve, UPP | **No UniFi key** |
 | systemd | `gowifi-fnb-api`, `gowifi-qb-oauth` | No UniFi service |
 
-The box (`102.209.119.186`) is a VPS. It is **not** on the UDM LAN, so
-`https://192.168.1.1/proxy/network/...` is not reachable from here unless we
-add a LAN collector or use Ubiquiti’s cloud connector.
+The box (`102.209.119.186`) is a VPS. It is **not** on any of these UniFi
+LANs, so `https://192.168.1.1/proxy/network/...` is not reachable from here
+unless we add a LAN collector or use Ubiquiti’s cloud connector.
+
+## Site Manager as shown 7 Oct 2026
+
+Kevin’s screenshot of `unifi.ui.com` Site Manager. **Screenshot, not API.**
+Names below are read from that page. Confirm spelling off `/v1/hosts` once
+a key exists. Do not treat this as live status for landing.
+
+Five Network sites / five hosts:
+
+| Site (as on the card) | Hardware | WAN on the card | Extra on the card |
+|---|---|---|---|
+| UDM Pro Hermanus | UDM Pro | Telkom | — |
+| Bing | UCG Ultra | Telkom | — |
+| HYC Cloud Gateway | UCG Ultra | Telkom | Backup 28 Aug 2025 |
+| Lategan No 5 Le Paradis Express | UX | Telkom | — |
+| Onguard Network | UCG Ultra | Afrihost | Invited |
+
+Sidebar totals on that same page (do **not** assign which row is which):
+
+- Status: up to date 3, update available 1, online 4, offline 1
+- Applications: Network 5, Protect 1
+- Hosts: UCG Ultra 3, UDM Pro 1, UX 1
+- Fabric: “Get started” — not set up. Leave `/v1/sd-wan-configs` alone until Fabric is on.
+
+`GET /v1/hosts` + `GET /v1/sites` is this same list. Connector then goes
+per `hostId` into that console’s Network (and Protect on the one host that
+has it).
 
 ## Two Ubiquiti products (do not conflate)
 
@@ -33,13 +63,14 @@ add a LAN collector or use Ubiquiti’s cloud connector.
 `/root/gowifi-dash-uisp-proxy.conf` (server-side only). That is last-mile
 wireless.
 
-**UniFi Dream Machine Pro** = UniFi OS console. Gateway + Network app
-(switches, APs, VLANs, WAN, clients). Optional apps on the same box: Protect,
-Access, Talk, InnerSpace. This is the LAN / premises controller — not the
-UISP radio NMS.
+**UniFi** = UniFi OS consoles on this Site Manager account: one UDM Pro
+(Hermanus), three UCG Ultra (Bing, HYC Cloud Gateway, Onguard), one UX
+(Lategan No 5 Le Paradis Express). Each runs Network. One of the five has
+Protect. This is premises LAN / gateway — not the UISP radio NMS.
 
 A device that is “online” on UISP is not a UniFi client. A UniFi WAN that is
-up is not a UISP sector. Landing share lists are chosen per dash.
+up is not a UISP sector. Landing share lists are chosen per host on the
+UniFi dash.
 
 ## Official API layers
 
@@ -54,7 +85,7 @@ Create key: sign in at `unifi.ui.com` → **Settings → API Keys**.
 
 | Method | Path | For the UDM dash |
 |---|---|---|
-| GET | `/v1/hosts` | Consoles (the UDM Pro is a host) |
+| GET | `/v1/hosts` | Consoles (UDM Pro + UCG Ultra + UX) |
 | GET | `/v1/hosts/{id}` | That console’s reported state |
 | GET | `/v1/sites` | Network sites on those hosts |
 | GET | `/v1/devices` | UniFi devices across hosts |
@@ -92,7 +123,8 @@ https://<udm>/proxy/network/integration/v1/...
 Header `X-API-KEY`. Self-signed cert is normal; verify pin later, do not
 ship `verify=false` as policy.
 
-Read endpoints that belong on the **UDM dash** (full picture, still private):
+Read endpoints that belong on the **UniFi dash** (full picture, still private).
+Call them **per host** via Connector — five consoles, not one:
 
 | GET | Returns |
 |---|---|
@@ -133,9 +165,9 @@ the official key. Same rule as FNB: do not keep extra logins hanging.
 
 ### 5) Protect (optional)
 
-Only if Protect is installed on this UDM. Local prefix
-`/proxy/protect/integration/v1/`. Cameras, snapshots, sensors. A snapshot is
-**not** public unless selected on the UDM dash.
+Site Manager shows Protect on **1** of the 5 hosts. Local prefix
+`/proxy/protect/integration/v1/` on that console only. Cameras, snapshots,
+sensors. A snapshot is **not** public unless selected on the UniFi dash.
 
 ## How this maps to “own dash, then share”
 
@@ -149,9 +181,9 @@ unifi.ui.com API key  (or local key via Connector)
 box  /root/secrets/unifi.env          ← not in git
         │
         ▼
-UDM dash  /dash/unifi.html            ← htpasswd, full truth
+UniFi dash  /dash/unifi.html          ← htpasswd, all 5 hosts
         │
-        │  Kevin ticks what to share
+        │  Kevin ticks host / site / field to share
         ▼
 share table / JSON                    ← allow-list only
         │
@@ -161,9 +193,11 @@ share table / JSON                    ← allow-list only
 
 Rules:
 
-1. UDM dash shows **table truth from UniFi**. Offline is offline. Online is
-   online. Leftover scores / stale “degraded” do not invent an outage
-   (same lesson as UISP `outageScore` on green-dot radios).
+1. UniFi dash shows **table truth from UniFi**, one card per Site Manager
+   host. Offline is offline. Online is online. Leftover scores / stale
+   “degraded” do not invent an outage (same lesson as UISP `outageScore`
+   on green-dot radios). The screenshot’s “offline 1” is not published
+   until the API says which host.
 2. Landing and other URLs read **only the share allow-list**. Empty share =
    nothing from UniFi on that URL.
 3. Browser never sees `X-API-KEY`. nginx or a small box service injects it,
@@ -177,6 +211,7 @@ One row per thing Kevin ticks. Suggested columns — not created yet:
 
 - `kind` — `wan` / `device` / `ssid` / `client_count` / `isp` / `protect_cam`
 - `unifi_id` — host / site / device / interface id from the API
+- `host` — which console (Hermanus UDM Pro, Bing, HYC, Lategan UX, Onguard)
 - `label` — public name (may differ from UniFi name)
 - `fields` — allow-list: e.g. `state`, `uptime`, `count` — never a raw dump
 - `urls` — `landing` and/or other public paths
@@ -195,7 +230,7 @@ of a home device, no camera still, unless that field is ticked.
 - Aggregate client count (not the client list)
 - ISP latency / uptime from `/v1/isp-metrics/5m`
 
-**Stay on the UDM dash unless explicitly shared**
+**Stay on the UniFi dash unless explicitly shared**
 
 - Client list (name, MAC, IP, hostname)
 - SSIDs that are staff / IoT
@@ -220,8 +255,9 @@ curl -sS -H "X-API-KEY: $UNIFI_API_KEY" -H "Accept: application/json" \
   https://api.ui.com/v1/hosts
 ```
 
-`401` = bad/missing key. `200` + hosts = we can build the dash from real
-data. Then Connector:
+`401` = bad/missing key. `200` + hosts must match the Site Manager cards
+(UDM Pro Hermanus, Bing, HYC Cloud Gateway, Lategan UX, Onguard). Then
+Connector per host:
 
 ```bash
 curl -sS -H "X-API-KEY: $UNIFI_API_KEY" -H "Accept: application/json" \
@@ -233,10 +269,11 @@ No key on the box today, so there is **no live UniFi status to publish**.
 ## Build order (do not skip)
 
 1. Kevin pastes a Site Manager API key into `/root/secrets/unifi.env` (mode 600).
-2. Probe `/v1/hosts` — prove the UDM Pro is on that UI account.
-3. Build **UDM dash** (`/dash/unifi.html`) — hosts, sites, devices, WAN,
-   client counts. Same white / dark-blue dash language as the rest of `/dash/`.
-4. Share picker on that dash. Write share JSON.
+2. Probe `/v1/hosts` — must return the five Site Manager consoles.
+3. Build **UniFi dash** (`/dash/unifi.html`) — one card per host, then
+   devices / WAN / client counts on that host. Same white / dark-blue dash
+   language as the rest of `/dash/`.
+4. Share picker **per host**. Write share JSON.
 5. Landing / other URLs read share JSON only.
 
 Do not start the landing UniFi widgets before step 4. Do not cron until asked.
