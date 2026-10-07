@@ -1000,7 +1000,7 @@ def self_test() -> int:
     if "cardMoney" not in html or "splitMoney" not in html or "pack.cards" not in html:
         print("FAIL accounts-html-uses-cards")
         failed += 1
-    elif "bill.wireless_owes" in html or "this cycle" in html:
+    elif "bill.wireless_owes" in html or "this cycle" in html or "Need full invoice" in html:
         print("FAIL accounts-html-old-billing")
         failed += 1
     else:

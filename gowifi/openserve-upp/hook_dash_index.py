@@ -180,12 +180,20 @@ def _ensure_invoices(text: str) -> str:
         text = text.replace(
             '    <a class="card tap" href="/dash/clients.html"',
             '    <a class="card tap" href="/dash/invoices.html" style="display:block;margin-bottom:10px">\n'
-            '      <div class="row"><span class="name">Invoices</span><span class="pill warn">queries</span></div>\n'
-            '      <div class="meta">Monthly line rental · need full invoice for install / equipment</div>\n'
+            '      <div class="row"><span class="name">Invoices</span><span class="pill ok">table</span></div>\n'
+            '      <div class="meta">Invoice table · click through to the statement</div>\n'
             "    </a>\n"
             '    <a class="card tap" href="/dash/clients.html"',
             1,
         )
+    text = text.replace(
+        '<span class="pill warn">queries</span>',
+        '<span class="pill ok">table</span>',
+    )
+    text = text.replace(
+        "Monthly line rental · need full invoice for install / equipment",
+        "Invoice table · click through to the statement",
+    )
     return text
 
 

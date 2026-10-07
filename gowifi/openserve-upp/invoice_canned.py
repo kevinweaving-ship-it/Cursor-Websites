@@ -845,6 +845,23 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK invoice-html-child-statement")
+    inv_list = Path(__file__).resolve().parent.joinpath("dash/invoices.html")
+    ipage = inv_list.read_text() if inv_list.exists() else ""
+    if "Need full invoice" in ipage or "invoice_list" in ipage or "pack.queries" in ipage:
+        print("FAIL invoices-html-placeholder")
+        failed += 1
+    elif "tableInvoices" not in ipage or "invoice.html?n=" not in ipage:
+        print("FAIL invoices-html-table")
+        failed += 1
+    else:
+        print("OK invoices-html-table")
+    acc_page = Path(__file__).resolve().parent.joinpath("dash/accounts.html")
+    apage = acc_page.read_text() if acc_page.exists() else ""
+    if "Need full invoice" in apage or "odd amounts" in apage:
+        print("FAIL accounts-html-placeholder")
+        failed += 1
+    else:
+        print("OK accounts-html-no-placeholder")
     clients_page = Path(__file__).resolve().parent.joinpath("dash/clients.html")
     cpage = clients_page.read_text() if clients_page.exists() else ""
     if "stripUncapped" not in cpage:

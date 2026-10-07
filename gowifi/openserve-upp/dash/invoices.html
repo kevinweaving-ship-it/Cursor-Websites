@@ -32,22 +32,23 @@ header.app a.back { display:inline-block; color:var(--acc); font-size:14px; min-
 main { padding:14px var(--pad) 32px; max-width:980px; margin:0 auto; }
 .counts { color:var(--muted); font-size:13px; margin:0 0 12px; }
 h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--acc); margin:18px 0 8px; }
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
 .card {
   background:var(--card); border:1px solid var(--line); border-radius:12px;
-  padding:14px 14px 12px; color:var(--text);
+  padding:12px 14px; margin:0 0 10px;
 }
-.name { font-weight:700; font-size:17px; color:var(--acc); }
 .meta { color:var(--muted); font-size:13px; margin-top:4px; }
-.row { margin-top:8px; }
-.k { font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
-.v { margin-top:1px; }
-.amt { font-weight:700; }
-.amt.query { color:var(--warn); }
-.amt.monthly { color:var(--acc); }
 .empty { color:var(--muted); padding:24px 0; }
 .err { color:#8a1212; background:#fdecec; padding:12px; border-radius:10px; }
-.note { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px; }
+.scroll { overflow:auto; }
+table.inv { width:100%; border-collapse:collapse; font-size:13px; }
+table.inv th {
+  text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase;
+  letter-spacing:.04em; font-weight:700; padding:6px 6px 8px 0; border-bottom:1px solid var(--line);
+}
+table.inv td { padding:7px 8px 7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+table.inv tr:last-child td { border-bottom:0; }
+.num { text-align:right; white-space:nowrap; }
+.name { font-weight:650; }
 </style>
 </head>
 <body>
@@ -56,71 +57,70 @@ h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(-
   <a class="back" href="/dash/clients.html">Clients</a>
   <a class="back" href="/dash/accounts.html">Detailed</a>
   <h1>Invoices</h1>
-  <div class="sub">Monthly line rental · reconnection / un-suspend is a once-off penalty, not on the D/O</div>
-  <input class="search" id="q" type="search" placeholder="Search name, invoice number, amount" autocomplete="off">
+  <div class="sub">From the invoice table · click through to the statement</div>
+  <input class="search" id="q" type="search" placeholder="Search number, client, what, amount" autocomplete="off">
 </header>
 <main>
-  <div id="note" class="note"></div>
   <div class="counts" id="counts"></div>
-  <h2>Need full invoice</h2>
-  <div class="grid" id="queries">Loading…</div>
-  <h2>Monthly line rental</h2>
-  <div class="grid" id="monthly"></div>
+  <h2>Invoices</h2>
+  <div class="card scroll" id="list">Loading…</div>
 </main>
 <script>
 const $ = (s,el=document)=>el.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
 const money = v => v==null||v==="" ? "—" : "R"+Number(v).toFixed(2);
-const hit = (row, q) => !q || (row.search||"").includes(q);
-function card(r, kind){
-  return `<article class="card" data-search="${esc(r.search||"")}">
-    <div class="name">${esc(r.name||"—")}</div>
-    <div class="meta">Invoice ${esc(r.number||"—")} · ${esc(r.date||"—")}${r.closed?" · closed":""}</div>
-    <div class="row"><div class="k">Amount</div><div class="v amt ${kind}">${esc(money(r.amount))}</div></div>
-    <div class="row"><div class="k">${kind==="query"?"Need":"What"}</div><div class="v">${esc(r.why||r.what||"—")}</div></div>
-    ${r.memo?`<div class="row"><div class="k">Memo</div><div class="v">${esc(r.memo)}</div></div>`:""}
-    ${r.monthly_now!=null&&kind==="query"?`<div class="meta">Known monthly rental ${esc(money(r.monthly_now))}</div>`:""}
-    ${r.access||r.pay?`<div class="meta">${esc(r.access||"")} · ${esc(r.pay||"")}</div>`:""}
-  </article>`;
-}
-function rateCard(c){
-  const hist = (c.history||[]).map(n=>"R"+Number(n).toFixed(0)).join(" → ");
-  return `<article class="card" data-search="${esc(c.search||"")}">
-    <div class="name">${esc(c.name||"—")}</div>
-    <div class="meta">${esc(c.access||"")} · ${esc(c.pay||"")}${c.discount?" · discount":""}${c.closed?" · closed":""}</div>
-    <div class="row"><div class="k">Monthly now</div><div class="v amt monthly">${c.monthly==null?"—":esc(money(c.monthly))}</div></div>
-    <div class="row"><div class="k">What</div><div class="v">${esc(c.what||"Monthly line rental")}${hist?`<div class="meta">Was ${esc(hist)}</div>`:""}</div></div>
-    <div class="meta">${c.monthly_count||0} monthly · ${c.query_count||0} query · ${esc(c.first||"")} → ${esc(c.last||"")}</div>
-    ${c.address?`<div class="meta">${esc(c.address)}</div>`:""}
-    ${c.phone||c.email?`<div class="meta">${esc(c.phone||"")}${c.phone&&c.email?" · ":""}${esc(c.email||"")}</div>`:""}
-    ${c.b_number?`<div class="meta">${esc(c.b_number)}</div>`:""}
-  </article>`;
-}
-function paint(pack){
+const stripUncapped = s => {
+  const raw = String(s||"");
+  const cancel = /cancellation month/i.test(raw);
+  let out = raw.replace(/\s*[-–—]?\s*uncapped\b[\s\S]*/i, "").replace(/\s+[-–—/]\s*$/, "").trim();
+  if (cancel && !/cancellation month/i.test(out)) out = out ? out + " — cancellation month" : "cancellation month";
+  return out;
+};
+const tableInvoices = data => {
+  const byN = {};
+  const hist = ((data.books||{}).history||{}).invoices || [];
+  const drafts = ((data.books||{}).customer_invoices||{}).rows || [];
+  hist.concat(drafts).forEach(x => {
+    const n = String(x.invoice_number||"");
+    if (!n) return;
+    const row = Object.assign({}, x);
+    delete row.statement;
+    byN[n] = row;
+  });
+  return Object.keys(byN).sort((a,b)=>{
+    const da = String(byN[a].invoice_date||"");
+    const db = String(byN[b].invoice_date||"");
+    if (da!==db) return db.localeCompare(da);
+    return Number(b)-Number(a);
+  }).map(k => byN[k]);
+};
+function paint(rows){
   const q = ($("#q").value||"").trim().toLowerCase();
-  const queries = (pack.queries||[]).filter(r=>hit(r,q));
-  const monthly = (pack.customers||[]).filter(c=>!c.closed && (c.monthly_count||0)>0).filter(c=>hit(c,q));
-  $("#counts").textContent = q
-    ? `${queries.length} queries · ${monthly.length} monthly accounts`
-    : `${pack.query_count||0} need full invoice · ${pack.monthly_count||0} monthly of ${pack.count||0}`;
-  $("#queries").innerHTML = queries.map(r=>card(r,"query")).join("") || `<p class="empty">No queries match.</p>`;
-  $("#monthly").innerHTML = monthly.map(rateCard).join("") || `<p class="empty">No monthly accounts match.</p>`;
+  const hit = rows.filter(r => {
+    if (!q) return true;
+    const blob = [r.invoice_number, r.customer, r.description, r.amount, r.invoice_date].filter(Boolean).join(" ").toLowerCase();
+    return blob.includes(q);
+  });
+  $("#counts").textContent = q ? `${hit.length} of ${rows.length}` : `${rows.length} invoices`;
+  $("#list").innerHTML = hit.length ? `<table class="inv">
+    <thead><tr><th>#</th><th>Date</th><th>Client</th><th>What</th><th class="num">Amount</th></tr></thead>
+    <tbody>${hit.map(r=>`<tr>
+      <td class="num"><a href="/dash/invoice.html?n=${esc(r.invoice_number)}">${esc(r.invoice_number)}</a></td>
+      <td>${esc(r.invoice_date||"—")}</td>
+      <td><div class="name">${esc(r.customer||"—")}</div></td>
+      <td>${esc(stripUncapped(r.description||""))}</td>
+      <td class="num">${esc(money(r.amount))}</td>
+    </tr>`).join("")}</tbody>
+  </table>` : `<p class="empty">No invoices match.</p>`;
 }
 fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
   .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
   .then(data=>{
-    const pack = data.invoice_list || (data.books&&data.books.invoice_list) || {};
-    const addSearch = row => {
-      row.search = [row.name,row.qb_name,row.number,row.amount,row.why,row.what,row.memo,row.address,row.phone,row.email,row.b_number].filter(Boolean).join(" ").toLowerCase();
-      return row;
-    };
-    (pack.queries||[]).forEach(addSearch);
-    (pack.customers||[]).forEach(addSearch);
-    $("#note").textContent = pack.note || "Repeating mid-month amounts are monthly line rental. Odd amounts need the full invoice.";
-    paint(pack);
-    $("#q").addEventListener("input", ()=>paint(pack));
+    const rows = tableInvoices(data);
+    paint(rows);
+    $("#q").addEventListener("input", ()=>paint(rows));
   })
-  .catch(e=>{ $("#queries").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+  .catch(e=>{ $("#list").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
 </script>
 </body>
 </html>
