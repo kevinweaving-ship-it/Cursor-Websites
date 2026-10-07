@@ -666,7 +666,6 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
         )
         paid = round(cycle_credit, 2)
         due = round(inv_amt - cycle_credit, 2)
-        billed = meta.get("amount") or inv_amt or None
         paid_up = abs(due) <= 0.004
         last_pay = stmt.get("last_payment") or {}
         pending_do = None
@@ -684,24 +683,6 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "status": "authorised · not collected",
                 "reconciled": False,
             }
-        try:
-            from statements import account_as_at
-
-            st = account_as_at(conn, meta["name"], today)
-            if (st.get("billed") or 0) > 0.004 or (st.get("ledger") or []):
-                billed = st.get("billed")
-                paid = st.get("paid") or 0
-                due = st.get("due")
-                paid_up = bool(
-                    st.get("nil")
-                    or st.get("status") == "paid-up"
-                    or abs(float(due or 0)) <= 0.004
-                )
-                last_pay = st.get("last_payment") or last_pay
-                if st.get("pending_do"):
-                    pending_do = st.get("pending_do")
-        except Exception:
-            pass
         pkg = meta.get("package") or {}
         accounts.append(
             {
@@ -715,7 +696,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
                 "speed": pkg.get("speed"),
                 "discount": bool(meta.get("discount")),
                 "do_amount": meta["do_amount"],
-                "billed": billed,
+                "billed": meta.get("amount") or inv_amt or None,
                 "paid": paid,
                 "last_invoice": (cycle_inv or {}).get("invoice_number"),
                 "last_invoice_date": (cycle_inv or {}).get("invoice_date"),
