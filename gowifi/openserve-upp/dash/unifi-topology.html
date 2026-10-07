@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · UniFi topology</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<style>
+:root {
+  --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a; --pad:16px;
+  --ml:960px; --dl:#00b4e6; --ul:#8b5cf6;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:var(--acc); text-decoration:none; }
+a:hover { text-decoration:underline; }
+header.app {
+  position:sticky; top:0; z-index:5;
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:10px max(var(--pad), env(safe-area-inset-right)) 12px max(var(--pad), env(safe-area-inset-left));
+}
+.bar { display:flex; flex-direction:column; gap:6px; }
+header.app h1 { margin:0; font-size:22px; color:var(--acc); }
+header.app .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+.nav { display:flex; flex-wrap:wrap; gap:4px 16px; }
+.nav a { color:var(--acc); font-size:14px; min-height:40px; display:inline-flex; align-items:center; }
+main {
+  padding:12px max(var(--pad), env(safe-area-inset-right)) 32px max(var(--pad), env(safe-area-inset-left));
+  width:100%;
+}
+.banner {
+  margin:0 0 12px; padding:12px 14px; border:1px solid var(--line); border-radius:12px;
+  background:#fff8e8; color:var(--text);
+}
+.banner.ok { background:#eef8f1; }
+.banner strong { color:var(--warn); }
+.banner.ok strong { color:var(--ok); }
+.v.ok { color:var(--ok); font-weight:700; }
+.v.bad { color:var(--bad); font-weight:700; }
+.counts { color:var(--muted); font-size:13px; margin:0 0 10px; }
+h2 {
+  margin:18px 0 8px; font-size:13px; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--acc);
+}
+.card {
+  width:100%; margin:0 0 10px; padding:12px 14px;
+  background:var(--card); color:var(--text);
+  border:1px solid var(--line); border-radius:12px;
+}
+.name { font-weight:700; font-size:16px; color:var(--acc); }
+.meta { color:var(--muted); font-size:13px; margin-top:4px; }
+.k { font-size:11px; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); }
+.v { margin-top:2px; }
+.row { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.gauge.stale { opacity:.72; }
+.gauge.stale .name::after { content:" · stale"; color:var(--warn); font-weight:700; font-size:13px; }
+.ports { margin-top:8px; font-size:13px; color:var(--muted); }
+.ports b { color:var(--text); font-weight:700; }
+.node { text-align:center; padding:12px 10px; }
+.node img {
+  width:64px; height:64px; object-fit:contain; display:block; margin:0 auto 8px;
+}
+.node img.gone { display:none; }
+.rates {
+  display:flex; flex-wrap:wrap; gap:10px 16px; align-items:baseline;
+  margin:0 0 6px;
+}
+.rates .dl, .rates .ul { font-size:14px; }
+.rates b { font-size:18px; font-weight:700; }
+.rates .dl { color:var(--dl); }
+.rates .ul { color:var(--ul); }
+.rates .unit { font-size:12px; font-weight:600; }
+svg.tgraph { display:block; width:100%; height:56px; }
+.graph-empty {
+  height:56px; color:var(--muted); font-size:14px;
+  display:flex; align-items:center;
+}
+.topo {
+  display:flex; flex-direction:column; gap:0;
+}
+.incoming { display:flex; flex-direction:column; gap:0; }
+.branch { position:relative; }
+.core { display:flex; flex-direction:column; gap:0; }
+.vrail {
+  width:2px; height:14px; background:var(--line);
+  margin:0 auto;
+}
+.hrails {
+  display:none;
+}
+@media (max-width: 480px) {
+  .rates b { font-size:16px; }
+  svg.tgraph { height:48px; }
+}
+@media (min-width: 481px) {
+  header.app, main {
+    width:100%; max-width:var(--ml);
+    margin-left:auto; margin-right:auto;
+  }
+  header.app { padding:12px 20px; }
+  .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; gap:16px; }
+  main { padding:14px 20px 36px; }
+  .topo {
+    display:grid;
+    grid-template-columns: minmax(240px, 1fr) 48px minmax(168px, 220px);
+    gap:8px 0;
+    align-items:center;
+  }
+  .incoming { gap:10px; }
+  .branch { margin:0; }
+  .branch.card { margin:0; }
+  .vrail { display:none; }
+  .hrails {
+    display:block; width:48px; height:100%; min-height:220px;
+  }
+  .core { gap:10px; }
+  .node img { width:129px; height:129px; }
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="bar">
+    <div>
+      <h1>UniFi topology</h1>
+      <div class="sub">VK Pop incoming · box-verified 7 Oct 2026</div>
+    </div>
+    <nav class="nav">
+      <a href="/dash/unifi.html">UniFi</a>
+      <a href="/dash/unifi.html?h=1-dream-machine-pro-hermanus">Dream Machine</a>
+      <a href="/dash/#/">Home</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="banner" id="banner">Loading topology…</div>
+  <div class="counts" id="counts">Ports below are box-verified 7 Oct 2026. Live Mbps from this machine.</div>
+  <h2>Incoming → UDM Pro → UISP Console</h2>
+  <div class="topo">
+    <div class="incoming" id="branches"></div>
+    <svg class="hrails" id="hrails" viewBox="0 0 48 300" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <div class="core">
+      <article class="card node" id="udm-node">
+        <img id="udm-icon" alt="UniFi Dream Machine Pro" width="129" height="129">
+        <div class="name">UDM Pro</div>
+        <div class="meta" id="udm-meta">1 Dream Machine Pro Hermanus</div>
+      </article>
+      <div class="vrail" aria-hidden="true"></div>
+      <div class="card" id="console-link"></div>
+      <div class="vrail" aria-hidden="true"></div>
+      <article class="card node" id="console-node">
+        <img id="console-icon" alt="UISP Console" width="129" height="129">
+        <div class="name">UISP Console</div>
+        <div class="meta" id="console-meta">Looking up on UISP…</div>
+      </article>
+    </div>
+  </div>
+</main>
+<script>
+const HOST = "1-dream-machine-pro-hermanus";
+const POLL_MS = 2000;
+const STALE_MS = 10000;
+const HIST_MAX = 90;
+const VERIFIED = "box-verified 7 Oct 2026";
+const CONSOLE_MAC = "e4:38:83:de:e6:4a";
+const ICONS = {
+  udm: "https://static.ui.com/fingerprint/ui/icons/a685746f-cd8f-4453-90c7-68a3ba9c1953_129x129.png",
+  console: "https://static.ui.com/fingerprint/ui/icons/3af1df03-557b-4243-9aaf-91abbb97aac6_129x129.png"
+};
+const BRANCH = {
+  wan: {
+    udm: "UDM P9",
+    far: "ISP · not in API",
+    how: "wan1 eth8 · " + VERIFIED
+  },
+  wan2: {
+    udm: "UDM P8",
+    far: "ISP · not in API",
+    how: "wan2 eth7 · " + VERIFIED
+  },
+  lte: {
+    udm: "UDM gre1",
+    far: "U-LTE-Pro radio",
+    how: "WAN3 tunnel is gre1. Physical radio is U-LTE-Pro (ULTEPEU), not a UDM copper WAN. " + VERIFIED
+  }
+};
+
+let GAUGES = [];
+let HISTORY = {};
+let LAST_OK_MS = 0;
+let LAST_AS_AT = "";
+let STALE = false;
+let CONSOLE = { ok: false, text: "UISP not checked" };
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[c]));
+}
+function fmtAsAt(s) {
+  const raw = String(s || "").trim();
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  return m ? (m[1] + " " + m[2]) : raw;
+}
+function wanStatus(s) {
+  const low = String(s || "").toLowerCase();
+  if (low === "online" || low === "up") return { text:"Online", cls:"ok" };
+  if (low === "offline" || low === "down") return { text:"Offline", cls:"bad" };
+  return { text: s || "unknown", cls:"" };
+}
+function numOrNull(n) {
+  if (n == null || n === "") return null;
+  const v = Number(n);
+  return Number.isFinite(v) ? v : null;
+}
+function mbpsText(n) {
+  const v = numOrNull(n);
+  return v == null ? "—" : v.toFixed(2);
+}
+function mergeGauges(base, live) {
+  if (!live || !live.length) return base || [];
+  if (!base || !base.length) return live;
+  const byId = Object.fromEntries(live.map(g => [g.id, g]));
+  return base.map(g => {
+    const n = byId[g.id];
+    if (!n) return g;
+    return Object.assign({}, g, n, {
+      name: g.name,
+      capacity_down_mbps: g.capacity_down_mbps,
+      capacity_up_mbps: g.capacity_up_mbps,
+      used_down_mbps: n.used_down_mbps,
+      used_up_mbps: n.used_up_mbps
+    });
+  });
+}
+function pushHist(gauges) {
+  (gauges || []).forEach(g => {
+    if (!HISTORY[g.id]) HISTORY[g.id] = { down: [], up: [] };
+    HISTORY[g.id].down.push(numOrNull(g.used_down_mbps));
+    HISTORY[g.id].up.push(numOrNull(g.used_up_mbps));
+    if (HISTORY[g.id].down.length > HIST_MAX) HISTORY[g.id].down.shift();
+    if (HISTORY[g.id].up.length > HIST_MAX) HISTORY[g.id].up.shift();
+  });
+}
+function seriesPath(values, w, h, pad, max) {
+  const n = Math.max(values.length, 1);
+  const step = (w - pad * 2) / Math.max(n - 1, 1);
+  const pts = [];
+  values.forEach((v, i) => {
+    if (v == null || !Number.isFinite(v)) return;
+    const x = pad + i * step;
+    const y = h - pad - (v / max) * (h - pad * 2);
+    pts.push([x, y]);
+  });
+  return pts;
+}
+function trafficGraph(down, up) {
+  const d = down || [];
+  const u = up || [];
+  const nums = d.concat(u).filter(v => v != null && Number.isFinite(v));
+  if (!nums.length) return `<div class="graph-empty">—</div>`;
+  const w = 240, h = 56, pad = 3;
+  const max = Math.max(0.01, ...nums);
+  const dPts = seriesPath(d, w, h, pad, max);
+  const uPts = seriesPath(u, w, h, pad, max);
+  function line(pts) {
+    return pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  }
+  function area(pts) {
+    if (!pts.length) return "";
+    const base = h - pad;
+    return line(pts) + " L" + pts[pts.length - 1][0].toFixed(1) + " " + base.toFixed(1) +
+      " L" + pts[0][0].toFixed(1) + " " + base.toFixed(1) + " Z";
+  }
+  return `<svg class="tgraph" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <path fill="rgba(0,180,230,.22)" d="${area(dPts)}"></path>
+    <path fill="rgba(139,92,246,.22)" d="${area(uPts)}"></path>
+    <path fill="none" stroke="#00b4e6" stroke-width="1.6" d="${line(dPts)}"></path>
+    <path fill="none" stroke="#8b5cf6" stroke-width="1.6" d="${line(uPts)}"></path>
+  </svg>`;
+}
+function lteStatus(g, st) {
+  if (g.kind !== "lte") return st.text;
+  if (st.text === "Online" && g.failover_active === false) return "Online · Standby";
+  if (st.text === "Online" && g.failover_active === true) return "Online · Active";
+  return st.text;
+}
+function setBanner(stale, asAt) {
+  const banner = document.getElementById("banner");
+  LAST_AS_AT = fmtAsAt(asAt || LAST_AS_AT);
+  if (stale) {
+    banner.className = "banner";
+    banner.innerHTML = "<strong>Stale.</strong> as at " + esc(LAST_AS_AT || "—");
+    return;
+  }
+  banner.className = "banner ok";
+  banner.innerHTML = "<strong>Live from this machine.</strong> as at " + esc(LAST_AS_AT);
+}
+function bindIcon(id, src) {
+  const img = document.getElementById(id);
+  img.src = src;
+  img.addEventListener("error", () => { img.classList.add("gone"); }, { once:true });
+}
+function paintRails() {
+  const svg = document.getElementById("hrails");
+  if (!svg || window.matchMedia("(max-width: 480px)").matches) {
+    if (svg) svg.innerHTML = "";
+    return;
+  }
+  const incoming = document.getElementById("branches");
+  const cards = incoming ? incoming.querySelectorAll(".branch") : [];
+  if (!cards.length) { svg.innerHTML = ""; return; }
+  const host = incoming.getBoundingClientRect();
+  const rail = svg.getBoundingClientRect();
+  const h = Math.max(rail.height, 220);
+  svg.setAttribute("viewBox", "0 0 48 " + h);
+  const ys = Array.from(cards).map(el => {
+    const r = el.getBoundingClientRect();
+    return (r.top + r.height / 2) - host.top;
+  });
+  const mid = ys.reduce((a, b) => a + b, 0) / ys.length;
+  let d = "";
+  ys.forEach(y => { d += "M0 " + y.toFixed(1) + " H24 V" + mid.toFixed(1) + " "; });
+  d += "M24 " + mid.toFixed(1) + " H48";
+  svg.innerHTML = `<path fill="none" stroke="#d5deea" stroke-width="2" d="${d}"></path>`;
+}
+function paint() {
+  const order = ["wan", "wan2", "lte"];
+  const byId = Object.fromEntries((GAUGES || []).map(g => [g.id, g]));
+  document.getElementById("branches").innerHTML = order.map(id => {
+    const g = byId[id] || { id, kind: id === "lte" ? "lte" : "fibre", name: id, status: "" };
+    const spec = BRANCH[id];
+    const st = wanStatus(g.status);
+    const statusTxt = lteStatus(g, st);
+    const bits = id === "lte"
+      ? [g.operator, g.signal, g.ip].filter(Boolean)
+      : [g.ip, g.latency_ms != null ? (Number(g.latency_ms) + " ms") : ""].filter(Boolean);
+    const hist = HISTORY[id] || { down: [], up: [] };
+    return `<article class="card gauge branch${STALE ? " stale" : ""}">
+      <div class="rates">
+        <span class="dl"><b>${esc(mbpsText(g.used_down_mbps))}</b> <span class="unit">Mbps ↓</span></span>
+        <span class="ul"><b>${esc(mbpsText(g.used_up_mbps))}</b> <span class="unit">Mbps ↑</span></span>
+      </div>
+      ${trafficGraph(hist.down, hist.up)}
+      <div class="row">
+        <div>
+          <div class="name">${esc(g.name || spec.udm)}</div>
+          ${bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : ""}
+        </div>
+        <div>
+          <div class="k">Status</div>
+          <div class="v ${st.cls}">${esc(statusTxt)}</div>
+        </div>
+      </div>
+      <div class="ports"><b>${esc(spec.udm)}</b> · ${esc(spec.far)}<div class="meta">${esc(spec.how)}</div></div>
+    </article>`;
+  }).join("");
+  document.getElementById("console-link").innerHTML =
+    `<div class="ports"><b>UDM P1</b> · Console eth8</div>` +
+    `<div class="meta">LLDP port_id local eth8 · ${esc(VERIFIED)}. Not a guessed port 8 or 9.</div>` +
+    `<div class="meta">${esc(CONSOLE.text)}</div>`;
+  requestAnimationFrame(paintRails);
+}
+function markStale() {
+  STALE = true;
+  paint();
+  setBanner(true, LAST_AS_AT);
+}
+function applyHost(data) {
+  STALE = false;
+  LAST_OK_MS = Date.now();
+  GAUGES = (data.host && data.host.gauges) || data.gauges || GAUGES;
+  if (data.host && data.host.name) {
+    document.getElementById("udm-meta").textContent = data.host.name;
+  }
+  pushHist(GAUGES);
+  paint();
+  setBanner(false, data.as_at);
+}
+function pollTick() {
+  if (document.hidden) {
+    if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+    return;
+  }
+  fetch("/dash/api/unifi?h=" + encodeURIComponent(HOST) + "&live=1", { credentials:"same-origin", cache:"no-store" })
+    .then(r => r.json())
+    .then(data => {
+      if (!data || !data.ok) { markStale(); return; }
+      STALE = false;
+      LAST_OK_MS = Date.now();
+      GAUGES = mergeGauges(GAUGES, data.gauges || []);
+      pushHist(GAUGES);
+      paint();
+      setBanner(false, data.as_at);
+    })
+    .catch(() => { markStale(); });
+}
+function loadConsole() {
+  fetch("/dash/api/devices?withInterfaces=true", { credentials:"same-origin", cache:"no-store" })
+    .then(r => r.json())
+    .then(data => {
+      const rows = Array.isArray(data) ? data : (data.items || data.data || data.devices || []);
+      const hit = rows.find(d => {
+        const ident = d.identification || {};
+        const mac = String(ident.mac || d.mac || "").toLowerCase();
+        return mac === CONSOLE_MAC;
+      });
+      if (!hit) {
+        CONSOLE = { ok:false, text:"UDM → Console · not in UISP" };
+      } else {
+        const ident = hit.identification || {};
+        CONSOLE = {
+          ok:true,
+          text: (ident.name || "VK UISP-Console") + " · " + (ident.model || "UISP-Console") + " · " + CONSOLE_MAC
+        };
+      }
+      document.getElementById("console-meta").textContent = CONSOLE.ok
+        ? (hit.identification && hit.identification.name) || "VK UISP-Console"
+        : "UDM → Console · not in UISP";
+      paint();
+    })
+    .catch(() => {
+      CONSOLE = { ok:false, text:"UDM → Console · not in UISP" };
+      document.getElementById("console-meta").textContent = "UDM → Console · not in UISP";
+      paint();
+    });
+}
+
+bindIcon("udm-icon", ICONS.udm);
+bindIcon("console-icon", ICONS.console);
+window.addEventListener("resize", paintRails);
+loadConsole();
+fetch("/dash/api/unifi?h=" + encodeURIComponent(HOST), { credentials:"same-origin", cache:"no-store" })
+  .then(r => r.json())
+  .then(data => {
+    if (!data || !data.live || !data.host) {
+      document.getElementById("banner").className = "banner";
+      document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong> " + esc(data && data.error || "No host");
+      paint();
+      return;
+    }
+    applyHost(data);
+    setInterval(pollTick, POLL_MS);
+  })
+  .catch(err => {
+    document.getElementById("banner").className = "banner";
+    document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong> " + esc(err.message || err);
+    paint();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoWifi invoice</title>
+<style>
+@page { size: A4; margin: 12mm; }
+body { font: 11px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; color:#0b1f44; background:#ffffff; margin:0; }
+.sheet { width:100%; max-width:210mm; min-height:0; margin:12px auto; background:#fff; padding:12px 14px 16px; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); }
+@media (min-width: 700px) {
+  .sheet { width:210mm; min-height:297mm; margin:16px auto; padding:10mm 12mm 14mm; }
+}
+.card { border: 2.5px solid #123a7a; border-radius:8px; padding:12px 14px; margin:0 0 12px; background:#fff; }
+.invoice-outer { border:4px solid #0b1f44; border-radius:10px; padding:10px; margin:0 0 12px; background:#fff; }
+.inner-card { border:1.5px solid #8aa4c8; border-radius:8px; padding:12px 14px; background:#fff; }
+.card-row { display:flex; gap:10px; margin:0 0 10px; }
+.invoice-outer .card-row .inner-card { flex:1; min-width:0; }
+.invoice-main .pane { flex:1; min-width:0; }
+.invoice-main .lines-wrap { margin:0; }
+.brand { font-size:18px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; color:#123a7a; }
+.doc-title { font-size:22px; font-weight:700; letter-spacing:.12em; color:#123a7a; }
+.muted { color:#555; }
+.label { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:#123a7a; margin-bottom:3px; font-weight:700; }
+.who { font-weight:700; font-size:13px; }
+.meta { border-collapse:collapse; margin-top:8px; }
+.meta th { text-align:left; font-weight:600; color:#555; padding:2px 16px 2px 0; }
+.meta td { text-align:right; font-weight:600; }
+table.lines, table.soa, table.index { width:100%; border-collapse:collapse; }
+table.lines th, table.soa th, table.index th { text-align:left; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border-bottom:2px solid #123a7a; padding:6px 4px; color:#123a7a; }
+table.lines td, table.index td { padding:5px 4px; border-bottom:1.5px solid #123a7a; vertical-align:top; font-size:13px; }
+@media (max-width: 600px) {
+  .card-row { flex-direction:column; }
+}
+table.soa td { padding:4px; border-bottom:1.5px solid #123a7a; vertical-align:top; }
+table.soa a, table.index a { color:#123a7a; text-decoration:underline; font-weight:600; }
+.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.due { font-size:13px; font-weight:700; text-align:right; margin:10px 0 8px; color:#123a7a; }
+h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; margin:0 0 8px; display:flex; justify-content:space-between; align-items:baseline; color:#123a7a; }
+.ageing { width:100%; border-collapse:collapse; margin:10px 0 4px; }
+.ageing th { font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:#123a7a; text-align:right; padding:4px 6px; border-bottom:2px solid #123a7a; }
+.ageing td { text-align:right; font-weight:600; padding:6px; font-variant-numeric:tabular-nums; border-top:1.5px solid #123a7a; }
+.ageing td.total, .ageing th.total { font-size:13px; }
+.bank { color:#333; margin-bottom:0; }
+.ledger-card .stmt { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; line-height:1.35; }
+.ledger-card .stmt col.d { width:6.4em; }
+.ledger-card .stmt col.n { width:5.4em; }
+.ledger-card .stmt th,
+.ledger-card .stmt td {
+  font-size:12px; line-height:1.35; font-weight:600;
+  padding:5px 6px 5px 0; vertical-align:top;
+  border-bottom:1px solid #d5deea;
+}
+.ledger-card .stmt th {
+  text-align:left; color:#4a5d7a; letter-spacing:.03em;
+  text-transform:uppercase; font-weight:700;
+}
+.ledger-card .stmt th.num, .ledger-card .stmt td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.ledger-card .stmt td.date { white-space:nowrap; }
+.ledger-card .stmt tr:last-child td { border-bottom:0; }
+.ledger-card .stmt tr.payment td { color:#1a8f4a; }
+.ledger-card .stmt tr.invoice td,
+.ledger-card .stmt tr.invoice.pending td { color:#c77800; }
+.ledger-card .stmt tr.invoice.matched td { color:#123a7a; }
+.ledger-card .stmt tr.invoice.unpaid td,
+.ledger-card .stmt tr.invoice.overdue td { color:#6b2d8b; }
+.ledger-card .stmt tr.unpaid td { color:#c62828; }
+.ledger-card .stmt tr.here td { background:#eef3fa; }
+.ledger-card .stmt a { color:inherit; text-decoration:underline; font-weight:700; }
+a.back { font: 13px/1.4 sans-serif; color:#345; }
+.screen-only { max-width:210mm; margin:12px auto 0; padding:0 16px; }
+.index-wrap { width:210mm; margin:16px auto 32px; background:#fff; padding:14mm 16mm; box-sizing:border-box; box-shadow:0 1px 8px rgba(0,0,0,.12); border: 2.5px solid #123a7a; border-radius:8px; }
+.index-wrap h1 { font-size:20px; letter-spacing:.08em; margin:0 0 4px; }
+.index-wrap a { color:#123a7a; }
+.err { color:#a00; padding:24px; }
+@media print { body { background:#fff; } .sheet, .index-wrap { margin:0; box-shadow:none; width:auto; min-height:0; padding:0; } .screen-only { display:none; } }
+</style>
+</head>
+<body>
+<p class="screen-only"><a class="back" href="/dash/accounts.html">← Fibre accounts</a></p>
+<div id="app">Loading…</div>
+<script>
+const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const stripUncapped = s => {
+  const raw = String(s||"");
+  const cancel = /cancellation month/i.test(raw);
+  let out = raw.replace(/\s*[-–—]?\s*uncapped\b[\s\S]*/i, "").replace(/\s+[-–—/]\s*$/, "").trim();
+  if (cancel && !/cancellation month/i.test(out)) out = out ? out + " — cancellation month" : "cancellation month";
+  return out;
+};
+const money = (v, withR=true) => {
+  if (v==null || v==="") return "";
+  const n = Number(v);
+  if (Number.isNaN(n)) return "";
+  const sign = n<0 ? "-" : "";
+  const body = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return sign + (withR ? "R" : "") + body;
+};
+const fmtDate = v => {
+  if (!v) return "—";
+  const s = String(v).trim();
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  const dmy = s.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+  if (dmy) return `${dmy[1]}/${dmy[2]}/${dmy[3]}`;
+  return s;
+};
+const addrHtml = a => String(a||"").split(",").map(x=>x.trim()).filter(Boolean).map(x=>`<div>${esc(x)}</div>`).join("");
+const parseDay = v => {
+  const s = String(v||"").trim();
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return new Date(+iso[1], +iso[2]-1, +iso[3]);
+  const dmy = s.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+  if (dmy) return new Date(+dmy[3], +dmy[2]-1, +dmy[1]);
+  return null;
+};
+const ageFromOpen = (lines, asAt) => {
+  const ageing = {current:0, d30:0, d60:0, d90:0, older:0};
+  let day0 = parseDay(asAt);
+  if (!day0) { day0 = new Date(); }
+  day0.setHours(0,0,0,0);
+  (lines||[]).forEach(l => {
+    if ((l.kind||"") !== "invoice") return;
+    const open = Number(l.open!=null ? l.open : 0);
+    if (open <= 0.004) return;
+    const d = parseDay(l.date) || day0;
+    const days = Math.round((day0 - d) / 86400000);
+    const bucket = days<=0 ? "current" : days<=30 ? "d30" : days<=60 ? "d60" : days<=90 ? "d90" : "older";
+    ageing[bucket] += open;
+  });
+  Object.keys(ageing).forEach(k => { ageing[k] = Math.max(0, Math.round(ageing[k]*100)/100); });
+  return ageing;
+};
+const sameClient = (a, b) => {
+  const n = (a.customer||a.name||"").toLowerCase();
+  const w = (b.customer||b.name||"").toLowerCase();
+  return n && w && (n===w || (n.includes("marlene") && w.includes("marlene")) || (n.includes("van eeden") && w.includes("van eeden")));
+};
+const isDoLine = l => {
+  const blob = `${l.what||""} ${l.description||""} ${l.note||""}`.toLowerCase();
+  return (l.kind||"")==="payment" && (blob.includes("d/o") || blob.includes("debit"));
+};
+const collapseDoTwins = lines => {
+  const rows = (lines||[]).map(l => Object.assign({}, l));
+  const drop = new Set();
+  rows.forEach((rec, i) => {
+    if ((rec.kind||"")!=="payment" || drop.has(i)) return;
+    const amt = Math.round(Math.abs(Number(rec.amount||0))*100)/100;
+    const day = String(rec.date||"").slice(0,10);
+    const group = [];
+    rows.forEach((o, j) => {
+      if ((o.kind||"")!=="payment") return;
+      if (String(o.date||"").slice(0,10)!==day) return;
+      if (Math.round(Math.abs(Number(o.amount||0))*100)/100!==amt) return;
+      group.push(j);
+    });
+    if (group.length<2 || !group.some(j => isDoLine(rows[j]))) return;
+    const winner = group.find(j => isDoLine(rows[j]));
+    group.forEach(j => { if (j!==(winner==null?group[0]:winner)) drop.add(j); });
+  });
+  return rows.filter((_, i) => !drop.has(i));
+};
+const statementAsAtInvoice = (lines, invNo) => {
+  let rows = collapseDoTwins((lines||[]).filter(l => (l.kind||"")!=="line"));
+  const want = String(invNo||"");
+  const idx = rows.findIndex(l => (l.kind||"")==="invoice" && String(l.ref||l.invoice_number||"")===want);
+  if (idx < 0) return [];
+  let start = idx;
+  while (start>0 && (rows[start-1].kind||"")==="payment" && String(rows[start-1].ref||"")===want) start--;
+  let window = rows.slice(start);
+  let cut = window.length;
+  for (let i = 1; i < window.length; i++) {
+    if (Math.abs(Number(window[i].balance||0)) <= 0.004) { cut = i + 1; break; }
+  }
+  window = window.slice(0, cut);
+  const chron = window.slice().reverse();
+  let bal = 0;
+  chron.forEach((l, i) => {
+    if (i===0 && Math.abs(Number(l.balance||0))<=0.004) { l.balance = 0; return; }
+    if ((l.kind||"") !== "unpaid") bal = Math.round((bal + Number(l.amount||0))*100)/100;
+    l.balance = bal;
+  });
+  return chron.reverse();
+};
+const invoiceFromLedger = (card, invNo) => {
+  const line = ((card&&card.ledger)||[]).find(l =>
+    (l.kind||"")==="invoice" && String(l.ref||l.invoice_number||"")===String(invNo)
+  );
+  if (!line) return null;
+  return {
+    invoice_number: invNo,
+    invoice_date: line.date,
+    due_date: line.date,
+    customer: card.customer || card.name,
+    address: card.address,
+    description: stripUncapped(line.what || line.description || "Monthly service"),
+    qty: 1,
+    rate: line.amount,
+    amount: line.amount,
+    terms: "Due on receipt"
+  };
+};
+const cardForInvoice = (cards, invNo, inv) => {
+  const n = String(invNo||"");
+  const byRef = (cards||[]).find(c => ((c&&c.ledger)||[]).some(l =>
+    (l.kind||"")==="invoice" && String(l.ref||l.invoice_number||"")===n
+  ));
+  if (byRef) return byRef;
+  return inv ? (cards||[]).find(c => sameClient(c, inv)) : null;
+};
+const tableInvoices = data => {
+  const byN = {};
+  const hist = ((data.books||{}).history||{}).invoices || [];
+  const drafts = ((data.books||{}).customer_invoices||{}).rows || [];
+  hist.concat(drafts).forEach(x => {
+    const n = String(x.invoice_number||"");
+    if (!n) return;
+    const row = Object.assign({}, x);
+    delete row.statement;
+    byN[n] = row;
+  });
+  return Object.keys(byN).sort((a,b)=>Number(a)-Number(b)).map(k => byN[k]);
+};
+const params = new URLSearchParams(location.search);
+fetch("accounts.json?v="+Date.now(), {credentials:"same-origin", cache:"no-store"})
+  .then(r => { if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+  .then(data => {
+    const all = tableInvoices(data);
+    const want = params.get("n");
+    const c = (data.books&&data.books.company) || {};
+    const cards = ((data.clients||{}).cards||[]).concat((data.clients||{}).offsets||[]);
+    if (!want) {
+      document.title = "GoWifi invoices";
+      document.getElementById("app").innerHTML = `
+        <div class="index-wrap">
+          <header class="letterhead">
+            <div>
+              <div class="brand">${esc(c.name||"GoWifi (Pty) Ltd")}</div>
+              <div class="muted">Invoice and statement of account</div>
+            </div>
+            <div class="doc-title">INVOICES</div>
+          </header>
+          <table class="index">
+            <thead><tr><th>#</th><th>Date</th><th>Client</th><th>What for</th><th class="num">Amount</th></tr></thead>
+            <tbody>${
+              all.map(r=>`<tr><td><a href="?n=${esc(r.invoice_number)}">${esc(r.invoice_number)}</a></td><td>${esc(fmtDate(r.invoice_date))}</td><td>${esc(r.customer||"—")}</td><td>${esc(r.description||"Monthly service")}</td><td class="num">${money(r.amount)}</td></tr>`).join("") || `<tr><td colspan="5">None yet</td></tr>`
+            }</tbody>
+          </table>
+        </div>`;
+      return;
+    }
+    let r = all.find(x => String(x.invoice_number)===String(want));
+    const card = cardForInvoice(cards, want, r);
+    if (!r) r = invoiceFromLedger(card, want);
+    if (!r) { document.getElementById("app").innerHTML = `<p class="err">No invoice ${esc(want)}</p>`; return; }
+    const asAtInv = r.invoice_date || (data.clients&&data.clients.as_at);
+    const cardLines = statementAsAtInvoice(((card&&card.ledger)||[]), r.invoice_number);
+    const lines = cardLines.length ? cardLines : [{
+      date: r.invoice_date, description: r.description, ref: r.invoice_number,
+      amount: r.amount, balance: r.amount, kind: "invoice", open: r.amount
+    }];
+    const cardAgeing = ageFromOpen(lines, asAtInv);
+    const dueAt = Number(lines[0].balance!=null ? lines[0].balance : r.amount);
+    const stmt = {lines: lines.map(l => ({
+          date: l.date, date_fmt: l.date_fmt, description: l.what||l.description,
+          invoice_number: l.kind==="invoice" ? (l.ref||l.invoice_number||"") : "", amount: l.amount,
+          balance: l.balance, kind: l.kind, open: l.open, tone: l.tone||""
+        })), total_due: dueAt, ageing: cardAgeing, as_at: asAtInv};
+    const ageing = stmt.ageing || {};
+    const due = stmt.total_due;
+    const desc = r.description || "Monthly service";
+    document.title = "Invoice "+r.invoice_number;
+    document.getElementById("app").innerHTML = `
+      <article class="sheet">
+        <section class="invoice-outer invoice-main">
+          <div class="card-row">
+            <div class="inner-card pane">
+              <div class="label">From</div>
+              <div class="brand">${esc(c.name||"GoWifi (Pty) Ltd")}</div>
+              ${(c.lines||[]).map(x=>`<div>${esc(x)}</div>`).join("")}
+              <div class="muted">${esc(c.phone||"")} · ${esc(c.email||"")}</div>
+              <div class="muted">Business ID No. ${esc(c.reg||"")}</div>
+            </div>
+            <div class="inner-card pane">
+              <div class="label">Bill to</div>
+              <div class="who">${esc(r.customer||"—")}</div>
+              ${addrHtml(r.address)}
+              <table class="meta">
+                <tr><th>Invoice</th><td>${esc(r.invoice_number)}</td></tr>
+                <tr><th>Date</th><td>${esc(fmtDate(r.invoice_date))}</td></tr>
+                <tr><th>Terms</th><td>${esc(r.terms||"Due on receipt")}</td></tr>
+                <tr><th>Due date</th><td>${esc(fmtDate(r.due_date||r.invoice_date))}</td></tr>
+              </table>
+            </div>
+          </div>
+          <div class="inner-card lines-wrap">
+            <h2><span>Invoice</span><span class="doc-title">INVOICE</span></h2>
+            <table class="lines">
+              <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+              <tbody><tr>
+                <td>${esc(desc)}</td>
+                <td class="num">${esc(r.qty||1)}</td>
+                <td class="num">${money(r.rate!=null?r.rate:r.amount,false)}</td>
+                <td class="num">${money(r.amount,false)}</td>
+              </tr></tbody>
+            </table>
+            <div class="due">This invoice ${money(r.amount)}</div>
+          </div>
+        </section>
+        ${stmt.lines && stmt.lines.length ? `
+        <section class="card ledger-card">
+        <h2><span>Statement</span><span class="muted">as at ${esc(fmtDate(stmt.as_at||r.invoice_date))}</span></h2>
+        <div class="due">Outstanding ${money(due)}</div>
+        <table class="stmt">
+          <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>
+          <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+          <tbody>${stmt.lines.map(line=>{
+            const n = line.invoice_number || (line.kind==="invoice" ? line.ref : "");
+            const here = n && String(n)===String(r.invoice_number);
+            const cls = [line.kind||"", line.tone||"", here?"here":""].filter(Boolean).join(" ");
+            const what = stripUncapped(line.description||"");
+            const label = n ? `<a href="?n=${esc(n)}">${esc(what)}</a>` : esc(what);
+            return `<tr class="${esc(cls)}">
+            <td class="date">${esc(line.date_fmt||fmtDate(line.date))}</td>
+            <td>${label}</td>
+            <td class="num">${money(line.amount,false)}</td>
+            <td class="num">${money(line.balance,false)}</td>
+          </tr>`;
+          }).join("")}</tbody>
+        </table>
+        <table class="ageing">
+          <tr>
+            <th>Current<br>Due</th>
+            <th>1–30 Days<br>Past Due</th>
+            <th>31–60 Days<br>Past Due</th>
+            <th>61–90 Days<br>Past Due</th>
+            <th>90+ Days<br>Past Due</th>
+            <th class="total">Amount<br>Due</th>
+          </tr>
+          <tr>
+            <td>${money(ageing.current,false)||"0.00"}</td>
+            <td>${money(ageing.d30,false)||"0.00"}</td>
+            <td>${money(ageing.d60,false)||"0.00"}</td>
+            <td>${money(ageing.d90,false)||"0.00"}</td>
+            <td>${money(ageing.older,false)||"0.00"}</td>
+            <td class="total">${money(due)}</td>
+          </tr>
+        </table>
+        </section>` : `<section class="card"><div class="due">Balance due ${money(due)}</div></section>`}
+        <footer class="card bank">
+          <div class="label">Banking / EFT</div>
+          <div>Account name ${esc(c.bank_account_name||"GoWifi (Pty) Ltd")}</div>
+          <div>${esc(c.bank||"First National Bank")} · ${esc(c.branch||"Hermanus")} · ${esc(c.branch_code||"200412")}</div>
+          <div>Account ${esc(c.account_number||"62860060278")} · Reference ${esc(r.invoice_number)}</div>
+        </footer>
+      </article>`;
+  })
+  .catch(e => { document.getElementById("app").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>
