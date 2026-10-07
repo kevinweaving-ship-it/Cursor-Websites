@@ -11,6 +11,8 @@ import os
 import re
 import ssl
 import sys
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -21,6 +23,12 @@ from pathlib import Path
 ENV_PATH = Path(os.environ.get("UNIFI_ENV", "/root/secrets/unifi.env"))
 LISTEN = os.environ.get("UNIFI_API_LISTEN", "127.0.0.1:8801")
 BASE = "https://api.ui.com"
+_LIVE_CACHE_PATH = Path(os.environ.get("UNIFI_LIVE_CACHE", "/root/gowifi-upp/data/unifi-live-cache.json"))
+_LIVE_SERVE_MAX = 60.0
+_LIVE_REFRESH_AFTER = 2.0
+_LIVE_LOCK = threading.Lock()
+_LIVE_MEM: dict[str, tuple[float, dict]] = {}
+_LIVE_INFLIGHT: set[str] = set()
 
 
 def _load_env(path: Path = ENV_PATH) -> dict[str, str]:
@@ -44,11 +52,11 @@ def _slug(name: str) -> str:
 
 
 def _as_at(when: datetime | None = None) -> str:
-    """Always YYYY-MM-DD HH:MM. No T, no seconds, no Z. 2026-10-07T07:44:52Z → 2026-10-07 07:44."""
+    """Always YYYY-MM-DD HH:MM:SS UTC. No T, no Z. 2026-10-07T07:44:52Z → 2026-10-07 07:44:52."""
     now = when or datetime.now(timezone.utc)
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
-    return now.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    return now.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _get(path: str, key: str) -> dict:
@@ -422,7 +430,47 @@ def _wan_live(key: str, host_id: str) -> list[dict]:
     return gauges
 
 
-def host_live(want: str) -> dict:
+def _live_store(want: str, pack: dict) -> None:
+    if not want or not pack.get("ok") or not pack.get("gauges"):
+        return
+    now = time.time()
+    with _LIVE_LOCK:
+        _LIVE_MEM[want] = (now, pack)
+    try:
+        disk: dict = {}
+        if _LIVE_CACHE_PATH.exists():
+            raw = json.loads(_LIVE_CACHE_PATH.read_text())
+            if isinstance(raw, dict):
+                disk = raw
+        disk[want] = {"ts": now, "pack": pack}
+        _LIVE_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _LIVE_CACHE_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps(disk))
+        tmp.replace(_LIVE_CACHE_PATH)
+    except Exception:
+        pass
+
+
+def _live_lookup(want: str):
+    with _LIVE_LOCK:
+        hit = _LIVE_MEM.get(want)
+        if hit:
+            return hit
+    try:
+        raw = json.loads(_LIVE_CACHE_PATH.read_text())
+        row = raw.get(want) if isinstance(raw, dict) else None
+        if row and isinstance(row, dict) and isinstance(row.get("pack"), dict):
+            ts = float(row.get("ts") or 0)
+            pack = row["pack"]
+            with _LIVE_LOCK:
+                _LIVE_MEM[want] = (ts, pack)
+            return ts, pack
+    except Exception:
+        return None
+    return None
+
+
+def _host_live_fetch(want: str) -> dict:
     env = _load_env()
     key = env.get("UNIFI_API_KEY") or ""
     if not key:
@@ -446,7 +494,51 @@ def host_live(want: str) -> dict:
         "as_at": _as_at(),
         "poll_ms": 2000,
         "gauges": gauges,
+        "cached": False,
     }
+
+
+def _kick_live_refresh(want: str) -> None:
+    with _LIVE_LOCK:
+        if want in _LIVE_INFLIGHT:
+            return
+        _LIVE_INFLIGHT.add(want)
+
+    def run() -> None:
+        try:
+            pack = _host_live_fetch(want)
+            if pack.get("ok") and pack.get("gauges"):
+                _live_store(want, pack)
+        finally:
+            with _LIVE_LOCK:
+                _LIVE_INFLIGHT.discard(want)
+
+    threading.Thread(target=run, name="unifi-live-refresh", daemon=True).start()
+
+
+def host_live(want: str) -> dict:
+    now = time.time()
+    hit = _live_lookup(want)
+    if hit:
+        ts, pack = hit
+        age = now - ts
+        if pack.get("ok") and pack.get("gauges") and 0 <= age < _LIVE_SERVE_MAX:
+            if age > _LIVE_REFRESH_AFTER:
+                _kick_live_refresh(want)
+            out = dict(pack)
+            out["cached"] = True
+            out["cache_age_s"] = round(age, 2)
+            return out
+    pack = _host_live_fetch(want)
+    if pack.get("ok") and pack.get("gauges"):
+        _live_store(want, pack)
+        return pack
+    if hit and hit[1].get("ok") and hit[1].get("gauges"):
+        out = dict(hit[1])
+        out["cached"] = True
+        out["cache_age_s"] = round(now - hit[0], 2)
+        return out
+    return pack
 
 
 def summary() -> dict:
@@ -543,6 +635,14 @@ def serve() -> None:
     host, port = LISTEN.split(":")
     httpd = ThreadingHTTPServer((host, int(port)), Handler)
     print(f"unifi-api on {LISTEN}", flush=True)
+
+    def warm() -> None:
+        try:
+            host_live("1-dream-machine-pro-hermanus")
+        except Exception as exc:
+            sys.stderr.write(f"unifi-api: live warm failed: {exc}\n")
+
+    threading.Thread(target=warm, name="unifi-live-warm", daemon=True).start()
     httpd.serve_forever()
 
 
@@ -597,7 +697,7 @@ def self_test() -> int:
     else:
         print("OK iface-rates")
     stamped = _as_at(datetime(2026, 10, 7, 7, 44, 52, tzinfo=timezone.utc))
-    if stamped != "2026-10-07 07:44":
+    if stamped != "2026-10-07 07:44:52":
         print("FAIL as-at", stamped)
         failed += 1
     else:
