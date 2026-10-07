@@ -11,7 +11,7 @@ from pathlib import Path
 
 ENV_PATH = Path(os.environ.get("DOLIBARR_ENV", "/root/secrets/dolibarr.env"))
 # Internal nginx, 127.0.0.1 only — not https://gowifi.co.za
-BASE = os.environ.get("DOLIBARR_LOCAL_API", "http://127.0.0.1:8091/dolibarr/api/index.php")
+BASE = os.environ.get("DOLIBARR_LOCAL_API", "http://127.0.0.1:8091/api/index.php")
 
 
 def load_env() -> dict[str, str]:
