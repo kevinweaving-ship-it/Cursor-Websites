@@ -21,11 +21,11 @@ Official docs (as at 7 Oct 2026):
 | Surface | What it is | UniFi? |
 |---|---|---|
 | `https://gowifi.co.za/` | Coming-soon poster + Facebook hit-area. File `/home/user-data/www/default/index.html` dated 22 Sep. | No |
-| `https://gowifi.co.za/dash/unifi.html` | UniFi audit dash. Five Site Manager host cards. Share ticks are browser-only until a key exists. **No live UniFi status.** | Page only |
+| `https://gowifi.co.za/dash/unifi.html` | UniFi audit dash. Five Site Manager host cards. Share ticks are browser-only. Landing does not read them. | Live hosts |
 | `/dash/api/sites` + `/dash/api/devices` | nginx → `https://gowifi.uisp.com/nms/api/v2.1/{sites,devices}` | UISP NMS |
 | `/root/secrets/unifi.env` | Site Manager API key (never expires). Mode 600. Not in git. | Key only |
-| `/dash/unifi.html?h=` | Child URL per console. Slug from the host name, e.g. `?h=1-dream-machine-pro-hermanus`. | Live machine |
-| `/dash/api/unifi?h=` | Same key, that host only: WAN, clients, devices. Connector `/v1/info` if the console answers. | Live machine |
+| `/dash/unifi.html?h=` | Child URL per console. Dream Machine: two fibre gauges + backup LTE. | Live machine |
+| `/dash/api/unifi?h=` | Same key, that host only: `host.gauges` (status / capacity / used live), clients, devices. | Live machine |
 
 The box (`102.209.119.186`) is a VPS. It is **not** on any of these UniFi
 LANs, so `https://192.168.1.1/proxy/network/...` is not reachable from here
@@ -265,7 +265,17 @@ curl -sS -H "X-API-KEY: $UNIFI_API_KEY" -H "Accept: application/json" \
   "https://api.ui.com/v1/connector/consoles/${HOST_ID}/proxy/network/integration/v1/sites"
 ```
 
-No key on the box today, so there is **no live UniFi status to publish**.
+Key is on the box. Child `?h=1-dream-machine-pro-hermanus` paints three WAN
+gauges from Integration names + classic `wan1`/`wan2`/`wan3` rates:
+
+- fibre `1> Web Connect 500/250 Mbps` — capacity from the name, live use from
+  `rx_bytes-r` / `tx_bytes-r` (bytes/sec × 8)
+- fibre `2> Office Connect 300/150 Mbps` — same
+- backup `LTE Failover WAN` — status + live Mbps only. No Mbps in the name,
+  so do **not** invent a capacity ring.
+
+ISP metrics `download_kbps` / `upload_kbps` are speed-test capacity, not live
+use. Do not use them for the “used live” needle. Share ticks stay browser-only.
 
 ## Build order (do not skip)
 

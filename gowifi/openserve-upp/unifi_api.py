@@ -192,6 +192,135 @@ def _connector(key: str, host_id: str) -> dict:
     }
 
 
+def _parse_cap(name: str) -> tuple[int | None, int | None]:
+    match = re.search(r"(\d+)\s*/\s*(\d+)\s*Mbps", name or "", re.I)
+    if not match:
+        return None, None
+    return int(match.group(1)), int(match.group(2))
+
+
+def _bps_from_bytes_r(value) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value) * 8.0
+    except (TypeError, ValueError):
+        return None
+
+
+def _mbps(bps: float | None) -> float | None:
+    if bps is None:
+        return None
+    return round(bps / 1_000_000.0, 2)
+
+
+def _pct(used_mbps: float | None, cap_mbps: int | None) -> float | None:
+    if used_mbps is None or not cap_mbps:
+        return None
+    return round(min(100.0, max(0.0, used_mbps / cap_mbps * 100.0)), 1)
+
+
+def _classic(key: str, host_id: str, tail: str) -> dict:
+    path = f"/v1/connector/consoles/{urllib.parse.quote(host_id, safe='')}/proxy/network{tail}"
+    return _get(path, key)
+
+
+def _iface_rates(block: dict) -> dict:
+    down = _bps_from_bytes_r(block.get("rx_bytes-r"))
+    up = _bps_from_bytes_r(block.get("tx_bytes-r"))
+    if down is None and block.get("rx_rate") is not None:
+        try:
+            down = float(block.get("rx_rate"))
+        except (TypeError, ValueError):
+            down = None
+    if up is None and block.get("tx_rate") is not None:
+        try:
+            up = float(block.get("tx_rate"))
+        except (TypeError, ValueError):
+            up = None
+    return {"down_bps": down, "up_bps": up, "down_mbps": _mbps(down), "up_mbps": _mbps(up)}
+
+
+def _wan_gauges(key: str, host_id: str) -> list[dict]:
+    """Two fibres + LTE from this console. Names and rates from UniFi only."""
+    if not host_id:
+        return []
+    names: dict[str, str] = {}
+    try:
+        info = _classic(key, host_id, "/integration/v1/sites")
+        site_id = ((info.get("data") or [{}])[0] or {}).get("id")
+        if site_id:
+            wans = _classic(key, host_id, f"/integration/v1/sites/{site_id}/wans")
+            for row in wans.get("data") or []:
+                label = (row.get("name") or "").strip()
+                low = label.lower()
+                if "lte" in low:
+                    names["lte"] = label
+                elif label.startswith("1>") or "web connect" in low or "500/250" in low:
+                    names["wan"] = label
+                elif label.startswith("2>") or "office connect" in low or "300/150" in low:
+                    names["wan2"] = label
+    except Exception:
+        names = {}
+    names.setdefault("wan", "WAN")
+    names.setdefault("wan2", "WAN2")
+    names.setdefault("lte", "LTE Failover WAN")
+
+    gw = {}
+    health_wan = {}
+    try:
+        devices = _classic(key, host_id, "/api/s/default/stat/device")
+        for dev in devices.get("data") or []:
+            if (dev.get("type") or "") in {"udm", "ugw"} or "Dream Machine" in (dev.get("name") or ""):
+                gw = dev
+                break
+    except Exception:
+        gw = {}
+    try:
+        health = _classic(key, host_id, "/api/s/default/stat/health")
+        health_wan = next((r for r in (health.get("data") or []) if r.get("subsystem") == "wan"), {}) or {}
+    except Exception:
+        health_wan = {}
+
+    status_map = gw.get("last_wan_status") if isinstance(gw.get("last_wan_status"), dict) else {}
+    uptime_stats = health_wan.get("uptime_stats") if isinstance(health_wan.get("uptime_stats"), dict) else {}
+    specs = [
+        ("wan", "WAN", "wan1", names["wan"], "fibre"),
+        ("wan2", "WAN2", "wan2", names["wan2"], "fibre"),
+        ("lte", "WAN_LTE_FAILOVER", "wan3", names["lte"], "lte"),
+    ]
+    gauges = []
+    for key_id, status_key, block_key, label, kind in specs:
+        block = gw.get(block_key) if isinstance(gw.get(block_key), dict) else {}
+        rates = _iface_rates(block)
+        cap_down, cap_up = _parse_cap(label)
+        raw_status = (status_map.get(status_key) or "").strip()
+        if not raw_status:
+            raw_status = "online" if block.get("up") or block.get("alive") else ("offline" if block else "")
+        stats = uptime_stats.get(status_key) if isinstance(uptime_stats.get(status_key), dict) else {}
+        down_mbps = rates["down_mbps"]
+        up_mbps = rates["up_mbps"]
+        gauges.append(
+            {
+                "id": key_id,
+                "kind": kind,
+                "name": label,
+                "status": raw_status,
+                "capacity_down_mbps": cap_down,
+                "capacity_up_mbps": cap_up,
+                "used_down_mbps": down_mbps,
+                "used_up_mbps": up_mbps,
+                "used_down_pct": _pct(down_mbps, cap_down),
+                "used_up_pct": _pct(up_mbps, cap_up),
+                "latency_ms": block.get("latency") if block.get("latency") is not None else (stats.get("latency_average")),
+                "availability": block.get("availability") if block.get("availability") is not None else stats.get("availability"),
+                "ip": (block.get("ip") or "").strip(),
+                "up": bool(block.get("up")) if block else raw_status == "online",
+            }
+        )
+    return gauges
+
+
 def summary() -> dict:
     env = _load_env()
     key = env.get("UNIFI_API_KEY") or ""
@@ -236,6 +365,13 @@ def host_detail(want: str) -> dict:
         return {"ok": False, "live": True, "error": "host not found", "want": want}
     card = _card(host, sites, groups)
     connector = _connector(key, host.get("id") or "")
+    gauges = []
+    try:
+        gauges = _wan_gauges(key, host.get("id") or "")
+    except Exception as exc:
+        gauges = []
+        connector = {**(connector or {}), "gauges_error": str(exc)[:200]}
+    card["gauges"] = gauges
     return {
         "ok": True,
         "live": True,
@@ -311,6 +447,23 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK find-host")
+    if _parse_cap("1> Web Connect 500/250 Mbps") != (500, 250):
+        print("FAIL parse-cap")
+        failed += 1
+    elif _parse_cap("LTE Failover WAN") != (None, None):
+        print("FAIL parse-cap-lte")
+        failed += 1
+    elif _pct(13.2, 500) != 2.6:
+        print("FAIL pct")
+        failed += 1
+    else:
+        print("OK cap-pct")
+    rates = _iface_rates({"rx_bytes-r": 1_650_000, "tx_bytes-r": 95_000})
+    if rates["down_mbps"] != 13.2 or rates["up_mbps"] != 0.76:
+        print("FAIL iface-rates")
+        failed += 1
+    else:
+        print("OK iface-rates")
     return failed
 
 

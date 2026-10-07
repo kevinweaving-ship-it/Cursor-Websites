@@ -161,9 +161,11 @@ installed** — `dateImplemented` on a cancel is not an install date.
 ## Landing / UniFi UDM Pro
 
 Public `https://gowifi.co.za/` is still the coming-soon poster. UniFi audit
-dash: **https://gowifi.co.za/dash/unifi.html** (same htpasswd). Site Manager
-hosts as cards. Tick what landing may show. Status is not live until the API
-key is in `/root/secrets/unifi.env`. UISP radios stay on `/dash/`.
+dash: **https://gowifi.co.za/dash/unifi.html** (same htpasswd). Click a host
+for its child URL. Dream Machine shows live WAN gauges (two fibres + backup
+LTE): status, provisioned capacity from the UniFi name, used live from that
+console. Tick what landing may show — ticks stay on this browser. UISP radios
+stay on `/dash/`.
 
 Deep dive (official APIs, auth, share allow-list, build order):
 `UNIFI_UDM_PRO.md`.

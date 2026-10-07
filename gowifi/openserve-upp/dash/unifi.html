@@ -78,6 +78,22 @@ table.dev td { padding:7px 8px 7px 0; border-bottom:1px solid var(--line); verti
 table.dev tr:last-child td { border-bottom:0; }
 table.dev td.ok { color:var(--ok); font-weight:700; }
 table.dev td.bad { color:var(--bad); font-weight:700; }
+.gauges { display:flex; flex-direction:column; gap:0; }
+.gauge-pair { display:flex; justify-content:space-around; gap:8px; margin-top:12px; }
+.dial { position:relative; width:148px; height:148px; flex:0 0 auto; }
+.dial-ring {
+  position:absolute; inset:0; border-radius:50%;
+  background: conic-gradient(var(--fill, var(--ok)) calc(var(--pct) * 1%), var(--line) 0);
+}
+.dial-ring::after {
+  content:""; position:absolute; inset:16px; border-radius:50%; background:#fff;
+}
+.dial-read {
+  position:absolute; inset:16px; z-index:1;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:4px;
+}
+.dial-num { font-size:22px; font-weight:700; color:var(--acc); line-height:1.1; }
 @media (min-width: 600px) {
   header.app, main {
     width:100%; max-width:var(--ml);
@@ -137,6 +153,69 @@ function statusLabel(state) {
   if (state === "connected") return { text:"Online", cls:"ok" };
   if (state === "disconnected") return { text:"Offline", cls:"bad" };
   return { text: state || "unknown", cls:"" };
+}
+function wanStatus(s) {
+  const low = String(s || "").toLowerCase();
+  if (low === "online" || low === "up") return { text:"Online", cls:"ok" };
+  if (low === "offline" || low === "down") return { text:"Offline", cls:"bad" };
+  return { text: s || "unknown", cls:"" };
+}
+function mbpsText(n) {
+  if (n == null || n === "") return "—";
+  const v = Number(n);
+  if (!Number.isFinite(v)) return "—";
+  return v.toFixed(2);
+}
+function fillFor(pct, statusCls) {
+  if (pct == null || pct === "") return { pct:0, fill:"var(--line)" };
+  const p = Math.max(0, Math.min(100, Number(pct)));
+  let fill = "var(--ok)";
+  if (statusCls === "bad") fill = "var(--bad)";
+  else if (p >= 80) fill = "var(--warn)";
+  return { pct:p, fill };
+}
+function paintDial(used, cap, pct, dir, statusCls) {
+  const hasCap = cap != null && cap !== "";
+  const fill = fillFor(hasCap ? pct : null, statusCls);
+  const capTxt = hasCap
+    ? ("of " + cap + " · " + (pct != null && pct !== "" ? Number(pct).toFixed(1) + "%" : "—"))
+    : "capacity not in API";
+  return `<div class="dial">
+    <div class="dial-ring" style="--pct:${fill.pct};--fill:${fill.fill}"></div>
+    <div class="dial-read">
+      <div class="dial-num">${esc(mbpsText(used))}</div>
+      <div class="k">Mbps ${esc(dir)}</div>
+      <div class="meta">${esc(capTxt)}</div>
+    </div>
+  </div>`;
+}
+function paintGauges(gauges) {
+  if (!gauges || !gauges.length) return "";
+  return `<h2>WAN gauges</h2><div class="gauges">` + gauges.map(g => {
+    const st = wanStatus(g.status);
+    const bits = [
+      g.kind === "fibre" ? "fibre" : g.kind === "lte" ? "backup LTE" : "",
+      g.ip,
+      g.latency_ms != null ? (Number(g.latency_ms) + " ms") : "",
+      g.availability != null ? ("avail " + Number(g.availability).toFixed(1) + "%") : ""
+    ].filter(Boolean);
+    return `<article class="card gauge">
+      <div class="row">
+        <div>
+          <div class="name">${esc(g.name)}</div>
+          ${bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : ""}
+        </div>
+        <div>
+          <div class="k">Status</div>
+          <div class="v ${st.cls}">${esc(st.text)}</div>
+        </div>
+      </div>
+      <div class="gauge-pair">
+        ${paintDial(g.used_down_mbps, g.capacity_down_mbps, g.used_down_pct, "down", st.cls)}
+        ${paintDial(g.used_up_mbps, g.capacity_up_mbps, g.used_up_pct, "up", st.cls)}
+      </div>
+    </article>`;
+  }).join("") + `</div>`;
 }
 
 function childParam() {
@@ -206,7 +285,8 @@ function paintChild(h, connector) {
     ["Wi‑Fi clients", h.wifi_clients != null ? String(h.wifi_clients) : ""],
     ["Wired clients", h.wired_clients != null ? String(h.wired_clients) : ""],
   ].filter(r => r[1]);
-  const wans = (h.wans || []).map(w => {
+  const gaugesHtml = paintGauges(h.gauges || []);
+  const wans = gaugesHtml ? "" : (h.wans || []).map(w => {
     const bits = [w.isp, w.external_ip, w.uptime != null ? ("uptime " + Number(w.uptime).toFixed(1) + "%") : "", w.port_up === true ? "port up" : w.port_up === false ? "port down" : ""].filter(Boolean);
     return `<div class="card"><div class="k">${esc(w.name)}</div><div class="v">${esc(bits.join(" · "))}</div></div>`;
   }).join("");
@@ -219,12 +299,15 @@ function paintChild(h, connector) {
   const conn = connector && connector.ok
     ? `<div class="meta">Network app ${esc(connector.application_version || "")}</div>`
     : (connector && connector.error ? `<div class="meta">Connector: ${esc(connector.error)}</div>` : "");
+  const gaugesErr = connector && connector.gauges_error
+    ? `<div class="meta">Gauges: ${esc(connector.gauges_error)}</div>` : "";
   document.getElementById("list").innerHTML =
     `<div class="card" data-id="${esc(h.id)}">
       <div class="grid3">${fields.map(f => `<div><div class="k">${esc(f[0])}</div><div class="v ${f[2]||""}">${esc(f[1])}</div></div>`).join("")}</div>
-      ${conn}
+      ${conn}${gaugesErr}
       <div class="share"><label><input type="checkbox" data-share="landing" ${landing ? "checked" : ""}> Landing</label></div>
     </div>` +
+    gaugesHtml +
     (wans ? `<h2>WAN</h2>${wans}` : "") +
     `<h2>Devices</h2>${table}`;
   document.getElementById("share-note").textContent =
