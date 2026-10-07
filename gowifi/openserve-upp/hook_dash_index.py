@@ -10,6 +10,7 @@ ACCOUNTS_MARKER = "gowifi-fibre-accounts-hook"
 INCOMING_MARKER = "gowifi-incoming-fibre-hook"
 CLIENTS_MARKER = "gowifi-simple-clients-hook"
 INVOICES_MARKER = "gowifi-invoice-list-hook"
+UNIFI_MARKER = "gowifi-unifi-dash-hook"
 THEME_MARKER = "gowifi-light-theme"
 OUTAGE_MARKER = "gowifi-outages-online-out"
 THEME_CSS = f"""<style id="{THEME_MARKER}">
@@ -197,6 +198,38 @@ def _ensure_invoices(text: str) -> str:
     return text
 
 
+def _ensure_unifi(text: str) -> str:
+    if UNIFI_MARKER not in text:
+        hook = (
+            f"function unifiPage(){{ /* {UNIFI_MARKER} */\n"
+            '  location.replace("/dash/unifi.html");\n'
+            "}\n"
+        )
+        if "function invoicesPage" in text:
+            text = text.replace("function invoicesPage", hook + "function invoicesPage", 1)
+        elif "function clientsPage" in text:
+            text = text.replace("function clientsPage", hook + "function clientsPage", 1)
+        else:
+            text = text.replace("let DATA=null;", hook + "let DATA=null;", 1)
+    if 'if(h==="/unifi")' not in text:
+        text = text.replace(
+            'if(h==="/invoices"){ invoicesPage(); return; }',
+            'if(h==="/unifi"){ unifiPage(); return; }\n    if(h==="/invoices"){ invoicesPage(); return; }',
+            1,
+        )
+    if 'href="/dash/unifi.html"' not in text:
+        text = text.replace(
+            '    <a class="card tap" href="/dash/invoices.html"',
+            '    <a class="card tap" href="/dash/unifi.html" style="display:block;margin-bottom:10px">\n'
+            '      <div class="row"><span class="name">UniFi</span><span class="pill warn">own dash</span></div>\n'
+            '      <div class="meta">Site Manager hosts · tick what landing may show</div>\n'
+            "    </a>\n"
+            '    <a class="card tap" href="/dash/invoices.html"',
+            1,
+        )
+    return text
+
+
 def _strip_block(text: str, start_needle: str) -> str:
     start = text.find(start_needle)
     if start < 0:
@@ -323,6 +356,17 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK outage-online-out")
+    sample = (
+        "function invoicesPage(){}\n"
+        '    if(h==="/invoices"){ invoicesPage(); return; }\n'
+        '    <a class="card tap" href="/dash/invoices.html"\n'
+    )
+    u = _ensure_unifi(sample)
+    if UNIFI_MARKER not in u or 'href="/dash/unifi.html"' not in u:
+        print("FAIL unifi-hook-missing")
+        failed += 1
+    else:
+        print("OK unifi-hook")
     return failed
 
 
@@ -333,6 +377,7 @@ def main() -> int:
     text = _ensure_accounts(text)
     text = _ensure_clients(text)
     text = _ensure_invoices(text)
+    text = _ensure_unifi(text)
     text = _ensure_incoming(text)
     text = _ensure_outages(text)
     if text == original:
@@ -342,7 +387,7 @@ def main() -> int:
         _backup(INDEX)
     INDEX.write_text(text)
     print(f"hooked {INDEX}")
-    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER, CLIENTS_MARKER, INVOICES_MARKER, THEME_MARKER, OUTAGE_MARKER) if m not in text]
+    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER, CLIENTS_MARKER, INVOICES_MARKER, UNIFI_MARKER, THEME_MARKER, OUTAGE_MARKER) if m not in text]
     if missing:
         print("WARN missing", missing)
         return 1

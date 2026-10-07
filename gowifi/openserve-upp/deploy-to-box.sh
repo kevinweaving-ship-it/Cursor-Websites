@@ -22,6 +22,7 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$SRC/dash/accounts.html" \
   "$SRC/dash/invoice.html" \
   "$SRC/dash/invoices.html" \
+  "$SRC/dash/unifi.html" \
   "$BOX:/home/user-data/www/default/dash/"
 "${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp/legal"
 "${SCP[@]}" -r "$SRC/legal/." "$BOX:/root/gowifi-upp/legal/"
@@ -39,15 +40,15 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$BOX:/root/gowifi-upp/"
 "${SCP[@]}" -q \
   "$SRC/dash/clients.html" "$SRC/dash/accounts.html" "$SRC/dash/invoice.html" \
-  "$SRC/dash/invoices.html" \
+  "$SRC/dash/invoices.html" "$SRC/dash/unifi.html" \
   "$BOX:/root/gowifi-upp/dash/" 2>/dev/null || "${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp/dash"
 "${SCP[@]}" \
   "$SRC/dash/clients.html" "$SRC/dash/accounts.html" "$SRC/dash/invoice.html" \
-  "$SRC/dash/invoices.html" \
+  "$SRC/dash/invoices.html" "$SRC/dash/unifi.html" \
   "$BOX:/root/gowifi-upp/dash/"
 "${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp/data"
 "${SCP[@]}" -r "$SRC/data/." "$BOX:/root/gowifi-upp/data/"
 
 echo "install + refresh accounts.json"
 "${SSH[@]}" "$BOX" "bash /root/gowifi-upp/install-on-box.sh && python3 /root/gowifi-upp/audit_export.py"
-echo "done — hard-refresh https://gowifi.co.za/dash/clients.html /dash/invoices.html /dash/accounts.html"
+echo "done — hard-refresh https://gowifi.co.za/dash/clients.html /dash/invoices.html /dash/accounts.html /dash/unifi.html"

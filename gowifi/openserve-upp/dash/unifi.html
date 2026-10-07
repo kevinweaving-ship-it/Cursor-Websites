@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · UniFi</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<style>
+:root {
+  --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a; --pad:16px;
+  --ml:844px;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:var(--acc); text-decoration:none; }
+a:hover { text-decoration:underline; }
+header.app {
+  position:sticky; top:0; z-index:5;
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:10px max(var(--pad), env(safe-area-inset-right)) 12px max(var(--pad), env(safe-area-inset-left));
+}
+.bar { display:flex; flex-direction:column; gap:6px; }
+header.app h1 { margin:0; font-size:22px; color:var(--acc); }
+header.app .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+.nav { display:flex; flex-wrap:wrap; gap:4px 16px; }
+.nav a { color:var(--acc); font-size:14px; min-height:40px; display:inline-flex; align-items:center; }
+main {
+  padding:12px max(var(--pad), env(safe-area-inset-right)) 32px max(var(--pad), env(safe-area-inset-left));
+  width:100%;
+}
+.banner {
+  margin:0 0 12px; padding:12px 14px; border:1px solid var(--line); border-radius:12px;
+  background:#fff8e8; color:var(--text);
+}
+.banner strong { color:var(--warn); }
+.counts { color:var(--muted); font-size:13px; margin:0 0 10px; }
+h2 {
+  margin:18px 0 8px; font-size:13px; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--acc);
+}
+.card {
+  width:100%; margin:0 0 10px; padding:12px 14px;
+  background:var(--card); color:var(--text);
+  border:1px solid var(--line); border-radius:12px;
+}
+.name { font-weight:700; font-size:16px; color:var(--acc); }
+.meta { color:var(--muted); font-size:13px; margin-top:4px; }
+.k { font-size:11px; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); }
+.v { margin-top:2px; }
+.row { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.share {
+  display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:10px;
+  padding-top:10px; border-top:1px solid var(--line);
+}
+.share label {
+  display:inline-flex; align-items:center; gap:8px; min-height:40px;
+  font-size:14px; font-weight:700; color:var(--acc); cursor:pointer;
+}
+.share input { width:18px; height:18px; accent-color:var(--acc); }
+.empty { color:var(--muted); padding:20px 0; }
+@media (min-width: 600px) {
+  header.app, main {
+    width:100%; max-width:var(--ml);
+    margin-left:auto; margin-right:auto;
+  }
+  header.app { padding:12px 20px; }
+  .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; gap:16px; }
+  main { padding:14px 20px 36px; }
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="bar">
+    <div>
+      <h1>UniFi</h1>
+      <div class="sub">Own dash · tick what landing and other URLs may show</div>
+    </div>
+    <nav class="nav">
+      <a href="/dash/#/">Home</a>
+      <a href="/dash/clients.html">Clients</a>
+      <a href="/dash/accounts.html">Accounts</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="banner">
+    <strong>Not live from UniFi.</strong>
+    No API key on the box. These cards are the Site Manager hosts from the
+    7 Oct screenshot. Online / offline is not shown until
+    <code>/root/secrets/unifi.env</code> is set and
+    <code>GET /v1/hosts</code> returns them.
+  </div>
+  <div class="counts" id="counts"></div>
+  <h2>Site Manager hosts</h2>
+  <div id="list"></div>
+  <h2>Share</h2>
+  <div class="card">
+    <div class="meta">Ticks stay on this browser until the box has a UniFi key and a share file. Landing does not read these ticks yet.</div>
+    <div class="meta" id="share-note"></div>
+  </div>
+</main>
+<script>
+const KEY = "gowifi-unifi-share";
+const HOSTS = [
+  { id:"udm-pro-hermanus", name:"UDM Pro Hermanus", hardware:"UDM Pro", wan:"Telkom", extra:"" },
+  { id:"bing", name:"Bing", hardware:"UCG Ultra", wan:"Telkom", extra:"" },
+  { id:"hyc-cloud-gateway", name:"HYC Cloud Gateway", hardware:"UCG Ultra", wan:"Telkom", extra:"Backup 28 Aug 2025" },
+  { id:"lategan-le-paradis", name:"Lategan No 5 Le Paradis Express", hardware:"UX", wan:"Telkom", extra:"" },
+  { id:"onguard-network", name:"Onguard Network", hardware:"UCG Ultra", wan:"Afrihost", extra:"Invited" },
+];
+
+function loadShare() {
+  try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; }
+  catch { return {}; }
+}
+function saveShare(share) {
+  localStorage.setItem(KEY, JSON.stringify(share));
+}
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[c]));
+}
+
+function paint() {
+  const share = loadShare();
+  document.getElementById("counts").textContent =
+    HOSTS.length + " hosts · status not live · UISP radios stay on Home";
+  document.getElementById("list").innerHTML = HOSTS.map(h => {
+    const landing = !!(share[h.id] && share[h.id].landing);
+    return `<article class="card" data-id="${esc(h.id)}">
+      <div class="row">
+        <div>
+          <div class="name">${esc(h.name)}</div>
+          <div class="meta">${esc(h.hardware)} · WAN on card ${esc(h.wan)}${h.extra ? " · " + esc(h.extra) : ""}</div>
+        </div>
+        <div>
+          <div class="k">Status</div>
+          <div class="v">Not live</div>
+        </div>
+      </div>
+      <div class="share">
+        <label><input type="checkbox" data-share="landing" ${landing ? "checked" : ""}> Landing</label>
+      </div>
+    </article>`;
+  }).join("");
+  const n = HOSTS.filter(h => share[h.id] && share[h.id].landing).length;
+  document.getElementById("share-note").textContent =
+    n ? (n + " ticked for landing — not published") : "Nothing ticked";
+}
+
+document.getElementById("list").addEventListener("change", ev => {
+  const input = ev.target.closest("input[data-share]");
+  if (!input) return;
+  const card = input.closest("[data-id]");
+  if (!card) return;
+  const share = loadShare();
+  const id = card.getAttribute("data-id");
+  share[id] = share[id] || {};
+  share[id][input.getAttribute("data-share")] = input.checked;
+  saveShare(share);
+  paint();
+});
+
+paint();
+</script>
+</body>
+</html>

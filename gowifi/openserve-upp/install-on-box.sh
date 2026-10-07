@@ -66,6 +66,12 @@ if [ -f "$SRC/dash/invoices.html" ]; then
   fi
   cp -a "$SRC/dash/invoices.html" "$DASH/invoices.html"
 fi
+if [ -f "$SRC/dash/unifi.html" ]; then
+  if [ "$SRC/dash/unifi.html" != "$DEST/dash/unifi.html" ]; then
+    cp -a "$SRC/dash/unifi.html" "$DEST/dash/unifi.html"
+  fi
+  cp -a "$SRC/dash/unifi.html" "$DASH/unifi.html"
+fi
 HOOK="$SRC/hook_dash_index.py"
 [ -f "$HOOK" ] || HOOK="$DEST/hook_dash_index.py"
 if [ -f "$HOOK" ]; then

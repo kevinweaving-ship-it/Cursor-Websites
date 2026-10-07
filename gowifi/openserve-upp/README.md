@@ -160,11 +160,10 @@ installed** — `dateImplemented` on a cancel is not an install date.
 
 ## Landing / UniFi UDM Pro
 
-Public `https://gowifi.co.za/` is still the coming-soon poster. UniFi (Site
-Manager: UDM Pro Hermanus + 3× UCG Ultra + 1× UX) gets **its own dash**.
-Landing and other public URLs only show what is selected on that dash, per
-host. UISP radios stay on `/dash/` (`/dash/api/sites`, `/dash/api/devices`).
-Do not mix the two. No UniFi API key is on the box yet.
+Public `https://gowifi.co.za/` is still the coming-soon poster. UniFi audit
+dash: **https://gowifi.co.za/dash/unifi.html** (same htpasswd). Site Manager
+hosts as cards. Tick what landing may show. Status is not live until the API
+key is in `/root/secrets/unifi.env`. UISP radios stay on `/dash/`.
 
 Deep dive (official APIs, auth, share allow-list, build order):
 `UNIFI_UDM_PRO.md`.
