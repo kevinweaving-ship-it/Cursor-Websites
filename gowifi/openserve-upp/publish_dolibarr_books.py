@@ -47,7 +47,7 @@ def load_books() -> dict[str, dict]:
         """
         SELECT s.nom,
                ROUND(SUM(f.total_ttc),2) billed,
-               ROUND(COALESCE(SUM(pf.paid),0),2) allocated
+               ROUND(COALESCE(SUM(pf.paid),0),2) paid
         FROM dolibarr.llx_societe s
         JOIN dolibarr.llx_facture f
           ON f.fk_soc=s.rowid AND f.type=0 AND f.fk_statut IN (1,2)
@@ -56,45 +56,34 @@ def load_books() -> dict[str, dict]:
           FROM dolibarr.llx_paiement_facture
           GROUP BY fk_facture
         ) pf ON pf.fk_facture=f.rowid
+        WHERE s.client=1
         GROUP BY s.rowid
         """
     )
     books: dict[str, dict] = {}
-    for name, billed, allocated in rows:
+    for name, billed, paid in rows:
         billed_f = _money(billed)
-        remain = round(billed_f - _money(allocated), 2)
+        paid_f = _money(paid)
+        due = round(billed_f - paid_f, 2)
         books[name] = {
             "name": name,
             "billed": billed_f,
-            "remain": remain,
-            "advance": 0.0,
+            "paid": paid_f,
+            "due": due,
+            "remain": due if due > 0.004 else 0.0,
+            "advance": -due if due < -0.004 else 0.0,
+            "ar": due if due > 0.004 else 0.0,
+            "paid_up": due <= 0.004,
+            "balance_label": _label(due),
         }
-    for name, amount in _sql(
-        """
-        SELECT s.nom, ROUND(d.amount_ttc,2)
-        FROM dolibarr.llx_societe_remise_except d
-        JOIN dolibarr.llx_societe s ON s.rowid=d.fk_soc
-        WHERE d.fk_facture IS NULL
-        """
-    ):
-        rec = books.setdefault(
-            name, {"name": name, "billed": 0.0, "remain": 0.0, "advance": 0.0}
-        )
-        rec["advance"] = round(rec["advance"] + _money(amount), 2)
-    for rec in books.values():
-        rec["due"] = rec["remain"] if rec["remain"] > 0.004 else 0.0
-        rec["paid"] = round(rec["billed"] - rec["due"], 2)
-        rec["ar"] = rec["due"]
-        rec["paid_up"] = rec["due"] <= 0.004
-        rec["balance_label"] = _label(rec["remain"])
     return books
 
 
 def totals(books: dict[str, dict]) -> dict:
     billed = round(sum(r["billed"] for r in books.values()), 2)
+    paid = round(sum(r["paid"] for r in books.values()), 2)
     ar = round(sum(r["ar"] for r in books.values()), 2)
     advances = round(sum(r["advance"] for r in books.values()), 2)
-    paid = round(billed - ar, 2)
     return {
         "source": "dolibarr",
         "url": DOLIBARR_URL,
