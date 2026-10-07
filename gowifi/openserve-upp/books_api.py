@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 from dolibarr_local import all_invoices, thirdparties
 from publish_dolibarr_books import load_books, totals
 
-LISTEN = os.environ.get("BOOKS_API_LISTEN", "127.0.0.1:8799")
+LISTEN = os.environ.get("BOOKS_API_LISTEN", "127.0.0.1:8797")
 
 
 def snapshot() -> dict:
