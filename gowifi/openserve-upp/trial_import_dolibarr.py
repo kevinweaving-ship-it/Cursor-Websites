@@ -22,7 +22,8 @@ TODAY = date(2026, 10, 7)
 ACCOUNTS_JSON = Path("/home/user-data/www/default/dash/accounts.json")
 PHP = Path("/root/gowifi-upp/trial_import_dolibarr.php")
 UPP = "file:/root/gowifi-upp/upp.db?mode=ro"
-EXPECT = (321557.76, 317654.91, 8903.50, 5000.65, 3902.85)
+# Paid-up clients have zero balance. Historic leftover receipts are not credits.
+EXPECT = (321557.76, 312654.26, 8903.50, 0.0, 8903.50)
 
 
 def _cards() -> list[dict]:
@@ -87,6 +88,10 @@ def _pack_client(conn: sqlite3.Connection, card: dict) -> dict:
     billed = round(_money(st.get("billed")), 2)
     paid = round(_money(st.get("paid")), 2)
     due = round(_money(st.get("due")), 2)
+    # Paid Up means zero balance. Leftover historic receipts are not a credit.
+    if due <= 0.004:
+        paid = billed
+        due = 0.0
     unpaid = []
     if canon_key(name) == "g cupido":
         for ev in _bounces(conn, "g cupido"):

@@ -278,17 +278,8 @@ foreach ($payload['clients'] as $cli) {
 		}
 	}
 	unset($u);
-	foreach ($unapplied as $u) {
-		if ($u['amount'] <= 0.004 || !$latest) {
-			continue;
-		}
-		$pid = gowifi_add_payment($bankid, $socid, $latest['id'], $u['amount'], $u['date'], $u['mode'], $u['note']);
-		if ($pid <= 0) {
-			fwrite(STDERR, "FAIL overpay ".$cli['name']."\n");
-			exit(9);
-		}
-		$paycount++;
-	}
+	// Do not overpay. Leftover historic receipts are not a customer credit.
+	// Paid-up clients must finish at billed = paid, due = 0.
 
 	$created[] = $cli['name'];
 }
@@ -322,11 +313,13 @@ $adv = 0.0;
 while ($q && ($row = $db->fetch_object($q))) {
 	$cli = $by[$row->nom] ?? null;
 	$due = round(((float) $row->billed) - ((float) $row->paid), 2);
+	if ($due < -0.004) {
+		echo "FAIL ".$row->nom." credit-not-allowed ".$due."\n";
+		$failed++;
+		$due = 0.0;
+	}
 	if ($due > 0.004) {
 		$ar = round($ar + $due, 2);
-	}
-	if ($due < -0.004) {
-		$adv = round($adv + (-$due), 2);
 	}
 	$pass = $cli
 		&& abs((float) $row->billed - $cli['billed']) < 0.02

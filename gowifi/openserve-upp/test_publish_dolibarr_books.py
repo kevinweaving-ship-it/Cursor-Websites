@@ -27,10 +27,14 @@ def test_publisher_source_never_writes_accounts_json():
     assert "never overlay" in SRC.lower() or "must never overlay" in SRC
 
 
-def test_paid_can_exceed_billed_and_stay_paid_up():
-    billed, paid = 22610.0, 23009.0
+def test_paid_up_is_zero_balance_not_a_credit():
+    billed, received = 22610.0, 23009.0
+    paid = billed if received > billed else received
     due = round(billed - paid, 2)
-    assert due == -399.0
+    if due < 0:
+        due = 0.0
+    assert paid == 22610.0
+    assert due == 0.0
     assert pub._label(due) == "Paid Up"
     assert "Credit" not in pub._label(due)
 
@@ -38,5 +42,5 @@ def test_paid_can_exceed_billed_and_stay_paid_up():
 if __name__ == "__main__":
     test_label_never_invents_credit()
     test_publisher_source_never_writes_accounts_json()
-    test_paid_can_exceed_billed_and_stay_paid_up()
+    test_paid_up_is_zero_balance_not_a_credit()
     print("ok")

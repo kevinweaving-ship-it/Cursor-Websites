@@ -64,14 +64,18 @@ def load_books() -> dict[str, dict]:
     for name, billed, paid in rows:
         billed_f = _money(billed)
         paid_f = _money(paid)
+        if paid_f > billed_f:
+            paid_f = billed_f
         due = round(billed_f - paid_f, 2)
+        if due < 0:
+            due = 0.0
         books[name] = {
             "name": name,
             "billed": billed_f,
             "paid": paid_f,
             "due": due,
-            "remain": due if due > 0.004 else 0.0,
-            "advance": -due if due < -0.004 else 0.0,
+            "remain": due,
+            "advance": 0.0,
             "ar": due if due > 0.004 else 0.0,
             "paid_up": due <= 0.004,
             "balance_label": _label(due),
@@ -106,8 +110,10 @@ def main() -> int:
         raise SystemExit(f"billed mismatch {summary['billed']}")
     if abs(summary["ar"] - 8903.50) > 0.02:
         raise SystemExit(f"ar mismatch {summary['ar']}")
-    if abs(summary["advances"] - 5000.65) > 0.02:
-        raise SystemExit(f"advances mismatch {summary['advances']}")
+    if abs(summary["paid"] - 312654.26) > 0.02:
+        raise SystemExit(f"paid mismatch {summary['paid']}")
+    if abs(summary["advances"]) > 0.02:
+        raise SystemExit(f"credits-not-allowed {summary['advances']}")
 
     pack = {
         "books": summary,
