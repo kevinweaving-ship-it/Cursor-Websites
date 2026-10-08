@@ -84,6 +84,28 @@ def _sas_personal_display_name(first_name: str = "", last_name: str = "", full_n
     return raw
 
 
+# Placeholder names from results imports. A 200 here is a GSC Soft 404.
+RESERVED_PUBLIC_SLUGS = frozenset(
+    {
+        "unknown",
+        "none",
+        "na",
+        "n-a",
+        "tbc",
+        "tba",
+        "tbd",
+        "unnamed",
+        "anonymous",
+        "null",
+        "undefined",
+    }
+)
+
+
+def _is_reserved_public_slug(slug: str) -> bool:
+    return (slug or "").strip().lower() in RESERVED_PUBLIC_SLUGS
+
+
 def _slug_from_name(full_name: str) -> str:
     """Same rule as live api.py _slug_from_name (including Last, First flip)."""
     if not full_name or not isinstance(full_name, str):
@@ -263,7 +285,7 @@ def _fetch_sailors(cur, today: str) -> list[tuple[str, str]]:
             r.get("full_name_raw") or "",
         )
         slug = _sailor_canonical_slug(display, sas_id, False)
-        if not slug:
+        if not slug or _is_reserved_public_slug(slug):
             continue
         lastmod_iso = _date_iso(r.get("lastmod"), today=today)
         prev = by_slug.get(slug)
@@ -550,6 +572,8 @@ def build_sitemap(
         path = _class_public_path(class_name)
         if not path or path in seen_paths:
             continue
+        if _is_reserved_public_slug(path.rsplit("/", 1)[-1]):
+            continue
         seen_paths.add(path)
         class_entries.append((path, lastmod))
 
@@ -557,7 +581,7 @@ def build_sitemap(
     for cid, abbrev, fullname, lastmod in sorted(clubs, key=lambda x: x[3], reverse=True):
         # Canonical club_code: abbrev first (e.g. /club/hyc), fullname only when abbrev is empty.
         code = _club_slug_from_name(abbrev) if abbrev else _club_slug_from_name(fullname)
-        if not code:
+        if not code or _is_reserved_public_slug(code):
             continue
         path = f"/club/{code}"
         if path in seen_paths:
@@ -567,6 +591,8 @@ def build_sitemap(
 
     sailor_entries: list[tuple[str, str]] = []
     for slug, lastmod in sorted(sailors, key=lambda x: x[1], reverse=True):
+        if _is_reserved_public_slug(slug):
+            continue
         path = f"/sailor/{slug}"
         if path in seen_paths:
             continue

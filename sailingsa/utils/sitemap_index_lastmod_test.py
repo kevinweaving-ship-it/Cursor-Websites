@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.sitemap_builder import (  # noqa: E402
     _build_urlset_xml,
+    _is_reserved_public_slug,
     _sitemap_file_lastmod,
     _xml_unchanged,
 )
@@ -55,6 +56,12 @@ class SitemapIndexLastmodTests(unittest.TestCase):
         xml = _build_urlset_xml("https://sailingsa.co.za", [("/", "2026-10-03")])
         self.assertNotIn("changefreq", xml)
         self.assertIn("<lastmod>2026-10-03</lastmod>", xml)
+
+    def test_reserved_placeholder_slugs(self):
+        for slug in ("unknown", "none", "na", "n-a", "tbc", "tba", "TBC"):
+            self.assertTrue(_is_reserved_public_slug(slug), slug)
+        self.assertFalse(_is_reserved_public_slug("aydin-ohara"))
+        self.assertFalse(_is_reserved_public_slug("hyc"))
 
 
 if __name__ == "__main__":

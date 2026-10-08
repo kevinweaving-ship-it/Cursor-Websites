@@ -22085,10 +22085,34 @@ def _get_sailor_sas_id_from_slug(slug: str) -> str:
         return ""
 
 
+# Placeholder names from results imports. 200 + empty profile = GSC Soft 404.
+_RESERVED_PUBLIC_SLUGS = frozenset(
+    {
+        "unknown",
+        "none",
+        "na",
+        "n-a",
+        "tbc",
+        "tba",
+        "tbd",
+        "unnamed",
+        "anonymous",
+        "null",
+        "undefined",
+    }
+)
+
+
+def _is_reserved_public_slug(slug: str) -> bool:
+    return (slug or "").strip().lower() in _RESERVED_PUBLIC_SLUGS
+
+
 def serve_sailor_spa(slug: str):
     """Serve SPA with server-side SEO: inject title, meta, canonical, h1, JSON-LD for crawlers; SPA loads normally. 404 if unknown slug."""
     if not os.path.isfile(_INDEX_HTML_PATH):
         raise HTTPException(status_code=404, detail="index.html not found")
+    if _is_reserved_public_slug(slug):
+        raise HTTPException(status_code=404, detail="Sailor not found")
     name, canonical_slug = _get_sailor_name_by_slug(slug)
     base_url = _canonical_base_url()
     if not name or not canonical_slug:
@@ -22180,6 +22204,8 @@ def serve_class_spa(class_slug: str):
     """Serve class route with server-side canonical/title tags for crawlers."""
     if not os.path.isfile(_INDEX_HTML_PATH):
         raise HTTPException(status_code=404, detail="index.html not found")
+    if _is_reserved_public_slug(class_slug):
+        raise HTTPException(status_code=404, detail="Class not found")
     class_id, class_name = _resolve_class_slug_to_class_id(class_slug)
     if not class_id or not class_name:
         raise HTTPException(status_code=404, detail="Class not found")
@@ -25186,6 +25212,8 @@ def _club_unmatched_past_section_html(rows: list) -> str:
 def serve_club_page(slug: str):
     """Serve standalone HTML page for /club/{slug}. SEO: JSON-LD, canonical, links to sailors and regattas. Redirect name/alias slugs to canonical club_code (301).
     All club URLs use the same calendar↔results flow: _club_page_match_past_calendar_to_hosted (past rows vs Regattas hosted)."""
+    if _is_reserved_public_slug(slug):
+        return HTMLResponse(content=_CLUB_404_HTML, status_code=404, media_type="text/html")
     if slug and slug.strip().lower() == "unassigned":
         _get_unassigned_club_id()
     club = _get_club_by_slug(slug)
