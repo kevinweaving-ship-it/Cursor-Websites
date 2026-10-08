@@ -164,7 +164,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 @media (min-width: 600px) {
   header.app, main { max-width:1400px; margin-left:auto; margin-right:auto; }
   .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; }
-  .topo-flow { flex-wrap:nowrap; gap:56px 120px; min-height:420px; padding:96px 12px 48px; }
+  .topo-flow { flex-wrap:nowrap; gap:56px 120px; min-height:520px; padding:96px 12px 80px; }
   .spine { gap:72px; }
   .col-inet { margin-right:120px; }
   .spine-icon { height:64px; }
@@ -901,9 +901,10 @@ function addInMbps(layer, mbps, b, dir) {
 }
 function addSpokeMbps(layer, mbps, from, to, joinX, along, prevY) {
   if (!to || mbps == null) return;
-  const startY = prevY != null ? prevY : (from && from.cy);
-  if (along === "v" && startY != null && Math.abs(startY - to.cy) > 12) {
-    addLinkMbps(layer, mbps, joinX, (startY + to.cy) / 2);
+  if (along === "v") {
+    const startY = prevY != null ? prevY : (from && from.cy);
+    const y = (startY != null && Math.abs(startY - to.cy) > 8) ? (startY + to.cy) / 2 : to.cy;
+    addLinkMbps(layer, mbps, joinX, y);
     return;
   }
   addLinkMbps(layer, mbps, (joinX + to.l) / 2, to.cy);
