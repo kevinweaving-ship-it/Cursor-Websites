@@ -177,7 +177,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .site-card-name, .cpe-name { font-size:12px; }
   #nano-block { gap:24px; padding-top:12px; }
   #lte-node { bottom:calc(100% + 16px); }
-  #switch-node { bottom:48px; }
+  #switch-node { bottom:calc(50% + 16px); }
 }
 </style>
 </head>
@@ -532,8 +532,12 @@ function later() {
   document.getElementById("later").innerHTML = "<h2>Later</h2>" + (rows.join("") || "<div>—</div>");
 }
 function paint() {
-  later();
-  requestAnimationFrame(paintWires);
+  try {
+    later();
+    requestAnimationFrame(() => {
+      try { paintWires(); } catch (e) { console.warn(e); }
+    });
+  } catch (e) { console.warn(e); }
 }
 function markStale() {
   STALE = true;
@@ -548,23 +552,38 @@ function applyHost(data) {
   paint();
   setBanner(false, data.as_at);
 }
-function pollTick() {
-  if (document.hidden) {
-    if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
-    return;
-  }
-  fetch("/dash/api/unifi?h=" + encodeURIComponent(HOST) + "&live=1", { credentials:"same-origin", cache:"no-store" })
+function liveUrl() {
+  return "/dash/api/unifi?h=" + encodeURIComponent(HOST) + "&live=1&t=" + Date.now();
+}
+function fetchLive() {
+  return fetch(liveUrl(), { credentials:"same-origin", cache:"no-store" })
     .then(r => r.json())
     .then(data => {
-      if (!data || !data.ok) { markStale(); return; }
+      if (!data || !data.ok) { markStale(); return false; }
       STALE = false;
       LAST_OK_MS = Date.now();
       GAUGES = mergeGauges(GAUGES, data.gauges || []);
       pushHist(GAUGES);
       paint();
       setBanner(false, data.as_at);
+      return true;
     })
-    .catch(() => { markStale(); });
+    .catch(() => { markStale(); return false; });
+}
+function pollTick() {
+  if (document.hidden) {
+    if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+    return;
+  }
+  fetchLive();
+  loadConsole();
+}
+function startPoll() {
+  if (window.__unifiPoll) return;
+  window.__unifiPoll = setInterval(pollTick, POLL_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) pollTick();
+  });
 }
 function consoleLinkUp(dev) {
   if (!dev) return false;
@@ -898,10 +917,15 @@ function kidRec(dev, link) {
     icon: uispIcon(ident.model || "", ident.type || "")
   };
 }
+let TOPO_SIG = "";
+let CONSOLE_BUSY = false;
 function loadConsole() {
+  if (CONSOLE_BUSY) return;
+  CONSOLE_BUSY = true;
+  const bust = "&t=" + Date.now();
   Promise.all([
-    fetch("/dash/api/devices?withInterfaces=true", { credentials:"same-origin", cache:"no-store" }).then(r => r.json()),
-    fetch("/dash/api/data-links", { credentials:"same-origin", cache:"no-store" }).then(r => r.json()).catch(() => [])
+    fetch("/dash/api/devices?withInterfaces=true" + bust, { credentials:"same-origin", cache:"no-store" }).then(r => r.json()),
+    fetch("/dash/api/data-links?t=" + Date.now(), { credentials:"same-origin", cache:"no-store" }).then(r => r.json()).catch(() => [])
   ]).then(([devData, linkData]) => {
     const rows = asRows(devData);
     const links = asRows(linkData);
@@ -927,7 +951,6 @@ function loadConsole() {
       return isVkPop(d);
     }) : []).sort((a, b) => radioRank(a) - radioRank(b));
     ESPOP = popKids.map(d => kidRec(d, linkToConsole(links, eid, devId(d))));
-    renderEs16Pop(ESPOP);
     const nanoDev = popKids.find(d => {
       const rec = { name: identOf(d).name, model: identOf(d).model };
       return radioRole(rec) === "nano";
@@ -971,9 +994,15 @@ function loadConsole() {
       attachSiteTree(rec, far, rows, links, used);
       PTP.push(rec);
     });
-    renderHops(NANO_CPE, PTP);
+    const sig = [cid, eid, nid].concat(ESPOP.map(k => k.name), NANO_CPE.map(k => k.name), PTP.map(k => k.name + ":" + k.role)).join("|");
+    if (sig !== TOPO_SIG) {
+      TOPO_SIG = sig;
+      renderEs16Pop(ESPOP);
+      renderHops(NANO_CPE, PTP);
+    }
     paint();
   }).catch(() => {
+    TOPO_SIG = "";
     CONSOLE = { ok:false };
     SWITCH = { show:false, ok:false };
     ES16 = { show:false, ok:false };
@@ -986,34 +1015,17 @@ function loadConsole() {
     renderEs16Pop([]);
     renderHops([], []);
     paint();
-  });
+  }).finally(() => { CONSOLE_BUSY = false; });
 }
 
 function bootLive() {
-  fetch("/dash/api/unifi?h=" + encodeURIComponent(HOST) + "&live=1", { credentials:"same-origin", cache:"no-store" })
-    .then(r => r.json())
-    .then(data => {
-      if (!data || !data.ok) {
-        document.getElementById("banner").className = "banner";
-        document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong>";
-        paint();
-        return;
-      }
-      STALE = false;
-      LAST_OK_MS = Date.now();
-      GAUGES = mergeGauges(GAUGES, data.gauges || []);
-      pushHist(GAUGES);
-      paint();
-      setBanner(false, data.as_at);
-      if (!window.__unifiPoll) {
-        window.__unifiPoll = setInterval(pollTick, POLL_MS);
-      }
-    })
-    .catch(() => {
+  fetchLive().then(ok => {
+    if (!ok && !LAST_AS_AT) {
       document.getElementById("banner").className = "banner";
       document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong>";
-      paint();
-    });
+    }
+  });
+  startPoll();
 }
 function bootFat() {
   fetch("/dash/api/unifi?h=" + encodeURIComponent(HOST), { credentials:"same-origin", cache:"no-store" })
@@ -1034,7 +1046,6 @@ bindIcon("lte-icon", ICONS.lte);
 window.addEventListener("resize", () => { placeHops(); paintWires(); });
 paint();
 loadConsole();
-setInterval(loadConsole, 10000);
 bootLive();
 bootFat();
 </script>
