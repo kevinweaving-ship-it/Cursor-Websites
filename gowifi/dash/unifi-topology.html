@@ -41,8 +41,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 }
 .col { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; }
 .col-udm { min-width:36px; }
-.udm-row {
-  display:flex; flex-direction:row; align-items:center; gap:8px;
+.site-card #udm-icon {
+  width:18px; height:18px; max-width:18px; max-height:18px;
 }
 #lte-node {
   position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%);
@@ -144,6 +144,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .radio-grid { column-gap:64px; row-gap:22px; grid-template-rows:auto auto auto 48px auto; }
   .globe-svg, #lte-icon { width:40px; height:40px; }
   #udm-icon, #console-icon { width:64px; }
+  .site-card #udm-icon { width:20px; height:20px; max-width:20px; max-height:20px; }
   .uisp-kid img, .uisp-kid.uisp-radio img, .cpe-row img, .cpe-station img, .hs-tree img {
     width:48px; height:48px; max-width:48px; max-height:48px;
   }
@@ -202,11 +203,9 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
       </div>
       <div class="stack" id="udm-node">
         <div class="cap">UDM</div>
-        <div class="udm-row">
-          <img id="udm-icon" alt="UDM" width="129" height="129">
-          <div class="site-card" id="vk-pop-pill">
-            <span class="site-card-name">VK Pop</span>
-          </div>
+        <div class="site-card" id="vk-pop-pill">
+          <img id="udm-icon" alt="UDM">
+          <span class="site-card-name">VK Pop</span>
         </div>
       </div>
     </div>
@@ -418,12 +417,13 @@ function paintWires() {
     if (alive === null) return "wire-base wait" + (extra ? " " + extra : "");
     return "wire-base" + (alive ? (extra ? " " + extra : "") : " down");
   }
-  const dF1 = lr(g, u, -2, 0.5);
-  const dF2 = lr(g, u, 2, 0.5);
-  const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} V${(u.t - 8).toFixed(1)}`;
   const popEl = document.getElementById("vk-pop-pill");
   const pop = (popEl && popEl.offsetParent) ? box("#vk-pop-pill") : null;
-  const dPopL = pop ? lr(u, pop, 0, 0.5) : "";
+  const hub = pop || u;
+  const dF1 = lr(g, hub, -2, 0.5);
+  const dF2 = lr(g, hub, 2, 0.5);
+  const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} V${(hub.t - 8).toFixed(1)}`;
+  const dPopL = "";
   const dPopR = pop ? lr(pop, c, 0, 0.5) : "";
   const dCon = pop ? "" : lr(u, c, 0, 0.5);
   let dSw = "";
