@@ -999,7 +999,8 @@ function loadConsole() {
       PTP.push(rec);
     });
     const sig = [cid, eid, nid].concat(ESPOP.map(k => k.name), NANO_CPE.map(k => k.name), PTP.map(k => k.name + ":" + k.role)).join("|");
-    if (sig !== TOPO_SIG) {
+    const gridEmpty = !document.querySelector("#es16-pop .uisp-kid, #hs-trees .hs-tree, #nano-cpe .cpe-row");
+    if (sig !== TOPO_SIG || gridEmpty) {
       TOPO_SIG = sig;
       renderEs16Pop(ESPOP);
       renderHops(NANO_CPE, PTP);
