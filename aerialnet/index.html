@@ -5,138 +5,141 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Aerial Networks</title>
   <meta name="description" content="High-site access, mast space and equipment hosting for your network.">
-  <meta name="theme-color" content="#03142e">
+  <meta name="theme-color" content="#041630">
   <link rel="canonical" href="https://aerialnet.co.za/">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="artwork/aerial-networks-logo-mark.png" type="image/png">
+  <link rel="apple-touch-icon" href="artwork/aerial-networks-logo-mark.png">
+  <link rel="preload" as="image" href="footage/hero-poster.jpg">
   <style>
     :root {
-      --ink: #02377d;
-      --muted: #3a5168;
-      --line: #d5e0ea;
-      --paper: #f4f7fb;
-      --card: #ffffff;
-      --blue: #02377d;
-      --navy: #03142e;
+      --navy: #041630;
       --orange: #f96e05;
+      --ink: #102033;
+      --muted: #3c5164;
+      --paper: #f4f7fb;
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; }
+    html, body { margin: 0; }
     body {
-      background: var(--paper);
       color: var(--ink);
+      background: var(--paper);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.5;
+      line-height: 1.45;
     }
-    a { color: var(--blue); }
+    a { color: inherit; }
     .hero {
       position: relative;
-      height: 100svh;
-      min-height: 640px;
-      overflow: hidden;
-      background: var(--navy);
+      min-height: 100vh;
+      min-height: 100svh;
       color: #fff;
+      background: var(--navy) url("footage/hero-poster.jpg") center 42% / cover no-repeat;
+      overflow: hidden;
     }
-    .hero-poster,
     .hero-video {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      object-position: 50% 42%;
+      object-position: center 42%;
+      background: transparent;
     }
-    .hero-poster { z-index: 0; }
-    .hero-video { z-index: 1; background: transparent; }
+    .hero-still .hero-video { display: none; }
     .hero-shade {
       position: absolute;
       inset: 0;
-      z-index: 2;
+      background: linear-gradient(90deg, rgba(4, 22, 48, 0.45), rgba(4, 22, 48, 0.08) 58%);
       pointer-events: none;
-      background: linear-gradient(180deg, rgba(3, 20, 46, 0.18) 0%, rgba(3, 20, 46, 0.45) 42%, rgba(3, 20, 46, 0.92) 100%);
     }
-    .hero-foreground {
-      position: absolute;
-      z-index: 3;
-      left: 0;
-      right: 0;
-      bottom: 0;
+    .hero-ui {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      min-height: 100svh;
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 24px 20px calc(28px + env(safe-area-inset-bottom));
+      justify-content: space-between;
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: calc(16px + env(safe-area-inset-top)) 0 calc(20px + env(safe-area-inset-bottom));
     }
     .logo-plate {
-      background: #fff;
-      border-radius: 12px;
-      padding: 8px 12px;
-      line-height: 0;
+      display: inline-block;
+      width: fit-content;
+      max-width: 100%;
+      background: rgba(255, 255, 255, 0.94);
+      padding: 8px 12px 6px;
+      border-radius: 8px;
     }
     .logo-plate img {
       display: block;
-      width: min(240px, 68vw);
+      width: min(340px, 72vw);
       height: auto;
     }
-    .hero-panel {
-      background: rgba(3, 20, 46, 0.86);
-      border-radius: 16px;
-      padding: 18px 18px 16px;
-      max-width: 38rem;
+    .hero-copy {
+      max-width: 40rem;
+      background: rgba(4, 22, 48, 0.82);
+      padding: 22px 22px 18px;
+      border-radius: 14px;
     }
-    .hero h1 {
+    h1 {
       margin: 0 0 8px;
       color: #fff;
-      font-size: clamp(1.7rem, 6vw, 2.5rem);
-      line-height: 1.12;
+      font-size: clamp(1.85rem, 4.6vw, 3.15rem);
+      line-height: 1.05;
       letter-spacing: -0.03em;
     }
-    .hero-lead {
+    .lead {
       margin: 0 0 16px;
       color: #fff;
-      font-size: 1.05rem;
+      font-size: clamp(1rem, 2.4vw, 1.2rem);
     }
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-    .enquire,
-    .hero-toggle {
+    .enquire {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       min-height: 44px;
-      padding: 10px 16px;
-      border-radius: 10px;
-      font: inherit;
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .enquire {
+      padding: 12px 18px;
       background: var(--orange);
       color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 8px;
     }
     .enquire:focus-visible,
-    .hero-toggle:focus-visible {
+    .hero-pause:focus-visible {
       outline: 3px solid #fff;
       outline-offset: 3px;
     }
-    .hero-toggle {
-      background: transparent;
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.7);
-      cursor: pointer;
+    .note {
+      margin: 12px 0 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 0.82rem;
     }
-    .page {
+    .hero-pause {
+      position: absolute;
+      z-index: 3;
+      right: 16px;
+      bottom: calc(16px + env(safe-area-inset-bottom));
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(4, 22, 48, 0.88);
+      color: #fff;
+      font: inherit;
+      font-size: 0.9rem;
+    }
+    .wrap {
       width: min(720px, calc(100% - 32px));
       margin: 0 auto;
-      padding: 36px 0 48px;
+      padding: 36px 0 56px;
     }
     .card {
-      background: var(--card);
-      border: 1px solid var(--line);
+      background: #fff;
+      border: 1px solid #d5e0ea;
       border-radius: 16px;
       padding: 20px;
     }
@@ -153,33 +156,14 @@
       border-radius: 10px;
       font-weight: 600;
     }
-    .mail:focus-visible {
-      outline: 3px solid var(--blue);
-      outline-offset: 3px;
-    }
-    footer {
-      margin-top: 28px;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-    @media (min-width: 800px) {
-      .hero-shade {
-        background: linear-gradient(90deg, rgba(3, 20, 46, 0.88) 0%, rgba(3, 20, 46, 0.72) 34%, rgba(3, 20, 46, 0.22) 62%, rgba(3, 20, 46, 0.12) 100%);
-      }
-      .hero-foreground {
-        top: 0;
-        bottom: 0;
-        justify-content: flex-end;
-        width: min(640px, 54vw);
-        padding: 48px 56px 56px;
-      }
-      .logo-plate img { width: 300px; }
-      .hero-video,
-      .hero-poster { object-position: 58% 46%; }
-    }
-    @media (max-width: 799px) {
-      .hero-video,
-      .hero-poster { object-position: 50% 36%; }
+    footer { margin-top: 28px; color: var(--muted); font-size: 0.9rem; }
+    @media (max-width: 700px) {
+      .hero-video { object-position: center 38%; }
+      .hero { background-position: center 38%; }
+      .hero-shade { background: linear-gradient(180deg, rgba(4, 22, 48, 0.2), rgba(4, 22, 48, 0.28)); }
+      .hero-ui { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+      .hero-copy { padding: 16px; }
+      .enquire { width: 100%; }
     }
     @media (prefers-reduced-motion: reduce) {
       .hero-video { display: none; }
@@ -187,83 +171,80 @@
   </style>
 </head>
 <body>
-  <section class="hero" aria-label="Aerial Networks">
-    <img class="hero-poster" src="/media/hero-poster.jpg" alt="" width="1600" height="900">
-    <video class="hero-video" id="hero-video" muted playsinline loop preload="none" poster="/media/hero-poster.jpg"></video>
+  <section class="hero" id="hero" aria-label="Aerial Networks">
+    <video id="hero-video" class="hero-video" poster="footage/hero-poster.jpg" muted playsinline loop preload="none"></video>
     <div class="hero-shade" aria-hidden="true"></div>
-    <div class="hero-foreground">
+    <div class="hero-ui">
       <div class="logo-plate">
-        <img src="/artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks">
+        <img src="artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks">
       </div>
-      <div class="hero-panel">
+      <div class="hero-copy">
         <h1>High-site infrastructure. Space to connect.</h1>
-        <p class="hero-lead">High-site access, mast space and equipment hosting for your network.</p>
-        <div class="hero-actions">
-          <a class="enquire" href="#contact">Enquire about space</a>
-          <button class="hero-toggle" id="hero-toggle" type="button" hidden aria-pressed="false">Pause video</button>
-        </div>
+        <p class="lead">High-site access, mast space and equipment hosting for your network.</p>
+        <a class="enquire" href="#contact">Enquire about space</a>
+        <p class="note">Illustrative stock footage. Not photographs of Aerial Networks sites.</p>
       </div>
     </div>
+    <button type="button" class="hero-pause" id="hero-pause" aria-pressed="false" aria-label="Pause background video">Pause</button>
   </section>
-  <main class="page">
-    <section class="card" id="contact">
-      <h2>Contact</h2>
-      <p>Ask about high-site access, mast space or equipment hosting.</p>
+  <main class="wrap" id="contact">
+    <section class="card">
+      <h2>Enquire about space</h2>
+      <p>High-site access, mast space and equipment hosting. Email Aerial Networks.</p>
       <a class="mail" href="mailto:kevin@aerialnet.co.za">kevin@aerialnet.co.za</a>
     </section>
-    <footer>
-      <p>Aerial Networks · https://aerialnet.co.za/</p>
-      <p>Hero footage is illustrative stock, not Aerial Networks sites.</p>
-    </footer>
+    <footer>Aerial Networks · https://aerialnet.co.za/</footer>
   </main>
   <script>
     (function () {
       var video = document.getElementById("hero-video");
-      var button = document.getElementById("hero-toggle");
-      var hero = document.querySelector(".hero");
+      var btn = document.getElementById("hero-pause");
       var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      var saveData = navigator.connection && navigator.connection.saveData;
-      if (reduce || saveData) return;
-
-      var narrow = window.matchMedia("(max-width: 799px)").matches;
-      video.src = narrow ? "/media/hero-720.mp4" : "/media/hero-1080.mp4";
-      video.preload = "auto";
-      button.hidden = false;
-
-      var userPaused = false;
-      function label() {
-        var paused = video.paused;
-        button.setAttribute("aria-pressed", paused ? "true" : "false");
-        button.textContent = paused ? "Play video" : "Pause video";
+      var save = navigator.connection && navigator.connection.saveData;
+      if (reduce || save) {
+        document.documentElement.classList.add("hero-still");
+        btn.hidden = true;
+        return;
       }
-      video.addEventListener("play", label);
-      video.addEventListener("pause", label);
-      button.addEventListener("click", function () {
+      var mobile = window.matchMedia("(max-width: 700px)").matches;
+      video.src = mobile ? "footage/hero-720.mp4" : "footage/hero-1080.mp4";
+      video.muted = true;
+      video.playsInline = true;
+      video.loop = true;
+      var pending = video.play();
+      if (pending && pending.catch) pending.catch(function () {});
+      video.addEventListener("error", function () {
+        document.documentElement.classList.add("hero-still");
+        btn.hidden = true;
+      });
+      var held = false;
+      function setPaused(paused) {
+        btn.setAttribute("aria-pressed", paused ? "true" : "false");
+        btn.textContent = paused ? "Play" : "Pause";
+        btn.setAttribute("aria-label", paused ? "Play background video" : "Pause background video");
+      }
+      btn.addEventListener("click", function () {
         if (video.paused) {
-          userPaused = false;
+          held = false;
           video.play();
+          setPaused(false);
         } else {
-          userPaused = true;
+          held = true;
           video.pause();
+          setPaused(true);
         }
       });
-
       if ("IntersectionObserver" in window) {
         var watch = new IntersectionObserver(function (entries) {
-          var visible = entries[0].isIntersecting;
-          if (!visible) video.pause();
-          else if (!userPaused) video.play();
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) video.pause();
+            else if (!held) {
+              var again = video.play();
+              if (again && again.catch) again.catch(function () {});
+            }
+          });
         }, { threshold: 0.2 });
-        watch.observe(hero);
-      }
-
-      var started = video.play();
-      if (started && started.catch) {
-        started.catch(function () {
-          video.removeAttribute("src");
-          video.load();
-          button.hidden = true;
-        });
+        watch.observe(document.getElementById("hero"));
       }
     })();
   </script>

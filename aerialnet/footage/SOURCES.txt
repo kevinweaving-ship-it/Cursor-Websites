@@ -1,42 +1,27 @@
 Aerial Networks hero footage
 
-These clips are illustrative stock scenes. They are not photographs or video of Aerial Networks sites.
+These clips are illustrative stock scenes. They are not photographs of Aerial Networks sites.
 
-Licence
-  Pexels Licence — https://www.pexels.com/license/
-  Free to use, including commercial use. Attribution is not required.
-  Do not sell these files unaltered as stock, and do not imply the people or places shown endorse Aerial Networks.
+License: Pexels License
+https://www.pexels.com/license/
+Free to use and edit. Attribution is not required. Unaltered copies must not be sold on their own.
 
-Sources (official Pexels pages)
-  1. Opening landscape / mast
-     https://www.pexels.com/video/drone-video-of-a-communication-tower-in-an-open-field-12915608/
-     Official download redirect (8 Oct 2026):
-     https://www.pexels.com/download/video/12915608/
-     Resolved file: https://videos.pexels.com/video-files/12915608/12915608-uhd_3840_2160_30fps.mp4
-     3840×2160, 32.53s. Used from 0.0s for 10.8s (open field, slow drone move). The first 1.2s is the loop-return target and is trimmed off the start of the export so the file begins and ends on the same frame.
+Sources
+1. Opening landscape and return landscape
+   https://www.pexels.com/video/drone-video-of-a-communication-tower-in-an-open-field-12915608/
+   Video id 12915608
+   Used from 0.6s (opening) and from 15.2s (return to the landscape).
 
-  2. Closer mast orbit
-     https://www.pexels.com/video/arc-shot-by-drone-of-a-communication-tower-4916490/
-     Official download redirect (8 Oct 2026):
-     https://www.pexels.com/download/video/4916490/
-     Resolved file: https://videos.pexels.com/video-files/4916490/4916490-hd_1920_1080_30fps.mp4
-     1920×1080, 18.39s. Used from 0.4s for 8.4s (closer view of the mast head and antennas).
+2. Closer mast
+   https://www.pexels.com/video/arc-shot-by-drone-of-a-communication-tower-4916490/
+   Video id 4916490
+   Used from 3.0s, cropped closer on the tower head.
 
-  3. Equipment hosting
-     https://www.pexels.com/video/database-storage-of-a-server-5028622/
-     Official download redirect (8 Oct 2026):
-     https://www.pexels.com/download/video/5028622/
-     Resolved file: https://videos.pexels.com/video-files/5028622/5028622-uhd_3840_2160_25fps.mp4
-     3840×2160, 31.57s. The clip stays on two equipment racks in a small room. Used from 20.0s for 8.4s, the closer open-cabinet section. No wide datacentre aisle is included.
+3. Equipment racks
+   https://www.pexels.com/video/database-storage-of-a-server-5028622/
+   Video id 5028622
+   The clip stays on two equipment racks. Used from 11.0s, a tighter close-up. No wide datacentre shot is in this file.
 
 Edit
-  Order: landscape → mast detail → equipment racks → landscape.
-  Crossfade 1.2s between each part, including the return to the opening frame.
-  Same grade on every shot: contrast 1.04, saturation 0.75, slight cool balance.
-  Silent. About 24 seconds. H.264, yuv420p, faststart.
-  Desktop: media/hero-1080.mp4 (1920×1080, target under 8 MB).
-  Mobile: media/hero-720.mp4 (1280×720).
-  Poster: media/hero-poster.jpg (opening frame).
-
-Rebuild
-  bash aerialnet/footage/build-hero.sh
+Silent. About 23.97 seconds. Each shot slowed to 1.15x. Crossfades are 1.2 seconds: landscape, mast, racks, landscape. The last 1.2 seconds fade back to the opening frame so the loop joins smoothly.
+Web files: hero-1080.mp4 (1920x1080 H.264, under 8 MB), hero-720.mp4 (1280x720 H.264), hero-poster.jpg.
