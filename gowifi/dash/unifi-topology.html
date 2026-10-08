@@ -132,7 +132,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .wire-base { fill:none; stroke:var(--wire); stroke-width:2; stroke-linecap:butt; stroke-linejoin:miter; stroke-miterlimit:2; }
 .wire-base.bak { stroke:var(--wire-bak); }
 .wire-base.down { stroke:#c62828; }
-.wire-base.wifi { stroke:#f0a04b; }
+.wire-base.wifi { stroke:#f0a04b; stroke-dasharray:5 4; }
 .wire-base.dash { stroke-dasharray:5 4; }
 .pkt { fill:#5b93d6; }
 .pkt.bak { fill:var(--wire-bak); }
@@ -473,7 +473,7 @@ function paintWires() {
       cpes.forEach(({ kid, i, p }) => {
         const d = `M${dishGap(n, "r").toFixed(1)} ${n.cy.toFixed(1)} H${joinX.toFixed(1)} V${p.cy.toFixed(1)} H${dishGap(p, "l").toFixed(1)}`;
         const on = kid.ok === true;
-        extra.push(`<path class="${lineCls(on, "wifi")}" d="${d}"></path>`);
+        extra.push(`<path class="${lineCls(on, "wifi dash")}" d="${d}"></path>`);
         extraPk.push(packets(d, on, "wifi", 2.05 + i * 0.32, -0.2 * i));
         const cube = kid.cube || {};
         const cEl = document.getElementById("cube-icon-" + i);
@@ -764,13 +764,13 @@ function paintSiteTreeWires(kid, i, extra, extraPk, lineCls) {
     });
     if (cboxes.length === 1) {
       const d2 = lr(from, cboxes[0].p, 0, 0.5);
-      extra.push(`<path class="${lineCls(rad.ok && cboxes[0].cli.ok, "wifi")}" d="${d2}"></path>`);
+      extra.push(`<path class="${lineCls(rad.ok && cboxes[0].cli.ok, "wifi dash")}" d="${d2}"></path>`);
       extraPk.push(packets(d2, !!(rad.ok && cboxes[0].cli.ok), "wifi", 2.3, -0.1));
     } else {
       const joinX = cboxes.length ? Math.min(...cboxes.map(x => x.p.l)) - 18 : 0;
       cboxes.forEach(({ cli, ci, p }) => {
         const d2 = `M${dishGap(from, "r").toFixed(1)} ${from.cy.toFixed(1)} H${joinX.toFixed(1)} V${p.cy.toFixed(1)} H${dishGap(p, "l").toFixed(1)}`;
-        extra.push(`<path class="${lineCls(rad.ok && cli.ok, "wifi")}" d="${d2}"></path>`);
+        extra.push(`<path class="${lineCls(rad.ok && cli.ok, "wifi dash")}" d="${d2}"></path>`);
         extraPk.push(packets(d2, !!(rad.ok && cli.ok), "wifi", 2.3 + ci * 0.2, -0.1 * ci));
       });
     }
