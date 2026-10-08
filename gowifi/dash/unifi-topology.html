@@ -91,7 +91,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
   gap:20px;
 }
-.cpe-span { margin-left:72px; }
+.cpe-span { margin-left:140px; }
 .ptp-grow { min-width:88px; min-height:20px; }
 .hs-tree {
   display:flex; flex-direction:row; align-items:center;
@@ -102,8 +102,10 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .hs-branch-drop { margin-top:36px; }
 .hs-clients {
   display:flex; flex-direction:column; justify-content:flex-start;
+  align-items:flex-start;
   gap:28px; padding:24px 0 0 8px;
 }
+.hs-clients > .cpe-station { align-self:flex-start; }
 .radio-pair {
   display:flex; flex-direction:row; align-items:flex-start; gap:0;
 }
@@ -197,8 +199,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .hs-branch { gap:96px; }
   .hs-branch-drop { margin-top:52px; }
   .hs-branches { gap:28px; }
-  .hs-clients { gap:36px; padding:28px 0 0 8px; }
-  .cpe-span { margin-left:80px; }
+  .hs-clients { gap:36px; padding:28px 0 0 8px; align-items:flex-start; }
+  .cpe-span { margin-left:140px; }
   .fibre-in, .link-mbps { font-size:12px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
@@ -290,7 +292,7 @@ const HOST = "1-dream-machine-pro-hermanus";
 const LIVE_MS = 250;
 const RATE_MS = 250;
 const CONSOLE_MS = 15000;
-const SPOKE_PX = 80;
+const SPOKE_PX = 140;
 const STUB_PX = 18;
 const STALE_MS = 45000;
 const HIST_MAX = 90;
