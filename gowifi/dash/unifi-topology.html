@@ -39,6 +39,12 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   transform:translate(-50%, 0);
 }
 .fibre-in .pct { color:var(--ok); font-weight:600; }
+.link-mbps {
+  position:absolute; z-index:3; pointer-events:none;
+  font-size:11px; line-height:1.15; color:#475569;
+  white-space:nowrap; background:#fff; padding:0 3px;
+  transform:translate(-50%, -120%);
+}
 .topo-flow {
   display:flex; flex-direction:row; flex-wrap:wrap; align-items:center;
   justify-content:flex-start; gap:28px 24px; z-index:2; padding:56px 8px 40px;
@@ -182,7 +188,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .hs-branch { gap:52px; }
   .hs-branch-drop { margin-top:52px; }
   .hs-branches { gap:20px; }
-  .fibre-in { font-size:12px; }
+  .fibre-in, .link-mbps { font-size:12px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
@@ -210,6 +216,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
     <svg class="wires" id="wires" viewBox="0 0 100 100" preserveAspectRatio="xMinYMin meet" aria-hidden="true"></svg>
     <div class="fibre-in" id="fibre-in-wan" hidden></div>
     <div class="fibre-in" id="fibre-in-wan2" hidden></div>
+    <div id="link-mbps-layer"></div>
     <div class="topo-flow" id="topo-grid" data-topo-layout="horizontal">
     <div class="spine">
     <div class="col col-inet stack" id="globe">
@@ -270,6 +277,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 <script>
 const HOST = "1-dream-machine-pro-hermanus";
 const LIVE_MS = 1000;
+const RATE_MS = 2000;
 const CONSOLE_MS = 15000;
 const STALE_MS = 45000;
 const HIST_MAX = 90;
@@ -292,6 +300,7 @@ let ES16 = { show:false, ok:false };
 let ESPOP = [];
 let NANO_CPE = [];
 let PTP = [];
+let LINKS = [];
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c => ({
@@ -372,9 +381,14 @@ function placeFibreIn(id, rec, x, y, side) {
   el.style.top = (side === "above" ? (y - 20) : (y + 12)).toFixed(1) + "px";
   el.hidden = false;
 }
+function clockAsAt() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return d.getUTCFullYear() + "-" + p(d.getUTCMonth() + 1) + "-" + p(d.getUTCDate()) + " " + p(d.getUTCHours()) + ":" + p(d.getUTCMinutes()) + ":" + p(d.getUTCSeconds());
+}
 function setBanner(stale, asAt) {
   const banner = document.getElementById("banner");
-  LAST_AS_AT = fmtAsAt(asAt || LAST_AS_AT);
+  LAST_AS_AT = stale ? fmtAsAt(asAt || LAST_AS_AT) : clockAsAt();
   banner.className = stale ? "banner" : "banner ok";
   banner.innerHTML = stale
     ? "<strong>Stale.</strong> as at " + esc(LAST_AS_AT || "—")
@@ -598,6 +612,7 @@ function paintWires() {
     paintSiteTreeWires(kid, i, extra, extraPk, lineCls);
   });
   html += extra.join("") + extraPk.join("");
+  placeLinkRates();
   const sig = html + "|" + tw + "x" + th + "|" + f1 + f2 + fC + fSw + fEs + ESPOP.map(k => k.ok).join("") + NANO_CPE.map(k => k.ok + ":" + ((k.cube && k.cube.ok) || "")).join("") + PTP.map(k => k.ok + ":" + siteTreeSig(k)).join("");
   if (sig === WIRE_SIG) return;
   WIRE_SIG = sig;
@@ -661,17 +676,22 @@ function liveTick() {
     if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
     return;
   }
+  if (!STALE && LAST_OK_MS) setBanner(false);
   fetchLive();
 }
 function startPoll() {
   if (window.__unifiPoll) return;
   window.__unifiPoll = setInterval(liveTick, LIVE_MS);
+  window.__unifiRatePoll = setInterval(() => {
+    if (!document.hidden) refreshLinkRates();
+  }, RATE_MS);
   window.__unifiConsolePoll = setInterval(() => {
     if (!document.hidden) loadConsole();
   }, CONSOLE_MS);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       fetchLive();
+      refreshLinkRates();
       loadConsole();
     }
   });
@@ -719,6 +739,137 @@ function linkToConsole(links, consoleId, id) {
     if (!a || !b || a === b) return false;
     return (a === consoleId && b === id) || (b === consoleId && a === id);
   }) || null;
+}
+function linkBetween(links, a, b) {
+  if (!a || !b) return null;
+  if (a === b) {
+    return (links || []).find(L => sideId(L.from) === a && sideId(L.to) === a) || null;
+  }
+  return (links || []).find(L => {
+    const x = sideId(L.from);
+    const y = sideId(L.to);
+    return (x === a && y === b) || (x === b && y === a);
+  }) || null;
+}
+function sideRxMbps(side) {
+  const st = side && side.interface && side.interface.statistics;
+  if (!st) return null;
+  const rx = numOrNull(st.rxRate);
+  return rx == null ? null : rx / 1000000;
+}
+function linkDownMbps(link, childId) {
+  if (!link) return null;
+  const fromId = sideId(link.from);
+  const toId = sideId(link.to);
+  let child = null;
+  if (childId && fromId === childId) child = link.from;
+  else if (childId && toId === childId) child = link.to;
+  else child = link.to || link.from;
+  const rx = sideRxMbps(child);
+  if (rx != null) return rx;
+  const other = child === link.from ? link.to : link.from;
+  const tx = other && other.interface && other.interface.statistics ? numOrNull(other.interface.statistics.txRate) : null;
+  return tx == null ? null : tx / 1000000;
+}
+function applyLinkRates(links) {
+  if (links) LINKS = links;
+  const cid = CONSOLE.id;
+  if (cid) CONSOLE.downMbps = linkDownMbps(linkBetween(LINKS, cid, cid), cid);
+  if (SWITCH.id) SWITCH.downMbps = linkDownMbps(linkBetween(LINKS, cid, SWITCH.id), SWITCH.id);
+  if (ES16.id) ES16.downMbps = linkDownMbps(linkBetween(LINKS, cid, ES16.id), ES16.id);
+  ESPOP.forEach(k => {
+    if (k.id) k.downMbps = linkDownMbps(linkBetween(LINKS, ES16.id, k.id), k.id);
+  });
+  const nano = ESPOP.find(p => radioRole(p) === "nano");
+  NANO_CPE.forEach(k => {
+    if (k.id && nano && nano.id) k.downMbps = linkDownMbps(linkBetween(LINKS, nano.id, k.id), k.id);
+    if (k.cube && k.cube.id) k.cube.downMbps = linkDownMbps(linkBetween(LINKS, k.id, k.cube.id), k.cube.id);
+  });
+  PTP.forEach(k => {
+    const near = ESPOP.find(p => radioRole(p) === k.role);
+    if (k.id && near && near.id) k.downMbps = linkDownMbps(linkBetween(LINKS, near.id, k.id), k.id);
+    if (k.switch && k.switch.id) k.switch.downMbps = linkDownMbps(linkBetween(LINKS, k.id, k.switch.id), k.switch.id);
+    (k.radios || []).forEach(rad => {
+      if (rad.id && k.switch && k.switch.id) rad.downMbps = linkDownMbps(linkBetween(LINKS, k.switch.id, rad.id), rad.id);
+      (rad.clients || []).forEach(cli => {
+        if (cli.id && rad.id) cli.downMbps = linkDownMbps(linkBetween(LINKS, rad.id, cli.id), cli.id);
+      });
+    });
+  });
+}
+function refreshLinkRates() {
+  fetch("/dash/api/data-links", { credentials:"same-origin", cache:"no-store" })
+    .then(r => r.json())
+    .then(linkData => {
+      applyLinkRates(asRows(linkData));
+      placeLinkRates();
+    })
+    .catch(() => {});
+}
+function addLinkMbps(layer, mbps, x, y) {
+  if (mbps == null || !Number.isFinite(mbps) || !layer) return;
+  const el = document.createElement("div");
+  el.className = "link-mbps";
+  el.textContent = fmtLiveMbps(mbps);
+  el.style.left = x.toFixed(1) + "px";
+  el.style.top = y.toFixed(1) + "px";
+  layer.appendChild(el);
+}
+function midXY(a, b) {
+  return { x: (a.cx + b.cx) / 2, y: (a.cy + b.cy) / 2 };
+}
+function safeBox(sel) {
+  try {
+    const el = document.querySelector(sel);
+    if (!el || !el.offsetParent && el.id !== "wires") return null;
+    if (!el.getClientRects().length) return null;
+    return box(sel);
+  } catch (e) { return null; }
+}
+function placeLinkRates() {
+  const layer = document.getElementById("link-mbps-layer");
+  if (!layer) return;
+  layer.innerHTML = "";
+  const hubEl = document.getElementById("vk-pop-pill");
+  const hub = (hubEl && hubEl.offsetParent) ? box("#vk-pop-pill") : safeBox("#udm-icon");
+  const con = safeBox("#console-icon");
+  const es = safeBox("#es16-icon");
+  const sw = safeBox("#switch-icon");
+  if (hub && con) addLinkMbps(layer, CONSOLE.downMbps, (hub.r + con.l) / 2, (hub.cy + con.cy) / 2);
+  if (con && es) addLinkMbps(layer, ES16.downMbps, (con.r + es.l) / 2, (con.cy + es.cy) / 2);
+  if (con && sw) addLinkMbps(layer, SWITCH.downMbps, sw.cx, (con.cy + sw.b) / 2);
+  const lte = safeBox("#lte-icon");
+  if (lte && hub) addLinkMbps(layer, numOrNull(gauge("lte").used_down_mbps), lte.cx, (lte.b + hub.t) / 2);
+  ESPOP.forEach((kid, i) => {
+    const p = safeBox("#pop-icon-" + i);
+    if (es && p) addLinkMbps(layer, kid.downMbps, (es.r + p.l) / 2, (es.cy + p.cy) / 2);
+  });
+  const nano = safeBox("img[data-role='nano']");
+  NANO_CPE.forEach((kid, i) => {
+    const p = safeBox("#cpe-icon-" + i);
+    if (nano && p) addLinkMbps(layer, kid.downMbps, (nano.r + p.l) / 2, (nano.cy + p.cy) / 2);
+    const cb = safeBox("#cube-icon-" + i);
+    if (p && cb && kid.cube) addLinkMbps(layer, kid.cube.downMbps, (p.r + cb.l) / 2, (p.cy + cb.cy) / 2);
+  });
+  PTP.forEach((kid, i) => {
+    const src = kid.srcSel && document.querySelector(kid.srcSel);
+    const pill = safeBox("#ptp-row-" + i);
+    if (src && src.offsetParent && pill) {
+      const m = midXY(box(kid.srcSel), pill);
+      addLinkMbps(layer, kid.downMbps, m.x, m.y);
+    }
+    const swb = safeBox("#hs-sw-icon-" + i);
+    if (pill && swb) addLinkMbps(layer, kid.switch && kid.switch.downMbps, (pill.r + swb.l) / 2, (pill.cy + swb.cy) / 2);
+    (kid.radios || []).forEach((rad, ri) => {
+      const rb = safeBox("#hs-rad-icon-" + i + "-" + ri);
+      if (swb && rb) addLinkMbps(layer, rad.downMbps, (swb.r + rb.l) / 2, (swb.cy + rb.cy) / 2);
+      const sec = safeBox("#hs-rad-icon-" + i + "-" + ri + "-sector") || rb;
+      (rad.clients || []).forEach((cli, ci) => {
+        const cbx = safeBox("#hs-cli-icon-" + i + "-" + ri + "-" + ci);
+        if (sec && cbx) addLinkMbps(layer, cli.downMbps, (sec.r + cbx.l) / 2, (sec.cy + cbx.cy) / 2);
+      });
+    });
+  });
 }
 function setKid(prefix, rec) {
   const node = document.getElementById(prefix + "-node");
@@ -1004,6 +1155,8 @@ function kidRec(dev, link) {
   return {
     show: true,
     ok,
+    id: devId(dev),
+    downMbps: linkDownMbps(link, devId(dev)),
     name: ident.name || ident.displayName || ident.model || "",
     model: ident.model || "",
     icon: uispIcon(ident.model || "", ident.type || "")
@@ -1025,8 +1178,9 @@ function loadConsole() {
       paint();
       return;
     }
-    CONSOLE = { ok: consoleLinkUp(hit) };
     const cid = hit ? devId(hit) : "";
+    LINKS = links;
+    CONSOLE = { ok: consoleLinkUp(hit), id: cid };
     const kids = cid ? rows.filter(d => {
       const id = devId(d);
       return id && id !== cid && linkToConsole(links, cid, id);
@@ -1096,6 +1250,7 @@ function loadConsole() {
       renderEs16Pop(ESPOP);
       renderHops(NANO_CPE, PTP);
     }
+    applyLinkRates(links);
     paint();
   }).catch(() => {
     paint();

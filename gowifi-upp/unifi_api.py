@@ -262,14 +262,14 @@ def _remember_speedtest(gw: dict) -> dict:
     except (TypeError, ValueError):
         up = None
     if ifname and down and down > 0:
-        store[ifname] = {"down": down, "up": up, "rundate": st.get("rundate")}
+        prev = store.get(ifname) if isinstance(store.get(ifname), dict) else {}
         try:
-            _SPEEDTEST_PATH.parent.mkdir(parents=True, exist_ok=True)
-            tmp = _SPEEDTEST_PATH.with_suffix(".tmp")
-            tmp.write_text(json.dumps(store))
-            tmp.replace(_SPEEDTEST_PATH)
-        except Exception:
-            pass
+            prev_down = float(prev.get("down") or 0)
+        except (TypeError, ValueError):
+            prev_down = 0.0
+        if down >= prev_down:
+            store[ifname] = {"down": down, "up": up, "rundate": st.get("rundate"), "source": "speedtest"}
+            _write_speedtests(store)
     return store
 
 
@@ -292,10 +292,40 @@ def _speedtest_for(store: dict, block: dict) -> tuple[float | None, float | None
 
 def _line_total(plan: float | int | None, speedtest: float | None) -> float | None:
     if speedtest and speedtest > 0:
-        return round(speedtest, 1)
+        return round(float(speedtest), 1)
     if plan and plan > 0:
         return float(plan)
     return None
+
+
+def _write_speedtests(store: dict) -> None:
+    try:
+        _SPEEDTEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _SPEEDTEST_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps(store))
+        tmp.replace(_SPEEDTEST_PATH)
+    except Exception:
+        pass
+
+
+def _bump_avail(store: dict, block: dict, used_down: float | None, used_up: float | None) -> dict:
+    """Keep the highest seen/speed-test rate as available speed for that WAN."""
+    ifname = _ifname(block)
+    if not ifname or used_down is None:
+        return store
+    rec = dict(store.get(ifname) or {})
+    try:
+        prev = float(rec["down"]) if rec.get("down") is not None else 0.0
+    except (TypeError, ValueError):
+        prev = 0.0
+    if used_down > prev and used_down >= 200:
+        rec["down"] = round(float(used_down), 1)
+        rec["source"] = "peak"
+        if used_up and used_up > float(rec.get("up") or 0):
+            rec["up"] = round(float(used_up), 1)
+        store[ifname] = rec
+        _write_speedtests(store)
+    return store
 
 
 def _classic(key: str, host_id: str, tail: str) -> dict:
@@ -391,6 +421,11 @@ def _wan_gauges(key: str, host_id: str) -> list[dict]:
         stats = uptime_stats.get(status_key) if isinstance(uptime_stats.get(status_key), dict) else {}
         down_mbps = rates["down_mbps"]
         up_mbps = rates["up_mbps"]
+        if kind == "fibre" and down_mbps:
+            speedtests = _bump_avail(speedtests, block, down_mbps, up_mbps)
+            st_down, st_up = _speedtest_for(speedtests, block)
+            total_down = _line_total(cap_down, st_down)
+            total_up = _line_total(cap_up, st_up)
         ip = (block.get("ip") or "").strip()
         operator = ""
         signal = ""
@@ -482,6 +517,9 @@ def _wan_live(key: str, host_id: str) -> list[dict]:
                 raw_status = "online"
         down_mbps = rates["down_mbps"]
         up_mbps = rates["up_mbps"]
+        if kind == "fibre" and down_mbps:
+            speedtests = _bump_avail(speedtests, block, down_mbps, up_mbps)
+            st_down, st_up = _speedtest_for(speedtests, block)
         gauges.append(
             {
                 "id": key_id,
