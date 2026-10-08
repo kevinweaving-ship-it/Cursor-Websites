@@ -85,7 +85,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 #nano-block {
   grid-column:3; grid-row:5;
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
-  padding:24px 0 0 160px;
+  padding:24px 0 0 240px;
 }
 #nano-cpe {
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
@@ -102,7 +102,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .hs-branch-drop { margin-top:36px; }
 .hs-clients {
   display:flex; flex-direction:column; justify-content:flex-start;
-  gap:96px; padding:80px 0 0 160px;
+  gap:96px; padding:80px 0 0 240px; min-width:300px;
 }
 .hs-clients > .cpe-station { min-height:88px; }
 .radio-pair {
@@ -198,14 +198,14 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .hs-branch { gap:96px; }
   .hs-branch-drop { margin-top:52px; }
   .hs-branches { gap:28px; }
-  .hs-clients { gap:120px; padding:110px 0 0 160px; }
+  .hs-clients { gap:120px; padding:110px 0 0 240px; min-width:320px; }
   .hs-clients > .cpe-station { min-height:100px; }
   .fibre-in, .link-mbps { font-size:12px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
   .site-card-name, .cpe-name { font-size:12px; }
-  #nano-block { padding:32px 0 0 160px; }
+  #nano-block { padding:32px 0 0 240px; }
   #nano-cpe { gap:120px; }
   #nano-block .cpe-row { min-height:100px; }
   #lte-node { bottom:calc(100% + 16px); }
@@ -292,7 +292,7 @@ const HOST = "1-dream-machine-pro-hermanus";
 const LIVE_MS = 250;
 const RATE_MS = 250;
 const CONSOLE_MS = 15000;
-const SPOKE_PX = 160;
+const SPOKE_PX = 240;
 const STALE_MS = 45000;
 const HIST_MAX = 90;
 const CONSOLE_MAC = "e4:38:83:de:e6:4a";
