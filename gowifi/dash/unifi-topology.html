@@ -269,7 +269,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 </main>
 <script>
 const HOST = "1-dream-machine-pro-hermanus";
-const POLL_MS = 15000;
+const LIVE_MS = 1000;
+const CONSOLE_MS = 15000;
 const STALE_MS = 45000;
 const HIST_MAX = 90;
 const CONSOLE_MAC = "e4:38:83:de:e6:4a";
@@ -326,6 +327,8 @@ function mergeGauges(base, live) {
       name: g.name,
       capacity_down_mbps: g.capacity_down_mbps,
       capacity_up_mbps: g.capacity_up_mbps,
+      speedtest_down_mbps: n.speedtest_down_mbps != null ? n.speedtest_down_mbps : g.speedtest_down_mbps,
+      speedtest_up_mbps: n.speedtest_up_mbps != null ? n.speedtest_up_mbps : g.speedtest_up_mbps,
       used_down_mbps: n.used_down_mbps,
       used_up_mbps: n.used_up_mbps
     });
@@ -636,7 +639,10 @@ function fetchLive() {
   return fetch(liveUrl(), { credentials:"same-origin", cache:"no-store" })
     .then(r => r.json())
     .then(data => {
-      if (!data || !data.ok) { markStale(); return false; }
+      if (!data || !data.ok || !(data.gauges || []).length) {
+        if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+        return false;
+      }
       STALE = false;
       LAST_OK_MS = Date.now();
       GAUGES = mergeGauges(GAUGES, data.gauges || []);
@@ -645,21 +651,29 @@ function fetchLive() {
       setBanner(false, data.as_at);
       return true;
     })
-    .catch(() => { markStale(); return false; });
+    .catch(() => {
+      if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+      return false;
+    });
 }
-function pollTick() {
+function liveTick() {
   if (document.hidden) {
     if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
     return;
   }
   fetchLive();
-  loadConsole();
 }
 function startPoll() {
   if (window.__unifiPoll) return;
-  window.__unifiPoll = setInterval(pollTick, POLL_MS);
+  window.__unifiPoll = setInterval(liveTick, LIVE_MS);
+  window.__unifiConsolePoll = setInterval(() => {
+    if (!document.hidden) loadConsole();
+  }, CONSOLE_MS);
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) pollTick();
+    if (!document.hidden) {
+      fetchLive();
+      loadConsole();
+    }
   });
 }
 function consoleLinkUp(dev) {
