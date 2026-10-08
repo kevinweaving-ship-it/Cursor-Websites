@@ -41,6 +41,10 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 }
 .col { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; }
 .col-udm { min-width:36px; }
+.udm-with-site {
+  display:flex; flex-direction:row; align-items:flex-start; gap:10px;
+}
+.udm-site-pill { margin-top:18px; }
 #lte-node {
   position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%);
 }
@@ -59,14 +63,21 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   column-gap:36px; row-gap:18px;
   z-index:2;
 }
-#es16-pop, #ptp-block { display:contents; }
+#es16-pop, #ptp-block, #hs-trees { display:contents; }
 #nano-block {
   grid-column:3; grid-row:5;
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
   gap:16px; padding:10px 0 0 4px;
 }
 .ptp-grow { min-width:88px; min-height:20px; }
-.radio-grid.gone, #nano-block.gone, .uisp-kid.gone, .gone { display:none; }
+.hs-tree {
+  display:flex; flex-direction:row; align-items:center;
+  gap:40px; padding-left:8px; min-height:58px;
+}
+.hs-branches { display:flex; flex-direction:column; justify-content:center; gap:16px; }
+.hs-branch { display:flex; flex-direction:row; align-items:flex-end; gap:40px; }
+.hs-clients { display:flex; flex-direction:column; justify-content:flex-end; gap:14px; }
+.radio-grid.gone, #nano-block.gone, .hs-tree.gone, .uisp-kid.gone, .gone { display:none; }
 .stack { display:flex; flex-direction:column; align-items:center; gap:3px; }
 .uisp-kid img { width:36px; height:36px; display:block; object-fit:contain; }
 .uisp-kid.uisp-radio img { width:36px; height:36px; }
@@ -124,11 +135,15 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .cpe-row { gap:52px; min-height:72px; }
   .cpe-station { min-width:64px; gap:6px; }
   .cpe-name { font-size:12px; max-width:110px; }
+  .hs-tree { gap:52px; min-height:72px; }
+  .hs-branch { gap:52px; }
+  .hs-branches { gap:20px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
   .site-card-name, .cpe-name { font-size:12px; }
   #nano-block { gap:24px; padding-top:12px; }
+  .udm-site-pill { margin-top:22px; }
   #lte-node { bottom:calc(100% + 16px); }
   #switch-node { bottom:48px; }
 }
@@ -164,9 +179,15 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
         <div class="cap">U-LTE</div>
         <img id="lte-icon" alt="U-LTE" width="64" height="64">
       </div>
+      <div class="udm-with-site">
       <div class="stack" id="udm-node">
         <div class="cap">UDM</div>
         <img id="udm-icon" alt="UDM" width="129" height="129">
+      </div>
+      <div class="site-card udm-site-pill" id="vk-pop-pill">
+        <img id="vk-pop-pill-icon" alt="VK Pop">
+        <span class="site-card-name">VK Pop</span>
+      </div>
       </div>
     </div>
     <div class="col col-con stack" id="console-node">
@@ -176,7 +197,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
     <div class="col col-sw-branch">
       <div class="stack uisp-kid gone" id="switch-node">
         <div class="cap" id="switch-name"></div>
-        <div class="cap gone" id="vk-pop-site">VK Pop</div>
+        <div class="cap gone" id="vk-pop-site"></div>
         <img id="switch-icon" alt="">
       </div>
     </div>
@@ -188,8 +209,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
     <div class="radio-grid gone" id="radio-grid">
       <div id="es16-pop"></div>
       <div id="ptp-block"></div>
-      <div class="ptp-grow" style="grid-area:1 / 3" aria-hidden="true"></div>
-      <div class="ptp-grow" style="grid-area:2 / 3" aria-hidden="true"></div>
+      <div id="hs-trees"></div>
       <div id="nano-block" class="gone"><div id="nano-cpe"></div></div>
     </div>
     </div>    </div>
@@ -377,7 +397,12 @@ function paintWires() {
   const dF1 = lr(g, u, -2, 0.5);
   const dF2 = lr(g, u, 2, 0.5);
   const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} L${l.cx.toFixed(1)} ${(u.t - 8).toFixed(1)}`;
-  const dCon = lr(u, c, 0, 0.5);
+  const popPill = document.getElementById("vk-pop-pill");
+  let dCon = lr(u, c, 0, 0.5);
+  if (popPill && popPill.offsetParent) {
+    const p = box("#vk-pop-pill");
+    dCon = `M${dishGap(u, "r").toFixed(1)} ${u.cy.toFixed(1)} L${p.l.toFixed(1)} ${p.cy.toFixed(1)} L${p.r.toFixed(1)} ${p.cy.toFixed(1)} L${dishGap(c, "l").toFixed(1)} ${c.cy.toFixed(1)}`;
+  }
   let dSw = "";
   let dEs = "";
   if (esShow) dEs = lr(c, box("#es16-icon"), 0, 0.5);
@@ -446,9 +471,10 @@ function paintWires() {
     const d = hopPath(box(kid.srcSel), box("#ptp-icon-" + i), 0.35);
     extra.push(`<path class="${lineCls(kid.ok === true, "wifi dash")}" d="${d}"></path>`);
     extraPk.push(packets(d, kid.ok === true, "wifi", 2.2 + i * 0.35, -0.18 * i));
+    paintSiteTreeWires(kid, i, extra, extraPk, lineCls);
   });
   html += extra.join("") + extraPk.join("");
-  const sig = html + "|" + tw + "x" + th + "|" + f1 + f2 + fC + fSw + fEs + ESPOP.map(k => k.ok).join("") + NANO_CPE.map(k => k.ok + ":" + ((k.cube && k.cube.ok) || "")).join("") + PTP.map(k => k.ok).join("");
+  const sig = html + "|" + tw + "x" + th + "|" + f1 + f2 + fC + fSw + fEs + ESPOP.map(k => k.ok).join("") + NANO_CPE.map(k => k.ok + ":" + ((k.cube && k.cube.ok) || "")).join("") + PTP.map(k => k.ok + ":" + siteTreeSig(k)).join("");
   if (sig === WIRE_SIG) return;
   WIRE_SIG = sig;
   svg.innerHTML = html;
@@ -584,6 +610,14 @@ function cleanLabel(name, model) {
   if (/vk-lo/i.test(n)) return "VK-LO";
   if (/fk-vk/i.test(n)) return "FK High Site";
   if (/lo-vk/i.test(n)) return "LO High Site";
+  if (model === "ES-8-150W" || /es-8|eswitch/i.test(n)) return "ES8";
+  if (/fk\s*ap/i.test(n)) return "FK AP";
+  if (/lo-?ap/i.test(n)) return "LO AP";
+  if (/deon|gerber/i.test(n)) return "Deon";
+  if (/^bing\b/i.test(n)) return "Bing";
+  if (/v-?sq|hotspot/i.test(n)) return "V-SQ";
+  if (/whale/i.test(n)) return "Whale";
+  if (/litebeam/i.test(n)) return "LiteBeam";
   n = n.replace(/\s*PTP\s*/i, " ").replace(/\s+/g, " ").trim();
   return n || model || "";
 }
@@ -617,8 +651,109 @@ function placeHops() {
   });
   PTP.forEach((rec, i) => {
     const n = document.getElementById("ptp-row-" + i);
-    if (!n) return;
-    n.style.gridArea = (rec.role === "fk" ? 1 : 2) + " / 2";
+    if (n) n.style.gridArea = (rec.role === "fk" ? 1 : 2) + " / 2";
+    const t = document.getElementById("hs-tree-" + i);
+    if (t) t.style.gridArea = (rec.role === "fk" ? 1 : 2) + " / 3";
+  });
+}
+function stationHtml(id, rec, name) {
+  return `<div class="cpe-station">
+    <span class="cpe-name">${esc(name || cleanLabel(rec.name, rec.model))}</span>
+    <img id="${id}" alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+  </div>`;
+}
+function linkKids(rows, links, parentId, used, type) {
+  return rows.filter(d => {
+    const id = devId(d);
+    if (!id || id === parentId || used.has(id)) return false;
+    const L = linkToConsole(links, parentId, id);
+    return !!(L && String(L.type || "").toLowerCase() === type);
+  });
+}
+function isSiteSwitch(d) {
+  const m = String(identOf(d).model || "");
+  return m === "ES-8-150W" || m === "ES-16-150W" || /^ES-8/i.test(m);
+}
+function attachSiteTree(rec, farDev, rows, links, used) {
+  rec.switch = { show:false, ok:false };
+  rec.radios = [];
+  const farId = devId(farDev);
+  const swDev = linkKids(rows, links, farId, used, "ethernet").find(isSiteSwitch);
+  if (!swDev) return rec;
+  used.add(devId(swDev));
+  rec.switch = kidRec(swDev, linkToConsole(links, farId, devId(swDev)));
+  const radios = linkKids(rows, links, devId(swDev), used, "ethernet").filter(d => {
+    const t = String(identOf(d).type || "");
+    return t === "airMax" || /lite|beam|ap/i.test(identOf(d).name || "");
+  });
+  rec.radios = radios.map(r => {
+    used.add(devId(r));
+    const rr = kidRec(r, linkToConsole(links, devId(swDev), devId(r)));
+    rr.clients = linkKids(rows, links, devId(r), used, "wireless").map(c => {
+      used.add(devId(c));
+      return kidRec(c, linkToConsole(links, devId(r), devId(c)));
+    }).sort((a, b) => cleanLabel(a.name).localeCompare(cleanLabel(b.name)));
+    return rr;
+  }).sort((a, b) => cleanLabel(a.name).localeCompare(cleanLabel(b.name)));
+  return rec;
+}
+function siteTreeSig(kid) {
+  const sw = kid && kid.switch && kid.switch.ok;
+  const rad = ((kid && kid.radios) || []).map(r => r.ok + ":" + ((r.clients || []).map(c => c.ok).join(","))).join("|");
+  return sw + "/" + rad;
+}
+function paintSiteTreeWires(kid, i, extra, extraPk, lineCls) {
+  const swEl = document.getElementById("hs-sw-icon-" + i);
+  if (!kid.switch || !kid.switch.show || !swEl || !swEl.offsetParent) return;
+  const sw = box("#hs-sw-icon-" + i);
+  const pill = document.getElementById("ptp-row-" + i);
+  if (pill && pill.offsetParent) {
+    const p = box("#ptp-row-" + i);
+    const d = `M${p.r.toFixed(1)} ${p.cy.toFixed(1)} L${dishGap(sw, "l").toFixed(1)} ${sw.cy.toFixed(1)}`;
+    extra.push(`<path class="${lineCls(kid.ok && kid.switch.ok)}" d="${d}"></path>`);
+    extraPk.push(packets(d, !!(kid.ok && kid.switch.ok), "", 2.1 + i * 0.2, -0.1 * i));
+  }
+  (kid.radios || []).forEach((rad, ri) => {
+    const rEl = document.getElementById("hs-rad-icon-" + i + "-" + ri);
+    if (!rad.show || !rEl || !rEl.offsetParent) return;
+    const rb = box("#hs-rad-icon-" + i + "-" + ri);
+    const d = lr(sw, rb, 0, 0.5);
+    extra.push(`<path class="${lineCls(kid.switch.ok && rad.ok)}" d="${d}"></path>`);
+    extraPk.push(packets(d, !!(kid.switch.ok && rad.ok), "", 2.2 + ri * 0.2, -0.12 * ri));
+    const cboxes = [];
+    (rad.clients || []).forEach((cli, ci) => {
+      const cEl = document.getElementById("hs-cli-icon-" + i + "-" + ri + "-" + ci);
+      if (!cli.show || !cEl || !cEl.offsetParent) return;
+      cboxes.push({ cli, ci, p: box("#hs-cli-icon-" + i + "-" + ri + "-" + ci) });
+    });
+    if (cboxes.length === 1) {
+      const d2 = lr(rb, cboxes[0].p, 0, 0.5);
+      extra.push(`<path class="${lineCls(rad.ok && cboxes[0].cli.ok, "wifi")}" d="${d2}"></path>`);
+      extraPk.push(packets(d2, !!(rad.ok && cboxes[0].cli.ok), "wifi", 2.3, -0.1));
+    } else {
+      const joinX = cboxes.length ? Math.min(...cboxes.map(x => x.p.l)) - 18 : 0;
+      cboxes.forEach(({ cli, ci, p }) => {
+        const d2 = `M${dishGap(rb, "r").toFixed(1)} ${rb.cy.toFixed(1)} L${joinX.toFixed(1)} ${rb.cy.toFixed(1)} L${joinX.toFixed(1)} ${p.cy.toFixed(1)} L${dishGap(p, "l").toFixed(1)} ${p.cy.toFixed(1)}`;
+        extra.push(`<path class="${lineCls(rad.ok && cli.ok, "wifi")}" d="${d2}"></path>`);
+        extraPk.push(packets(d2, !!(rad.ok && cli.ok), "wifi", 2.3 + ci * 0.2, -0.1 * ci));
+      });
+    }
+  });
+}
+function renderSiteTrees(list) {
+  const wrap = document.getElementById("hs-trees");
+  if (!wrap) return;
+  wrap.innerHTML = list.map((rec, i) => {
+    if (!rec.switch || !rec.switch.show) return "";
+    const row = rec.role === "fk" ? 1 : 2;
+    const branches = (rec.radios || []).map((rad, ri) => {
+      const clients = (rad.clients || []).map((cli, ci) => stationHtml("hs-cli-icon-" + i + "-" + ri + "-" + ci, cli)).join("");
+      return `<div class="hs-branch">${stationHtml("hs-rad-icon-" + i + "-" + ri, rad)}<div class="hs-clients">${clients}</div></div>`;
+    }).join("");
+    return `<div class="hs-tree" id="hs-tree-${i}" style="grid-area:${row} / 3">${stationHtml("hs-sw-icon-" + i, rec.switch)}<div class="hs-branches">${branches}</div></div>`;
+  }).join("");
+  wrap.querySelectorAll("img").forEach(img => {
+    img.addEventListener("load", () => requestAnimationFrame(paintWires), { once:true });
   });
 }
 function renderEs16Pop(list) {
@@ -685,6 +820,7 @@ function renderHops(cpeList, ptpList) {
     const img = document.getElementById("ptp-icon-" + i);
     if (img) img.addEventListener("load", () => requestAnimationFrame(paintWires), { once:true });
   });
+  renderSiteTrees(ptpSorted);
   requestAnimationFrame(placeHops);
 }
 function kidRec(dev, link) {
@@ -773,6 +909,7 @@ function loadConsole() {
       const rec = kidRec(far, linkToConsole(links, nearId, devId(far)));
       rec.srcSel = "#es16-pop img[data-role='" + role + "']";
       rec.role = role;
+      attachSiteTree(rec, far, rows, links, used);
       PTP.push(rec);
     });
     renderHops(NANO_CPE, PTP);
@@ -833,6 +970,7 @@ function bootFat() {
     .catch(() => {});
 }
 bindIcon("udm-icon", ICONS.udm);
+bindIcon("vk-pop-pill-icon", ICONS.udm);
 bindIcon("console-icon", ICONS.console);
 bindIcon("lte-icon", ICONS.lte);
 window.addEventListener("resize", () => { placeHops(); paintWires(); });
