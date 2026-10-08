@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · UniFi topology</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<style>
+:root {
+  --bg:#ffffff; --text:#334155; --muted:#64748b; --acc:#334155; --wire:#7eb6ff; --wire-bak:#b7d4f5;
+  --pad:12px; --ok:#16a34a; --warn:#c77800; --line:#e6eef6;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:#123a7a; text-decoration:none; }
+header.app {
+  position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--line);
+  padding:10px max(var(--pad), env(safe-area-inset-right)) 12px max(var(--pad), env(safe-area-inset-left));
+}
+.bar { display:flex; flex-direction:column; gap:6px; }
+header.app h1 { margin:0; font-size:18px; font-weight:600; color:#123a7a; }
+.nav { display:flex; flex-wrap:wrap; gap:4px 16px; }
+.nav a { color:#123a7a; font-size:14px; min-height:40px; display:inline-flex; align-items:center; }
+main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--pad), env(safe-area-inset-left)); }
+.banner {
+  margin:0 0 10px; padding:8px 10px; border:1px solid var(--line); border-radius:12px; background:#fff8e8;
+}
+.banner.ok { background:#eef8f1; }
+.banner strong { color:var(--warn); }
+.banner.ok strong { color:var(--ok); }
+.topo { position:relative; width:100%; max-width:100%; margin:0; overflow:visible; }
+.topo-flow {
+  display:flex; flex-direction:row; flex-wrap:wrap; align-items:center;
+  justify-content:flex-start; gap:28px 24px; z-index:2; padding:72px 8px 24px;
+}
+.spine {
+  display:flex; flex-direction:row; align-items:center; gap:44px; flex:0 0 auto; z-index:2;
+}
+.col { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; }
+.col-udm { min-width:36px; }
+#lte-node {
+  position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%);
+}
+.col-sw-branch {
+  position:relative; width:48px; height:1px; align-self:center; flex:0 0 48px;
+}
+#switch-node {
+  position:absolute; left:50%; bottom:36px; transform:translateX(-50%);
+}
+.col-es { min-width:40px; }
+.radio-grid {
+  display:grid;
+  grid-template-columns:auto auto minmax(88px, auto);
+  grid-template-rows:auto auto auto 32px auto;
+  align-items:center; justify-items:start;
+  column-gap:36px; row-gap:18px;
+  z-index:2;
+}
+#es16-pop, #ptp-block { display:contents; }
+#nano-block {
+  grid-column:3; grid-row:5;
+  display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
+  gap:16px; padding:10px 0 0 4px;
+}
+.ptp-grow { min-width:88px; min-height:20px; }
+.radio-grid.gone, #nano-block.gone, .uisp-kid.gone, .gone { display:none; }
+.stack { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.uisp-kid img { width:36px; height:36px; display:block; object-fit:contain; }
+.uisp-kid.uisp-radio img { width:36px; height:36px; }
+.cap {
+  font-weight:400; font-size:11px; line-height:1.2; color:var(--muted);
+  text-align:center; max-width:90px; white-space:normal;
+  background:#fff; padding:0 3px; position:relative; z-index:4;
+}
+.site-card {
+  display:flex; flex-direction:row; align-items:center; gap:8px;
+  padding:5px 12px 5px 7px; background:#fff;
+  border:1px solid #d9e3ee; border-radius:20px;
+  box-shadow:0 1px 2px rgba(15,23,42,.04);
+}
+.site-card img { width:18px; height:18px; object-fit:contain; }
+.site-card-name { font-weight:400; font-size:11px; color:#475569; white-space:nowrap; }
+.cpe-row {
+  display:flex; flex-direction:row; align-items:flex-end; justify-content:flex-start;
+  gap:40px; min-height:58px;
+}
+.cpe-station {
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+  gap:5px; min-width:52px;
+}
+.cpe-row img { width:36px; height:36px; display:block; object-fit:contain; }
+.cpe-name {
+  font-weight:400; font-size:11px; line-height:1.15; color:#475569;
+  text-align:center; max-width:88px; white-space:normal;
+  background:#fff; padding:0 3px; position:relative; z-index:4;
+}
+.uisp-cube img { width:22px; height:22px; }
+.globe-svg, #lte-icon { width:34px; height:34px; display:block; object-fit:contain; }
+#udm-icon, #console-icon { width:52px; height:auto; display:block; object-fit:contain; }
+#wires { position:absolute; left:0; top:0; right:0; bottom:0; width:100%; height:100%; pointer-events:none; z-index:1; overflow:visible; }
+.wire-base { fill:none; stroke:var(--wire); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.wire-base.bak { stroke:var(--wire-bak); }
+.wire-base.down { stroke:#c62828; }
+.wire-base.wifi { stroke:#f0a04b; }
+.wire-base.dash { stroke-dasharray:5 4; }
+.pkt { fill:#5b93d6; }
+.pkt.bak { fill:var(--wire-bak); }
+.pkt.wifi { fill:#f0a04b; }
+.later { margin:20px auto 0; max-width:520px; color:var(--muted); font-size:13px; }
+.later h2 { margin:0 0 8px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#123a7a; }
+@media (min-width: 600px) {
+  header.app, main { max-width:1200px; margin-left:auto; margin-right:auto; }
+  .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; }
+  .topo-flow { flex-wrap:nowrap; gap:56px 88px; min-height:380px; padding:88px 12px 32px; }
+  .spine { gap:72px; }
+  .radio-grid { column-gap:64px; row-gap:22px; grid-template-rows:auto auto auto 48px auto; }
+  .globe-svg, #lte-icon { width:40px; height:40px; }
+  #udm-icon, #console-icon { width:64px; }
+  .uisp-kid img, .uisp-kid.uisp-radio img, .cpe-row img { width:48px; height:48px; }
+  .uisp-cube img { width:26px; height:26px; }
+  .cpe-row { gap:52px; min-height:72px; }
+  .cpe-station { min-width:64px; gap:6px; }
+  .cpe-name { font-size:12px; max-width:110px; }
+  .cap { font-size:12px; max-width:110px; }
+  .site-card { padding:6px 14px 6px 8px; }
+  .site-card img { width:20px; height:20px; }
+  .site-card-name, .cpe-name { font-size:12px; }
+  #nano-block { gap:24px; padding-top:12px; }
+  #lte-node { bottom:calc(100% + 16px); }
+  #switch-node { bottom:48px; }
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="bar">
+    <div><h1>UniFi topology</h1></div>
+    <nav class="nav">
+      <a href="/dash/unifi.html">UniFi</a>
+      <a href="/dash/unifi.html?h=1-dream-machine-pro-hermanus">Dream Machine</a>
+      <a href="/dash/#/">Home</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="banner" id="banner">Loading topology…</div>
+  <div class="topo" id="topo">
+    <svg class="wires" id="wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <div class="topo-flow" id="topo-grid" data-topo-layout="horizontal">
+    <div class="spine">
+    <div class="col col-inet stack" id="globe">
+      <div class="cap">Internet</div>
+      <svg class="globe-svg" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="15" fill="none" stroke="#64748b" stroke-width="2"></circle>
+        <ellipse cx="24" cy="24" rx="7" ry="15" fill="none" stroke="#64748b" stroke-width="2"></ellipse>
+        <path d="M9 24h30M11 16h26M11 32h26" fill="none" stroke="#64748b" stroke-width="2"></path>
+      </svg>
+    </div>
+    <div class="col col-udm">
+      <div class="stack" id="lte-node">
+        <div class="cap">U-LTE</div>
+        <img id="lte-icon" alt="U-LTE" width="64" height="64">
+      </div>
+      <div class="stack" id="udm-node">
+        <div class="cap">UDM</div>
+        <img id="udm-icon" alt="UDM" width="129" height="129">
+      </div>
+    </div>
+    <div class="col col-con stack" id="console-node">
+      <div class="cap">Console</div>
+      <img id="console-icon" alt="Console" width="129" height="129">
+    </div>
+    <div class="col col-sw-branch">
+      <div class="stack uisp-kid gone" id="switch-node">
+        <div class="cap" id="switch-name"></div>
+        <div class="cap gone" id="vk-pop-site">VK Pop</div>
+        <img id="switch-icon" alt="">
+      </div>
+    </div>
+    <div class="col col-es stack uisp-kid gone" id="es16-node">
+      <div class="cap" id="es16-name"></div>
+      <img id="es16-icon" alt="">
+    </div>
+    </div>
+    <div class="radio-grid gone" id="radio-grid">
+      <div id="es16-pop"></div>
+      <div id="ptp-block"></div>
+      <div class="ptp-grow" style="grid-area:1 / 3" aria-hidden="true"></div>
+      <div class="ptp-grow" style="grid-area:2 / 3" aria-hidden="true"></div>
+      <div id="nano-block" class="gone"><div id="nano-cpe"></div></div>
+    </div>
+    </div>    </div>
+  </div>
+  <div class="later" id="later"></div>
+</main>
+<script>
+const HOST = "1-dream-machine-pro-hermanus";
+const POLL_MS = 2000;
+const STALE_MS = 10000;
+const HIST_MAX = 90;
+const CONSOLE_MAC = "e4:38:83:de:e6:4a";
+const ICONS = {
+  udm: "https://static.ui.com/fingerprint/ui/icons/a685746f-cd8f-4453-90c7-68a3ba9c1953_129x129.png",
+  console: "https://static.ui.com/fingerprint/ui/icons/3af1df03-557b-4243-9aaf-91abbb97aac6_129x129.png",
+  lte: "https://static.ui.com/fingerprint/ui/icons/299afbfa-1584-2214-5673-42e6f7560a67_129x129.png"
+};
+
+let GAUGES = [];
+let HISTORY = {};
+let LAST_OK_MS = 0;
+let LAST_AS_AT = "";
+let STALE = false;
+let CONSOLE = { ok: false };
+let SWITCH = { show:false, ok:false };
+let ES16 = { show:false, ok:false };
+let ESPOP = [];
+let NANO_CPE = [];
+let PTP = [];
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[c]));
+}
+function fmtAsAt(s) {
+  const raw = String(s || "").trim();
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/);
+  if (m) return m[1] + " " + m[2];
+  const m2 = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  return m2 ? (m2[1] + " " + m2[2] + ":00") : raw;
+}
+function wanStatus(s) {
+  const low = String(s || "").toLowerCase();
+  if (low === "online" || low === "up") return "Online";
+  if (low === "offline" || low === "down") return "Offline";
+  return s || "";
+}
+function numOrNull(n) {
+  if (n == null || n === "") return null;
+  const v = Number(n);
+  return Number.isFinite(v) ? v : null;
+}
+function mergeGauges(base, live) {
+  if (!live || !live.length) return base || [];
+  if (!base || !base.length) return live;
+  const byId = Object.fromEntries(live.map(g => [g.id, g]));
+  return base.map(g => {
+    const n = byId[g.id];
+    if (!n) return g;
+    return Object.assign({}, g, n, { name: g.name, used_down_mbps: n.used_down_mbps, used_up_mbps: n.used_up_mbps });
+  });
+}
+function pushHist(gauges) {
+  (gauges || []).forEach(g => {
+    if (!HISTORY[g.id]) HISTORY[g.id] = { down: [], up: [] };
+    HISTORY[g.id].down.push(numOrNull(g.used_down_mbps));
+    HISTORY[g.id].up.push(numOrNull(g.used_up_mbps));
+    if (HISTORY[g.id].down.length > HIST_MAX) HISTORY[g.id].down.shift();
+    if (HISTORY[g.id].up.length > HIST_MAX) HISTORY[g.id].up.shift();
+  });
+}
+function gauge(id) {
+  return (GAUGES || []).find(g => g.id === id) || {};
+}
+function setBanner(stale, asAt) {
+  const banner = document.getElementById("banner");
+  LAST_AS_AT = fmtAsAt(asAt || LAST_AS_AT);
+  banner.className = stale ? "banner" : "banner ok";
+  banner.innerHTML = stale
+    ? "<strong>Stale.</strong> as at " + esc(LAST_AS_AT || "—")
+    : "<strong>Live.</strong> as at " + esc(LAST_AS_AT);
+}
+function bindIcon(id, src) {
+  const img = document.getElementById(id);
+  img.src = src;
+  img.addEventListener("load", () => requestAnimationFrame(paintWires));
+  img.addEventListener("error", () => { img.classList.add("gone"); }, { once:true });
+}
+function box(sel) {
+  const origin = document.getElementById("wires").getBoundingClientRect();
+  const r = document.querySelector(sel).getBoundingClientRect();
+  return {
+    l: r.left - origin.left, r: r.right - origin.left,
+    t: r.top - origin.top, b: r.bottom - origin.top,
+    cx: r.left + r.width / 2 - origin.left,
+    cy: r.top + r.height / 2 - origin.top,
+    w: r.width, h: r.height
+  };
+}
+function h(x1, x2, y) { return `M${x1.toFixed(1)} ${y.toFixed(1)} L${x2.toFixed(1)} ${y.toFixed(1)}`; }
+function v(x, y1, y2) { return `M${x.toFixed(1)} ${y1.toFixed(1)} L${x.toFixed(1)} ${y2.toFixed(1)}`; }
+function dishGap(b, side) {
+  const g = 10;
+  if (side === "l") return b.l - g;
+  if (side === "r") return b.r + g;
+  if (side === "t") return b.t - g;
+  return b.b + g;
+}
+function lr(a, b, yOff, frac) {
+  const off = yOff || 0;
+  const x1 = dishGap(a, "r");
+  const x2 = dishGap(b, "l");
+  const y1 = a.cy + off;
+  const y2 = b.cy + off;
+  const mid = x1 + (x2 - x1) * ((frac == null) ? 0.5 : frac);
+  return `M${x1.toFixed(1)} ${y1.toFixed(1)} L${mid.toFixed(1)} ${y1.toFixed(1)} L${mid.toFixed(1)} ${y2.toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)}`;
+}
+function fanFrom(origin, target) {
+  const ox = dishGap(origin, "r");
+  const oy = origin.cy;
+  const mid = ox + 16;
+  const x2 = dishGap(target, "l");
+  return `M${ox.toFixed(1)} ${oy.toFixed(1)} L${mid.toFixed(1)} ${oy.toFixed(1)} L${mid.toFixed(1)} ${target.cy.toFixed(1)} L${x2.toFixed(1)} ${target.cy.toFixed(1)}`;
+}
+function hopPath(a, b, frac) {
+  if (b.t > a.b + 20 && b.cx < a.l - 8) {
+    const midY = a.b + 18;
+    return `M${a.cx.toFixed(1)} ${dishGap(a, "b").toFixed(1)} L${a.cx.toFixed(1)} ${midY.toFixed(1)} L${b.cx.toFixed(1)} ${midY.toFixed(1)} L${b.cx.toFixed(1)} ${dishGap(b, "t").toFixed(1)}`;
+  }
+  return lr(a, b, 0, frac);
+}
+function inward(a, b, px) {
+  if (Math.abs(b - a) < 0.01) return a;
+  return a + Math.sign(b - a) * px;
+}
+let WIRE_SIG = "";
+function packets(d, on, extra, dur, offset) {
+  if (!on || !d) return "";
+  const cls = extra ? ("pkt " + extra) : "pkt";
+  const t = (dur || 1.7) * 2;
+  const off = offset || 0;
+  return [off, off - t / 2].map(begin =>
+    `<circle class="${cls}" r="3"><animateMotion dur="${t}s" begin="${begin}s" repeatCount="indefinite" path="${d}"></animateMotion></circle>`
+  ).join("");
+}
+function paintWires() {
+  if (typeof placeHops === "function") placeHops();
+  const svg = document.getElementById("wires");
+  const topo = document.getElementById("topo");
+  const g = box(".globe-svg");
+  const l = box("#lte-icon");
+  const u = box("#udm-icon");
+  const c = box("#console-icon");
+  const br = topo.getBoundingClientRect();
+  const tw = Math.max(Math.round(br.width), 1);
+  const th = Math.max(Math.round(br.height), 1);
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
+  svg.style.left = "0px";
+  svg.style.top = "0px";
+  svg.style.width = tw + "px";
+  svg.style.height = th + "px";
+  svg.setAttribute("viewBox", "0 0 " + tw + " " + th);
+  svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
+  function knownOn(id) {
+    const s = gauge(id).status;
+    if (s == null || s === "") return null;
+    return wanStatus(s) === "Online";
+  }
+  const wanOn = knownOn("wan");
+  const wan2On = knownOn("wan2");
+  const lteOn = knownOn("lte");
+  const f1 = !STALE && wanOn === true;
+  const f2 = !STALE && wan2On === true;
+  const fC = CONSOLE.ok === true;
+  const swShow = SWITCH.show && document.getElementById("switch-icon") && document.getElementById("switch-icon").offsetParent;
+  const esShow = ES16.show && document.getElementById("es16-icon") && document.getElementById("es16-icon").offsetParent;
+  const fSw = fC && SWITCH.ok === true;
+  const fEs = fC && ES16.ok === true;
+  function lineCls(alive, extra) {
+    if (alive === null) return "wire-base wait" + (extra ? " " + extra : "");
+    return "wire-base" + (alive ? (extra ? " " + extra : "") : " down");
+  }
+  const dF1 = lr(g, u, -2, 0.5);
+  const dF2 = lr(g, u, 2, 0.5);
+  const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} L${l.cx.toFixed(1)} ${(u.t - 8).toFixed(1)}`;
+  const dCon = lr(u, c, 0, 0.5);
+  let dSw = "";
+  let dEs = "";
+  if (esShow) dEs = lr(c, box("#es16-icon"), 0, 0.5);
+  if (swShow) {
+    const sw = box("#switch-icon");
+    dSw = `M${sw.cx.toFixed(1)} ${c.cy.toFixed(1)} L${sw.cx.toFixed(1)} ${dishGap(sw, "b").toFixed(1)}`;
+  }
+  let html =
+    `<path class="${lineCls(wanOn)}" d="${dF1}"></path>` +
+    `<path class="${lineCls(wan2On, "bak")}" d="${dF2}"></path>` +
+    `<path class="${lineCls(lteOn)}" d="${dLte}"></path>` +
+    `<path class="${lineCls(CONSOLE.ok === true)}" d="${dCon}"></path>` +
+    (dSw ? `<path class="${lineCls(fSw)}" d="${dSw}"></path>` : "") +
+    (dEs ? `<path class="${lineCls(fEs)}" d="${dEs}"></path>` : "") +
+    packets(dF1, f1, "", 1.55, 0) + packets(dF2, f2, "bak", 2.35, -0.7) + packets(dCon, fC, "", 1.9, -1.2) +
+    packets(dSw, fSw, "", 2.15, -0.4) + packets(dEs, fEs, "", 2.75, -1.0);
+  const extra = [];
+  const extraPk = [];
+  if (esShow) {
+    const es = box("#es16-icon");
+    const pops = [];
+    ESPOP.forEach((kid, i) => {
+      const el = document.getElementById("pop-icon-" + i);
+      if (!kid.show || !el || !el.offsetParent) return;
+      pops.push({ kid, i, p: box("#pop-icon-" + i) });
+    });
+    const wrapped = pops.some(x => x.p.t > es.b + 20 && x.p.cx < es.l - 8);
+    pops.forEach(({ kid, i, p }) => {
+      const d = wrapped ? hopPath(es, p) : fanFrom(es, p);
+      const on = fEs && kid.ok === true;
+      extra.push(`<path class="${lineCls(on)}" d="${d}"></path>`);
+      extraPk.push(packets(d, on, "", 1.65 + i * 0.28, -0.25 * i));
+    });
+  }
+  const nanoImg = document.querySelector("img[data-role='nano']");
+  if (nanoImg && nanoImg.offsetParent && NANO_CPE.some(k => k.show)) {
+    const n = box("img[data-role='nano']");
+    const cpes = [];
+    NANO_CPE.forEach((kid, i) => {
+      const el = document.getElementById("cpe-icon-" + i);
+      if (!kid.show || !el || !el.offsetParent) return;
+      cpes.push({ kid, i, p: box("#cpe-icon-" + i) });
+    });
+    if (cpes.length) {
+      const joinX = Math.min(...cpes.map(x => x.p.l)) - 22;
+      cpes.forEach(({ kid, i, p }) => {
+        const d = `M${dishGap(n, "r").toFixed(1)} ${n.cy.toFixed(1)} L${joinX.toFixed(1)} ${n.cy.toFixed(1)} L${joinX.toFixed(1)} ${p.cy.toFixed(1)} L${dishGap(p, "l").toFixed(1)} ${p.cy.toFixed(1)}`;
+        const on = kid.ok === true;
+        extra.push(`<path class="${lineCls(on, "wifi")}" d="${d}"></path>`);
+        extraPk.push(packets(d, on, "wifi", 2.05 + i * 0.32, -0.2 * i));
+        const cube = kid.cube || {};
+        const cEl = document.getElementById("cube-icon-" + i);
+        if (cube.show && cEl && cEl.offsetParent) {
+          const cb = box("#cube-icon-" + i);
+          const d2 = lr(p, cb, 0, 0.5);
+          extra.push(`<path class="${lineCls(on && cube.ok === true)}" d="${d2}"></path>`);
+          extraPk.push(packets(d2, on && cube.ok === true, "", 2.4 + i * 0.3, -0.15 * i));
+        }
+      });
+    }
+  }
+  PTP.forEach((kid, i) => {
+    const src = kid.srcSel && document.querySelector(kid.srcSel);
+    const el = document.getElementById("ptp-icon-" + i);
+    if (!kid.show || !src || !src.offsetParent || !el || !el.offsetParent) return;
+    const d = hopPath(box(kid.srcSel), box("#ptp-icon-" + i), 0.35);
+    extra.push(`<path class="${lineCls(kid.ok === true, "wifi dash")}" d="${d}"></path>`);
+    extraPk.push(packets(d, kid.ok === true, "wifi", 2.2 + i * 0.35, -0.18 * i));
+  });
+  html += extra.join("") + extraPk.join("");
+  const sig = html + "|" + tw + "x" + th + "|" + f1 + f2 + fC + fSw + fEs + ESPOP.map(k => k.ok).join("") + NANO_CPE.map(k => k.ok + ":" + ((k.cube && k.cube.ok) || "")).join("") + PTP.map(k => k.ok).join("");
+  if (sig === WIRE_SIG) return;
+  WIRE_SIG = sig;
+  svg.innerHTML = html;
+}
+function later() {
+  const rows = (GAUGES || []).map(g => {
+    const down = numOrNull(g.used_down_mbps);
+    const up = numOrNull(g.used_up_mbps);
+    return `<div>${esc(g.name || g.id)} · ${esc(wanStatus(g.status) || "—")} · ↓ ${down == null ? "—" : down.toFixed(2)} · ↑ ${up == null ? "—" : up.toFixed(2)}</div>`;
+  });
+  document.getElementById("later").innerHTML = "<h2>Later</h2>" + (rows.join("") || "<div>—</div>");
+}
+function paint() {
+  later();
+  requestAnimationFrame(paintWires);
+}
+function markStale() {
+  STALE = true;
+  paint();
+  setBanner(true, LAST_AS_AT);
+}
+function applyHost(data) {
+  STALE = false;
+  LAST_OK_MS = Date.now();
+  GAUGES = (data.host && data.host.gauges) || data.gauges || GAUGES;
+  pushHist(GAUGES);
+  paint();
+  setBanner(false, data.as_at);
+}
+function pollTick() {
+  if (document.hidden) {
+    if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+    return;
+  }
+  fetch("/dash/api/unifi?h=" + encodeURIComponent(HOST) + "&live=1", { credentials:"same-origin", cache:"no-store" })
+    .then(r => r.json())
+    .then(data => {
+      if (!data || !data.ok) { markStale(); return; }
+      STALE = false;
+      LAST_OK_MS = Date.now();
+      GAUGES = mergeGauges(GAUGES, data.gauges || []);
+      pushHist(GAUGES);
+      paint();
+      setBanner(false, data.as_at);
+    })
+    .catch(() => { markStale(); });
+}
+function consoleLinkUp(dev) {
+  if (!dev) return false;
+  const ident = dev.identification || {};
+  const ov = dev.overview || {};
+  if (dev.enabled === false) return false;
+  if (String(ov.status || "").toLowerCase() !== "active") return false;
+  const rawIfs = dev.interfaces;
+  const ifs = Array.isArray(rawIfs) ? rawIfs : ((rawIfs && (rawIfs.items || rawIfs.data)) || []);
+  const eth8 = ifs.find(iface => {
+    const iid = iface.identification || {};
+    const name = String(iid.name || iface.ifname || iface.name || "");
+    return name === "8" || name.toLowerCase() === "eth8" || Number(iid.position) === 7;
+  });
+  if (!eth8) return false;
+  const st = eth8.status || {};
+  const speed = String(st.currentSpeed || st.speed || "");
+  return st.plugged === true && /[1-9]/.test(speed);
+}
+
+function asRows(data) {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== "object") return [];
+  return data.items || data.data || data.devices || [];
+}
+function identOf(d) { return (d && d.identification) || {}; }
+function devId(d) { return String(identOf(d).id || d.id || ""); }
+function sideId(side) {
+  if (!side) return "";
+  const dev = side.device || {};
+  const ident = dev.identification || {};
+  return String(ident.id || dev.id || side.id || "");
+}
+function uispIcon(model, type) {
+  const folder = type || "airMax";
+  return "https://gowifi.uisp.com/nms/models/" + folder + "/" + model + "-l.png";
+}
+function linkToConsole(links, consoleId, id) {
+  return (links || []).find(L => {
+    const a = sideId(L.from);
+    const b = sideId(L.to);
+    if (!a || !b || a === b) return false;
+    return (a === consoleId && b === id) || (b === consoleId && a === id);
+  }) || null;
+}
+function setKid(prefix, rec) {
+  const node = document.getElementById(prefix + "-node");
+  const img = document.getElementById(prefix + "-icon");
+  const lab = document.getElementById(prefix + "-name");
+  if (!rec.show) {
+    node.classList.add("gone");
+    return;
+  }
+  node.classList.remove("gone");
+  if (rec.icon && img.getAttribute("src") !== rec.icon) {
+    img.src = rec.icon;
+    img.alt = rec.name || rec.model || "";
+    img.addEventListener("load", () => requestAnimationFrame(paintWires), { once: true });
+  }
+  const short = { switch: "UISP-S", es16: "ES16" };
+  lab.textContent = short[prefix] || rec.name || rec.model || "";
+}
+function isVkPop(d) {
+  const site = identOf(d).site || {};
+  const name = String(site.name || site.id || "").replace(/\s+/g, " ").trim();
+  return /^vk pop$/i.test(name);
+}
+function radioRank(d) {
+  const m = String(identOf(d).model || "");
+  const n = String(identOf(d).name || "");
+  if (/vk-fk|fk ptp/i.test(n)) return 0;
+  if (/vk-lo|lo ptp/i.test(n)) return 1;
+  if (m === "LAP-120" || /lite\s*ap/i.test(n)) return 2;
+  if (m === "NBE-5AC-Gen2" || /nano/i.test(n)) return 3;
+  return 9;
+}
+function cleanLabel(name, model) {
+  let n = String(name || "").replace(/GoWifi/gi, "").replace(/\s+/g, " ").trim();
+  if (/nano/i.test(n) && /beam/i.test(n)) return "Nano";
+  if (/lite\s*ap/i.test(n)) return "LiteAP";
+  if (/david\s+wanting/i.test(n)) return "Wanting";
+  if (/de\s+villiers/i.test(n) || /de\s+villers/i.test(n)) return "De Villiers";
+  if (/marlene/i.test(n)) return "Marlene";
+  if (/hundermark/i.test(n)) return "Hundermark";
+  if (/air\s*cube/i.test(n) || model === "ACB-ISP") return "AirCube";
+  if (/vk-fk/i.test(n)) return "VK-FK";
+  if (/vk-lo/i.test(n)) return "VK-LO";
+  if (/fk-vk/i.test(n)) return "FK High Site";
+  if (/lo-vk/i.test(n)) return "LO High Site";
+  n = n.replace(/\s*PTP\s*/i, " ").replace(/\s+/g, " ").trim();
+  return n || model || "";
+}
+function isNanoRec(rec) {
+  return rec && (rec.model === "NBE-5AC-Gen2" || /nano/i.test(rec.name || ""));
+}
+function radioRole(rec) {
+  if (isNanoRec(rec)) return "nano";
+  const n = rec && rec.name || "";
+  if (/vk-fk|fk ptp/i.test(n)) return "fk";
+  if (/vk-lo|lo ptp/i.test(n)) return "lo";
+  return "";
+}
+function isAirCube(d) {
+  const ident = identOf(d);
+  return ident.model === "ACB-ISP" || String(ident.type || "") === "airCube" || /air\s*cube/i.test(ident.name || "");
+}
+function radioRow(rec) {
+  const role = radioRole(rec);
+  if (role === "fk") return 1;
+  if (role === "lo") return 2;
+  if (role === "nano") return 5;
+  return 4;
+}
+function placeHops() {
+  const grid = document.getElementById("radio-grid");
+  if (!grid || grid.classList.contains("gone")) return;
+  ESPOP.forEach((rec, i) => {
+    const n = document.getElementById("pop-node-" + i);
+    if (n) n.style.gridArea = radioRow(rec) + " / 1";
+  });
+  PTP.forEach((rec, i) => {
+    const n = document.getElementById("ptp-row-" + i);
+    if (!n) return;
+    n.style.gridArea = (rec.role === "fk" ? 1 : 2) + " / 2";
+  });
+}
+function renderEs16Pop(list) {
+  const grid = document.getElementById("radio-grid");
+  const boxEl = document.getElementById("es16-pop");
+  if (!list.length) {
+    grid.classList.add("gone");
+    boxEl.innerHTML = "";
+    return;
+  }
+  grid.classList.remove("gone");
+  boxEl.innerHTML = list.map((rec, i) => {
+    const role = radioRole(rec);
+    return `<div class="stack uisp-kid uisp-radio" id="pop-node-${i}" style="grid-area:${radioRow(rec)} / 1">
+      <div class="cap">${esc(cleanLabel(rec.name, rec.model))}</div>
+      <img id="pop-icon-${i}"${role ? ` data-role="${role}"` : ""} alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+    </div>`;
+  }).join("");
+  list.forEach((rec, i) => {
+    const img = document.getElementById("pop-icon-" + i);
+    if (img) img.addEventListener("load", () => requestAnimationFrame(paintWires), { once:true });
+  });
+}
+function renderHops(cpeList, ptpList) {
+  const cpeWrap = document.getElementById("nano-block");
+  const cpeBox = document.getElementById("nano-cpe");
+  const ptpBox = document.getElementById("ptp-block");
+  const ptpSorted = ptpList.slice().sort((a, b) => (a.role === "fk" ? 0 : 1) - (b.role === "fk" ? 0 : 1));
+  ptpBox.innerHTML = ptpSorted.map((rec, i) => {
+    const row = rec.role === "fk" ? 1 : 2;
+    return `<div class="site-card ptp-row" id="ptp-row-${i}" style="grid-area:${row} / 2">
+      <img id="ptp-icon-${i}" alt="${esc(cleanLabel(rec.name, rec.model))}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+      <span class="site-card-name">${esc(cleanLabel(rec.name, rec.model))}</span>
+    </div>`;
+  }).join("");
+  if (!cpeList.length) {
+    cpeWrap.classList.add("gone");
+    cpeBox.innerHTML = "";
+  } else {
+    cpeWrap.classList.remove("gone");
+    cpeBox.innerHTML = cpeList.map((rec, i) => {
+      const cube = rec.cube && rec.cube.show ? rec.cube : null;
+      const cubeHtml = cube ? `<div class="cpe-station uisp-kid uisp-radio uisp-cube" id="cube-node-${i}">
+        <span class="cpe-name">Cube</span>
+        <img id="cube-icon-${i}" alt="AirCube" src="${esc(cube.icon || "")}" onerror="this.classList.add('gone')">
+      </div>` : "";
+      return `<div class="cpe-row" id="cpe-row-${i}">
+        <div class="cpe-station">
+          <span class="cpe-name">${esc(cleanLabel(rec.name, rec.model))}</span>
+          <img id="cpe-icon-${i}" alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+        </div>
+        ${cubeHtml}
+      </div>`;
+    }).join("");
+  }
+  PTP = ptpSorted;
+  [...cpeList.keys()].forEach(i => {
+    ["cpe-icon-" + i, "cube-icon-" + i].forEach(id => {
+      const img = document.getElementById(id);
+      if (img) img.addEventListener("load", () => requestAnimationFrame(paintWires), { once:true });
+    });
+  });
+  ptpSorted.forEach((rec, i) => {
+    const img = document.getElementById("ptp-icon-" + i);
+    if (img) img.addEventListener("load", () => requestAnimationFrame(paintWires), { once:true });
+  });
+  requestAnimationFrame(placeHops);
+}
+function kidRec(dev, link) {
+  if (!dev || !link) return { show:false, ok:false };
+  const ident = identOf(dev);
+  const ov = dev.overview || {};
+  const ok = identOf(dev) &&
+    dev.enabled !== false &&
+    String(ov.status || "").toLowerCase() === "active" &&
+    String(link.state || "").toLowerCase() === "active";
+  return {
+    show: true,
+    ok,
+    name: ident.name || ident.displayName || ident.model || "",
+    model: ident.model || "",
+    icon: uispIcon(ident.model || "", ident.type || "")
+  };
+}
+function loadConsole() {
+  Promise.all([
+    fetch("/dash/api/devices?withInterfaces=true", { credentials:"same-origin", cache:"no-store" }).then(r => r.json()),
+    fetch("/dash/api/data-links", { credentials:"same-origin", cache:"no-store" }).then(r => r.json()).catch(() => [])
+  ]).then(([devData, linkData]) => {
+    const rows = asRows(devData);
+    const links = asRows(linkData);
+    const hit = rows.find(d => String(identOf(d).mac || d.mac || "").toLowerCase() === CONSOLE_MAC);
+    CONSOLE = { ok: consoleLinkUp(hit) };
+    const cid = hit ? devId(hit) : "";
+    const kids = cid ? rows.filter(d => {
+      const id = devId(d);
+      return id && id !== cid && linkToConsole(links, cid, id);
+    }) : [];
+    const sw = kids.find(d => identOf(d).model === "UISP-S");
+    const es = kids.find(d => identOf(d).model === "ES-16-150W");
+    SWITCH = kidRec(sw, sw ? linkToConsole(links, cid, devId(sw)) : null);
+    ES16 = kidRec(es, es ? linkToConsole(links, cid, devId(es)) : null);
+    setKid("switch", SWITCH);
+    setKid("es16", ES16);
+    document.getElementById("vk-pop-site").classList.toggle("gone", !(SWITCH.show || ES16.show));
+    const eid = es ? devId(es) : "";
+    const popKids = (eid ? rows.filter(d => {
+      const id = devId(d);
+      if (!id || id === eid || id === cid) return false;
+      if (!linkToConsole(links, eid, id)) return false;
+      return isVkPop(d);
+    }) : []).sort((a, b) => radioRank(a) - radioRank(b));
+    ESPOP = popKids.map(d => kidRec(d, linkToConsole(links, eid, devId(d))));
+    renderEs16Pop(ESPOP);
+    const nanoDev = popKids.find(d => {
+      const rec = { name: identOf(d).name, model: identOf(d).model };
+      return radioRole(rec) === "nano";
+    });
+    const nid = nanoDev ? devId(nanoDev) : "";
+    const cpeKids = (nid ? rows.filter(d => {
+      const id = devId(d);
+      if (!id || id === nid || id === eid || id === cid) return false;
+      const L = linkToConsole(links, nid, id);
+      if (!L || String(L.type || "").toLowerCase() !== "wireless") return false;
+      return true;
+    }) : []).sort((a, b) => cleanLabel(identOf(a).name).localeCompare(cleanLabel(identOf(b).name)));
+    NANO_CPE = cpeKids.map(d => {
+      const rec = kidRec(d, linkToConsole(links, nid, devId(d)));
+      const cubeDev = rows.find(c => {
+        const id = devId(c);
+        if (!id || id === devId(d)) return false;
+        const L = linkToConsole(links, devId(d), id);
+        return !!(L && String(L.type || "").toLowerCase() === "ethernet" && isAirCube(c));
+      });
+      rec.cube = cubeDev ? kidRec(cubeDev, linkToConsole(links, devId(d), devId(cubeDev))) : { show:false, ok:false };
+      return rec;
+    });
+    const used = new Set([nid, eid, cid].filter(Boolean));
+    PTP = [];
+    popKids.forEach((d, i) => {
+      const role = radioRole(kidRec(d, linkToConsole(links, eid, devId(d))));
+      if (role !== "fk" && role !== "lo") return;
+      const nearId = devId(d);
+      const far = rows.find(x => {
+        const id = devId(x);
+        if (!id || id === nearId || used.has(id)) return false;
+        const L = linkToConsole(links, nearId, id);
+        return !!(L && String(L.type || "").toLowerCase() === "wireless");
+      });
+      if (!far) return;
+      used.add(devId(far));
+      const rec = kidRec(far, linkToConsole(links, nearId, devId(far)));
+      rec.srcSel = "#es16-pop img[data-role='" + role + "']";
+      rec.role = role;
+      PTP.push(rec);
+    });
+    renderHops(NANO_CPE, PTP);
+    paint();
+  }).catch(() => {
+    CONSOLE = { ok:false };
+    SWITCH = { show:false, ok:false };
+    ES16 = { show:false, ok:false };
+    ESPOP = [];
+    NANO_CPE = [];
+    PTP = [];
+    setKid("switch", SWITCH);
+    setKid("es16", ES16);
+    document.getElementById("vk-pop-site").classList.add("gone");
+    renderEs16Pop([]);
+    renderHops([], []);
+    paint();
+  });
+}
+
+function bootLive() {
+  fetch("/dash/api/unifi?h=" + encodeURIComponent(HOST) + "&live=1", { credentials:"same-origin", cache:"no-store" })
+    .then(r => r.json())
+    .then(data => {
+      if (!data || !data.ok) {
+        document.getElementById("banner").className = "banner";
+        document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong>";
+        paint();
+        return;
+      }
+      STALE = false;
+      LAST_OK_MS = Date.now();
+      GAUGES = mergeGauges(GAUGES, data.gauges || []);
+      pushHist(GAUGES);
+      paint();
+      setBanner(false, data.as_at);
+      if (!window.__unifiPoll) {
+        window.__unifiPoll = setInterval(pollTick, POLL_MS);
+      }
+    })
+    .catch(() => {
+      document.getElementById("banner").className = "banner";
+      document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong>";
+      paint();
+    });
+}
+function bootFat() {
+  fetch("/dash/api/unifi?h=" + encodeURIComponent(HOST), { credentials:"same-origin", cache:"no-store" })
+    .then(r => r.json())
+    .then(data => {
+      if (!data || !data.host) return;
+      if (data.host.gauges && data.host.gauges.length) {
+        GAUGES = mergeGauges(data.host.gauges, GAUGES);
+      }
+      paint();
+      if (data.as_at && !LAST_AS_AT) setBanner(STALE, data.as_at);
+    })
+    .catch(() => {});
+}
+bindIcon("udm-icon", ICONS.udm);
+bindIcon("console-icon", ICONS.console);
+bindIcon("lte-icon", ICONS.lte);
+window.addEventListener("resize", () => { placeHops(); paintWires(); });
+paint();
+loadConsole();
+setInterval(loadConsole, 10000);
+bootLive();
+bootFat();
+</script>
+</body>
+</html>
