@@ -399,8 +399,35 @@ function packets(d, on, extra, dur, offset) {
     `<circle class="${cls}" r="3"><animateMotion dur="${t}s" begin="${begin}s" repeatCount="indefinite" path="${d}"></animateMotion></circle>`
   ).join("");
 }
+function equalizeHsBranchDrops() {
+  document.querySelectorAll(".hs-tree").forEach(tree => {
+    const drop = tree.querySelector(".hs-branch-drop");
+    if (!drop) {
+      tree.style.paddingBottom = "";
+      return;
+    }
+    const swImg = tree.querySelector("[id^='hs-sw-icon-']");
+    const dropRad = drop.querySelector(".cpe-station:not(.sector-station) img");
+    const other = Array.prototype.find.call(tree.querySelectorAll(".hs-branch"), b => !b.classList.contains("hs-branch-drop"));
+    const liteImg = other && other.querySelector(".cpe-station img");
+    if (!swImg || !swImg.offsetParent || !dropRad || !liteImg) return;
+    const sw = swImg.getBoundingClientRect();
+    const lite = liteImg.getBoundingClientRect();
+    const ap = dropRad.getBoundingClientRect();
+    const swCy = sw.top + sw.height / 2;
+    const liteUp = swCy - (lite.top + lite.height / 2);
+    const apDown = (ap.top + ap.height / 2) - swCy;
+    const applied = Number(drop.dataset.dropY || 0);
+    const dy = Math.max(0, Math.round(applied + liteUp - apDown));
+    if (dy === applied) return;
+    drop.dataset.dropY = String(dy);
+    drop.style.transform = dy ? "translateY(" + dy + "px)" : "";
+    tree.style.paddingBottom = dy ? dy + "px" : "";
+  });
+}
 function paintWires() {
   if (typeof placeHops === "function") placeHops();
+  if (typeof equalizeHsBranchDrops === "function") equalizeHsBranchDrops();
   const svg = document.getElementById("wires");
   const topo = document.getElementById("topo");
   const g = box(".globe-svg");
