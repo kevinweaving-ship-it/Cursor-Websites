@@ -78,10 +78,11 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .hs-branch { display:flex; flex-direction:row; align-items:flex-end; gap:40px; }
 .hs-clients { display:flex; flex-direction:column; justify-content:flex-end; gap:14px; }
 .radio-pair {
-  display:flex; flex-direction:row; align-items:flex-end; gap:2px;
+  display:flex; flex-direction:row; align-items:flex-end; gap:0;
 }
-.radio-pair .cpe-station { min-width:44px; }
-.sector-station { min-width:28px; }
+.radio-pair .cpe-station { min-width:0; }
+.radio-pair .cpe-station:first-child { align-items:flex-end; }
+.radio-pair .sector-station { align-items:flex-start; min-width:0; }
 .radio-face-right img { transform:scaleX(-1); }
 .radio-grid.gone, #nano-block.gone, .hs-tree.gone, .uisp-kid.gone, .gone { display:none; }
 .stack { display:flex; flex-direction:column; align-items:center; gap:3px; }
@@ -153,8 +154,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .cpe-station.sector-station img, img.sector-icon {
     width:28px; height:48px; max-width:28px; max-height:48px;
   }
-  .radio-pair .cpe-station { min-width:52px; }
-  .sector-station { min-width:32px; }
+  .radio-pair .cpe-station { min-width:0; }
   .cpe-row { gap:52px; min-height:72px; }
   .cpe-station { min-width:64px; gap:6px; }
   .cpe-name { font-size:12px; max-width:110px; }
