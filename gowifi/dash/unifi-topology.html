@@ -50,6 +50,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   height:52px; display:flex; align-items:center; justify-content:center;
 }
 .col { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; }
+.col-inet { margin-right:100px; }
 .col-udm { min-width:36px; }
 .site-card #udm-icon {
   width:52px; height:18px; max-width:none; max-height:18px;
@@ -154,6 +155,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; }
   .topo-flow { flex-wrap:nowrap; gap:56px 88px; min-height:380px; padding:72px 12px 48px; }
   .spine { gap:72px; }
+  .col-inet { margin-right:120px; }
   .spine-icon { height:64px; }
   .col-sw-branch { height:64px; }
   .radio-grid { column-gap:64px; row-gap:22px; grid-template-rows:auto auto auto 48px auto; }
@@ -364,7 +366,7 @@ function placeFibreIn(id, rec, x, y, side) {
   const pctTxt = pct == null ? "—" : ((pct >= 10 ? pct.toFixed(0) : pct.toFixed(1)) + "%");
   el.innerHTML = esc(total == null ? "—" : (total + " Mbps")) + " / " + esc(fmtLiveMbps(live)) + " / <span class=\"pct\">" + esc(pctTxt) + "</span>";
   el.style.left = x.toFixed(1) + "px";
-  el.style.top = (side === "above" ? (y - 18) : (y + 10)).toFixed(1) + "px";
+  el.style.top = (side === "above" ? (y - 20) : (y + 12)).toFixed(1) + "px";
   el.hidden = false;
 }
 function setBanner(stale, asAt) {
@@ -510,8 +512,9 @@ function paintWires() {
   const pop = (popEl && popEl.offsetParent) ? box("#vk-pop-pill") : null;
   const hub = pop || u;
   const fibreX = (g.r + hub.l) / 2;
-  placeFibreIn("fibre-in-wan", gauge("wan"), fibreX, hub.cy - 6, "above");
-  placeFibreIn("fibre-in-wan2", gauge("wan2"), fibreX, hub.cy + 6, "below");
+  const wireY = (g.cy + hub.cy) / 2;
+  placeFibreIn("fibre-in-wan", gauge("wan"), fibreX, wireY - 6, "above");
+  placeFibreIn("fibre-in-wan2", gauge("wan2"), fibreX, wireY + 6, "below");
   const dF1 = lr(g, hub, -2, 0.5);
   const dF2 = lr(g, hub, 2, 0.5);
   const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} V${(hub.t - 8).toFixed(1)}`;
