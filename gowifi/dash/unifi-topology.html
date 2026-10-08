@@ -32,6 +32,13 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .banner strong { color:var(--warn); }
 .banner.ok strong { color:var(--ok); }
 .topo { position:relative; width:100%; max-width:100%; margin:0; overflow:visible; }
+.fibre-in {
+  position:absolute; z-index:3; pointer-events:none;
+  font-size:11px; line-height:1.2; color:var(--muted);
+  white-space:nowrap; background:#fff; padding:0 4px;
+  transform:translate(-50%, 0);
+}
+.fibre-in .pct { color:var(--ok); font-weight:600; }
 .topo-flow {
   display:flex; flex-direction:row; flex-wrap:wrap; align-items:center;
   justify-content:flex-start; gap:28px 24px; z-index:2; padding:56px 8px 40px;
@@ -173,6 +180,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .hs-branch { gap:52px; }
   .hs-branch-drop { margin-top:52px; }
   .hs-branches { gap:20px; }
+  .fibre-in { font-size:12px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
@@ -198,6 +206,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   <div class="banner" id="banner">Loading topology…</div>
   <div class="topo" id="topo">
     <svg class="wires" id="wires" viewBox="0 0 100 100" preserveAspectRatio="xMinYMin meet" aria-hidden="true"></svg>
+    <div class="fibre-in" id="fibre-in-wan" hidden></div>
+    <div class="fibre-in" id="fibre-in-wan2" hidden></div>
     <div class="topo-flow" id="topo-grid" data-topo-layout="horizontal">
     <div class="spine">
     <div class="col col-inet stack" id="globe">
@@ -310,7 +320,13 @@ function mergeGauges(base, live) {
   return base.map(g => {
     const n = byId[g.id];
     if (!n) return g;
-    return Object.assign({}, g, n, { name: g.name, used_down_mbps: n.used_down_mbps, used_up_mbps: n.used_up_mbps });
+    return Object.assign({}, g, n, {
+      name: g.name,
+      capacity_down_mbps: g.capacity_down_mbps,
+      capacity_up_mbps: g.capacity_up_mbps,
+      used_down_mbps: n.used_down_mbps,
+      used_up_mbps: n.used_up_mbps
+    });
   });
 }
 function pushHist(gauges) {
@@ -324,6 +340,32 @@ function pushHist(gauges) {
 }
 function gauge(id) {
   return (GAUGES || []).find(g => g.id === id) || {};
+}
+function fibreTotal(g) {
+  const st = numOrNull(g.speedtest_down_mbps);
+  if (st != null && st > 0) return Math.round(st);
+  const cap = numOrNull(g.capacity_down_mbps);
+  if (cap != null && cap > 0) return Math.round(cap);
+  const m = String(g.name || "").match(/(\d+)\s*\/\s*\d+/);
+  return m ? Number(m[1]) : null;
+}
+function fmtLiveMbps(n) {
+  if (n == null) return "—";
+  if (Math.abs(n) >= 10) return n.toFixed(1);
+  return n.toFixed(2);
+}
+function placeFibreIn(id, rec, x, y, side) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const total = fibreTotal(rec);
+  const live = numOrNull(rec.used_down_mbps);
+  if (total == null && live == null) { el.hidden = true; return; }
+  const pct = (total && live != null) ? Math.max(0, live / total * 100) : null;
+  const pctTxt = pct == null ? "—" : ((pct >= 10 ? pct.toFixed(0) : pct.toFixed(1)) + "%");
+  el.innerHTML = esc(total == null ? "—" : (total + " Mbps")) + " / " + esc(fmtLiveMbps(live)) + " / <span class=\"pct\">" + esc(pctTxt) + "</span>";
+  el.style.left = x.toFixed(1) + "px";
+  el.style.top = (side === "above" ? (y - 18) : (y + 10)).toFixed(1) + "px";
+  el.hidden = false;
 }
 function setBanner(stale, asAt) {
   const banner = document.getElementById("banner");
@@ -467,6 +509,9 @@ function paintWires() {
   const popEl = document.getElementById("vk-pop-pill");
   const pop = (popEl && popEl.offsetParent) ? box("#vk-pop-pill") : null;
   const hub = pop || u;
+  const fibreX = (g.r + hub.l) / 2;
+  placeFibreIn("fibre-in-wan", gauge("wan"), fibreX, hub.cy - 6, "above");
+  placeFibreIn("fibre-in-wan2", gauge("wan2"), fibreX, hub.cy + 6, "below");
   const dF1 = lr(g, hub, -2, 0.5);
   const dF2 = lr(g, hub, 2, 0.5);
   const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} V${(hub.t - 8).toFixed(1)}`;
