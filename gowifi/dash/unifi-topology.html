@@ -85,7 +85,11 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 #nano-block {
   grid-column:3; grid-row:5;
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
-  gap:96px; padding:24px 0 0 72px;
+  padding:24px 0 0 72px;
+}
+#nano-cpe {
+  display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
+  gap:96px;
 }
 #nano-block .cpe-row { min-height:88px; }
 .ptp-grow { min-width:88px; min-height:20px; }
@@ -201,7 +205,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
   .site-card-name, .cpe-name { font-size:12px; }
-  #nano-block { gap:120px; padding:32px 0 0 80px; }
+  #nano-block { padding:32px 0 0 80px; }
+  #nano-cpe { gap:120px; }
   #nano-block .cpe-row { min-height:100px; }
   #lte-node { bottom:calc(100% + 16px); }
 }
@@ -284,8 +289,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 </main>
 <script>
 const HOST = "1-dream-machine-pro-hermanus";
-const LIVE_MS = 1000;
-const RATE_MS = 2000;
+const LIVE_MS = 250;
+const RATE_MS = 250;
 const CONSOLE_MS = 15000;
 const STALE_MS = 45000;
 const HIST_MAX = 90;
@@ -1008,7 +1013,7 @@ function cleanLabel(name, model) {
   let n = String(name || "").replace(/GoWifi/gi, "").replace(/\s+/g, " ").trim();
   if (/nano/i.test(n) && /beam/i.test(n)) return "Nano";
   if (/lite\s*ap/i.test(n)) return "LiteAP";
-  if (/david\s+wanting/i.test(n)) return "Wanting";
+  if (/wanting/i.test(n)) return "Wanting";
   if (/de\s+villiers/i.test(n) || /de\s+villers/i.test(n)) return "De Villiers";
   if (/marlene/i.test(n)) return "Marlene";
   if (/hundermark/i.test(n)) return "Hundermark";
