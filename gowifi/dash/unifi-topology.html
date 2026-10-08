@@ -75,17 +75,17 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   gap:40px; padding-left:8px; min-height:58px;
 }
 .hs-branches { display:flex; flex-direction:column; justify-content:center; gap:16px; }
-.hs-branch { display:flex; flex-direction:row; align-items:flex-end; gap:40px; }
-.hs-clients { display:flex; flex-direction:column; justify-content:flex-end; gap:14px; }
+.hs-branch { display:flex; flex-direction:row; align-items:flex-start; gap:40px; }
+.hs-clients { display:flex; flex-direction:column; justify-content:flex-start; gap:14px; }
 .radio-pair {
-  display:flex; flex-direction:row; align-items:flex-end; gap:0;
+  display:flex; flex-direction:row; align-items:flex-start; gap:0;
 }
 .radio-pair .cpe-station { min-width:0; }
 .radio-pair .cpe-station:first-child { align-items:flex-end; }
 .radio-pair .sector-station { align-items:flex-start; min-width:0; }
 .radio-face-right img { transform:scaleX(-1); }
 .radio-grid.gone, #nano-block.gone, .hs-tree.gone, .uisp-kid.gone, .gone { display:none; }
-.stack { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.stack { display:flex; flex-direction:column; align-items:center; gap:2px; }
 .uisp-kid img { width:36px; height:36px; display:block; object-fit:contain; }
 .uisp-kid.uisp-radio img { width:36px; height:36px; }
 .cap {
@@ -102,12 +102,12 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .site-card img { width:18px; height:18px; object-fit:contain; }
 .site-card-name { font-weight:400; font-size:11px; color:#475569; white-space:nowrap; }
 .cpe-row {
-  display:flex; flex-direction:row; align-items:flex-end; justify-content:flex-start;
+  display:flex; flex-direction:row; align-items:flex-start; justify-content:flex-start;
   gap:40px; min-height:58px;
 }
 .cpe-station {
-  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
-  gap:5px; min-width:52px;
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+  gap:2px; min-width:52px;
 }
 .cpe-row img, .cpe-station img, .hs-tree img {
   width:36px; height:36px; max-width:36px; max-height:36px;
@@ -160,7 +160,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   }
   .radio-pair .cpe-station { min-width:0; }
   .cpe-row { gap:52px; min-height:72px; }
-  .cpe-station { min-width:64px; gap:6px; }
+  .cpe-station { min-width:64px; gap:2px; }
   .cpe-name { font-size:12px; max-width:110px; }
   .hs-tree { gap:52px; min-height:72px; }
   .hs-branch { gap:52px; }
@@ -193,40 +193,40 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
     <div class="topo-flow" id="topo-grid" data-topo-layout="horizontal">
     <div class="spine">
     <div class="col col-inet stack" id="globe">
-      <div class="cap">Internet</div>
       <svg class="globe-svg" viewBox="0 0 48 48" aria-hidden="true">
         <circle cx="24" cy="24" r="15" fill="none" stroke="#64748b" stroke-width="2"></circle>
         <ellipse cx="24" cy="24" rx="7" ry="15" fill="none" stroke="#64748b" stroke-width="2"></ellipse>
         <path d="M9 24h30M11 16h26M11 32h26" fill="none" stroke="#64748b" stroke-width="2"></path>
       </svg>
+      <div class="cap">Internet</div>
     </div>
     <div class="col col-udm">
       <div class="stack" id="lte-node">
-        <div class="cap">U-LTE</div>
         <img id="lte-icon" alt="U-LTE" width="64" height="64">
+        <div class="cap">U-LTE</div>
       </div>
       <div class="stack" id="udm-node">
-        <div class="cap">UDM</div>
         <div class="site-card" id="vk-pop-pill">
           <img id="udm-icon" alt="UDM">
           <span class="site-card-name">VK Pop</span>
         </div>
+        <div class="cap">UDM</div>
       </div>
     </div>
     <div class="col col-con stack" id="console-node">
-      <div class="cap">Console</div>
       <img id="console-icon" alt="Console" width="129" height="129">
+      <div class="cap">Console</div>
     </div>
     <div class="col col-sw-branch">
       <div class="stack uisp-kid gone" id="switch-node">
+        <img id="switch-icon" alt="">
         <div class="cap" id="switch-name"></div>
         <div class="cap gone" id="vk-pop-site"></div>
-        <img id="switch-icon" alt="">
       </div>
     </div>
     <div class="col col-es stack uisp-kid gone" id="es16-node">
-      <div class="cap" id="es16-name"></div>
       <img id="es16-icon" alt="">
+      <div class="cap" id="es16-name"></div>
     </div>
     </div>
     <div class="radio-grid gone" id="radio-grid">
@@ -695,13 +695,13 @@ function stationHtml(id, rec, name, opts) {
   opts = opts || {};
   const face = opts.face ? " radio-face-" + opts.face : "";
   const inner = `<div class="cpe-station${face}">
-    <span class="cpe-name">${esc(name || cleanLabel(rec.name, rec.model))}</span>
     <img id="${id}" alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+    <span class="cpe-name">${esc(name || cleanLabel(rec.name, rec.model))}</span>
   </div>`;
   if (!opts.sector) return inner;
   return `<div class="radio-pair">${inner}<div class="cpe-station sector-station">
-    <span class="cpe-name">120°</span>
     <img class="sector-icon" id="${id}-sector" alt="120 sector" src="${ICONS.sector120}">
+    <span class="cpe-name">120°</span>
   </div></div>`;
 }
 function linkKids(rows, links, parentId, used, type) {
@@ -813,8 +813,8 @@ function renderEs16Pop(list) {
     const role = radioRole(rec);
     const face = " radio-face-right";
     return `<div class="stack uisp-kid uisp-radio${face}" id="pop-node-${i}" style="grid-area:${radioRow(rec)} / 1">
-      <div class="cap">${esc(cleanLabel(rec.name, rec.model))}</div>
       <img id="pop-icon-${i}"${role ? ` data-role="${role}"` : ""} alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+      <div class="cap">${esc(cleanLabel(rec.name, rec.model))}</div>
     </div>`;
   }).join("");
   list.forEach((rec, i) => {
@@ -842,13 +842,13 @@ function renderHops(cpeList, ptpList) {
     cpeBox.innerHTML = cpeList.map((rec, i) => {
       const cube = rec.cube && rec.cube.show ? rec.cube : null;
       const cubeHtml = cube ? `<div class="cpe-station uisp-kid uisp-radio uisp-cube" id="cube-node-${i}">
-        <span class="cpe-name">Cube</span>
         <img id="cube-icon-${i}" alt="AirCube" src="${esc(cube.icon || "")}" onerror="this.classList.add('gone')">
+        <span class="cpe-name">Cube</span>
       </div>` : "";
       return `<div class="cpe-row" id="cpe-row-${i}">
         <div class="cpe-station">
-          <span class="cpe-name">${esc(cleanLabel(rec.name, rec.model))}</span>
           <img id="cpe-icon-${i}" alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+          <span class="cpe-name">${esc(cleanLabel(rec.name, rec.model))}</span>
         </div>
         ${cubeHtml}
       </div>`;
