@@ -784,7 +784,7 @@ function renderSiteTrees(list) {
     const row = rec.role === "fk" ? 1 : 2;
     const branches = (rec.radios || []).map((rad, ri) => {
       const clients = (rad.clients || []).map((cli, ci) => stationHtml("hs-cli-icon-" + i + "-" + ri + "-" + ci, cli, null, { face: "left" })).join("");
-      return `<div class="hs-branch">${stationHtml("hs-rad-icon-" + i + "-" + ri, rad, null, { sector: isRocket(rad) })}<div class="hs-clients">${clients}</div></div>`;
+      return `<div class="hs-branch">${stationHtml("hs-rad-icon-" + i + "-" + ri, rad, null, { sector: isRocket(rad), face: "right" })}<div class="hs-clients">${clients}</div></div>`;
     }).join("");
     return `<div class="hs-tree" id="hs-tree-${i}" style="grid-area:${row} / 3">${stationHtml("hs-sw-icon-" + i, rec.switch)}<div class="hs-branches">${branches}</div></div>`;
   }).join("");
@@ -803,7 +803,7 @@ function renderEs16Pop(list) {
   grid.classList.remove("gone");
   boxEl.innerHTML = list.map((rec, i) => {
     const role = radioRole(rec);
-    const face = (role === "fk" || role === "lo" || role === "nano") ? " radio-face-right" : "";
+    const face = " radio-face-right";
     return `<div class="stack uisp-kid uisp-radio${face}" id="pop-node-${i}" style="grid-area:${radioRow(rec)} / 1">
       <div class="cap">${esc(cleanLabel(rec.name, rec.model))}</div>
       <img id="pop-icon-${i}"${role ? ` data-role="${role}"` : ""} alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
