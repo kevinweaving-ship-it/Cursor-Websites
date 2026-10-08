@@ -41,11 +41,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 }
 .col { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; }
 .col-udm { min-width:36px; }
-.site-card.udm-pill {
-  gap:10px; padding:6px 16px 6px 10px; border-radius:28px;
-}
-.site-card.udm-pill #udm-icon {
-  width:52px; height:auto; max-width:none; max-height:none;
+.udm-row {
+  display:flex; flex-direction:row; align-items:center; gap:8px;
 }
 #lte-node {
   position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%);
@@ -147,8 +144,6 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .radio-grid { column-gap:64px; row-gap:22px; grid-template-rows:auto auto auto 48px auto; }
   .globe-svg, #lte-icon { width:40px; height:40px; }
   #udm-icon, #console-icon { width:64px; }
-  .site-card.udm-pill #udm-icon { width:64px; }
-  .site-card.udm-pill { padding:7px 18px 7px 12px; }
   .uisp-kid img, .uisp-kid.uisp-radio img, .cpe-row img, .cpe-station img, .hs-tree img {
     width:48px; height:48px; max-width:48px; max-height:48px;
   }
@@ -207,9 +202,11 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
       </div>
       <div class="stack" id="udm-node">
         <div class="cap">UDM</div>
-        <div class="site-card udm-pill" id="vk-pop-pill">
+        <div class="udm-row">
           <img id="udm-icon" alt="UDM" width="129" height="129">
-          <span class="site-card-name">VK Pop</span>
+          <div class="site-card" id="vk-pop-pill">
+            <span class="site-card-name">VK Pop</span>
+          </div>
         </div>
       </div>
     </div>
