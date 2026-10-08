@@ -34,7 +34,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .topo { position:relative; width:100%; max-width:100%; margin:0; overflow:visible; }
 .topo-flow {
   display:flex; flex-direction:row; flex-wrap:wrap; align-items:center;
-  justify-content:flex-start; gap:28px 24px; z-index:2; padding:72px 8px 24px;
+  justify-content:flex-start; gap:28px 24px; z-index:2; padding:56px 8px 40px;
 }
 .spine {
   display:flex; flex-direction:row; align-items:center; gap:44px; flex:0 0 auto; z-index:2;
@@ -140,7 +140,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 @media (min-width: 600px) {
   header.app, main { max-width:1200px; margin-left:auto; margin-right:auto; }
   .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; }
-  .topo-flow { flex-wrap:nowrap; gap:56px 88px; min-height:380px; padding:88px 12px 32px; }
+  .topo-flow { flex-wrap:nowrap; gap:56px 88px; min-height:380px; padding:72px 12px 48px; }
   .spine { gap:72px; }
   .radio-grid { column-gap:64px; row-gap:22px; grid-template-rows:auto auto auto 48px auto; }
   .globe-svg, #lte-icon { width:40px; height:40px; }
@@ -202,8 +202,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
     </div>
     <div class="col col-udm">
       <div class="stack" id="lte-node">
-        <img id="lte-icon" alt="U-LTE" width="64" height="64">
         <div class="cap">U-LTE</div>
+        <img id="lte-icon" alt="U-LTE" width="64" height="64">
       </div>
       <div class="stack" id="udm-node">
         <div class="site-card" id="vk-pop-pill">
@@ -219,9 +219,9 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
     </div>
     <div class="col col-sw-branch">
       <div class="stack uisp-kid gone" id="switch-node">
-        <img id="switch-icon" alt="">
         <div class="cap" id="switch-name"></div>
         <div class="cap gone" id="vk-pop-site"></div>
+        <img id="switch-icon" alt="">
       </div>
     </div>
     <div class="col col-es stack uisp-kid gone" id="es16-node">
