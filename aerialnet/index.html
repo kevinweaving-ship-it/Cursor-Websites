@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Aerialnet</title>
+  <meta name="description" content="Aerialnet. This site stays on aerialnet.co.za.">
+  <meta name="theme-color" content="#f3f7f6">
+  <link rel="canonical" href="https://aerialnet.co.za/">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <style>
+    :root {
+      --ink: #14302c;
+      --muted: #3d5c56;
+      --line: #d5e4df;
+      --paper: #f3f7f6;
+      --card: #ffffff;
+      --teal: #0c6b62;
+      --teal-dark: #084e48;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+    a { color: var(--teal-dark); }
+    .wrap {
+      width: min(720px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 44px;
+    }
+    .mark {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+    }
+    .brand {
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-size: 1.15rem;
+    }
+    .lock {
+      margin-left: auto;
+      font-size: 0.85rem;
+      color: var(--teal-dark);
+      background: #e5f3f0;
+      border-radius: 999px;
+      padding: 8px 12px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+    h1 {
+      margin: 36px 0 8px;
+      font-size: clamp(2.2rem, 8vw, 3.4rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+    .lead {
+      margin: 0 0 28px;
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 36rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+    .card p { margin: 0 0 16px; color: var(--muted); }
+    .mail {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 10px 16px;
+      background: var(--teal);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .mail:focus-visible {
+      outline: 3px solid var(--teal-dark);
+      outline-offset: 3px;
+    }
+    footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <svg class="mark" viewBox="0 0 44 44" aria-hidden="true">
+        <rect width="44" height="44" rx="12" fill="#0c6b62"/>
+        <path d="M10 28c6-10 8-10 12-4s6 6 12-6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="32" cy="16" r="2.2" fill="#fff"/>
+      </svg>
+      <div class="brand">Aerialnet</div>
+      <div class="lock">HTTPS</div>
+    </header>
+    <h1>Aerialnet</h1>
+    <p class="lead">This is the Aerialnet website. It lives at aerialnet.co.za.</p>
+    <section class="card">
+      <h2>Contact</h2>
+      <p>Email Aerialnet directly. The address bar stays on aerialnet.co.za.</p>
+      <a class="mail" href="mailto:kevin@aerialnet.co.za">kevin@aerialnet.co.za</a>
+    </section>
+    <footer>Aerialnet · https://aerialnet.co.za/</footer>
+  </div>
+</body>
+</html>
