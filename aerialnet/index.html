@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Aerial Networks</title>
-  <meta name="description" content="Aerial Networks. This site is https://aerialnet.co.za/.">
-  <meta name="theme-color" content="#f4f7fb">
+  <meta name="description" content="High-site access, mast space and equipment hosting for your network.">
+  <meta name="theme-color" content="#03142e">
   <link rel="canonical" href="https://aerialnet.co.za/">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <link rel="icon" href="/artwork/aerial-networks-logo-mark.png" type="image/png">
@@ -18,6 +18,7 @@
       --paper: #f4f7fb;
       --card: #ffffff;
       --blue: #02377d;
+      --navy: #03142e;
       --orange: #f96e05;
     }
     * { box-sizing: border-box; }
@@ -29,45 +30,110 @@
       line-height: 1.5;
     }
     a { color: var(--blue); }
-    .wrap {
-      width: min(720px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 28px 0 48px;
+    .hero {
+      position: relative;
+      height: 100svh;
+      min-height: 640px;
+      overflow: hidden;
+      background: var(--navy);
+      color: #fff;
     }
-    header {
+    .hero-poster,
+    .hero-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 50% 42%;
+    }
+    .hero-poster { z-index: 0; }
+    .hero-video { z-index: 1; background: transparent; }
+    .hero-shade {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(3, 20, 46, 0.18) 0%, rgba(3, 20, 46, 0.45) 42%, rgba(3, 20, 46, 0.92) 100%);
+    }
+    .hero-foreground {
+      position: absolute;
+      z-index: 3;
+      left: 0;
+      right: 0;
+      bottom: 0;
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      align-items: flex-start;
       gap: 12px;
-      min-height: 44px;
+      padding: 24px 20px calc(28px + env(safe-area-inset-bottom));
     }
-    .logo {
+    .logo-plate {
+      background: #fff;
+      border-radius: 12px;
+      padding: 8px 12px;
+      line-height: 0;
+    }
+    .logo-plate img {
       display: block;
-      width: min(100%, 420px);
+      width: min(240px, 68vw);
       height: auto;
     }
-    .lock {
-      margin-left: auto;
-      font-size: 0.85rem;
-      color: var(--blue);
-      background: #e7eef6;
-      border-radius: 999px;
-      padding: 8px 12px;
-      min-height: 44px;
+    .hero-panel {
+      background: rgba(3, 20, 46, 0.86);
+      border-radius: 16px;
+      padding: 18px 18px 16px;
+      max-width: 38rem;
+    }
+    .hero h1 {
+      margin: 0 0 8px;
+      color: #fff;
+      font-size: clamp(1.7rem, 6vw, 2.5rem);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+    }
+    .hero-lead {
+      margin: 0 0 16px;
+      color: #fff;
+      font-size: 1.05rem;
+    }
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .enquire,
+    .hero-toggle {
       display: inline-flex;
       align-items: center;
-      flex: 0 0 auto;
+      justify-content: center;
+      min-height: 44px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font: inherit;
+      font-weight: 600;
+      text-decoration: none;
     }
-    h1 {
-      margin: 28px 0 8px;
-      font-size: clamp(2rem, 7vw, 3rem);
-      line-height: 1.05;
-      letter-spacing: -0.04em;
+    .enquire {
+      background: var(--orange);
+      color: #fff;
     }
-    .lead {
-      margin: 0 0 28px;
-      font-size: 1.15rem;
-      color: var(--muted);
-      max-width: 36rem;
+    .enquire:focus-visible,
+    .hero-toggle:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 3px;
+    }
+    .hero-toggle {
+      background: transparent;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+    }
+    .page {
+      width: min(720px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 36px 0 48px;
     }
     .card {
       background: var(--card);
@@ -75,10 +141,7 @@
       border-radius: 16px;
       padding: 20px;
     }
-    .card h2 {
-      margin: 0 0 8px;
-      font-size: 1rem;
-    }
+    .card h2 { margin: 0 0 8px; font-size: 1.15rem; }
     .card p { margin: 0 0 16px; color: var(--muted); }
     .mail {
       display: inline-flex;
@@ -100,22 +163,110 @@
       color: var(--muted);
       font-size: 0.9rem;
     }
+    @media (min-width: 800px) {
+      .hero-shade {
+        background: linear-gradient(90deg, rgba(3, 20, 46, 0.88) 0%, rgba(3, 20, 46, 0.72) 34%, rgba(3, 20, 46, 0.22) 62%, rgba(3, 20, 46, 0.12) 100%);
+      }
+      .hero-foreground {
+        top: 0;
+        bottom: 0;
+        justify-content: flex-end;
+        width: min(640px, 54vw);
+        padding: 48px 56px 56px;
+      }
+      .logo-plate img { width: 300px; }
+      .hero-video,
+      .hero-poster { object-position: 58% 46%; }
+    }
+    @media (max-width: 799px) {
+      .hero-video,
+      .hero-poster { object-position: 50% 36%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-video { display: none; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <img class="logo" src="/artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks">
-      <div class="lock">HTTPS</div>
-    </header>
-    <h1>Aerial Networks</h1>
-    <p class="lead">This is the Aerial Networks website at aerialnet.co.za.</p>
-    <section class="card">
+  <section class="hero" aria-label="Aerial Networks">
+    <img class="hero-poster" src="/media/hero-poster.jpg" alt="" width="1600" height="900">
+    <video class="hero-video" id="hero-video" muted playsinline loop preload="none" poster="/media/hero-poster.jpg"></video>
+    <div class="hero-shade" aria-hidden="true"></div>
+    <div class="hero-foreground">
+      <div class="logo-plate">
+        <img src="/artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks">
+      </div>
+      <div class="hero-panel">
+        <h1>High-site infrastructure. Space to connect.</h1>
+        <p class="hero-lead">High-site access, mast space and equipment hosting for your network.</p>
+        <div class="hero-actions">
+          <a class="enquire" href="#contact">Enquire about space</a>
+          <button class="hero-toggle" id="hero-toggle" type="button" hidden aria-pressed="false">Pause video</button>
+        </div>
+      </div>
+    </div>
+  </section>
+  <main class="page">
+    <section class="card" id="contact">
       <h2>Contact</h2>
-      <p>Email Aerial Networks at the address below.</p>
+      <p>Ask about high-site access, mast space or equipment hosting.</p>
       <a class="mail" href="mailto:kevin@aerialnet.co.za">kevin@aerialnet.co.za</a>
     </section>
-    <footer>Aerial Networks · https://aerialnet.co.za/</footer>
-  </div>
+    <footer>
+      <p>Aerial Networks · https://aerialnet.co.za/</p>
+      <p>Hero footage is illustrative stock, not Aerial Networks sites.</p>
+    </footer>
+  </main>
+  <script>
+    (function () {
+      var video = document.getElementById("hero-video");
+      var button = document.getElementById("hero-toggle");
+      var hero = document.querySelector(".hero");
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var saveData = navigator.connection && navigator.connection.saveData;
+      if (reduce || saveData) return;
+
+      var narrow = window.matchMedia("(max-width: 799px)").matches;
+      video.src = narrow ? "/media/hero-720.mp4" : "/media/hero-1080.mp4";
+      video.preload = "auto";
+      button.hidden = false;
+
+      var userPaused = false;
+      function label() {
+        var paused = video.paused;
+        button.setAttribute("aria-pressed", paused ? "true" : "false");
+        button.textContent = paused ? "Play video" : "Pause video";
+      }
+      video.addEventListener("play", label);
+      video.addEventListener("pause", label);
+      button.addEventListener("click", function () {
+        if (video.paused) {
+          userPaused = false;
+          video.play();
+        } else {
+          userPaused = true;
+          video.pause();
+        }
+      });
+
+      if ("IntersectionObserver" in window) {
+        var watch = new IntersectionObserver(function (entries) {
+          var visible = entries[0].isIntersecting;
+          if (!visible) video.pause();
+          else if (!userPaused) video.play();
+        }, { threshold: 0.2 });
+        watch.observe(hero);
+      }
+
+      var started = video.play();
+      if (started && started.catch) {
+        started.catch(function () {
+          video.removeAttribute("src");
+          video.load();
+          button.hidden = true;
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
