@@ -66,11 +66,11 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%);
 }
 .col-sw-branch {
-  position:relative; width:48px; height:52px; align-self:flex-start; flex:0 0 48px;
+  position:relative; width:48px; height:88px; align-self:flex-start; flex:0 0 48px;
   display:flex; align-items:center;
 }
 #switch-node {
-  position:absolute; left:50%; bottom:calc(50% + 44px); transform:translateX(-50%);
+  position:absolute; left:50%; bottom:calc(50% + 88px); transform:translateX(-50%);
 }
 .col-es { min-width:40px; }
 .radio-grid {
@@ -78,24 +78,24 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   grid-template-columns:auto auto minmax(88px, auto);
   grid-template-rows:auto auto auto 32px auto;
   align-items:center; justify-items:start;
-  column-gap:36px; row-gap:18px;
+  column-gap:56px; row-gap:28px;
   z-index:2;
 }
 #es16-pop, #ptp-block, #hs-trees { display:contents; }
 #nano-block {
   grid-column:3; grid-row:5;
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
-  gap:16px; padding:10px 0 0 4px;
+  gap:22px; padding:10px 0 0 64px;
 }
 .ptp-grow { min-width:88px; min-height:20px; }
 .hs-tree {
   display:flex; flex-direction:row; align-items:center;
-  gap:40px; padding-left:8px; min-height:58px;
+  gap:72px; padding-left:28px; min-height:58px;
 }
-.hs-branches { display:flex; flex-direction:column; justify-content:center; gap:16px; }
-.hs-branch { display:flex; flex-direction:row; align-items:flex-start; gap:40px; }
+.hs-branches { display:flex; flex-direction:column; justify-content:center; gap:22px; }
+.hs-branch { display:flex; flex-direction:row; align-items:flex-start; gap:72px; }
 .hs-branch-drop { margin-top:36px; }
-.hs-clients { display:flex; flex-direction:column; justify-content:flex-start; gap:14px; }
+.hs-clients { display:flex; flex-direction:column; justify-content:flex-start; gap:22px; padding-left:8px; }
 .radio-pair {
   display:flex; flex-direction:row; align-items:flex-start; gap:0;
 }
@@ -122,7 +122,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .site-card-name { font-weight:400; font-size:11px; color:#475569; white-space:nowrap; }
 .cpe-row {
   display:flex; flex-direction:row; align-items:flex-start; justify-content:flex-start;
-  gap:40px; min-height:58px;
+  gap:64px; min-height:58px;
 }
 .cpe-station {
   display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
@@ -157,14 +157,15 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .later { margin:20px auto 0; max-width:520px; color:var(--muted); font-size:13px; }
 .later h2 { margin:0 0 8px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#123a7a; }
 @media (min-width: 600px) {
-  header.app, main { max-width:1200px; margin-left:auto; margin-right:auto; }
+  header.app, main { max-width:1400px; margin-left:auto; margin-right:auto; }
   .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; }
-  .topo-flow { flex-wrap:nowrap; gap:56px 88px; min-height:380px; padding:72px 12px 48px; }
+  .topo-flow { flex-wrap:nowrap; gap:56px 120px; min-height:420px; padding:96px 12px 48px; }
   .spine { gap:72px; }
   .col-inet { margin-right:120px; }
   .spine-icon { height:64px; }
-  .col-sw-branch { height:64px; }
-  .radio-grid { column-gap:64px; row-gap:22px; grid-template-rows:auto auto auto 48px auto; }
+  .col-sw-branch { height:120px; }
+  .radio-grid { column-gap:88px; row-gap:36px; grid-template-rows:auto auto auto 48px auto; }
+  #switch-node { bottom:calc(50% + 112px); }
   .globe-svg, #lte-icon { width:40px; height:40px; }
   #udm-icon, #console-icon { width:64px; }
   .site-card #udm-icon {
@@ -181,21 +182,21 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
     width:28px; height:48px; max-width:28px; max-height:48px;
   }
   .radio-pair .cpe-station { min-width:0; }
-  .cpe-row { gap:52px; min-height:72px; }
+  .cpe-row { gap:80px; min-height:72px; }
   .cpe-station { min-width:64px; gap:2px; }
   .cpe-name { font-size:12px; max-width:110px; }
-  .hs-tree { gap:52px; min-height:72px; }
-  .hs-branch { gap:52px; }
+  .hs-tree { gap:96px; min-height:72px; }
+  .hs-branch { gap:96px; }
   .hs-branch-drop { margin-top:52px; }
-  .hs-branches { gap:20px; }
+  .hs-branches { gap:28px; }
+  .hs-clients { gap:28px; }
   .fibre-in, .link-mbps { font-size:12px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
   .site-card-name, .cpe-name { font-size:12px; }
-  #nano-block { gap:24px; padding-top:12px; }
+  #nano-block { gap:28px; padding:16px 0 0 88px; }
   #lte-node { bottom:calc(100% + 16px); }
-  #switch-node { bottom:calc(50% + 52px); }
 }
 </style>
 </head>
@@ -332,12 +333,14 @@ function mergeGauges(base, live) {
   return base.map(g => {
     const n = byId[g.id];
     if (!n) return g;
+    const stDown = [n.speedtest_down_mbps, g.speedtest_down_mbps].map(numOrNull).filter(v => v != null);
+    const stUp = [n.speedtest_up_mbps, g.speedtest_up_mbps].map(numOrNull).filter(v => v != null);
     return Object.assign({}, g, n, {
       name: g.name,
       capacity_down_mbps: g.capacity_down_mbps,
       capacity_up_mbps: g.capacity_up_mbps,
-      speedtest_down_mbps: n.speedtest_down_mbps != null ? n.speedtest_down_mbps : g.speedtest_down_mbps,
-      speedtest_up_mbps: n.speedtest_up_mbps != null ? n.speedtest_up_mbps : g.speedtest_up_mbps,
+      speedtest_down_mbps: stDown.length ? Math.max.apply(null, stDown) : g.speedtest_down_mbps,
+      speedtest_up_mbps: stUp.length ? Math.max.apply(null, stUp) : g.speedtest_up_mbps,
       used_down_mbps: n.used_down_mbps,
       used_up_mbps: n.used_up_mbps
     });
@@ -355,13 +358,25 @@ function pushHist(gauges) {
 function gauge(id) {
   return (GAUGES || []).find(g => g.id === id) || {};
 }
+function fibrePeak(id, live) {
+  const key = "fibre-peak-" + id;
+  let prev = 0;
+  try { prev = Number(localStorage.getItem(key) || 0) || 0; } catch (e) { prev = 0; }
+  if (live != null && live > prev && live >= 100) {
+    prev = Math.round(live * 10) / 10;
+    try { localStorage.setItem(key, String(prev)); } catch (e) {}
+  }
+  return prev || null;
+}
 function fibreTotal(g) {
   const st = numOrNull(g.speedtest_down_mbps);
-  if (st != null && st > 0) return Math.round(st);
   const cap = numOrNull(g.capacity_down_mbps);
-  if (cap != null && cap > 0) return Math.round(cap);
-  const m = String(g.name || "").match(/(\d+)\s*\/\s*\d+/);
-  return m ? Number(m[1]) : null;
+  const live = numOrNull(g.used_down_mbps);
+  const peak = fibrePeak(g.id, live);
+  const named = String(g.name || "").match(/(\d+)\s*\/\s*\d+/);
+  const nameN = named ? Number(named[1]) : 0;
+  const best = Math.max(st || 0, cap || 0, peak || 0, nameN || 0);
+  return best > 0 ? Math.round(best) : null;
 }
 function fmtLiveMbps(n) {
   if (n == null) return "—";
@@ -436,7 +451,7 @@ function lr(a, b, yOff, frac) {
 }
 function fanFrom(origin, target) {
   const ox = dishGap(origin, "r");
-  const mid = ox + 16;
+  const mid = ox + 36;
   return `M${ox.toFixed(1)} ${origin.cy.toFixed(1)} H${mid.toFixed(1)} V${target.cy.toFixed(1)} H${dishGap(target, "l").toFixed(1)}`;
 }
 function hopPath(a, b, frac) {
@@ -585,7 +600,7 @@ function paintWires() {
       cpes.push({ kid, i, p: box("#cpe-icon-" + i) });
     });
     if (cpes.length) {
-      const joinX = Math.min(...cpes.map(x => x.p.l)) - 22;
+      const joinX = Math.min(...cpes.map(x => x.p.l)) - 64;
       cpes.forEach(({ kid, i, p }) => {
         const d = `M${dishGap(n, "r").toFixed(1)} ${n.cy.toFixed(1)} H${joinX.toFixed(1)} V${p.cy.toFixed(1)} H${dishGap(p, "l").toFixed(1)}`;
         const on = kid.ok === true;
@@ -757,19 +772,67 @@ function sideRxMbps(side) {
   const rx = numOrNull(st.rxRate);
   return rx == null ? null : rx / 1000000;
 }
+function sideTxMbps(side) {
+  const st = side && side.interface && side.interface.statistics;
+  if (!st) return null;
+  const tx = numOrNull(st.txRate);
+  return tx == null ? null : tx / 1000000;
+}
 function linkDownMbps(link, childId) {
   if (!link) return null;
   const fromId = sideId(link.from);
   const toId = sideId(link.to);
-  let child = null;
-  if (childId && fromId === childId) child = link.from;
-  else if (childId && toId === childId) child = link.to;
-  else child = link.to || link.from;
+  let child = null, parent = null;
+  if (childId && fromId === childId) { child = link.from; parent = link.to; }
+  else if (childId && toId === childId) { child = link.to; parent = link.from; }
+  else { child = link.to || link.from; parent = child === link.from ? link.to : link.from; }
   const rx = sideRxMbps(child);
-  if (rx != null) return rx;
-  const other = child === link.from ? link.to : link.from;
-  const tx = other && other.interface && other.interface.statistics ? numOrNull(other.interface.statistics.txRate) : null;
-  return tx == null ? null : tx / 1000000;
+  const tx = sideTxMbps(parent);
+  if (rx != null && tx != null) return Math.max(rx, tx);
+  return rx != null ? rx : tx;
+}
+function sumMbps(nodes) {
+  let total = 0, any = false;
+  (nodes || []).forEach(n => {
+    if (!n || n.show === false) return;
+    const v = numOrNull(n.downMbps);
+    if (v != null) { total += v; any = true; }
+  });
+  return any ? total : null;
+}
+function rollupTree() {
+  NANO_CPE.forEach(k => {
+    if (k.cube && k.cube.show) {
+      const cube = numOrNull(k.cube.downMbps);
+      if (cube != null) k.downMbps = cube;
+    }
+  });
+  const nano = ESPOP.find(p => radioRole(p) === "nano");
+  const nanoSum = sumMbps(NANO_CPE);
+  if (nano && nanoSum != null) nano.downMbps = nanoSum;
+  PTP.forEach(k => {
+    (k.radios || []).forEach(rad => {
+      const cliSum = sumMbps(rad.clients);
+      if (cliSum != null) rad.downMbps = cliSum;
+    });
+    if (k.switch && k.switch.show) {
+      const radSum = sumMbps(k.radios);
+      if (radSum != null) k.switch.downMbps = radSum;
+      k.downMbps = k.switch.downMbps;
+    } else {
+      const radSum = sumMbps(k.radios);
+      if (radSum != null) k.downMbps = radSum;
+    }
+    const near = ESPOP.find(p => radioRole(p) === k.role);
+    if (near && k.downMbps != null) near.downMbps = k.downMbps;
+  });
+  const esSum = sumMbps(ESPOP);
+  if (ES16.show && esSum != null) ES16.downMbps = esSum;
+  const fed = [];
+  if (ES16.show) fed.push(ES16);
+  if (SWITCH.show) fed.push(SWITCH);
+  const conSum = sumMbps(fed);
+  if (conSum != null) CONSOLE.downMbps = conSum;
 }
 function applyLinkRates(links) {
   if (links) LINKS = links;
@@ -796,6 +859,7 @@ function applyLinkRates(links) {
       });
     });
   });
+  rollupTree();
 }
 function refreshLinkRates() {
   fetch("/dash/api/data-links", { credentials:"same-origin", cache:"no-store" })
@@ -815,8 +879,12 @@ function addLinkMbps(layer, mbps, x, y) {
   el.style.top = y.toFixed(1) + "px";
   layer.appendChild(el);
 }
-function midXY(a, b) {
-  return { x: (a.cx + b.cx) / 2, y: (a.cy + b.cy) / 2 };
+function addInMbps(layer, mbps, b, dir) {
+  if (!b) return;
+  if (dir === "left") addLinkMbps(layer, mbps, b.l - 10, b.cy);
+  else if (dir === "right") addLinkMbps(layer, mbps, b.r + 32, b.cy);
+  else if (dir === "down") addLinkMbps(layer, mbps, b.cx, b.b + 22);
+  else addLinkMbps(layer, mbps, b.cx, b.t);
 }
 function safeBox(sel) {
   try {
@@ -830,43 +898,28 @@ function placeLinkRates() {
   const layer = document.getElementById("link-mbps-layer");
   if (!layer) return;
   layer.innerHTML = "";
-  const hubEl = document.getElementById("vk-pop-pill");
-  const hub = (hubEl && hubEl.offsetParent) ? box("#vk-pop-pill") : safeBox("#udm-icon");
   const con = safeBox("#console-icon");
   const es = safeBox("#es16-icon");
   const sw = safeBox("#switch-icon");
-  if (hub && con) addLinkMbps(layer, CONSOLE.downMbps, (hub.r + con.l) / 2, (hub.cy + con.cy) / 2);
-  if (con && es) addLinkMbps(layer, ES16.downMbps, (con.r + es.l) / 2, (con.cy + es.cy) / 2);
-  if (con && sw) addLinkMbps(layer, SWITCH.downMbps, sw.cx, (con.cy + sw.b) / 2);
+  if (con) addInMbps(layer, CONSOLE.downMbps, con, "left");
+  if (es) addInMbps(layer, ES16.downMbps, es, "right");
+  if (sw && con) addLinkMbps(layer, SWITCH.downMbps, sw.cx, (sw.b + con.cy) / 2);
+  else if (sw) addInMbps(layer, SWITCH.downMbps, sw, "down");
   const lte = safeBox("#lte-icon");
-  if (lte && hub) addLinkMbps(layer, numOrNull(gauge("lte").used_down_mbps), lte.cx, (lte.b + hub.t) / 2);
+  if (lte) addInMbps(layer, numOrNull(gauge("lte").used_down_mbps), lte, "down");
   ESPOP.forEach((kid, i) => {
-    const p = safeBox("#pop-icon-" + i);
-    if (es && p) addLinkMbps(layer, kid.downMbps, (es.r + p.l) / 2, (es.cy + p.cy) / 2);
+    addInMbps(layer, kid.downMbps, safeBox("#pop-icon-" + i), "left");
   });
-  const nano = safeBox("img[data-role='nano']");
   NANO_CPE.forEach((kid, i) => {
-    const p = safeBox("#cpe-icon-" + i);
-    if (nano && p) addLinkMbps(layer, kid.downMbps, (nano.r + p.l) / 2, (nano.cy + p.cy) / 2);
-    const cb = safeBox("#cube-icon-" + i);
-    if (p && cb && kid.cube) addLinkMbps(layer, kid.cube.downMbps, (p.r + cb.l) / 2, (p.cy + cb.cy) / 2);
+    addInMbps(layer, kid.downMbps, safeBox("#cpe-icon-" + i), "left");
   });
   PTP.forEach((kid, i) => {
-    const src = kid.srcSel && document.querySelector(kid.srcSel);
-    const pill = safeBox("#ptp-row-" + i);
-    if (src && src.offsetParent && pill) {
-      const m = midXY(box(kid.srcSel), pill);
-      addLinkMbps(layer, kid.downMbps, m.x, m.y);
-    }
-    const swb = safeBox("#hs-sw-icon-" + i);
-    if (pill && swb) addLinkMbps(layer, kid.switch && kid.switch.downMbps, (pill.r + swb.l) / 2, (pill.cy + swb.cy) / 2);
+    addInMbps(layer, kid.downMbps, safeBox("#ptp-row-" + i), "left");
+    addInMbps(layer, kid.switch && kid.switch.downMbps, safeBox("#hs-sw-icon-" + i), "left");
     (kid.radios || []).forEach((rad, ri) => {
-      const rb = safeBox("#hs-rad-icon-" + i + "-" + ri);
-      if (swb && rb) addLinkMbps(layer, rad.downMbps, (swb.r + rb.l) / 2, (swb.cy + rb.cy) / 2);
-      const sec = safeBox("#hs-rad-icon-" + i + "-" + ri + "-sector") || rb;
+      addInMbps(layer, rad.downMbps, safeBox("#hs-rad-icon-" + i + "-" + ri), "left");
       (rad.clients || []).forEach((cli, ci) => {
-        const cbx = safeBox("#hs-cli-icon-" + i + "-" + ri + "-" + ci);
-        if (sec && cbx) addLinkMbps(layer, cli.downMbps, (sec.r + cbx.l) / 2, (sec.cy + cbx.cy) / 2);
+        addInMbps(layer, cli.downMbps, safeBox("#hs-cli-icon-" + i + "-" + ri + "-" + ci), "left");
       });
     });
   });
@@ -1050,7 +1103,7 @@ function paintSiteTreeWires(kid, i, extra, extraPk, lineCls) {
       extra.push(`<path class="${lineCls(rad.ok && cboxes[0].cli.ok, "wifi dash")}" d="${d2}"></path>`);
       extraPk.push(packets(d2, !!(rad.ok && cboxes[0].cli.ok), "wifi", 2.3, -0.1));
     } else {
-      const joinX = cboxes.length ? Math.min(...cboxes.map(x => x.p.l)) - 18 : 0;
+      const joinX = cboxes.length ? Math.min(...cboxes.map(x => x.p.l)) - 64 : 0;
       cboxes.forEach(({ cli, ci, p }) => {
         const d2 = `M${dishGap(from, "r").toFixed(1)} ${from.cy.toFixed(1)} H${joinX.toFixed(1)} V${p.cy.toFixed(1)} H${dishGap(p, "l").toFixed(1)}`;
         extra.push(`<path class="${lineCls(rad.ok && cli.ok, "wifi dash")}" d="${d2}"></path>`);

@@ -291,11 +291,14 @@ def _speedtest_for(store: dict, block: dict) -> tuple[float | None, float | None
 
 
 def _line_total(plan: float | int | None, speedtest: float | None) -> float | None:
-    if speedtest and speedtest > 0:
-        return round(float(speedtest), 1)
+    vals: list[float] = []
     if plan and plan > 0:
-        return float(plan)
-    return None
+        vals.append(float(plan))
+    if speedtest and speedtest > 0:
+        vals.append(float(speedtest))
+    if not vals:
+        return None
+    return round(max(vals), 1)
 
 
 def _write_speedtests(store: dict) -> None:
@@ -800,6 +803,9 @@ def self_test() -> int:
         failed += 1
     elif _line_total(300, 317.0) != 317.0 or _line_total(500, None) != 500.0:
         print("FAIL line-total")
+        failed += 1
+    elif _line_total(500, 551.4) != 551.4:
+        print("FAIL line-total-peak")
         failed += 1
     else:
         print("OK cap-pct")
