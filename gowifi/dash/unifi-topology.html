@@ -37,7 +37,10 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   justify-content:flex-start; gap:28px 24px; z-index:2; padding:56px 8px 40px;
 }
 .spine {
-  display:flex; flex-direction:row; align-items:center; gap:44px; flex:0 0 auto; z-index:2;
+  display:flex; flex-direction:row; align-items:flex-start; gap:44px; flex:0 0 auto; z-index:2;
+}
+.spine-icon {
+  height:52px; display:flex; align-items:center; justify-content:center;
 }
 .col { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; }
 .col-udm { min-width:36px; }
@@ -49,10 +52,11 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%);
 }
 .col-sw-branch {
-  position:relative; width:48px; height:1px; align-self:center; flex:0 0 48px;
+  position:relative; width:48px; height:52px; align-self:flex-start; flex:0 0 48px;
+  display:flex; align-items:center;
 }
 #switch-node {
-  position:absolute; left:50%; bottom:36px; transform:translateX(-50%);
+  position:absolute; left:50%; bottom:calc(50% + 12px); transform:translateX(-50%);
 }
 .col-es { min-width:40px; }
 .radio-grid {
@@ -142,6 +146,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; }
   .topo-flow { flex-wrap:nowrap; gap:56px 88px; min-height:380px; padding:72px 12px 48px; }
   .spine { gap:72px; }
+  .spine-icon { height:64px; }
+  .col-sw-branch { height:64px; }
   .radio-grid { column-gap:64px; row-gap:22px; grid-template-rows:auto auto auto 48px auto; }
   .globe-svg, #lte-icon { width:40px; height:40px; }
   #udm-icon, #console-icon { width:64px; }
@@ -193,11 +199,13 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
     <div class="topo-flow" id="topo-grid" data-topo-layout="horizontal">
     <div class="spine">
     <div class="col col-inet stack" id="globe">
+      <div class="spine-icon">
       <svg class="globe-svg" viewBox="0 0 48 48" aria-hidden="true">
         <circle cx="24" cy="24" r="15" fill="none" stroke="#64748b" stroke-width="2"></circle>
         <ellipse cx="24" cy="24" rx="7" ry="15" fill="none" stroke="#64748b" stroke-width="2"></ellipse>
         <path d="M9 24h30M11 16h26M11 32h26" fill="none" stroke="#64748b" stroke-width="2"></path>
       </svg>
+      </div>
       <div class="cap">Internet</div>
     </div>
     <div class="col col-udm">
@@ -206,15 +214,19 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
         <img id="lte-icon" alt="U-LTE" width="64" height="64">
       </div>
       <div class="stack" id="udm-node">
+        <div class="spine-icon">
         <div class="site-card" id="vk-pop-pill">
           <img id="udm-icon" alt="UDM">
           <span class="site-card-name">VK Pop</span>
+        </div>
         </div>
         <div class="cap">UDM</div>
       </div>
     </div>
     <div class="col col-con stack" id="console-node">
+      <div class="spine-icon">
       <img id="console-icon" alt="Console" width="129" height="129">
+      </div>
       <div class="cap">Console</div>
     </div>
     <div class="col col-sw-branch">
@@ -225,7 +237,9 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
       </div>
     </div>
     <div class="col col-es stack uisp-kid gone" id="es16-node">
+      <div class="spine-icon">
       <img id="es16-icon" alt="">
+      </div>
       <div class="cap" id="es16-name"></div>
     </div>
     </div>
