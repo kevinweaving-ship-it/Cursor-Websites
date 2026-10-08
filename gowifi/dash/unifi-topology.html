@@ -111,7 +111,9 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   text-align:center; max-width:88px; white-space:normal;
   background:#fff; padding:0 3px; position:relative; z-index:4;
 }
-.uisp-cube img { width:22px; height:22px; }
+.uisp-cube img, .cpe-station.uisp-cube img {
+  width:22px; height:22px; max-width:22px; max-height:22px;
+}
 .globe-svg, #lte-icon { width:34px; height:34px; display:block; object-fit:contain; }
 #udm-icon, #console-icon { width:52px; height:auto; display:block; object-fit:contain; }
 #wires { position:absolute; left:0; top:0; right:0; bottom:0; width:100%; height:100%; pointer-events:none; z-index:1; overflow:visible; }
@@ -136,7 +138,9 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .uisp-kid img, .uisp-kid.uisp-radio img, .cpe-row img, .cpe-station img, .hs-tree img {
     width:48px; height:48px; max-width:48px; max-height:48px;
   }
-  .uisp-cube img { width:26px; height:26px; }
+  .uisp-cube img, .cpe-station.uisp-cube img {
+    width:26px; height:26px; max-width:26px; max-height:26px;
+  }
   .cpe-row { gap:52px; min-height:72px; }
   .cpe-station { min-width:64px; gap:6px; }
   .cpe-name { font-size:12px; max-width:110px; }
