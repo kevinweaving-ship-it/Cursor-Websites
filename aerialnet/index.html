@@ -10,7 +10,7 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <link rel="icon" href="artwork/aerial-networks-logo-mark.png" type="image/png">
   <link rel="apple-touch-icon" href="artwork/aerial-networks-logo-mark.png">
-  <link rel="preload" as="image" href="footage/hero-poster.jpg">
+  <link rel="preload" as="image" href="footage/hero-poster.jpg?v=2">
   <style>
     :root {
       --navy: #041630;
@@ -42,10 +42,10 @@
     }
     .hero {
       position: relative;
-      min-height: calc(100vh - 76px);
-      min-height: calc(100svh - 76px);
+      height: min(58vh, 620px);
+      min-height: 220px;
       color: #fff;
-      background: var(--navy) url("footage/hero-poster.jpg") center 42% / cover no-repeat;
+      background: var(--navy) url("footage/hero-poster.jpg?v=2") center top / cover no-repeat;
       overflow: hidden;
     }
     .hero-video {
@@ -54,46 +54,27 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      object-position: center 42%;
+      object-position: center top;
       background: transparent;
     }
     .hero-still .hero-video { display: none; }
-    .hero-shade {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(270deg, rgba(4, 22, 48, 0.55), rgba(4, 22, 48, 0.05) 62%);
-      pointer-events: none;
-    }
-    .hero-ui {
-      position: relative;
-      z-index: 2;
-      min-height: calc(100vh - 76px);
-      min-height: calc(100svh - 76px);
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      align-items: flex-end;
-      width: 100%;
-      margin: 0;
-      padding: 20px calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) 20px;
-    }
-    .hero-copy {
-      max-width: 40rem;
-      background: rgba(4, 22, 48, 0.82);
-      padding: 22px 22px 18px;
-      border-radius: 14px;
-    }
-    h1 {
-      margin: 0 0 8px;
+    .pitch {
+      background: var(--navy);
       color: #fff;
-      font-size: clamp(1.85rem, 4.6vw, 3.15rem);
-      line-height: 1.05;
+      padding: 16px 20px 14px;
+    }
+    .pitch-inner { width: min(40rem, 100%); }
+    h1 {
+      margin: 0 0 6px;
+      color: #fff;
+      font-size: clamp(1.25rem, 2.6vw, 2rem);
+      line-height: 1.12;
       letter-spacing: -0.03em;
     }
     .lead {
-      margin: 0 0 16px;
+      margin: 0 0 12px;
       color: #fff;
-      font-size: clamp(1rem, 2.4vw, 1.2rem);
+      font-size: clamp(0.92rem, 1.6vw, 1.05rem);
     }
     .enquire {
       display: inline-flex;
@@ -112,9 +93,9 @@
       outline-offset: 3px;
     }
     .note {
-      margin: 12px 0 0;
+      margin: 8px 0 0;
       color: rgba(255, 255, 255, 0.82);
-      font-size: 0.82rem;
+      font-size: 0.78rem;
     }
     .wrap {
       width: min(720px, calc(100% - 32px));
@@ -142,11 +123,20 @@
     }
     footer { margin-top: 28px; color: var(--muted); font-size: 0.9rem; }
     @media (max-width: 700px) {
-      .hero-video { object-position: center 38%; }
-      .hero { background-position: center 38%; }
-      .hero-shade { background: linear-gradient(180deg, rgba(4, 22, 48, 0.12), rgba(4, 22, 48, 0.55)); }
-      .hero-copy { padding: 16px; max-width: none; }
-      .enquire { width: 100%; }
+      .pitch { padding: 12px 16px 12px; }
+      h1 { font-size: 1.2rem; }
+      .lead { font-size: 0.9rem; margin-bottom: 8px; }
+      .enquire { min-height: 40px; padding: 8px 14px; }
+    }
+    @media (max-height: 520px) {
+      .site-banner { min-height: 48px; padding-top: 6px; padding-bottom: 6px; }
+      .site-banner img { width: min(190px, 42vw); }
+      .hero { height: 48vh; min-height: 132px; }
+      .pitch { padding: 8px 14px 8px; }
+      h1 { font-size: 1.05rem; margin-bottom: 2px; }
+      .lead { font-size: 0.8rem; margin-bottom: 6px; }
+      .enquire { min-height: 34px; padding: 6px 12px; font-size: 0.88rem; }
+      .note { font-size: 0.68rem; margin-top: 4px; }
     }
     @media (prefers-reduced-motion: reduce) {
       .hero-video { display: none; }
@@ -158,22 +148,21 @@
     <img src="artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks">
   </header>
   <section class="hero" id="hero" aria-label="Aerial Networks">
-    <video id="hero-video" class="hero-video" poster="footage/hero-poster.jpg" muted playsinline loop preload="none"></video>
-    <div class="hero-shade" aria-hidden="true"></div>
-    <div class="hero-ui">
-      <div class="hero-copy">
-        <h1>High-site infrastructure. Space to connect.</h1>
-        <p class="lead">High-site access, mast space and equipment hosting for your network.</p>
-        <a class="enquire" href="#contact">Enquire about space</a>
-        <p class="note">Illustrative stock footage. Not photographs of Aerial Networks sites.</p>
-      </div>
+    <video id="hero-video" class="hero-video" poster="footage/hero-poster.jpg?v=2" muted playsinline loop preload="none"></video>
+  </section>
+  <section class="pitch" aria-labelledby="pitch-title">
+    <div class="pitch-inner">
+      <h1 id="pitch-title">High-site infrastructure. Space to connect.</h1>
+      <p class="lead">High-site access, mast space and equipment hosting for your network.</p>
+      <a class="enquire" href="#contact">Enquire about space</a>
+      <p class="note">Illustrative stock footage. Not photographs of Aerial Networks sites.</p>
     </div>
   </section>
   <main class="wrap" id="contact">
     <section class="card">
       <h2>Enquire about space</h2>
       <p>High-site access, mast space and equipment hosting. Email Aerial Networks.</p>
-      <a class="mail" href="mailto:kevin@aerialnet.co.za">kevin@aerialnet.co.za</a>
+      <a class="mail" href="mailto:support@aerialnet.co.za">support@aerialnet.co.za</a>
     </section>
     <footer>Aerial Networks · https://aerialnet.co.za/</footer>
   </main>
@@ -198,7 +187,7 @@
         return;
       }
       var mobile = window.matchMedia("(max-width: 700px)").matches;
-      video.src = mobile ? "footage/hero-720.mp4" : "footage/hero-1080.mp4";
+      video.src = mobile ? "footage/hero-720.mp4?v=2" : "footage/hero-1080.mp4?v=2";
       video.muted = true;
       video.playsInline = true;
       video.loop = true;
