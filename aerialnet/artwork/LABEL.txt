@@ -6,8 +6,8 @@ aerial-networks-logo.png
 
 aerial-networks-logo-mark.png
   Mark only (the A and N).
-  This file is the favicon.
-  Use this same file when a logo is needed without the wordmark.
+  Use this file when a logo is needed without the wordmark.
+  The website does not use a favicon.
 
 aerial-networks-favicon.ico
-  Browser icon made from aerial-networks-logo-mark.png.
+  Saved mark sized for a browser icon. Not used on the site.
