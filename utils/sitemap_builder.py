@@ -11,8 +11,12 @@ Production invoke path (Google-facing files):
 Writes sitemap.xml (index) + child urlsets: core, regattas, sailors, classes, clubs.
 Each URL appears in exactly one child sitemap.
 
-Lastmod: entity dates from Postgres, never a future date.
-Floor is 2000-01-01 when no past date exists. Does not hardcode "today" as lastmod.
+URL lastmod: entity dates from Postgres, never a future date.
+Floor is 2000-01-01 when no past date exists. Does not hardcode "today" as a URL lastmod.
+
+Index lastmod (Google's "when this sitemap file changed"): today only when a
+child urlset's loc/lastmod content actually changed; identical cron rewrites
+keep the previous index lastmod and do not touch the file mtime.
 """
 from __future__ import annotations
 
@@ -385,7 +389,6 @@ def _build_urlset_xml(base_url: str, entries: list[tuple[str, str]]) -> str:
         lines.append("  <url>")
         lines.append(f"    <loc>{esc}</loc>")
         lines.append(f"    <lastmod>{lastmod}</lastmod>")
-        lines.append("    <changefreq>weekly</changefreq>")
         lines.append("  </url>")
     lines.append("</urlset>")
     return "\n".join(lines)
@@ -411,6 +414,33 @@ def _atomic_write(path: str, content: str) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(content)
     os.replace(tmp, path)
+
+
+def _xml_unchanged(path: str, new_xml: str) -> bool:
+    """True when path already contains exactly new_xml."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read() == new_xml
+    except OSError:
+        return False
+
+
+def _sitemap_file_lastmod(
+    path: str,
+    new_xml: str,
+    entries: list[tuple[str, str]],
+    today: str,
+) -> str:
+    """Index lastmod: today if this child urlset changed, else max URL lastmod.
+
+    Google uses sitemap-index lastmod to decide whether to re-download the
+    child file. Max entity date alone hides newly added URLs whose own
+    lastmod is older than the previous newest row.
+    """
+    entity_max = _max_lastmod(entries, today=today)
+    if _xml_unchanged(path, new_xml):
+        return entity_max
+    return today
 
 
 def _chunk_filenames(stem: str, n: int, max_per: int) -> list[str]:
@@ -569,10 +599,12 @@ def build_sitemap(
             xml = _build_urlset_xml(base_url, entries)
             fn = names[0]
             path = os.path.join(out_dir, fn)
-            _atomic_write(path, xml)
+            index_lm = _sitemap_file_lastmod(path, xml, entries, today)
+            if not _xml_unchanged(path, xml):
+                _atomic_write(path, xml)
             by_file[fn] = len(entries)
             written_names.add(fn)
-            index_rows.append((f"{base}/{fn}", _max_lastmod(entries, today=today)))
+            index_rows.append((f"{base}/{fn}", index_lm))
             return
         offset = 0
         for fn in names:
@@ -580,10 +612,12 @@ def build_sitemap(
             offset += max_per
             xml = _build_urlset_xml(base_url, chunk)
             path = os.path.join(out_dir, fn)
-            _atomic_write(path, xml)
+            index_lm = _sitemap_file_lastmod(path, xml, chunk, today)
+            if not _xml_unchanged(path, xml):
+                _atomic_write(path, xml)
             by_file[fn] = len(chunk)
             written_names.add(fn)
-            index_rows.append((f"{base}/{fn}", _max_lastmod(chunk, today=today)))
+            index_rows.append((f"{base}/{fn}", index_lm))
 
     write_chunked("sitemap-core", core_entries)
     write_chunked("sitemap-regattas", reg_entries)
@@ -599,7 +633,8 @@ def build_sitemap(
         return None
 
     index_full = os.path.join(out_dir, index_basename)
-    _atomic_write(index_full, index_xml)
+    if not _xml_unchanged(index_full, index_xml):
+        _atomic_write(index_full, index_xml)
 
     _remove_stale_sitemaps(out_dir, written_names)
 
