@@ -85,7 +85,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 #nano-block {
   grid-column:3; grid-row:5;
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
-  padding:24px 0 0 72px;
+  padding:24px 0 0 160px;
 }
 #nano-cpe {
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
@@ -102,7 +102,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .hs-branch-drop { margin-top:36px; }
 .hs-clients {
   display:flex; flex-direction:column; justify-content:flex-start;
-  gap:96px; padding:80px 0 0 12px;
+  gap:96px; padding:80px 0 0 160px;
 }
 .hs-clients > .cpe-station { min-height:88px; }
 .radio-pair {
@@ -198,14 +198,14 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .hs-branch { gap:96px; }
   .hs-branch-drop { margin-top:52px; }
   .hs-branches { gap:28px; }
-  .hs-clients { gap:120px; padding:110px 0 0 16px; }
+  .hs-clients { gap:120px; padding:110px 0 0 160px; }
   .hs-clients > .cpe-station { min-height:100px; }
   .fibre-in, .link-mbps { font-size:12px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
   .site-card-name, .cpe-name { font-size:12px; }
-  #nano-block { padding:32px 0 0 80px; }
+  #nano-block { padding:32px 0 0 160px; }
   #nano-cpe { gap:120px; }
   #nano-block .cpe-row { min-height:100px; }
   #lte-node { bottom:calc(100% + 16px); }
@@ -292,6 +292,7 @@ const HOST = "1-dream-machine-pro-hermanus";
 const LIVE_MS = 250;
 const RATE_MS = 250;
 const CONSOLE_MS = 15000;
+const SPOKE_PX = 160;
 const STALE_MS = 45000;
 const HIST_MAX = 90;
 const CONSOLE_MAC = "e4:38:83:de:e6:4a";
@@ -618,7 +619,7 @@ function paintWires() {
       cpes.push({ kid, i, p: box("#cpe-icon-" + i) });
     });
     if (cpes.length) {
-      const joinX = fanJoinX(cpes.map(x => x.p), 36);
+      const joinX = fanJoinX(cpes.map(x => x.p), SPOKE_PX);
       cpes.forEach(({ kid, i, p }) => {
         const d = fanSpoke(n, p, joinX);
         const on = kid.ok === true;
@@ -945,13 +946,8 @@ function placeLinkRates() {
     if (p) cpeBoxes.push({ kid, p });
   });
   if (cpeBoxes.length) {
-    const joinX = fanJoinX(cpeBoxes.map(x => x.p), 36);
-    const ranked = cpeBoxes.slice().sort((a, b) => a.p.cy - b.p.cy);
-    let prevY = nanoBox ? nanoBox.cy : null;
-    ranked.forEach(({ kid, p }) => {
-      addSpokeMbps(layer, kid.downMbps, nanoBox, p, joinX, "v", prevY);
-      prevY = p.cy;
-    });
+    const joinX = fanJoinX(cpeBoxes.map(x => x.p), SPOKE_PX);
+    cpeBoxes.forEach(({ kid, p }) => addSpokeMbps(layer, kid.downMbps, nanoBox, p, joinX, "h"));
   }
   PTP.forEach((kid, i) => {
     addInMbps(layer, kid.downMbps, safeBox("#ptp-row-" + i), "left");
@@ -967,13 +963,8 @@ function placeLinkRates() {
       if (clients.length === 1 && sec) {
         addLinkMbps(layer, clients[0].cli.downMbps, (sec.r + clients[0].p.l) / 2, (sec.cy + clients[0].p.cy) / 2);
       } else if (clients.length) {
-        const joinX = fanJoinX(clients.map(x => x.p), 28);
-        const ranked = clients.slice().sort((a, b) => a.p.cy - b.p.cy);
-        let prevY = sec ? sec.cy : null;
-        ranked.forEach(({ cli, p }) => {
-          addSpokeMbps(layer, cli.downMbps, sec, p, joinX, "v", prevY);
-          prevY = p.cy;
-        });
+        const joinX = fanJoinX(clients.map(x => x.p), SPOKE_PX);
+        clients.forEach(({ cli, p }) => addSpokeMbps(layer, cli.downMbps, sec, p, joinX, "h"));
       }
     });
   });
@@ -1157,7 +1148,7 @@ function paintSiteTreeWires(kid, i, extra, extraPk, lineCls) {
       extra.push(`<path class="${lineCls(rad.ok && cboxes[0].cli.ok, "wifi dash")}" d="${d2}"></path>`);
       extraPk.push(packets(d2, !!(rad.ok && cboxes[0].cli.ok), "wifi", 2.3, -0.1));
     } else {
-      const joinX = fanJoinX(cboxes.map(x => x.p), 28);
+      const joinX = fanJoinX(cboxes.map(x => x.p), SPOKE_PX);
       cboxes.forEach(({ cli, ci, p }) => {
         const d2 = fanSpoke(from, p, joinX);
         extra.push(`<path class="${lineCls(rad.ok && cli.ok, "wifi dash")}" d="${d2}"></path>`);
