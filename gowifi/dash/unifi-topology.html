@@ -42,9 +42,9 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .col { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; }
 .col-udm { min-width:36px; }
 .udm-with-site {
-  display:flex; flex-direction:row; align-items:flex-start; gap:10px;
+  display:flex; flex-direction:row; align-items:flex-start; gap:12px;
 }
-.udm-site-pill { margin-top:18px; }
+.udm-site-pill { margin-top:0; }
 #lte-node {
   position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%);
 }
@@ -102,7 +102,10 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
   gap:5px; min-width:52px;
 }
-.cpe-row img { width:36px; height:36px; display:block; object-fit:contain; }
+.cpe-row img, .cpe-station img, .hs-tree img {
+  width:36px; height:36px; max-width:36px; max-height:36px;
+  display:block; object-fit:contain;
+}
 .cpe-name {
   font-weight:400; font-size:11px; line-height:1.15; color:#475569;
   text-align:center; max-width:88px; white-space:normal;
@@ -112,7 +115,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .globe-svg, #lte-icon { width:34px; height:34px; display:block; object-fit:contain; }
 #udm-icon, #console-icon { width:52px; height:auto; display:block; object-fit:contain; }
 #wires { position:absolute; left:0; top:0; right:0; bottom:0; width:100%; height:100%; pointer-events:none; z-index:1; overflow:visible; }
-.wire-base { fill:none; stroke:var(--wire); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.wire-base { fill:none; stroke:var(--wire); stroke-width:2; stroke-linecap:butt; stroke-linejoin:miter; stroke-miterlimit:2; }
 .wire-base.bak { stroke:var(--wire-bak); }
 .wire-base.down { stroke:#c62828; }
 .wire-base.wifi { stroke:#f0a04b; }
@@ -130,7 +133,9 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .radio-grid { column-gap:64px; row-gap:22px; grid-template-rows:auto auto auto 48px auto; }
   .globe-svg, #lte-icon { width:40px; height:40px; }
   #udm-icon, #console-icon { width:64px; }
-  .uisp-kid img, .uisp-kid.uisp-radio img, .cpe-row img { width:48px; height:48px; }
+  .uisp-kid img, .uisp-kid.uisp-radio img, .cpe-row img, .cpe-station img, .hs-tree img {
+    width:48px; height:48px; max-width:48px; max-height:48px;
+  }
   .uisp-cube img { width:26px; height:26px; }
   .cpe-row { gap:52px; min-height:72px; }
   .cpe-station { min-width:64px; gap:6px; }
@@ -143,7 +148,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .site-card img { width:20px; height:20px; }
   .site-card-name, .cpe-name { font-size:12px; }
   #nano-block { gap:24px; padding-top:12px; }
-  .udm-site-pill { margin-top:22px; }
+  .udm-site-pill { margin-top:0; }
   #lte-node { bottom:calc(100% + 16px); }
   #switch-node { bottom:48px; }
 }
@@ -163,7 +168,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 <main>
   <div class="banner" id="banner">Loading topology…</div>
   <div class="topo" id="topo">
-    <svg class="wires" id="wires" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <svg class="wires" id="wires" viewBox="0 0 100 100" preserveAspectRatio="xMinYMin meet" aria-hidden="true"></svg>
     <div class="topo-flow" id="topo-grid" data-topo-layout="horizontal">
     <div class="spine">
     <div class="col col-inet stack" id="globe">
@@ -319,26 +324,29 @@ function dishGap(b, side) {
   if (side === "t") return b.t - g;
   return b.b + g;
 }
+function ortho(x1, y1, x2, y2, frac) {
+  const a = Number(x1.toFixed(1));
+  const b = Number(y1.toFixed(1));
+  const c = Number(x2.toFixed(1));
+  const d = Number(y2.toFixed(1));
+  if (Math.abs(b - d) < 3) return `M${a} ${b} H${c}`;
+  if (Math.abs(a - c) < 3) return `M${a} ${b} V${d}`;
+  const mid = Number((a + (c - a) * ((frac == null) ? 0.5 : frac)).toFixed(1));
+  return `M${a} ${b} H${mid} V${d} H${c}`;
+}
 function lr(a, b, yOff, frac) {
   const off = yOff || 0;
-  const x1 = dishGap(a, "r");
-  const x2 = dishGap(b, "l");
-  const y1 = a.cy + off;
-  const y2 = b.cy + off;
-  const mid = x1 + (x2 - x1) * ((frac == null) ? 0.5 : frac);
-  return `M${x1.toFixed(1)} ${y1.toFixed(1)} L${mid.toFixed(1)} ${y1.toFixed(1)} L${mid.toFixed(1)} ${y2.toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)}`;
+  return ortho(dishGap(a, "r"), a.cy + off, dishGap(b, "l"), b.cy + off, frac);
 }
 function fanFrom(origin, target) {
   const ox = dishGap(origin, "r");
-  const oy = origin.cy;
   const mid = ox + 16;
-  const x2 = dishGap(target, "l");
-  return `M${ox.toFixed(1)} ${oy.toFixed(1)} L${mid.toFixed(1)} ${oy.toFixed(1)} L${mid.toFixed(1)} ${target.cy.toFixed(1)} L${x2.toFixed(1)} ${target.cy.toFixed(1)}`;
+  return `M${ox.toFixed(1)} ${origin.cy.toFixed(1)} H${mid.toFixed(1)} V${target.cy.toFixed(1)} H${dishGap(target, "l").toFixed(1)}`;
 }
 function hopPath(a, b, frac) {
   if (b.t > a.b + 20 && b.cx < a.l - 8) {
     const midY = a.b + 18;
-    return `M${a.cx.toFixed(1)} ${dishGap(a, "b").toFixed(1)} L${a.cx.toFixed(1)} ${midY.toFixed(1)} L${b.cx.toFixed(1)} ${midY.toFixed(1)} L${b.cx.toFixed(1)} ${dishGap(b, "t").toFixed(1)}`;
+    return `M${a.cx.toFixed(1)} ${dishGap(a, "b").toFixed(1)} V${midY.toFixed(1)} H${b.cx.toFixed(1)} V${dishGap(b, "t").toFixed(1)}`;
   }
   return lr(a, b, 0, frac);
 }
@@ -396,19 +404,14 @@ function paintWires() {
   }
   const dF1 = lr(g, u, -2, 0.5);
   const dF2 = lr(g, u, 2, 0.5);
-  const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} L${l.cx.toFixed(1)} ${(u.t - 8).toFixed(1)}`;
-  const popPill = document.getElementById("vk-pop-pill");
-  let dCon = lr(u, c, 0, 0.5);
-  if (popPill && popPill.offsetParent) {
-    const p = box("#vk-pop-pill");
-    dCon = `M${dishGap(u, "r").toFixed(1)} ${u.cy.toFixed(1)} L${p.l.toFixed(1)} ${p.cy.toFixed(1)} L${p.r.toFixed(1)} ${p.cy.toFixed(1)} L${dishGap(c, "l").toFixed(1)} ${c.cy.toFixed(1)}`;
-  }
+  const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} V${(u.t - 8).toFixed(1)}`;
+  const dCon = lr(u, c, 0, 0.5);
   let dSw = "";
   let dEs = "";
   if (esShow) dEs = lr(c, box("#es16-icon"), 0, 0.5);
   if (swShow) {
     const sw = box("#switch-icon");
-    dSw = `M${sw.cx.toFixed(1)} ${c.cy.toFixed(1)} L${sw.cx.toFixed(1)} ${dishGap(sw, "b").toFixed(1)}`;
+    dSw = `M${sw.cx.toFixed(1)} ${c.cy.toFixed(1)} V${dishGap(sw, "b").toFixed(1)}`;
   }
   let html =
     `<path class="${lineCls(wanOn)}" d="${dF1}"></path>` +
@@ -449,7 +452,7 @@ function paintWires() {
     if (cpes.length) {
       const joinX = Math.min(...cpes.map(x => x.p.l)) - 22;
       cpes.forEach(({ kid, i, p }) => {
-        const d = `M${dishGap(n, "r").toFixed(1)} ${n.cy.toFixed(1)} L${joinX.toFixed(1)} ${n.cy.toFixed(1)} L${joinX.toFixed(1)} ${p.cy.toFixed(1)} L${dishGap(p, "l").toFixed(1)} ${p.cy.toFixed(1)}`;
+        const d = `M${dishGap(n, "r").toFixed(1)} ${n.cy.toFixed(1)} H${joinX.toFixed(1)} V${p.cy.toFixed(1)} H${dishGap(p, "l").toFixed(1)}`;
         const on = kid.ok === true;
         extra.push(`<path class="${lineCls(on, "wifi")}" d="${d}"></path>`);
         extraPk.push(packets(d, on, "wifi", 2.05 + i * 0.32, -0.2 * i));
@@ -709,7 +712,7 @@ function paintSiteTreeWires(kid, i, extra, extraPk, lineCls) {
   const pill = document.getElementById("ptp-row-" + i);
   if (pill && pill.offsetParent) {
     const p = box("#ptp-row-" + i);
-    const d = `M${p.r.toFixed(1)} ${p.cy.toFixed(1)} L${dishGap(sw, "l").toFixed(1)} ${sw.cy.toFixed(1)}`;
+    const d = lr(p, sw, 0, 0.5);
     extra.push(`<path class="${lineCls(kid.ok && kid.switch.ok)}" d="${d}"></path>`);
     extraPk.push(packets(d, !!(kid.ok && kid.switch.ok), "", 2.1 + i * 0.2, -0.1 * i));
   }
@@ -733,7 +736,7 @@ function paintSiteTreeWires(kid, i, extra, extraPk, lineCls) {
     } else {
       const joinX = cboxes.length ? Math.min(...cboxes.map(x => x.p.l)) - 18 : 0;
       cboxes.forEach(({ cli, ci, p }) => {
-        const d2 = `M${dishGap(rb, "r").toFixed(1)} ${rb.cy.toFixed(1)} L${joinX.toFixed(1)} ${rb.cy.toFixed(1)} L${joinX.toFixed(1)} ${p.cy.toFixed(1)} L${dishGap(p, "l").toFixed(1)} ${p.cy.toFixed(1)}`;
+        const d2 = `M${dishGap(rb, "r").toFixed(1)} ${rb.cy.toFixed(1)} H${joinX.toFixed(1)} V${p.cy.toFixed(1)} H${dishGap(p, "l").toFixed(1)}`;
         extra.push(`<path class="${lineCls(rad.ok && cli.ok, "wifi")}" d="${d2}"></path>`);
         extraPk.push(packets(d2, !!(rad.ok && cli.ok), "wifi", 2.3 + ci * 0.2, -0.1 * ci));
       });
