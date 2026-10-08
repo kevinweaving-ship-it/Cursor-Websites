@@ -85,8 +85,9 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 #nano-block {
   grid-column:3; grid-row:5;
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
-  gap:28px; padding:10px 0 0 140px;
+  gap:96px; padding:24px 0 0 72px;
 }
+#nano-block .cpe-row { min-height:88px; }
 .ptp-grow { min-width:88px; min-height:20px; }
 .hs-tree {
   display:flex; flex-direction:row; align-items:center;
@@ -97,8 +98,9 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .hs-branch-drop { margin-top:36px; }
 .hs-clients {
   display:flex; flex-direction:column; justify-content:flex-start;
-  gap:48px; padding:36px 0 0 12px;
+  gap:96px; padding:80px 0 0 12px;
 }
+.hs-clients > .cpe-station { min-height:88px; }
 .radio-pair {
   display:flex; flex-direction:row; align-items:flex-start; gap:0;
 }
@@ -192,13 +194,15 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .hs-branch { gap:96px; }
   .hs-branch-drop { margin-top:52px; }
   .hs-branches { gap:28px; }
-  .hs-clients { gap:64px; padding:52px 0 0 16px; }
+  .hs-clients { gap:120px; padding:110px 0 0 16px; }
+  .hs-clients > .cpe-station { min-height:100px; }
   .fibre-in, .link-mbps { font-size:12px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
   .site-card-name, .cpe-name { font-size:12px; }
-  #nano-block { gap:36px; padding:16px 0 0 168px; }
+  #nano-block { gap:120px; padding:32px 0 0 80px; }
+  #nano-block .cpe-row { min-height:100px; }
   #lte-node { bottom:calc(100% + 16px); }
 }
 </style>
@@ -609,7 +613,7 @@ function paintWires() {
       cpes.push({ kid, i, p: box("#cpe-icon-" + i) });
     });
     if (cpes.length) {
-      const joinX = fanJoinX(cpes.map(x => x.p), 120);
+      const joinX = fanJoinX(cpes.map(x => x.p), 36);
       cpes.forEach(({ kid, i, p }) => {
         const d = fanSpoke(n, p, joinX);
         const on = kid.ok === true;
@@ -935,8 +939,13 @@ function placeLinkRates() {
     if (p) cpeBoxes.push({ kid, p });
   });
   if (cpeBoxes.length) {
-    const joinX = fanJoinX(cpeBoxes.map(x => x.p), 120);
-    cpeBoxes.forEach(({ kid, p }) => addSpokeMbps(layer, kid.downMbps, nanoBox, p, joinX, "h"));
+    const joinX = fanJoinX(cpeBoxes.map(x => x.p), 36);
+    const ranked = cpeBoxes.slice().sort((a, b) => a.p.cy - b.p.cy);
+    let prevY = nanoBox ? nanoBox.cy : null;
+    ranked.forEach(({ kid, p }) => {
+      addSpokeMbps(layer, kid.downMbps, nanoBox, p, joinX, "v", prevY);
+      prevY = p.cy;
+    });
   }
   PTP.forEach((kid, i) => {
     addInMbps(layer, kid.downMbps, safeBox("#ptp-row-" + i), "left");
