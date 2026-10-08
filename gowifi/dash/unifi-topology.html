@@ -85,13 +85,13 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 #nano-block {
   grid-column:3; grid-row:5;
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
-  padding:24px 0 0 240px;
+  padding:10px 0 0 4px;
 }
 #nano-cpe {
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
-  gap:96px;
+  gap:20px;
 }
-#nano-block .cpe-row { min-height:88px; }
+.cpe-span { margin-left:72px; }
 .ptp-grow { min-width:88px; min-height:20px; }
 .hs-tree {
   display:flex; flex-direction:row; align-items:center;
@@ -102,9 +102,8 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .hs-branch-drop { margin-top:36px; }
 .hs-clients {
   display:flex; flex-direction:column; justify-content:flex-start;
-  gap:96px; padding:80px 0 0 240px; min-width:300px;
+  gap:28px; padding:24px 0 0 8px;
 }
-.hs-clients > .cpe-station { min-height:88px; }
 .radio-pair {
   display:flex; flex-direction:row; align-items:flex-start; gap:0;
 }
@@ -198,16 +197,15 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .hs-branch { gap:96px; }
   .hs-branch-drop { margin-top:52px; }
   .hs-branches { gap:28px; }
-  .hs-clients { gap:120px; padding:110px 0 0 240px; min-width:320px; }
-  .hs-clients > .cpe-station { min-height:100px; }
+  .hs-clients { gap:36px; padding:28px 0 0 8px; }
+  .cpe-span { margin-left:80px; }
   .fibre-in, .link-mbps { font-size:12px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
   .site-card-name, .cpe-name { font-size:12px; }
-  #nano-block { padding:32px 0 0 240px; }
-  #nano-cpe { gap:120px; }
-  #nano-block .cpe-row { min-height:100px; }
+  #nano-block { padding:12px 0 0 4px; }
+  #nano-cpe { gap:24px; }
   #lte-node { bottom:calc(100% + 16px); }
 }
 </style>
@@ -292,7 +290,8 @@ const HOST = "1-dream-machine-pro-hermanus";
 const LIVE_MS = 250;
 const RATE_MS = 250;
 const CONSOLE_MS = 15000;
-const SPOKE_PX = 240;
+const SPOKE_PX = 80;
+const STUB_PX = 18;
 const STALE_MS = 45000;
 const HIST_MAX = 90;
 const CONSOLE_MAC = "e4:38:83:de:e6:4a";
@@ -963,8 +962,11 @@ function placeLinkRates() {
       if (clients.length === 1 && sec) {
         addLinkMbps(layer, clients[0].cli.downMbps, (sec.r + clients[0].p.l) / 2, (sec.cy + clients[0].p.cy) / 2);
       } else if (clients.length) {
-        const joinX = fanJoinX(clients.map(x => x.p), SPOKE_PX);
-        clients.forEach(({ cli, p }) => addSpokeMbps(layer, cli.downMbps, sec, p, joinX, "h"));
+        const joinX = fanJoinX(clients.map(x => x.p), STUB_PX);
+        clients.forEach(({ cli, p }) => {
+          const along = needsOrangeSpan(cli.name) ? "h" : "v";
+          addSpokeMbps(layer, cli.downMbps, sec, p, joinX, along);
+        });
       }
     });
   });
@@ -1064,12 +1066,17 @@ function isRocket(rec) {
   const n = String((rec && rec.name) || "");
   return /^R5AC/i.test(m) || /rocket/i.test(m) || /rocket/i.test(n);
 }
+function needsOrangeSpan(name) {
+  return /bing|villiers|villers|hundermark|marlene|wanting/i.test(String(name || ""));
+}
 function stationHtml(id, rec, name, opts) {
   opts = opts || {};
+  const lab = name || cleanLabel(rec.name, rec.model);
   const face = opts.face ? " radio-face-" + opts.face : "";
-  const inner = `<div class="cpe-station${face}">
+  const span = needsOrangeSpan(lab) || needsOrangeSpan(rec.name) ? " cpe-span" : "";
+  const inner = `<div class="cpe-station${face}${span}">
     <img id="${id}" alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
-    <span class="cpe-name">${esc(name || cleanLabel(rec.name, rec.model))}</span>
+    <span class="cpe-name">${esc(lab)}</span>
   </div>`;
   if (!opts.sector) return inner;
   return `<div class="radio-pair">${inner}<div class="cpe-station sector-station">
@@ -1148,7 +1155,7 @@ function paintSiteTreeWires(kid, i, extra, extraPk, lineCls) {
       extra.push(`<path class="${lineCls(rad.ok && cboxes[0].cli.ok, "wifi dash")}" d="${d2}"></path>`);
       extraPk.push(packets(d2, !!(rad.ok && cboxes[0].cli.ok), "wifi", 2.3, -0.1));
     } else {
-      const joinX = fanJoinX(cboxes.map(x => x.p), SPOKE_PX);
+      const joinX = fanJoinX(cboxes.map(x => x.p), STUB_PX);
       cboxes.forEach(({ cli, ci, p }) => {
         const d2 = fanSpoke(from, p, joinX);
         extra.push(`<path class="${lineCls(rad.ok && cli.ok, "wifi dash")}" d="${d2}"></path>`);
@@ -1220,7 +1227,7 @@ function renderHops(cpeList, ptpList) {
         <span class="cpe-name">Cube</span>
       </div>` : "";
       return `<div class="cpe-row" id="cpe-row-${i}">
-        <div class="cpe-station">
+        <div class="cpe-station cpe-span">
           <img id="cpe-icon-${i}" alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
           <span class="cpe-name">${esc(cleanLabel(rec.name, rec.model))}</span>
         </div>
