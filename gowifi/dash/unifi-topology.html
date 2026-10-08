@@ -85,7 +85,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 #nano-block {
   grid-column:3; grid-row:5;
   display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
-  gap:22px; padding:10px 0 0 64px;
+  gap:28px; padding:10px 0 0 140px;
 }
 .ptp-grow { min-width:88px; min-height:20px; }
 .hs-tree {
@@ -95,7 +95,10 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 .hs-branches { display:flex; flex-direction:column; justify-content:center; gap:22px; }
 .hs-branch { display:flex; flex-direction:row; align-items:flex-start; gap:72px; }
 .hs-branch-drop { margin-top:36px; }
-.hs-clients { display:flex; flex-direction:column; justify-content:flex-start; gap:22px; padding-left:8px; }
+.hs-clients {
+  display:flex; flex-direction:column; justify-content:flex-start;
+  gap:48px; padding:36px 0 0 12px;
+}
 .radio-pair {
   display:flex; flex-direction:row; align-items:flex-start; gap:0;
 }
@@ -189,13 +192,13 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .hs-branch { gap:96px; }
   .hs-branch-drop { margin-top:52px; }
   .hs-branches { gap:28px; }
-  .hs-clients { gap:28px; }
+  .hs-clients { gap:64px; padding:52px 0 0 16px; }
   .fibre-in, .link-mbps { font-size:12px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
   .site-card img { width:20px; height:20px; }
   .site-card-name, .cpe-name { font-size:12px; }
-  #nano-block { gap:28px; padding:16px 0 0 88px; }
+  #nano-block { gap:36px; padding:16px 0 0 168px; }
   #lte-node { bottom:calc(100% + 16px); }
 }
 </style>
@@ -454,6 +457,12 @@ function fanFrom(origin, target) {
   const mid = ox + 36;
   return `M${ox.toFixed(1)} ${origin.cy.toFixed(1)} H${mid.toFixed(1)} V${target.cy.toFixed(1)} H${dishGap(target, "l").toFixed(1)}`;
 }
+function fanJoinX(targets, stub) {
+  return Math.min(...targets.map(t => t.l)) - (stub == null ? 120 : stub);
+}
+function fanSpoke(from, to, joinX) {
+  return `M${dishGap(from, "r").toFixed(1)} ${from.cy.toFixed(1)} H${joinX.toFixed(1)} V${to.cy.toFixed(1)} H${dishGap(to, "l").toFixed(1)}`;
+}
 function hopPath(a, b, frac) {
   if (b.t > a.b + 20 && b.cx < a.l - 8) {
     const midY = a.b + 18;
@@ -600,9 +609,9 @@ function paintWires() {
       cpes.push({ kid, i, p: box("#cpe-icon-" + i) });
     });
     if (cpes.length) {
-      const joinX = Math.min(...cpes.map(x => x.p.l)) - 64;
+      const joinX = fanJoinX(cpes.map(x => x.p), 120);
       cpes.forEach(({ kid, i, p }) => {
-        const d = `M${dishGap(n, "r").toFixed(1)} ${n.cy.toFixed(1)} H${joinX.toFixed(1)} V${p.cy.toFixed(1)} H${dishGap(p, "l").toFixed(1)}`;
+        const d = fanSpoke(n, p, joinX);
         const on = kid.ok === true;
         extra.push(`<path class="${lineCls(on, "wifi dash")}" d="${d}"></path>`);
         extraPk.push(packets(d, on, "wifi", 2.05 + i * 0.32, -0.2 * i));
@@ -886,6 +895,15 @@ function addInMbps(layer, mbps, b, dir) {
   else if (dir === "down") addLinkMbps(layer, mbps, b.cx, b.b + 22);
   else addLinkMbps(layer, mbps, b.cx, b.t);
 }
+function addSpokeMbps(layer, mbps, from, to, joinX, along, prevY) {
+  if (!to || mbps == null) return;
+  const startY = prevY != null ? prevY : (from && from.cy);
+  if (along === "v" && startY != null && Math.abs(startY - to.cy) > 12) {
+    addLinkMbps(layer, mbps, joinX, (startY + to.cy) / 2);
+    return;
+  }
+  addLinkMbps(layer, mbps, (joinX + to.l) / 2, to.cy);
+}
 function safeBox(sel) {
   try {
     const el = document.querySelector(sel);
@@ -910,17 +928,38 @@ function placeLinkRates() {
   ESPOP.forEach((kid, i) => {
     addInMbps(layer, kid.downMbps, safeBox("#pop-icon-" + i), "left");
   });
+  const nanoBox = safeBox("img[data-role='nano']");
+  const cpeBoxes = [];
   NANO_CPE.forEach((kid, i) => {
-    addInMbps(layer, kid.downMbps, safeBox("#cpe-icon-" + i), "left");
+    const p = safeBox("#cpe-icon-" + i);
+    if (p) cpeBoxes.push({ kid, p });
   });
+  if (cpeBoxes.length) {
+    const joinX = fanJoinX(cpeBoxes.map(x => x.p), 120);
+    cpeBoxes.forEach(({ kid, p }) => addSpokeMbps(layer, kid.downMbps, nanoBox, p, joinX, "h"));
+  }
   PTP.forEach((kid, i) => {
     addInMbps(layer, kid.downMbps, safeBox("#ptp-row-" + i), "left");
     addInMbps(layer, kid.switch && kid.switch.downMbps, safeBox("#hs-sw-icon-" + i), "left");
     (kid.radios || []).forEach((rad, ri) => {
       addInMbps(layer, rad.downMbps, safeBox("#hs-rad-icon-" + i + "-" + ri), "left");
+      const sec = safeBox("#hs-rad-icon-" + i + "-" + ri + "-sector") || safeBox("#hs-rad-icon-" + i + "-" + ri);
+      const clients = [];
       (rad.clients || []).forEach((cli, ci) => {
-        addInMbps(layer, cli.downMbps, safeBox("#hs-cli-icon-" + i + "-" + ri + "-" + ci), "left");
+        const p = safeBox("#hs-cli-icon-" + i + "-" + ri + "-" + ci);
+        if (p) clients.push({ cli, p });
       });
+      if (clients.length === 1 && sec) {
+        addLinkMbps(layer, clients[0].cli.downMbps, (sec.r + clients[0].p.l) / 2, (sec.cy + clients[0].p.cy) / 2);
+      } else if (clients.length) {
+        const joinX = fanJoinX(clients.map(x => x.p), 28);
+        const ranked = clients.slice().sort((a, b) => a.p.cy - b.p.cy);
+        let prevY = sec ? sec.cy : null;
+        ranked.forEach(({ cli, p }) => {
+          addSpokeMbps(layer, cli.downMbps, sec, p, joinX, "v", prevY);
+          prevY = p.cy;
+        });
+      }
     });
   });
 }
@@ -1103,9 +1142,9 @@ function paintSiteTreeWires(kid, i, extra, extraPk, lineCls) {
       extra.push(`<path class="${lineCls(rad.ok && cboxes[0].cli.ok, "wifi dash")}" d="${d2}"></path>`);
       extraPk.push(packets(d2, !!(rad.ok && cboxes[0].cli.ok), "wifi", 2.3, -0.1));
     } else {
-      const joinX = cboxes.length ? Math.min(...cboxes.map(x => x.p.l)) - 64 : 0;
+      const joinX = fanJoinX(cboxes.map(x => x.p), 28);
       cboxes.forEach(({ cli, ci, p }) => {
-        const d2 = `M${dishGap(from, "r").toFixed(1)} ${from.cy.toFixed(1)} H${joinX.toFixed(1)} V${p.cy.toFixed(1)} H${dishGap(p, "l").toFixed(1)}`;
+        const d2 = fanSpoke(from, p, joinX);
         extra.push(`<path class="${lineCls(rad.ok && cli.ok, "wifi dash")}" d="${d2}"></path>`);
         extraPk.push(packets(d2, !!(rad.ok && cli.ok), "wifi", 2.3 + ci * 0.2, -0.1 * ci));
       });
