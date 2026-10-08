@@ -80,6 +80,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
 }
 .hs-branches { display:flex; flex-direction:column; justify-content:center; gap:16px; }
 .hs-branch { display:flex; flex-direction:row; align-items:flex-start; gap:40px; }
+.hs-branch-drop { margin-top:36px; }
 .hs-clients { display:flex; flex-direction:column; justify-content:flex-start; gap:14px; }
 .radio-pair {
   display:flex; flex-direction:row; align-items:flex-start; gap:0;
@@ -170,6 +171,7 @@ main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--p
   .cpe-name { font-size:12px; max-width:110px; }
   .hs-tree { gap:52px; min-height:72px; }
   .hs-branch { gap:52px; }
+  .hs-branch-drop { margin-top:52px; }
   .hs-branches { gap:20px; }
   .cap { font-size:12px; max-width:110px; }
   .site-card { padding:6px 14px 6px 8px; }
@@ -825,7 +827,8 @@ function renderSiteTrees(list) {
     const row = rec.role === "fk" ? 1 : 2;
     const branches = (rec.radios || []).map((rad, ri) => {
       const clients = (rad.clients || []).map((cli, ci) => stationHtml("hs-cli-icon-" + i + "-" + ri + "-" + ci, cli, null, { face: "left" })).join("");
-      return `<div class="hs-branch">${stationHtml("hs-rad-icon-" + i + "-" + ri, rad, null, { sector: isRocket(rad), face: "right" })}<div class="hs-clients">${clients}</div></div>`;
+      const drop = (isRocket(rad) && (rec.radios || []).length > 1) ? " hs-branch-drop" : "";
+      return `<div class="hs-branch${drop}">${stationHtml("hs-rad-icon-" + i + "-" + ri, rad, null, { sector: isRocket(rad), face: "right" })}<div class="hs-clients">${clients}</div></div>`;
     }).join("");
     return `<div class="hs-tree" id="hs-tree-${i}" style="grid-area:${row} / 3">${stationHtml("hs-sw-icon-" + i, rec.switch)}<div class="hs-branches">${branches}</div></div>`;
   }).join("");
@@ -922,10 +925,9 @@ let CONSOLE_BUSY = false;
 function loadConsole() {
   if (CONSOLE_BUSY) return;
   CONSOLE_BUSY = true;
-  const bust = "&t=" + Date.now();
   Promise.all([
-    fetch("/dash/api/devices?withInterfaces=true" + bust, { credentials:"same-origin", cache:"no-store" }).then(r => r.json()),
-    fetch("/dash/api/data-links?t=" + Date.now(), { credentials:"same-origin", cache:"no-store" }).then(r => r.json()).catch(() => [])
+    fetch("/dash/api/devices?withInterfaces=true", { credentials:"same-origin", cache:"no-store" }).then(r => r.json()),
+    fetch("/dash/api/data-links", { credentials:"same-origin", cache:"no-store" }).then(r => r.json()).catch(() => [])
   ]).then(([devData, linkData]) => {
     const rows = asRows(devData);
     const links = asRows(linkData);
