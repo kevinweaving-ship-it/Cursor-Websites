@@ -421,7 +421,11 @@ function paintWires() {
   const dF1 = lr(g, u, -2, 0.5);
   const dF2 = lr(g, u, 2, 0.5);
   const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} V${(u.t - 8).toFixed(1)}`;
-  const dCon = lr(u, c, 0, 0.5);
+  const popEl = document.getElementById("vk-pop-pill");
+  const pop = (popEl && popEl.offsetParent) ? box("#vk-pop-pill") : null;
+  const dPopL = pop ? lr(u, pop, 0, 0.5) : "";
+  const dPopR = pop ? lr(pop, c, 0, 0.5) : "";
+  const dCon = pop ? "" : lr(u, c, 0, 0.5);
   let dSw = "";
   let dEs = "";
   if (esShow) dEs = lr(c, box("#es16-icon"), 0, 0.5);
@@ -433,10 +437,13 @@ function paintWires() {
     `<path class="${lineCls(wanOn)}" d="${dF1}"></path>` +
     `<path class="${lineCls(wan2On, "bak")}" d="${dF2}"></path>` +
     `<path class="${lineCls(lteOn)}" d="${dLte}"></path>` +
-    `<path class="${lineCls(CONSOLE.ok === true)}" d="${dCon}"></path>` +
+    (dPopL ? `<path class="${lineCls(CONSOLE.ok === true)}" d="${dPopL}"></path>` : "") +
+    (dPopR ? `<path class="${lineCls(CONSOLE.ok === true)}" d="${dPopR}"></path>` : "") +
+    (dCon ? `<path class="${lineCls(CONSOLE.ok === true)}" d="${dCon}"></path>` : "") +
     (dSw ? `<path class="${lineCls(fSw)}" d="${dSw}"></path>` : "") +
     (dEs ? `<path class="${lineCls(fEs)}" d="${dEs}"></path>` : "") +
-    packets(dF1, f1, "", 1.55, 0) + packets(dF2, f2, "bak", 2.35, -0.7) + packets(dCon, fC, "", 1.9, -1.2) +
+    packets(dF1, f1, "", 1.55, 0) + packets(dF2, f2, "bak", 2.35, -0.7) +
+    packets(dPopL, fC, "", 1.9, -1.2) + packets(dPopR, fC, "", 1.9, -0.4) + packets(dCon, fC, "", 1.9, -1.2) +
     packets(dSw, fSw, "", 2.15, -0.4) + packets(dEs, fEs, "", 2.75, -1.0);
   const extra = [];
   const extraPk = [];
