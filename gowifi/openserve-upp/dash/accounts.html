@@ -107,21 +107,20 @@ table.compact tr:last-child td { border-bottom:0; }
 <script>
 const $ = (s,el=document)=>el.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
-const clock = v => {
+const sastStamp = v => {
   if (!v) return "";
-  const m = String(v).match(/(\d{2}):(\d{2})/);
-  return m ? m[1]+":"+m[2] : "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Johannesburg",
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false
+  }).formatToParts(d);
+  const g = t => (parts.find(p => p.type === t) || {}).value || "";
+  return (g("day") && g("hour")) ? `${g("day")} ${g("month")} ${g("year")}, ${g("hour")}:${g("minute")} SAST` : "";
 };
-const whenClock = v => {
-  if (!v) return "never";
-  const m = String(v).match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
-  if (m) {
-    const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
-    return `${m[3]} ${months[+m[2]-1]} ${m[1]}, ${m[4]}:${m[5]}`;
-  }
-  const t = String(v).match(/(\d{2}):(\d{2})/);
-  return t ? t[1]+":"+t[2] : String(v);
-};
+const clock = v => sastStamp(v);
+const whenClock = v => sastStamp(v) || "never";
 const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
 const cardMoney = c => {
   const due = Number(c.due||0);
@@ -194,7 +193,7 @@ const pillFor = (status) => {
 function render(data){
   const c=data.counts||{};
   const checked = clock(data.synced_at);
-  $("#sub").textContent = checked ? `Last check ${checked}` : "Openserve line status · join dates";
+  $("#sub").textContent = checked ? `Last check ${checked}` : "Openserve line status · last check missing";
   const monthsAsClient = (iso) => {
     if (!iso) return "—";
     const j = new Date(iso + "T00:00:00");
@@ -229,9 +228,20 @@ function render(data){
   };
   const cancelledSNs = new Set((data.cancelled_lines||[]).map(r=>r.service_number).filter(Boolean));
   const suspendedSNs = new Set((data.suspended||[]).map(r=>r.service_number).filter(Boolean));
+  const liveByName = {};
+  (data.active||[]).forEach(r => {
+    const n = (r.customer||"").trim().toLowerCase();
+    if (n && r.service_number && (r.line_status||"")==="active") liveByName[n] = r.service_number;
+  });
   const fibreFetch = r => {
-    const bits = [r.access_status, r.partner_status].filter(Boolean);
     const when = clock(r.fibre_fetched_at || data.synced_at);
+    const cancelled = (r.line_status||"").toLowerCase()==="cancelled" || cancelledSNs.has(r.service_number);
+    if (cancelled) {
+      const live = liveByName[(r.customer||"").trim().toLowerCase()];
+      const repl = live && live !== r.service_number ? ` · live line ${live}` : "";
+      return `<div class="meta">Old line · cancelled${repl}${when?` · last seen ${esc(when)}`:""}</div>`;
+    }
+    const bits = [r.access_status, r.partner_status].filter(Boolean);
     if (!bits.length && !when) return `<div class="meta">Fibre status not fetched</div>`;
     return `<div class="meta">${esc(bits.join(" · ")||"fetched")}${when?` · ${esc(when)}`:""}</div>`;
   };

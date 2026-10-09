@@ -6,6 +6,7 @@ import json
 import os
 import re
 import sqlite3
+import sys
 from datetime import date, datetime
 from pathlib import Path
 
@@ -28,6 +29,12 @@ DATE_FORMATS = (
     "%d-%b-%Y %H:%M:%S",
     "%d-%B-%Y",
 )
+
+
+def _stamp_value(*values) -> str | None:
+    """Newest ISO stamp wins. In-progress sync_runs are ignored by the caller."""
+    texts = [str(v).strip() for v in values if v]
+    return max(texts) if texts else None
 
 
 def parse_date(value) -> date | None:
@@ -494,9 +501,8 @@ def build(conn: sqlite3.Connection) -> dict:
     books = books_for_export(conn)
     services = [dict(r) for r in conn.execute("SELECT * FROM services")]
     orders = [dict(r) for r in conn.execute("SELECT * FROM orders")]
-    # Skip the in-progress row (inserted ok=0 before write()). That made
-    # accounts.json always say sync_ok=false / synced_at=null even though
-    # cron fetches every 15 minutes.
+    # Skip the in-progress row (inserted ok=0 before write()). Prefer the
+    # newest of last ok finish and the services just written this fetch.
     sync = conn.execute(
         """SELECT finished_at, ok FROM sync_runs
            WHERE finished_at IS NOT NULL AND ok=1
@@ -713,8 +719,10 @@ def build(conn: sqlite3.Connection) -> dict:
 
     return {
         "as_at": today.isoformat(),
-        "synced_at": (sync["finished_at"] if sync and sync["finished_at"] else None)
-        or (last_svc[0] if last_svc else None),
+        "synced_at": _stamp_value(
+            sync["finished_at"] if sync and sync["finished_at"] else None,
+            last_svc[0] if last_svc else None,
+        ),
         "sync_ok": bool(sync and sync["ok"]) or bool(last_svc and last_svc[0]),
         "org": org["oms_name"] if org else "GOWIFI",
         "counts": {
@@ -758,7 +766,26 @@ def write(payload: dict, dest: Path = JSON_PATH) -> Path:
     return dest
 
 
+def _self_test() -> int:
+    if _stamp_value(None, None, "") is not None:
+        print("FAIL stamp-empty", _stamp_value(None, None, ""))
+        return 1
+    prev = "2026-10-09T18:01:50+00:00"
+    this_svc = "2026-10-09T18:15:34+00:00"
+    this_fin = "2026-10-09T18:16:50+00:00"
+    if _stamp_value(prev, this_svc) != this_svc:
+        print("FAIL stamp-uses-this-fetch", _stamp_value(prev, this_svc))
+        return 1
+    if _stamp_value(this_fin, this_svc) != this_fin:
+        print("FAIL stamp-uses-finished", _stamp_value(this_fin, this_svc))
+        return 1
+    print("OK stamp")
+    return 0
+
+
 def main() -> int:
+    if "--self-test" in sys.argv:
+        return _self_test()
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA busy_timeout=30000")
     payload = build(conn)

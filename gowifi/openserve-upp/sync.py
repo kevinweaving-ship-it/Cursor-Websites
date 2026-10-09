@@ -509,13 +509,11 @@ def sync(s: requests.Session, conn: sqlite3.Connection) -> dict:
     for product in products:
         upsert_product(conn, product)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from audit_export import build, write
     from invoice_import import ingest_mail
     from status_events import apply_events
 
     apply_events(conn)
     invoices = ingest_mail(conn)
-    write(build(conn))
     return {
         "orders": len(orders),
         "services": len(latest_by_sn) - len(pending),
@@ -562,6 +560,11 @@ def main() -> int:
             (now(), counts["orders"], counts["services"], run_id),
         )
         conn.commit()
+        # Stamp after ok=1. Writing inside sync() saw the in-progress row and
+        # left Clients/Accounts on the previous cycle (or "Never fetched").
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from audit_export import build, write
+        write(build(conn))
         summary = {
             "ok": True,
             "db": str(DB_PATH),
