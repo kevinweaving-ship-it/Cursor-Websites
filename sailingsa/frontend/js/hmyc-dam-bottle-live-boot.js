@@ -51,7 +51,9 @@
       "#dam-bottle-open-fleet .table-container{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}" +
       "#dam-bottle-open-fleet table.fleet-results-table{width:max-content;min-width:100%;max-width:none}" +
       "#dam-bottle-open-fleet table.fleet-results-table th," +
-      "#dam-bottle-open-fleet table.fleet-results-table td{white-space:nowrap}";
+      "#dam-bottle-open-fleet table.fleet-results-table td{white-space:nowrap}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col.disc," +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col.strike-out{text-decoration:line-through;opacity:0.6}";
     document.head.appendChild(css);
   }
 
@@ -438,6 +440,7 @@
     if (!td) return "";
     var span = td.querySelector("span");
     var raw = String(((span && span.textContent) || td.textContent) || "").trim();
+    raw = raw.replace(/^\(|\)$/g, "").trim();
     if (!raw || raw === "—" || raw === "-" || raw === "–") return "";
     return raw;
   }
@@ -798,33 +801,98 @@
     return n > 0 ? n : 1;
   }
 
-  function fillTotalNett(tr) {
-    var sum = 0;
+  function isCodeScore(raw) {
+    return /^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS|DPI)$/i.test(String(raw || "").trim());
+  }
+
+  function scorePts(raw, dnsPts) {
+    var t = String(raw || "").replace(/^\(|\)$/g, "").trim();
+    if (!t) return null;
+    if (isCodeScore(t)) return dnsPts;
+    var v = parseInt(t.replace(/[^\d]/g, ""), 10);
+    return isFinite(v) && v > 0 ? v : null;
+  }
+
+  function seriesScoredCount(table) {
     var n = 0;
+    if (!table) return 0;
+    raceKeys(table).forEach(function (k) {
+      var any = false;
+      table.querySelectorAll('td.race-col[data-race-key="' + k + '"]').forEach(function (td) {
+        if (cellPlaceText(td)) any = true;
+      });
+      if (any) n += 1;
+    });
+    return n;
+  }
+
+  function updateSailedLine(table) {
+    var sec = table && table.closest(".fleet-section");
+    var line = sec && sec.querySelector(".sailed-line");
+    if (!line) return;
+    var sailed = seriesScoredCount(table);
+    var disc = Math.floor(sailed / 5);
+    var toCount = Math.max(0, sailed - disc);
+    var entries = table.querySelectorAll("tbody tr[data-result-id]").length;
+    var sys = "Portsmouth Yardstick (PY)";
+    var m = String(line.textContent || "").match(/Scoring system:\s*(.+)$/i);
+    if (m && String(m[1] || "").trim()) sys = String(m[1]).trim();
+    line.textContent =
+      "Sailed: " + sailed +
+      ", Discards: " + disc +
+      ", To count: " + toCount +
+      ", Entries: " + entries +
+      ", Scoring system: " + sys;
+  }
+
+  function fillTotalNett(tr) {
+    var table = tr && tr.closest("table");
     var dnsPts = fleetSize(tr) + 1;
-    tr.querySelectorAll("td.race-col").forEach(function (td) {
-      var raw = String(td.textContent || "").trim();
-      if (/^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS)$/i.test(raw)) {
-        sum += dnsPts;
-        n += 1;
+    var discN = table ? Math.floor(seriesScoredCount(table) / 5) : 0;
+    var scored = [];
+    tr.querySelectorAll("td.race-col").forEach(function (td, i) {
+      var raw = cellPlaceText(td);
+      var pts = scorePts(raw, dnsPts);
+      if (pts == null) {
+        td.classList.remove("disc", "strike-out");
         return;
       }
-      var v = parseInt(raw.replace(/[^\d]/g, ""), 10);
-      if (isFinite(v) && v > 0) {
-        sum += v;
-        n += 1;
-      }
+      scored.push({ td: td, raw: raw, pts: pts, i: i });
     });
-    var txt = n ? String(sum) : "";
+    var discardAt = {};
+    if (discN > 0 && scored.length) {
+      var order = scored.slice();
+      order.sort(function (a, b) {
+        if (b.pts !== a.pts) return b.pts - a.pts;
+        return a.i - b.i;
+      });
+      var dropN = Math.min(discN, order.length);
+      var j;
+      for (j = 0; j < dropN; j++) discardAt[order[j].i] = true;
+    }
+    var total = 0;
+    var dropped = 0;
+    scored.forEach(function (s) {
+      total += s.pts;
+      var discarded = !!discardAt[s.i];
+      if (discarded) dropped += s.pts;
+      var shown = discarded ? "(" + s.raw + ")" : s.raw;
+      if (s.td.textContent !== shown) s.td.textContent = shown;
+      s.td.classList.toggle("disc", discarded && !isCodeScore(s.raw));
+      s.td.classList.toggle("strike-out", discarded);
+      s.td.classList.toggle("code", isCodeScore(s.raw));
+    });
     var tot = tr.querySelector("td.total-col");
     var nett = tr.querySelector("td.nett-col");
+    var totTxt = scored.length ? String(total) : "";
+    var nettTxt = scored.length ? String(total - dropped) : "";
     if (tot) {
       tot.classList.remove("strike-out");
-      tot.textContent = txt;
+      tot.textContent = totTxt;
     }
     if (nett) {
       nett.classList.remove("strike-out");
-      nett.textContent = txt;
+      nett.textContent = nettTxt;
     }
   }
 
@@ -995,6 +1063,10 @@
     raceKeys(table).forEach(function (race) {
       applyRace(table, race, doSave);
     });
+    if (table) {
+      table.querySelectorAll("tbody tr[data-result-id]").forEach(fillTotalNett);
+      updateSailedLine(table);
+    }
     sortPodium(table);
   }
 
