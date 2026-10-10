@@ -21,3 +21,20 @@ python3 sailingsa/scripts/ingest_py_and_sailrsa.py /var/www/sailingsa/data/refer
 ```
 
 Use SA PY-LA for local boats (Dabchick, Sprog, Sonnet, Gypsy, Mosquito). Use RYA 2026 for international classes (ILCA, 420, 505, Optimist). Club may still adjust.
+
+## Clubs we do not already have
+
+SailRSA club pages vs live `clubs` (code / website / address / about). Does **not** write `clubs`.
+
+```bash
+# dump live clubs JSON, then:
+python3 sailingsa/scripts/extract_sailrsa_club_gaps.py \
+  /var/www/sailingsa/data/reference/sailrsa/site \
+  /tmp/our_clubs.json \
+  /var/www/sailingsa/data/reference/sailrsa/club-enrichment.json
+```
+
+Compact: `sailingsa/reference/clubs/sailrsa-gaps.json`
+
+- **Unknown on our table (examples):** Bloemfontein (BFNYC), Bluff YC, Emmarentia, Free State YC, Florida YC, Forest SC, Komati, Mountain Sailing (SailRSA MYC ≠ our Mykonos), Olifantsnek, Stilbaai.
+- **We have the club, SailRSA still has extras:** directions / situation on most pages; HMYC phone `078 800 3468`; BRYC address + website; AYC email.
