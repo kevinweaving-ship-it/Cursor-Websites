@@ -11320,10 +11320,10 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 window.__saRegattaEventLogoCache = window.__saRegattaEventLogoCache || {};
                 if (!forceRefresh && window.__saRegattaEventLogoCache[rid]) return window.__saRegattaEventLogoCache[rid];
                 try {
-                    var k = 'sa:regattaLogo:event:v4:' + rid;
+                    var k = 'sa:regattaLogo:event:v5:' + rid;
                     if (forceRefresh) localStorage.removeItem(k);
                     var cached = forceRefresh ? '' : localStorage.getItem(k);
-                    if (cached && cached.trim()) {
+                    if (cached && isEventLogoArtworkPath(cached)) {
                         window.__saRegattaEventLogoCache[rid] = Promise.resolve(cached.trim());
                         return window.__saRegattaEventLogoCache[rid];
                     }
@@ -11336,8 +11336,11 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var img = doc.querySelector('.regatta-header-logo-col img.regatta-header-left-logo-img, .regatta-header-logo-col img.regatta-header-logo-img');
                             var src = img ? (img.getAttribute('src') || '').trim() : '';
-                            if (src) { try { localStorage.setItem('sa:regattaLogo:event:v4:' + rid, src); } catch (_) {} }
-                            return src || null;
+                            if (src && isEventLogoArtworkPath(src)) {
+                                try { localStorage.setItem('sa:regattaLogo:event:v5:' + rid, src); } catch (_) {}
+                                return src;
+                            }
+                            return null;
                         } catch (_) {
                             return null;
                         }
@@ -11382,7 +11385,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
             }
             function cachedEventSlotLogo(rid) {
                 try {
-                    var cached = localStorage.getItem('sa:regattaLogo:event:v4:' + String(rid || '').trim());
+                    var cached = localStorage.getItem('sa:regattaLogo:event:v5:' + String(rid || '').trim());
                     if (cached && isEventLogoArtworkPath(cached)) return cached.trim();
                 } catch (_) {}
                 return '';
@@ -11528,6 +11531,15 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                         var chip = next.img && next.img.closest ? next.img.closest('.sa-home-regatta-children-chip') : null;
                         if (!src || !next.img || !next.img.isConnected) {
                             if (next.kind === 'child' && chip) setFleetChipLogoState(chip, false);
+                            if (next.kind === 'event') {
+                                var emptyCard = next.img.closest ? next.img.closest('.sa-home-regatta-card') : null;
+                                if (emptyCard && typeof emptyCard.__saAddClassChip === 'function') emptyCard.__saAddClassChip();
+                            }
+                            return;
+                        }
+                        if (next.kind === 'event' && !isEventLogoArtworkPath(src)) {
+                            var skipCard = next.img.closest ? next.img.closest('.sa-home-regatta-card') : null;
+                            if (skipCard && typeof skipCard.__saAddClassChip === 'function') skipCard.__saAddClassChip();
                             return;
                         }
                         next.img.src = src;
