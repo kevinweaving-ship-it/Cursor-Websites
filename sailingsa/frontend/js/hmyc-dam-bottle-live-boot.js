@@ -6,7 +6,7 @@
 (function () {
   "use strict";
   var RID = "2026-10-10-hmyc-dam-bottle-sprints";
-  var ET_KEY = "ssa-dam-bottle-et";
+  var ET_KEY = "ssa-dam-bottle-et-v2";
   var SRC = "/artwork/Event%20Logo/Dam-Bottle-Sprints.png";
   var path = String((window.location && window.location.pathname) || "")
     .replace(/\/+$/, "")
@@ -170,12 +170,8 @@
       Object.keys(extra[race]).forEach(function (rid) {
         var have = asRec(into[race][rid]);
         var add = asRec(extra[race][rid]);
-        if (!have.et && add.et) into[race][rid] = add;
-        else if (have.et) {
-          if (!have.corr && add.corr) have.corr = add.corr;
-          if (!have.place && add.place) have.place = add.place;
-          into[race][rid] = have;
-        }
+        if (add.et) into[race][rid] = add;
+        else if (have.et) into[race][rid] = have;
       });
     });
     return into;
@@ -319,8 +315,7 @@
         return r.json();
       })
       .then(function (j) {
-        mergeEtStore(loadEtStore(), (j && j.store) || {});
-        persistEtStore(mergeEtStore(loadEtStore(), (j && j.store) || {}));
+        if (j && j.store) persistEtStore(j.store);
       })
       .catch(function () {})
       .then(finish);
@@ -1090,7 +1085,7 @@
         et: it.dns ? "0:00" : src,
         corr: shown,
         place: it.place ? String(it.place) : etRecord(race, it.rid).place,
-      });
+      }, !doSave);
       if (rTd) {
         var p = it.place ? String(it.place) : "";
         if (p) {
