@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
+    <meta name="robots" content="noindex,nofollow">
+    <meta http-equiv="Cache-Control" content="no-store">
+    <title>Arial · Home</title>
+    <link rel="stylesheet" href="/arial/arial.css?v=250">
+    <link rel="stylesheet" href="/arial/arial-pc.css?v=4">
+</head>
+<body>
+    <div class="pad-wrap" id="pad-frame">
+    <div class="pad-clip">
+    <div class="pad">
+        <svg class="shell-svg" viewBox="0 0 368 427" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+                <clipPath id="deviceClip" clipPathUnits="objectBoundingBox">
+                    <path d="M0.315 0 C0.155 0.008 0.055 0.03 0.047 0.06 L0.047 0.88 C0.055 0.96 0.195 1 0.325 1 L0.675 1 C0.805 1 0.945 0.96 0.953 0.88 L0.953 0.06 C0.945 0.03 0.845 0.008 0.685 0 Z"/>
+                </clipPath>
+                <linearGradient id="bodyFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#f7f7f5"/>
+                    <stop offset="0.55" stop-color="#f4f4f2"/>
+                    <stop offset="1" stop-color="#f1f1ee"/>
+                </linearGradient>
+                <linearGradient id="capFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#b4b6b8"/>
+                    <stop offset="0.4" stop-color="#9a9d9f"/>
+                    <stop offset="1" stop-color="#86898c"/>
+                </linearGradient>
+                <linearGradient id="capSheen" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#000" stop-opacity="0.08"/>
+                    <stop offset="0.3" stop-color="#fff" stop-opacity="0.1"/>
+                    <stop offset="0.68" stop-color="#fff" stop-opacity="0.04"/>
+                    <stop offset="1" stop-color="#000" stop-opacity="0.1"/>
+                </linearGradient>
+                <linearGradient id="recessFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#dfe2e5"/>
+                    <stop offset="1" stop-color="#eef0f2"/>
+                </linearGradient>
+                <filter id="bodyShadow" x="-8%" y="-4%" width="116%" height="116%">
+                    <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#000" flood-opacity="0.15"/>
+                </filter>
+            </defs>
+            <path class="shell-body" filter="url(#bodyShadow)" fill="url(#bodyFill)" stroke="#6a7378" stroke-width="3.2" stroke-linejoin="round"
+                d="M116 2 C68 5 25 16 19 30 L19 372 C21 402 55 423 117 425 L251 425 C313 423 347 402 349 372 L349 30 C343 16 300 5 252 2 Z"/>
+            <path class="shell-cap" fill="url(#capFill)"
+                d="M116 2 C68 5 25 16 19 30 L19 138 Q184 144 349 138 L349 30 C343 16 300 5 252 2 Z"/>
+            <path class="shell-cap" fill="url(#capSheen)"
+                d="M116 2 C68 5 25 16 19 30 L19 138 Q184 144 349 138 L349 30 C343 16 300 5 252 2 Z"/>
+            <rect class="shell-recess" x="64" y="158" width="231" height="216" rx="13" fill="url(#recessFill)" stroke="#6a7378" stroke-width="1.6"/>
+            <path class="shell-cover" fill="#fbfbfa"
+                d="M63 378 H305 C339 378 345 392 345 404 C345 422 315 425 251 425 L117 425 C53 425 23 422 23 404 C23 392 29 378 63 378 Z"/>
+            <path class="shell-outline" fill="none" stroke="#6a7378" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"
+                d="M19 350 L19 370 C21 400 55 421 117 423 L251 423 C313 421 347 400 349 370 L349 350"/>
+        </svg>
+        <div class="brand-slot">
+            <img class="brand-logo" src="/arial/logo.png?v=97" alt="Aerial Networks">
+        </div>
+        <div class="lcd" aria-live="polite">
+            <div class="lcd-toprow">
+                <div id="lcd-2">
+                    <span id="lcd-status-main"></span>
+                    <span id="lcd-status-issue" hidden></span>
+                </div>
+                <div class="lcd-head">
+                    <span id="lcd-site">HOME</span>
+                    <span id="lcd-date"></span>
+                    <span id="lcd-time"></span>
+                    <img id="lcd-user-logo" alt="">
+                    <span id="lcd-user-name" hidden></span>
+                </div>
+            </div>
+            <div class="lcd-mid">
+                <span id="lcd-welcome"></span>
+            </div>
+        </div>
+        <div class="led ac on" id="led-ac" title="AC"></div>
+        <div class="led status" id="led-status" title="STATUS"></div>
+        <div class="led-status-label">Status</div>
+        <div class="led link" id="led-link" title="Olarm link"></div>
+        <div class="led-link-label">Link</div>
+        <button type="button" class="hot key-fn" data-key="STAY" aria-label="Lights"><span class="key-label">LIGHTS</span></button>
+        <button type="button" class="hot key-fn" data-key="FORCE" aria-label="House"><span class="key-label">HOUSE</span></button>
+        <button type="button" class="hot key-fn" data-key="ARM" aria-label="Garage"><span class="key-label">GARAGE</span></button>
+        <button type="button" class="hot key-fn arm-toggle to-arm" id="arm-toggle" data-key="TOGGLE" aria-label="ARM">
+            <span class="key-icon-wrap" id="arm-toggle-face">
+                <svg class="key-icon icon-lock" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8.2 11.2V8.1C8.2 6 9.9 4.2 12 4.2s3.8 1.8 3.8 3.9v3.1" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                    <path fill="currentColor" fill-rule="evenodd" d="M6.2 11.1h11.6c1.2 0 2.2 1 2.2 2.2v6.3c0 1.2-1 2.2-2.2 2.2H6.2c-1.2 0-2.2-1-2.2-2.2v-6.3c0-1.2 1-2.2 2.2-2.2zm5.8 3.05a1.55 1.55 0 1 0 0 3.1 1.55 1.55 0 0 0 0-3.1zm-.7 2.7h1.4l.45 2.15h-2.3l.45-2.15z"/>
+                </svg>
+                <svg class="key-icon icon-unlock" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8.2 11.2V8.1C8.2 6 9.9 4.2 12 4.2c1.7 0 3.1 1.1 3.6 2.6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                    <path fill="currentColor" fill-rule="evenodd" d="M6.2 11.1h11.6c1.2 0 2.2 1 2.2 2.2v6.3c0 1.2-1 2.2-2.2 2.2H6.2c-1.2 0-2.2-1-2.2-2.2v-6.3c0-1.2 1-2.2 2.2-2.2zm5.8 3.05a1.55 1.55 0 1 0 0 3.1 1.55 1.55 0 0 0 0-3.1zm-.7 2.7h1.4l.45 2.15h-2.3l.45-2.15z"/>
+                </svg>
+            </span>
+        </button>
+        <button type="button" class="hot key-fn hot-more" data-key="BYP" aria-label="BYP"><span class="key-label">BYP</span></button>
+        <button type="button" class="hot key-fn hot-more" data-key="MEM" aria-label="MEM"><span class="key-label">MEM</span></button>
+        <button type="button" class="hot key-fn hot-more" data-key="TBL" aria-label="TBL"><span class="key-label">TBL</span></button>
+        <button type="button" class="hot key-fn hot-more" data-key="ACC" aria-label="ACC"><span class="key-label">ACC</span></button>
+        <button type="button" class="hot key-arrow" data-key="UP" aria-label="Log Out" hidden>
+            <svg class="key-icon icon-logout" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M10 5.2H6.8A2.4 2.4 0 0 0 4.4 7.6v8.8A2.4 2.4 0 0 0 6.8 18.8H10" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M11.2 12h8.2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M16.4 8.2L20.6 12 16.4 15.8" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        <button type="button" class="hot key-arrow hot-more" data-key="DOWN" aria-label="Down"><span class="key-arrow-icon down" aria-hidden="true"></span></button>
+        <button type="button" class="hot key-num hot-more" data-key="1" aria-label="1"><span class="key-label">1</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="2" aria-label="2"><span class="key-label">2</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="3" aria-label="3"><span class="key-label">3</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="4" aria-label="4"><span class="key-label">4</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="5" aria-label="5"><span class="key-label">5</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="6" aria-label="6"><span class="key-label">6</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="7" aria-label="7"><span class="key-label">7</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="8" aria-label="8"><span class="key-label">8</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="9" aria-label="9"><span class="key-label">9</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="CLEAR" aria-label="CLEAR"><span class="key-label">CLEAR</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="0" aria-label="0"><span class="key-label">0</span></button>
+        <button type="button" class="hot key-num hot-more" data-key="ENTER" aria-label="ENTER"><span class="key-label">ENTER</span></button>
+        <audio id="pin-ok" src="/arial/pin-accepted.wav" preload="auto"></audio>
+        <audio id="key-beep" src="/arial/key-beep.wav?v=97" preload="auto" playsinline></audio>
+        <audio id="key-reject" src="/arial/key-reject.wav?v=151" preload="auto" playsinline></audio>
+    </div>
+    </div>
+    </div>
+    <div class="lights-pop" id="lights-pop" hidden>
+        <div class="lights-panel card" role="dialog" aria-modal="true" aria-labelledby="lights-title">
+            <div class="activity-head lights-head">
+                <h2 class="section-title" id="lights-title">Lights</h2>
+                <div class="lights-all">
+                    <button type="button" class="lights-all-btn" id="lights-all-on">All on</button>
+                    <button type="button" class="lights-all-btn" id="lights-all-off">All off</button>
+                    <button type="button" class="lights-close" id="lights-close" aria-label="Close">&times;</button>
+                </div>
+            </div>
+            <div class="lights-grid" id="lights-grid">
+                <button type="button" class="light-btn" data-switch="switch_1"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 1</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_2"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 2</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_3"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 3</span><span class="light-state">—</span></button>
+                <button type="button" class="light-btn" data-switch="switch_4"><span class="light-icon" aria-hidden="true"></span><span class="light-name">Switch 4</span><span class="light-state">—</span></button>
+            </div>
+            <p class="lights-note" id="lights-note"></p>
+        </div>
+    </div>
+    <div class="container arial-below" hidden>
+        <div class="card" id="arial-activity">
+            <div class="activity-head">
+                <h2 class="section-title">Activity</h2>
+                <p class="activity-power" id="activity-power">AC — · Bat —</p>
+            </div>
+            <div class="tabs" role="tablist">
+                <button type="button" class="on" data-tab="all" role="tab" aria-selected="true" title="All"><span class="activity-tab-mark" aria-hidden="true"></span>All</button>
+                <button type="button" data-tab="zones" role="tab" aria-selected="false" title="Zones"><span class="activity-tab-mark" aria-hidden="true"></span>Zones</button>
+                <button type="button" data-tab="areas" role="tab" aria-selected="false" title="Areas"><span class="activity-tab-mark" aria-hidden="true"></span>Areas</button>
+                <button type="button" data-tab="whatsapp" role="tab" aria-selected="false" title="WhatsApp"><svg class="activity-tab-wa" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3a.5.5 0 0 0 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 2.9 2.9 0 0 0-.9 2.2 5 5 0 0 0 1.1 2.7 11.4 11.4 0 0 0 4.4 3.9c1.6.7 2.3.7 3.1.6a2.6 2.6 0 0 0 1.7-1.2 2.1 2.1 0 0 0 .2-1.2c-.1-.2-.3-.2-.5-.3z"/></svg><span class="activity-tab-label">WhatsApp</span></button>
+            </div>
+            <ul class="activity-list" id="arial-activity-body"></ul>
+            <button type="button" class="activity-more" id="activity-more" hidden aria-expanded="false">
+                <span class="activity-more-arrow" aria-hidden="true"></span>
+                <span class="activity-more-label">More</span>
+            </button>
+        </div>
+        <div class="card" id="arial-breaker">
+            <div class="activity-head">
+                <h2 class="section-title">Hansekop Main Breaker</h2>
+                <p class="breaker-on" id="breaker-state">
+                    <span class="breaker-on-dot" aria-hidden="true"></span>
+                    <span id="breaker-on-label">—</span>
+                </p>
+            </div>
+            <div class="breaker-dials">
+                <div class="breaker-dial" data-kind="v">
+                    <div class="breaker-echart" id="breaker-chart-v" aria-hidden="true"></div>
+                    <span class="breaker-dial-val" id="breaker-v">—</span>
+                    <span class="breaker-dial-unit">V</span>
+                </div>
+                <div class="breaker-dial" data-kind="a">
+                    <div class="breaker-echart" id="breaker-chart-a" aria-hidden="true"></div>
+                    <span class="breaker-dial-val" id="breaker-a">—</span>
+                    <span class="breaker-dial-unit">A</span>
+                </div>
+                <div class="breaker-dial breaker-dial-power" data-kind="w">
+                    <div class="breaker-echart" id="breaker-chart-w" aria-hidden="true"></div>
+                    <span class="breaker-dial-val" id="breaker-w">—</span>
+                    <span class="breaker-dial-unit">W</span>
+                </div>
+                <div class="breaker-info">
+                    <p class="breaker-flag" id="breaker-flag" data-flag="learning">
+                        <span class="breaker-flag-dot" aria-hidden="true"></span>
+                        <span id="breaker-flag-text">Learning baseline</span>
+                    </p>
+                    <span class="breaker-flag-avg" id="breaker-flag-avg"></span>
+                    <span class="breaker-today" id="breaker-w-now">Today —</span>
+                    <span class="breaker-since" id="breaker-hist-range" title="Time since mains power was restored">Since restore —</span>
+                </div>
+            </div>
+            <div class="breaker-day" id="breaker-day" data-day="0">
+                <div class="breaker-day-head">
+                    <button type="button" class="breaker-day-nav" id="breaker-day-prev" aria-label="Earlier day">&#9664;</button>
+                    <span class="breaker-day-title">
+                        <span class="breaker-day-dot" aria-hidden="true"></span>
+                        <span id="breaker-day-label">Today</span>
+                        <span class="breaker-day-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                    </span>
+                    <span class="breaker-day-total" id="breaker-day-total">—</span>
+                    <button type="button" class="breaker-day-nav" id="breaker-day-next" aria-label="Later day" disabled>&#9654;</button>
+                </div>
+                <div class="breaker-day-chart" id="breaker-day-chart">
+                    <svg class="breaker-bars" id="breaker-bars" viewBox="0 0 320 60" preserveAspectRatio="none" role="img" aria-label="Energy per hour"></svg>
+                    <div class="breaker-day-empty" id="breaker-day-empty" hidden>No hourly data yet</div>
+                    <div class="breaker-tip" id="breaker-tip" hidden></div>
+                </div>
+                <div class="breaker-day-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+                <div class="breaker-legend" aria-hidden="true">
+                    <span><i class="band-cold2"></i>Below</span>
+                    <span><i class="band-avg"></i>Avg</span>
+                    <span><i class="band-hot"></i>Above</span>
+                    <span><i class="band-danger"></i>Issue</span>
+                </div>
+            </div>
+        </div>
+        <div class="card" id="voelklip-cams" hidden>
+            <div class="activity-head"><h2 class="section-title">Cameras</h2></div>
+            <div id="voelklip-replay-bar" class="cam-event" hidden>
+                <span class="cam-event-icon" aria-hidden="true"></span>
+                <div class="cam-event-text">
+                    <div class="replay-label cam-event-stamp"></div>
+                    <div class="cam-event-line"></div>
+                    <div class="cam-event-power"><span class="cam-plug" aria-hidden="true"><svg class="tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.785 6l8.215 8.215l-2.054 2.054a5.81 5.81 0 1 1 -8.215 -8.215l2.054 -2.054" /> <path d="M4 20l3.5 -3.5" /> <path d="M15 4l-3.5 3.5" /> <path d="M20 9l-3.5 3.5" /></svg></span><span class="cam-power-text">Alarm mains: &hellip;</span></div>
+                </div>
+            </div>
+            <div class="cam-grid">
+                <div class="cam-cell" data-cam="garage"><span class="cam-cap">Garage</span></div>
+                <div class="cam-cell" data-cam="workshop"><span class="cam-cap">Workshop</span></div>
+                <div class="cam-cell" data-cam="pool"><span class="cam-cap">Pool</span></div>
+                <div class="cam-cell" data-cam="driveway"><span class="cam-cap">Driveway</span></div>
+            </div>
+            <button type="button" class="live-btn" id="voelklip-live-btn"><span class="live-btn-main"><svg class="tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.553 -2.276a1 1 0 0 1 1.447 .894v6.764a1 1 0 0 1 -1.447 .894l-4.553 -2.276v-4" /> <path d="M3 8a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2l0 -8" /></svg> LIVE</span><span class="live-btn-sub">View all 4 cameras live</span></button>
+        </div>
+        <div class="card hs-card" id="home-weather" hidden>
+            <div class="activity-head"><h2 class="section-title">Weather</h2><span class="hs-upd" id="hw-upd"></span></div>
+            <div class="hs-row" id="hs-weather"></div>
+            <div class="hs-row" id="hs-indoor"></div>
+        </div>
+        <div class="card hs-card" id="home-sensors" hidden>
+            <div class="activity-head"><h2 class="section-title">Home</h2><span class="hs-upd" id="hs-upd"></span></div>
+            <div class="hs-items" id="hs-items"></div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var TZ = "Africa/Johannesburg";
+        var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        function pad(n) { return String(n).padStart(2, "0"); }
+        function saStamp() {
+            var d = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
+            var dateEl = document.getElementById("lcd-date");
+            var timeEl = document.getElementById("lcd-time");
+            if (dateEl) dateEl.textContent = pad(d.getDate()) + " " + months[d.getMonth()] + " " + d.getFullYear();
+            if (timeEl) timeEl.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        }
+        saStamp();
+    })();
+    </script>
+    <script>window.ARIAL_CONFIG = { apiBase: "/api/voelklip", siteId: "voelklip", siteLabel: "HOME", keypadUsers: ["Kevin","Tim","Onguard"], tuya: false, exitDelay: 30,
+        lights: { label: "Outside", apiBase: "/api/arial", targets: [
+            { device: "bf77b408c97d4bed9alafg", code: "switch_1", name: "Passage / Outside" },
+            { device: "bf8e2c6a662fd46f127nvr", code: "switch_3", name: "Upstairs Office / Desktop Lights" }
+        ] } };</script>
+    <style>
+      #voelklip-cams .cam-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+      #voelklip-cams video-stream .mode{display:none!important}
+      #voelklip-cams .cam-cell{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden}
+      #voelklip-cams .cam-cell video-stream{width:100%;height:100%;display:block}
+      #voelklip-cams video{background:#000}
+      #voelklip-cams video::-webkit-media-controls,#voelklip-cams video::-webkit-media-controls-enclosure{display:none !important}
+      #voelklip-cams .cam-snap{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;display:block}
+      #voelklip-cams .cam-replay{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;display:block;background:#000}
+      #voelklip-cams .cam-msg{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;font:600 12px Arial,Helvetica,sans-serif;color:#fff;background:#111;text-align:center;padding:6px}
+      #voelklip-cams .cam-spin{width:18px;height:18px;flex:0 0 18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:camspin .8s linear infinite;margin-right:8px}
+      @keyframes camspin{to{transform:rotate(360deg)}}
+      #voelklip-cams .cam-cell.cam-off{display:none}
+      #voelklip-replay-bar{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:8px 10px;border-radius:8px;background:#eef2f7;font:600 12px Arial,Helvetica,sans-serif;color:#1e293b}
+      #voelklip-replay-bar[hidden]{display:none}
+      #voelklip-replay-bar .cam-event-icon{flex:0 0 40px;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#dcfce7}
+      #voelklip-replay-bar.ev-armed .cam-event-icon{background:#dbeafe}
+      #voelklip-replay-bar.ev-alarm .cam-event-icon{background:#fee2e2}
+      #voelklip-replay-bar .cam-event-text{min-width:0;flex:1 1 auto;line-height:1.35}
+      #voelklip-replay-bar .cam-event-stamp{font-weight:700;font-size:13px}
+      #voelklip-replay-bar .cam-event-line{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #voelklip-replay-bar .cam-event-line .st{color:#15803d}
+      #voelklip-replay-bar.ev-armed .cam-event-line .st{color:#1d4ed8}
+      #voelklip-replay-bar.ev-alarm .cam-event-line .st{color:#dc2626}
+      #voelklip-replay-bar .cam-event-power{font-weight:500;color:#334155;display:flex;align-items:center;gap:4px}
+      #voelklip-replay-bar .cam-plug{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border-radius:4px;font-size:11px;color:#fff;background:#16a34a}
+      #voelklip-replay-bar .cam-plug.bad{background:#dc2626}
+      #voelklip-replay-bar .cam-plug.unknown{background:#94a3b8}
+      #voelklip-cams .live-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:48px;margin:8px 0 0;padding:6px 12px;border:0;border-radius:8px;background:#1d6fe0;color:#fff;font:700 15px Arial,Helvetica,sans-serif;cursor:pointer;line-height:1.2}
+      #voelklip-cams .live-btn .live-btn-sub{font:500 11px Arial,Helvetica,sans-serif;opacity:.9}
+      #voelklip-cams.live-mode .live-btn{background:#15803d}
+      #voelklip-cams .cam-cell{cursor:pointer}
+      #voelklip-cams .cam-cell.cam-big{grid-column:1/-1;order:-1}
+      #voelklip-cams .cam-play{position:absolute;right:5px;bottom:5px;z-index:2;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.85);color:#1e293b;font-size:10px;line-height:24px;text-align:center;pointer-events:none}
+      #voelklip-cams.live-mode .cam-play{display:none}
+      .activity-row.has-replay{cursor:pointer}
+      .activity-row .act-play{margin-left:auto;flex:0 0 auto;width:28px;height:28px;border:0;border-radius:50%;background:#e2e8f0;color:#1e293b;font-size:11px;line-height:28px;text-align:center;padding:0;cursor:pointer;position:relative}
+      .activity-row .act-play::after{content:"";position:absolute;inset:-8px}
+      .activity-row.has-replay.act-alarm .act-play{background:#dc2626;color:#fff}
+      #voelklip-cams .cam-cap{position:absolute;top:3px;left:5px;z-index:2;font:600 11px Arial,Helvetica,sans-serif;color:#fff;text-shadow:0 1px 2px #000;background:rgba(0,0,0,.4);padding:1px 6px;border-radius:4px}
+          .ev-tb{width:22px;height:22px;color:#15803d}
+      .ev-armed .ev-tb,.ev-armed .ev-tb{color:#1d4ed8}
+      .ev-alarm .ev-tb{color:#dc2626}
+    </style>
+    <script type="module">
+      (async function () {
+        var CAM = "https://sailingsa.co.za:8443/";
+        var box = document.getElementById("voelklip-cams");
+        if (!box) return;
+        try { await import(CAM + "video-stream.js"); } catch (e) { console.warn("cams load failed", e); return; }
+        var HIDE_AFTER_EVENT_MS = 60000;   // hide 1 min after an arm/disarm change
+        var SAFETY_MAX_MS = 300000;        // absolute cap so transcodes never run forever
+        var shown = false, hideTimer = null, safetyTimer = null;
+
+        var SNAPS = "https://sailingsa.co.za:8444/snaps.json";
+        function loadStreams() {
+          // Instant picture: latest keyframes from the warm keeper (one request, all cameras), shown in
+          // each cell until that cell's live video has frames.
+          var snaps = {};
+          fetch(SNAPS, { mode: "cors", cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
+            Object.keys(d || {}).forEach(function (n) { var img = snaps[n]; if (img && img.isConnected) img.src = d[n]; });
+          }).catch(function () {});
+          box.querySelectorAll(".cam-cell").forEach(function (cell) {
+            if (cell.querySelector("video-stream")) return;
+            var name = cell.getAttribute("data-cam");
+            var snap = document.createElement("img");
+            snap.className = "cam-snap"; snap.alt = ""; snap.decoding = "sync";
+            snap.onerror = function () { snap.remove(); };
+            snaps[name] = snap;
+            cell.appendChild(snap);
+            var el = document.createElement("video-stream");
+            el.mode = "webrtc,mse"; el.background = false;
+            el.src = new URL("api/ws?src=" + name, CAM);
+            cell.appendChild(el);
+            var v0 = el.video || el.querySelector("video"); if (v0) { v0.controls = false; v0.removeAttribute("controls"); }
+            var tries = 0, iv = setInterval(function () {
+              var v = el.video || el.querySelector("video");
+              if ((v && v.videoWidth > 0 && v.currentTime > 0.2) || ++tries > 600 || !el.isConnected) {
+                clearInterval(iv); snap.remove();
+              }
+            }, 50);
+          });
+        }
+        function unloadStreams() {
+          box.querySelectorAll(".cam-cell video-stream, .cam-cell .cam-snap").forEach(function (el) { el.remove(); });
+        }
+        function show() {
+          if (replaying) endReplay();
+          box.classList.add("live-mode");
+          box.hidden = false; shown = true; loadStreams();
+          if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+          if (safetyTimer) clearTimeout(safetyTimer);
+          safetyTimer = setTimeout(hide, SAFETY_MAX_MS);
+        }
+        function hide() {
+          if (typeof endReplay === "function") endReplay();
+          shown = false; box.hidden = true; unloadStreams();
+          box.classList.remove("live-mode");
+          box.querySelectorAll(".cam-cell.cam-big").forEach(function (c) { c.classList.remove("cam-big"); });
+          if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+          if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+        }
+        function scheduleHide() {
+          if (!shown) return;
+          if (hideTimer) clearTimeout(hideTimer);
+          hideTimer = setTimeout(hide, HIDE_AFTER_EVENT_MS);
+        }
+
+        // Anticipate: a logged-in tab that comes to the foreground is about to be looked at, and the
+        // person may press Garage within seconds. Ping the warm keeper so the four producers are
+        // already streaming; it holds them 2 min after the last ping and we re-ping every 45 s
+        // while the tab stays visible. Background tab -> pings stop -> streams wind down.
+        var WARM = "https://sailingsa.co.za:8444/warm";
+        var below = document.querySelector(".arial-below");
+        var warmTimer = null, lastWarm = 0;
+        function warm(force) {
+          if (below && below.hidden) return;                 // not logged in: nothing to prepare for
+          if (document.hidden) return;
+          var now = Date.now();
+          if (!force && now - lastWarm < 20000) return;
+          lastWarm = now;
+          try {
+            fetch(WARM, { mode: "cors", cache: "no-store", keepalive: true }).then(function (r) { return r.json(); }).then(function (d) {
+              if (d && d.ring_from) { window.__ringFrom = d.ring_from * 1000; }
+              if (d && Array.isArray(d.clips)) { window.__clipSet = {}; d.clips.forEach(function (t) { window.__clipSet[t] = 1; }); }
+              if (d && (d.ring_from || d.clips) && typeof decorateRows === "function") decorateRows(true);
+            }).catch(function () {});
+          } catch (e) {}
+          [CAM, WARM.replace("/warm", "/")].forEach(function (h) {
+            if (document.querySelector('link[rel="preconnect"][href="' + h + '"]')) return;
+            var l = document.createElement("link"); l.rel = "preconnect"; l.href = h; l.crossOrigin = "anonymous";
+            document.head.appendChild(l);
+          });
+        }
+        function warmLoop(on) {
+          if (warmTimer) { clearInterval(warmTimer); warmTimer = null; }
+          if (on) { warm(true); warmTimer = setInterval(function () { warm(true); }, 45000); }
+        }
+        document.addEventListener("visibilitychange", function () { warmLoop(!document.hidden); });
+        window.addEventListener("pageshow", function () { warmLoop(!document.hidden); });
+        window.addEventListener("focus", function () { warm(false); });
+        document.addEventListener("touchstart", function () { warm(false); }, { passive: true, capture: true });
+        document.addEventListener("pointerdown", function () { warm(false); }, { passive: true, capture: true });
+        if (below) {
+          new MutationObserver(function () { if (!below.hidden) warmLoop(!document.hidden); })
+            .observe(below, { attributes: true, attributeFilter: ["hidden"] });
+        }
+        warmLoop(!document.hidden);
+
+        // ---------- Activity replay: tap a row -> that area's cameras play -5s/+15s around the event ----------
+        var CLIP = "https://sailingsa.co.za:8444/clip";
+        var RING_HOURS = 0.5, PRE = 5, POST = 15;
+        var bar = document.getElementById("voelklip-replay-bar");
+        var barLabel = bar && bar.querySelector(".replay-label");
+        var eventsByKey = {};   // shortStamp|line -> [events newest first]
+        var replaying = false;
+
+        function shortStamp(r) {
+          var d = String(r.date || "").replace(/(\d{2} \w{3}) (\d{2})(\d{2})$/, "$1 $3");
+          return (d ? d + " \u00b7 " : "") + (r.time || "");
+        }
+        function activityLine(r) {
+          var text = String(r.activity || r.title || "").replace(/\s+/g, " ").trim();
+          var who = String(r.actor || "").trim(), via = String(r.via || "").trim();
+          if (r.tab === "areas" && who && !via) via = "Remote";
+          if (who && text.toLowerCase().indexOf(who.toLowerCase()) === -1) text += " \u00b7 " + who;
+          if (via && text.toLowerCase().indexOf(via.toLowerCase()) === -1) text += " \u00b7 " + via;
+          return text;
+        }
+        function eventMs(e) { var t = Number(e && e.at) || 0; if (t && t < 10000000000) t *= 1000; return t; }
+        function rowCore(text) { return String(text || "").split(" \u00b7 ")[0].replace(/\s+/g, " ").trim().toLowerCase(); }
+        // Alarm mains state for the event header, taken from the panel's own /panel poll (no extra traffic).
+        var lastPower = null;
+        function renderPower() {
+          if (!bar) return;
+          var plug = bar.querySelector(".cam-plug"), txt = bar.querySelector(".cam-power-text");
+          var ok = lastPower && typeof lastPower.acOk === "boolean" ? lastPower.acOk : null;
+          plug.className = "cam-plug" + (ok === null ? " unknown" : ok ? "" : " bad");
+          txt.textContent = "Alarm mains: " + (ok === null ? "unknown" : ok ? "Power OK" : "A/C FAILURE (alarm on battery)");
+        }
+        function isAlarm(e) {
+          var st = String(e.state || "").toUpperCase(), act = String(e.action || "").toLowerCase();
+          return /ALARM|PANIC|EMERGENCY|FIRE/.test(st) || act.indexOf("alarm") !== -1 || String(e.activity || "").toLowerCase().indexOf("alarm") !== -1;
+        }
+        function indexEvents(list) {
+          var m = {};
+          // Key on stamp + "<Area STATE>" only (drop actor/source), so rows cached with an older label still match.
+          (list || []).forEach(function (e) { if (!eventMs(e)) return; var k = shortStamp(e) + "|" + rowCore(activityLine(e)); (m[k] = m[k] || []).push(e); });
+          Object.keys(m).forEach(function (k) { m[k].sort(function (a, b) { return eventMs(b) - eventMs(a); }); });
+          eventsByKey = m;
+          autoShowOnTrigger(list || []);
+        }
+        // Auto-show: a fresh ALARM (any zone/area) or the Garage PIR going ACTIVE brings the live
+        // cameras up without a tap; they hide again 1 min later as usual. Only events newer than the
+        // last one seen, and no older than 90s, count - so reopening the page hours later stays quiet.
+        var lastTriggerSeen = 0;
+        function isGaragePir(e) {
+          return e.tab === "zones" && String(e.state || "").toUpperCase() === "ACTIVE" && /garage/i.test(String(e.title || ""));
+        }
+        function autoShowOnTrigger(list) {
+          var newest = 0, fire = null;
+          list.forEach(function (e) {
+            var ms = eventMs(e); if (ms > newest) newest = ms;
+            if (ms <= lastTriggerSeen || Date.now() - ms > 90000) return;
+            if (isAlarm(e) || isGaragePir(e)) { if (!fire || ms > eventMs(fire)) fire = e; }
+          });
+          if (newest > lastTriggerSeen) lastTriggerSeen = newest;
+          if (fire && !replaying) { show(); scheduleHide(); }
+        }
+        // Ride on the panel's own /activity poll instead of adding traffic.
+        var _fetch = window.fetch;
+        window.fetch = function (input, init) {
+          var url = typeof input === "string" ? input : (input && input.url) || "";
+          var pr = _fetch.apply(this, arguments);
+          if (url.indexOf("/activity") !== -1) {
+            pr.then(function (res) { try { res.clone().json().then(function (d) { if (d && Array.isArray(d.events)) { indexEvents(d.events); decorateRows(); } }).catch(function () {}); } catch (e) {} });
+          } else if (url.indexOf("/panel") !== -1) {
+            pr.then(function (res) { try { res.clone().json().then(function (d) { var p = d && d.device && d.device.arialPower; if (p) { lastPower = p; renderPower(); } }).catch(function () {}); } catch (e) {} });
+          }
+          return pr;
+        };
+        function decorateRows(redo) {
+          var body = document.getElementById("arial-activity-body");
+          if (!body) return;
+          var used = {};
+          if (redo) body.querySelectorAll("li.activity-row .act-play").forEach(function (b) { var r = b.parentNode; r.classList.remove("has-replay", "act-alarm"); b.remove(); });
+          body.querySelectorAll("li.activity-row").forEach(function (row) {
+            if (row.querySelector(".act-play")) return;
+            var t = row.querySelector(".activity-time"), l = row.querySelector(".activity-text");
+            if (!t || !l) return;
+            var k = t.textContent + "|" + rowCore(l.textContent), list = eventsByKey[k];
+            if (!list) return;
+            var e = list[used[k] = (used[k] || 0)]; used[k]++;
+            if (!e) return;
+            var ms = eventMs(e);
+            var stored = !!(window.__clipSet && (window.__clipSet[Math.floor(ms / 1000)] || window.__clipSet[Math.floor(ms / 1000) + 1]));   // finished clip kept on disk (floor or rounded second)
+            if (!stored && Date.now() - ms > RING_HOURS * 3600000) return;   // footage rolled off, no stored clip
+            if (!stored && window.__ringFrom && ms < window.__ringFrom) return; // before recording started
+            // Only alarms and arm/disarm get a replay for now; plain zone traffic (people moving about)
+            // stays unmarked until the zone -> camera relationships are defined.
+            if (!isAlarm(e) && !(e.tab === "areas" && /^(ARMED|DISARMED)$/.test(String(e.state || "").toUpperCase()))) return;
+            row.classList.add("has-replay"); if (isAlarm(e)) row.classList.add("act-alarm");
+            row.__event = e;
+            var b = document.createElement("button");
+            b.type = "button"; b.className = "act-play"; b.textContent = "\u25B6";
+            b.setAttribute("aria-label", "Replay cameras around " + (e.time || ""));
+            b.title = "Replay footage " + PRE + "s before / " + POST + "s after";
+            row.appendChild(b);
+          });
+        }
+        document.addEventListener("click", function (ev) {
+          var row = ev.target.closest && ev.target.closest("li.activity-row.has-replay");
+          if (!row || !row.__event) return;
+          ev.preventDefault(); ev.stopPropagation();
+          startReplay(row.__event);
+        }, true);
+        var actBody = document.getElementById("arial-activity-body");
+        if (actBody) new MutationObserver(function () { decorateRows(); }).observe(actBody, { childList: true });
+
+        function setCellMsg(cell, msg) {
+          var m = cell.querySelector(".cam-msg");
+          if (!m) { m = document.createElement("div"); m.className = "cam-msg"; cell.appendChild(m); }
+          if (m.__iv) { clearInterval(m.__iv); m.__iv = null; }
+          m.textContent = msg;
+        }
+        // Spinner + honest estimate: still inside the +15s window -> countdown to the full clip;
+        // otherwise the clip is being cut on the server (a couple of seconds, instant once cached).
+        function setLoading(cell, tSec) {
+          var m = cell.querySelector(".cam-msg");
+          if (!m) { m = document.createElement("div"); m.className = "cam-msg"; cell.appendChild(m); }
+          if (m.__iv) clearInterval(m.__iv);
+          m.textContent = "";
+          var sp = document.createElement("span"); sp.className = "cam-spin"; m.appendChild(sp);
+          var lab = document.createElement("span"); m.appendChild(lab);
+          var t0 = Date.now();
+          function tick() {
+            if (!m.isConnected) { clearInterval(m.__iv); return; }
+            var left = (tSec + POST + 5) * 1000 - Date.now(), el = Math.round((Date.now() - t0) / 1000);
+            lab.textContent = left > 0 ? "Recording \u2014 first part in a moment, full clip in " + Math.ceil(left / 1000) + "s"
+                                       : "Preparing clip\u2026 " + (el > 1 ? el + "s" : "");
+          }
+          tick(); m.__iv = setInterval(tick, 500);
+        }
+        function clearReplayDom() {
+          box.querySelectorAll(".cam-replay, .cam-msg").forEach(function (el) { el.remove(); });
+          box.querySelectorAll(".cam-cell").forEach(function (c) { c.classList.remove("cam-off"); });
+        }
+        function loadClip(cell, cam, tSec, attempt) {
+          var url = CLIP + "?cam=" + cam + "&t=" + tSec + "&pre=" + PRE + "&post=" + POST;
+          if (!cell.querySelector("video.cam-replay")) setLoading(cell, tSec);
+          fetch(url, { mode: "cors", method: "GET", cache: "no-store", headers: { Range: "bytes=0-0" } }).then(function (r) {
+            if (r.status === 425) { if (replaying && attempt < 12) setTimeout(function () { if (replaying) loadClip(cell, cam, tSec, attempt + 1); }, 3000); return; }
+            if (r.status >= 400) { setCellMsg(cell, r.status === 404 ? "No footage for this time" : "Replay unavailable"); return; }
+            var partial = r.headers.get("X-Clip-Partial") === "1";
+            var v = cell.querySelector("video.cam-replay"), resumeAt = 0;
+            if (v) { resumeAt = v.duration && isFinite(v.duration) ? v.duration : 0; }
+            else {
+              v = document.createElement("video");
+              v.className = "cam-replay"; v.muted = true; v.playsInline = true; v.setAttribute("playsinline", ""); v.controls = false; v.preload = "auto";
+              cell.appendChild(v);
+              var badge = document.createElement("span"); badge.className = "cam-play"; badge.textContent = "\u25B6"; cell.appendChild(badge);
+              v.addEventListener("loadeddata", function () { var m = cell.querySelector(".cam-msg"); if (m) { if (m.__iv) clearInterval(m.__iv); m.remove(); } });
+              v.addEventListener("error", function () { setCellMsg(cell, "Replay failed to play"); });
+            }
+            v.loop = !partial;
+            // Still recording: play what exists now; when this piece ends, fetch the longer piece and continue from here.
+            v.onended = partial ? function () { if (replaying) loadClip(cell, cam, tSec, 0); } : null;
+            v.src = url + (partial ? "&_=" + Date.now() : "");
+            if (resumeAt) v.addEventListener("loadedmetadata", function once() { v.removeEventListener("loadedmetadata", once); try { v.currentTime = Math.min(resumeAt, Math.max(0, v.duration - 0.2)); } catch (e) {} });
+            v.play().catch(function () {});
+          }).catch(function () { setCellMsg(cell, "Replay unavailable"); });
+        }
+var ALARM_ICONS = { disarmed: '<svg class="tb ev-tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -6" /> <path d="M11 16a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /> <path d="M8 11v-5a4 4 0 0 1 8 0" /></svg>', armed: '<svg class="tb ev-tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6" /> <path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /> <path d="M8 11v-4a4 4 0 1 1 8 0v4" /></svg>', alarm: '<svg class="tb ev-tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" /> <path d="M9 17v1a3 3 0 0 0 6 0v-1" /> <path d="M21 6.727a11.05 11.05 0 0 0 -2.794 -3.727" /> <path d="M3 6.727a11.05 11.05 0 0 1 2.792 -3.727" /></svg>' };
+        function startReplay(e) {
+          var ms = eventMs(e); if (!ms) return;
+          replaying = true;
+          if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+          if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+          unloadStreams(); clearReplayDom();
+          box.classList.remove("live-mode");
+          box.querySelectorAll(".cam-cell.cam-big").forEach(function (c) { c.classList.remove("cam-big"); });
+          var tSec = Math.floor(ms / 1000);   // same second as the server-side pre-cut clips
+          if (window.__clipSet && !window.__clipSet[tSec] && window.__clipSet[tSec + 1]) tSec += 1;   // older clips were cut on the rounded second
+          box.hidden = false; shown = true;
+          // Event mode: all four cameras replay the same -5s/+15s window (same order as the WhatsApp card).
+          box.querySelectorAll(".cam-cell").forEach(function (cell) { loadClip(cell, cell.getAttribute("data-cam"), tSec, 0); });
+          if (bar) {
+            var alarm = isAlarm(e), st = String(e.state || "").toUpperCase();
+            bar.className = "cam-event " + (alarm ? "ev-alarm" : st === "ARMED" ? "ev-armed" : "ev-disarmed");
+            bar.querySelector(".cam-event-icon").innerHTML = alarm ? ALARM_ICONS.alarm : st === "ARMED" ? ALARM_ICONS.armed : ALARM_ICONS.disarmed;
+            barLabel.textContent = shortStamp(e);
+            var line = bar.querySelector(".cam-event-line"), full = activityLine(e), i = st ? full.indexOf(st) : -1;
+            line.textContent = "";
+            if (i >= 0) {
+              line.appendChild(document.createTextNode(full.slice(0, i)));
+              var b = document.createElement("b"); b.className = "st"; b.textContent = st; line.appendChild(b);
+              line.appendChild(document.createTextNode(full.slice(i + st.length)));
+            } else line.textContent = full;
+            line.title = "Replay \u2212" + PRE + "s / +" + POST + "s";
+            renderPower();
+            bar.hidden = false;
+          }
+          box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          safetyTimer = setTimeout(hide, SAFETY_MAX_MS);
+        }
+        function endReplay() {
+          replaying = false; clearReplayDom();
+          if (bar) bar.hidden = true;
+        }
+        var liveBtn = document.getElementById("voelklip-live-btn");
+        if (liveBtn) liveBtn.addEventListener("click", function () { endReplay(); show(); scheduleHide(); });
+        // Tap a tile (clip or live) to enlarge it across the card; tap again to return to 4-up.
+        box.addEventListener("click", function (ev) {
+          var cell = ev.target.closest && ev.target.closest(".cam-cell");
+          if (!cell || !box.contains(cell)) return;
+          var big = cell.classList.contains("cam-big");
+          box.querySelectorAll(".cam-cell.cam-big").forEach(function (c) { c.classList.remove("cam-big"); });
+          if (!big) cell.classList.add("cam-big");
+        });
+
+        // Show when the Garage button (data-key="ARM") is pressed
+        document.addEventListener("click", function (ev) {
+          if (ev.target.closest('[data-key="ARM"]')) show();
+        }, true);
+
+        // Hide 1 min after any arm/disarm state change (watch the status LED classes)
+        var led = document.getElementById("led-status");
+        function readState() {
+          if (!led) return "";
+          if (led.classList.contains("armed")) return "armed";
+          if (led.classList.contains("disarmed")) return "disarmed";
+          return "";
+        }
+        if (led) {
+          var last = readState();
+          new MutationObserver(function () {
+            var s = readState();
+            if (s && s !== last) { last = s; scheduleHide(); }
+          }).observe(led, { attributes: true, attributeFilter: ["class"] });
+        }
+      })();
+    </script>
+    <script src="/arial/arial-pc.js?v=3"></script>
+    <script src="/arial/app.js?v=261"></script>
+    <link rel="stylesheet" href="/arial/home-card.css?v=hc14">
+    <script src="/arial/home-card.js?v=hc14"></script>
+</body>
+</html>
