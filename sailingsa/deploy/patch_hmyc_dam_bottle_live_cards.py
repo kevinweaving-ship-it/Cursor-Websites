@@ -7,7 +7,7 @@ import re
 DAM = "2026-10-10-hmyc-dam-bottle-sprints"
 MARKER = "DAM_BOTTLE_HMYC_LIVE_CARDS_v1"
 GOLD = "9c1eea9a2bebfd02125c8eb5c133b776fd0cf06ca67e066a09a293f77857d32b"
-BOOT_VER = "dbs13"
+BOOT_VER = "dbs14"
 
 
 def must_write(path, text):

@@ -248,27 +248,149 @@
     });
   }
 
-  function ensureR1(table) {
-    if (!table.querySelector('th.race-col[data-race-key="R1"]')) {
-      var thead = table.querySelector("thead tr");
-      if (!thead) return;
+  function totalAnchor(row) {
+    return (
+      (row && row.querySelector("th.total-col, td.total-col, th.nett-col, td.nett-col")) ||
+      null
+    );
+  }
+
+  function dropDupRaces(table) {
+    if (!table) return;
+    var thead = table.querySelector("thead tr");
+    if (!thead) return;
+    var seen = {};
+    [].slice.call(thead.querySelectorAll("th.race-col")).forEach(function (th) {
+      var k = raceKeyOf(th);
+      if (!k) {
+        var idx0 = [].indexOf.call(thead.children, th);
+        if (th.parentNode) th.parentNode.removeChild(th);
+        table.querySelectorAll("tbody tr").forEach(function (tr) {
+          if (tr.children[idx0]) tr.removeChild(tr.children[idx0]);
+        });
+        return;
+      }
+      if (!seen[k]) {
+        seen[k] = true;
+        return;
+      }
+      var idx = [].indexOf.call(thead.children, th);
+      if (th.parentNode) th.parentNode.removeChild(th);
+      table.querySelectorAll("tbody tr").forEach(function (tr) {
+        if (tr.children[idx]) tr.removeChild(tr.children[idx]);
+      });
+    });
+  }
+
+  function colKind(el) {
+    if (!el) return "x-other";
+    if (el.classList.contains("rank-col")) return "a-rank";
+    if (el.classList.contains("class-col")) return "b-class";
+    if (el.classList.contains("sail-col")) return "c-sail";
+    if (el.classList.contains("club-col")) return "d-club";
+    if (el.classList.contains("helm-col")) return "e-helm";
+    if (el.classList.contains("crew-col")) return "f-crew";
+    if (el.classList.contains("dam-bottle-cat-col") || String(el.textContent || "").trim() === "Cat")
+      return "g-cat";
+    if (el.classList.contains("dam-bottle-py-col") || String(el.textContent || "").trim() === "PY")
+      return "h-py";
+    if (el.classList.contains("dam-bottle-et-col")) return "i-et";
+    if (el.classList.contains("dam-bottle-corr-col")) return "j-corr";
+    var rk = raceKeyOf(el);
+    if (rk) return "k-" + ("000" + rk.replace("R", "")).slice(-3);
+    if (el.classList.contains("total-col")) return "y-total";
+    if (el.classList.contains("nett-col")) return "z-nett";
+    return "x-other";
+  }
+
+  function orderCols(table) {
+    var thead = table && table.querySelector("thead tr");
+    if (!thead) return;
+    if (
+      document.activeElement &&
+      document.activeElement.classList &&
+      document.activeElement.classList.contains("dam-bottle-et-input")
+    )
+      return;
+    var ths = [].slice.call(thead.children);
+    var order = ths.map(function (th, i) {
+      return { th: th, i: i, k: colKind(th) };
+    });
+    order.sort(function (a, b) {
+      if (a.k === b.k) return a.i - b.i;
+      return a.k < b.k ? -1 : 1;
+    });
+    var same = order.every(function (o, idx) {
+      return thead.children[idx] === o.th;
+    });
+    if (same) return;
+    order.forEach(function (o) {
+      thead.appendChild(o.th);
+    });
+    table.querySelectorAll("tbody tr").forEach(function (tr) {
+      var cells = [].slice.call(tr.children);
+      order.forEach(function (o) {
+        if (cells[o.i]) tr.appendChild(cells[o.i]);
+      });
+    });
+  }
+
+  function ensureTotalNett(table) {
+    var thead = table && table.querySelector("thead tr");
+    if (!thead) return;
+    function ensure(cls, label) {
+      if (thead.querySelector("th." + cls)) return;
       var th = document.createElement("th");
-      th.className = "race-col";
-      th.setAttribute("data-race-key", "R1");
-      th.textContent = "R1";
-      var totalTh = thead.querySelector("th.total-col, th.nett-col");
-      if (totalTh) thead.insertBefore(th, totalTh);
-      else thead.appendChild(th);
+      th.className = cls;
+      th.textContent = label;
+      thead.appendChild(th);
+      table.querySelectorAll("tbody tr").forEach(function (tr) {
+        var td = document.createElement("td");
+        td.className = cls;
+        tr.appendChild(td);
+      });
     }
+    ensure("total-col", "Total");
+    ensure("nett-col", "Nett");
+  }
+
+  function ensureRaceCol(table, n) {
+    if (!table || n < 1) return;
+    var key = "R" + n;
+    if (table.querySelector('th.race-col[data-race-key="' + key + '"]')) return;
+    var thead = table.querySelector("thead tr");
+    if (!thead) return;
+    var th = document.createElement("th");
+    th.className = "race-col";
+    th.setAttribute("data-race-key", key);
+    th.textContent = key;
+    var anchor = totalAnchor(thead);
+    if (anchor) thead.insertBefore(th, anchor);
+    else thead.appendChild(th);
     table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
-      if (tr.querySelector('td.race-col[data-race-key="R1"]')) return;
+      if (tr.querySelector('td.race-col[data-race-key="' + key + '"]')) return;
       var td = document.createElement("td");
       td.className = "race-col";
-      td.setAttribute("data-race-key", "R1");
-      var totalTd = tr.querySelector("td.total-col, td.nett-col");
-      if (totalTd) tr.insertBefore(td, totalTd);
+      td.setAttribute("data-race-key", key);
+      var tAnchor = totalAnchor(tr);
+      if (tAnchor) tr.insertBefore(td, tAnchor);
       else tr.appendChild(td);
     });
+    lockRCells(table);
+  }
+
+  function raceCount(table) {
+    var n = 0;
+    if (!table) return 0;
+    table.querySelectorAll("thead th.race-col").forEach(function (th) {
+      var m = raceKeyOf(th).match(/^R(\d+)$/);
+      if (m) n = Math.max(n, parseInt(m[1], 10));
+    });
+    return n;
+  }
+
+  function ensureR1(table) {
+    ensureRaceCol(table, 1);
     lockRCells(table);
   }
 
@@ -500,11 +622,16 @@
     table.querySelectorAll("thead th").forEach(function (th) {
       if (String(th.textContent || "").trim() === "Age") th.textContent = "Cat";
     });
+    markCol(table, "Cat", "dam-bottle-cat-col");
     ensureColAfter(table, "Helm", "Crew", "crew-col");
     markCol(table, "PY", "dam-bottle-py-col");
     ensureColAfter(table, "PY", "ET", "dam-bottle-et-col");
     ensureTickCol(table);
+    ensureTotalNett(table);
+    dropDupRaces(table);
     ensureR1(table);
+    dropDupRaces(table);
+    orderCols(table);
     lockRCells(table);
     wireEtInputs(table);
     syncEtVisible(sec);
@@ -531,20 +658,36 @@
         }, 0);
       });
     });
-    function afterStep() {
-      window.setTimeout(function () {
-        paint();
-      }, 150);
-    }
     var add = sec.querySelector(".club-race-step-add");
     var sub = sec.querySelector(".club-race-step-sub");
     if (add && !add._dbsBound) {
       add._dbsBound = true;
-      add.addEventListener("click", afterStep);
+      add.addEventListener("click", function () {
+        dropDupRaces(table);
+        ensureRaceCol(table, raceCount(table) + 1);
+        orderCols(table);
+        lockRCells(table);
+        wireEtInputs(table);
+        syncEtVisible(sec);
+        window.setTimeout(function () {
+          dropDupRaces(table);
+          orderCols(table);
+          lockRCells(table);
+          bindRaceClicks(sec);
+          syncEtVisible(sec);
+        }, 200);
+      });
     }
     if (sub && !sub._dbsBound) {
       sub._dbsBound = true;
-      sub.addEventListener("click", afterStep);
+      sub.addEventListener("click", function () {
+        window.setTimeout(function () {
+          dropDupRaces(table);
+          orderCols(table);
+          lockRCells(table);
+          syncEtVisible(sec);
+        }, 200);
+      });
     }
   }
 
