@@ -60,20 +60,10 @@ echo "=== 2b) ET + corrected-time store (not api.py) ==="
 set -euo pipefail
 chmod 755 /opt/hmyc-dam-bottle-et/store.py
 chown -R www-data:www-data /opt/hmyc-dam-bottle-et
-if ! grep -q "hmyc-dam-bottle-et.conf" /etc/nginx/sites-enabled/sailingsa; then
-  cp -a /etc/nginx/sites-enabled/sailingsa "/root/backups/nginx-sailingsa-$(date +%Y%m%d_%H%M%S)"
-  python3 - <<'PY'
-from pathlib import Path
-p = Path("/etc/nginx/sites-enabled/sailingsa")
-t = p.read_text(encoding="utf-8")
-needle = "location ^~ /api/ {"
-insert = "    include /etc/nginx/snippets/hmyc-dam-bottle-et.conf;\n\n    "
-if needle not in t:
-    raise SystemExit("nginx /api location not found")
-t = t.replace(needle, insert + needle, 1)
-p.write_text(t, encoding="utf-8")
-print("nginx include inserted")
-PY
+if ! grep -q "hmyc-dam-bottle-et.conf" /etc/nginx/snippets/sailingsa-soft404.conf; then
+  cp -a /etc/nginx/snippets/sailingsa-soft404.conf "/root/backups/sailingsa-soft404.conf.$(date +%Y%m%d_%H%M%S)"
+  printf "\n# Dam Bottle ET + corrected times (not api.py)\ninclude /etc/nginx/snippets/hmyc-dam-bottle-et.conf;\n" >> /etc/nginx/snippets/sailingsa-soft404.conf
+  echo "soft404 include added"
 fi
 systemctl daemon-reload
 systemctl enable --now hmyc-dam-bottle-et.service
