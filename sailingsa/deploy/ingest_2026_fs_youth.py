@@ -27,7 +27,6 @@ END = "2026-10-04"
 AS_AT = "2026-10-04 17:30:00+02"
 RESULT_STATUS = "Final"
 LEFT_LOGO = "/artwork/Event Logo/Free-State-Youth-Provincial-Champs-2025.png"
-RIGHT_LOGO = "/artwork/Club Logo/LDYC.png"
 OPT_LOGO = "/artwork/Class Logo/Optimist-Class-Logo.png"
 DAB_LOGO = "/artwork/Class Logo/Dabchick-Class-Logo.png"
 
@@ -472,16 +471,11 @@ def apply_live(rows: list[dict]) -> None:
 
 
 def _write_header_icons() -> None:
+    # Gold default: left = prior-year event logo; host mark comes from
+    # /api/club-logo/{host} via host_club_id. Never put raw Club Logo PNG in right.
     entry = {
         "left": LEFT_LOGO,
-        "right": RIGHT_LOGO,
-        "show_fleet_header_logos": True,
         "fleet_logos": {
-            "optimist-a": OPT_LOGO,
-            "dabchick": DAB_LOGO,
-            "optimist-b": OPT_LOGO,
-        },
-        "fleet_logos_right": {
             "optimist-a": OPT_LOGO,
             "dabchick": DAB_LOGO,
             "optimist-b": OPT_LOGO,
