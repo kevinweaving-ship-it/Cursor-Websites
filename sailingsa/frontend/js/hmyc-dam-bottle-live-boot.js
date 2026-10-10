@@ -37,6 +37,9 @@
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .wc-result-field-input{display:none!important;}" +
       ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col{display:none!important}" +
+      "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-col," +
+      "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-corr-col," +
+      "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-hidden{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] td.total-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.nett-col{min-width:2.4rem;text-align:center;font-weight:700;}" +
@@ -59,11 +62,22 @@
   }
 
   function adminEditOn() {
+    if (!page || !sessionToken()) return false;
     return !!(
-      page &&
-      (page.classList.contains("regatta-page--club-score-edit") ||
-        page.classList.contains("regatta-page--super-admin-edit"))
+      page.classList.contains("regatta-page--club-score-edit") ||
+      page.classList.contains("regatta-page--super-admin-edit")
     );
+  }
+
+  function lockPublicView() {
+    if (sessionToken()) {
+      document.documentElement.setAttribute("data-dbs-admin", "1");
+      return;
+    }
+    if (page) {
+      page.classList.remove("regatta-page--club-score-edit", "regatta-page--super-admin-edit");
+    }
+    document.documentElement.removeAttribute("data-dbs-admin");
   }
 
   function sessionToken() {
@@ -1197,7 +1211,7 @@
         var rid = tr && tr.getAttribute("data-result-id");
         if (etRaw(tr, key) || etFor(key, rid)) hasTime = true;
       });
-      var hide = closed || (!adminEditOn() && !hasTime);
+      var hide = !adminEditOn() || closed;
       table.querySelectorAll('[data-for-race="' + key + '"]').forEach(function (el) {
         if (el.classList.contains("race-col")) return;
         el.classList.toggle("dam-bottle-et-hidden", hide);
@@ -1256,6 +1270,7 @@
   }
 
   function paint() {
+    lockPublicView();
     var sec = findSec();
     if (!sec) return;
     sec.id = "dam-bottle-open-fleet";
@@ -1424,6 +1439,7 @@
     applyAllRaces(table, false);
     syncEtVisible(sec);
   }
+  lockPublicView();
   paintOnce();
   hydrateEtFromApi(function () {
     fillTimesOnly();
