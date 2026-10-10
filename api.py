@@ -779,6 +779,14 @@ def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Opt
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
+@app.get("/dev-1/club/hmyc/event", response_class=HTMLResponse)
+def dev1_club_hmyc_event(_request: Request):
+    """HMYC club-admin PY event (dev). Std layout; last Dart fleet + Time/PY."""
+    from sailingsa.backend.hmyc_club_py_event_dev import PAGE_HEADERS, page_html
+
+    return HTMLResponse(page_html(), headers=PAGE_HEADERS)
+
+
 @app.get("/api/stats")
 async def api_stats():
     """Public stats for /stats page. Registered before /sailor/{slug} so /stats is not caught as slug."""
