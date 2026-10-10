@@ -198,6 +198,61 @@
     return m ? m[1] : "";
   }
 
+  var placeSnap = {};
+
+  function cellPlaceText(td) {
+    if (!td) return "";
+    var span = td.querySelector("span");
+    var raw = String(((span && span.textContent) || td.textContent) || "").trim();
+    if (!raw || raw === "—" || raw === "-" || raw === "–") return "";
+    return raw;
+  }
+
+  function snappedPlace(rid, race) {
+    return String((placeSnap[rid] && placeSnap[rid][race]) || "").trim();
+  }
+
+  function rememberPlace(rid, race, place) {
+    if (!rid || !race) return;
+    var v = String(place || "").trim();
+    if (!v) return;
+    if (!placeSnap[rid]) placeSnap[rid] = {};
+    placeSnap[rid][race] = v;
+  }
+
+  function snapshotPlaces(table) {
+    if (!table) return;
+    table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
+      var rid = tr.getAttribute("data-result-id");
+      if (!rid) return;
+      if (!placeSnap[rid]) placeSnap[rid] = {};
+      tr.querySelectorAll("td.race-col").forEach(function (td) {
+        var k = raceKeyOf(td);
+        if (!/^R\d+$/.test(k)) return;
+        var v = cellPlaceText(td);
+        if (v) placeSnap[rid][k] = v;
+      });
+    });
+  }
+
+  function stampExistingRaceKeys(table) {
+    if (!table) return;
+    var thead = table.querySelector("thead tr");
+    if (!thead) return;
+    [].forEach.call(thead.children, function (th, i) {
+      if (!th.classList.contains("race-col")) return;
+      var k = raceKeyOf(th);
+      if (!/^R\d+$/.test(k)) return;
+      th.setAttribute("data-race-key", k);
+      table.querySelectorAll("tbody tr").forEach(function (tr) {
+        var td = tr.children[i];
+        if (!td) return;
+        td.classList.add("race-col");
+        if (!td.getAttribute("data-race-key")) td.setAttribute("data-race-key", k);
+      });
+    });
+  }
+
   function raceKeys(table) {
     var keys = [];
     if (!table) return keys;
@@ -284,7 +339,20 @@
       var td = inp.parentNode;
       var v = String(inp.value || "").trim();
       if (inp.parentNode) inp.parentNode.removeChild(inp);
-      if (td && !String(td.textContent || "").trim() && v) td.textContent = v;
+      if (td && !cellPlaceText(td) && v) td.textContent = v;
+    });
+    table.querySelectorAll("td.race-col").forEach(function (td) {
+      var k = raceKeyOf(td);
+      var tr = td.closest("tr");
+      var rid = tr && tr.getAttribute("data-result-id");
+      if (!k || !rid) return;
+      var shown = cellPlaceText(td);
+      if (shown) {
+        rememberPlace(rid, k, shown);
+        return;
+      }
+      var snap = snappedPlace(rid, k);
+      if (snap) td.textContent = snap;
     });
   }
 
@@ -352,7 +420,20 @@
         insertBeforeAnchor(tr, td, totalAnchor(tr));
       });
     }
-    if (!has('th.race-col[data-race-key="' + key + '"]')) {
+    var existingTh = null;
+    table.querySelectorAll("thead th.race-col").forEach(function (th) {
+      if (raceKeyOf(th) === key && !existingTh) existingTh = th;
+    });
+    if (existingTh) {
+      existingTh.setAttribute("data-race-key", key);
+      var rIdx = [].indexOf.call(thead.children, existingTh);
+      table.querySelectorAll("tbody tr").forEach(function (tr) {
+        var td = tr.children[rIdx];
+        if (!td) return;
+        td.classList.add("race-col");
+        td.setAttribute("data-race-key", key);
+      });
+    } else if (!has('th.race-col[data-race-key="' + key + '"]')) {
       var rTh = document.createElement("th");
       rTh.className = "race-col race-col--wait";
       rTh.setAttribute("data-race-key", key);
@@ -444,15 +525,15 @@
     if (!thead) return;
     var seen = { et: {}, corr: {}, r: {} };
     var keys = {};
+    var doomed = [];
     [].slice.call(thead.children).forEach(function (th) {
       if (th.classList.contains("race-col")) {
         var k = raceKeyOf(th);
         if (k) keys[k] = true;
       }
     });
-    [].slice.call(thead.children).reverse().forEach(function (th) {
+    [].slice.call(thead.children).forEach(function (th, idx) {
       var race = th.getAttribute("data-for-race") || raceKeyOf(th);
-      var idx = [].indexOf.call(thead.children, th);
       var bag = th.classList.contains("dam-bottle-et-col")
         ? "et"
         : th.classList.contains("dam-bottle-corr-col")
@@ -461,15 +542,19 @@
             ? "r"
             : "";
       if (!bag) return;
-      if (!race || !keys[race] && bag !== "r") {
-        removeColAt(table, idx);
+      if (!race || (!keys[race] && bag !== "r")) {
+        doomed.push(idx);
         return;
       }
       if (seen[bag][race]) {
-        removeColAt(table, idx);
+        doomed.push(idx);
         return;
       }
       seen[bag][race] = true;
+    });
+    doomed.sort(function (a, b) { return b - a; });
+    doomed.forEach(function (i) {
+      removeColAt(table, i);
     });
   }
 
@@ -614,7 +699,13 @@
       var corrTd = it.tr.querySelector('td.dam-bottle-corr-col[data-for-race="' + race + '"]');
       var rTd = it.tr.querySelector('td.race-col[data-race-key="' + race + '"]');
       if (it.keep) {
-        if (rTd) it.place = String(rTd.textContent || "").trim() || it.place;
+        var kept = rTd ? cellPlaceText(rTd) : "";
+        if (!kept) kept = snappedPlace(it.rid, race);
+        if (kept) {
+          it.place = kept;
+          if (rTd && cellPlaceText(rTd) !== kept) rTd.textContent = kept;
+          rememberPlace(it.rid, race, kept);
+        }
         fillTotalNett(it.tr);
         return;
       }
@@ -622,7 +713,18 @@
       if (corrTd && corrTd.textContent !== shown) corrTd.textContent = shown;
       if (rTd) {
         var p = it.place ? String(it.place) : "";
-        if (rTd.textContent !== p) rTd.textContent = p;
+        if (p) {
+          if (cellPlaceText(rTd) !== p) rTd.textContent = p;
+          rememberPlace(it.rid, race, p);
+        } else {
+          var snap = snappedPlace(it.rid, race);
+          if (snap) {
+            it.place = snap;
+            if (cellPlaceText(rTd) !== snap) rTd.textContent = snap;
+          } else if (rTd.textContent !== "") {
+            rTd.textContent = "";
+          }
+        }
         rTd.classList.toggle("code", it.dns);
       }
       fillTotalNett(it.tr);
@@ -824,6 +926,8 @@
     markCol(table, "PY", "dam-bottle-py-col");
     keepOneLabeled(table, "total-col", "Total");
     keepOneLabeled(table, "nett-col", "Nett");
+    stampExistingRaceKeys(table);
+    snapshotPlaces(table);
     var existing = raceCount(table);
     if (existing < 1) existing = 1;
     var i;
