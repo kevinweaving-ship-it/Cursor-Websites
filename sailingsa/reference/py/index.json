@@ -1,0 +1,76 @@
+{
+  "scraped_at": "2026-10-10T20:36:30Z",
+  "scheme_page": "https://www.rya.org.uk/racing/portsmouth-yardstick/",
+  "sas_pdf": "https://cdn.revolutionise.com.au/cups/sas/files/ruou7obyk3wzgeqf.pdf",
+  "rya_assets": [
+    {
+      "asset_id": "50500",
+      "label": "Current PY list",
+      "source_url": "https://assets.rya.org.uk/assetbank-rya-assets/action/directLinkImage?assetId=50500",
+      "resolved_url": "https://assetbank-eu-west-1.s3.eu-west-1.amazonaws.com/rya-assets_87113cb4549df15cff38e2cd071931c5/db0/PY_List_2026_FINAL_V4.pdf",
+      "file": "py/rya/PY_List_2026_FINAL_V4.pdf",
+      "bytes": 190309,
+      "sha256": "c4c7e839acf175d70686c98d692777a6e42cec05e67671f78f6d78e8ebbf6299",
+      "content_type": "application/pdf",
+      "text_file": "py/rya/PY_List_2026_FINAL_V4.txt"
+    },
+    {
+      "asset_id": "50501",
+      "label": "Limited Data List",
+      "source_url": "https://assets.rya.org.uk/assetbank-rya-assets/action/directLinkImage?assetId=50501",
+      "resolved_url": "https://assetbank-eu-west-1.s3.eu-west-1.amazonaws.com/rya-assets_87113cb4549df15cff38e2cd071931c5/040/PY_Limited_data_list_2026.pdf",
+      "file": "py/rya/PY_Limited_data_list_2026.pdf",
+      "bytes": 146511,
+      "sha256": "1f07bca0734df423819377ea9aaf6af0767b15ac86b57dc6016666bdfb51e78f",
+      "content_type": "application/pdf",
+      "text_file": "py/rya/PY_Limited_data_list_2026.txt"
+    },
+    {
+      "asset_id": "77123",
+      "label": "Class configuration list",
+      "source_url": "https://assets.rya.org.uk/assetbank-rya-assets/action/directLinkImage?assetId=77123",
+      "resolved_url": "https://assetbank-eu-west-1.s3.eu-west-1.amazonaws.com/rya-assets_87113cb4549df15cff38e2cd071931c5/c51/Class_List_Master_unique_ID_FEB_26.xlsx",
+      "file": "py/rya/Class_List_Master_unique_ID_FEB_26.xlsx",
+      "bytes": 365367,
+      "sha256": "f0963eceb3028854784c014d11b171bb5b2b1bb94e7a3b46833cc8e4ffd14236",
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    },
+    {
+      "asset_id": "50502",
+      "label": "Pursuit race calculator",
+      "source_url": "https://assets.rya.org.uk/assetbank-rya-assets/action/directLinkImage?assetId=50502",
+      "resolved_url": "https://assetbank-eu-west-1.s3.eu-west-1.amazonaws.com/rya-assets_87113cb4549df15cff38e2cd071931c5/474/Pursuit_Race.xlsx",
+      "file": "py/rya/Pursuit_Race.xlsx",
+      "bytes": 36824,
+      "sha256": "f1c24645358e528cd8d25c01390ad2c3337072a3fde0a7f54d1da95dfa3f5fac",
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    },
+    {
+      "asset_id": "48002",
+      "label": "PY Notice of Race and Sailing Instructions Advice",
+      "source_url": "https://assets.rya.org.uk/assetbank-rya-assets/action/directLinkImage?assetId=48002",
+      "resolved_url": "https://assetbank-eu-west-1.s3.eu-west-1.amazonaws.com/rya-assets_87113cb4549df15cff38e2cd071931c5/388/PY_Notice_of_Race_and_Sailing_Instructions_Advice.pdf",
+      "file": "py/rya/PY_Notice_of_Race_and_Sailing_Instructions_Advice.pdf",
+      "bytes": 320795,
+      "sha256": "35aec2971871d904963c1a2a39f2f2ddcb7a17b0209c2c662ec8e45e04bac114",
+      "content_type": "application/pdf",
+      "text_file": "py/rya/PY_Notice_of_Race_and_Sailing_Instructions_Advice.txt"
+    },
+    {
+      "asset_id": "48003",
+      "label": "PY Running Races",
+      "source_url": "https://assets.rya.org.uk/assetbank-rya-assets/action/directLinkImage?assetId=48003",
+      "resolved_url": "https://assetbank-eu-west-1.s3.eu-west-1.amazonaws.com/rya-assets_87113cb4549df15cff38e2cd071931c5/947/PY_Running_Races.pdf",
+      "file": "py/rya/PY_Running_Races.pdf",
+      "bytes": 556043,
+      "sha256": "46a688a69bc215d1d909f5cda1ba89930839cfc92eee8b113a28e2a091558806",
+      "content_type": "application/pdf",
+      "text_file": "py/rya/PY_Running_Races.txt"
+    }
+  ],
+  "counts": {
+    "rya_2026": 106,
+    "rya_2026_limited": 90,
+    "sas_py_la_2019": 29
+  }
+}

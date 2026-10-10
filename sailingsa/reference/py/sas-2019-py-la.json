@@ -1,0 +1,263 @@
+[
+  {
+    "class_name": "0-9r",
+    "persons": 1,
+    "rig": "U",
+    "spinnaker": "0",
+    "py": 1720,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "12 SQM Sharpie",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1025,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Active 15",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "A",
+    "py": 1050,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Boards",
+    "persons": 1,
+    "rig": "U",
+    "spinnaker": "0",
+    "py": 895,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Bosun",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "C",
+    "py": 1198,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Dabchick",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1250,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Dabchick",
+    "persons": 1,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1170,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Dolphin",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1020,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Extra",
+    "persons": 1,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1140,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Extra (old wooden)",
+    "persons": 1,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1195,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Flipper",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "?",
+    "py": 1155,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Gypsy",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1245,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Gypsy",
+    "persons": 1,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1210,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Halcat",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 925,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Melges 14 - Gold",
+    "persons": 1,
+    "rig": "U",
+    "spinnaker": "0",
+    "py": 1040,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Melges 14 – Blue",
+    "persons": 1,
+    "rig": "U",
+    "spinnaker": "0",
+    "py": 1113,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Melges 14 – Red",
+    "persons": 1,
+    "rig": "U",
+    "spinnaker": "0",
+    "py": 1188,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Mosquito",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 798,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Mosquito",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "A",
+    "py": 780,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Rebel",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "A",
+    "py": 1100,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Regatta S",
+    "persons": 1,
+    "rig": "U",
+    "spinnaker": "0",
+    "py": 1075,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Regatta T",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1095,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Regatta TS",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "C",
+    "py": 1060,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Saldanha",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1240,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Sonnet",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1130,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Sonnet",
+    "persons": 1,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1120,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Spearhead",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "C",
+    "py": 970,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Sprog",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1120,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  },
+  {
+    "class_name": "Tempo",
+    "persons": 2,
+    "rig": "S",
+    "spinnaker": "0",
+    "py": 1012,
+    "source": "sas-py-la-2019",
+    "notes": ""
+  }
+]

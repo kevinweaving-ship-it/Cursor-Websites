@@ -1,0 +1,642 @@
+{
+  "source": "https://sailrsa.org.za/",
+  "our_clubs": 85,
+  "sailrsa_detail_pages": 48,
+  "already_have": 2,
+  "new_fields": 36,
+  "unknown_clubs": 10,
+  "unknown": [
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "BFNYC",
+        "name": "Bloemfontein Yacht Club",
+        "website": "https://www.facebook.com/Bloemfontein-Yacht-Club-196796434001113",
+        "email": "bloemyachtclub@gmail.com",
+        "situation": "(how to get there) Bloemfontein Yacht Club is situated on Rustfontein Dam in the Free State, about 60km south east of Bloemfontein (south of Botshabelo). From Bloemfontein, take the N8 to Botshabelo / Thaba Nchu. The turnoff to Rustfontein Dam is to the right, before getting to Botshabelo.",
+        "classes": "All types of sailing craft FACILITIES LOCATION The clubhouse is at co-ordinates E26.6004 S29.2716"
+      },
+      "sailrsa_abbrev": "BFNYC",
+      "sailrsa_name": "Bloemfontein Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/BFNYC.htm"
+    },
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "BYC",
+        "name": "Bluff Yacht Club",
+        "website": "https://www.facebook.com/pg/Bluff-Yacht-Club-Durban-122604287844985/posts/?ref=page_internal",
+        "email": "bluffyachtclub@xsinet.co.za",
+        "phone": "031 466 1386",
+        "situation": "(how to get there) Bluff Yacht Club is situated on the silt channel at the top end of Durban Harbour (Bayhead). To get there, head out of Durban on Anton Lembede St / Sydney Road (R102). Take the Bayhead Road exit left. Turn left at Langeberg Road and again left at Seafarer Road. BYC is at 7 Seafarer Road. WATER SPORTS CATERED FOR Bluff Yacht Club offers facilities for cruising yachts, boat building, boat repairs, fishing boats, power boats and for sailing dinghies."
+      },
+      "sailrsa_abbrev": "BYC",
+      "sailrsa_name": "Bluff Yacht Club",
+      "province": "KZN",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/BYC.htm"
+    },
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "ESC",
+        "name": "Emmarentia Sailing Club",
+        "website": "http://www.emmarentiasailingclub.co.za"
+      },
+      "sailrsa_abbrev": "ESC",
+      "sailrsa_name": "Emmarentia Sailing Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/ESC.htm"
+    },
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "FSYC",
+        "name": "Free State Yacht Club",
+        "website": "http://www.holiday.org.za/greendoors.html",
+        "email": "heinnoth@vodamail.co.za",
+        "phone": "076 900 5988",
+        "situation": "This club is located on the Gariep Dam by the township of Gariep, north of Colesburg.",
+        "classes": "All types of sailing craft - keelboats, dinghies, catamarans FACILITIES Keelboat launching, basic ablutions. The adjacent Forever resort provides camping and accomodation. Accomodation is also available at the De Stijl Gariep Ho"
+      },
+      "sailrsa_abbrev": "FSYC",
+      "sailrsa_name": "Free State Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/FSYC.htm"
+    },
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "FYC",
+        "name": "Florida Yacht Club",
+        "email": "chris.moreton@syscad.net",
+        "address": "P O Box 29, Florida 1710 CONTACT PERSON Chris Moreton - 0827874902",
+        "situation": "(how to get there) The club is situated on the West shore of Florida Lake. From Ontdekkers Road, turn south into Golf Club Terrace, under railway bridge, continue to the next intersection (R24 - Kathleen St). Turn left, then first left. This service road takes you to a gate that is normally locked. Arrange access with the club.",
+        "classes": "All dinghies are welcome. The Finn class is currently the most active type. FACILITIES Clubhouse with pub, large lounge, galley services when required - available for member use, braai facilities, large shaded veranda, limited camping available. Ablution facilities for 75 boats."
+      },
+      "sailrsa_abbrev": "FYC",
+      "sailrsa_name": "Florida Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/FYC.htm"
+    },
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "FORESTSC",
+        "name": "Forest Sailing Club",
+        "website": "https://www.facebook.com/forestsailingclub",
+        "email": "forestsailingclub@gmail.com",
+        "address": "P O Box 2526, Whiteriver 1240 CONTACT PERSONS Robert Buchanan",
+        "situation": "(how to get there) FSC is located on the west shore of the Da Gama Dam on the Whiteriver - Hazyview Road (R40). From Whiteriver towards Hazyview (not Numbi Gate Road) +/- 20 kms, signboard on left \"Da Gama Dam\" turn right and follow gravel road (downhill) 1 1/2 km to club.",
+        "classes": "All dinghies and catamarans. FACILITIES Club with bar, galley facilities for regattas. Camping and caravans facilities. Ablution facilities for +/- 80 boats. Lawns and big shady trees. Braai facility."
+      },
+      "sailrsa_abbrev": "FORESTSC",
+      "sailrsa_name": "Forest Sailing Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/ForestSC.htm"
+    },
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "KOMATI",
+        "name": "Komati Yacht Club",
+        "address": "P.O. Box 193 Carolina 1185 CONTACT PERSON Wouter Liebenberg 082 463 1374 Siteskipper - [",
+        "situation": "(how to get there) KYC is situated on the Nooitgedacht Dam, Carolina. This dam is on the Komati river, from which the club name is derived ( Its not anywhere the Komati border post! ) It is reached via the N4 freeway from Gauteng. Take the Carolina R33 turn off (+ / - 40 km after Middelburg). Travel to Carolina. In the town, turn left at the first intersection (BP garage on the left). Leaving town on this road, turn left onto the Nooitgedacht Dam road. Pass the Nature Reserve on your left-hand side. The road makes a few curves - then you will encounter a big white board indicating Komati Yacht Club. (about 6Km from Carolina). The access gate to the club grounds is normally locked - contact the club to arrange visiting access.",
+        "classes": "All types of Catamarans and Dinghies FACILITIES Basic galley, bar, changerooms, ablutions. Ample grounds for camping. As the club is situated in a Nature Reserve, no pets are allowed POSTAL"
+      },
+      "sailrsa_abbrev": "KOMATI",
+      "sailrsa_name": "Komati Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/Komati.htm"
+    },
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "MYC",
+        "name": "Mountain Yacht ClubSailing and Sports Club",
+        "website": "http://www.mountainyachtclub.co.za",
+        "email": "commodore@mountainyachtclub.co.za",
+        "address": "P.O. Box 174 Haenertsburg 0730",
+        "situation": "(how to get there) MYC is located on the eastern shore of Ebenezer Dam, 12 kilometers north of Haenertsburg, which is about 55km from Polokwane (Pietersburg) on the Tzaneen/Georges Valley Road",
+        "classes": "Holiday 23, Laser, Enterprise, Windsurfer and any class anyone cares to sail. FACILITIES 3 Cabins and 3 bunkhouses available for overnight stays (no bedding), shady terraces for camping and caravans. Clubhouse has a bar, galley services for specified regattas only, but available for members / visitors use otherwise. Albutions facilities for up to 70 boats. Slipway for keelboats at adjacent power boat club. The club's thrust is aimed at social cruising, and raids from other clubs are welcome. POSTAL"
+      },
+      "sailrsa_abbrev": "MYC",
+      "sailrsa_name": "Mountain Yacht ClubSailing and Sports Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/MYC.htm"
+    },
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "OYC",
+        "name": "Olifantsnek Yacht Club",
+        "website": "https://www.facebook.com/OlifantsnekYachtClub",
+        "address": "P.O. Box 1357 Rustenburg 0300 E-Mail : Facebook : : www.facebook.com/OlifantsnekYachtClub/ CONTACT PERSON Designed and maintained by Site Skipper Updated 09-12-2019 22:59",
+        "situation": "(how to get there) Olifantsnek Yacht Club is situated on Olifantsnek Dam, near Rustenburg. A route from Johannesburg is to take Ontdekkers Road or Main Reef Road to Krugersdorp, then go on to the R24 (a rather twisty, narrow road) towards Rustenburg. Turn left at the T-junction towards Rustenburg. The Dam is 17Km before Rustenburg. Alternatively, from Pretoria, Brits and Hartebeespoort, take the N4 to Rustenburg then go out on the R24 towards Johannesburg (17Km)",
+        "classes": "Catamarans (Dart, Halcat, etc.) are the most popular craft, although dinghies (all types) are also welcome. FACILITIES Club House, ablutions. Sailing every Sunday."
+      },
+      "sailrsa_abbrev": "OYC",
+      "sailrsa_name": "Olifantsnek Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/OYC.htm"
+    },
+    {
+      "status": "unknown_club",
+      "sailrsa": {
+        "abbrev": "STILLBAAIYC",
+        "name": "Stilbaai Yacht Club",
+        "website": "http://www.stilbaaiyachtclub.co.za",
+        "email": "info@stilbaaiyachtclub.co.za",
+        "situation": "(how to get there) Access from Johannesburg is via the N3 to Heidelburg, then turn off through the town to the Vaal Dam road (R549). This road takes you to the intersection with the Vereeniging/Villiers road (R54). Turn left and after approx. 5 km, look out for the club signpost (past the Aeolians Club) on the right. A gravel road takes you to the club. Alternatively, from Johannesburg, take the R28 freeway to Vereeniging, turning off at Meyerton to follow the Vaal Dam signs which takes you to the Vereeniging/Villiers road and the intersection referred to above.",
+        "classes": "Hobies, Halcat, Dart, Prindle, various Keelboats. FACILITIES Clubhouse has a bar, galley services for planned events and regatta. Swimming pool, swings for children. Ablution for 100 boats. Camping and caravans for visitors, TV lounge."
+      },
+      "sailrsa_abbrev": "STILLBAAIYC",
+      "sailrsa_name": "Stilbaai Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/StillbaaiYC.htm"
+    }
+  ],
+  "to_fill": [
+    {
+      "status": "new_fields",
+      "matched": "AYC",
+      "club_id": 117,
+      "our_name": "Aeolians Yacht Club",
+      "new": {
+        "email": "paul.leenstra@za.sabmiller.com",
+        "situation": "(how to get there) Aeolians Club is situated on the eastern shore of North Bay, Vaal Dam. Access from Johannesburg is via the N3 to Heidelburg, then turn off through the town to the Vaal Dam road (R549). This road takes you to the intersection with the Vereeniging/Villiers road (R54). Turn left and after approx. 5 km, look out for the (small) Aeolians sign on the right (before the Stilbaai turnoff). A gravel road takes you to the club (take any unmarked forks to the left!). Alternatively, from Johannesburg, take the R26 freeway to Vereeniging, turning off at Meyerton, to follow the Vaal Dam signs past the suburb of Riverside, after which you turn right to Uitsig. This takes you (straight over 2 stop streets) to the Vereeniging/Villiers road and the intersection referred to above."
+      },
+      "sailrsa_abbrev": "AEOLIANS",
+      "sailrsa_name": "Aeolians Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/Aeolians.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "BRYC",
+      "club_id": 167,
+      "our_name": "Buffalo River Yacht Club",
+      "new": {
+        "website": "http://www.bryc.co.za",
+        "email": "info@bryc.co.za",
+        "address": "Buffalo River Yacht Club 1 Ferry Hill Road, West Bank East London 5201 South Africa",
+        "situation": "(how to get there) By Road: From East London, head south on Settlers Way (R72). Just over the river, turn left into Pontoon Road. Turn left into Ferry Hill Road, go under Pontoon Road bridge. By Sea: Proceed all the way into the harbour, to just before the railway bridge where the Buffalo River Yacht Club is located, on the south bank. There is plenty of room to anchor next to the Club, or you may find a free visitors space on the Yacht Club pontoons."
+      },
+      "sailrsa_abbrev": "BRYC",
+      "sailrsa_name": "Buffalo River Yacht Club",
+      "province": "EC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/BRYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "BSC",
+      "club_id": 50,
+      "our_name": "Benoni Sailing Club",
+      "new": {
+        "website_alt": "https://www.facebook.com/pages/Benoni-Sailing-Club/303375927225072",
+        "situation": "(how to get there) BSC is on the southern shore of Homestead Lake immedia"
+      },
+      "sailrsa_abbrev": "BSC",
+      "sailrsa_name": "Benoni Sailing Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/BSC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "BYC",
+      "club_id": 86,
+      "our_name": "Boskop Yacht Club",
+      "new": {
+        "situation": "(how to get there) The club is located on the southern shore of Boskop Dam north of Potchefstroom. From Johannesburg take the N1 South (concrete higway). Turn off at the Kimberley/Potchefstroom exit. On the Potchefstroom road (N12), turn right after passing the Libanon Mine at the Carletonville turnoff (R501). Take this road past Carletonville. It joins the Oberholzer-Potchefstroom road (still the R501 after the intersection) which goes past Boskop Dam on the right. At the Welgegund sign turn right (BYC sign with Dolphin) and right again after +/- 200 m into the second dirt road turnoff. Follow the right fork to the club."
+      },
+      "sailrsa_abbrev": "BOSKOP",
+      "sailrsa_name": "Boskop Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/Boskop.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "DAC",
+      "club_id": 52,
+      "our_name": "Deneysville Aquatic Club",
+      "new": {
+        "situation": "(how to get there) The club is located on the north bank of the Creek (west of the Dam wall). From Main street in Deneysville, turn left before the garage into McKenzie Avenue, and then right into Handel Street. GPS coordinates are as follows: 27� 32.00 South 23� 09.12 East"
+      },
+      "sailrsa_abbrev": "DAC",
+      "sailrsa_name": "Denysville Aquatic Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/DAC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "ELYC",
+      "club_id": 121,
+      "our_name": "East London Yacht Club",
+      "new": {
+        "situation": "(how to get there) ELYC has a prime location on the north pier of East London harbour. Access is via Orient Beach. Turn off Esplanade St into Lower Esplanade St towards the harbour Go past the container depot to the club."
+      },
+      "sailrsa_abbrev": "ELYC",
+      "sailrsa_name": "East London Yacht Club",
+      "province": "EC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/ELYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "FBYC",
+      "club_id": 18,
+      "our_name": "False Bay Yacht Club",
+      "new": {
+        "situation": "False Bay Yacht Club is adjacent to the Naval dockyard in Simonstown Directions to False Bay Yacht Club : On the Main Road from Cape Town, enter Simonstown, go past Jubilee Square, then turn left into King George Way."
+      },
+      "sailrsa_abbrev": "FBYC",
+      "sailrsa_name": "False Bay Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/FBYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "FHYC",
+      "club_id": 131,
+      "our_name": "Fish Hoek Yacht Club",
+      "new": {
+        "situation": "(how to get there) FHBSC is located on Fish Hoek Beach on the Cape Peninsula east coast, on the western side of False Bay. From Cape Town, take the M3 freeway south, then go either on the Main Road (M4) or Ou Kaapse Weg (M64) to Fish Hoek. The beach is accessed from Recreation Road off the Main Road. The club is 400m along Peter Creese Way on the beach front. FACILITIES The Fish Hoek Beach Sports Club embraces all forms of water sport. From sailing to paddling, from kiting to SUPing - everyone is welcome. Launching facilities, hot showers, a bar and much more. There is even place to store your boat."
+      },
+      "sailrsa_abbrev": "FHBSC",
+      "sailrsa_name": "Fish Hoek Beach Sport Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/FHBSC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "GLYC",
+      "club_id": 97,
+      "our_name": "George Lakes Yacht Club",
+      "new": {
+        "situation": "This club is located on Island Lake, Wilderness East"
+      },
+      "sailrsa_abbrev": "GLYC",
+      "sailrsa_name": "George Lakes Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/GLYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "HBYC",
+      "club_id": 8,
+      "our_name": "Hout Bay Yacht Club",
+      "new": {
+        "situation": "Hout Bay Yacht Club and its walk-on moorings are located within the Hout Bay Harbour. Directions to Hout Bay Yacht Club: From Constantia Nek, proceed into Hout Bay (M63), turn right into Princess St, then left into Harbour Road. Turn left at the harbour entrance road, then left at the next intersection. FACILITIES Hout Bay Yacht Club provides facilities for cruising keelboats as well as racing. The 114 walk-on moorings can accommodate vessels up to 54' LOA. It has its own dinghies, used for youth sailing training. A new interest at the club is the St Ayles 22' Skiff, for use for coastal rowing."
+      },
+      "sailrsa_abbrev": "HBYC",
+      "sailrsa_name": "Hout Bay Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/HBYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "HMYC",
+      "club_id": 98,
+      "our_name": "Henley Midmar Yacht Club",
+      "new": {
+        "phone": "078 800 3468",
+        "situation": "(how to get there) HMYC is located within the Midmar Nature Reserve. From Johannesburg, take the R107 turnoff from the N3 just before Howick, then left on to Prospect Road (R103) to the Midmar main entrance. From Durban, take the R103 turnoff at Howick towards the Midmar Dam. Past the gate, proceed downhill to an intersection, turn left. This road ends at HMYC."
+      },
+      "sailrsa_abbrev": "HMYC",
+      "sailrsa_name": "Henley Midmar Yacht Club",
+      "province": "KZN",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/HMYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "HSC",
+      "club_id": 144,
+      "our_name": "Highveld Sailing Club",
+      "new": {
+        "email": "carla.oneil@honeywell.com",
+        "situation": "On Trichardsfontein Dam, Secunda / Trichard. Directions to Highveld Sailing Club : From Johannesburg, take the N17 towards Springs. Follow the N17 until you reach Secunda. Just past Secunda is the town of Trichardt, carry on through Trichardt. As you are leaving Trichardt, you will pass the Medi-Clinic on your right, continue until you cross a small bridge over the Trichards River. Turn right onto the gravel road and carry on till you reach a four-way junction, turn left and follow the road round until you see the Highveld Sailing Club gate."
+      },
+      "sailrsa_abbrev": "HSC",
+      "sailrsa_name": "Highveld Sailing ClubClub",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/HSC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "HYC",
+      "club_id": 10,
+      "our_name": "Hermanus Yacht Club",
+      "new": {
+        "situation": "& Directions Hermanus Yacht Club is on the northern shore of the Kleinrivier Lagoon (Stofvlei). From Hermanus, proceed east towards Stanford on the R43. The club is about 4Km along this road."
+      },
+      "sailrsa_abbrev": "HYC",
+      "sailrsa_name": "Hermanus Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/HYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "IYC",
+      "club_id": 54,
+      "our_name": "Imperial Yacht Club",
+      "new": {
+        "situation": "(how to get there) Imperial Yacht Club is situated on Zandvlei Lagoon, Lakeside, Cape Town. From Cape Town, it can be accessed via the Main Road, turning off left over the railway level crossing in Lakeside, before you get to Muizenberg. Alternatively, coming into Muizenberg via Prince George Drive or Baden Powell Drive (from Somerset West side), go over the river bridge, then turn right at the first circle. Follow the road along the south side of the lagoon."
+      },
+      "sailrsa_abbrev": "IYC",
+      "sailrsa_name": "Imperial Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/IYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "KYC",
+      "club_id": 15,
+      "our_name": "Knysna Yacht Club",
+      "new": {
+        "situation": "This club is located on a prime location at the Knysna Waterfront, with access to the Knysna estuary and the open sea through the Knysna Heads,"
+      },
+      "sailrsa_abbrev": "KYC",
+      "sailrsa_name": "Knysna Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/KYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "LDYC",
+      "club_id": 85,
+      "our_name": "Lake Deneys Yacht Club",
+      "new": {
+        "situation": "(how to get there) LDYC is located in the N Western corner of South Bay on the Vaaldam. It is reached by following the main road of Deneysville to a Tee junction, turn right and left again at the next Tee junction. GPS Location: 26° 54.822 S 28° 05.750 E"
+      },
+      "sailrsa_abbrev": "LDYC",
+      "sailrsa_name": "Lake Denys Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/LDYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "LYC",
+      "club_id": 120,
+      "our_name": "Langebaan Yacht Club",
+      "new": {
+        "situation": "& Directions Langebaan Yacht Club is situated on the south side of the Langebaan village, on the Langebaan Lagoon. From Cape Town, take the R27 north. Turn left at the Langebaan turnoff. You are now in Oostewal Road. Follow this road through Langebaan. At the intersection with Sunbird Drive, turn right",
+        "description": "Langebaan Yacht Club provides recreational amenities for members, which include Boating, Sailing, Canoeing, Angling and general social activities."
+      },
+      "sailrsa_abbrev": "LYC",
+      "sailrsa_name": "Langebaan Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/LYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "NRSC",
+      "club_id": 145,
+      "our_name": "Northvaal Radio Sailing Club",
+      "new": {
+        "situation": "(how to get there) The Northvaal Radio Sailing Club operates at various times from Southern Cross Yacht Club, Wemmer Pan or from Centurion Lake, Tshwane."
+      },
+      "sailrsa_abbrev": "NRSC",
+      "sailrsa_name": "Northvaal Radio Sailing Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/NRSC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "PNYC",
+      "club_id": 152,
+      "our_name": "Pennant Nine Yacht Club",
+      "new": {
+        "website_alt": "https://www.facebook.com/pennantnineyachtclub",
+        "situation": "(how to get there) PNYC is located at 126 Sailfish Street, Vaalmarina on the Vaal Dam. Access is from the Vereeniging/Villiers road (R54). The turn-off to Vaalmarina is 15Km from the Heidelberg/Denysville intersection. Entering Vaalmarina, take the second road to the left (with PNYC sign)."
+      },
+      "sailrsa_abbrev": "PNYC",
+      "sailrsa_name": "Pennant Nine Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/PNYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "PSC",
+      "club_id": 1,
+      "our_name": "Pretoria Sailing Club",
+      "new": {
+        "situation": "(how to get there) Pretoria Sailing Club is situated on the Rietvlei Dam, in the Irene area. It forms part of the Rietvlei Nature Reserve, which is strictly controlled by the Pretoria City Council. Access is via the Johannesburg Airport / Pretoria Highway (R21). Take the Irene / Rietvlei off-ramp (Nelmapius Drive) to Rietvlei. An intersection will be encountered. This is the old Pretoria / Kempton Park main road. Go straight across this road, and after 600m, turn right at the main gate of the Nature Reserve / Waterworks."
+      },
+      "sailrsa_abbrev": "PSC",
+      "sailrsa_name": "Pretoria Sailing Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/PSC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "PYC",
+      "club_id": 5,
+      "our_name": "Point Yacht Club",
+      "new": {
+        "situation": "(how to get there) Point Yacht Club is situated in the Durban harbour. Access is via the Margaret Mncadi Avenue (Esplanade), turn off at Maritime Place. WATER SPORTS CATERED FOR Water sport disciplines consist of Keeler Sailing, Dinghy Sailing, Youth Sailing, Power Boating, Angling & Paddling."
+      },
+      "sailrsa_abbrev": "PYC",
+      "sailrsa_name": "Point Yacht Club",
+      "province": "KZN",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/PYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "RCYC",
+      "club_id": 11,
+      "our_name": "Royal Cape Yacht Club",
+      "new": {
+        "website_alt": "https://rcyc.co.za/about-the-club/rcyc-facilities",
+        "situation": "& Directions RCYC is located at the Duncan Dock in the Port of Cape Town, South Africa. From the Cape Town CBD, head towards the harbour down Adderley St / Heerengracht. Where this road intersects with Duncan Road, turn right. RCYC is on the left, about 1Km down this road. Facilities See RCYC Facilities"
+      },
+      "sailrsa_abbrev": "RCYC",
+      "sailrsa_name": "Royal Cape Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/RCYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "RNYC",
+      "club_id": 20,
+      "our_name": "Royal Natal Yacht Club",
+      "new": {
+        "situation": "(how to get there) RNYC is situated in the Durban Marina, on the Victoria Embankment, Durban harbour. Access is via the Esplanade road. As you cross over the railway line, the club is on the right (PYC is on the left). Map reference: 29° 54' 43\" S 31° 01' 2\" E"
+      },
+      "sailrsa_abbrev": "RNYC",
+      "sailrsa_name": "Royal Natal Yacht Club",
+      "province": "KZN",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/RNYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "RYC",
+      "club_id": 103,
+      "our_name": "Redhouse Yacht Club",
+      "new": {
+        "situation": "In the Redhouse Village, on the Swartkops River, Port Elizabeth Directions to Redhouse Yacht Club : From Port Elizabeth, take the N2 towards East London. Turn off left at the John Tallant exit (M3). At the next intersection, turn right (Grahamstown Road). Take the next turnoff left (R367). After 3.6Km, turn off right into Redhouse Village. At the railway station, turn right then left to get around the platform (Carden St). Turn right into Stewart Road to access the yacht club."
+      },
+      "sailrsa_abbrev": "RYC",
+      "sailrsa_name": "Redhouse Yacht Club",
+      "province": "EC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/RYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "SBYC",
+      "club_id": 17,
+      "our_name": "Saldanha Bay Yacht Club",
+      "new": {
+        "situation": "& Directions Saldanha Yacht Club is situated on Saldanha Bay, adjacent to the Saldanha Bay harbour. From Cape Town, head up the west coast road (R27), going past Langebaan. At the Saldanha Bay turn-off, turn left. At the intersection with the Vredenburg / Saldanha Bay main road (R399), turn left. Follow this road through the Saldanha Bay town. At the intersection with Saldanha Road, take the slip road left to the the yacht club."
+      },
+      "sailrsa_abbrev": "SBYC",
+      "sailrsa_name": "Saldanha Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/SBYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "SPYC",
+      "club_id": 93,
+      "our_name": "Seal Point Yacht Club",
+      "new": {
+        "situation": "(how to get there) The club is based at Manten Marina, Vaal Dam. It is reached by turning left from Main Road in Deneysville into Island Road. The club is at the end of this street."
+      },
+      "sailrsa_abbrev": "SPYC",
+      "sailrsa_name": "Seal Point Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/SPYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "TCC",
+      "club_id": 146,
+      "our_name": "The Catamaran Club",
+      "new": {
+        "situation": "(how to get there) It is located on the SE end of Bronkhorstspruit Dam. From Johannesburg, take the N12 towards Witbank. Turn off at the Bronkhorstspruit / Delmas exit (R42). Turn left towards Bronkhorstspruit. Proceed + 15-20 kms. Turn left at large Bajadam and TCC signs. Proceed about 4 km to club. Alternatively, from Pretoria take the N4 to Bronkhorstspruit. Take the 2nd exit (R25 - Bronkhorstspruit/Delmas). Turn right towards Delmas, then the turnoff left to the road going past the eastern side of the dam (R42). The club turnoff (signs as above) is on the right +/- 10Km away. Maps : Course Map Fine Map"
+      },
+      "sailrsa_abbrev": "TCC",
+      "sailrsa_name": "The Catamaran Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/TCC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "TSC",
+      "club_id": 6,
+      "our_name": "Theewater Sports Club",
+      "new": {
+        "situation": "Theewater Sports Club is located on a peninsula on the northern shore of Theewaters Dam, just south of Villiersdorp. Directions to Theewater Sports Club: From Cape Town, take the N2 over Sir Lowrys Pass. At Grabouw, take the R321 (Grabouw / Villiersdorp) road left. On the other side of Grabouw, take the R321 turnoff to Villiersdorp. Travel 40Km. This road goes over a bridge on part of Theewaters Dam. Entering Villiersdorp, take the R43 road left. Take the next (small) road right (Old R43 road). This takes you to the TSC resort. From Port Elizabeth / Mossel Bay, about 12Km past Caledon, take the R43 road right. This road goes along the east shore of Theewaters Dam. Entering Villiersdorp, turn left on the Old R43 road, just before the t-junction (R45 / R321). FACILITIES Clubhouse, Cafeteria, Restaurant, Bar, Cabin, Camping Sailing - keelboat, catamaran and dinghy, Boating, Fishing, Waterskiing, Paddling,Swimming"
+      },
+      "sailrsa_abbrev": "TSC",
+      "sailrsa_name": "Theewater Sports Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/TSC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "TYC",
+      "club_id": 87,
+      "our_name": "Transvaal Yacht Club",
+      "new": {
+        "situation": "(how to get there) The club is situated on the north east bank of Hartebeestpoort Dam. The road to the Dam wall passes just above the club. The entrance to the visitors parking area is on the eastern side of the club."
+      },
+      "sailrsa_abbrev": "TYC",
+      "sailrsa_name": "Transvaal Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/TYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "VCA",
+      "club_id": 140,
+      "our_name": "Vaal Cruising Association",
+      "new": {
+        "situation": "(how to get there) VCA is on the north side of Aloe Fjord on the Vaaldam (NE Vaal Dam). Access is from the Vereniging - Villiers road (R54). From the crossroads (Denysville / Heidelberg) continue +/- 5-6 kms towards Villiers. Turn right at VCA signboard. (on the other side of the road is a sign to the left to De Kuilen). Proceed along this gravel road to the club."
+      },
+      "sailrsa_abbrev": "VCA",
+      "sailrsa_name": "Vaal Cruising Association",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/VCA.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "VLC",
+      "club_id": 68,
+      "our_name": "Victoria Lake Club",
+      "new": {
+        "website_alt": "https://https://www.facebook.com/Victorialakeclub",
+        "situation": "(how to get there) Club is on NE corner of Victoria Lake. From the N3 going south, turn off at the M2/Germiston exit. Branch to the left to Germiston. Turn right at Tee junction (traffic light) into Refinery Road, the continuation of which is Lake Road that goes past the lake."
+      },
+      "sailrsa_abbrev": "VLC",
+      "sailrsa_name": "Victoria Lake Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/VLC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "VYC",
+      "club_id": 70,
+      "our_name": "Vogelvlei Yacht Club",
+      "new": {
+        "website_alt": "https://www.http://www.vyc.co.za",
+        "situation": "& Directions Vogelvlei Yacht Club is situated on Voël Dam, north of Wellington in the W. Cape. From Cape Town, take the N1 towards Paarl. Take exit 47 at the Klapmuts interchange. Turn left onto the R44 and drive for 22.8km Upon entering Wellington, turn left onto the R44/Stokery Road. Continue on the R44 for 31km Turn right at the City of Cape Town Voëlvlei Waterworks sign. After 1.3km, turn left at the entrance to VYC."
+      },
+      "sailrsa_abbrev": "VYC",
+      "sailrsa_name": "Vogelvlei Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/VYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "WITS",
+      "club_id": 150,
+      "our_name": "Wits Sailing",
+      "new": {
+        "email": "wits.yacht@gmail.com",
+        "situation": "(how to get there) The Club does not have waters of their own - but tends to sail at VLC. The W.U.Y.C., has a club house on the West Campus of the University (behind Charles Skeen Stadium - Old Arena) open on Wednesday evenings from 20:00 for a social. Bar room facilities."
+      },
+      "sailrsa_abbrev": "WITS",
+      "sailrsa_name": "Wits University Yacht Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/WITS.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "WYAC",
+      "club_id": 19,
+      "our_name": "Witbank Yacht and Aquatic Club",
+      "new": {
+        "situation": "(how to get there) From the N4 (easterly direction) take the President Ave off ramp (also marked Witbank dam / pleasure resort) and turn right onto President Ave. Proceed over the freeway and straight on at the stop street. About 1.5km from the stop street you will see the turn off to Bankenveld Estate (Olifants River drive), proceed to the security gate then straight from there around a number of traffic circles and speed bumps down to the club. The last 500m or so is a gravel road. As we are part of the Bankenveld secure development it is essential to arrange your visit with a committee member to organise access through the security gate as well as the club’s gate which operates by “remote”. Click HERE for a map of the area."
+      },
+      "sailrsa_abbrev": "WYC",
+      "sailrsa_name": "Witbank Yacht & Aquatic Club",
+      "province": "GP",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/WYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "ZYC",
+      "club_id": 108,
+      "our_name": "Zululand Yacht Club",
+      "new": {
+        "situation": "(how to get there) ZLYC is located on the Richards Bay harbour, adjacent to the NSRI base. Coming from Durban on the N2, turn off right to Richards Bay on the R34. Turn off right towards the Tuzi Gazi Marina, but turn off left into Commodore Close before going over the bridge to Tuzi Gazi. Map reference: 28 o 47' 31\" S 32 o 05' 05\" E"
+      },
+      "sailrsa_abbrev": "ZLYC",
+      "sailrsa_name": "Zululand Yacht Club",
+      "province": "KZN",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/ZLYC.htm"
+    },
+    {
+      "status": "new_fields",
+      "matched": "ZVYC",
+      "club_id": 3,
+      "our_name": "Zeekoe Vlei Yacht Club",
+      "new": {
+        "situation": "& Directions ZVYC is on the western shore of Zeekoevlei. From Cape Town, take the M5 (Prince George Drive) freeway south towards Muizenberg. Turn off left at Victoria Road. Turn right at Peninsula Road. Turn left at Governors Walk."
+      },
+      "sailrsa_abbrev": "ZVYC",
+      "sailrsa_name": "Zeekoevlei Yacht Club",
+      "province": "WC",
+      "source_url": "https://sailrsa.org.za/Clubs/Detail/ZVYC.htm"
+    }
+  ]
+}
