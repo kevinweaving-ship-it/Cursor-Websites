@@ -26,7 +26,7 @@ START = "2026-10-03"
 END = "2026-10-04"
 AS_AT = "2026-10-04 17:30:00+02"
 RESULT_STATUS = "Final"
-LEFT_LOGO = "/artwork/Event Logo/Free-State-Youth-Provincial-Champs-2025.png"
+LEFT_LOGO = "/artwork/Event Logo/Free-State-Youth-Provincial-Champs-2025.png?v=20261010fs26"
 OPT_A_LOGO = "/artwork/Class Logo/Optimist-A-Class-Logo.png"
 OPT_B_LOGO = "/artwork/Class Logo/Optimist-B-Class-Logo.png"
 DAB_LOGO = "/artwork/Class Logo/Dabchick-Class-Logo.png"
@@ -497,11 +497,19 @@ def _write_header_icons() -> None:
 
 
 def _restore_event_logo() -> None:
-    src = Path("/var/www/sailingsa/api/artwork/Event Logo/Free-State-Youth-Provincial-Champs-2025.png")
-    dest = Path("/var/www/sailingsa/artwork/Event Logo/Free-State-Youth-Provincial-Champs-2025.png")
-    if src.exists() and not dest.exists():
-        dest.write_bytes(src.read_bytes())
-        print("restored_logo", dest)
+    name = "Free-State-Youth-Provincial-Champs-2025.png"
+    bundle = Path(__file__).resolve().parent / name
+    src = bundle if bundle.exists() else Path("/var/www/sailingsa/api/artwork/Event Logo") / name
+    if not src.exists():
+        return
+    data = src.read_bytes()
+    for dest in (
+        Path("/var/www/sailingsa/artwork/Event Logo") / name,
+        Path("/var/www/sailingsa/api/artwork/Event Logo") / name,
+    ):
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        print("event_logo", dest)
 
 
 def main():
