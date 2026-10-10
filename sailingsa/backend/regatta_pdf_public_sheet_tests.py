@@ -57,10 +57,8 @@ class PublicSheetSanitizeTests(unittest.TestCase):
             "</tr></tbody></table>"
         )
         out = sanitize_public_fleet_html(html)
-        self.assertIn("dam-bottle-code-pts", out)
-        self.assertIn(">5<", out)
-        self.assertIn("DNC", out)
-        self.assertNotIn("wc-code", out)
+        self.assertIn('class="wc-score">5</span>', out)
+        self.assertIn('class="wc-code">DNC</span>', out)
 
     def test_scored_cell_keeps_code_overlay(self):
         html = (
@@ -73,6 +71,19 @@ class PublicSheetSanitizeTests(unittest.TestCase):
         self.assertIn("wc-score", out)
         self.assertIn("wc-code", out)
         self.assertIn("OCS", out)
+        self.assertIn(">12<", out)
+
+    def test_fs_youth_style_score_above_code_is_kept(self):
+        html = (
+            "<table><thead><tr><th class=\"race-col\">R7</th></tr></thead><tbody><tr>"
+            '<td class="code race-col"><span class="code">'
+            '<span class="wc-score">14</span><span class="wc-code">DNC</span>'
+            "</span></td></tr></tbody></table>"
+        )
+        out = sanitize_public_fleet_html(html)
+        self.assertIn('class="wc-score">14</span>', out)
+        self.assertIn('class="wc-code">DNC</span>', out)
+        self.assertNotIn(">2<", out)
 
     def test_parent_left_logo_is_event_only(self):
         page = (

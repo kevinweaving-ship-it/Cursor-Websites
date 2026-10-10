@@ -138,6 +138,14 @@ _WC_CODE_RE = re.compile(
     r'<span class="wc-code">\s*([A-Za-z]{2,5})\s*</span>',
     re.I,
 )
+_CODE_TOKEN_RE = re.compile(
+    r"\b(DNC|DNS|DNF|DNR|RET|DSQ|UFD|BFD|DPI|OCS|OCF|NSC|DNE|ZFP|SCP|RDG|TLE)\b",
+    re.I,
+)
+_NUM_CODE_RE = re.compile(
+    r"^\(?\s*(\d+(?:\.\d+)?)\s+([A-Za-z]{2,5})\s*\)?$",
+    re.I,
+)
 
 
 def _entry_count(html: str) -> int:
@@ -158,9 +166,13 @@ def pdf_page_orientation(slug: str) -> str:
     return ""
 
 
-def _flatten_parent_race_codes(html: str) -> str:
-    """Parent paints DNC/DNS as points (entries+1) over the code. Mirror that."""
-    pts = str(_entry_count(html) + 1)
+def _ensure_parent_code_cells(html: str) -> str:
+    """Same gold cell as FS Youth: wc-score (points) over wc-code (DNS/DNC).
+
+    Parent already has that when the stored score is '14 DNC'. Code-only cells
+    (just DNC) get entries+1 so print CSS can overlay the code under the score.
+    """
+    pts_default = str(_entry_count(html) + 1)
 
     def _cell(m: re.Match) -> str:
         tag, attrs, inner = m.group(1), m.group(2), m.group(3)
@@ -169,17 +181,29 @@ def _flatten_parent_race_codes(html: str) -> str:
         cls = attrs or ""
         if "race-col" not in cls and "code" not in cls:
             return m.group(0)
-        if "wc-score" in inner or "dam-bottle-code-stack" in inner:
+        if "wc-score" in inner:
             return m.group(0)
-        cm = _WC_CODE_RE.search(inner)
-        if not cm:
-            return m.group(0)
-        code = cm.group(1).upper()
+        discarded = " disc" in f" {cls}" or "disc" in (inner or "")
+        txt = _plain(inner)
+        if txt.startswith("(") and txt.endswith(")"):
+            discarded = True
+            txt = txt[1:-1].strip()
+        nm = _NUM_CODE_RE.match(txt)
+        if nm:
+            points, code = nm.group(1), nm.group(2).upper()
+        else:
+            cm = _WC_CODE_RE.search(inner) or _CODE_TOKEN_RE.search(txt)
+            if not cm:
+                return m.group(0)
+            code = cm.group(1).upper()
+            points = pts_default
+        score = f"({points})" if discarded else points
+        wrap = "code disc" if discarded else "code"
         return (
             f"<{tag}{attrs}>"
-            f'<span class="dam-bottle-code-stack">'
-            f'<span class="dam-bottle-code-pts">{pts}</span>'
-            f'<span class="dam-bottle-code-txt">{code}</span>'
+            f'<span class="{wrap}">'
+            f'<span class="wc-score">{score}</span>'
+            f'<span class="wc-code">{code}</span>'
             f"</span></{tag}>"
         )
 
@@ -190,7 +214,7 @@ def sanitize_public_fleet_html(html: str, event_logo: str = "") -> str:
     """Keep Rank / Class / Sail / Club / Helm / races / Total / Nett only."""
     out = html or ""
     out = _strip_hidden_columns(out)
-    out = _flatten_parent_race_codes(out)
+    out = _ensure_parent_code_cells(out)
     out = _replace_fleet_header_class_logos(out, event_logo)
     return out
 
