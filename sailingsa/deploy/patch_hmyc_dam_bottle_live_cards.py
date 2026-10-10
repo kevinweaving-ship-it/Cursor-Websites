@@ -140,6 +140,14 @@ loader = f"""
     path.indexOf("/regatta/{DAM}/") !== 0
   )
     return;
+  if (!document.getElementById("dam-bottle-pre-css")) {{
+    var hide = document.createElement("style");
+    hide.id = "dam-bottle-pre-css";
+    hide.textContent =
+      '.fleet-section[data-block-id="{DAM}:open"]{{visibility:hidden!important}}' +
+      'html[data-dbs-ready="1"] .fleet-section[data-block-id="{DAM}:open"]{{visibility:visible!important}}';
+    (document.head || document.documentElement).appendChild(hide);
+  }}
   if (document.querySelector('script[src*="hmyc-dam-bottle-live-boot.js"]')) return;
   var s = document.createElement("script");
   s.src = "/js/hmyc-dam-bottle-live-boot.js?v={BOOT_VER}";
@@ -147,6 +155,18 @@ loader = f"""
   document.head.appendChild(s);
 }})();
 """
+
+
+def replace_loader(text):
+    start = text.find(f"/* {MARKER} */")
+    if start < 0:
+        return text.rstrip() + "\n" + loader
+    end = text.find("})();", start)
+    if end < 0:
+        return text.rstrip() + "\n" + loader
+    return text[:start] + loader.strip() + text[end + 5 :]
+
+
 for dest in (
     Path("/var/www/sailingsa/js/regatta-pdf-share.js"),
     Path("/var/www/sailingsa/frontend/js/regatta-pdf-share.js"),
@@ -154,18 +174,11 @@ for dest in (
     if not dest.is_file():
         continue
     t = dest.read_text(encoding="utf-8")
-    if MARKER in t:
-        bumped = re.sub(
-            r"hmyc-dam-bottle-live-boot\.js\?v=dbs\d+",
-            f"hmyc-dam-bottle-live-boot.js?v={BOOT_VER}",
-            t,
-        )
-        if bumped != t:
-            must_write(dest, bumped)
-        else:
-            print("loader already", BOOT_VER, dest)
-        continue
-    must_write(dest, t.rstrip() + "\n" + loader)
+    nxt = replace_loader(t)
+    if nxt != t:
+        must_write(dest, nxt)
+    else:
+        print("loader already", BOOT_VER, dest)
 
 api = Path("/var/www/sailingsa/api/api.py").read_bytes()
 digest = hashlib.sha256(api).hexdigest()
