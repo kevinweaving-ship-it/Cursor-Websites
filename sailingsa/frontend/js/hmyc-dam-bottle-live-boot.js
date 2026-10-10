@@ -262,13 +262,20 @@
         })
       );
     }
-    if (adminEditOn()) {
+    if (adminEditOn() && rid) {
+      var one = {};
+      Object.keys(s).forEach(function (race) {
+        var rec = asRec(s[race] && s[race][String(rid)]);
+        if (!rec.et) return;
+        if (!one[race]) one[race] = {};
+        one[race][String(rid)] = rec;
+      });
       jobs.push(
         fetch(ET_API, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ rid: RID, store: s, updated: Date.now() }),
+          body: JSON.stringify({ rid: RID, store: one, updated: Date.now() }),
         }).catch(function () {
           return null;
         })

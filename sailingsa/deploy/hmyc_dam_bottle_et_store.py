@@ -138,16 +138,41 @@ def read_store():
     return payload
 
 
+def ok_et(raw):
+    s = str(raw or "").strip()
+    if s in {"0:00", "0", "00:00"}:
+        return True
+    if re.match(r"^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS|DPI)$", s, re.I):
+        return True
+    return bool(re.match(r"^\d+:[0-5]\d(?:\.\d+)?$", s))
+
+
 def write_store(payload):
     if not isinstance(payload, dict):
         raise ValueError("object required")
-    payload["store"] = merge_store(payload.get("store") or {}, {})
-    payload["rid"] = DAM
+    incoming = payload.get("store") or {}
+    clean = {}
+    for race, rows in incoming.items():
+        if not str(race).startswith("R") or not isinstance(rows, dict):
+            continue
+        for rid, raw in rows.items():
+            rec = rec_of(raw)
+            if not ok_et(rec.get("et")):
+                continue
+            clean.setdefault(str(race).upper(), {})[str(rid)] = rec
+    have = {}
+    if STORE.is_file():
+        try:
+            have = (json.loads(STORE.read_text(encoding="utf-8")) or {}).get("store") or {}
+        except Exception:
+            have = {}
+    merged = merge_store(have if isinstance(have, dict) else {}, clean)
+    payload = {"rid": DAM, "store": merged, "updated": payload.get("updated")}
     STORE.parent.mkdir(parents=True, exist_ok=True)
     tmp = STORE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     tmp.replace(STORE)
-    save_to_db(payload.get("store") or {})
+    save_to_db(merged)
 
 
 class Handler(BaseHTTPRequestHandler):
