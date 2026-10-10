@@ -1,41 +1,27 @@
 #!/usr/bin/expect -f
-# Rollback api.py to known-good backup (use if API crashes on startup).
+# Restore live api.py from Master/Gold ONLY.
+# Dated / repo / February backups are gone and must never be used again.
 # Run from project root: expect sailingsa/deploy/fix-live-rollback-api.exp
 
 set timeout 90
 set password "TimAdd#072082"
 set server "102.218.215.253"
 set user "root"
-set api_root "/var/www/sailingsa/api"
-
-set project_root [file normalize "[file dirname [info script]]/../.."]
-set backup_api "$project_root/api.py.BU_20260213_120511"
-
-if {![file exists $backup_api]} {
-    puts "ERROR: Backup not found: $backup_api"
-    exit 1
-}
 
 puts "=========================================="
-puts "Rollback API — Deploy api.py.BU_20260213"
+puts "Rollback API — Master/Gold only"
 puts "=========================================="
+puts "Source: /root/backups/API_MASTER_GOLD/api.py"
+puts "Hash:   9c1eea9a2bebfd02125c8eb5c133b776fd0cf06ca67e066a09a293f77857d32b"
+puts ""
 
-spawn scp -o StrictHostKeyChecking=no $backup_api ${user}@${server}:${api_root}/api.py
-expect {
-    -re "assword" { send "$password\r"; exp_continue }
-    "100%" { }
-    eof { }
-    timeout { puts "SCP timeout"; exit 1 }
-}
-wait
-
-spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "systemctl restart sailingsa-api && sleep 3 && systemctl status sailingsa-api --no-pager | head -12"
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "set -e; GOLD=/root/backups/API_MASTER_GOLD/api.py; LIVE=/var/www/sailingsa/api/api.py; test -f \$GOLD; echo GOLD \$(sha256sum \$GOLD); chattr -i \$LIVE || true; cp \$GOLD \$LIVE; chown www-data:www-data \$LIVE; systemctl restart sailingsa-api; sleep 3; echo LIVE \$(sha256sum \$LIVE); systemctl is-active sailingsa-api"
 expect {
     -re "assword" { send "$password\r"; exp_continue }
     eof { }
-    timeout { }
+    timeout { puts "Timeout"; exit 1 }
 }
 wait
 
 puts ""
-puts "Done. Test: https://sailingsa.co.za/"
+puts "Done. Only Master/Gold may be restored. See docs/API_MASTER_GOLD.md"

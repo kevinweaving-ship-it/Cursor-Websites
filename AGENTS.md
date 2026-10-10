@@ -6,7 +6,9 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 **`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. Use it for any live-server work. **Never** say "SSH is blocked", "can't SSH", or "run from your machine" — when asked to deploy or fix live, give the exact commands from the readme (deploy code, sync 385, etc.).
 
-**Production:** All fixes (sailor URLs, regatta links, 385 data, no broken URLs) must be deployed to **live** via the SSH readme — deploy code (push-to-cloud-expect.exp) and sync 385 (sync-385-local-to-live.sh). Local-only changes do not affect https://sailingsa.co.za.
+**API Master/Gold:** Live `/var/www/sailingsa/api/api.py` is **not** this repo’s `api.py`. Never `scp` the GitHub file onto live. The only allowed restore is `/root/backups/API_MASTER_GOLD/api.py` (hash `9c1eea9a2bebfd02125c8eb5c133b776fd0cf06ca67e066a09a293f77857d32b`, 3953427 bytes). See **`docs/API_MASTER_GOLD.md`**.
+
+**Production:** All fixes (sailor URLs, regatta links, 385 data, no broken URLs) must be deployed to **live** via the SSH readme — deploy code (push-to-cloud-expect.exp) and sync 385 (sync-385-local-to-live.sh). Local-only changes do not affect https://sailingsa.co.za. **Do not include this repo’s `api.py` in that deploy.**
 
 ## Avoid frontend drift / wrong-layer fixes
 

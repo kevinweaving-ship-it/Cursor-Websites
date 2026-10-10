@@ -25,6 +25,14 @@ if {![file exists $api_py]} {
     exit 1
 }
 
+set refuse [file normalize "$script_dir/refuse_stale_local_api.sh"]
+if {[catch {exec bash $refuse $api_py} err]} {
+    puts $err
+    puts "BLOCKED: will not scp this GitHub repo api.py over Master/Gold."
+    puts "See docs/API_MASTER_GOLD.md"
+    exit 1
+}
+
 puts "=========================================="
 puts "SailingSA — Deploy slug/redirect to live"
 puts "=========================================="

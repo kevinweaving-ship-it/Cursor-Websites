@@ -5,10 +5,18 @@ set -e
 API="/var/www/sailingsa/api/api.py"
 BACK="/root/backups"
 IN="/root/incoming/api.py"
-TS=$(date +"%Y%m%d_%H%M%S")
 
+# MASTER/GOLD lock — refuse stale/repo api.py (old EVENTS/SAILORS club layout)
+if [ -f /root/backups/API_MASTER_GOLD/refuse_stale_incoming_api.sh ]; then
+  . /root/backups/API_MASTER_GOLD/refuse_stale_incoming_api.sh
+  if ! refuse_stale_incoming_api "$IN"; then
+    exit 1
+  fi
+fi
+
+# Do NOT write dated api.py.$TS copies. Those became restore bait.
+# The only allowed restore is /root/backups/API_MASTER_GOLD/api.py
 mkdir -p $BACK
-cp $API $BACK/api.py.$TS
 chattr -i $API
 cp $IN $API
 chown www-data:www-data $API

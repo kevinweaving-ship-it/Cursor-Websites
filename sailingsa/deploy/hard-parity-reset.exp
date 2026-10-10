@@ -10,6 +10,14 @@ set api_dir "/var/www/sailingsa/api"
 set script_dir [file dirname [info script]]
 set project_root [file normalize "$script_dir/../.."]
 
+set refuse [file normalize "$script_dir/refuse_stale_local_api.sh"]
+if {[catch {exec bash $refuse $project_root/api.py} err]} {
+    puts $err
+    puts "BLOCKED: hard-parity-reset will not upload this GitHub repo api.py over Master/Gold."
+    puts "See docs/API_MASTER_GOLD.md"
+    exit 1
+}
+
 puts "=== STEP 1 — Kill any wrong API ==="
 spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "systemctl stop sailingsa-api 2>/dev/null; pkill -f uvicorn 2>/dev/null; sleep 2; echo done"
 expect { "password:" { send "$password\r"; exp_continue } eof { } timeout { exit 1 } }

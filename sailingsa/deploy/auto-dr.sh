@@ -27,7 +27,10 @@ if [ "$CHANGED_FRONTEND" = true ]; then
 fi
 
 if [ "$CHANGED_BACKEND" = true ]; then
-  echo "Deploying BACKEND..."
+  echo "BACKEND change detected — refusing auto-deploy of this repo api.py."
+  echo "Live is Master/Gold only. See docs/API_MASTER_GOLD.md"
+  bash "$(dirname "$0")/refuse_stale_local_api.sh" api.py || true
+  exit 1
   scp -i ~/.ssh/sailingsa_live_key api.py root@102.218.215.253:/root/incoming/api.py
   if [ -f regatta_host_code.py ]; then
     scp -i ~/.ssh/sailingsa_live_key regatta_host_code.py root@102.218.215.253:/root/incoming/regatta_host_code.py

@@ -7,7 +7,11 @@ echo "=== STEP 1: Stop existing API and kill uvicorn ==="
 systemctl stop sailingsa-api || true
 pkill -f uvicorn || true
 
-echo "=== STEP 2: Deploy canonical api.py ==="
+echo "=== STEP 2: BLOCKED — Master/Gold lock ==="
+echo "This script must not copy /root/Project 6/api.py over live."
+echo "Restore only: cp /root/backups/API_MASTER_GOLD/api.py /var/www/sailingsa/api/api.py"
+echo "See docs/API_MASTER_GOLD.md"
+exit 1
 cp /root/Project\ 6/api.py /var/www/sailingsa/api/api.py
 chown www-data:www-data /var/www/sailingsa/api/api.py
 

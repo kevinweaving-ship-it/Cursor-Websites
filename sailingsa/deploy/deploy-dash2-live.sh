@@ -12,6 +12,10 @@ if [ ! -f "api.py" ]; then
   echo "ERROR: Run from project root (where api.py is). cd to 'Project 6' then run this script."
   exit 1
 fi
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+bash "$ROOT/sailingsa/deploy/refuse_stale_local_api.sh" "$ROOT/api.py"
+echo "Blocked: do not upload this repo api.py. Live is Master/Gold only. See docs/API_MASTER_GOLD.md"
+exit 1
 if grep -q "Blank page. Build here" api.py 2>/dev/null; then
   echo "ERROR: Your api.py still has the old blank page. Get the full Dash 2 version from the repo."
   exit 1

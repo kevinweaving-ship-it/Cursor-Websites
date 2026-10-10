@@ -18,6 +18,14 @@ if {![file exists $api_py]} {
     exit 1
 }
 
+set refuse [file normalize "[file dirname [info script]]/refuse_stale_local_api.sh"]
+if {[catch {exec bash $refuse $api_py} err]} {
+    puts $err
+    puts "BLOCKED: this GitHub repo api.py must not overwrite live Master/Gold."
+    puts "See docs/API_MASTER_GOLD.md"
+    exit 1
+}
+
 puts "=========================================="
 puts "SailingSA — Deploy API to live only"
 puts "=========================================="
