@@ -6,7 +6,7 @@ Manual parsed-results ingestion (scripts that insert into `results`, e.g. `add_r
 
 **Parent `/regatta/{id}` left header = truth.** If a named event has its own **Event Logo** there, that is the only mark in the event-logo slot. Open / ILCA / any Class Logo is superseded.
 
-- **Parent URL (single-class named event):** Event Logo left, eager. Hide the superseded Class Logo in `.class-header` / fleet-title. Multi-class events keep fleet class marks. Host / Club Event stamps stay.
+- **Parent URL (single-class named event):** Event Logo left, eager. Fleet header left uses the **same** Event Logo, smaller and in line — do not leave that slot empty after Open/class is superseded. Multi-class events keep fleet class marks. Host club on the right stays.
 - **Landing live card + All Regattas / search cards:** same parent Event Logo. Never first-paint `logo_url` when it is a Class Logo path (API often returns first class, e.g. Open).
 - **New / more recent events:** set `wc_regatta_header_icons.json` **left** to the Event Logo path. Baker (`landing_event_story_cards.py`) and cards read that. Do not leave Class Logo as the card first-paint.
 - Trophy photos in `Event Logo/` (e.g. Midmar cup shots) are **not** header marks — do not put them in left.
