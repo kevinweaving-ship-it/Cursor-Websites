@@ -209,7 +209,7 @@ def parse_row(rest: str, rank: int) -> dict:
     toks = rest.split()
     if not toks:
         raise ValueError("empty row")
-    sail = toks[0]
+    sail = re.sub(r"^RSA", "", toks[0], flags=re.I)
     # scores start at first token that is number, (number, or penalty
     start = None
     for i, t in enumerate(toks[1:], start=1):
