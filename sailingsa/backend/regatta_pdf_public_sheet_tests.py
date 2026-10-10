@@ -43,6 +43,31 @@ class PublicSheetSanitizeTests(unittest.TestCase):
         self.assertIn("Helm", out)
         self.assertIn("Nett", out)
 
+    def test_parent_dnc_is_the_cell_value(self):
+        html = (
+            "<table><thead><tr><th class=\"race-col\">R2</th><th class=\"nett-col\">Nett</th></tr></thead>"
+            "<tbody><tr>"
+            '<td class="code race-col" data-race-key="R2">'
+            '<span class="code"><span class="wc-code">DNC</span></span></td>'
+            '<td class="nett-col">18</td>'
+            "</tr></tbody></table>"
+        )
+        out = sanitize_public_fleet_html(html)
+        self.assertIn(">DNC<", out)
+        self.assertNotIn("wc-code", out)
+
+    def test_scored_cell_keeps_code_overlay(self):
+        html = (
+            "<table><thead><tr><th class=\"race-col\">R1</th></tr></thead><tbody><tr>"
+            '<td class="race-col"><span class="wc-score">12</span>'
+            '<span class="wc-code">OCS</span></td>'
+            "</tr></tbody></table>"
+        )
+        out = sanitize_public_fleet_html(html)
+        self.assertIn("wc-score", out)
+        self.assertIn("wc-code", out)
+        self.assertIn("OCS", out)
+
     def test_parent_left_logo_is_event_only(self):
         page = (
             '<img src="/artwork/Event%20Logo/Dam-Bottle-Sprints.png?v=20261010pt1" '

@@ -134,10 +134,39 @@ def _replace_fleet_header_class_logos(html: str, event_logo: str) -> str:
     return _IMG_RE.sub(_img, html or "")
 
 
+_WC_CODE_RE = re.compile(
+    r'<span class="wc-code">\s*([A-Za-z]{2,5})\s*</span>',
+    re.I,
+)
+
+
+def _flatten_parent_race_codes(html: str) -> str:
+    """Parent shows DNC/DNS as the cell value. Print CSS overlays .wc-code at 50%
+    under a score — when there is no score the code vanishes. Promote it."""
+
+    def _cell(m: re.Match) -> str:
+        tag, attrs, inner = m.group(1), m.group(2), m.group(3)
+        if tag.lower() != "td":
+            return m.group(0)
+        cls = attrs or ""
+        if "race-col" not in cls and "code" not in cls:
+            return m.group(0)
+        if "wc-score" in inner:
+            return m.group(0)
+        cm = _WC_CODE_RE.search(inner)
+        if not cm:
+            return m.group(0)
+        code = cm.group(1).upper()
+        return f"<{tag}{attrs}>{code}</{tag}>"
+
+    return _CELL_RE.sub(_cell, html or "")
+
+
 def sanitize_public_fleet_html(html: str, event_logo: str = "") -> str:
     """Keep Rank / Class / Sail / Club / Helm / races / Total / Nett only."""
     out = html or ""
     out = _strip_hidden_columns(out)
+    out = _flatten_parent_race_codes(out)
     out = _replace_fleet_header_class_logos(out, event_logo)
     return out
 
