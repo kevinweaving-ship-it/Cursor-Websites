@@ -1,7 +1,7 @@
 /**
  * Dam Bottle Sprints — each race has its own ET + ✓ + R.
  * Click that R header to show/hide its ET/✓. R+ adds a race block. R- drops the last.
- * Admin types ET only. 0:00 is DNS. No observers. Does not change live api.py.
+ * Admin types ET only. 0:00 is DNC. No observers. Does not change live api.py.
  */
 (function () {
   "use strict";
@@ -397,12 +397,24 @@
     return null;
   }
 
-  function isDnsEt(raw) {
+  function isZeroEt(raw) {
     var s = String(raw || "").trim();
     if (!s) return false;
-    if (/^dns$/i.test(s)) return true;
     if (/^0+([:.]0+)*$/.test(s)) return true;
     return parseET(s) === 0;
+  }
+
+  function etCode(raw) {
+    var s = String(raw || "").trim();
+    if (!s) return "";
+    if (/^dnc$/i.test(s) || isZeroEt(s)) return "DNC";
+    if (/^dns$/i.test(s)) return "DNS";
+    var m = s.match(/^(dnf|ret|dsq|ufd|bfd|ocs)$/i);
+    return m ? m[1].toUpperCase() : "";
+  }
+
+  function isDnsEt(raw) {
+    return !!etCode(raw);
   }
 
   function formatCorrected(sec) {
@@ -1013,7 +1025,7 @@
     });
     ranked.forEach(function (it, i) { it.place = i + 1; });
     items.forEach(function (it) {
-      if (it.dns) it.place = "DNS";
+      if (it.dns) it.place = etCode(etRaw(it.tr, race) || etFor(race, it.rid)) || "DNC";
       var corrTd = it.tr.querySelector('td.dam-bottle-corr-col[data-for-race="' + race + '"]');
       var rTd = it.tr.querySelector('td.race-col[data-race-key="' + race + '"]');
       if (it.keep) {
