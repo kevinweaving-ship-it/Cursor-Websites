@@ -115,7 +115,7 @@ loader = f"""
     return;
   if (document.querySelector('script[src*="hmyc-dam-bottle-live-boot.js"]')) return;
   var s = document.createElement("script");
-  s.src = "/js/hmyc-dam-bottle-live-boot.js?v=dbs1";
+  s.src = "/js/hmyc-dam-bottle-live-boot.js?v=dbs7";
   s.defer = true;
   document.head.appendChild(s);
 }})();
