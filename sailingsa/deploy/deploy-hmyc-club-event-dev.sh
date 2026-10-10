@@ -1,52 +1,19 @@
 #!/usr/bin/env bash
-# Deploy HMYC club-admin PY event page to live.
-# Audit URL (working title until the event is named):
-#   https://sailingsa.co.za/dev-1/club/hmyc/event
-# Run from project root. See sailingsa/deploy/SSH_LIVE.md
+# BLOCKED. This script used to scp this GitHub repo api.py over live and
+# brought back the 4–5 month EVENTS/SAILORS club layout.
+#
+# Live api.py is Master/Gold only:
+#   /root/backups/API_MASTER_GOLD/api.py
+#   sha256 9c1eea9a2bebfd02125c8eb5c133b776fd0cf06ca67e066a09a293f77857d32b
+#   3953427 bytes
+#
+# See docs/API_MASTER_GOLD.md (PR for lock: cursor/api-master-gold-lock-a65f).
+# HMYC Dev must be a new file or thin route beside gold — never replace
+# /var/www/sailingsa/api/api.py with this repo.
 set -euo pipefail
 
-SERVER="102.218.215.253"
-WEB_ROOT="/var/www/sailingsa"
-KEY="${SAILINGSA_SSH_KEY:-$HOME/.ssh/sailingsa_live_key}"
-PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SSH_OPTS=(-o StrictHostKeyChecking=no)
-[ -f "$KEY" ] && SSH_OPTS+=(-i "$KEY")
-
-if [ ! -f "$PROJECT_ROOT/api.py" ]; then
-  echo "ERROR: api.py missing. Run from repo root."
-  exit 1
-fi
-
-echo "=== 1) Backend module ==="
-ssh "${SSH_OPTS[@]}" "root@${SERVER}" "mkdir -p ${WEB_ROOT}/sailingsa/backend"
-scp "${SSH_OPTS[@]}" \
-  "$PROJECT_ROOT/sailingsa/__init__.py" \
-  "root@${SERVER}:${WEB_ROOT}/sailingsa/__init__.py"
-scp "${SSH_OPTS[@]}" \
-  "$PROJECT_ROOT/sailingsa/backend/__init__.py" \
-  "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/__init__.py"
-scp "${SSH_OPTS[@]}" \
-  "$PROJECT_ROOT/sailingsa/backend/hmyc_club_py_event_dev.py" \
-  "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/hmyc_club_py_event_dev.py"
-
-echo "=== 2) api.py (verified deploy) ==="
-ssh "${SSH_OPTS[@]}" "root@${SERVER}" "mkdir -p /root/incoming"
-scp "${SSH_OPTS[@]}" \
-  "$PROJECT_ROOT/api.py" "root@${SERVER}:/root/incoming/api.py"
-ssh "${SSH_OPTS[@]}" "root@${SERVER}" "/root/deploy_api_verified.sh"
-
-echo "=== 3) Verify audit URL ==="
-curl -sS -o /tmp/hmyc-club-event-live.html -w "HTTP %{http_code}\n" \
-  "https://sailingsa.co.za/dev-1/club/hmyc/event"
-python3 - <<'PY'
-from pathlib import Path
-h = Path("/tmp/hmyc-club-event-live.html").read_text(encoding="utf-8", errors="replace")
-need = ("HMYC Club Event", "id=\"fleet\"", ">Time<", ">PY<", "Lorrian Wells")
-missing = [n for n in need if n not in h]
-if missing:
-    raise SystemExit(f"live page missing {missing}")
-print("live page OK")
-PY
-
-echo ""
-echo "Audit: https://sailingsa.co.za/dev-1/club/hmyc/event"
+echo "BLOCKED: deploy-hmyc-club-event-dev.sh will not upload this repo api.py."
+echo "Live is Master/Gold only. See docs/API_MASTER_GOLD.md"
+echo "Restore if needed:"
+echo "  cp /root/backups/API_MASTER_GOLD/api.py /var/www/sailingsa/api/api.py"
+exit 1
