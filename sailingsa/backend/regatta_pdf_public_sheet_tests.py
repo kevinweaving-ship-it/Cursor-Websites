@@ -1,6 +1,10 @@
 import unittest
 
-from regatta_pdf_public_sheet import sanitize_public_fleet_html
+from regatta_pdf_public_sheet import (
+    extract_parent_fleet_htmls,
+    parent_page_left_logo,
+    sanitize_public_fleet_html,
+)
 
 
 class PublicSheetSanitizeTests(unittest.TestCase):
@@ -36,6 +40,23 @@ class PublicSheetSanitizeTests(unittest.TestCase):
         self.assertIn("Rank", out)
         self.assertIn("Helm", out)
         self.assertIn("Nett", out)
+
+    def test_parent_left_logo_is_event_only(self):
+        page = (
+            '<img src="/artwork/Event%20Logo/Dam-Bottle-Sprints.png?v=20261010pt1" '
+            'class="regatta-header-logo-img regatta-header-left-logo-img" />'
+            '<div class="fleet-section"><div class="class-header">x</div>'
+            "<table><tr><th>Rank</th></tr></table></div></div>"
+        )
+        self.assertIn("Dam-Bottle-Sprints", parent_page_left_logo(page))
+        self.assertEqual(len(extract_parent_fleet_htmls(page)), 1)
+        self.assertEqual(
+            parent_page_left_logo(
+                '<img src="/artwork/Class Logo/Open-Class-Logo.png" '
+                'class="regatta-header-logo-img regatta-header-left-logo-img" />'
+            ),
+            "",
+        )
 
 
 if __name__ == "__main__":

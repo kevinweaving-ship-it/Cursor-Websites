@@ -1,13 +1,15 @@
 """Public results sheet for stored PDFs.
 
-The parent URL may still carry admin/calc columns (Age, PY, Elapsed JSON,
-Corrected JSON) and a superseded Class Logo. Those are not the public page.
-Strip them before Chrome prints /results.pdf.
+Parent `/regatta/{id}` is truth. The PDF must take logos and the public
+fleet table from that page — never a second backend render that still has
+Age / PY / Elapsed JSON / Open class marks CSS-hidden on the URL.
 """
 from __future__ import annotations
 
 import re
+from typing import Any, Optional
 from urllib.parse import unquote
+from urllib.request import Request, urlopen
 
 _DROP_LABELS = frozenset(
     {
@@ -138,3 +140,81 @@ def sanitize_public_fleet_html(html: str, event_logo: str = "") -> str:
     out = _strip_hidden_columns(out)
     out = _replace_fleet_header_class_logos(out, event_logo)
     return out
+
+
+_LEFT_LOGO_RE = re.compile(
+    r'<img[^>]+class="[^"]*regatta-header-left-logo-img[^"]*"[^>]*>',
+    re.I,
+)
+_SRC_RE = re.compile(r'src="([^"]+)"', re.I)
+_FLEET_RE = re.compile(
+    r'<div class="fleet-section\b[^>]*>[\s\S]*?</table>\s*</div>\s*</div>',
+    re.I,
+)
+
+
+def parent_page_left_logo(html: str) -> str:
+    """Left header img on the parent page — Event Logo when the parent has one."""
+    m = _LEFT_LOGO_RE.search(html or "")
+    if not m:
+        m2 = re.search(
+            r'<img src="([^"]+)"[^>]*class="[^"]*regatta-header-left-logo-img',
+            html or "",
+            flags=re.I,
+        )
+        src = m2.group(1) if m2 else ""
+    else:
+        sm = _SRC_RE.search(m.group(0))
+        src = sm.group(1) if sm else ""
+    src = (src or "").strip()
+    return src if _is_event_logo(src) else ""
+
+
+def extract_parent_fleet_htmls(html: str) -> list[str]:
+    return [m.group(0) for m in _FLEET_RE.finditer(html or "")]
+
+
+def fetch_parent_page_html(slug: str, timeout: int = 20) -> str:
+    rid = str(slug or "").strip().strip("/")
+    if not rid:
+        return ""
+    url = f"https://sailingsa.co.za/regatta/{rid}"
+    try:
+        req = Request(url, headers={"User-Agent": "SailingSA-parent-truth-pdf", "Cache-Control": "no-cache"})
+        with urlopen(req, timeout=timeout) as resp:
+            return resp.read().decode("utf-8", "replace")
+    except Exception:
+        return ""
+
+
+def fleets_from_parent_truth(
+    slug: str,
+    fallback_fleets: Optional[list[dict[str, Any]]] = None,
+    left_logo: str = "",
+) -> tuple[list[dict[str, Any]], str]:
+    """PDF fleets + Event Logo from the parent URL. Fallback is sanitized caller HTML."""
+    page = fetch_parent_page_html(slug)
+    event_logo = parent_page_left_logo(page) or (left_logo if _is_event_logo(left_logo) else "")
+    parent_chunks = extract_parent_fleet_htmls(page) if page else []
+    out: list[dict[str, Any]] = []
+    if parent_chunks:
+        for i, chunk in enumerate(parent_chunks):
+            fb = (fallback_fleets or [None])[i] if fallback_fleets and i < len(fallback_fleets) else {}
+            html = sanitize_public_fleet_html(chunk, event_logo)
+            n_rows = max(len(re.findall(r"<tr\b", html, flags=re.I)) - 1, 0)
+            out.append(
+                {
+                    "class_slug": str((fb or {}).get("class_slug") or "").strip(),
+                    "pdf_slug": str((fb or {}).get("pdf_slug") or "").strip(),
+                    "html": html,
+                    "n_rows": n_rows or int((fb or {}).get("n_rows") or 0),
+                }
+            )
+        if out:
+            return out, event_logo or left_logo
+    cleaned = []
+    for f in fallback_fleets or []:
+        item = dict(f)
+        item["html"] = sanitize_public_fleet_html(item.get("html") or "", event_logo or left_logo)
+        cleaned.append(item)
+    return cleaned, event_logo or left_logo

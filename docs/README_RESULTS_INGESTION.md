@@ -11,7 +11,7 @@ Manual parsed-results ingestion (scripts that insert into `results`, e.g. `add_r
 - **New / more recent events:** set `wc_regatta_header_icons.json` **left** to the Event Logo path. Baker (`landing_event_story_cards.py`) and cards read that. Do not leave Class Logo as the card first-paint.
 - Trophy photos in `Event Logo/` (e.g. Midmar cup shots) are **not** header marks — do not put them in left.
 - Helper: `sailingsa/backend/parent_event_logo.py`. Event-page JS: `sailingsa/frontend/js/parent-event-logo-truth.js` (appended on live to `regatta-pdf-share.js`; do not add a new script tag — gold `api.py` is locked).
-- **Stored `/results.pdf`:** public sheet only. Strip Age / PY / Elapsed / Corrected JSON and any superseded Class Logo (`regatta_pdf_public_sheet.py`). Do not print admin/calc columns that CSS-hide on the URL.
+- **Stored `/results.pdf`:** take fleets and the Event Logo from the parent `/regatta/{id}` page (`fleets_from_parent_truth`). Never print a second backend sheet that still has Age / PY / Elapsed JSON or a superseded Open/class mark.
 - Nobody asked to keep the leftover class-logo first-paint. It was a 1 Sep 2026 landing shortcut (`ac0be7cd`) that painted API `logo_url` immediately so cards were not empty.
 
 ---
