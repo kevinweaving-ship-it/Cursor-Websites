@@ -91,7 +91,10 @@
     css.textContent =
       ".class-header-logo-col[data-sa-event-logo-fleet='1']{display:flex!important;visibility:visible!important;align-items:center;}" +
       ".class-header-logo-col[data-sa-event-logo-fleet='1'] img{display:block!important;visibility:visible!important;" +
-      "height:auto;width:auto;max-height:min(18vw,80px);max-width:min(42vw,220px);object-fit:contain;}";
+      "height:auto;width:auto;max-height:min(18vw,80px);max-width:min(42vw,220px);object-fit:contain;}" +
+      "#dam-bottle-open-fleet .table-container,#dam-bottle-open-fleet .table-wrapper{" +
+      "overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%!important;max-width:100%;box-sizing:border-box;}" +
+      "#dam-bottle-open-fleet table.fleet-results-table{width:100%!important;min-width:100%!important;max-width:none;box-sizing:border-box;}";
     (document.head || document.documentElement).appendChild(css);
   }
   apply();
