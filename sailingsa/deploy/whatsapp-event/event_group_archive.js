@@ -35,6 +35,14 @@ function classify(inner) {
   if (inner.conversation || inner.extendedTextMessage) return { kind: 'text', text: (inner.conversation || inner.extendedTextMessage.text || '').trim() };
   if (inner.imageMessage) return { kind: 'photo', node: inner.imageMessage, caption: inner.imageMessage.caption || '' };
   if (inner.videoMessage) return { kind: 'video', node: inner.videoMessage, caption: inner.videoMessage.caption || '' };
+  if (inner.ptvMessage) return { kind: 'video', node: inner.ptvMessage, caption: inner.ptvMessage.caption || '' };
+  if (inner.documentMessage) {
+    const n = inner.documentMessage;
+    const mime = String(n.mimetype || '').toLowerCase();
+    if (mime.startsWith('image/')) return { kind: 'photo', node: n, caption: n.caption || n.fileName || '' };
+    if (mime.startsWith('video/')) return { kind: 'video', node: n, caption: n.caption || n.fileName || '' };
+  }
+  if (inner.stickerMessage) return { kind: 'photo', node: inner.stickerMessage, caption: '' };
   if (inner.audioMessage) {
     const ptt = !!inner.audioMessage.ptt;
     return { kind: ptt ? 'voice' : 'audio', node: inner.audioMessage, caption: '' };

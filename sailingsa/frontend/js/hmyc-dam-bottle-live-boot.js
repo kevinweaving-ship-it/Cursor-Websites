@@ -834,7 +834,7 @@
   }
 
   paint();
-  add("/js/midmar-live-media.js?v=midmarwx60dbs3");
+  add("/js/midmar-live-media.js?v=midmarwx60dbs4");
   add("/js/club-score-edit.js?v=ccr38dbs4");
   [80, 250, 700, 1600, 3500].forEach(function (ms) {
     window.setTimeout(paint, ms);

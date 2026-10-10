@@ -138,7 +138,48 @@ if "allowed: wanted.length" not in t:
 else:
     print("poc history already allow-list")
 
-# --- Event Reels: poll Dam Bottle clips every 2s like Dart ---
+# Real message-key history walk (fake Date.now() keys never return older media).
+p = Path("/opt/arial-whatsapp-poc/poc.js")
+t = p.read_text(encoding="utf-8")
+old_fetch = (
+    "      try { await sock.presenceSubscribe(JID); } catch (_) { /* none */ }\n"
+    "      try { await sock.groupMetadata(JID); } catch (_) { /* none */ }\n"
+    "      let op = null, err = null;\n"
+    "      try {\n"
+    "        op = await sock.fetchMessageHistory(80, { remoteJid: JID, fromMe: false, id: String(Date.now()) }, Date.now());\n"
+    "      } catch (e) { err = String(e.message || e); }\n"
+    "      event('fetch-group-history', { jid: JID, op, err });\n"
+    "      return send(200, { ok: true, jid: JID, op, err });\n"
+)
+new_fetch = (
+    "      const id = String(b.id || '').trim();\n"
+    "      const participant = String(b.participant || '').trim();\n"
+    "      const ts = Number(b.ts || 0);\n"
+    "      const count = Math.min(Math.max(Number(b.count || 80), 1), 200);\n"
+    "      try { await sock.presenceSubscribe(JID); } catch (_) { /* none */ }\n"
+    "      try { await sock.groupMetadata(JID); } catch (_) { /* none */ }\n"
+    "      const key = { remoteJid: JID, fromMe: !!b.fromMe, id: id || String(Date.now()) };\n"
+    "      if (participant) key.participant = participant;\n"
+    "      let op = null, err = null, resend = null;\n"
+    "      try {\n"
+    "        op = await sock.fetchMessageHistory(count, key, ts || Date.now());\n"
+    "      } catch (e) { err = String(e.message || e); }\n"
+    "      if (id && typeof sock.requestPlaceholderResend === 'function') {\n"
+    "        try { resend = await sock.requestPlaceholderResend(key); }\n"
+    "        catch (e2) { resend = String(e2.message || e2); }\n"
+    "      }\n"
+    "      event('fetch-group-history', { jid: JID, key, op, err, resend });\n"
+    "      return send(200, { ok: true, jid: JID, key, op, err, resend });\n"
+)
+if old_fetch in t:
+    t = t.replace(old_fetch, new_fetch, 1)
+    write(p, t)
+elif "key.participant = participant" in t:
+    print("poc fetch-group-history already real-key")
+else:
+    print("WARN poc fetch-group-history block not found")
+
+# --- Event Reels: poll Dam Bottle clips every 2s; use mm-clips as the feed ---
 for dest in (
     Path("/var/www/sailingsa/js/mm-lipton-reels-card.js"),
     Path("/var/www/sailingsa/frontend/js/mm-lipton-reels-card.js"),
@@ -149,6 +190,18 @@ for dest in (
     t2 = t.replace(
         "if (isCapeClassic() || isDartNats()) pollMs = 2000;",
         "if (isCapeClassic() || isDartNats() || isDamBottle()) pollMs = 2000;",
+    )
+    t2 = t2.replace(
+        "    var url = isMidmar()\n"
+        "      ? '/api/regatta/' + encodeURIComponent(rid) + '/mm-clips'\n"
+        "      : '/api/regatta/' + encodeURIComponent(rid) + '/mm-live-fb-feed';",
+        "    var url = (isMidmar() || isDamBottle())\n"
+        "      ? '/api/regatta/' + encodeURIComponent(rid) + '/mm-clips'\n"
+        "      : '/api/regatta/' + encodeURIComponent(rid) + '/mm-live-fb-feed';",
+    )
+    t2 = t2.replace(
+        "      if (isMidmar()) {\n        if (clipIdKey(videos) === clipIdKey(payload.videos)) return;",
+        "      if (isMidmar() || isDamBottle()) {\n        if (clipIdKey(videos) === clipIdKey(payload.videos)) return;",
     )
     if t2 != t:
         write(dest, t2)
