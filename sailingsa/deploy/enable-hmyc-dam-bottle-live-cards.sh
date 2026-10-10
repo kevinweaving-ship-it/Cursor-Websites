@@ -51,6 +51,37 @@ echo "=== 2) Boot script ==="
 "${SCP[@]}" "$BOOT_SRC" "root@${SERVER}:${WEB_ROOT}/js/hmyc-dam-bottle-live-boot.js"
 "${SSH[@]}" "root@${SERVER}" "cp -a '${WEB_ROOT}/js/hmyc-dam-bottle-live-boot.js' '${WEB_ROOT}/frontend/js/hmyc-dam-bottle-live-boot.js' 2>/dev/null || true; chown www-data:www-data '${WEB_ROOT}/js/hmyc-dam-bottle-live-boot.js'"
 
+echo "=== 2b) ET + corrected-time store (not api.py) ==="
+"${SSH[@]}" "root@${SERVER}" "mkdir -p /opt/hmyc-dam-bottle-et /var/www/sailingsa/assets"
+"${SCP[@]}" "$SCRIPT_DIR/hmyc_dam_bottle_et_store.py" "root@${SERVER}:/opt/hmyc-dam-bottle-et/store.py"
+"${SCP[@]}" "$SCRIPT_DIR/hmyc-dam-bottle-et.service" "root@${SERVER}:/etc/systemd/system/hmyc-dam-bottle-et.service"
+"${SCP[@]}" "$SCRIPT_DIR/hmyc-dam-bottle-et.nginx.conf" "root@${SERVER}:/etc/nginx/snippets/hmyc-dam-bottle-et.conf"
+"${SSH[@]}" "root@${SERVER}" 'bash -s' <<'REMOTE'
+set -euo pipefail
+chmod 755 /opt/hmyc-dam-bottle-et/store.py
+chown -R www-data:www-data /opt/hmyc-dam-bottle-et
+if ! grep -q "hmyc-dam-bottle-et.conf" /etc/nginx/sites-enabled/sailingsa; then
+  cp -a /etc/nginx/sites-enabled/sailingsa "/root/backups/nginx-sailingsa-$(date +%Y%m%d_%H%M%S)"
+  python3 - <<'PY'
+from pathlib import Path
+p = Path("/etc/nginx/sites-enabled/sailingsa")
+t = p.read_text(encoding="utf-8")
+needle = "location ^~ /api/ {"
+insert = "    include /etc/nginx/snippets/hmyc-dam-bottle-et.conf;\n\n    "
+if needle not in t:
+    raise SystemExit("nginx /api location not found")
+t = t.replace(needle, insert + needle, 1)
+p.write_text(t, encoding="utf-8")
+print("nginx include inserted")
+PY
+fi
+systemctl daemon-reload
+systemctl enable --now hmyc-dam-bottle-et.service
+systemctl is-active hmyc-dam-bottle-et.service
+nginx -t
+systemctl reload nginx
+REMOTE
+
 echo "=== 3) Add Dam Bottle slug to existing HMYC card JS ==="
 "${SCP[@]}" "$PATCH_SRC" "root@${SERVER}:/tmp/patch_hmyc_dam_bottle_live_cards.py"
 "${SSH[@]}" "root@${SERVER}" "python3 /tmp/patch_hmyc_dam_bottle_live_cards.py"
@@ -79,7 +110,7 @@ curl -sS -o /dev/null -w "HYC HTTP %{http_code}\n" \
   "https://sailingsa.co.za/club/hyc"
 curl -sS -o /dev/null -w "HOME HTTP %{http_code}\n" \
   "https://sailingsa.co.za/"
-curl -sS "https://sailingsa.co.za/js/hmyc-dam-bottle-live-boot.js?v=dbs27" | head -c 200 || true
+curl -sS "https://sailingsa.co.za/js/hmyc-dam-bottle-live-boot.js?v=dbs28" | head -c 200 || true
 echo
 python3 - <<'PY'
 from pathlib import Path

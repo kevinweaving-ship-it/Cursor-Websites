@@ -95,8 +95,30 @@
   }
 
   var ET_MARK = "ETJ:";
+  var ET_API = "/api/hmyc-dam-bottle-et";
   var etHydrated = false;
   var etServerTimer = {};
+
+  function asRec(v) {
+    if (!v) return { et: "", corr: "", place: "" };
+    if (typeof v === "string") {
+      var s = v.trim();
+      if (!s) return { et: "", corr: "", place: "" };
+      if (s.charAt(0) === "{") {
+        try {
+          return asRec(JSON.parse(s));
+        } catch (e0) {
+          return { et: s, corr: "", place: "" };
+        }
+      }
+      return { et: s, corr: "", place: "" };
+    }
+    return {
+      et: String(v.et || "").trim(),
+      corr: String(v.corr || "").trim(),
+      place: String(v.place || "").trim(),
+    };
+  }
 
   function normalizeEtStore(raw) {
     raw = raw && typeof raw === "object" ? raw : {};
@@ -129,8 +151,14 @@
       if (!/^R\d+$/.test(race) || !extra[race] || typeof extra[race] !== "object") return;
       if (!into[race]) into[race] = {};
       Object.keys(extra[race]).forEach(function (rid) {
-        var v = String(extra[race][rid] || "").trim();
-        if (v && !String(into[race][rid] || "").trim()) into[race][rid] = v;
+        var have = asRec(into[race][rid]);
+        var add = asRec(extra[race][rid]);
+        if (!have.et && add.et) into[race][rid] = add;
+        else if (have.et) {
+          if (!have.corr && add.corr) have.corr = add.corr;
+          if (!have.place && add.place) have.place = add.place;
+          into[race][rid] = have;
+        }
       });
     });
     return into;
@@ -153,15 +181,30 @@
     writeEtCookie(s);
   }
 
-  function saveEtValue(race, rid, val, fromServer) {
+  function etRecord(race, rid) {
+    var s = loadEtStore();
+    return asRec(s[race] && s[race][String(rid)]);
+  }
+
+  function etFor(race, rid) {
+    return etRecord(race, rid).et;
+  }
+
+  function saveEtRecord(race, rid, rec, fromServer) {
     if (!race || !rid) return;
     var s = loadEtStore();
     if (!s[race]) s[race] = {};
-    val = String(val || "").trim();
-    if (val) s[race][String(rid)] = val;
-    else delete s[race][String(rid)];
+    rec = asRec(rec);
+    if (!rec.et) delete s[race][String(rid)];
+    else s[race][String(rid)] = rec;
     persistEtStore(s);
     if (!fromServer) schedulePersistEt(rid);
+  }
+
+  function saveEtValue(race, rid, val, fromServer) {
+    var cur = etRecord(race, rid);
+    cur.et = String(val || "").trim();
+    saveEtRecord(race, rid, cur, fromServer);
   }
 
   function clearEtRace(race) {
@@ -170,11 +213,6 @@
     delete s[race];
     persistEtStore(s);
     rids.forEach(schedulePersistEt);
-  }
-
-  function etFor(race, rid) {
-    var s = loadEtStore();
-    return String((s[race] && s[race][String(rid)]) || "").trim();
   }
 
   function etFromHull(raw) {
@@ -189,40 +227,64 @@
   }
 
   function persistEtServer(rid) {
-    if (!rid || !adminEditOn()) return Promise.resolve();
     var s = loadEtStore();
-    var mine = {};
-    Object.keys(s).forEach(function (race) {
-      var v = s[race] && s[race][String(rid)];
-      if (v) mine[race] = v;
-    });
-    return fetch(withSession("/api/result/" + encodeURIComponent(rid)), {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        hull_no: Object.keys(mine).length ? ET_MARK + JSON.stringify(mine) : "",
-        session: sessionToken(),
-      }),
-    }).catch(function () {
-      return null;
-    });
+    var jobs = [];
+    if (rid && adminEditOn()) {
+      var mine = {};
+      Object.keys(s).forEach(function (race) {
+        var rec = asRec(s[race] && s[race][String(rid)]);
+        if (rec.et) mine[race] = rec;
+      });
+      jobs.push(
+        fetch(withSession("/api/result/" + encodeURIComponent(rid)), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            hull_no: Object.keys(mine).length ? ET_MARK + JSON.stringify(mine) : "",
+            session: sessionToken(),
+          }),
+        }).catch(function () {
+          return null;
+        })
+      );
+    }
+    if (adminEditOn()) {
+      jobs.push(
+        fetch(ET_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ rid: RID, store: s, updated: Date.now() }),
+        }).catch(function () {
+          return null;
+        })
+      );
+    }
+    return jobs.length ? Promise.all(jobs) : Promise.resolve();
   }
 
   function schedulePersistEt(rid) {
-    if (!rid || !adminEditOn()) return;
-    window.clearTimeout(etServerTimer[rid]);
-    etServerTimer[rid] = window.setTimeout(function () {
+    if (!adminEditOn()) return;
+    window.clearTimeout(etServerTimer[rid || "*"]);
+    etServerTimer[rid || "*"] = window.setTimeout(function () {
       persistEtServer(rid);
     }, 400);
   }
 
-  function applyHullEt(rid, hull) {
-    var mine = etFromHull(hull);
-    Object.keys(mine).forEach(function (race) {
-      if (!/^R\d+$/.test(race) || !mine[race]) return;
-      if (!etFor(race, rid)) saveEtValue(race, rid, mine[race], true);
+  function applyRemoteEt(rid, recs) {
+    Object.keys(recs || {}).forEach(function (race) {
+      if (!/^R\d+$/.test(race) || !recs[race]) return;
+      var add = asRec(recs[race]);
+      if (!add.et) return;
+      var have = etRecord(race, rid);
+      if (!have.et) saveEtRecord(race, rid, add, true);
+      else if (!have.corr && add.corr) saveEtRecord(race, rid, { et: have.et, corr: add.corr, place: have.place || add.place }, true);
     });
+  }
+
+  function applyHullEt(rid, hull) {
+    applyRemoteEt(rid, etFromHull(hull));
   }
 
   function hydrateEtFromApi(done) {
@@ -230,6 +292,23 @@
       if (done) done();
       return;
     }
+    var pending = 2;
+    function finish() {
+      pending -= 1;
+      if (pending > 0) return;
+      etHydrated = true;
+      if (done) done();
+    }
+    fetch(ET_API, { credentials: "include" })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (j) {
+        mergeEtStore(loadEtStore(), (j && j.store) || {});
+        persistEtStore(mergeEtStore(loadEtStore(), (j && j.store) || {}));
+      })
+      .catch(function () {})
+      .then(finish);
     fetch("/api/regatta/" + encodeURIComponent(RID), { credentials: "include" })
       .then(function (r) {
         return r.json();
@@ -238,13 +317,9 @@
         (Array.isArray(rows) ? rows : []).forEach(function (row) {
           if (row && row.result_id) applyHullEt(row.result_id, row.hull_no);
         });
-        etHydrated = true;
-        if (done) done();
       })
-      .catch(function () {
-        etHydrated = true;
-        if (done) done();
-      });
+      .catch(function () {})
+      .then(finish);
   }
 
   function snapshotEtFromDom(table) {
@@ -254,7 +329,14 @@
       tr.querySelectorAll("td.dam-bottle-et-col").forEach(function (td) {
         var race = td.getAttribute("data-for-race");
         var raw = etRaw(tr, race);
-        if (race && raw) saveEtValue(race, rid, raw);
+        if (!race || !raw) return;
+        var corrTd = tr.querySelector('td.dam-bottle-corr-col[data-for-race="' + race + '"]');
+        var rTd = tr.querySelector('td.race-col[data-race-key="' + race + '"]');
+        saveEtRecord(race, rid, {
+          et: raw,
+          corr: String((corrTd && corrTd.textContent) || etRecord(race, rid).corr || "").trim(),
+          place: cellPlaceText(rTd) || etRecord(race, rid).place,
+        });
       });
     });
   }
@@ -266,11 +348,25 @@
       var tr = td.closest("tr");
       var rid = tr && tr.getAttribute("data-result-id");
       if (!race || !rid) return;
-      var kept = etFor(race, rid);
-      td.setAttribute("data-et", kept);
+      var rec = etRecord(race, rid);
+      td.setAttribute("data-et", rec.et);
       if (adminEditOn()) return;
       if (td.querySelector(".dam-bottle-et-input")) return;
-      if (String(td.textContent || "").trim() !== kept) td.textContent = kept;
+      if (String(td.textContent || "").trim() !== rec.et) td.textContent = rec.et;
+    });
+    table.querySelectorAll("td.dam-bottle-corr-col").forEach(function (td) {
+      var race = td.getAttribute("data-for-race");
+      var tr = td.closest("tr");
+      var rid = tr && tr.getAttribute("data-result-id");
+      if (!race || !rid) return;
+      var rec = etRecord(race, rid);
+      var shown = rec.corr;
+      if (!shown && rec.et && !isDnsEt(rec.et)) {
+        var py = rowPy(tr);
+        var sec = parseET(rec.et);
+        if (py && sec) shown = formatCorrected((sec * 1000) / py);
+      }
+      if (shown && String(td.textContent || "").trim() !== shown) td.textContent = shown;
     });
   }
 
@@ -774,7 +870,19 @@
         return String(last[it.rid] || "") === String(next[it.rid] || "");
       }) &&
       Object.keys(last).length === Object.keys(next).length;
-    if (same) return;
+    typed.forEach(function (it) {
+      saveEtRecord(race, it.rid, {
+        et: etRaw(it.tr, race) || etFor(race, it.rid),
+        corr: it.corr != null ? formatCorrected(it.corr) : etRecord(race, it.rid).corr,
+        place: it.place ? String(it.place) : etRecord(race, it.rid).place,
+      });
+    });
+    if (same) {
+      typed.forEach(function (it) {
+        persistEtServer(it.rid);
+      });
+      return;
+    }
     markEtState(table, race, "club-score-input--saving");
     saveChain = saveChain
       .then(function () {
@@ -848,12 +956,20 @@
           if (rTd && cellPlaceText(rTd) !== kept) rTd.textContent = kept;
           rememberPlace(it.rid, race, kept);
         }
-        if (corrTd && corrTd.textContent) corrTd.textContent = "";
+        var keptCorr = etRecord(race, it.rid).corr;
+        if (corrTd && keptCorr && corrTd.textContent !== keptCorr) corrTd.textContent = keptCorr;
         fillTotalNett(it.tr);
         return;
       }
       var shown = it.corr != null ? formatCorrected(it.corr) : "";
+      if (!shown && it.dns) shown = "";
+      if (!shown) shown = etRecord(race, it.rid).corr;
       if (corrTd && corrTd.textContent !== shown) corrTd.textContent = shown;
+      saveEtRecord(race, it.rid, {
+        et: etRaw(it.tr, race) || etFor(race, it.rid),
+        corr: shown,
+        place: it.place ? String(it.place) : etRecord(race, it.rid).place,
+      });
       if (rTd) {
         var p = it.place ? String(it.place) : "";
         if (p) {
