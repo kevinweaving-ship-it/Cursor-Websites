@@ -45,7 +45,8 @@
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .club-score-input," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .wc-result-field-input{display:none!important;}" +
       ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
-      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col{display:none!important}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col," +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-cat-col{display:none!important}" +
       "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-col," +
       "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-corr-col," +
       "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col{display:none!important}" +
@@ -1344,10 +1345,9 @@
       table.parentNode.insertBefore(wrap, table);
       wrap.appendChild(table);
     }
-    table.querySelectorAll("thead th").forEach(function (th) {
-      if (String(th.textContent || "").trim() === "Age") th.textContent = "Cat";
-    });
-    markCol(table, "Cat", "dam-bottle-cat-col");
+    var catIdx = markCol(table, "Cat", "dam-bottle-cat-col");
+    if (catIdx < 0) catIdx = markCol(table, "Age", "dam-bottle-cat-col");
+    if (catIdx >= 0) removeColAt(table, catIdx);
     var crewIdx = markCol(table, "Crew", "crew-col");
     if (crewIdx >= 0) removeColAt(table, crewIdx);
     markCol(table, "Class", "class-col");
