@@ -28,8 +28,14 @@
       ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "']:not(.mm-lipton-reels--expanded) .mm-lipton-reels-compact{display:flex!important;}" +
       ".regatta-page--club-score-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step," +
       ".regatta-page--super-admin-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step{display:flex!important;visibility:visible!important;}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-et-col," +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-et-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col," +
-      ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-corr-col{text-align:center;min-width:4.4rem;color:#15803d;font-weight:700;font-variant-numeric:tabular-nums;}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-corr-col," +
+      ".fleet-section[data-block-id='" + RID + ":open'] th.race-col," +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col{min-width:3.8rem;box-sizing:border-box;text-align:center}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col," +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-corr-col{color:#15803d;font-weight:700;font-variant-numeric:tabular-nums;}" +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col .event-result-yes{color:#15803d;font-weight:700;font-size:1.05rem;}" +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-input{width:5.6rem;text-align:center;font:inherit;border:1px solid #94a3b8;border-radius:4px;padding:2px 5px;}" +
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col input," +
@@ -1085,13 +1091,15 @@
         fillTotalNett(it.tr);
         return;
       }
-      var shown = it.corr != null ? formatCorrected(it.corr) : "";
-      if (!shown && it.dns) shown = "";
-      if (!shown) shown = etRecord(race, it.rid).corr;
-      if (corrTd && corrTd.textContent !== shown) corrTd.textContent = shown;
+      var shown = it.dns ? "" : (it.corr != null ? formatCorrected(it.corr) : "");
+      if (!shown && !it.dns) shown = etRecord(race, it.rid).corr;
+      if (corrTd) {
+        var corrTxt = it.dns ? "\u2014" : shown;
+        if (corrTd.textContent !== corrTxt) corrTd.textContent = corrTxt;
+      }
       saveEtRecord(race, it.rid, {
         et: it.dns ? "0:00" : src,
-        corr: shown,
+        corr: it.dns ? "" : shown,
         place: it.place ? String(it.place) : etRecord(race, it.rid).place,
       }, !doSave);
       if (rTd) {
