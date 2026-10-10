@@ -2,6 +2,14 @@
 
 Manual parsed-results ingestion (scripts that insert into `results`, e.g. `add_regatta_385_420_fleet.py`) uses **strict class resolution**. No fuzzy matching, no auto-creation of classes, no guessing.
 
+### Event Logo trumps class logo (landing / search cards)
+
+If a named event has its own **Event Logo** (header left on `/regatta/{id}`), that is the **only** mark in the event-logo slot. Open / ILCA / any Class Logo is superseded — do not first-paint it on landing cards, search cards, or next to See Results.
+
+- Parent event URL left = truth.
+- `/api/regattas/with-counts` `logo_url` is often the first class logo (e.g. Open). Cards must ignore that when it is a Class Logo path.
+- Nobody asked to keep the leftover class-logo first-paint. It was a 1 Sep 2026 landing shortcut (`ac0be7cd`) that painted API `logo_url` immediately so cards were not empty.
+
 ---
 
 ## 🔐 Canonical URL & Date Authority Rules (LOCKED)
