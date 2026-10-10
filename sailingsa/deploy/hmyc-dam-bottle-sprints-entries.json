@@ -1,0 +1,45 @@
+{
+  "regatta_id": "2026-10-10-hmyc-dam-bottle-sprints",
+  "fleet_label": "Open",
+  "source": "Dam Bottle Sprints 10 October 2026.xlsx",
+  "note": "Initial entries. Public sheet shows R scores only; PY/ET/tick are club race-entry.",
+  "entries": [
+    {
+      "class": "Dart 18",
+      "sail_no": "520",
+      "helm": "Lorrian Wells",
+      "crew": "",
+      "age": "Snr",
+      "club": "HMYC",
+      "py": "832"
+    },
+    {
+      "class": "Hunter 19",
+      "sail_no": "741",
+      "helm": "Bryan Paxman",
+      "crew": "",
+      "age": "Snr",
+      "club": "DAC",
+      "py": "1043"
+    },
+    {
+      "class": "ILCA 7",
+      "sail_no": "2",
+      "helm": "Simon Dommett",
+      "crew": "",
+      "age": "Snr",
+      "club": "HMYC",
+      "py": "1102"
+    },
+    {
+      "class": "Hunter 19",
+      "sail_no": "222",
+      "helm": "Tim Kerry",
+      "crew": "",
+      "age": "Snr",
+      "club": "HMYC",
+      "py": "1043",
+      "helm_sas_id": 1536
+    }
+  ]
+}
