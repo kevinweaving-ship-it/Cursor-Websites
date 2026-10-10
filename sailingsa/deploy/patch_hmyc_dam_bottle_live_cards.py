@@ -2,10 +2,12 @@
 """Patch live HMYC card JS so Dam Bottle Sprints gets Dart Wind/Media/Cam."""
 from pathlib import Path
 import hashlib
+import re
 
 DAM = "2026-10-10-hmyc-dam-bottle-sprints"
 MARKER = "DAM_BOTTLE_HMYC_LIVE_CARDS_v1"
 GOLD = "9c1eea9a2bebfd02125c8eb5c133b776fd0cf06ca67e066a09a293f77857d32b"
+BOOT_VER = "dbs8"
 
 
 def must_write(path, text):
@@ -19,88 +21,106 @@ def require(hay, needle, label):
         raise SystemExit(f"{label}: missing expected text")
 
 
+def write_both(web, text):
+    must_write(web, text)
+    fp = Path(str(web).replace("/var/www/sailingsa/js/", "/var/www/sailingsa/frontend/js/"))
+    if fp.is_file():
+        must_write(fp, text)
+
+
 # midmar-live-media.js — same venue cards as Dart, no Dart theme song
 p = Path("/var/www/sailingsa/js/midmar-live-media.js")
 t = p.read_text(encoding="utf-8")
-old = 'return rid === RID || rid === "2026-09-24-hmyc-dart-18-nationals";'
-new = (
-    'return rid === RID || rid === "2026-09-24-hmyc-dart-18-nationals" '
-    f'|| rid === "{DAM}";'
-)
-require(t, old, "midmar-live-media.js onMidmar/hasWxCam")
-t = t.replace(old, new)
-t = t.replace(
-    "    if (isDartNats()) {\n"
-    "      mm.setAttribute(\n"
-    '        "data-mm-initial",\n'
-    '        JSON.stringify({ enabled: true, feed_source: "hmyc", fb_page: "henleymidmaryachtclub", videos: [] })',
-    f'    if (isDartNats() || currentRid() === "{DAM}") {{\n'
-    "      mm.setAttribute(\n"
-    '        "data-mm-initial",\n'
-    '        JSON.stringify({ enabled: true, feed_source: "hmyc", fb_page: "henleymidmaryachtclub", videos: [] })',
-)
-t = t.replace(
-    "    if (isDartNats()) {\n"
-    "    playDartTheme();\n"
-    '    loadCss("/css/mm-lipton-reels.css?v=hmycdart25");',
-    f'    if (isDartNats() || currentRid() === "{DAM}") {{\n'
-    "    if (isDartNats()) playDartTheme();\n"
-    '    loadCss("/css/mm-lipton-reels.css?v=hmycdart25");',
-)
-require(t, DAM, "midmar-live-media.js dam slug")
-must_write(p, t)
-fp = Path("/var/www/sailingsa/frontend/js/midmar-live-media.js")
-if fp.is_file():
-    must_write(fp, t)
+if DAM in t and f'currentRid() === "{DAM}"' in t:
+    print("midmar-live-media.js already has Dam Bottle")
+else:
+    old = 'return rid === RID || rid === "2026-09-24-hmyc-dart-18-nationals";'
+    new = (
+        'return rid === RID || rid === "2026-09-24-hmyc-dart-18-nationals" '
+        f'|| rid === "{DAM}";'
+    )
+    require(t, old, "midmar-live-media.js onMidmar/hasWxCam")
+    t = t.replace(old, new)
+    t = t.replace(
+        "    if (isDartNats()) {\n"
+        "      mm.setAttribute(\n"
+        '        "data-mm-initial",\n'
+        '        JSON.stringify({ enabled: true, feed_source: "hmyc", fb_page: "henleymidmaryachtclub", videos: [] })',
+        f'    if (isDartNats() || currentRid() === "{DAM}") {{\n'
+        "      mm.setAttribute(\n"
+        '        "data-mm-initial",\n'
+        '        JSON.stringify({ enabled: true, feed_source: "hmyc", fb_page: "henleymidmaryachtclub", videos: [] })',
+    )
+    t = t.replace(
+        "    if (isDartNats()) {\n"
+        "    playDartTheme();\n"
+        '    loadCss("/css/mm-lipton-reels.css?v=hmycdart25");',
+        f'    if (isDartNats() || currentRid() === "{DAM}") {{\n'
+        "    if (isDartNats()) playDartTheme();\n"
+        '    loadCss("/css/mm-lipton-reels.css?v=hmycdart25");',
+    )
+    require(t, DAM, "midmar-live-media.js dam slug")
+    write_both(p, t)
 
 # midmar-leaderboard.js
 p = Path("/var/www/sailingsa/js/midmar-leaderboard.js")
 t = p.read_text(encoding="utf-8")
-old = "    return rid === RID || rid === '2026-09-24-hmyc-dart-18-nationals';"
-new = (
-    "    return rid === RID || rid === '2026-09-24-hmyc-dart-18-nationals' "
-    f"|| rid === '{DAM}';"
-)
-require(t, old, "midmar-leaderboard.js onMidmar")
-t = t.replace(old, new)
-must_write(p, t)
-fp = Path("/var/www/sailingsa/frontend/js/midmar-leaderboard.js")
-if fp.is_file():
-    must_write(fp, t)
+if DAM in t:
+    print("midmar-leaderboard.js already has Dam Bottle")
+else:
+    old = "    return rid === RID || rid === '2026-09-24-hmyc-dart-18-nationals';"
+    new = (
+        "    return rid === RID || rid === '2026-09-24-hmyc-dart-18-nationals' "
+        f"|| rid === '{DAM}';"
+    )
+    require(t, old, "midmar-leaderboard.js onMidmar")
+    t = t.replace(old, new)
+    write_both(p, t)
 
-# club-score-edit.js
+# club-score-edit.js — Dam Bottle slug + skip auto R1 (PY×ET fills place)
 p = Path("/var/www/sailingsa/js/club-score-edit.js")
 t = p.read_text(encoding="utf-8")
-old = (
-    '    path.indexOf("2026-09-13-zvyc-cape-classic") === -1 &&\n'
-    '    path.indexOf("2026-09-24-hmyc-dart-18-nationals") === -1'
-)
-new = (
-    '    path.indexOf("2026-09-13-zvyc-cape-classic") === -1 &&\n'
-    '    path.indexOf("2026-09-24-hmyc-dart-18-nationals") === -1 &&\n'
-    f'    path.indexOf("{DAM}") === -1'
-)
-require(t, old, "club-score-edit.js slug gate")
-t = t.replace(old, new)
-must_write(p, t)
-fp = Path("/var/www/sailingsa/frontend/js/club-score-edit.js")
-if fp.is_file():
-    must_write(fp, t)
+changed = False
+if DAM not in t:
+    old = (
+        '    path.indexOf("2026-09-13-zvyc-cape-classic") === -1 &&\n'
+        '    path.indexOf("2026-09-24-hmyc-dart-18-nationals") === -1'
+    )
+    new = (
+        '    path.indexOf("2026-09-13-zvyc-cape-classic") === -1 &&\n'
+        '    path.indexOf("2026-09-24-hmyc-dart-18-nationals") === -1 &&\n'
+        f'    path.indexOf("{DAM}") === -1'
+    )
+    require(t, old, "club-score-edit.js slug gate")
+    t = t.replace(old, new)
+    changed = True
+else:
+    print("club-score-edit.js slug already has Dam Bottle")
+if 'data-auto-from-et' not in t:
+    needle = "    if (!/^R\\d+$/.test(race)) return;\n"
+    insert = needle + '    if (td.getAttribute("data-auto-from-et") === "1") return;\n'
+    require(t, needle, "club-score-edit.js wireCell race gate")
+    t = t.replace(needle, insert, 1)
+    changed = True
+else:
+    print("club-score-edit.js already skips auto-from-et R1")
+if changed:
+    write_both(p, t)
 
 # mm-lipton-reels-card.js — HMYC Facebook media feed
 p = Path("/var/www/sailingsa/js/mm-lipton-reels-card.js")
 t = p.read_text(encoding="utf-8")
-old = "    return id.indexOf('2026-09-24-hmyc-dart-18-nationals') === 0;"
-new = (
-    "    return id.indexOf('2026-09-24-hmyc-dart-18-nationals') === 0 "
-    f"|| id.indexOf('{DAM}') === 0;"
-)
-require(t, old, "mm-lipton-reels-card.js isDartNats")
-t = t.replace(old, new, 1)
-must_write(p, t)
-fp = Path("/var/www/sailingsa/frontend/js/mm-lipton-reels-card.js")
-if fp.is_file():
-    must_write(fp, t)
+if DAM in t:
+    print("mm-lipton-reels-card.js already has Dam Bottle")
+else:
+    old = "    return id.indexOf('2026-09-24-hmyc-dart-18-nationals') === 0;"
+    new = (
+        "    return id.indexOf('2026-09-24-hmyc-dart-18-nationals') === 0 "
+        f"|| id.indexOf('{DAM}') === 0;"
+    )
+    require(t, old, "mm-lipton-reels-card.js isDartNats")
+    t = t.replace(old, new, 1)
+    write_both(p, t)
 
 loader = f"""
 /* {MARKER} */
@@ -115,7 +135,7 @@ loader = f"""
     return;
   if (document.querySelector('script[src*="hmyc-dam-bottle-live-boot.js"]')) return;
   var s = document.createElement("script");
-  s.src = "/js/hmyc-dam-bottle-live-boot.js?v=dbs7";
+  s.src = "/js/hmyc-dam-bottle-live-boot.js?v={BOOT_VER}";
   s.defer = true;
   document.head.appendChild(s);
 }})();
@@ -128,7 +148,15 @@ for dest in (
         continue
     t = dest.read_text(encoding="utf-8")
     if MARKER in t:
-        print("loader already in", dest)
+        bumped = re.sub(
+            r"hmyc-dam-bottle-live-boot\.js\?v=dbs\d+",
+            f"hmyc-dam-bottle-live-boot.js?v={BOOT_VER}",
+            t,
+        )
+        if bumped != t:
+            must_write(dest, bumped)
+        else:
+            print("loader already", BOOT_VER, dest)
         continue
     must_write(dest, t.rstrip() + "\n" + loader)
 
