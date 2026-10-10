@@ -112,6 +112,13 @@ p = Path("/var/www/sailingsa/js/mm-lipton-reels-card.js")
 t = p.read_text(encoding="utf-8")
 if DAM in t:
     print("mm-lipton-reels-card.js already has Dam Bottle")
+    t2 = t.replace(
+        "if (isCapeClassic() || isDartNats()) pollMs = 2000;",
+        "if (isCapeClassic() || isDartNats() || isDamBottle()) pollMs = 2000;",
+    )
+    if t2 != t:
+        write_both(p, t2)
+        t = t2
 else:
     old = "    return id.indexOf('2026-09-24-hmyc-dart-18-nationals') === 0;"
     new = (
