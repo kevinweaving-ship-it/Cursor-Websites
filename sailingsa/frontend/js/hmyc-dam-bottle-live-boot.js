@@ -24,6 +24,15 @@
     var css = document.createElement("style");
     css.id = "dam-bottle-score-css";
     css.textContent =
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-brand{" +
+      "display:block!important;cursor:pointer;flex:0 0 auto;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-brand img{" +
+      "display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-compact{" +
+      "display:flex!important;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-expanded," +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] [data-mm-expanded]{" +
+      "display:none!important;height:0!important;overflow:hidden!important;}" +
       ".regatta-page--club-score-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step," +
       ".regatta-page--super-admin-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step{" +
       "display:flex!important;visibility:visible!important;}" +
@@ -590,6 +599,24 @@
     }
   }
 
+  function placeStack() {
+    var header = document.querySelector(".regatta-header-wrap");
+    var host = document.getElementById("midmar-live-media");
+    var lb = document.getElementById("midmar-leaderboard");
+    var wx = document.getElementById("ssa-regatta-slot-card");
+    if (header && host && host.parentNode && host.previousSibling !== header) {
+      header.parentNode.insertBefore(host, header.nextSibling);
+    }
+    if (host && lb) {
+      if (lb.parentNode !== host) host.insertBefore(lb, host.firstChild);
+      if (wx && wx.parentNode === host && lb.nextSibling !== wx) host.insertBefore(lb, wx);
+    }
+    var sec = findSec();
+    if (host && host.parentNode && sec && sec.previousSibling !== host) {
+      host.parentNode.insertBefore(sec, host.nextSibling);
+    }
+  }
+
   function findSec() {
     var table = document.querySelector(
       '.fleet-section[data-block-id="' + RID + ':open"] table.fleet-results-table'
@@ -636,6 +663,7 @@
     wireEtInputs(table);
     syncEtVisible(sec);
     bindRaceClicks(sec);
+    placeStack();
     if (
       adminEditOn() &&
       !(document.activeElement && document.activeElement.classList.contains("dam-bottle-et-input"))
@@ -701,6 +729,7 @@
   }
 
   paint();
+  add("/js/midmar-live-media.js?v=midmarwx60dbs3");
   add("/js/club-score-edit.js?v=ccr38dbs4");
   [80, 250, 700, 1600, 3000, 5000].forEach(function (ms) {
     window.setTimeout(paint, ms);
