@@ -51,7 +51,11 @@
       ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-bronze," +
       ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-bronze td{background-color:#CE8946}" +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-input.club-score-input--saving{background:#fef08a}" +
-      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-input.club-score-input--saved{background:#bbf7d0}";
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-input.club-score-input--saved{background:#bbf7d0}" +
+      "#dam-bottle-open-fleet .table-container{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}" +
+      "#dam-bottle-open-fleet table.fleet-results-table{width:max-content;min-width:100%;max-width:none}" +
+      "#dam-bottle-open-fleet table.fleet-results-table th," +
+      "#dam-bottle-open-fleet table.fleet-results-table td{white-space:nowrap}";
     document.head.appendChild(css);
   }
 
@@ -532,14 +536,18 @@
 
   function persistPlaces(table, race, items) {
     if (!adminEditOn() || !race) return;
+    var typed = items.filter(function (it) {
+      return String(etRaw(it.tr, race) || "").trim();
+    });
+    if (!typed.length) return;
     var last = lastSaved[race] || {};
     var next = {};
-    items.forEach(function (it) {
+    typed.forEach(function (it) {
       next[it.rid] = it.place ? String(it.place) : "";
     });
     var same =
       Object.keys(next).length &&
-      items.every(function (it) {
+      typed.every(function (it) {
         return String(last[it.rid] || "") === String(next[it.rid] || "");
       }) &&
       Object.keys(last).length === Object.keys(next).length;
@@ -548,7 +556,7 @@
     saveChain = saveChain
       .then(function () {
         var seq = Promise.resolve();
-        items.forEach(function (it) {
+        typed.forEach(function (it) {
           seq = seq.then(function () {
             return sessionPatchRace(it.rid, race, "");
           });
@@ -557,7 +565,7 @@
       })
       .then(function () {
         var seq = Promise.resolve();
-        items.forEach(function (it) {
+        typed.forEach(function (it) {
           if (!it.place) return;
           seq = seq.then(function () {
             return sessionPatchRace(it.rid, race, String(it.place));
@@ -590,6 +598,7 @@
         tr: tr,
         rid: tr.getAttribute("data-result-id"),
         dns: dns,
+        keep: !dns && !String(raw || "").trim(),
         corr: !dns && py && etSec != null && etSec > 0 ? (etSec * 1000) / py : null,
         idx: idx,
       });
@@ -604,6 +613,11 @@
       if (it.dns) it.place = "DNS";
       var corrTd = it.tr.querySelector('td.dam-bottle-corr-col[data-for-race="' + race + '"]');
       var rTd = it.tr.querySelector('td.race-col[data-race-key="' + race + '"]');
+      if (it.keep) {
+        if (rTd) it.place = String(rTd.textContent || "").trim() || it.place;
+        fillTotalNett(it.tr);
+        return;
+      }
       var shown = it.corr != null ? formatCorrected(it.corr) : "";
       if (corrTd && corrTd.textContent !== shown) corrTd.textContent = shown;
       if (rTd) {
@@ -781,6 +795,12 @@
     }
     var table = sec.querySelector("table.fleet-results-table");
     if (!table) return;
+    if (!table.parentNode.classList.contains("table-container")) {
+      var wrap = document.createElement("div");
+      wrap.className = "table-container";
+      table.parentNode.insertBefore(wrap, table);
+      wrap.appendChild(table);
+    }
     table.querySelectorAll("thead th").forEach(function (th) {
       if (String(th.textContent || "").trim() === "Age") th.textContent = "Cat";
     });
