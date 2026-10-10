@@ -1,0 +1,28 @@
+{
+  "regatta_id": "2026-10-10-hmyc-dam-bottle-sprints",
+  "fleet_label": "Open",
+  "note": "Initial entries only. Results table not built yet.",
+  "entries": [
+    {
+      "class": "Dart 18",
+      "sail_no": "520",
+      "helm": "Lorrian Wells",
+      "crew": "",
+      "age": "Snr"
+    },
+    {
+      "class": "Hunter 19",
+      "sail_no": "741",
+      "helm": "Bryan Paxman",
+      "crew": "",
+      "age": "Snr"
+    },
+    {
+      "class": "ILCA 7",
+      "sail_no": "tba",
+      "helm": "Simon Dommett",
+      "crew": "",
+      "age": "Snr"
+    }
+  ]
+}

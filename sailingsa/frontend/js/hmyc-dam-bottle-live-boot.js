@@ -17,6 +17,35 @@
     page.setAttribute("data-club-live-cards", "HMYC");
   }
 
+  function placeOpenFleetHeader() {
+    if (document.getElementById("dam-bottle-open-fleet")) return;
+    var sec = document.createElement("div");
+    sec.id = "dam-bottle-open-fleet";
+    sec.className = "fleet-section";
+    sec.setAttribute("data-block-id", RID + ":open");
+    sec.setAttribute("data-fleet-label", "Open");
+    sec.innerHTML =
+      '<div class="class-header class-header--with-logos">' +
+      '<div class="class-header-logo-col">' +
+      '<img src="/artwork/Event%20Logo/Dam-Bottle-Sprints.png" alt="Dam Bottle Sprints" class="class-header-logo-img" loading="lazy" decoding="async">' +
+      "</div>" +
+      '<div class="class-header-main-col">' +
+      '<div class="fleet-title-row"><span class="fleet-title-with-logo">Open Fleet</span></div>' +
+      "</div>" +
+      '<div class="class-header-club-logo-col">' +
+      '<img src="/artwork/Club%20Logo/HMYC.png" alt="HMYC" class="class-header-logo-img" loading="lazy" decoding="async">' +
+      "</div>" +
+      "</div>";
+    var host = document.getElementById("midmar-live-media");
+    var header = document.querySelector(".regatta-header-wrap");
+    if (host && host.parentNode) host.parentNode.insertBefore(sec, host.nextSibling);
+    else if (header && header.parentNode) header.parentNode.insertBefore(sec, header.nextSibling);
+    else if (page) page.appendChild(sec);
+  }
+  placeOpenFleetHeader();
+  window.setTimeout(placeOpenFleetHeader, 50);
+  window.setTimeout(placeOpenFleetHeader, 400);
+
   function add(src) {
     var base = src.split("?")[0];
     if (document.querySelector('script[src*="' + base + '"]')) return;
