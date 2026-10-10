@@ -61,6 +61,29 @@ else:
 if "function isDamBottle()" not in t:
     raise SystemExit("isDamBottle missing — run media card patch first")
 
+old_tiles = """    if (reels.length) {
+      var show = reels;
+      if (isDartNats() && isMobilePortrait()) show = reels.slice(0, 1);
+      for (i = 0; i < show.length; i++) parts.push(compactTileHtml(show[i], videos, i === 0));
+    } else {
+      parts.push(emptyReelSlotHtml());
+    }
+"""
+new_tiles = """    if (reels.length) {
+      var show = reels;
+      if (isDartNats() && isMobilePortrait()) show = reels.slice(0, 1);
+      for (i = 0; i < show.length; i++) parts.push(compactTileHtml(show[i], videos, i === 0));
+    } else if (!isDamBottle()) {
+      parts.push(emptyReelSlotHtml());
+    }
+"""
+if "else if (!isDamBottle())" in t:
+    print("compactTilesHtml already dam")
+elif old_tiles in t:
+    t = t.replace(old_tiles, new_tiles, 1)
+else:
+    print("WARN compactTilesHtml block not found")
+
 write_both("mm-lipton-reels-card.js", t)
 
 api = Path("/var/www/sailingsa/api/api.py").read_bytes()
