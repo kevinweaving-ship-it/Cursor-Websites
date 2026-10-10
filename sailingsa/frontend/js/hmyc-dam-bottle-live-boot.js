@@ -180,25 +180,27 @@
     return keys;
   }
 
+  function markRaceOpen(table, key) {
+    if (!table || !key) return;
+    table.querySelectorAll('th.race-col[data-race-key="' + key + '"], td.race-col[data-race-key="' + key + '"]').forEach(function (el) {
+      el.classList.remove("race-col--closed");
+      el.classList.add("race-col--wait");
+    });
+  }
+
   function openRaceKey(table) {
     var keys = raceKeys(table);
     if (!keys.length) return adminEditOn() ? "R1" : "";
-    var wait = [];
+    var open = [];
     var i;
     var th;
     for (i = 0; i < keys.length; i++) {
       th = table.querySelector('th.race-col[data-race-key="' + keys[i] + '"]');
-      if (th && th.classList.contains("race-col--wait") && !th.classList.contains("race-col--closed")) {
-        wait.push(keys[i]);
-      }
+      if (!th || th.classList.contains("race-col--closed")) continue;
+      open.push(keys[i]);
     }
-    if (wait.length) return wait[wait.length - 1];
-    if (!adminEditOn()) return "";
-    for (i = 0; i < keys.length; i++) {
-      th = table.querySelector('th.race-col[data-race-key="' + keys[i] + '"]');
-      if (th && th.classList.contains("race-col--closed")) return "";
-    }
-    return keys[keys.length - 1];
+    if (open.length) return open[open.length - 1];
+    return "";
   }
 
   function markCol(table, label, className) {
@@ -385,6 +387,7 @@
       if (tAnchor) tr.insertBefore(td, tAnchor);
       else tr.appendChild(td);
     });
+    markRaceOpen(table, key);
     lockRCells(table);
   }
 
@@ -692,15 +695,19 @@
       add._dbsBound = true;
       add.addEventListener("click", function () {
         dropDupRaces(table);
-        ensureRaceCol(table, raceCount(table) + 1);
+        var next = raceCount(table) + 1;
+        ensureRaceCol(table, next);
+        markRaceOpen(table, "R" + next);
         orderCols(table);
         lockRCells(table);
         wireEtInputs(table);
         syncEtVisible(sec);
         window.setTimeout(function () {
+          markRaceOpen(table, "R" + next);
           dropDupRaces(table);
           orderCols(table);
           lockRCells(table);
+          wireEtInputs(table);
           bindRaceClicks(sec);
           syncEtVisible(sec);
         }, 200);
