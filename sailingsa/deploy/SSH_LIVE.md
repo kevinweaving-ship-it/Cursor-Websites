@@ -9,6 +9,34 @@ Confirm path before change.
 
 ---
 
+## API Master / Gold — ONLY allowed live api.py
+
+Live `/var/www/sailingsa/api/api.py` is **not** this GitHub repo’s `api.py`.
+
+| | |
+|---|---|
+| **Master/Gold** | `/root/backups/API_MASTER_GOLD/api.py` |
+| **Alias** | `/root/backups/api.py.MASTER_GOLD` |
+| **sha256** | `9c1eea9a2bebfd02125c8eb5c133b776fd0cf06ca67e066a09a293f77857d32b` |
+| **Bytes** | `3953427` |
+
+This repo’s `api.py` (~1.4MB) is a stale copy. It serves the old EVENTS/SAILORS club layout. Deploying it overwrites gold club pages (`/club/hyc` pennant, Founded, weather, camera).
+
+**Forbidden:** `scp` this repo’s `api.py` to live. Restore any dated `api.py.bak`. Use `/root/incoming/api.py` from GitHub.
+
+**Restore (only this):**
+
+```bash
+chattr -i /var/www/sailingsa/api/api.py || true
+cp /root/backups/API_MASTER_GOLD/api.py /var/www/sailingsa/api/api.py
+chown www-data:www-data /var/www/sailingsa/api/api.py
+systemctl restart sailingsa-api
+```
+
+Full rule: **`docs/API_MASTER_GOLD.md`**. Deploy scripts call `refuse_stale_local_api.sh` and will exit if the file is the old repo API.
+
+---
+
 **Server:** `102.218.215.253`  
 **User:** `root`  
 **Auth:** SSH key preferred (`~/.ssh/sailingsa_live_key`); password fallback for legacy expect scripts.
@@ -66,9 +94,11 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "echo SSH KEY WORKS"
 
 ---
 
-## Deploy api.py with verification (recommended)
+## Deploy api.py with verification — LOCKED (Master/Gold)
 
-**Cursor must deploy the file that was actually edited** (project root `api.py`). The live process runs **`/var/www/sailingsa/api/api.py`**. If deploy only restarts the service without copying the new file into that path, the dashboard and API will still serve old code.
+**Do not deploy this GitHub repo’s `api.py` to live.** That file is the stale 1.4MB copy. Live is Master/Gold only (`docs/API_MASTER_GOLD.md`).
+
+The commands below that `scp` project-root `api.py` are **blocked**. Server `/root/deploy_api_verified.sh` refuses incoming files under 3 900 000 bytes. If live `api.py` is damaged, restore Master/Gold — do not upload this repo.
 
 **One-time setup on server:** copy the verified deploy script and make it executable:
 ```bash
@@ -263,10 +293,11 @@ expect sailingsa/deploy/fix-live-full.exp
 
 This will diagnose, restart sailingsa-api, ensure STATIC_DIR, and reload nginx on the live server.
 
-If API still crashes, rollback to backup api.py:
+If API still crashes, restore **Master/Gold only** (not a dated bak, not this repo):
 ```bash
 expect sailingsa/deploy/fix-live-rollback-api.exp
 ```
+That copies `/root/backups/API_MASTER_GOLD/api.py` onto live. See **`docs/API_MASTER_GOLD.md`**.
 
 ---
 

@@ -3,9 +3,9 @@
 1. This project runs LIVE on this server.
 2. All changes are assumed to affect production.
 3. SSH context is persistent and authoritative.
-4. NEVER restore from backup unless explicitly instructed.
-5. NEVER replace api.py unless explicitly instructed.
-6. Always snapshot before edit.
+4. NEVER restore from backup unless explicitly instructed. The **only** allowed restore is `/root/backups/API_MASTER_GOLD/api.py` (`docs/API_MASTER_GOLD.md`).
+5. NEVER replace live api.py with this GitHub repo’s `api.py` (~1.4MB, old EVENTS/SAILORS club layout).
+6. Do not write dated `api.py.*` backups on the box. Master/Gold is the only snapshot.
 7. If unsure: read-only first, never edit first.
 8. No local assumptions. Confirm working directory before any change.
 
@@ -43,14 +43,17 @@ wc -l /var/www/sailingsa/api/api.py
 
 ### 2. SNAPSHOT (mandatory)
 
+Do **not** write dated `api.py.*.bak` next to live or under `/root/backups/api.py.TIMESTAMP`. Those copies became restore bait and were deleted.
+
+The only allowed snapshot/restore is Master/Gold:
+
 ```bash
-cp /var/www/sailingsa/api/api.py \
-   /var/www/sailingsa/api/api.py.$(date +%Y%m%d_%H%M%S).bak
+ls -l /root/backups/API_MASTER_GOLD/api.py
+sha256sum /root/backups/API_MASTER_GOLD/api.py
+# must be 9c1eea9a2bebfd02125c8eb5c133b776fd0cf06ca67e066a09a293f77857d32b
 ```
 
-Backup must be visible in directory listing (e.g. `ls -la /var/www/sailingsa/api/api.py*.bak`).
-
-**No snapshot → no edit.**
+See **`docs/API_MASTER_GOLD.md`**.
 
 ### 3. EDIT
 
@@ -82,16 +85,17 @@ Must show the inserted block (adjust line range to your edit).
 
 ---
 
-## Deploy api.py from local (upload)
+## Deploy api.py from local (upload) — LOCKED
 
-### EXACT deploy + proof block (use every time – no exceptions)
+**Do not upload this GitHub repo’s `api.py`.** Live is Master/Gold only. See **`docs/API_MASTER_GOLD.md`**.
 
-**Deploy** (run from project root; `api.py` in current dir):
+If live is damaged, restore Master/Gold — do not `scp` project-root `api.py` and do not write dated `api.py.*` backups (those became restore bait):
 
 ```bash
-ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "cp -a /var/www/sailingsa/api/api.py /root/backups/api.py.$(date +%Y%m%d_%H%M%S) && chattr -i /var/www/sailingsa/api/api.py"
-scp -i ~/.ssh/sailingsa_live_key api.py root@102.218.215.253:/var/www/sailingsa/api/api.py
-ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "chown www-data:www-data /var/www/sailingsa/api/api.py && chattr +i /var/www/sailingsa/api/api.py && systemctl restart sailingsa-api && systemctl is-active sailingsa-api"
+chattr -i /var/www/sailingsa/api/api.py || true
+cp /root/backups/API_MASTER_GOLD/api.py /var/www/sailingsa/api/api.py
+chown www-data:www-data /var/www/sailingsa/api/api.py
+systemctl restart sailingsa-api
 ```
 
 **Proof** (must paste outputs):
@@ -123,37 +127,13 @@ scp -i ~/.ssh/sailingsa_live_key sailingsa/deploy/deploy_api.sh root@102.218.215
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "chmod +x /root/deploy_api.sh && mkdir -p /root/incoming"
 ```
 
-**From then on, deploy =**
-
-```bash
-scp -i ~/.ssh/sailingsa_live_key api.py root@102.218.215.253:/root/incoming/api.py
-ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "/root/deploy_api.sh"
-```
-
-The script: backs up live api.py to `/root/backups/api.py.YYYYMMDD_HHMMSS`, unlocks, copies `/root/incoming/api.py` to live, chown www-data, relocks, restarts sailingsa-api, runs `systemctl is-active sailingsa-api`. Expected output: `active`.
+**Do not** `scp` this repo’s `api.py` to `/root/incoming/` or live. `/root/deploy_api.sh` refuses stale/undersized files. Restore Master/Gold only (`docs/API_MASTER_GOLD.md`).
 
 ---
 
 ### Manual (no script)
 
-When replacing api.py with a copy from your machine (not editing on server):
-
-```bash
-# 1. SSH
-ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253
-
-# 2. Backup
-cp /var/www/sailingsa/api/api.py /var/www/sailingsa/api/api.py.backup.$(date +%Y%m%d_%H%M%S)
-
-# 3. Unlock (immutable off)
-chattr -i /var/www/sailingsa/api/api.py
-```
-
-From your **local machine** (separate terminal):
-
-```bash
-scp -i ~/.ssh/sailingsa_live_key /path/to/api.py root@102.218.215.253:/var/www/sailingsa/api/api.py
-```
+Do **not** copy a laptop/repo `api.py` over live. Restore Master/Gold only. Do not write dated `api.py.backup.*` files next to live.
 
 Back on the **server**:
 

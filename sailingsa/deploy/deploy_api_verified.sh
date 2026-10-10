@@ -13,8 +13,16 @@ LIVE=/var/www/sailingsa/api/api.py
 echo "===== DEPLOY START ====="
 date
 
+# MASTER/GOLD lock — refuse stale/repo api.py (old EVENTS/SAILORS club layout)
+if [ -f /root/backups/API_MASTER_GOLD/refuse_stale_incoming_api.sh ]; then
+  . /root/backups/API_MASTER_GOLD/refuse_stale_incoming_api.sh
+  if ! refuse_stale_incoming_api "$INCOMING"; then
+    exit 1
+  fi
+fi
+
 if [ ! -f "$INCOMING" ]; then
-  echo "ERROR: $INCOMING not found. Run: scp api.py root@server:/root/incoming/api.py"
+  echo "ERROR: $INCOMING not found. Do not scp this GitHub repo api.py. See docs/API_MASTER_GOLD.md"
   exit 1
 fi
 

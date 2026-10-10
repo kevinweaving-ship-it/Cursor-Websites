@@ -11,11 +11,11 @@ SSH_OPTS="-o StrictHostKeyChecking=no"
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
-echo "--- Backup api.py on server ---"
-ssh $SSH_OPTS root@${SERVER} "cp ${API_DIR}/api.py ${API_DIR}/api.py.backup.\$(date +%Y%m%d_%H%M%S) && echo Backup ok"
+bash "$PROJECT_ROOT/sailingsa/deploy/refuse_stale_local_api.sh" "$PROJECT_ROOT/api.py"
 
-echo "--- Upload api.py ---"
-scp $SSH_OPTS api.py root@${SERVER}:${API_DIR}/
+echo "REFUSED locally if the check above failed. This script will not upload the GitHub repo api.py."
+echo "Live API is Master/Gold only. See docs/API_MASTER_GOLD.md"
+exit 1
 
 echo "--- Restart sailingsa-api ---"
 ssh $SSH_OPTS root@${SERVER} "grep -q STATIC_DIR /etc/systemd/system/sailingsa-api.service || (sed -i '/WorkingDirectory=/a Environment=\"STATIC_DIR=/var/www/sailingsa\"' /etc/systemd/system/sailingsa-api.service); systemctl daemon-reload && systemctl restart sailingsa-api && sleep 2 && systemctl status sailingsa-api --no-pager | head -12"

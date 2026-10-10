@@ -51,11 +51,9 @@ scp -i "$KEY" -o StrictHostKeyChecking=no \
   "$PROJECT_ROOT/sailingsa/backend/tracking_dev2_sailfish.py" \
   "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/tracking_dev2_sailfish.py"
 
-echo "=== 4) api.py (verified deploy) ==="
-scp -i "$KEY" -o StrictHostKeyChecking=no \
-  "$PROJECT_ROOT/api.py" "root@${SERVER}:/root/incoming/api.py"
-ssh -i "$KEY" -o StrictHostKeyChecking=no "root@${SERVER}" \
-  "/root/deploy_api_verified.sh"
+echo "=== 4) api.py SKIPPED — Master/Gold lock ==="
+echo "This repo api.py must not overwrite live. See docs/API_MASTER_GOLD.md"
+bash "$PROJECT_ROOT/sailingsa/deploy/refuse_stale_local_api.sh" "$PROJECT_ROOT/api.py" || true
 
 echo "=== 5) Verify tracking-dev2 ==="
 curl -sf "https://sailingsa.co.za/api/tracking-dev2/replay2/getRaceDatas?race=1" | python3 -c \

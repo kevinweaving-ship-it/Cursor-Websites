@@ -46,9 +46,9 @@ echo "=== 2) Upload + extract frontend ==="
   ls -la ${WEB_ROOT}/index.html ${WEB_ROOT}/blank.html ${WEB_ROOT}/js/api.js
 "
 
-echo "=== 3) Deploy api.py ==="
-"${SCP[@]}" "$PROJECT_ROOT/api.py" "${USER}@${SERVER}:/root/incoming/api.py"
-"${SSH[@]}" "${USER}@${SERVER}" "/root/deploy_api_verified.sh"
+echo "=== 3) api.py SKIPPED — Master/Gold lock ==="
+echo "This repo api.py must not overwrite live. See docs/API_MASTER_GOLD.md"
+bash "$PROJECT_ROOT/sailingsa/deploy/refuse_stale_local_api.sh" "$PROJECT_ROOT/api.py" || true
 
 echo "=== 4) Verify live ==="
 curl -sfI "https://sailingsa.co.za/api/regattas/with-counts?limit=500" | head -1

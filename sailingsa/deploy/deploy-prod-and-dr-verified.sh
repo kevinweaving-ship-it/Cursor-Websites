@@ -29,6 +29,12 @@ if [ ! -f "$API_PY" ]; then
   exit 1
 fi
 
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+bash "$ROOT/sailingsa/deploy/refuse_stale_local_api.sh" "$API_PY"
+echo "BLOCKED: will not deploy this GitHub repo api.py. Live is Master/Gold only."
+echo "See docs/API_MASTER_GOLD.md"
+exit 1
+
 if [ ! -f "$KEY" ]; then
   echo "ERROR: SSH key not found: $KEY"
   exit 1

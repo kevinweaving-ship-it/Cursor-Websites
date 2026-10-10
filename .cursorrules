@@ -1,5 +1,7 @@
 # SailingSA — Cursor UI rules
 
+- **API Master/Gold LOCKED.** Never deploy this repo’s `api.py` (~1.4MB) to live. Live/restore is only `/root/backups/API_MASTER_GOLD/api.py` (hash `9c1eea9a…`, 3953427 bytes). See **`docs/API_MASTER_GOLD.md`** and **`.cursor/rules/api-master-gold-locked.mdc`**.
+
 - **Master Header (hub v10 — `.admin-v10-second-header`, `js/blank-landing-header.js`): LOCKED.** Do not edit unless the user explicitly authorizes in the same request. See **`.cursor/rules/master-header-locked.mdc`**.
 - **Never modify header or navigation layout.** Header (`.site-header`) and all nav links must stay as-is; header links must remain white on dark background.
 - **Always reuse existing components.** Use `.container`, `.card`, `.table`, `.table-container`, `.section-title`; use `buildMasterPageLayout(container, opts)` for Regatta/Sailor/Class/Club pages.
