@@ -23,11 +23,15 @@
     css.id = "dam-bottle-dart-media-css";
     css.textContent =
       ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-10-10-hmyc-dam-bottle-sprints']{" +
-      "height:auto!important;max-height:none!important;}" +
+      "height:auto!important;max-height:96px!important;overflow:hidden!important;}" +
       ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-10-10-hmyc-dam-bottle-sprints'] .mm-lipton-reels-brand{" +
-      "display:block!important;cursor:pointer;flex:0 0 auto;}" +
-      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-10-10-hmyc-dam-bottle-sprints'] .mm-lipton-reels-compact{" +
-      "display:flex!important;}" +
+      "display:block!important;cursor:pointer;flex:0 0 auto;height:88px!important;max-height:88px!important;width:auto!important;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-10-10-hmyc-dam-bottle-sprints'] .mm-lipton-reels-brand img{" +
+      "height:88px!important;max-height:88px!important;width:auto!important;object-fit:contain!important;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-10-10-hmyc-dam-bottle-sprints'] .mm-lipton-reels-compact," +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-10-10-hmyc-dam-bottle-sprints'] .mm-lipton-reels-rail-wrap," +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-10-10-hmyc-dam-bottle-sprints'] [data-mm-compact]{" +
+      "display:flex!important;height:88px!important;max-height:88px!important;}" +
       ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-10-10-hmyc-dam-bottle-sprints'] .mm-lipton-reels-expanded," +
       ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='2026-10-10-hmyc-dam-bottle-sprints'] [data-mm-expanded]{" +
       "display:none!important;height:0!important;overflow:hidden!important;}";
