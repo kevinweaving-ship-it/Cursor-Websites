@@ -1352,12 +1352,6 @@
     if (crewIdx >= 0) removeColAt(table, crewIdx);
     markCol(table, "Class", "class-col");
     markCol(table, "PY", "dam-bottle-py-col");
-    table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
-      var sail = String((tr.querySelector("td.sail-col") && tr.querySelector("td.sail-col").textContent) || "").trim();
-      var bySail = { "520": "Dart 18", "2": "ILCA 7", "741": "Hunter 19", "222": "Hunter 19" };
-      var td = tr.querySelector("td.class-col");
-      if (td && bySail[sail] && !String(td.textContent || "").trim()) td.textContent = bySail[sail];
-    });
     dropJsonDumpCols(table);
     keepOneLabeled(table, "total-col", "Total");
     keepOneLabeled(table, "nett-col", "Nett");
