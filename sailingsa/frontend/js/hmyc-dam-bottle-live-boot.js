@@ -314,8 +314,8 @@
       if (openKey && rk === openKey) return "m-open-" + n;
       return "k-done-" + n;
     }
-    if (el.classList.contains("dam-bottle-et-col")) return "l-et";
-    if (el.classList.contains("dam-bottle-corr-col")) return "l-corr";
+    if (el.classList.contains("dam-bottle-et-col")) return "l-1-et";
+    if (el.classList.contains("dam-bottle-corr-col")) return "l-2-corr";
     if (el.classList.contains("total-col") || String(el.textContent || "").trim() === "Total") return "y-total";
     if (el.classList.contains("nett-col") || String(el.textContent || "").trim() === "Nett") return "z-nett";
     return "x-other";
