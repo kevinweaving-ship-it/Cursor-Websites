@@ -65,3 +65,5 @@ When asked to "fix the app" or "update the site", ask which area or file to focu
 ## Results HTML "Results are" status line
 
 **`docs/RESULTS_HTML_STATUS_LINE_RULE.md`** — For all results reports/sheets: the status line must be exactly **`Results are [Provisional|Final] as at DD Month YYYY at HH:MM`** (e.g. `Results are Provisional as at 15 February 2026 at 14:20`). Source: `regattas.result_status` and `regattas.as_at_time`. Use "as at" not "as of". No current date or event date placeholder. See also `docs/RESULTS_PASSING_WORKFLOW.md` and README "Results Data Pass".
+
+**SAS results parse / gold header:** **`docs/README_RESULTS_INGESTION.md`** § *LOCKED: Gold header / host logo*. Replace Event Logo and Club Logo **in place** (same name, same folder; also `_trimmed_v1/{CODE}` on live). Host from `host_club_id` — never raw Club Logo PNG in JSON `right`, never `fleet_logos_right` host dump. Fleet left = race-class logo (Optimist A/B). Desktop host size is gold **180×440**, not a 72×100 cap. Never invent SAS IDs.

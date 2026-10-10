@@ -3309,3 +3309,15 @@ button.sailor-club-flag-box.sailor-sa-club-flag-edit-trigger:focus-visible {
     color: #fff;
     animation: none;
 }
+
+/* Gold results host mark: desktop gold 180 cap. Square/stacked club marks (AYC) must read. */
+@media (min-width: 769px) {
+    .regatta-page .header:not(.header--lipton) .regatta-header-club-logo-img {
+        max-height: min(34vw, 180px) !important;
+        max-width: min(62vw, 440px) !important;
+    }
+    .regatta-page .class-header-club-logo-col .class-header-logo-img {
+        max-height: min(22vw, 120px) !important;
+        max-width: min(28vw, 160px) !important;
+    }
+}
