@@ -153,21 +153,67 @@ _FLEET_RE = re.compile(
 )
 
 
-def parent_page_left_logo(html: str) -> str:
-    """Left header img on the parent page — Event Logo when the parent has one."""
-    m = _LEFT_LOGO_RE.search(html or "")
+def _img_src_with_class(html: str, class_token: str) -> str:
+    pat = re.compile(
+        rf'<img[^>]+class="[^"]*{re.escape(class_token)}[^"]*"[^>]*>',
+        re.I,
+    )
+    m = pat.search(html or "")
     if not m:
-        m2 = re.search(
-            r'<img src="([^"]+)"[^>]*class="[^"]*regatta-header-left-logo-img',
+        m = re.search(
+            rf'<img src="([^"]+)"[^>]*class="[^"]*{re.escape(class_token)}',
             html or "",
             flags=re.I,
         )
-        src = m2.group(1) if m2 else ""
-    else:
-        sm = _SRC_RE.search(m.group(0))
-        src = sm.group(1) if sm else ""
-    src = (src or "").strip()
+        return (m.group(1) if m else "").strip()
+    sm = _SRC_RE.search(m.group(0))
+    return (sm.group(1) if sm else "").strip()
+
+
+def parent_page_left_logo(html: str) -> str:
+    """Parent header left src as served — Event Logo or class mark."""
+    return _img_src_with_class(html, "regatta-header-left-logo-img")
+
+
+def parent_page_right_logo(html: str) -> str:
+    """Parent header host/club src."""
+    return _img_src_with_class(html, "regatta-header-club-logo-img")
+
+
+def parent_event_logo(html: str) -> str:
+    src = parent_page_left_logo(html)
     return src if _is_event_logo(src) else ""
+
+
+def _div_plain(html: str, class_token: str) -> str:
+    m = re.search(
+        rf'<div class="[^"]*\b{re.escape(class_token)}\b[^"]*"[^>]*>(.*?)</div>',
+        html or "",
+        flags=re.I | re.S,
+    )
+    if not m:
+        return ""
+    txt = _plain(m.group(1))
+    txt = re.sub(r"^Host:\s*", "", txt, flags=re.I).strip()
+    return txt
+
+
+def parent_page_event_name(html: str) -> str:
+    return _div_plain(html, "regatta-name")
+
+
+def parent_page_host(html: str) -> str:
+    return _div_plain(html, "host-club")
+
+
+def parent_page_status_line(html: str) -> str:
+    txt = _div_plain(html, "status-line")
+    if txt.lower().startswith("results are"):
+        return txt
+    m = re.search(r"Results are [A-Za-z]+ as at [^<]{6,80}", html or "")
+    if m:
+        return _plain(m.group(0))
+    return txt
 
 
 def extract_parent_fleet_htmls(html: str) -> list[str]:
@@ -192,14 +238,41 @@ def fleets_from_parent_truth(
     fallback_fleets: Optional[list[dict[str, Any]]] = None,
     left_logo: str = "",
 ) -> tuple[list[dict[str, Any]], str]:
-    """PDF fleets + Event Logo from the parent URL. Fallback is sanitized caller HTML."""
-    page = fetch_parent_page_html(slug)
-    event_logo = parent_page_left_logo(page) or (left_logo if _is_event_logo(left_logo) else "")
+    """PDF fleets from the parent URL. Event Logo is parent left when it is one."""
+    packet = apply_parent_truth_to_pdf(
+        slug,
+        fleets=fallback_fleets,
+        left_logo=left_logo,
+    )
+    return packet["fleets"], packet["left_logo"]
+
+
+def apply_parent_truth_to_pdf(
+    slug: str,
+    *,
+    fleets: Optional[list[dict[str, Any]]] = None,
+    left_logo: str = "",
+    right_logo: str = "",
+    event_name: str = "",
+    host: str = "",
+    status_line: str = "",
+    page_html: Optional[str] = None,
+) -> dict[str, Any]:
+    """Logos + public results from parent. Caller keeps PDF layout/CSS."""
+    page = page_html if page_html is not None else fetch_parent_page_html(slug)
+    parent_left = parent_page_left_logo(page) if page else ""
+    parent_right = parent_page_right_logo(page) if page else ""
+    event_logo = parent_event_logo(page) if page else (left_logo if _is_event_logo(left_logo) else "")
+    use_left = parent_left or left_logo
+    use_right = parent_right or right_logo
+    use_name = parent_page_event_name(page) if page else ""
+    use_host = parent_page_host(page) if page else ""
+    use_status = parent_page_status_line(page) if page else ""
     parent_chunks = extract_parent_fleet_htmls(page) if page else []
     out: list[dict[str, Any]] = []
     if parent_chunks:
         for i, chunk in enumerate(parent_chunks):
-            fb = (fallback_fleets or [None])[i] if fallback_fleets and i < len(fallback_fleets) else {}
+            fb = (fleets or [None])[i] if fleets and i < len(fleets) else {}
             html = sanitize_public_fleet_html(chunk, event_logo)
             n_rows = max(len(re.findall(r"<tr\b", html, flags=re.I)) - 1, 0)
             out.append(
@@ -210,11 +283,16 @@ def fleets_from_parent_truth(
                     "n_rows": n_rows or int((fb or {}).get("n_rows") or 0),
                 }
             )
-        if out:
-            return out, event_logo or left_logo
-    cleaned = []
-    for f in fallback_fleets or []:
-        item = dict(f)
-        item["html"] = sanitize_public_fleet_html(item.get("html") or "", event_logo or left_logo)
-        cleaned.append(item)
-    return cleaned, event_logo or left_logo
+    if not out:
+        for f in fleets or []:
+            item = dict(f)
+            item["html"] = sanitize_public_fleet_html(item.get("html") or "", event_logo)
+            out.append(item)
+    return {
+        "fleets": out,
+        "left_logo": use_left,
+        "right_logo": use_right,
+        "event_name": use_name or event_name,
+        "host": use_host or host,
+        "status_line": use_status or status_line,
+    }
