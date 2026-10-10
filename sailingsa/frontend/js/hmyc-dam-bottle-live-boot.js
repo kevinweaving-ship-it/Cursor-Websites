@@ -33,7 +33,7 @@
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-corr-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] th.race-col," +
-      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col{min-width:3.8rem;box-sizing:border-box;text-align:center}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col{min-width:4.6rem;box-sizing:border-box;text-align:center;white-space:nowrap}" +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-corr-col{color:#15803d;font-weight:700;font-variant-numeric:tabular-nums;}" +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col .event-result-yes{color:#15803d;font-weight:700;font-size:1.05rem;}" +
@@ -474,11 +474,19 @@
 
   var placeSnap = {};
 
+  function codeFromText(raw) {
+    var t = String(raw || "").replace(/^\(|\)$/g, "").trim();
+    var m = t.match(/^(?:\d+\s*)?(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS|DPI)$/i);
+    return m ? m[1].toUpperCase() : "";
+  }
+
   function cellPlaceText(td) {
     if (!td) return "";
     var span = td.querySelector("span");
     var raw = String(((span && span.textContent) || td.textContent) || "").trim();
     raw = raw.replace(/^\(|\)$/g, "").trim();
+    var code = codeFromText(raw);
+    if (code) return code;
     if (!raw || raw === "—" || raw === "-" || raw === "–") return "";
     return raw;
   }
@@ -852,8 +860,12 @@
     return n > 0 ? n : 1;
   }
 
+  function formatCodeScore(code, tr) {
+    return String(fleetSize(tr) + 1) + " " + String(code || "DNC").toUpperCase();
+  }
+
   function isCodeScore(raw) {
-    return /^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS|DPI)$/i.test(String(raw || "").replace(/^\(|\)$/g, "").trim());
+    return !!codeFromText(raw);
   }
 
   function scorePts(raw, dnsPts) {
@@ -927,7 +939,8 @@
       total += s.pts;
       var discarded = !!discardAt[s.i];
       if (discarded) dropped += s.pts;
-      var shown = discarded ? "(" + s.raw + ")" : s.raw;
+      var label = isCodeScore(s.raw) ? formatCodeScore(s.raw, tr) : s.raw;
+      var shown = discarded ? "(" + label + ")" : label;
       if (s.td.textContent !== shown) s.td.textContent = shown;
       s.td.classList.toggle("disc", discarded && !isCodeScore(s.raw));
       s.td.classList.toggle("strike-out", discarded);
@@ -1104,8 +1117,9 @@
       }, !doSave);
       if (rTd) {
         var p = it.place ? String(it.place) : "";
+        var shownPlace = it.dns && p ? formatCodeScore(p, it.tr) : p;
         if (p) {
-          if (cellPlaceText(rTd) !== p) rTd.textContent = p;
+          if (cellPlaceText(rTd) !== p || rTd.textContent.trim() !== shownPlace) rTd.textContent = shownPlace;
           rememberPlace(it.rid, race, p);
         } else {
           var snap = snappedPlace(it.rid, race);
