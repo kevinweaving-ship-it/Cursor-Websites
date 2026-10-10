@@ -13,6 +13,7 @@
      iii. **Results status line** (see format below)
    - Record the fleet label (starting with the first fleet if multiple).
    - Capture the sailed line: `Sailed: U, Discards: V, To count: W, Entries: X, Scoring system: Y`.
+   - **Gold header / host logo (do not invent):** see **`docs/README_RESULTS_INGESTION.md`** § *LOCKED: Gold header / host logo*. Left = prior-year Event Logo (same URL, replace in place). Host from `host_club_id` / `Club Logo/{CODE}` — never raw Club Logo PNG in JSON `right`, never `fleet_logos_right` host dump. Fleet left = race-class logo (Optimist A/B, not generic). Desktop host size is gold **180×440**, not a 72×100 cap.
 
    **Results status line — sentence and date/time format (canonical)**  
    - **Display sentence:** `Results are [Provisional|Final] as at DD Month YYYY at HH:MM`  

@@ -2,7 +2,60 @@
 
 Manual parsed-results ingestion (scripts that insert into `results`, e.g. `add_regatta_385_420_fleet.py`) uses **strict class resolution**. No fuzzy matching, no auto-creation of classes, no guessing.
 
+This is the **SAS results parse README**. Follow gold. Do not invent header CSS, new logo URLs, or SAS IDs.
+
 ---
+
+## LOCKED: Gold header / host logo (do not invent)
+
+**Stick to these rules on the first pass.** Inventing a CSS cap or dumping a raw club PNG into header JSON is how the header keeps looking wrong (FS Youth LDYC huge → 72×100 cap → AYC speck → another fix).
+
+### Artwork — replace in place, same name, same folder
+
+- New event logo or club logo: **overwrite the existing file**. Same filename. Same folder. Do not mint a new path.
+- **Event logo (header left):** `/artwork/Event Logo/{PriorYearFilename}`. Last year’s URL stays. Replace the bytes. Keep an existing `?v=` query if the page already has one.
+- **Club logo (host mark):** `/artwork/Club Logo/{CODE}.png` (and the live API copy `/var/www/sailingsa/api/artwork/Club Logo/{CODE}.png`).
+- Live `GET /api/club-logo/{CODE}` **prefers** `Club Logo/_trimmed_v1/{CODE}.ext` if that file exists. If you only replace the untrimmed `AYC.png`, the header can still serve the old mark. Overwrite **both**.
+- That is how every already-wired AYC (or LDYC, HYC, …) page picks up the new mark without touching gold `api.py`.
+
+### Header JSON (`wc_regatta_header_icons.json`)
+
+- **`left`** = prior-year **Event Logo** path for that named event. Not a new file. Not a class logo unless that *is* last year’s left URL.
+- **`fleet_logos` (left)** = **race-class** logo. Optimist A → `Optimist-A-Class-Logo.png`. Optimist B → `Optimist-B-Class-Logo.png`. Never the generic family Optimist blue.
+- **Do not set `right`** to a raw `/artwork/Club Logo/{CODE}.png`. Host comes from `regattas.host_club_id` → disk `Club Logo/{CODE}` → `/api/club-logo/{CODE}` (or `/artwork/Club Logo/{CODE}.ext`).
+- **Do not set `fleet_logos_right`** to the host club mark. That dumps a second host wordmark on the fleet strip.
+- Gold already ignores a standalone right override and uses `Club Logo/{CODE}` from disk. Putting the huge source PNG in `right` is how LDYC 809×492 filled the header.
+
+### Host size (desktop)
+
+- Gold in-page rule: `.regatta-header-club-logo-img` → `max-height: min(34vw, 180px); max-width: min(62vw, 440px)`.
+- **Do not add a 72×100 (or similar) desktop cap.** That “fix” for a tall burgee:
+  - crushed the wide AYC wordmark (998×225) to ~22px (unreadable speck);
+  - then crushed the replacement square AYC compass mark the same way.
+- If the host mark looks wrong, the **file** is wrong (wide wordmark vs stacked burgee). Replace the file in place. Do not invent CSS.
+- Match the 400+ existing event headers (MP / ML). Desktop host height is gold **180**, not 72.
+- Do **not** overwrite live `/var/www/sailingsa/css/main.css` wholesale (live is larger than repo). Append or surgically replace one rule only.
+- Do **not** edit gold `api.py`, the master header, or locked `class-results.html` / `results.html`.
+
+### Parse rules (still mandatory)
+
+- **Never invent SAS IDs.** `sas_id_personal` is name truth. Unresolved → `NULL` (review queue).
+- **Clubs:** first token only (`Aeolians/PYC` → AYC, `VLC/LDYC` → VLC). Do not invent a `club_id` if that code is not in `clubs`.
+- **Sail numbers:** strip `RSA`.
+- **Class:** exact `classes.class_name` or `class_aliases`. `is_race_class = TRUE` only (Optimist family is FALSE; store Optimist A / B).
+- **URL / dates:** event start/end, not ingest date. Slug stays stable on re-parse.
+- **Status line:** `Results are [Provisional|Final] as at DD Month YYYY at HH:MM`. Stamp **both** `regattas.as_at_time` **and** `results.as_at_time` (the page prefers a results-row timestamp). Never “as of”. Never “snapshot time not recorded” when the user gave a time.
+- **Scoring:** DNC = entries+1. TLE stays numeric. Checksum PDF totals/netts before apply.
+
+### What went wrong (2026-10-10) — do not repeat
+
+1. FS Youth: raw `Club Logo/LDYC.png` in header `right` → huge host.
+2. Then a live desktop `72×100 !important` cap → every host mark, including AYC, became a speck.
+3. Dabchick / 505 AYC used the old wide 998×225 wordmark. The fix was replace `AYC.png` (and `_trimmed_v1/AYC.png`) in place, then restore gold 180 — not a tighter cap.
+4. Fleet left used generic Optimist blue instead of Optimist A / B race-class logos.
+
+---
+
 
 ## 🔐 Canonical URL & Date Authority Rules (LOCKED)
 
