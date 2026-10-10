@@ -1,7 +1,6 @@
 /**
- * Dam Bottle Sprints — emergency live boot.
- * Bottle logos + Open Fleet only. No observers. Does not load other JS.
- * Does not change live api.py.
+ * Dam Bottle Sprints — Bottle logos + Open Fleet + Dart R+/R−.
+ * No observers. Does not change live api.py.
  */
 (function () {
   "use strict";
@@ -12,6 +11,16 @@
   if (path !== "/regatta/" + RID && path.indexOf("/regatta/" + RID + "/") !== 0) return;
 
   var SRC = "/artwork/Event%20Logo/Dam-Bottle-Sprints.png";
+
+  if (!document.getElementById("dam-bottle-race-step-css")) {
+    var css = document.createElement("style");
+    css.id = "dam-bottle-race-step-css";
+    css.textContent =
+      ".regatta-page--club-score-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step," +
+      ".regatta-page--super-admin-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step{" +
+      "display:flex!important;visibility:visible!important;}";
+    document.head.appendChild(css);
+  }
 
   function paint() {
     var sec = document.querySelector(
@@ -40,8 +49,18 @@
     });
   }
 
+  function add(src) {
+    var base = src.split("?")[0];
+    if (document.querySelector('script[src*="' + base + '"]')) return;
+    var s = document.createElement("script");
+    s.src = src;
+    s.defer = true;
+    document.head.appendChild(s);
+  }
+
   paint();
-  [100, 400, 1200].forEach(function (ms) {
+  add("/js/club-score-edit.js?v=ccr38dbs4");
+  [100, 400, 1200, 2500].forEach(function (ms) {
     window.setTimeout(paint, ms);
   });
 })();
