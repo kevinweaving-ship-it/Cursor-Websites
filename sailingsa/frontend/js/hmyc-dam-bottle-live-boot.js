@@ -53,7 +53,8 @@
       "#dam-bottle-open-fleet table.fleet-results-table th," +
       "#dam-bottle-open-fleet table.fleet-results-table td{white-space:nowrap}" +
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col.disc," +
-      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col.strike-out{text-decoration:line-through;opacity:0.6}";
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col.strike-out{text-decoration:line-through;opacity:0.6}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-json-col{display:none!important}";
     document.head.appendChild(css);
   }
 
@@ -404,13 +405,17 @@
     return parseET(s) === 0;
   }
 
-  function etCode(raw) {
+  function etCode(raw, keptPlace) {
     var s = String(raw || "").trim();
     if (!s) return "";
-    if (/^dnc$/i.test(s) || isZeroEt(s)) return "DNC";
-    if (/^dns$/i.test(s)) return "DNS";
-    var m = s.match(/^(dnf|ret|dsq|ufd|bfd|ocs)$/i);
-    return m ? m[1].toUpperCase() : "";
+    if (/^(dnc|dns|dnf|ret|dsq|ufd|bfd|ocs)$/i.test(s)) return s.toUpperCase();
+    if (isZeroEt(s)) {
+      if (keptPlace && /^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS)$/i.test(String(keptPlace))) {
+        return String(keptPlace).toUpperCase();
+      }
+      return "DNC";
+    }
+    return "";
   }
 
   function isDnsEt(raw) {
@@ -696,6 +701,19 @@
       });
     }
     lockRCells(table);
+  }
+
+  function dropJsonDumpCols(table) {
+    if (!table) return;
+    var thead = table.querySelector("thead tr");
+    if (!thead) return;
+    var doomed = [];
+    [].forEach.call(thead.children, function (th, i) {
+      var lab = String(th.textContent || "").replace(/\s+/g, " ").trim();
+      if (lab === "Elapsed" || lab === "Corrected") doomed.push(i);
+    });
+    doomed.sort(function (a, b) { return b - a; });
+    doomed.forEach(function (i) { removeColAt(table, i); });
   }
 
   function keepOneLabeled(table, cls, label) {
@@ -1025,7 +1043,18 @@
     });
     ranked.forEach(function (it, i) { it.place = i + 1; });
     items.forEach(function (it) {
-      if (it.dns) it.place = etCode(etRaw(it.tr, race) || etFor(race, it.rid)) || "DNC";
+      var src = etRaw(it.tr, race) || etFor(race, it.rid);
+      var code = etCode(src, etRecord(race, it.rid).place);
+      if (it.dns) {
+        it.place = code || "DNC";
+        if (src && !isZeroEt(src)) {
+          var etTd = it.tr.querySelector('td.dam-bottle-et-col[data-for-race="' + race + '"]');
+          var inp = etTd && etTd.querySelector(".dam-bottle-et-input");
+          if (inp) inp.value = "0:00";
+          if (etTd) etTd.setAttribute("data-et", "0:00");
+          src = "0:00";
+        }
+      }
       var corrTd = it.tr.querySelector('td.dam-bottle-corr-col[data-for-race="' + race + '"]');
       var rTd = it.tr.querySelector('td.race-col[data-race-key="' + race + '"]');
       if (it.keep) {
@@ -1046,7 +1075,7 @@
       if (!shown) shown = etRecord(race, it.rid).corr;
       if (corrTd && corrTd.textContent !== shown) corrTd.textContent = shown;
       saveEtRecord(race, it.rid, {
-        et: etRaw(it.tr, race) || etFor(race, it.rid),
+        et: it.dns ? "0:00" : src,
         corr: shown,
         place: it.place ? String(it.place) : etRecord(race, it.rid).place,
       });
@@ -1278,6 +1307,7 @@
       }
     }
     markCol(table, "PY", "dam-bottle-py-col");
+    dropJsonDumpCols(table);
     keepOneLabeled(table, "total-col", "Total");
     keepOneLabeled(table, "nett-col", "Nett");
     stampExistingRaceKeys(table);
