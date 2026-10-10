@@ -45,7 +45,13 @@
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-corr-col{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-hidden{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] td.total-col," +
-      ".fleet-section[data-block-id='" + RID + ":open'] td.nett-col{min-width:2.4rem;text-align:center;font-weight:700;}";
+      ".fleet-section[data-block-id='" + RID + ":open'] td.nett-col{min-width:2.4rem;text-align:center;font-weight:700;}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-gold," +
+      ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-gold td{background-color:#D4AF37}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-silver," +
+      ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-silver td{background-color:#D7D7D7}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-bronze," +
+      ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-bronze td{background-color:#CE8946}";
     document.head.appendChild(css);
   }
 
@@ -558,17 +564,30 @@
     raceKeys(table).forEach(function (race) {
       applyRace(table, race, doSave);
     });
-    var first = table.querySelector("tbody tr[data-result-id] td.rank-col");
-    if (!first) return;
-    var rows = [].map.call(table.querySelectorAll("tbody tr[data-result-id]"), function (tr, idx) {
-      var nett = parseInt(String((tr.querySelector("td.nett-col") && tr.querySelector("td.nett-col").textContent) || "9999"), 10);
-      return { tr: tr, nett: isFinite(nett) ? nett : 9999, idx: idx };
+    sortPodium(table);
+  }
+
+  function sortPodium(table) {
+    if (!table) return;
+    if (document.activeElement && document.activeElement.classList.contains("dam-bottle-et-input")) return;
+    var tbody = table.tBodies && table.tBodies[0];
+    if (!tbody) return;
+    var medals = ["medal-gold", "medal-silver", "medal-bronze"];
+    var rows = [].map.call(tbody.querySelectorAll("tr[data-result-id]"), function (tr, idx) {
+      var nett = parseInt(String((tr.querySelector("td.nett-col") && tr.querySelector("td.nett-col").textContent) || ""), 10);
+      return { tr: tr, nett: isFinite(nett) && nett > 0 ? nett : 9999, idx: idx };
     });
     rows.sort(function (a, b) { return a.nett - b.nett || a.idx - b.idx; });
     rows.forEach(function (it, i) {
-      var rankTd = it.tr.querySelector("td.rank-col");
       var place = it.nett < 9999 ? i + 1 : 0;
-      if (rankTd) rankTd.textContent = place ? rankLabel(place) : "";
+      var rankTd = it.tr.querySelector("td.rank-col");
+      var shown = place ? rankLabel(place) : "";
+      if (rankTd && rankTd.textContent !== shown) rankTd.textContent = shown;
+      it.tr.classList.remove("medal-gold", "medal-silver", "medal-bronze");
+      if (place >= 1 && place <= 3) it.tr.classList.add(medals[place - 1]);
+      if (place) it.tr.setAttribute("data-official-rank", String(place));
+      else it.tr.removeAttribute("data-official-rank");
+      tbody.appendChild(it.tr);
     });
   }
 
@@ -600,6 +619,7 @@
         td.setAttribute("data-et", String(inp.value || "").trim());
         saveEtValue(race, rid, inp.value);
         applyRace(table, race, false);
+        window.setTimeout(function () { sortPodium(table); }, 0);
       });
       inp.addEventListener("blur", function () {
         saveEtValue(race, rid, inp.value);
@@ -819,4 +839,9 @@
   [80, 250, 700, 1600, 3500].forEach(function (ms) {
     window.setTimeout(paint, ms);
   });
+  window.setInterval(function () {
+    var sec = findSec();
+    var table = sec && sec.querySelector("table.fleet-results-table");
+    if (table) sortPodium(table);
+  }, 2000);
 })();
