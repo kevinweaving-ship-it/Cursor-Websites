@@ -6,8 +6,8 @@ import re
 
 DAM = "2026-10-10-hmyc-dam-bottle-sprints"
 GOLD = "9c1eea9a2bebfd02125c8eb5c133b776fd0cf06ca67e066a09a293f77857d32b"
-BOOT_VER = "dbs21"
-REELS_VER = "hmycdbsmedia1"
+BOOT_VER = "dbs22"
+REELS_VER = "hmycdbsmedia2"
 
 
 def write(path, text):
@@ -117,6 +117,18 @@ for dest in (
         "      if (isDartNats() || isDamBottle()) {\n        jobs.push(",
         "      if (isDartNats()) {\n        jobs.push(",
     )
+    t2 = t2.replace(
+        "    if (!isMidmar() && !isDartNats()) return;\n    bindMidmarAutoEnd(root, payload, state);",
+        "    if (!isMidmar() && !isDartNats() && !isDamBottle()) return;\n    bindMidmarAutoEnd(root, payload, state);",
+    )
+    t2 = t2.replace(
+        "    if (!(isMidmar() || isDartNats()) || !root) return;",
+        "    if (!(isMidmar() || isDartNats() || isDamBottle()) || !root) return;",
+    )
+    t2 = t2.replace(
+        "      if (!(isMidmar() || isDartNats()) || !root._mmAutoPlaying) return;",
+        "      if (!(isMidmar() || isDartNats() || isDamBottle()) || !root._mmAutoPlaying) return;",
+    )
     if t2 != t:
         write(dest, t2)
     else:
@@ -125,13 +137,15 @@ for dest in (
 # --- cache bust so browsers pick up the reels poll fix ---
 p = Path("/var/www/sailingsa/js/midmar-live-media.js")
 t = p.read_text(encoding="utf-8")
-t2 = t.replace(
-    'loadScript("/js/mm-lipton-reels-card.js?v=hmycdart25")',
+t2 = re.sub(
+    r'loadScript\("/js/mm-lipton-reels-card\.js\?v=[^"]+"\)',
     f'loadScript("/js/mm-lipton-reels-card.js?v={REELS_VER}")',
+    t,
 )
-t2 = t2.replace(
-    'loadCss("/css/mm-lipton-reels.css?v=hmycdart25")',
+t2 = re.sub(
+    r'loadCss\("/css/mm-lipton-reels\.css\?v=[^"]+"\)',
     f'loadCss("/css/mm-lipton-reels.css?v={REELS_VER}")',
+    t2,
 )
 if t2 != t:
     write_both(p, t2)
@@ -140,7 +154,7 @@ else:
 
 p = Path("/var/www/sailingsa/js/hmyc-dam-bottle-live-boot.js")
 t = p.read_text(encoding="utf-8")
-t2 = re.sub(r"midmar-live-media\.js\?v=midmarwx60dbs\d+", "midmar-live-media.js?v=midmarwx60dbs4", t)
+t2 = re.sub(r"midmar-live-media\.js\?v=midmarwx60dbs\d+", "midmar-live-media.js?v=midmarwx60dbs5", t)
 if t2 != t:
     write_both(p, t2)
 else:

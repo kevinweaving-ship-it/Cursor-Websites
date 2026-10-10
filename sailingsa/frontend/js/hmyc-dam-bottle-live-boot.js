@@ -1,7 +1,7 @@
 /**
  * Dam Bottle Sprints — each race has its own ET + ✓ + R.
  * Click that R header to show/hide its ET/✓. R+ adds a race block. R- drops the last.
- * Admin types ET only. No observers. Does not change live api.py.
+ * Admin types ET only. 0:00 is DNS. No observers. Does not change live api.py.
  */
 (function () {
   "use strict";
@@ -25,9 +25,7 @@
     css.textContent =
       ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-brand{display:block!important;cursor:pointer;flex:0 0 auto;}" +
       ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-brand img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;}" +
-      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-compact{display:flex!important;}" +
-      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-expanded," +
-      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] [data-mm-expanded]{display:none!important;height:0!important;overflow:hidden!important;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "']:not(.mm-lipton-reels--expanded) .mm-lipton-reels-compact{display:flex!important;}" +
       ".regatta-page--club-score-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step," +
       ".regatta-page--super-admin-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step{display:flex!important;visibility:visible!important;}" +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col," +
@@ -144,6 +142,14 @@
       return hr * 3600 + min2 * 60 + sec2;
     }
     return null;
+  }
+
+  function isDnsEt(raw) {
+    var s = String(raw || "").trim();
+    if (!s) return false;
+    if (/^dns$/i.test(s)) return true;
+    if (/^0+([:.]0+)*$/.test(s)) return true;
+    return parseET(s) === 0;
   }
 
   function formatCorrected(sec) {
@@ -449,11 +455,24 @@
     });
   }
 
+  function fleetSize(tr) {
+    var table = tr && tr.closest("table");
+    var n = table ? table.querySelectorAll("tbody tr[data-result-id]").length : 0;
+    return n > 0 ? n : 1;
+  }
+
   function fillTotalNett(tr) {
     var sum = 0;
     var n = 0;
+    var dnsPts = fleetSize(tr) + 1;
     tr.querySelectorAll("td.race-col").forEach(function (td) {
-      var v = parseInt(String(td.textContent || "").replace(/[^\d]/g, ""), 10);
+      var raw = String(td.textContent || "").trim();
+      if (/^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS)$/i.test(raw)) {
+        sum += dnsPts;
+        n += 1;
+        return;
+      }
+      var v = parseInt(raw.replace(/[^\d]/g, ""), 10);
       if (isFinite(v) && v > 0) {
         sum += v;
         n += 1;
@@ -531,12 +550,15 @@
     lockRCells(table);
     var items = [];
     table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr, idx) {
+      var raw = etRaw(tr, race);
+      var dns = isDnsEt(raw);
       var py = rowPy(tr);
-      var etSec = parseET(etRaw(tr, race));
+      var etSec = dns ? null : parseET(raw);
       items.push({
         tr: tr,
         rid: tr.getAttribute("data-result-id"),
-        corr: py && etSec != null ? (etSec * 1000) / py : null,
+        dns: dns,
+        corr: !dns && py && etSec != null && etSec > 0 ? (etSec * 1000) / py : null,
         idx: idx,
       });
     });
@@ -547,6 +569,7 @@
     });
     ranked.forEach(function (it, i) { it.place = i + 1; });
     items.forEach(function (it) {
+      if (it.dns) it.place = "DNS";
       var corrTd = it.tr.querySelector('td.dam-bottle-corr-col[data-for-race="' + race + '"]');
       var rTd = it.tr.querySelector('td.race-col[data-race-key="' + race + '"]');
       var shown = it.corr != null ? formatCorrected(it.corr) : "";
@@ -554,6 +577,7 @@
       if (rTd) {
         var p = it.place ? String(it.place) : "";
         if (rTd.textContent !== p) rTd.textContent = p;
+        rTd.classList.toggle("code", it.dns);
       }
       fillTotalNett(it.tr);
     });
@@ -834,7 +858,7 @@
   }
 
   paint();
-  add("/js/midmar-live-media.js?v=midmarwx60dbs4");
+  add("/js/midmar-live-media.js?v=midmarwx60dbs5");
   add("/js/club-score-edit.js?v=ccr38dbs4");
   [80, 250, 700, 1600, 3500].forEach(function (ms) {
     window.setTimeout(paint, ms);
