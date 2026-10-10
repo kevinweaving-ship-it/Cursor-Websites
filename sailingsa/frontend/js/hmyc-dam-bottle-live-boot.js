@@ -54,7 +54,10 @@
       ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-corr-col{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'].fleet-section--et-hidden .dam-bottle-et-col," +
-      ".fleet-section[data-block-id='" + RID + ":open'].fleet-section--et-hidden .dam-bottle-corr-col{display:none!important}";
+      ".fleet-section[data-block-id='" + RID + ":open'].fleet-section--et-hidden .dam-bottle-corr-col{display:none!important}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.total-col," +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.nett-col{" +
+      "min-width:2.4rem;text-align:center;font-weight:700;}";
     document.head.appendChild(css);
   }
 
@@ -293,7 +296,7 @@
     });
   }
 
-  function colKind(el) {
+  function colKind(el, openKey) {
     if (!el) return "x-other";
     if (el.classList.contains("rank-col")) return "a-rank";
     if (el.classList.contains("class-col")) return "b-class";
@@ -305,12 +308,16 @@
       return "g-cat";
     if (el.classList.contains("dam-bottle-py-col") || String(el.textContent || "").trim() === "PY")
       return "h-py";
-    if (el.classList.contains("dam-bottle-et-col")) return "i-et";
-    if (el.classList.contains("dam-bottle-corr-col")) return "j-corr";
     var rk = raceKeyOf(el);
-    if (rk) return "k-" + ("000" + rk.replace("R", "")).slice(-3);
-    if (el.classList.contains("total-col")) return "y-total";
-    if (el.classList.contains("nett-col")) return "z-nett";
+    if (rk) {
+      var n = ("000" + rk.replace("R", "")).slice(-3);
+      if (openKey && rk === openKey) return "m-open-" + n;
+      return "k-done-" + n;
+    }
+    if (el.classList.contains("dam-bottle-et-col")) return "l-et";
+    if (el.classList.contains("dam-bottle-corr-col")) return "l-corr";
+    if (el.classList.contains("total-col") || String(el.textContent || "").trim() === "Total") return "y-total";
+    if (el.classList.contains("nett-col") || String(el.textContent || "").trim() === "Nett") return "z-nett";
     return "x-other";
   }
 
@@ -323,9 +330,10 @@
       document.activeElement.classList.contains("dam-bottle-et-input")
     )
       return;
+    var openKey = openRaceKey(table);
     var ths = [].slice.call(thead.children);
     var order = ths.map(function (th, i) {
-      return { th: th, i: i, k: colKind(th) };
+      return { th: th, i: i, k: colKind(th, openKey) };
     });
     order.sort(function (a, b) {
       if (a.k === b.k) return a.i - b.i;
@@ -346,23 +354,66 @@
     });
   }
 
-  function ensureTotalNett(table) {
+  function keepOneLabeled(table, cls, label) {
     var thead = table && table.querySelector("thead tr");
     if (!thead) return;
-    function ensure(cls, label) {
-      if (thead.querySelector("th." + cls)) return;
-      var th = document.createElement("th");
-      th.className = cls;
-      th.textContent = label;
-      thead.appendChild(th);
+    var hits = [].filter.call(thead.children, function (th) {
+      return th.classList.contains(cls) || String(th.textContent || "").trim() === label;
+    });
+    var i;
+    for (i = hits.length - 1; i >= 1; i--) {
+      var idx = [].indexOf.call(thead.children, hits[i]);
+      if (hits[i].parentNode) hits[i].parentNode.removeChild(hits[i]);
       table.querySelectorAll("tbody tr").forEach(function (tr) {
-        var td = document.createElement("td");
-        td.className = cls;
-        tr.appendChild(td);
+        if (tr.children[idx]) tr.removeChild(tr.children[idx]);
       });
     }
-    ensure("total-col", "Total");
-    ensure("nett-col", "Nett");
+    if (hits[0]) {
+      hits[0].classList.add(cls);
+      var keepIdx = [].indexOf.call(thead.children, hits[0]);
+      table.querySelectorAll("tbody tr").forEach(function (tr) {
+        if (tr.children[keepIdx]) tr.children[keepIdx].classList.add(cls);
+      });
+      return;
+    }
+    var th = document.createElement("th");
+    th.className = cls;
+    th.textContent = label;
+    thead.appendChild(th);
+    table.querySelectorAll("tbody tr").forEach(function (tr) {
+      var td = document.createElement("td");
+      td.className = cls;
+      tr.appendChild(td);
+    });
+  }
+
+  function ensureTotalNett(table) {
+    keepOneLabeled(table, "total-col", "Total");
+    keepOneLabeled(table, "nett-col", "Nett");
+  }
+
+  function fillTotalNett(tr) {
+    if (!tr) return;
+    var sum = 0;
+    var n = 0;
+    tr.querySelectorAll("td.race-col").forEach(function (td) {
+      var v = parseInt(String(td.textContent || "").replace(/[^\d]/g, ""), 10);
+      if (isFinite(v) && v > 0) {
+        sum += v;
+        n += 1;
+      }
+    });
+    var tot = tr.querySelector("td.total-col");
+    var nett = tr.querySelector("td.nett-col");
+    var txt = n ? String(sum) : "";
+    if (tot) {
+      tot.classList.remove("strike-out");
+      if (tot.textContent !== txt) tot.textContent = txt;
+    }
+    if (nett) {
+      nett.classList.remove("strike-out");
+      if (nett.textContent !== txt) nett.textContent = txt;
+    }
   }
 
   function ensureRaceCol(table, n) {
@@ -530,6 +581,7 @@
       if (it.place && rankTd && rankTd.textContent !== rankLabel(it.place)) {
         rankTd.textContent = rankLabel(it.place);
       }
+      fillTotalNett(it.tr);
     });
     if (doSort) {
       var tb = table.tBodies && table.tBodies[0];
@@ -663,6 +715,7 @@
     dropDupRaces(table);
     orderCols(table);
     lockRCells(table);
+    table.querySelectorAll("tbody tr[data-result-id]").forEach(fillTotalNett);
     wireEtInputs(table);
     syncEtVisible(sec);
     bindRaceClicks(sec);
