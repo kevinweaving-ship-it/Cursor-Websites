@@ -49,7 +49,9 @@
       ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-silver," +
       ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-silver td{background-color:#D7D7D7}" +
       ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-bronze," +
-      ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-bronze td{background-color:#CE8946}";
+      ".fleet-section[data-block-id='" + RID + ":open'] tr.medal-bronze td{background-color:#CE8946}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-input.club-score-input--saving{background:#fef08a}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-input.club-score-input--saved{background:#bbf7d0}";
     document.head.appendChild(css);
   }
 
@@ -62,15 +64,26 @@
   }
 
   function sessionToken() {
+    function fromObj(o) {
+      if (!o) return "";
+      return String((o.session || o.session_token || o.session_id || o.token) || "").trim();
+    }
     try {
-      var a = localStorage.getItem("session");
-      if (a && a.charAt(0) !== "{" && String(a).trim().length > 8) return String(a).trim();
-      var b = localStorage.getItem("sailing_session");
+      var a = localStorage.getItem("session") || sessionStorage.getItem("session");
+      if (a && a.charAt(0) === "{") {
+        var ta = fromObj(JSON.parse(a));
+        if (ta) return ta;
+      } else if (a && String(a).trim().length > 8) return String(a).trim();
+      var b = localStorage.getItem("sailing_session") || sessionStorage.getItem("sailing_session");
       if (b) {
-        var o = JSON.parse(b);
-        var t = String((o && (o.session || o.session_token || o.session_id)) || "").trim();
-        if (t) return t;
+        if (b.charAt(0) === "{") {
+          var tb = fromObj(JSON.parse(b));
+          if (tb) return tb;
+        } else if (String(b).trim().length > 8) return String(b).trim();
       }
+      var cookie = String(document.cookie || "");
+      var m = cookie.match(/(?:^|;\s*)(?:session|session_token)=([^;]+)/);
+      if (m && m[1]) return decodeURIComponent(m[1]).trim();
     } catch (e) {}
     return "";
   }
@@ -210,7 +223,8 @@
       body: JSON.stringify({ race: race, value: value, session: sessionToken() }),
     }).then(function (r) {
       return r.json().then(function (j) {
-        return { ok: r.ok, j: j };
+        if (!r.ok) throw new Error((j && (j.detail || j.error)) || "save failed");
+        return { ok: true, j: j };
       });
     });
   }
@@ -293,7 +307,7 @@
       removeColAt(table, i);
     });
     clearEtRace(key);
-    if (adminEditOn() && sessionToken()) {
+    if (adminEditOn()) {
       table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
         sessionPatchRace(tr.getAttribute("data-result-id"), key, "");
       });
@@ -508,41 +522,59 @@
   var saveChain = Promise.resolve();
   var lastSaved = {};
 
+  function markEtState(table, race, cls) {
+    if (!table || !race) return;
+    table.querySelectorAll('td.dam-bottle-et-col[data-for-race="' + race + '"] .dam-bottle-et-input').forEach(function (inp) {
+      inp.classList.remove("club-score-input--saving", "club-score-input--saved");
+      if (cls) inp.classList.add(cls);
+    });
+  }
+
   function persistPlaces(table, race, items) {
-    if (!adminEditOn() || !sessionToken() || !race) return;
+    if (!adminEditOn() || !race) return;
     var last = lastSaved[race] || {};
     var next = {};
     items.forEach(function (it) {
       next[it.rid] = it.place ? String(it.place) : "";
     });
-    var changing = items.filter(function (it) {
-      return String(last[it.rid] || "") !== String(next[it.rid] || "");
-    });
-    if (!changing.length) {
-      lastSaved[race] = next;
-      return;
-    }
+    var same =
+      Object.keys(next).length &&
+      items.every(function (it) {
+        return String(last[it.rid] || "") === String(next[it.rid] || "");
+      }) &&
+      Object.keys(last).length === Object.keys(next).length;
+    if (same) return;
+    markEtState(table, race, "club-score-input--saving");
     saveChain = saveChain
       .then(function () {
         var seq = Promise.resolve();
-        changing.forEach(function (it) {
-          if (!last[it.rid]) return;
-          seq = seq.then(function () { return sessionPatchRace(it.rid, race, ""); });
+        items.forEach(function (it) {
+          seq = seq.then(function () {
+            return sessionPatchRace(it.rid, race, "");
+          });
         });
         return seq;
       })
       .then(function () {
         var seq = Promise.resolve();
-        changing.forEach(function (it) {
+        items.forEach(function (it) {
           if (!it.place) return;
-          seq = seq.then(function () { return sessionPatchRace(it.rid, race, String(it.place)); });
+          seq = seq.then(function () {
+            return sessionPatchRace(it.rid, race, String(it.place));
+          });
         });
         return seq;
       })
       .then(function () {
         lastSaved[race] = next;
+        markEtState(table, race, "club-score-input--saved");
+        window.setTimeout(function () {
+          markEtState(table, race, "");
+        }, 900);
       })
-      .catch(function () {});
+      .catch(function () {
+        markEtState(table, race, "");
+      });
   }
 
   function applyRace(table, race, doSave) {
@@ -643,9 +675,14 @@
         td.setAttribute("data-et", String(inp.value || "").trim());
         saveEtValue(race, rid, inp.value);
         applyRace(table, race, false);
+        window.clearTimeout(inp._dbsSave);
+        inp._dbsSave = window.setTimeout(function () {
+          applyRace(table, race, true);
+        }, 350);
         window.setTimeout(function () { sortPodium(table); }, 0);
       });
       inp.addEventListener("blur", function () {
+        window.clearTimeout(inp._dbsSave);
         saveEtValue(race, rid, inp.value);
         applyRace(table, race, true);
         applyAllRaces(table, false);
