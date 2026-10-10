@@ -1,0 +1,30 @@
+[Unit]
+Description=Aerialnet Hansekop keypad API (Olarm + Tuya)
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/aerialnet-arial
+Environment="PYTHONPATH=/opt/aerialnet-arial"
+Environment="PATH=/opt/aerialnet-arial/venv/bin"
+Environment="ARIAL_DATA_DIR=/var/www/aerialnet/data"
+Environment="ARIAL_USERS_DIR=/var/www/aerialnet/data"
+Environment="ARIAL_SITE_ID=hansekop"
+Environment="ARIAL_SITE_LABEL=HANSEKOP"
+Environment="ARIAL_OLARM_DEVICE_ID=0bb544db-30b0-453d-bf39-d323538ebd5e"
+Environment="ARIAL_TUYA_ENABLED=1"
+Environment="ARIAL_NEXT_DOMAIN=aerialnet.co.za"
+Environment="STATIC_DIR=/home/user-data/www/aerialnet.co.za"
+Environment="ARIAL_LIVE_STATE=/var/www/aerialnet/data/hansekop_live_state.json"
+Environment="ARIAL_ENERGY_LOG=/var/www/aerialnet/data/hansekop_energy_bins.json"
+Environment="ARIAL_KEYPAD_LOG=/var/www/aerialnet/data/hansekop_keypad_log.json"
+Environment="ARIAL_WHATSAPP_LOG=/var/www/aerialnet/data/whatsapp_log.jsonl"
+EnvironmentFile=-/etc/aerialnet-olarm.env
+EnvironmentFile=-/etc/aerialnet-tuya.env
+ExecStart=/opt/aerialnet-arial/venv/bin/uvicorn arial_app:app --host 127.0.0.1 --port 8003 --workers 1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
