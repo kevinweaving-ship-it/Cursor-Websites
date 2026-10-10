@@ -3309,3 +3309,11 @@ button.sailor-club-flag-box.sailor-sa-club-flag-edit-trigger:focus-visible {
     color: #fff;
     animation: none;
 }
+
+/* Gold results host mark: desktop matches MP/ML cap, not the 180px tall-burgee blow-up. */
+@media (min-width: 769px) {
+    .regatta-page .header:not(.header--lipton) .regatta-header-club-logo-img {
+        max-height: min(14vw, 72px) !important;
+        max-width: min(20vw, 100px) !important;
+    }
+}
