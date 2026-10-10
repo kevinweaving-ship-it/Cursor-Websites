@@ -10,7 +10,10 @@ import re
 import sys
 from pathlib import Path
 
-from pypdf import PdfReader
+try:
+    from pypdf import PdfReader
+except ImportError:  # apply-from-json on live does not need pypdf
+    PdfReader = None
 
 RID = "2026-10-04-free-state-youth-provincial-champs"
 EVENT_NAME = "2026-10-04 Free State Youth Provincial Champ"
