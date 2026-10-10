@@ -36,11 +36,7 @@
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .club-score-input," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .wc-result-field-input{display:none!important;}" +
       ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
-      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col," +
-      ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
-      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-col," +
-      ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
-      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-corr-col{display:none!important}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-hidden{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] td.total-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.nett-col{min-width:2.4rem;text-align:center;font-weight:700;}" +
@@ -98,42 +94,184 @@
     return url + (url.indexOf("?") >= 0 ? "&" : "?") + "session=" + encodeURIComponent(t);
   }
 
-  function loadEtStore() {
-    var raw;
-    try {
-      raw = JSON.parse(localStorage.getItem(ET_KEY) || "{}") || {};
-    } catch (e1) {
-      raw = {};
-    }
+  var ET_MARK = "ETJ:";
+  var etHydrated = false;
+  var etServerTimer = {};
+
+  function normalizeEtStore(raw) {
+    raw = raw && typeof raw === "object" ? raw : {};
     var keys = Object.keys(raw);
     if (!keys.length) return {};
     if (keys.some(function (k) { return /^R\d+$/.test(k); })) return raw;
     return { R1: raw };
   }
 
-  function saveEtValue(race, rid, val) {
+  function readEtCookie() {
+    try {
+      var m = String(document.cookie || "").match(new RegExp("(?:^|;\\s*)" + ET_KEY + "=([^;]+)"));
+      if (!m || !m[1]) return {};
+      return normalizeEtStore(JSON.parse(decodeURIComponent(m[1])));
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function writeEtCookie(s) {
+    try {
+      document.cookie = ET_KEY + "=" + encodeURIComponent(JSON.stringify(s || {})) + ";path=/;max-age=2592000;SameSite=Lax";
+    } catch (e3) {}
+  }
+
+  function mergeEtStore(into, extra) {
+    into = into || {};
+    extra = extra || {};
+    Object.keys(extra).forEach(function (race) {
+      if (!/^R\d+$/.test(race) || !extra[race] || typeof extra[race] !== "object") return;
+      if (!into[race]) into[race] = {};
+      Object.keys(extra[race]).forEach(function (rid) {
+        var v = String(extra[race][rid] || "").trim();
+        if (v && !String(into[race][rid] || "").trim()) into[race][rid] = v;
+      });
+    });
+    return into;
+  }
+
+  function loadEtStore() {
+    var raw = {};
+    try {
+      raw = normalizeEtStore(JSON.parse(localStorage.getItem(ET_KEY) || "{}") || {});
+    } catch (e1) {
+      raw = {};
+    }
+    return mergeEtStore(raw, readEtCookie());
+  }
+
+  function persistEtStore(s) {
+    try {
+      localStorage.setItem(ET_KEY, JSON.stringify(s || {}));
+    } catch (e2) {}
+    writeEtCookie(s);
+  }
+
+  function saveEtValue(race, rid, val, fromServer) {
     if (!race || !rid) return;
     var s = loadEtStore();
     if (!s[race]) s[race] = {};
     val = String(val || "").trim();
     if (val) s[race][String(rid)] = val;
     else delete s[race][String(rid)];
-    try {
-      localStorage.setItem(ET_KEY, JSON.stringify(s));
-    } catch (e2) {}
+    persistEtStore(s);
+    if (!fromServer) schedulePersistEt(rid);
   }
 
   function clearEtRace(race) {
     var s = loadEtStore();
+    var rids = Object.keys(s[race] || {});
     delete s[race];
-    try {
-      localStorage.setItem(ET_KEY, JSON.stringify(s));
-    } catch (e2) {}
+    persistEtStore(s);
+    rids.forEach(schedulePersistEt);
   }
 
   function etFor(race, rid) {
     var s = loadEtStore();
     return String((s[race] && s[race][String(rid)]) || "").trim();
+  }
+
+  function etFromHull(raw) {
+    var s = String(raw || "").trim();
+    if (s.indexOf(ET_MARK) !== 0) return {};
+    try {
+      var o = JSON.parse(s.slice(ET_MARK.length));
+      return o && typeof o === "object" ? o : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function persistEtServer(rid) {
+    if (!rid || !adminEditOn()) return Promise.resolve();
+    var s = loadEtStore();
+    var mine = {};
+    Object.keys(s).forEach(function (race) {
+      var v = s[race] && s[race][String(rid)];
+      if (v) mine[race] = v;
+    });
+    return fetch(withSession("/api/result/" + encodeURIComponent(rid)), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        hull_no: Object.keys(mine).length ? ET_MARK + JSON.stringify(mine) : "",
+        session: sessionToken(),
+      }),
+    }).catch(function () {
+      return null;
+    });
+  }
+
+  function schedulePersistEt(rid) {
+    if (!rid || !adminEditOn()) return;
+    window.clearTimeout(etServerTimer[rid]);
+    etServerTimer[rid] = window.setTimeout(function () {
+      persistEtServer(rid);
+    }, 400);
+  }
+
+  function applyHullEt(rid, hull) {
+    var mine = etFromHull(hull);
+    Object.keys(mine).forEach(function (race) {
+      if (!/^R\d+$/.test(race) || !mine[race]) return;
+      if (!etFor(race, rid)) saveEtValue(race, rid, mine[race], true);
+    });
+  }
+
+  function hydrateEtFromApi(done) {
+    if (etHydrated) {
+      if (done) done();
+      return;
+    }
+    fetch("/api/regatta/" + encodeURIComponent(RID), { credentials: "include" })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (rows) {
+        (Array.isArray(rows) ? rows : []).forEach(function (row) {
+          if (row && row.result_id) applyHullEt(row.result_id, row.hull_no);
+        });
+        etHydrated = true;
+        if (done) done();
+      })
+      .catch(function () {
+        etHydrated = true;
+        if (done) done();
+      });
+  }
+
+  function snapshotEtFromDom(table) {
+    if (!table) return;
+    table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
+      var rid = tr.getAttribute("data-result-id");
+      tr.querySelectorAll("td.dam-bottle-et-col").forEach(function (td) {
+        var race = td.getAttribute("data-for-race");
+        var raw = etRaw(tr, race);
+        if (race && raw) saveEtValue(race, rid, raw);
+      });
+    });
+  }
+
+  function paintEtCells(table) {
+    if (!table) return;
+    table.querySelectorAll("td.dam-bottle-et-col").forEach(function (td) {
+      var race = td.getAttribute("data-for-race");
+      var tr = td.closest("tr");
+      var rid = tr && tr.getAttribute("data-result-id");
+      if (!race || !rid) return;
+      var kept = etFor(race, rid);
+      td.setAttribute("data-et", kept);
+      if (adminEditOn()) return;
+      if (td.querySelector(".dam-bottle-et-input")) return;
+      if (String(td.textContent || "").trim() !== kept) td.textContent = kept;
+    });
   }
 
   function parseET(raw) {
@@ -660,6 +798,9 @@
       })
       .then(function () {
         lastSaved[race] = next;
+        typed.forEach(function (it) {
+          persistEtServer(it.rid);
+        });
         markEtState(table, race, "club-score-input--saved");
         window.setTimeout(function () {
           markEtState(table, race, "");
@@ -675,13 +816,14 @@
     lockRCells(table);
     var items = [];
     table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr, idx) {
-      var raw = etRaw(tr, race);
+      var rid = tr.getAttribute("data-result-id");
+      var raw = etRaw(tr, race) || etFor(race, rid);
       var dns = isDnsEt(raw);
       var py = rowPy(tr);
       var etSec = dns ? null : parseET(raw);
       items.push({
         tr: tr,
-        rid: tr.getAttribute("data-result-id"),
+        rid: rid,
         dns: dns,
         keep: !dns && !String(raw || "").trim(),
         corr: !dns && py && etSec != null && etSec > 0 ? (etSec * 1000) / py : null,
@@ -706,6 +848,7 @@
           if (rTd && cellPlaceText(rTd) !== kept) rTd.textContent = kept;
           rememberPlace(it.rid, race, kept);
         }
+        if (corrTd && corrTd.textContent) corrTd.textContent = "";
         fillTotalNett(it.tr);
         return;
       }
@@ -764,6 +907,7 @@
   }
 
   function wireEtInputs(table) {
+    paintEtCells(table);
     if (!table || !adminEditOn()) return;
     table.querySelectorAll("td.dam-bottle-et-col").forEach(function (td) {
       var race = td.getAttribute("data-for-race");
@@ -773,9 +917,11 @@
       var kept = etFor(race, rid);
       var existing = td.querySelector(".dam-bottle-et-input");
       if (existing) {
-        if (document.activeElement !== existing && String(existing.value || "") !== kept && !String(existing.value || "").trim()) {
-          existing.value = kept;
+        if (document.activeElement !== existing) {
+          if (kept && String(existing.value || "").trim() !== kept) existing.value = kept;
+          else if (!String(existing.value || "").trim() && kept) existing.value = kept;
         }
+        td.setAttribute("data-et", String(existing.value || kept || "").trim());
         return;
       }
       var inp = document.createElement("input");
@@ -818,9 +964,16 @@
     raceKeys(table).forEach(function (key) {
       var th = table.querySelector('th.race-col[data-race-key="' + key + '"]');
       var closed = !!(th && th.classList.contains("race-col--closed"));
+      var hasTime = false;
+      table.querySelectorAll('td.dam-bottle-et-col[data-for-race="' + key + '"]').forEach(function (td) {
+        var tr = td.closest("tr");
+        var rid = tr && tr.getAttribute("data-result-id");
+        if (etRaw(tr, key) || etFor(key, rid)) hasTime = true;
+      });
+      var hide = closed || (!adminEditOn() && !hasTime);
       table.querySelectorAll('[data-for-race="' + key + '"]').forEach(function (el) {
         if (el.classList.contains("race-col")) return;
-        el.classList.toggle("dam-bottle-et-hidden", closed);
+        el.classList.toggle("dam-bottle-et-hidden", hide);
       });
     });
   }
@@ -897,6 +1050,7 @@
     }
     var table = sec.querySelector("table.fleet-results-table");
     if (!table) return;
+    snapshotEtFromDom(table);
     if (!table.parentNode.classList.contains("table-container")) {
       var wrap = document.createElement("div");
       wrap.className = "table-container";
@@ -936,6 +1090,7 @@
     orderCols(table);
     lockRCells(table);
     wireEtInputs(table);
+    paintEtCells(table);
     syncEtVisible(sec);
     applyAllRaces(table, false);
     bindUi(sec);
@@ -1019,6 +1174,9 @@
   }
 
   paint();
+  hydrateEtFromApi(function () {
+    paint();
+  });
   add("/js/midmar-live-media.js?v=midmarwx60dbs5");
   add("/js/club-score-edit.js?v=ccr38dbs4");
   [80, 250, 700, 1600, 3500].forEach(function (ms) {
