@@ -55,7 +55,7 @@ def merge_store(into, extra):
         for rid, raw in rows.items():
             have = rec_of(into[race].get(str(rid)))
             add = rec_of(raw)
-            if not have.get("et") and add.get("et"):
+            if add.get("et"):
                 into[race][str(rid)] = add
             elif have.get("et"):
                 if add.get("corr") and not have.get("corr"):

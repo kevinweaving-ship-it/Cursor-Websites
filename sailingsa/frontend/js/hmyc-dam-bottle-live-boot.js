@@ -280,9 +280,7 @@
       if (!/^R\d+$/.test(race) || !recs[race]) return;
       var add = asRec(recs[race]);
       if (!add.et) return;
-      var have = etRecord(race, rid);
-      if (!have.et) saveEtRecord(race, rid, add, true);
-      else if (!have.corr && add.corr) saveEtRecord(race, rid, { et: have.et, corr: add.corr, place: have.place || add.place }, true);
+      saveEtRecord(race, rid, add, true);
     });
   }
 
