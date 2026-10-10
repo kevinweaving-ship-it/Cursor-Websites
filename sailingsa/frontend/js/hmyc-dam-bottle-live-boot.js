@@ -1,7 +1,7 @@
 /**
  * Dam Bottle Sprints — each race has its own ET + ✓ + R.
  * Click that R header to show/hide its ET/✓. R+ adds a race block. R- drops the last.
- * Admin types ET only. 0:00 is DNC. No observers. Does not change live api.py.
+ * Admin types ET only. 0:00 or DNC/DNS/DNF… → code, time 0:00, points = entries+1. No observers. Does not change live api.py.
  */
 (function () {
   "use strict";
@@ -413,11 +413,12 @@
   }
 
   function etCode(raw, keptPlace) {
-    var s = String(raw || "").trim();
+    var s = String(raw || "").trim().replace(/^\(|\)$/g, "").trim();
     if (!s) return "";
-    if (/^(dnc|dns|dnf|ret|dsq|ufd|bfd|ocs)$/i.test(s)) return s.toUpperCase();
+    var m = s.match(/^(dnc|dns|dnf|ret|dsq|ufd|bfd|ocs|dpi)$/i);
+    if (m) return m[1].toUpperCase();
     if (isZeroEt(s)) {
-      if (keptPlace && /^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS)$/i.test(String(keptPlace))) {
+      if (keptPlace && /^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS|DPI)$/i.test(String(keptPlace))) {
         return String(keptPlace).toUpperCase();
       }
       return "DNC";
@@ -839,7 +840,7 @@
   }
 
   function isCodeScore(raw) {
-    return /^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS|DPI)$/i.test(String(raw || "").trim());
+    return /^(DNC|DNS|DNF|RET|DSQ|UFD|BFD|OCS|DPI)$/i.test(String(raw || "").replace(/^\(|\)$/g, "").trim());
   }
 
   function scorePts(raw, dnsPts) {
@@ -1163,7 +1164,7 @@
       var inp = document.createElement("input");
       inp.type = "text";
       inp.className = "dam-bottle-et-input";
-      inp.setAttribute("placeholder", "m:ss");
+      inp.setAttribute("placeholder", "m:ss or DNC");
       inp.setAttribute("aria-label", race + " elapsed time");
       inp.value = kept;
       td.setAttribute("data-et", kept);
