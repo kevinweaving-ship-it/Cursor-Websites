@@ -1296,15 +1296,33 @@
     if (paint()) paintedOk = true;
     return paintedOk;
   }
+  function fillTimesOnly() {
+    var sec = findSec();
+    var table = sec && sec.querySelector("table.fleet-results-table");
+    if (!table) return;
+    wireEtInputs(table);
+    paintEtCells(table);
+    applyAllRaces(table, false);
+    syncEtVisible(sec);
+  }
   paintOnce();
   hydrateEtFromApi(function () {
-    paintOnce();
+    fillTimesOnly();
+    if (!paintedOk) paintOnce();
   });
   add("/js/midmar-live-media.js?v=midmarwx60dbs5");
   add("/js/club-score-edit.js?v=ccr38dbs4");
   [80, 250, 700].forEach(function (ms) {
     window.setTimeout(function () {
       if (!paintedOk) paintOnce();
+    }, ms);
+  });
+  var filledAdmin = false;
+  [400, 1000, 1800].forEach(function (ms) {
+    window.setTimeout(function () {
+      if (filledAdmin || !adminEditOn()) return;
+      filledAdmin = true;
+      fillTimesOnly();
     }, ms);
   });
 })();
