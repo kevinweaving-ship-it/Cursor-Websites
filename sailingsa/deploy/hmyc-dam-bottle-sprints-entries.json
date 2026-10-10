@@ -30,6 +30,16 @@
       "age": "Snr",
       "club": "HMYC",
       "py": "1102"
+    },
+    {
+      "class": "Hunter 19",
+      "sail_no": "222",
+      "helm": "Timothy Kerry",
+      "crew": "",
+      "age": "Snr",
+      "club": "HMYC",
+      "py": "1043",
+      "helm_sas_id": 1536
     }
   ]
 }
