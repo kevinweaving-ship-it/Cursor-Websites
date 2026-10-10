@@ -140,9 +140,27 @@ _WC_CODE_RE = re.compile(
 )
 
 
+def _entry_count(html: str) -> int:
+    n = len(re.findall(r"<tr\b[^>]*data-result-id=", html or "", flags=re.I))
+    if n:
+        return n
+    m = re.search(r"<tbody\b[^>]*>(.*?)</tbody>", html or "", flags=re.I | re.S)
+    if not m:
+        return 1
+    return max(len(re.findall(r"<tr\b", m.group(1), flags=re.I)), 1)
+
+
+def pdf_page_orientation(slug: str) -> str:
+    """Parent Dam Bottle table is portrait. Landscape clips Rank/Sail/Helm on the share sheet."""
+    rid = str(slug or "").strip().lower()
+    if "dam-bottle" in rid:
+        return "portrait"
+    return ""
+
+
 def _flatten_parent_race_codes(html: str) -> str:
-    """Parent shows DNC/DNS as the cell value. Print CSS overlays .wc-code at 50%
-    under a score — when there is no score the code vanishes. Promote it."""
+    """Parent paints DNC/DNS as points (entries+1) over the code. Mirror that."""
+    pts = str(_entry_count(html) + 1)
 
     def _cell(m: re.Match) -> str:
         tag, attrs, inner = m.group(1), m.group(2), m.group(3)
@@ -151,13 +169,19 @@ def _flatten_parent_race_codes(html: str) -> str:
         cls = attrs or ""
         if "race-col" not in cls and "code" not in cls:
             return m.group(0)
-        if "wc-score" in inner:
+        if "wc-score" in inner or "dam-bottle-code-stack" in inner:
             return m.group(0)
         cm = _WC_CODE_RE.search(inner)
         if not cm:
             return m.group(0)
         code = cm.group(1).upper()
-        return f"<{tag}{attrs}>{code}</{tag}>"
+        return (
+            f"<{tag}{attrs}>"
+            f'<span class="dam-bottle-code-stack">'
+            f'<span class="dam-bottle-code-pts">{pts}</span>'
+            f'<span class="dam-bottle-code-txt">{code}</span>'
+            f"</span></{tag}>"
+        )
 
     return _CELL_RE.sub(_cell, html or "")
 

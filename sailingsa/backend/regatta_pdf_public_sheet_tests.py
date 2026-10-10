@@ -5,6 +5,7 @@ from regatta_pdf_public_sheet import (
     extract_parent_fleet_htmls,
     parent_event_logo,
     parent_page_left_logo,
+    pdf_page_orientation,
     sanitize_public_fleet_html,
 )
 
@@ -44,16 +45,21 @@ class PublicSheetSanitizeTests(unittest.TestCase):
         self.assertIn("Nett", out)
 
     def test_parent_dnc_is_the_cell_value(self):
+        rows = "".join(f'<tr data-result-id="{i}"><td class="score-counts">1</td></tr>' for i in range(3))
         html = (
             "<table><thead><tr><th class=\"race-col\">R2</th><th class=\"nett-col\">Nett</th></tr></thead>"
-            "<tbody><tr>"
+            "<tbody>"
+            f"{rows}"
+            "<tr data-result-id=\"4\">"
             '<td class="code race-col" data-race-key="R2">'
             '<span class="code"><span class="wc-code">DNC</span></span></td>'
             '<td class="nett-col">18</td>'
             "</tr></tbody></table>"
         )
         out = sanitize_public_fleet_html(html)
-        self.assertIn(">DNC<", out)
+        self.assertIn("dam-bottle-code-pts", out)
+        self.assertIn(">5<", out)
+        self.assertIn("DNC", out)
         self.assertNotIn("wc-code", out)
 
     def test_scored_cell_keeps_code_overlay(self):
@@ -120,6 +126,13 @@ class PublicSheetSanitizeTests(unittest.TestCase):
         self.assertNotIn("Elapsed", html)
         self.assertNotIn("Open-Class-Logo", html)
         self.assertIn("Dam-Bottle-Sprints", html)
+
+    def test_dam_bottle_pdf_is_portrait(self):
+        self.assertEqual(
+            pdf_page_orientation("2026-10-10-hmyc-dam-bottle-sprints"),
+            "portrait",
+        )
+        self.assertEqual(pdf_page_orientation("hyc-cape-classic-2026"), "")
 
 
 if __name__ == "__main__":

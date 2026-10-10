@@ -89,8 +89,26 @@
     var css = document.createElement("style");
     css.id = "sa-parent-event-logo-fleet-css";
     css.textContent =
+      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Class Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Class%20Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Class%20Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Class Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) img.rs-fleet-title-logo[src*='Class Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) img.rs-fleet-title-logo[src*='Class%20Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) img.rs-fleet-title-logo[src*='Class%20Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) img.rs-fleet-title-logo[src*='Class Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) img.class-header-logo-img[src*='Open-Class-Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) img.class-header-logo-img[src*='Open-Class-Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) img.rs-fleet-title-logo[src*='Open-Class-Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) img.rs-fleet-title-logo[src*='Open-Class-Logo']" +
+      "{visibility:hidden!important;opacity:0!important}" +
+      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Event Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Event%20Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) img.rs-fleet-title-logo[src*='Event Logo']," +
+      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) img.rs-fleet-title-logo[src*='Event%20Logo']" +
+      "{visibility:visible!important;opacity:1!important}" +
       ".class-header-logo-col[data-sa-event-logo-fleet='1']{display:flex!important;visibility:visible!important;align-items:center;}" +
-      ".class-header-logo-col[data-sa-event-logo-fleet='1'] img{display:block!important;visibility:visible!important;" +
+      ".class-header-logo-col[data-sa-event-logo-fleet='1'] img{display:block!important;visibility:visible!important;opacity:1!important;" +
       "height:auto;width:auto;max-height:min(18vw,80px);max-width:min(42vw,220px);object-fit:contain;}" +
       "#dam-bottle-open-fleet .table-container,#dam-bottle-open-fleet .table-wrapper{" +
       "overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%!important;max-width:100%;box-sizing:border-box;}" +
