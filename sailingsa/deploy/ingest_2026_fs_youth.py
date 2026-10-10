@@ -27,7 +27,8 @@ END = "2026-10-04"
 AS_AT = "2026-10-04 17:30:00+02"
 RESULT_STATUS = "Final"
 LEFT_LOGO = "/artwork/Event Logo/Free-State-Youth-Provincial-Champs-2025.png"
-OPT_LOGO = "/artwork/Class Logo/Optimist-Class-Logo.png"
+OPT_A_LOGO = "/artwork/Class Logo/Optimist-A-Class-Logo.png"
+OPT_B_LOGO = "/artwork/Class Logo/Optimist-B-Class-Logo.png"
 DAB_LOGO = "/artwork/Class Logo/Dabchick-Class-Logo.png"
 
 # SAS ID table is name truth. None = review queue.
@@ -476,9 +477,9 @@ def _write_header_icons() -> None:
     entry = {
         "left": LEFT_LOGO,
         "fleet_logos": {
-            "optimist-a": OPT_LOGO,
+            "optimist-a": OPT_A_LOGO,
             "dabchick": DAB_LOGO,
-            "optimist-b": OPT_LOGO,
+            "optimist-b": OPT_B_LOGO,
         },
     }
     paths = [
