@@ -4,6 +4,9 @@ GET /dev-1/club/hmyc/event — standard Back / Title / Stats / Data-card layout.
 Clones the last HMYC Dart 18 fleet (2025 HMYC Grand Slam, 27 Jan 2025).
 Wind and Media cards match that event (no recorded wind / no media).
 Fleet table is the only change: Time (empty, club-admin entry) and PY (795).
+
+First Non-SAS event: category Club, sanction CLUB (not SAS calendar).
+Keep Club events separate from sanctioned SAS events.
 """
 
 from __future__ import annotations
@@ -32,6 +35,13 @@ CLASS_PY = 795  # RYA PN 2026 Dart 18 — do not invent other class PY here
 CLUB_CODE = "HMYC"
 CLUB_NAME = "Henley Midmar Yacht Club"
 CLUB_SLUG = "hmyc"
+
+# First Non-SAS / club-origin event. Do not tag as SAS calendar.
+EVENT_SOURCE = "club"
+EVENT_CATEGORY = "Club"
+EVENT_CATEGORY_SLUG = "club"
+SANCTION_LEVEL = "CLUB"
+SANCTION_LABEL = "Non SAS"
 
 # Last HMYC Dart 18 fleet: Grand Slam 27 Jan 2025, 17 boats, Appendix A places.
 # Time is blank for club-admin elapsed-time entry. PY is the class number.
@@ -111,12 +121,16 @@ def _title_card() -> str:
         f"</div>"
     )
     desc = (
+        f"First {EVENT_CATEGORY} ({SANCTION_LABEL}) event — not a sanctioned SAS calendar event. "
         f"Club admin PY event for {CLUB_CODE}. Fleet cloned from the last {CLUB_CODE} "
         f"{CLASS_NAME} result ({SOURCE_EVENT_NAME}, {SOURCE_DATE_LABEL}). "
         f"Time is for club elapsed-time entry. PY is the {CLASS_NAME} number ({CLASS_PY})."
     )
     assoc = (
-        f'<div class="class-assoc">Association: '
+        f'<div class="class-assoc">Category: '
+        f'<a href="/events/type/{_esc(EVENT_CATEGORY_SLUG)}">{_esc(EVENT_CATEGORY)}</a>'
+        f" · Sanction: {_esc(SANCTION_LABEL)}"
+        f" · Host: "
         f'<a href="/club/{_esc(CLUB_SLUG)}">{_esc(CLUB_CODE)} - {_esc(CLUB_NAME)}</a>'
         f"</div>"
     )
@@ -129,6 +143,8 @@ def _title_card() -> str:
 
 def _stats_card() -> str:
     links = (
+        (f"/events/type/{EVENT_CATEGORY_SLUG}", f"Category: {EVENT_CATEGORY}"),
+        ("#category", f"Sanction: {SANCTION_LABEL}"),
         (f"/club/{CLUB_SLUG}", f"Host: {CLUB_CODE}"),
         (f"/class/{CLASS_SLUG}", f"Class: {CLASS_NAME}"),
         (f"/regatta/{SOURCE_REGATTA_ID}", f"Source: {SOURCE_EVENT_NAME}"),
@@ -252,15 +268,26 @@ table.table input { min-height: 44px; min-width: 7rem; font: inherit; color: #1e
 
 
 def page_html() -> str:
+    category_table = (
+        '<table class="table"><caption class="visually-hidden">Category</caption>'
+        "<thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>"
+        f"<tr><td>Category</td><td><a href=\"/events/type/{_esc(EVENT_CATEGORY_SLUG)}\">{_esc(EVENT_CATEGORY)}</a></td></tr>"
+        f"<tr><td>Sanction</td><td>{_esc(SANCTION_LABEL)} ({_esc(SANCTION_LEVEL)})</td></tr>"
+        f"<tr><td>Source</td><td>{_esc(EVENT_SOURCE)}</td></tr>"
+        "<tr><td>SAS calendar</td><td>No — club event, keep separate from sanctioned SAS events</td></tr>"
+        "</tbody></table>"
+    )
     data_cards = "".join(
         [
+            _data_card("category", "Category", category_table),
             _data_card("fleet", "Fleet", _fleet_table()),
             _data_card("wind", "Wind", _wind_table()),
             _data_card("media", "Media", _media_table()),
         ]
     )
     body = (
-        '<div class="master-page-layout container">'
+        f'<div class="master-page-layout container" data-event-category="{_esc(EVENT_CATEGORY_SLUG)}" '
+        f'data-sanction-level="{_esc(SANCTION_LEVEL)}" data-event-source="{_esc(EVENT_SOURCE)}">'
         f'<a href="/club/{_esc(CLUB_SLUG)}" class="back-to-home">← Back to { _esc(CLUB_CODE) }</a>'
         f"{_title_card()}{_stats_card()}{data_cards}"
         "</div>"
@@ -297,6 +324,11 @@ def _assert_page_contract(html: str) -> None:
         "Neil Greyling",
         "placeholder=\"hh:mm:ss\"",
         SOURCE_EVENT_NAME,
+        'id="category"',
+        EVENT_CATEGORY,
+        SANCTION_LABEL,
+        'data-sanction-level="CLUB"',
+        'data-event-source="club"',
     )
     missing = [item for item in required if item not in html]
     if missing:
