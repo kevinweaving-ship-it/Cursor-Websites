@@ -1,0 +1,33 @@
+/* PARENT_EVENT_LOGO_FIRST_PAINT_v1
+   Gold api.py still writes the fleet Class Logo (French Open) into the HTML.
+   Refresh paints that before deferred JS. Hide it here (head stylesheet)
+   when parent left is Event Logo. Dam Bottle fleet stays hidden until boot.
+*/
+html:has(.regatta-header-left-logo-img[src*="Event Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Class Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Class%20Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Class%20Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Class Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event Logo"]) img.rs-fleet-title-logo[src*="Class Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) img.rs-fleet-title-logo[src*="Class%20Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event Logo"]) img.rs-fleet-title-logo[src*="Class%20Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) img.rs-fleet-title-logo[src*="Class Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event Logo"]) img.class-header-logo-img[src*="Open-Class-Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) img.class-header-logo-img[src*="Open-Class-Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event Logo"]) img.rs-fleet-title-logo[src*="Open-Class-Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) img.rs-fleet-title-logo[src*="Open-Class-Logo"] {
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+html:has(.regatta-header-left-logo-img[src*="Event Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Event Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Event%20Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event Logo"]) img.rs-fleet-title-logo[src*="Event Logo"],
+html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) img.rs-fleet-title-logo[src*="Event%20Logo"] {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+.fleet-section[data-block-id="2026-10-10-hmyc-dam-bottle-sprints:open"] {
+    visibility: hidden;
+}
+html[data-dbs-ready="1"] .fleet-section[data-block-id="2026-10-10-hmyc-dam-bottle-sprints:open"] {
+    visibility: visible;
+}

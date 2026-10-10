@@ -2,6 +2,19 @@
 
 Manual parsed-results ingestion (scripts that insert into `results`, e.g. `add_regatta_385_420_fleet.py`) uses **strict class resolution**. No fuzzy matching, no auto-creation of classes, no guessing.
 
+### Event Logo trumps class logo (parent URL + landing + search)
+
+**Parent `/regatta/{id}` left header = truth.** If a named event has its own **Event Logo** there, that is the only mark in the event-logo slot. Open / ILCA / any Class Logo is superseded.
+
+- **Parent URL (single-class named event):** Event Logo left, eager. Fleet header left uses the **same** Event Logo, smaller and in line — do not leave that slot empty after Open/class is superseded. Multi-class events keep fleet class marks. Host club on the right stays.
+- **Landing live card + All Regattas / search cards:** same parent Event Logo. Never first-paint `logo_url` when it is a Class Logo path (API often returns first class, e.g. Open).
+- **New / more recent events:** set `wc_regatta_header_icons.json` **left** to the Event Logo path. Baker (`landing_event_story_cards.py`) and cards read that. Do not leave Class Logo as the card first-paint.
+- Trophy photos in `Event Logo/` (e.g. Midmar cup shots) are **not** header marks — do not put them in left.
+- Helper: `sailingsa/backend/parent_event_logo.py`. Event-page JS: `sailingsa/frontend/js/parent-event-logo-truth.js` (appended on live to `regatta-pdf-share.js`; do not add a new script tag — gold `api.py` is locked).
+- **Stored `/results.pdf`:** keep the A4 print layout. Logos (header left/right), event name, host, status line, and fleet tables come from the parent `/regatta/{id}` page (`apply_parent_truth_to_pdf`). Do not invent a second backend sheet. Race **codes** are the same gold cell on every event (FS Youth is the reference): `<span class="wc-score">14</span><span class="wc-code">DNC</span>` — points above, code under. If the parent HTML is code-only, fill points as `entries + 1` so print CSS can overlay like FS Youth. Do not invent a Dam Bottle-only stack.
+- **Leftover Open / Class Logo on refresh:** gold `api.py` still writes the fleet-name Class Logo (French Open) into the HTML. That is why a refresh first-paints it — the swap was in a deferred script. Hide that mark in **head** CSS (`main.css`) when header left is Event Logo; JS then puts the Event Logo in the same slot. Do not leave Open in the document paint.
+- Nobody asked to keep the leftover class-logo first-paint. It was a 1 Sep 2026 landing shortcut (`ac0be7cd`) that painted API `logo_url` immediately so cards were not empty.
+
 ---
 
 ## 🔐 Canonical URL & Date Authority Rules (LOCKED)

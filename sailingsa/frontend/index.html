@@ -11320,10 +11320,10 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 window.__saRegattaEventLogoCache = window.__saRegattaEventLogoCache || {};
                 if (!forceRefresh && window.__saRegattaEventLogoCache[rid]) return window.__saRegattaEventLogoCache[rid];
                 try {
-                    var k = 'sa:regattaLogo:event:v4:' + rid;
+                    var k = 'sa:regattaLogo:event:v5:' + rid;
                     if (forceRefresh) localStorage.removeItem(k);
                     var cached = forceRefresh ? '' : localStorage.getItem(k);
-                    if (cached && cached.trim()) {
+                    if (cached && isEventLogoArtworkPath(cached)) {
                         window.__saRegattaEventLogoCache[rid] = Promise.resolve(cached.trim());
                         return window.__saRegattaEventLogoCache[rid];
                     }
@@ -11336,8 +11336,11 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var img = doc.querySelector('.regatta-header-logo-col img.regatta-header-left-logo-img, .regatta-header-logo-col img.regatta-header-logo-img');
                             var src = img ? (img.getAttribute('src') || '').trim() : '';
-                            if (src) { try { localStorage.setItem('sa:regattaLogo:event:v4:' + rid, src); } catch (_) {} }
-                            return src || null;
+                            if (src && isEventLogoArtworkPath(src)) {
+                                try { localStorage.setItem('sa:regattaLogo:event:v5:' + rid, src); } catch (_) {}
+                                return src;
+                            }
+                            return null;
                         } catch (_) {
                             return null;
                         }
@@ -11368,6 +11371,29 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
             }
             function isEventLogoArtworkPath(path) {
                 return normalizeArtworkPath(path).indexOf('/artwork/event logo/') !== -1;
+            }
+            function isClassLogoArtworkPath(path) {
+                return normalizeArtworkPath(path).indexOf('/artwork/class logo/') !== -1;
+            }
+            // Event-logo slot: Event Logo only. Never first-paint a class mark (Open, ILCA, …).
+            function preferredEventSlotLogo(r) {
+                var ev = String((r && r.event_logo_url) || '').trim();
+                if (ev) return ev;
+                var logo = String((r && r.logo_url) || '').trim();
+                if (logo && isEventLogoArtworkPath(logo)) return logo;
+                return '';
+            }
+            function cachedEventSlotLogo(rid) {
+                try {
+                    var cached = localStorage.getItem('sa:regattaLogo:event:v5:' + String(rid || '').trim());
+                    if (cached && isEventLogoArtworkPath(cached)) return cached.trim();
+                } catch (_) {}
+                return '';
+            }
+            function hideSupersededClassChip(card) {
+                if (!card || !card.querySelector) return;
+                var chip = card.querySelector('.sa-home-regatta-single-class');
+                if (chip && chip.parentNode) chip.parentNode.removeChild(chip);
             }
             function classNameFromLogoFilename(path) {
                 var base = String(path || '').split('/').pop() || '';
@@ -11505,6 +11531,15 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                         var chip = next.img && next.img.closest ? next.img.closest('.sa-home-regatta-children-chip') : null;
                         if (!src || !next.img || !next.img.isConnected) {
                             if (next.kind === 'child' && chip) setFleetChipLogoState(chip, false);
+                            if (next.kind === 'event') {
+                                var emptyCard = next.img.closest ? next.img.closest('.sa-home-regatta-card') : null;
+                                if (emptyCard && typeof emptyCard.__saAddClassChip === 'function') emptyCard.__saAddClassChip();
+                            }
+                            return;
+                        }
+                        if (next.kind === 'event' && !isEventLogoArtworkPath(src)) {
+                            var skipCard = next.img.closest ? next.img.closest('.sa-home-regatta-card') : null;
+                            if (skipCard && typeof skipCard.__saAddClassChip === 'function') skipCard.__saAddClassChip();
                             return;
                         }
                         next.img.src = src;
@@ -11513,6 +11548,13 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                         if (next.kind === 'event') {
                             var catHref = (next.img && next.img.dataset) ? (next.img.dataset.saLogoCatalogueHref || '') : '';
                             updateEventLogoCatalogueLink(next.img, src, catHref, next.rid, '');
+                            var eventCard = next.img.closest ? next.img.closest('.sa-home-regatta-card') : null;
+                            if (isEventLogoArtworkPath(src)) {
+                                if (eventCard) eventCard.__saEventLogoLocked = true;
+                                hideSupersededClassChip(eventCard);
+                            } else if (eventCard && typeof eventCard.__saAddClassChip === 'function') {
+                                eventCard.__saAddClassChip();
+                            }
                         }
                         if (next.kind === 'child' && chip) setFleetChipLogoState(chip, true);
                     } catch (_) {}
@@ -11693,13 +11735,14 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 eventLogoImg.alt = '';
                 eventLogoImg.style.display = 'none';
                 eventLogoImg.dataset.saLogoRid = rid;
-                eventLogoImg.dataset.saLogoSrc = (r.logo_url || '');
-                eventLogoImg.dataset.saLogoCatalogueHref = (r.logo_catalogue_href || '');
+                var eventSlotLogo = preferredEventSlotLogo(r) || cachedEventSlotLogo(rid);
+                eventLogoImg.dataset.saLogoSrc = eventSlotLogo;
+                eventLogoImg.dataset.saLogoCatalogueHref = eventSlotLogo ? (r.logo_catalogue_href || '') : '';
                 eventLogoImg.dataset.saLogoRetry = '0';
-                if (r.logo_url) {
-                    eventLogoImg.src = r.logo_url;
+                if (eventSlotLogo) {
+                    eventLogoImg.src = eventSlotLogo;
                     eventLogoImg.style.display = '';
-                    updateEventLogoCatalogueLink(eventLogoImg, r.logo_url, r.logo_catalogue_href, rid, title);
+                    updateEventLogoCatalogueLink(eventLogoImg, eventSlotLogo, r.logo_catalogue_href, rid, title);
                 } else {
                     eventLogoLink.removeAttribute('href');
                 }
@@ -11785,10 +11828,16 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 var parentResultsHref = '/regatta/' + encodeURIComponent(rid);
                 var parentLabel = r.search_label || r.event_name || '';
 
-                // Single class: class logo left of Full Results / status → parent URL (no fleet bar).
-                // kids.length===1 (fleet child) OR sole raced class on flat parent (e.g. Lipton J22).
+                // Single class chip: only after we know parent has no Event Logo.
+                // Event Logo trumps Open/class mark — one logo in the event slot.
                 var soleName = String(r.sole_class_name || '').trim();
                 var soleLogo = String(r.sole_class_logo_url || '').trim();
+                card.__saAddClassChip = function() {
+                    if (eventSlotLogo || card.__saEventLogoLocked || card.querySelector('.sa-home-regatta-single-class')) return;
+                    if (!(kids.length === 1 || (kids.length === 0 && (soleName || soleLogo)))) return;
+                    addSingleClassChipNow();
+                };
+                function addSingleClassChipNow() {
                 if (kids.length === 1 || (kids.length === 0 && (soleName || soleLogo))) {
                     var only = kids.length === 1 ? kids[0] : null;
                     var onlyChildLabel = only
@@ -11843,7 +11892,10 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                         t0.textContent = onlyName;
                         singleClass.appendChild(t0);
                     }
-                    actions.appendChild(singleClass);
+                    var fullBtnNow = actions.querySelector('.sa-home-regatta-btn');
+                    if (fullBtnNow) actions.insertBefore(singleClass, fullBtnNow);
+                    else actions.appendChild(singleClass);
+                }
                 }
 
                 var fullBtn = document.createElement('a');
@@ -11964,10 +12016,11 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     var rid = ev && ev.dataset ? ev.dataset.saLogoRid : '';
                     var src = ev && ev.dataset ? (ev.dataset.saLogoSrc || '') : '';
                     var catHref = ev && ev.dataset ? (ev.dataset.saLogoCatalogueHref || '') : '';
-                    if (ev && src) {
+                    if (ev && src && isEventLogoArtworkPath(src)) {
                         ev.src = src;
                         ev.style.display = '';
                         updateEventLogoCatalogueLink(ev, src, catHref, rid, '');
+                        hideSupersededClassChip(card);
                         loadChipLogos(card);
                         return;
                     }
