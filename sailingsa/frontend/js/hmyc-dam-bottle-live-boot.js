@@ -1,8 +1,7 @@
 /**
- * Dam Bottle Sprints — Bottle logos, Open Fleet, R+/R−.
- * Admin edits ET only. ✓ = ET × 1000 ÷ PY. R place is not typed.
- * Click race: closed hides ET + ✓; open shows them again.
- * No observers. Does not change live api.py.
+ * Dam Bottle Sprints — each race has its own ET + ✓ + R.
+ * Click that R header to show/hide its ET/✓. R+ adds a race block. R- drops the last.
+ * Admin types ET only. No observers. Does not change live api.py.
  */
 (function () {
   "use strict";
@@ -24,40 +23,29 @@
     var css = document.createElement("style");
     css.id = "dam-bottle-score-css";
     css.textContent =
-      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-brand{" +
-      "display:block!important;cursor:pointer;flex:0 0 auto;}" +
-      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-brand img{" +
-      "display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;}" +
-      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-compact{" +
-      "display:flex!important;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-brand{display:block!important;cursor:pointer;flex:0 0 auto;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-brand img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-compact{display:flex!important;}" +
       ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] .mm-lipton-reels-expanded," +
-      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] [data-mm-expanded]{" +
-      "display:none!important;height:0!important;overflow:hidden!important;}" +
+      ".regatta-page > .midmar-live-media .mm-lipton-reels[data-regatta-id^='" + RID + "'] [data-mm-expanded]{display:none!important;height:0!important;overflow:hidden!important;}" +
       ".regatta-page--club-score-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step," +
-      ".regatta-page--super-admin-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step{" +
-      "display:flex!important;visibility:visible!important;}" +
+      ".regatta-page--super-admin-edit .fleet-section[data-block-id='" + RID + ":open'] .club-race-step{display:flex!important;visibility:visible!important;}" +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col," +
-      ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-corr-col{" +
-      "text-align:center;min-width:4.4rem;color:#15803d;font-weight:700;font-variant-numeric:tabular-nums;}" +
-      ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col .event-result-yes{" +
-      "color:#15803d;font-weight:700;font-size:1.05rem;}" +
-      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-input{" +
-      "width:5.6rem;text-align:center;font:inherit;border:1px solid #94a3b8;border-radius:4px;padding:2px 5px;}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-corr-col{text-align:center;min-width:4.4rem;color:#15803d;font-weight:700;font-variant-numeric:tabular-nums;}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col .event-result-yes{color:#15803d;font-weight:700;font-size:1.05rem;}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-input{width:5.6rem;text-align:center;font:inherit;border:1px solid #94a3b8;border-radius:4px;padding:2px 5px;}" +
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col input," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .club-score-input," +
-      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .wc-result-field-input{" +
-      "display:none!important;}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .wc-result-field-input{display:none!important;}" +
       ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col," +
       ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-col," +
       ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-corr-col{display:none!important}" +
-      ".fleet-section[data-block-id='" + RID + ":open'].fleet-section--et-hidden .dam-bottle-et-col," +
-      ".fleet-section[data-block-id='" + RID + ":open'].fleet-section--et-hidden .dam-bottle-corr-col{display:none!important}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-hidden{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] td.total-col," +
-      ".fleet-section[data-block-id='" + RID + ":open'] td.nett-col{" +
-      "min-width:2.4rem;text-align:center;font-weight:700;}";
+      ".fleet-section[data-block-id='" + RID + ":open'] td.nett-col{min-width:2.4rem;text-align:center;font-weight:700;}";
     document.head.appendChild(css);
   }
 
@@ -109,6 +97,14 @@
     val = String(val || "").trim();
     if (val) s[race][String(rid)] = val;
     else delete s[race][String(rid)];
+    try {
+      localStorage.setItem(ET_KEY, JSON.stringify(s));
+    } catch (e2) {}
+  }
+
+  function clearEtRace(race) {
+    var s = loadEtStore();
+    delete s[race];
     try {
       localStorage.setItem(ET_KEY, JSON.stringify(s));
     } catch (e2) {}
@@ -166,7 +162,7 @@
   }
 
   function raceKeyOf(el) {
-    var k = String((el && (el.getAttribute("data-race-key") || el.textContent)) || "")
+    var k = String((el && (el.getAttribute("data-race-key") || el.getAttribute("data-for-race") || el.textContent)) || "")
       .replace(/\s+/g, "")
       .toUpperCase();
     var m = k.match(/^(R\d+)/);
@@ -176,34 +172,50 @@
   function raceKeys(table) {
     var keys = [];
     if (!table) return keys;
-    table.querySelectorAll("thead th.race-col").forEach(function (th) {
-      var k = raceKeyOf(th);
-      if (k && keys.indexOf(k) < 0) keys.push(k);
+    table.querySelectorAll("thead th.race-col, thead th[data-for-race], thead th[data-race-key]").forEach(function (th) {
+      var k = raceKeyOf(th) || String(th.getAttribute("data-for-race") || "");
+      if (/^R\d+$/.test(k) && keys.indexOf(k) < 0) keys.push(k);
+    });
+    keys.sort(function (a, b) {
+      return parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10);
     });
     return keys;
   }
 
-  function markRaceOpen(table, key) {
-    if (!table || !key) return;
-    table.querySelectorAll('th.race-col[data-race-key="' + key + '"], td.race-col[data-race-key="' + key + '"]').forEach(function (el) {
-      el.classList.remove("race-col--closed");
-      el.classList.add("race-col--wait");
+  function raceCount(table) {
+    var n = 0;
+    raceKeys(table).forEach(function (k) {
+      n = Math.max(n, parseInt(k.slice(1), 10) || 0);
+    });
+    return n;
+  }
+
+  function sessionPatchRace(rid, race, value) {
+    return fetch(withSession("/api/result/" + encodeURIComponent(rid) + "/race"), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ race: race, value: value, session: sessionToken() }),
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        return { ok: r.ok, j: j };
+      });
     });
   }
 
-  function openRaceKey(table) {
-    var keys = raceKeys(table);
-    if (!keys.length) return adminEditOn() ? "R1" : "";
-    var open = [];
-    var i;
-    var th;
-    for (i = 0; i < keys.length; i++) {
-      th = table.querySelector('th.race-col[data-race-key="' + keys[i] + '"]');
-      if (!th || th.classList.contains("race-col--closed")) continue;
-      open.push(keys[i]);
-    }
-    if (open.length) return open[open.length - 1];
-    return "";
+  function sessionPatchFleet(rid, delta) {
+    return fetch(withSession("/api/result/" + encodeURIComponent(rid) + "/fleet-races"), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ delta: delta, session: sessionToken() }),
+    }).then(function (r) {
+      return r.json().then(function () {
+        return r.ok;
+      });
+    }).catch(function () {
+      return false;
+    });
   }
 
   function markCol(table, label, className) {
@@ -221,30 +233,14 @@
     return -1;
   }
 
-  function insertAfter(parent, newNode, afterNode) {
-    if (!parent || !newNode) return;
-    if (afterNode && afterNode.nextSibling) parent.insertBefore(newNode, afterNode.nextSibling);
-    else parent.appendChild(newNode);
+  function insertBeforeAnchor(row, node, anchor) {
+    if (!row || !node) return;
+    if (anchor) row.insertBefore(node, anchor);
+    else row.appendChild(node);
   }
 
-  function ensureColAfter(table, afterLabel, label, className) {
-    if (markCol(table, label, className) >= 0) return;
-    var ths = table.querySelectorAll("thead th");
-    var after = -1;
-    var i;
-    for (i = 0; i < ths.length; i++) {
-      if (String(ths[i].textContent || "").replace(/\s+/g, " ").trim() === afterLabel) after = i;
-    }
-    if (after < 0) return;
-    var th = document.createElement("th");
-    th.className = className;
-    th.textContent = label;
-    insertAfter(ths[after].parentNode, th, ths[after]);
-    table.querySelectorAll("tbody tr").forEach(function (tr) {
-      var td = document.createElement("td");
-      td.className = className;
-      insertAfter(tr, td, tr.children[after]);
-    });
+  function totalAnchor(row) {
+    return row && row.querySelector("th.total-col, td.total-col, th.nett-col, td.nett-col");
   }
 
   function lockRCells(table) {
@@ -262,117 +258,101 @@
     });
   }
 
-  function totalAnchor(row) {
-    return (
-      (row && row.querySelector("th.total-col, td.total-col, th.nett-col, td.nett-col")) ||
-      null
-    );
+  function removeColAt(table, idx) {
+    var thead = table.querySelector("thead tr");
+    if (!thead || idx < 0 || !thead.children[idx]) return;
+    thead.removeChild(thead.children[idx]);
+    table.querySelectorAll("tbody tr").forEach(function (tr) {
+      if (tr.children[idx]) tr.removeChild(tr.children[idx]);
+    });
   }
 
-  function dropDupRaces(table) {
-    if (!table) return;
+  function dropRaceBlock(table, key) {
+    if (!table || !key) return;
     var thead = table.querySelector("thead tr");
     if (!thead) return;
-    var seen = {};
-    [].slice.call(thead.querySelectorAll("th.race-col")).forEach(function (th) {
-      var k = raceKeyOf(th);
-      if (!k) {
-        var idx0 = [].indexOf.call(thead.children, th);
-        if (th.parentNode) th.parentNode.removeChild(th);
-        table.querySelectorAll("tbody tr").forEach(function (tr) {
-          if (tr.children[idx0]) tr.removeChild(tr.children[idx0]);
-        });
-        return;
-      }
-      if (!seen[k]) {
-        seen[k] = true;
-        return;
-      }
-      var idx = [].indexOf.call(thead.children, th);
-      if (th.parentNode) th.parentNode.removeChild(th);
-      table.querySelectorAll("tbody tr").forEach(function (tr) {
-        if (tr.children[idx]) tr.removeChild(tr.children[idx]);
-      });
+    var doomed = [];
+    [].forEach.call(thead.children, function (th, i) {
+      var forRace = th.getAttribute("data-for-race") || raceKeyOf(th);
+      if (forRace === key) doomed.push(i);
     });
-  }
-
-  function colKind(el, openKey) {
-    if (!el) return "x-other";
-    if (el.classList.contains("rank-col")) return "a-rank";
-    if (el.classList.contains("class-col")) return "b-class";
-    if (el.classList.contains("sail-col")) return "c-sail";
-    if (el.classList.contains("club-col")) return "d-club";
-    if (el.classList.contains("helm-col")) return "e-helm";
-    if (el.classList.contains("crew-col")) return "f-crew";
-    if (el.classList.contains("dam-bottle-cat-col") || String(el.textContent || "").trim() === "Cat")
-      return "g-cat";
-    if (el.classList.contains("dam-bottle-py-col") || String(el.textContent || "").trim() === "PY")
-      return "h-py";
-    var rk = raceKeyOf(el);
-    if (rk) {
-      var n = ("000" + rk.replace("R", "")).slice(-3);
-      if (openKey && rk === openKey) return "m-open-" + n;
-      return "k-done-" + n;
+    doomed.sort(function (a, b) { return b - a; });
+    doomed.forEach(function (i) {
+      removeColAt(table, i);
+    });
+    clearEtRace(key);
+    if (adminEditOn() && sessionToken()) {
+      table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
+        sessionPatchRace(tr.getAttribute("data-result-id"), key, "");
+      });
     }
-    if (el.classList.contains("dam-bottle-et-col")) return "l-1-et";
-    if (el.classList.contains("dam-bottle-corr-col")) return "l-2-corr";
-    if (el.classList.contains("total-col") || String(el.textContent || "").trim() === "Total") return "y-total";
-    if (el.classList.contains("nett-col") || String(el.textContent || "").trim() === "Nett") return "z-nett";
-    return "x-other";
   }
 
-  function orderCols(table) {
-    var thead = table && table.querySelector("thead tr");
+  function ensurePairAndRace(table, n) {
+    if (!table || n < 1) return;
+    var key = "R" + n;
+    var thead = table.querySelector("thead tr");
     if (!thead) return;
-    if (
-      document.activeElement &&
-      document.activeElement.classList &&
-      document.activeElement.classList.contains("dam-bottle-et-input")
-    )
-      return;
-    var openKey = openRaceKey(table);
-    var ths = [].slice.call(thead.children);
-    var order = ths.map(function (th, i) {
-      return { th: th, i: i, k: colKind(th, openKey) };
-    });
-    order.sort(function (a, b) {
-      if (a.k === b.k) return a.i - b.i;
-      return a.k < b.k ? -1 : 1;
-    });
-    var same = order.every(function (o, idx) {
-      return thead.children[idx] === o.th;
-    });
-    if (same) return;
-    order.forEach(function (o) {
-      thead.appendChild(o.th);
-    });
-    table.querySelectorAll("tbody tr").forEach(function (tr) {
-      var cells = [].slice.call(tr.children);
-      order.forEach(function (o) {
-        if (cells[o.i]) tr.appendChild(cells[o.i]);
+    function has(sel) {
+      return !!table.querySelector(sel);
+    }
+    if (!has('th.dam-bottle-et-col[data-for-race="' + key + '"]')) {
+      var etTh = document.createElement("th");
+      etTh.className = "dam-bottle-et-col";
+      etTh.setAttribute("data-for-race", key);
+      etTh.textContent = "ET";
+      insertBeforeAnchor(thead, etTh, totalAnchor(thead));
+      table.querySelectorAll("tbody tr").forEach(function (tr) {
+        var td = document.createElement("td");
+        td.className = "dam-bottle-et-col";
+        td.setAttribute("data-for-race", key);
+        insertBeforeAnchor(tr, td, totalAnchor(tr));
       });
-    });
+    }
+    if (!has('th.dam-bottle-corr-col[data-for-race="' + key + '"]')) {
+      var cTh = document.createElement("th");
+      cTh.className = "dam-bottle-corr-col";
+      cTh.setAttribute("data-for-race", key);
+      cTh.innerHTML = '<span class="event-result-yes" title="Corrected = ET × 1000 ÷ PY">✓</span>';
+      insertBeforeAnchor(thead, cTh, totalAnchor(thead));
+      table.querySelectorAll("tbody tr").forEach(function (tr) {
+        var td = document.createElement("td");
+        td.className = "dam-bottle-corr-col";
+        td.setAttribute("data-for-race", key);
+        insertBeforeAnchor(tr, td, totalAnchor(tr));
+      });
+    }
+    if (!has('th.race-col[data-race-key="' + key + '"]')) {
+      var rTh = document.createElement("th");
+      rTh.className = "race-col race-col--wait";
+      rTh.setAttribute("data-race-key", key);
+      rTh.textContent = key;
+      insertBeforeAnchor(thead, rTh, totalAnchor(thead));
+      table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
+        var td = document.createElement("td");
+        td.className = "race-col race-col--wait";
+        td.setAttribute("data-race-key", key);
+        insertBeforeAnchor(tr, td, totalAnchor(tr));
+      });
+    }
+    lockRCells(table);
   }
 
   function keepOneLabeled(table, cls, label) {
-    var thead = table && table.querySelector("thead tr");
+    var thead = table.querySelector("thead tr");
     if (!thead) return;
     var hits = [].filter.call(thead.children, function (th) {
       return th.classList.contains(cls) || String(th.textContent || "").trim() === label;
     });
     var i;
     for (i = hits.length - 1; i >= 1; i--) {
-      var idx = [].indexOf.call(thead.children, hits[i]);
-      if (hits[i].parentNode) hits[i].parentNode.removeChild(hits[i]);
-      table.querySelectorAll("tbody tr").forEach(function (tr) {
-        if (tr.children[idx]) tr.removeChild(tr.children[idx]);
-      });
+      removeColAt(table, [].indexOf.call(thead.children, hits[i]));
     }
     if (hits[0]) {
       hits[0].classList.add(cls);
-      var keepIdx = [].indexOf.call(thead.children, hits[0]);
+      var idx = [].indexOf.call(thead.children, hits[0]);
       table.querySelectorAll("tbody tr").forEach(function (tr) {
-        if (tr.children[keepIdx]) tr.children[keepIdx].classList.add(cls);
+        if (tr.children[idx]) tr.children[idx].classList.add(cls);
       });
       return;
     }
@@ -387,13 +367,83 @@
     });
   }
 
-  function ensureTotalNett(table) {
-    keepOneLabeled(table, "total-col", "Total");
-    keepOneLabeled(table, "nett-col", "Nett");
+  function colKind(el) {
+    if (!el) return "x-other";
+    if (el.classList.contains("rank-col")) return "a-rank";
+    if (el.classList.contains("class-col")) return "b-class";
+    if (el.classList.contains("sail-col")) return "c-sail";
+    if (el.classList.contains("club-col")) return "d-club";
+    if (el.classList.contains("helm-col")) return "e-helm";
+    if (el.classList.contains("crew-col")) return "f-crew";
+    if (el.classList.contains("dam-bottle-cat-col") || String(el.textContent || "").trim() === "Cat") return "g-cat";
+    if (el.classList.contains("dam-bottle-py-col") || String(el.textContent || "").trim() === "PY") return "h-py";
+    var race = el.getAttribute("data-for-race") || raceKeyOf(el);
+    var n = race ? ("000" + race.replace("R", "")).slice(-3) : "999";
+    if (el.classList.contains("dam-bottle-et-col")) return "k-" + n + "-1-et";
+    if (el.classList.contains("dam-bottle-corr-col")) return "k-" + n + "-2-corr";
+    if (el.classList.contains("race-col")) return "k-" + n + "-3-r";
+    if (el.classList.contains("total-col") || String(el.textContent || "").trim() === "Total") return "y-total";
+    if (el.classList.contains("nett-col") || String(el.textContent || "").trim() === "Nett") return "z-nett";
+    return "x-other";
+  }
+
+  function orderCols(table) {
+    var thead = table && table.querySelector("thead tr");
+    if (!thead) return;
+    if (document.activeElement && document.activeElement.classList.contains("dam-bottle-et-input")) return;
+    var ths = [].slice.call(thead.children);
+    var order = ths.map(function (th, i) {
+      return { th: th, i: i, k: colKind(th) };
+    });
+    order.sort(function (a, b) {
+      if (a.k === b.k) return a.i - b.i;
+      return a.k < b.k ? -1 : 1;
+    });
+    if (order.every(function (o, idx) { return thead.children[idx] === o.th; })) return;
+    order.forEach(function (o) { thead.appendChild(o.th); });
+    table.querySelectorAll("tbody tr").forEach(function (tr) {
+      var cells = [].slice.call(tr.children);
+      order.forEach(function (o) {
+        if (cells[o.i]) tr.appendChild(cells[o.i]);
+      });
+    });
+  }
+
+  function dropOrphanAndDup(table) {
+    var thead = table.querySelector("thead tr");
+    if (!thead) return;
+    var seen = { et: {}, corr: {}, r: {} };
+    var keys = {};
+    [].slice.call(thead.children).forEach(function (th) {
+      if (th.classList.contains("race-col")) {
+        var k = raceKeyOf(th);
+        if (k) keys[k] = true;
+      }
+    });
+    [].slice.call(thead.children).reverse().forEach(function (th) {
+      var race = th.getAttribute("data-for-race") || raceKeyOf(th);
+      var idx = [].indexOf.call(thead.children, th);
+      var bag = th.classList.contains("dam-bottle-et-col")
+        ? "et"
+        : th.classList.contains("dam-bottle-corr-col")
+          ? "corr"
+          : th.classList.contains("race-col")
+            ? "r"
+            : "";
+      if (!bag) return;
+      if (!race || !keys[race] && bag !== "r") {
+        removeColAt(table, idx);
+        return;
+      }
+      if (seen[bag][race]) {
+        removeColAt(table, idx);
+        return;
+      }
+      seen[bag][race] = true;
+    });
   }
 
   function fillTotalNett(tr) {
-    if (!tr) return;
     var sum = 0;
     var n = 0;
     tr.querySelectorAll("td.race-col").forEach(function (td) {
@@ -403,81 +453,17 @@
         n += 1;
       }
     });
+    var txt = n ? String(sum) : "";
     var tot = tr.querySelector("td.total-col");
     var nett = tr.querySelector("td.nett-col");
-    var txt = n ? String(sum) : "";
     if (tot) {
       tot.classList.remove("strike-out");
-      if (tot.textContent !== txt) tot.textContent = txt;
+      tot.textContent = txt;
     }
     if (nett) {
       nett.classList.remove("strike-out");
-      if (nett.textContent !== txt) nett.textContent = txt;
+      nett.textContent = txt;
     }
-  }
-
-  function ensureRaceCol(table, n) {
-    if (!table || n < 1) return;
-    var key = "R" + n;
-    if (table.querySelector('th.race-col[data-race-key="' + key + '"]')) return;
-    var thead = table.querySelector("thead tr");
-    if (!thead) return;
-    var th = document.createElement("th");
-    th.className = "race-col";
-    th.setAttribute("data-race-key", key);
-    th.textContent = key;
-    var anchor = totalAnchor(thead);
-    if (anchor) thead.insertBefore(th, anchor);
-    else thead.appendChild(th);
-    table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
-      if (tr.querySelector('td.race-col[data-race-key="' + key + '"]')) return;
-      var td = document.createElement("td");
-      td.className = "race-col";
-      td.setAttribute("data-race-key", key);
-      var tAnchor = totalAnchor(tr);
-      if (tAnchor) tr.insertBefore(td, tAnchor);
-      else tr.appendChild(td);
-    });
-    markRaceOpen(table, key);
-    lockRCells(table);
-  }
-
-  function raceCount(table) {
-    var n = 0;
-    if (!table) return 0;
-    table.querySelectorAll("thead th.race-col").forEach(function (th) {
-      var m = raceKeyOf(th).match(/^R(\d+)$/);
-      if (m) n = Math.max(n, parseInt(m[1], 10));
-    });
-    return n;
-  }
-
-  function ensureR1(table) {
-    ensureRaceCol(table, 1);
-    lockRCells(table);
-  }
-
-  function ensureTickCol(table) {
-    var etTh = null;
-    table.querySelectorAll("thead th").forEach(function (th) {
-      if (String(th.textContent || "").replace(/\s+/g, " ").trim() === "ET") etTh = th;
-    });
-    if (!etTh || table.querySelector("th.dam-bottle-corr-col")) {
-      table.querySelectorAll("td.dam-bottle-corr-col .event-result-yes").forEach(function (n) {
-        if (n.parentNode) n.parentNode.removeChild(n);
-      });
-      return;
-    }
-    var th = document.createElement("th");
-    th.className = "dam-bottle-corr-col";
-    th.innerHTML = '<span class="event-result-yes" title="Corrected = ET × 1000 ÷ PY">✓</span>';
-    insertAfter(etTh.parentNode, th, etTh);
-    var etIdx = [].indexOf.call(etTh.parentNode.children, etTh);
-    table.querySelectorAll("tbody tr").forEach(function (tr) {
-      var td = document.createElement("td");
-      td.className = "dam-bottle-corr-col";
-      insertAfter(tr, td, tr.children[etIdx]);
-    });
   }
 
   function rowPy(tr) {
@@ -486,19 +472,20 @@
     return isFinite(n) && n > 0 ? n : null;
   }
 
-  function rowEtRaw(tr) {
-    var inp = tr.querySelector(".dam-bottle-et-input");
+  function etRaw(tr, race) {
+    var td = tr.querySelector('td.dam-bottle-et-col[data-for-race="' + race + '"]');
+    if (!td) return "";
+    var inp = td.querySelector(".dam-bottle-et-input");
     if (inp) return String(inp.value || "").trim();
-    var td = tr.querySelector("td.dam-bottle-et-col");
-    return String((td && td.getAttribute("data-et")) || "").trim();
+    return String(td.getAttribute("data-et") || "").trim();
   }
 
   var saveChain = Promise.resolve();
-  var lastSavedByRace = {};
+  var lastSaved = {};
 
-  function persistPlaces(items, race) {
-    if (!race || !adminEditOn() || !sessionToken()) return;
-    var last = lastSavedByRace[race] || {};
+  function persistPlaces(table, race, items) {
+    if (!adminEditOn() || !sessionToken() || !race) return;
+    var last = lastSaved[race] || {};
     var next = {};
     items.forEach(function (it) {
       next[it.rid] = it.place ? String(it.place) : "";
@@ -507,28 +494,15 @@
       return String(last[it.rid] || "") !== String(next[it.rid] || "");
     });
     if (!changing.length) {
-      lastSavedByRace[race] = next;
+      lastSaved[race] = next;
       return;
-    }
-    function patch(rid, value) {
-      return fetch(withSession("/api/result/" + encodeURIComponent(rid) + "/race"), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ race: race, value: value, session: sessionToken() }),
-      }).then(function (r) {
-        return r.json().then(function (j) {
-          if (!r.ok) throw new Error("save failed");
-          return j;
-        });
-      });
     }
     saveChain = saveChain
       .then(function () {
         var seq = Promise.resolve();
         changing.forEach(function (it) {
           if (!last[it.rid]) return;
-          seq = seq.then(function () { return patch(it.rid, ""); });
+          seq = seq.then(function () { return sessionPatchRace(it.rid, race, ""); });
         });
         return seq;
       })
@@ -536,25 +510,23 @@
         var seq = Promise.resolve();
         changing.forEach(function (it) {
           if (!it.place) return;
-          seq = seq.then(function () { return patch(it.rid, String(it.place)); });
+          seq = seq.then(function () { return sessionPatchRace(it.rid, race, String(it.place)); });
         });
         return seq;
       })
       .then(function () {
-        lastSavedByRace[race] = next;
+        lastSaved[race] = next;
       })
       .catch(function () {});
   }
 
-  function applyCorrection(table, doSort, doSave) {
-    if (!table) return;
-    var race = openRaceKey(table);
-    if (!race) return;
+  function applyRace(table, race, doSave) {
+    if (!table || !race) return;
     lockRCells(table);
     var items = [];
     table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr, idx) {
       var py = rowPy(tr);
-      var etSec = parseET(rowEtRaw(tr));
+      var etSec = parseET(etRaw(tr, race));
       items.push({
         tr: tr,
         rid: tr.getAttribute("data-result-id"),
@@ -569,51 +541,49 @@
     });
     ranked.forEach(function (it, i) { it.place = i + 1; });
     items.forEach(function (it) {
-      var corrTd = it.tr.querySelector("td.dam-bottle-corr-col");
+      var corrTd = it.tr.querySelector('td.dam-bottle-corr-col[data-for-race="' + race + '"]');
       var rTd = it.tr.querySelector('td.race-col[data-race-key="' + race + '"]');
-      var rankTd = it.tr.querySelector("td.rank-col");
       var shown = it.corr != null ? formatCorrected(it.corr) : "";
       if (corrTd && corrTd.textContent !== shown) corrTd.textContent = shown;
       if (rTd) {
         var p = it.place ? String(it.place) : "";
         if (rTd.textContent !== p) rTd.textContent = p;
       }
-      if (it.place && rankTd && rankTd.textContent !== rankLabel(it.place)) {
-        rankTd.textContent = rankLabel(it.place);
-      }
       fillTotalNett(it.tr);
     });
-    if (doSort) {
-      var tb = table.tBodies && table.tBodies[0];
-      if (tb) {
-        items
-          .slice()
-          .sort(function (a, b) { return (a.place || 9999) - (b.place || 9999) || a.idx - b.idx; })
-          .forEach(function (it) { tb.appendChild(it.tr); });
-      }
-    }
-    if (doSave) persistPlaces(items, race);
+    if (doSave) persistPlaces(table, race, items);
+  }
+
+  function applyAllRaces(table, doSave) {
+    raceKeys(table).forEach(function (race) {
+      applyRace(table, race, doSave);
+    });
+    var first = table.querySelector("tbody tr[data-result-id] td.rank-col");
+    if (!first) return;
+    var rows = [].map.call(table.querySelectorAll("tbody tr[data-result-id]"), function (tr, idx) {
+      var nett = parseInt(String((tr.querySelector("td.nett-col") && tr.querySelector("td.nett-col").textContent) || "9999"), 10);
+      return { tr: tr, nett: isFinite(nett) ? nett : 9999, idx: idx };
+    });
+    rows.sort(function (a, b) { return a.nett - b.nett || a.idx - b.idx; });
+    rows.forEach(function (it, i) {
+      var rankTd = it.tr.querySelector("td.rank-col");
+      var place = it.nett < 9999 ? i + 1 : 0;
+      if (rankTd) rankTd.textContent = place ? rankLabel(place) : "";
+    });
   }
 
   function wireEtInputs(table) {
-    if (!table) return;
-    var race = openRaceKey(table) || "R1";
-    var admin = adminEditOn();
-    table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
-      var td = tr.querySelector("td.dam-bottle-et-col");
-      if (!td) return;
+    if (!table || !adminEditOn()) return;
+    table.querySelectorAll("td.dam-bottle-et-col").forEach(function (td) {
+      var race = td.getAttribute("data-for-race");
+      var tr = td.closest("tr");
+      if (!race || !tr) return;
       var rid = tr.getAttribute("data-result-id");
       var kept = etFor(race, rid);
       var existing = td.querySelector(".dam-bottle-et-input");
-      if (!admin) {
-        if (existing && existing.parentNode && document.activeElement !== existing) existing.parentNode.removeChild(existing);
-        return;
-      }
       if (existing) {
-        if (document.activeElement !== existing && td.getAttribute("data-et-race") !== race) {
+        if (document.activeElement !== existing && String(existing.value || "") !== kept && !String(existing.value || "").trim()) {
           existing.value = kept;
-          td.setAttribute("data-et-race", race);
-          td.setAttribute("data-et", kept);
         }
         return;
       }
@@ -621,20 +591,20 @@
       inp.type = "text";
       inp.className = "dam-bottle-et-input";
       inp.setAttribute("placeholder", "m:ss");
-      inp.setAttribute("aria-label", "Elapsed time");
+      inp.setAttribute("aria-label", race + " elapsed time");
       inp.value = kept;
       td.setAttribute("data-et", kept);
-      td.setAttribute("data-et-race", race);
       td.textContent = "";
       td.appendChild(inp);
       inp.addEventListener("input", function () {
         td.setAttribute("data-et", String(inp.value || "").trim());
-        saveEtValue(openRaceKey(table) || race, rid, inp.value);
-        applyCorrection(table, false, false);
+        saveEtValue(race, rid, inp.value);
+        applyRace(table, race, false);
       });
       inp.addEventListener("blur", function () {
-        saveEtValue(openRaceKey(table) || race, rid, inp.value);
-        applyCorrection(table, true, true);
+        saveEtValue(race, rid, inp.value);
+        applyRace(table, race, true);
+        applyAllRaces(table, false);
       });
       inp.addEventListener("keydown", function (ev) {
         if (ev.key === "Enter") {
@@ -646,12 +616,23 @@
   }
 
   function syncEtVisible(sec) {
-    if (!sec) return;
-    var table = sec.querySelector("table.fleet-results-table");
-    var hide = !openRaceKey(table);
-    if (sec.classList.contains("fleet-section--et-hidden") !== hide) {
-      sec.classList.toggle("fleet-section--et-hidden", hide);
-    }
+    var table = sec && sec.querySelector("table.fleet-results-table");
+    if (!table) return;
+    raceKeys(table).forEach(function (key) {
+      var th = table.querySelector('th.race-col[data-race-key="' + key + '"]');
+      var closed = !!(th && th.classList.contains("race-col--closed"));
+      table.querySelectorAll('[data-for-race="' + key + '"]').forEach(function (el) {
+        if (el.classList.contains("race-col")) return;
+        el.classList.toggle("dam-bottle-et-hidden", closed);
+      });
+    });
+  }
+
+  function findSec() {
+    var table = document.querySelector(
+      '.fleet-section[data-block-id="' + RID + ':open"] table.fleet-results-table'
+    );
+    return table ? table.closest(".fleet-section") : null;
   }
 
   function placeStack() {
@@ -672,11 +653,29 @@
     }
   }
 
-  function findSec() {
-    var table = document.querySelector(
-      '.fleet-section[data-block-id="' + RID + ':open"] table.fleet-results-table'
-    );
-    return table ? table.closest(".fleet-section") : null;
+  function addRace(table) {
+    ensurePairAndRace(table, raceCount(table) + 1);
+    orderCols(table);
+    lockRCells(table);
+    wireEtInputs(table);
+    var ridEl = table.querySelector("tr[data-result-id]");
+    if (ridEl && sessionToken()) sessionPatchFleet(ridEl.getAttribute("data-result-id"), 1);
+  }
+
+  function removeLastRace(table) {
+    var n = raceCount(table);
+    if (n >= 2) {
+      dropRaceBlock(table, "R" + n);
+    } else {
+      dropRaceBlock(table, "R1");
+      ensurePairAndRace(table, 1);
+    }
+    orderCols(table);
+    lockRCells(table);
+    table.querySelectorAll("tbody tr[data-result-id]").forEach(fillTotalNett);
+    applyAllRaces(table, false);
+    var ridEl = table.querySelector("tr[data-result-id]");
+    if (ridEl && sessionToken() && n >= 2) sessionPatchFleet(ridEl.getAttribute("data-result-id"), -1);
   }
 
   function paint() {
@@ -705,78 +704,104 @@
       if (String(th.textContent || "").trim() === "Age") th.textContent = "Cat";
     });
     markCol(table, "Cat", "dam-bottle-cat-col");
-    ensureColAfter(table, "Helm", "Crew", "crew-col");
+    if (markCol(table, "Crew", "crew-col") < 0) {
+      var helm = table.querySelector("thead th.helm-col");
+      if (helm) {
+        var cth = document.createElement("th");
+        cth.className = "crew-col";
+        cth.textContent = "Crew";
+        helm.parentNode.insertBefore(cth, helm.nextSibling);
+        var hidx = [].indexOf.call(helm.parentNode.children, helm);
+        table.querySelectorAll("tbody tr").forEach(function (tr) {
+          var td = document.createElement("td");
+          td.className = "crew-col";
+          if (tr.children[hidx]) tr.insertBefore(td, tr.children[hidx].nextSibling);
+          else tr.appendChild(td);
+        });
+      }
+    }
     markCol(table, "PY", "dam-bottle-py-col");
-    ensureColAfter(table, "PY", "ET", "dam-bottle-et-col");
-    ensureTickCol(table);
-    ensureTotalNett(table);
-    dropDupRaces(table);
-    ensureR1(table);
-    dropDupRaces(table);
+    keepOneLabeled(table, "total-col", "Total");
+    keepOneLabeled(table, "nett-col", "Nett");
+    var existing = raceCount(table);
+    if (existing < 1) existing = 1;
+    var i;
+    for (i = 1; i <= existing; i++) ensurePairAndRace(table, i);
+    dropOrphanAndDup(table);
     orderCols(table);
     lockRCells(table);
-    table.querySelectorAll("tbody tr[data-result-id]").forEach(fillTotalNett);
     wireEtInputs(table);
     syncEtVisible(sec);
-    bindRaceClicks(sec);
+    applyAllRaces(table, false);
+    bindUi(sec);
     placeStack();
-    if (
-      adminEditOn() &&
-      !(document.activeElement && document.activeElement.classList.contains("dam-bottle-et-input"))
-    ) {
-      applyCorrection(table, false, false);
-    }
   }
 
-  function bindRaceClicks(sec) {
+  function ensureRaceStepper(sec) {
+    if (!adminEditOn() || !sec || sec.querySelector(".club-race-step")) return;
+    var box = document.createElement("div");
+    box.className = "club-race-step";
+    box.setAttribute("role", "group");
+    box.setAttribute("aria-label", "Add or remove race");
+    var add = document.createElement("button");
+    add.type = "button";
+    add.className = "club-race-step-add";
+    add.setAttribute("aria-label", "Add race");
+    add.textContent = "R+";
+    var sub = document.createElement("button");
+    sub.type = "button";
+    sub.className = "club-race-step-sub";
+    sub.setAttribute("aria-label", "Remove last race");
+    sub.title = "Remove last race";
+    sub.textContent = "R\u2212";
+    box.appendChild(add);
+    box.appendChild(sub);
+    var club = sec.querySelector(".class-header-club-logo-col");
+    if (club) {
+      club.insertBefore(box, club.firstChild);
+      return;
+    }
+    var hdr = sec.querySelector(".class-header");
+    var logo = hdr && hdr.querySelector(".class-header-logo-col");
+    if (logo) hdr.insertBefore(box, logo);
+    else if (hdr) hdr.insertBefore(box, hdr.firstChild);
+  }
+
+  function bindUi(sec) {
     if (!sec) return;
     var table = sec.querySelector("table.fleet-results-table");
+    ensureRaceStepper(sec);
     sec.querySelectorAll("th.race-col").forEach(function (th) {
       if (th._dbsEtBound) return;
       th._dbsEtBound = true;
       th.addEventListener("click", function () {
         window.setTimeout(function () {
           lockRCells(table);
-          wireEtInputs(table);
           syncEtVisible(sec);
         }, 0);
       });
     });
-    var add = sec.querySelector(".club-race-step-add");
-    var sub = sec.querySelector(".club-race-step-sub");
-    if (add && !add._dbsBound) {
-      add._dbsBound = true;
-      add.addEventListener("click", function () {
-        dropDupRaces(table);
-        var next = raceCount(table) + 1;
-        ensureRaceCol(table, next);
-        markRaceOpen(table, "R" + next);
-        orderCols(table);
-        lockRCells(table);
-        wireEtInputs(table);
+    if (sec._dbsStepCapture) return;
+    sec._dbsStepCapture = true;
+    sec.addEventListener(
+      "click",
+      function (ev) {
+        var t = ev.target;
+        if (!t || !t.closest) return;
+        var add = t.closest(".club-race-step-add");
+        var sub = t.closest(".club-race-step-sub");
+        if (!add && !sub) return;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        var tbl = sec.querySelector("table.fleet-results-table");
+        if (!tbl) return;
+        if (add) addRace(tbl);
+        else removeLastRace(tbl);
         syncEtVisible(sec);
-        window.setTimeout(function () {
-          markRaceOpen(table, "R" + next);
-          dropDupRaces(table);
-          orderCols(table);
-          lockRCells(table);
-          wireEtInputs(table);
-          bindRaceClicks(sec);
-          syncEtVisible(sec);
-        }, 200);
-      });
-    }
-    if (sub && !sub._dbsBound) {
-      sub._dbsBound = true;
-      sub.addEventListener("click", function () {
-        window.setTimeout(function () {
-          dropDupRaces(table);
-          orderCols(table);
-          lockRCells(table);
-          syncEtVisible(sec);
-        }, 200);
-      });
-    }
+        bindUi(sec);
+      },
+      true
+    );
   }
 
   function add(src) {
@@ -791,7 +816,7 @@
   paint();
   add("/js/midmar-live-media.js?v=midmarwx60dbs3");
   add("/js/club-score-edit.js?v=ccr38dbs4");
-  [80, 250, 700, 1600, 3000, 5000].forEach(function (ms) {
+  [80, 250, 700, 1600, 3500].forEach(function (ms) {
     window.setTimeout(paint, ms);
   });
 })();

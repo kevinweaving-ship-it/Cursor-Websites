@@ -79,7 +79,7 @@ curl -sS -o /dev/null -w "HYC HTTP %{http_code}\n" \
   "https://sailingsa.co.za/club/hyc"
 curl -sS -o /dev/null -w "HOME HTTP %{http_code}\n" \
   "https://sailingsa.co.za/"
-curl -sS "https://sailingsa.co.za/js/hmyc-dam-bottle-live-boot.js?v=dbs18" | head -c 200
+curl -sS "https://sailingsa.co.za/js/hmyc-dam-bottle-live-boot.js?v=dbs19" | head -c 200
 echo
 python3 - <<'PY'
 from pathlib import Path
