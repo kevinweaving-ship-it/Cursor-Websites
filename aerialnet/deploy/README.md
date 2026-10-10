@@ -9,6 +9,8 @@ Test / audit copies of the live SailingSA keypads, on the GoWifi / Aerialnet box
 
 Cams stay on the Sailing box (`sailingsa.co.za:8443` / `:8444`). WhatsApp stays on Sailing until the GoWifi number is linked here.
 
+Keypad APIs are proxied to live SailingSA until `/etc/aerialnet-olarm.env` is copied onto this box. Local `aerialnet-hansekop-api` / `aerialnet-voelklip-api` are already installed for that cutover.
+
 ## Deploy
 
 From a host that can SSH to `box.gowifi.co.za` (`102.209.119.186`):
