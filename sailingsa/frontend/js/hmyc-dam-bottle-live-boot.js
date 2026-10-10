@@ -33,7 +33,10 @@
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-corr-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] th.race-col," +
-      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col{min-width:4.6rem;box-sizing:border-box;text-align:center;white-space:nowrap}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col{min-width:3.6rem;box-sizing:border-box;text-align:center}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .dam-bottle-code-stack{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;white-space:normal}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .dam-bottle-code-pts{font-weight:700}" +
+      ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .dam-bottle-code-txt{font-size:0.72em;font-weight:700}" +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-corr-col{color:#15803d;font-weight:700;font-variant-numeric:tabular-nums;}" +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-corr-col .event-result-yes{color:#15803d;font-weight:700;font-size:1.05rem;}" +
@@ -482,7 +485,7 @@
 
   function cellPlaceText(td) {
     if (!td) return "";
-    var span = td.querySelector("span");
+    var span = td.querySelector(".dam-bottle-code-txt") || td.querySelector("span");
     var raw = String(((span && span.textContent) || td.textContent) || "").trim();
     raw = raw.replace(/^\(|\)$/g, "").trim();
     var code = codeFromText(raw);
@@ -864,6 +867,20 @@
     return String(fleetSize(tr) + 1) + " " + String(code || "DNC").toUpperCase();
   }
 
+  function paintCodeCell(td, code, tr, discarded) {
+    if (!td) return;
+    var pts = String(fleetSize(tr) + 1);
+    var c = String(code || "DNC").toUpperCase();
+    td.classList.add("code");
+    td.classList.toggle("disc", !!discarded);
+    td.classList.toggle("strike-out", !!discarded);
+    td.innerHTML =
+      '<span class="dam-bottle-code-stack">' +
+        '<span class="dam-bottle-code-pts">' + (discarded ? "(" + pts + ")" : pts) + "</span>" +
+        '<span class="dam-bottle-code-txt">' + c + "</span>" +
+      "</span>";
+  }
+
   function isCodeScore(raw) {
     return !!codeFromText(raw);
   }
@@ -939,12 +956,15 @@
       total += s.pts;
       var discarded = !!discardAt[s.i];
       if (discarded) dropped += s.pts;
-      var label = isCodeScore(s.raw) ? formatCodeScore(s.raw, tr) : s.raw;
-      var shown = discarded ? "(" + label + ")" : label;
-      if (s.td.textContent !== shown) s.td.textContent = shown;
-      s.td.classList.toggle("disc", discarded && !isCodeScore(s.raw));
-      s.td.classList.toggle("strike-out", discarded);
-      s.td.classList.toggle("code", isCodeScore(s.raw));
+      if (isCodeScore(s.raw)) {
+        paintCodeCell(s.td, s.raw, tr, discarded);
+      } else {
+        var shown = discarded ? "(" + s.raw + ")" : s.raw;
+        if (s.td.textContent !== shown) s.td.textContent = shown;
+        s.td.classList.toggle("disc", discarded);
+        s.td.classList.toggle("strike-out", discarded);
+        s.td.classList.remove("code");
+      }
     });
     var tot = tr.querySelector("td.total-col");
     var nett = tr.querySelector("td.nett-col");
@@ -1117,9 +1137,9 @@
       }, !doSave);
       if (rTd) {
         var p = it.place ? String(it.place) : "";
-        var shownPlace = it.dns && p ? formatCodeScore(p, it.tr) : p;
         if (p) {
-          if (cellPlaceText(rTd) !== p || rTd.textContent.trim() !== shownPlace) rTd.textContent = shownPlace;
+          if (it.dns) paintCodeCell(rTd, p, it.tr, false);
+          else if (cellPlaceText(rTd) !== p) rTd.textContent = p;
           rememberPlace(it.rid, race, p);
         } else {
           var snap = snappedPlace(it.rid, race);
@@ -1328,22 +1348,8 @@
       if (String(th.textContent || "").trim() === "Age") th.textContent = "Cat";
     });
     markCol(table, "Cat", "dam-bottle-cat-col");
-    if (markCol(table, "Crew", "crew-col") < 0) {
-      var helm = table.querySelector("thead th.helm-col");
-      if (helm) {
-        var cth = document.createElement("th");
-        cth.className = "crew-col";
-        cth.textContent = "Crew";
-        helm.parentNode.insertBefore(cth, helm.nextSibling);
-        var hidx = [].indexOf.call(helm.parentNode.children, helm);
-        table.querySelectorAll("tbody tr").forEach(function (tr) {
-          var td = document.createElement("td");
-          td.className = "crew-col";
-          if (tr.children[hidx]) tr.insertBefore(td, tr.children[hidx].nextSibling);
-          else tr.appendChild(td);
-        });
-      }
-    }
+    var crewIdx = markCol(table, "Crew", "crew-col");
+    if (crewIdx >= 0) removeColAt(table, crewIdx);
     markCol(table, "Class", "class-col");
     markCol(table, "PY", "dam-bottle-py-col");
     table.querySelectorAll("tbody tr[data-result-id]").forEach(function (tr) {
