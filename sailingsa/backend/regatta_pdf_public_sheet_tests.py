@@ -1,4 +1,4 @@
-"""Class PY stays after Class on the public PDF sheet."""
+"""Public PDF drops PY / Age / elapsed JSON. Parent admin keeps Class PY."""
 from __future__ import annotations
 
 from sailingsa.backend.regatta_pdf_public_sheet import sanitize_public_fleet_html
@@ -64,32 +64,20 @@ def _labels(html: str) -> list[str]:
     return [re.sub(r"<[^>]+>", "", c).strip() for c in cells]
 
 
-def test_py_stays_after_class_and_hidden_calc_cols_drop() -> None:
+def test_public_pdf_drops_py_and_hidden_calc_cols() -> None:
     out = sanitize_public_fleet_html(_TABLE)
     labs = _labels(out)
-    assert labs[:3] == ["Rank", "Class", "PY"], labs
+    assert labs[:3] == ["Rank", "Class", "Sail No"], labs
+    assert "PY" not in labs
     assert "Age" not in labs
     assert "Elapsed" not in labs
     assert "Corrected" not in labs
-    assert "832" in out
-    assert "1102" in out
+    assert "832" not in out
+    assert "1102" not in out
     assert "18:46" not in out
     assert "wc-score" in out and "DNC" in out
 
 
-def test_already_after_class_is_stable() -> None:
-    html = (
-        "<table><thead><tr>"
-        "<th>Rank</th><th>Class</th><th>PY</th><th>Sail No</th>"
-        "</tr></thead><tbody><tr>"
-        "<td>1</td><td>Dart 18</td><td>832</td><td>520</td>"
-        "</tr></tbody></table>"
-    )
-    out = sanitize_public_fleet_html(html)
-    assert _labels(out) == ["Rank", "Class", "PY", "Sail No"]
-
-
 if __name__ == "__main__":
-    test_py_stays_after_class_and_hidden_calc_cols_drop()
-    test_already_after_class_is_stable()
+    test_public_pdf_drops_py_and_hidden_calc_cols()
     print("ok")

@@ -2,7 +2,7 @@
  * Dam Bottle Sprints — each race has its own ET + ✓ + R.
  * Click that R header to show/hide its ET/✓. R+ adds a race block. R- drops the last.
  * Admin types ET only. 0:00 or DNC/DNS/DNF… → code, time 0:00, points = entries+1. No observers. Does not change live api.py.
- * Public sheet keeps Class PY immediately after Class (class PY number). Age / ET / Corrected stay hidden.
+ * Admin sees Class PY immediately after Class (class PY number). Public and PDF hide PY. Age / ET / Corrected stay hidden.
  */
 (function () {
   "use strict";
@@ -46,9 +46,11 @@
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .club-score-input," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col .wc-result-field-input{display:none!important;}" +
       ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-cat-col{display:none!important}" +
       "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-col," +
-      "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-corr-col{display:none!important}" +
+      "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-corr-col," +
+      "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-py-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-py-col{text-align:center;font-variant-numeric:tabular-nums;min-width:2.6rem;font-weight:700}" +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-hidden{display:none!important}" +

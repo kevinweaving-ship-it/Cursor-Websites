@@ -2,8 +2,8 @@
 
 Parent `/regatta/{id}` is truth. The PDF must take logos and the public
 fleet table from that page — never a second backend render that still has
-Age / Elapsed JSON / Open class marks CSS-hidden on the URL.
-Class PY stays after Class (public class PY number).
+Age / PY / Elapsed JSON / Open class marks CSS-hidden on the URL.
+Class PY is admin-only on the parent; the public PDF drops it.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ _DROP_LABELS = frozenset(
     {
         "age",
         "cat",
+        "py",
         "elapsed",
         "corrected",
         "elapsed time",
@@ -69,7 +70,7 @@ def _drop_indexes(header_cells: list[tuple[str, str, str]]) -> set[int]:
             cls = m.group(1).lower()
         if "dam-bottle-json" in cls or "dam-bottle-et" in cls or "dam-bottle-corr" in cls:
             drop.add(i)
-        if "dam-bottle-cat" in cls:
+        if "dam-bottle-py" in cls or "dam-bottle-cat" in cls:
             drop.add(i)
     return drop
 
@@ -111,43 +112,6 @@ def _strip_hidden_columns(html: str) -> str:
             # still drop body cells that are JSON blobs if header missed
             return m.group(0)
         return open_tag + _strip_table(inner, drop) + close_tag
-
-    return _TABLE_RE.sub(_one, html or "")
-
-
-def _reorder_cells(row: str, src: int, dest: int) -> str:
-    cells = list(_CELL_RE.finditer(row))
-    if not cells or src < 0 or src >= len(cells):
-        return row
-    items = [c.group(0) for c in cells]
-    cell = items.pop(src)
-    dest = max(0, min(dest, len(items)))
-    items.insert(dest, cell)
-    return row[: cells[0].start()] + "".join(items) + row[cells[-1].end()]
-
-
-def _place_py_after_class(html: str) -> str:
-    """Public Class PY sits immediately after Class."""
-
-    def _one(m: re.Match) -> str:
-        open_tag, inner, close_tag = m.group(1), m.group(2), m.group(3)
-        first = _ROW_RE.search(inner)
-        if not first:
-            return m.group(0)
-        labs = [_plain(cell[2]).lower() for cell in _CELL_RE.findall(first.group(0))]
-        try:
-            class_i = labs.index("class")
-            py_i = labs.index("py")
-        except ValueError:
-            return m.group(0)
-        insert_at = class_i + 1 if py_i > class_i else class_i
-        if py_i == class_i + 1:
-            return m.group(0)
-
-        def _row(rm: re.Match) -> str:
-            return _reorder_cells(rm.group(0), py_i, insert_at)
-
-        return open_tag + _ROW_RE.sub(_row, inner) + close_tag
 
     return _TABLE_RE.sub(_one, html or "")
 
@@ -248,10 +212,9 @@ def _ensure_parent_code_cells(html: str) -> str:
 
 
 def sanitize_public_fleet_html(html: str, event_logo: str = "") -> str:
-    """Keep Rank / Class / PY / Sail / Club / Helm / races / Total / Nett."""
+    """Keep Rank / Class / Sail / Club / Helm / races / Total / Nett only."""
     out = html or ""
     out = _strip_hidden_columns(out)
-    out = _place_py_after_class(out)
     out = _ensure_parent_code_cells(out)
     out = _replace_fleet_header_class_logos(out, event_logo)
     return out
