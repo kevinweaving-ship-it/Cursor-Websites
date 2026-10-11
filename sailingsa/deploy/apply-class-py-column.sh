@@ -22,17 +22,14 @@ fi
 "${SCP[@]}" \
   "$ROOT/sailingsa/backend/regatta_pdf_public_sheet.py" \
   "$HOST:/var/www/sailingsa/sailingsa/backend/regatta_pdf_public_sheet.py"
+"${SCP[@]}" \
+  "$ROOT/sailingsa/frontend/js/api.js" \
+  "$HOST:/var/www/sailingsa/js/api.js"
+"${SCP[@]}" \
+  "$ROOT/sailingsa/deploy/apply-close-dam-bottle.py" \
+  "$ROOT/sailingsa/deploy/apply-closed-live-listing.py" \
+  "$HOST:/tmp/"
 
-"${SSH[@]}" 'python3 - << "PY"
-from pathlib import Path
-p = Path("/var/www/sailingsa/js/regatta-pdf-share.js")
-t = p.read_text()
-t2 = t.replace("hmyc-dam-bottle-live-boot.js?v=dbs46", "hmyc-dam-bottle-live-boot.js?v=dbs48")
-t2 = t2.replace("hmyc-dam-bottle-live-boot.js?v=dbs47", "hmyc-dam-bottle-live-boot.js?v=dbs48")
-if "hmyc-dam-bottle-live-boot.js?v=dbs48" not in t2:
-    raise SystemExit("boot cache bust failed")
-p.write_text(t2)
-print("boot query dbs48")
-PY'
+"${SSH[@]}" "python3 /tmp/apply-close-dam-bottle.py && python3 /tmp/apply-closed-live-listing.py"
 
-echo "Applied Class PY column files."
+echo "Applied closed-live listing, Fleet badge strip, and Dam Bottle close."

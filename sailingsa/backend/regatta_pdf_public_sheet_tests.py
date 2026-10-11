@@ -78,6 +78,62 @@ def test_public_pdf_drops_py_and_hidden_calc_cols() -> None:
     assert "wc-score" in out and "DNC" in out
 
 
+def test_public_pdf_drops_entries_closed_badge() -> None:
+    html = (
+        '<div class="fleet-section">'
+        '<span class="fleet-title-with-logo">Fleet</span>'
+        '<span class="fleet-entries-closed-badge">Entries closed</span>'
+        '<table class="fleet-results-table"><thead><tr>'
+        '<th class="rank-col">Rank</th><th class="helm-col">Helm</th>'
+        "</tr></thead><tbody><tr>"
+        '<td class="rank-col">1st</td><td class="helm-col">A</td>'
+        "</tr></tbody></table></div>"
+    )
+    out = sanitize_public_fleet_html(html)
+    assert "Entries closed" not in out
+    assert "fleet-entries-closed-badge" not in out
+    assert "Fleet" in out
+    assert "Helm" in out
+
+
+_PARENT_HEADER = """
+<div class="regatta-header-wrap"><div class="header">
+<div class="regatta-header-logo-col"><img class="regatta-header-left-logo-img" src="/artwork/Event Logo/Dam-Bottle-Sprints.png" alt=""></div>
+<div class="regatta-header-main-col">
+<h1 class="regatta-name">2026 Dam Bottle Sprints</h1>
+<div class="host-club">Host: HMYC - Henley Midmar Yacht Club</div>
+<div class="regatta-header-status-stack">
+<div class="status-line">Results are Final</div>
+<div class="status-line status-line--asat"><span class="regatta-status-as-at-date">11 Oct 2026 10:23</span></div>
+<div class="entry-total-line entry-total-line--icon">4 Entries</div>
+</div></div>
+<div class="regatta-header-club-logo-col"><img class="regatta-header-club-logo-img" src="/artwork/Club Logo/HMYC.png" alt=""></div>
+</div></div>
+"""
+
+
+def test_parent_header_is_copied() -> None:
+    from sailingsa.backend.regatta_pdf_public_sheet import (
+        extract_parent_header_html,
+        parent_page_entries_count,
+        parent_page_event_name,
+        parent_page_status_line,
+        pdf_page_orientation,
+    )
+
+    html = extract_parent_header_html(_PARENT_HEADER)
+    assert "2026 Dam Bottle Sprints" in html
+    assert "entry-total-line" in html
+    assert "4 Entries" in html
+    assert parent_page_event_name(_PARENT_HEADER) == "2026 Dam Bottle Sprints"
+    assert parent_page_status_line(_PARENT_HEADER) == "Results are Final as at 11 October 2026 at 10:23"
+    assert parent_page_entries_count(_PARENT_HEADER) == "4"
+    assert pdf_page_orientation("2026-10-10-hmyc-dam-bottle-sprints") == ""
+
+
 if __name__ == "__main__":
     test_public_pdf_drops_py_and_hidden_calc_cols()
+    test_public_pdf_drops_entries_closed_badge()
+    test_parent_header_is_copied()
     print("ok")
+

@@ -160,10 +160,7 @@ def _entry_count(html: str) -> int:
 
 
 def pdf_page_orientation(slug: str) -> str:
-    """Parent Dam Bottle table is portrait. Landscape clips Rank/Sail/Helm on the share sheet."""
-    rid = str(slug or "").strip().lower()
-    if "dam-bottle" in rid:
-        return "portrait"
+    """Empty = use the usual table-width rule (landscape if too wide for portrait)."""
     return ""
 
 
@@ -211,9 +208,21 @@ def _ensure_parent_code_cells(html: str) -> str:
     return _CELL_RE.sub(_cell, html or "")
 
 
+_CLOSED_BADGE_RE = re.compile(
+    r'<span\b[^>]*class="[^"]*\bfleet-entries-closed-badge\b[^"]*"[^>]*>[\s\S]*?</span>',
+    re.I,
+)
+
+
+def _strip_entries_closed_badge(html: str) -> str:
+    """Gold api.py paints this when entries_closed; public Fleet/PDF never asked for it."""
+    return _CLOSED_BADGE_RE.sub("", html or "")
+
+
 def sanitize_public_fleet_html(html: str, event_logo: str = "") -> str:
     """Keep Rank / Class / Sail / Club / Helm / races / Total / Nett only."""
     out = html or ""
+    out = _strip_entries_closed_badge(out)
     out = _strip_hidden_columns(out)
     out = _ensure_parent_code_cells(out)
     out = _replace_fleet_header_class_logos(out, event_logo)
@@ -276,7 +285,30 @@ def _div_plain(html: str, class_token: str) -> str:
     return txt
 
 
+_MONTHS = {
+    "jan": "January",
+    "feb": "February",
+    "mar": "March",
+    "apr": "April",
+    "may": "May",
+    "jun": "June",
+    "jul": "July",
+    "aug": "August",
+    "sep": "September",
+    "oct": "October",
+    "nov": "November",
+    "dec": "December",
+}
+
+
 def parent_page_event_name(html: str) -> str:
+    m = re.search(
+        r'<h1 class="[^"]*\bregatta-name\b[^"]*"[^>]*>(.*?)</h1>',
+        html or "",
+        flags=re.I | re.S,
+    )
+    if m:
+        return _plain(m.group(1))
     return _div_plain(html, "regatta-name")
 
 
@@ -284,14 +316,68 @@ def parent_page_host(html: str) -> str:
     return _div_plain(html, "host-club")
 
 
+def _format_as_at(raw: str) -> str:
+    s = re.sub(r"\s+", " ", (raw or "").replace("\xa0", " ")).strip()
+    m = re.search(
+        r"(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})\s+(\d{1,2}:\d{2})",
+        s,
+    )
+    if not m:
+        return s
+    day, mon, year, hm = m.group(1), m.group(2), m.group(3), m.group(4)
+    full = _MONTHS.get(mon[:3].lower(), mon)
+    return f"{int(day):02d} {full} {year} at {hm}"
+
+
+def parent_page_as_at(html: str) -> str:
+    m = re.search(
+        r'<span class="regatta-status-as-at-date">([^<]+)</span>',
+        html or "",
+        flags=re.I,
+    )
+    return _plain(m.group(1)) if m else ""
+
+
+def parent_page_entries_count(html: str) -> str:
+    m = re.search(
+        r'<div class="entry-total-line[^"]*"[^>]*>(.*?)</div>',
+        html or "",
+        flags=re.I | re.S,
+    )
+    if m:
+        nm = re.search(r"(\d+)\s*Entries?", _plain(m.group(1)), flags=re.I)
+        if nm:
+            return nm.group(1)
+    return ""
+
+
 def parent_page_status_line(html: str) -> str:
     txt = _div_plain(html, "status-line")
-    if txt.lower().startswith("results are"):
+    if re.search(r"Results are \w+ as at ", txt, flags=re.I):
         return txt
-    m = re.search(r"Results are [A-Za-z]+ as at [^<]{6,80}", html or "")
+    word = ""
+    m = re.search(r"Results are\s+([A-Za-z]+)", txt, flags=re.I)
     if m:
-        return _plain(m.group(0))
+        word = m.group(1)
+    asat = _format_as_at(parent_page_as_at(html))
+    if word and asat:
+        if " at " not in asat:
+            asat = asat
+        return f"Results are {word} as at {asat}"
+    m2 = re.search(r"Results are [A-Za-z]+ as at [^<]{6,80}", html or "")
+    if m2:
+        return _plain(m2.group(0))
     return txt
+
+
+def extract_parent_header_html(html: str) -> str:
+    """Exact parent `.regatta-header-wrap` so the PDF header matches the URL."""
+    m = re.search(
+        r'<div class="regatta-header-wrap">\s*<div class="header">[\s\S]*?</div>\s*</div>',
+        html or "",
+        flags=re.I,
+    )
+    return m.group(0).strip() if m else ""
 
 
 def extract_parent_fleet_htmls(html: str) -> list[str]:
@@ -302,13 +388,24 @@ def fetch_parent_page_html(slug: str, timeout: int = 20) -> str:
     rid = str(slug or "").strip().strip("/")
     if not rid:
         return ""
-    url = f"https://sailingsa.co.za/regatta/{rid}"
-    try:
-        req = Request(url, headers={"User-Agent": "SailingSA-parent-truth-pdf", "Cache-Control": "no-cache"})
-        with urlopen(req, timeout=timeout) as resp:
-            return resp.read().decode("utf-8", "replace")
-    except Exception:
-        return ""
+    headers = {
+        "User-Agent": "SailingSA-parent-truth-pdf",
+        "Cache-Control": "no-cache",
+        "Host": "sailingsa.co.za",
+    }
+    for url in (
+        f"http://127.0.0.1/regatta/{rid}",
+        f"https://sailingsa.co.za/regatta/{rid}",
+    ):
+        try:
+            req = Request(url, headers=headers)
+            with urlopen(req, timeout=timeout) as resp:
+                html = resp.read().decode("utf-8", "replace")
+                if html and "regatta-header-wrap" in html:
+                    return html
+        except Exception:
+            continue
+    return ""
 
 
 def fleets_from_parent_truth(
@@ -346,6 +443,8 @@ def apply_parent_truth_to_pdf(
     use_name = parent_page_event_name(page) if page else ""
     use_host = parent_page_host(page) if page else ""
     use_status = parent_page_status_line(page) if page else ""
+    use_header = extract_parent_header_html(page) if page else ""
+    use_entries = parent_page_entries_count(page) if page else ""
     parent_chunks = extract_parent_fleet_htmls(page) if page else []
     out: list[dict[str, Any]] = []
     if parent_chunks:
@@ -373,4 +472,6 @@ def apply_parent_truth_to_pdf(
         "event_name": use_name or event_name,
         "host": use_host or host,
         "status_line": use_status or status_line,
+        "header_html": use_header,
+        "entries_count": use_entries,
     }

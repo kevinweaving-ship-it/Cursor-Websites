@@ -73,7 +73,8 @@
       "#dam-bottle-open-fleet table.fleet-results-table td{white-space:nowrap}" +
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col.disc," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.race-col.strike-out{text-decoration:line-through;opacity:0.6}" +
-      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-json-col{display:none!important}";
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-json-col{display:none!important}" +
+      ".fleet-section .fleet-entries-closed-badge{display:none!important}";
     document.head.appendChild(css);
   }
 
@@ -1384,6 +1385,9 @@
     var sec = findSec();
     if (!sec) return;
     sec.id = "dam-bottle-open-fleet";
+    sec.querySelectorAll(".fleet-entries-closed-badge").forEach(function (el) {
+      el.remove();
+    });
     sec.querySelectorAll(".class-header-logo-col img, .fleet-title-with-logo img").forEach(function (img) {
       if (img.getAttribute("src") !== SRC) img.src = SRC;
       img.alt = "Dam Bottle Sprints";
