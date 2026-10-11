@@ -7,6 +7,7 @@ Uses same logic as api.py run_daily_scrape but targets sas_id_personal and needs
 from __future__ import annotations
 
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -91,6 +92,115 @@ def _fetch_member(sas_id: int) -> dict | None:
                 pass
         return {"first_name": first_name, "last_name": last_name, "full_name": name_text, "year_of_birth": birth_year}
     return None
+
+def _name_key(full_name: str, first_name: str = "", last_name: str = "") -> str:
+    """Order-independent name key. 'de Clerk, Christoff' and 'Christoff de Clerk' match."""
+    raw = (full_name or "").strip()
+    if not raw:
+        raw = f"{first_name or ''} {last_name or ''}"
+    raw = raw.lower().replace(",", " ")
+    raw = re.sub(r"[^a-z\s]+", " ", raw)
+    tokens = [t for t in raw.split() if t]
+    if len(tokens) < 2:
+        return ""
+    return " ".join(sorted(tokens))
+
+
+def match_recent_sas_to_temps(conn, cur, lookback: int = 200) -> int:
+    """When new SAS names were added, compare the last 200 named SAS IDs to temp sailors.
+
+    A temp sailor has results and no SAS ID. Merge only when that name belongs to
+    exactly one temp and exactly one SAS ID. Their result rows then carry the SAS ID.
+    """
+    cur.execute(
+        """
+        SELECT sa_sailing_id::text, COALESCE(full_name, ''), COALESCE(first_name, ''), COALESCE(last_name, '')
+        FROM sas_id_personal
+        WHERE sa_sailing_id ~ '^[0-9]+$'
+          AND NULLIF(TRIM(COALESCE(full_name, '')), '') IS NOT NULL
+        """
+    )
+    by_key: dict[str, list[str]] = {}
+    ordered: list[tuple[int, str]] = []
+    for sid, full_name, first_name, last_name in cur.fetchall():
+        key = _name_key(full_name, first_name, last_name)
+        if not key:
+            continue
+        by_key.setdefault(key, []).append(str(sid))
+        ordered.append((int(sid), key))
+    ordered.sort(reverse=True)
+    recent = {key for _n, key in ordered[:lookback]}
+
+    cur.execute(
+        """
+        SELECT t.temp_id::text, COALESCE(t.full_name, ''), COALESCE(t.first_name, ''), COALESCE(t.last_name, '')
+        FROM temp_people t
+        WHERE COALESCE(t.upgraded, false) = false
+          AND NULLIF(TRIM(COALESCE(t.official_sa_sailing_id, '')), '') IS NULL
+          AND EXISTS (
+            SELECT 1 FROM results r
+            WHERE r.helm_temp_id IN ('TMP:' || t.temp_id::text, t.temp_id::text)
+               OR r.crew_temp_id IN ('TMP:' || t.temp_id::text, t.temp_id::text)
+               OR r.crew2_temp_id IN ('TMP:' || t.temp_id::text, t.temp_id::text)
+               OR r.crew3_temp_id IN ('TMP:' || t.temp_id::text, t.temp_id::text)
+          )
+        """
+    )
+    temps_by_key: dict[str, list[str]] = {}
+    for temp_id, full_name, first_name, last_name in cur.fetchall():
+        key = _name_key(full_name, first_name, last_name)
+        if not key or key not in recent:
+            continue
+        temps_by_key.setdefault(key, []).append(str(temp_id))
+
+    merged = 0
+    for key, temp_ids in temps_by_key.items():
+        sas_ids = by_key.get(key) or []
+        recent_sas = [sid for n, k in ordered[:lookback] if k == key for sid in (str(n),) ]
+        if len(temp_ids) != 1 or len(sas_ids) != 1 or len(recent_sas) != 1:
+            print(
+                f"[sas_member_scrape] temp match skipped (ambiguous) key={key} temps={temp_ids} sas={sas_ids}",
+                file=sys.stderr,
+            )
+            continue
+        sas_id = sas_ids[0]
+        temp_id = temp_ids[0]
+        labels = [f"TMP:{temp_id}", temp_id]
+        cur.execute(
+            """
+            UPDATE temp_people
+               SET official_sa_sailing_id = %s, upgraded = true, updated_at = NOW()
+             WHERE temp_id::text = %s
+               AND COALESCE(upgraded, false) = false
+               AND NULLIF(TRIM(COALESCE(official_sa_sailing_id, '')), '') IS NULL
+            """,
+            (sas_id, temp_id),
+        )
+        if cur.rowcount != 1:
+            conn.rollback()
+            print(f"[sas_member_scrape] temp match skipped (already upgraded) TMP:{temp_id}", file=sys.stderr)
+            continue
+        for role, status_col in (
+            ("helm", "match_status_helm"),
+            ("crew", "match_status_crew"),
+            ("crew2", "match_status_crew"),
+            ("crew3", "match_status_crew"),
+        ):
+            cur.execute(
+                f"""
+                UPDATE results
+                   SET {role}_sa_sailing_id = %s,
+                       {role}_temp_id = NULL,
+                       {status_col} = 'sas_scrape_merge'
+                 WHERE {role}_temp_id = ANY(%s)
+                """,
+                (int(sas_id), labels),
+            )
+        conn.commit()
+        merged += 1
+        print(f"[sas_member_scrape] merged TMP:{temp_id} -> SAS {sas_id} ({key})", file=sys.stderr)
+    return merged
+
 
 def main() -> None:
     db_url = _get_db_url()
@@ -226,10 +336,17 @@ def main() -> None:
             print(f"[sas_member_scrape] gap {current_id}", file=sys.stderr)
         current_id += 1
         time.sleep(delay_sec)
+    merged = 0
+    if added:
+        try:
+            merged = match_recent_sas_to_temps(conn, cur)
+        except Exception as e:
+            conn.rollback()
+            print(f"[sas_member_scrape] temp match failed: {e}", file=sys.stderr)
     cur.close()
     conn.close()
     print(
-        f"[sas_member_scrape] done: start={start_id} last_valid={last_valid} gaps={gaps} added={added}",
+        f"[sas_member_scrape] done: start={start_id} last_valid={last_valid} gaps={gaps} added={added} temp_merged={merged}",
         file=sys.stderr,
     )
 
