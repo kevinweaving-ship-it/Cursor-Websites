@@ -150,9 +150,17 @@ def test_parent_mirror_document_keeps_parent_links() -> None:
     assert "mark-on-color" not in doc
     assert "Entries closed" not in doc
     assert 'data-dbs-ready="1"' in doc
-    assert "border:0.45pt solid #94a3b8" in doc
-    assert "border-left:1.1pt solid #1a2750" in doc
-    assert "border-right:1.1pt solid #1a2750" in doc
+    assert "font-family:system-ui,sans-serif" in doc
+    assert "background:#e9eefb" in doc
+    assert "border-right:1px solid #1d294d" in doc
+    assert "border-left:1px solid #1d294d" in doc
+    assert "color:#0000ee;color:LinkText" in doc
+    assert "#c62828" in doc
+    assert "font-size:24px" in doc
+    assert "#1d4ed8" not in doc
+    assert "#eef2f7" not in doc
+    assert "#94a3b8" not in doc
+    assert "-apple-system" not in doc
     dirty = (
         "<style>body{color:#001f3f}@media print{.fleet-section{display:none}}</style>"
         '<link rel="stylesheet" href="/css/main.css">'
