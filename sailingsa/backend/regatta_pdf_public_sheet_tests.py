@@ -1,7 +1,10 @@
 """Public PDF drops PY / Age / elapsed JSON. Parent admin keeps Class PY."""
 from __future__ import annotations
 
-from sailingsa.backend.regatta_pdf_public_sheet import sanitize_public_fleet_html
+from sailingsa.backend.regatta_pdf_public_sheet import (
+    build_parent_mirror_document,
+    sanitize_public_fleet_html,
+)
 
 _TABLE = """
 <div class="fleet-section">
@@ -96,6 +99,67 @@ def test_public_pdf_drops_entries_closed_badge() -> None:
     assert "Helm" in out
 
 
+def test_parent_sub_urls_stay_clickable() -> None:
+    html = (
+        '<div class="fleet-section">'
+        '<span class="fleet-title-with-logo">'
+        '<img class="rs-fleet-title-logo" src="/artwork/Event Logo/Dam-Bottle-Sprints.png" alt="Event">'
+        "Fleet</span>"
+        "<table><tbody><tr>"
+        '<td class="class-col"><a href="/class/ilca-7">ILCA 7</a></td>'
+        '<td class="sail-col"><a href="/boat/ilca-7-2">2</a></td>'
+        '<td class="club-col"><a href="/club/hmyc">HMYC</a></td>'
+        '<td class="helm-col"><a href="/sailor/simon-dommett">Simon Dommett</a></td>'
+        "</tr></tbody></table></div>"
+    )
+    out = sanitize_public_fleet_html(html, "/artwork/Event Logo/Dam-Bottle-Sprints.png")
+    assert "Open Fleet" in out
+    assert 'href="https://sailingsa.co.za/class/ilca-7"' in out
+    assert 'href="https://sailingsa.co.za/boat/ilca-7-2"' in out
+    assert 'href="https://sailingsa.co.za/club/hmyc"' in out
+    assert 'href="https://sailingsa.co.za/sailor/simon-dommett"' in out
+    assert "Entries closed" not in out
+
+
+def test_parent_mirror_document_keeps_parent_links() -> None:
+    header = (
+        '<div class="regatta-header-wrap"><div class="header">'
+        '<a href="/classes"><img class="regatta-header-left-logo-img" '
+        'src="/artwork/Event Logo/Dam-Bottle-Sprints.png"></a>'
+        '<h1 class="regatta-name">2026 Dam Bottle Sprints</h1>'
+        '<a href="/club/hmyc">HMYC</a></div></div>'
+    )
+    fleet = {
+        "html": (
+            '<div class="fleet-section"><a href="/sailor/lorrian-wells">Lorrian Wells</a></div>'
+        )
+    }
+    doc = build_parent_mirror_document(
+        header_html=header,
+        fleets=[fleet],
+        orient="landscape",
+        event_name="2026 Dam Bottle Sprints",
+        style_html='<link rel="stylesheet" href="/css/main.css">',
+        sheet_url="https://sailingsa.co.za/regatta/2026-10-10-hmyc-dam-bottle-sprints",
+    )
+    assert "2026 Dam Bottle Sprints" in doc
+    assert "main.css" in doc
+    assert "https://sailingsa.co.za/sailor/lorrian-wells" in doc
+    assert "https://sailingsa.co.za/club/hmyc" in doc
+    assert "ssa-print-footer" not in doc
+    assert "mark-on-color" not in doc
+    assert "Entries closed" not in doc
+    dirty = (
+        "<style>body{color:#001f3f}@media print{.fleet-section{display:none}}</style>"
+        '<link rel="stylesheet" href="/css/main.css">'
+    )
+    from sailingsa.backend.regatta_pdf_public_sheet import parent_page_style_html
+
+    styles = parent_page_style_html(dirty)
+    assert "@media print" not in styles
+    assert "main.css" in styles
+
+
 _PARENT_HEADER = """
 <div class="regatta-header-wrap"><div class="header">
 <div class="regatta-header-logo-col"><img class="regatta-header-left-logo-img" src="/artwork/Event Logo/Dam-Bottle-Sprints.png" alt=""></div>
@@ -134,6 +198,8 @@ def test_parent_header_is_copied() -> None:
 if __name__ == "__main__":
     test_public_pdf_drops_py_and_hidden_calc_cols()
     test_public_pdf_drops_entries_closed_badge()
+    test_parent_sub_urls_stay_clickable()
+    test_parent_mirror_document_keeps_parent_links()
     test_parent_header_is_copied()
     print("ok")
 

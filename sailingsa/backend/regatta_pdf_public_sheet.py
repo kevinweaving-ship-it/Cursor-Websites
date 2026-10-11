@@ -12,6 +12,8 @@ from typing import Any, Optional
 from urllib.parse import unquote
 from urllib.request import Request, urlopen
 
+_SITE = "https://sailingsa.co.za"
+
 _DROP_LABELS = frozenset(
     {
         "age",
@@ -219,14 +221,153 @@ def _strip_entries_closed_badge(html: str) -> str:
     return _CLOSED_BADGE_RE.sub("", html or "")
 
 
+def _abs_parent_url(raw: str) -> str:
+    s = (raw or "").strip()
+    if not s or s.startswith("#") or s.lower().startswith("javascript:") or s.startswith("data:"):
+        return s
+    if s.startswith("//"):
+        return "https:" + s
+    if s.startswith("http://") or s.startswith("https://"):
+        return s
+    if not s.startswith("/"):
+        s = "/" + s
+    return _SITE.rstrip("/") + s
+
+
+def absolutize_parent_urls(html: str) -> str:
+    """Parent relative /class /sailor /club /boat links must stay clickable in the PDF."""
+
+    def _attr(m: re.Match) -> str:
+        return f"{m.group(1)}{_abs_parent_url(m.group(2))}{m.group(3)}"
+
+    out = re.sub(r'(href=["\'])([^"\']+)(["\'])', _attr, html or "", flags=re.I)
+    out = re.sub(r'(src=["\'])([^"\']+)(["\'])', _attr, out, flags=re.I)
+    out = re.sub(r"""\sloading=["']lazy["']""", "", out, flags=re.I)
+    return out
+
+
+def _mirror_open_fleet_title(html: str) -> str:
+    """Parent Dam Bottle JS paints 'Open Fleet' + Event Logo. Gold HTML still says Fleet."""
+
+    def _span(m: re.Match) -> str:
+        inner = m.group(2)
+        if not re.search(r"(^|>)(\s*)Fleet(\s*)(<|$)", inner):
+            return m.group(0)
+        if not re.search(r"Event Logo|Dam-Bottle|Open", inner, flags=re.I):
+            return m.group(0)
+        inner = re.sub(r"(>)(\s*)Fleet(\s*)(<|$)", r"\1\2Open Fleet\3\4", inner, count=1)
+        return f"{m.group(1)}{inner}{m.group(3)}"
+
+    return re.sub(
+        r'(<span\b[^>]*class="[^"]*fleet-title-with-logo[^"]*"[^>]*>)([\s\S]*?)(</span>)',
+        _span,
+        html or "",
+        count=1,
+        flags=re.I,
+    )
+
+
 def sanitize_public_fleet_html(html: str, event_logo: str = "") -> str:
     """Keep Rank / Class / Sail / Club / Helm / races / Total / Nett only."""
     out = html or ""
     out = _strip_entries_closed_badge(out)
     out = _strip_hidden_columns(out)
-    out = _ensure_parent_code_cells(out)
     out = _replace_fleet_header_class_logos(out, event_logo)
+    out = _mirror_open_fleet_title(out)
+    out = absolutize_parent_urls(out)
     return out
+
+
+def _strip_media_print(css: str) -> str:
+    """Drop @media print — that is invented print chrome, not the parent screen."""
+    out = []
+    i = 0
+    src = css or ""
+    low = src.lower()
+    while True:
+        j = low.find("@media print", i)
+        if j < 0:
+            out.append(src[i:])
+            break
+        out.append(src[i:j])
+        k = src.find("{", j)
+        if k < 0:
+            break
+        depth = 0
+        end = k
+        for n, ch in enumerate(src[k:], k):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    end = n + 1
+                    break
+        i = end
+    return "".join(out)
+
+
+def parent_page_style_html(html: str) -> str:
+    """Parent screen styles only — no invented @media print sheet."""
+    parts: list[str] = []
+    for m in re.finditer(r"<link\b[^>]*rel=[\"']stylesheet[\"'][^>]*>", html or "", flags=re.I):
+        parts.append(absolutize_parent_urls(m.group(0)))
+    for m in re.finditer(r"(<style\b[^>]*>)([\s\S]*?)(</style>)", html or "", flags=re.I):
+        inner = _strip_media_print(m.group(2))
+        if inner.strip():
+            inner = re.sub(
+                r"[^{}]*\b(?:th|td)\.class-col[^{}]*\{[^{}]*display\s*:\s*none[^{}]*\}",
+                "",
+                inner,
+                flags=re.I,
+            )
+            parts.append(f"{m.group(1)}{inner}{m.group(3)}")
+    return "\n".join(parts)
+
+
+def build_parent_mirror_document(
+    *,
+    header_html: str,
+    fleets: list[dict[str, Any]],
+    orient: str = "landscape",
+    event_name: str = "",
+    style_html: str = "",
+    sheet_url: str = "",
+) -> str:
+    """Print the parent header + fleet + table. Keep parent links clickable."""
+    paper = "landscape" if str(orient or "").lower() != "portrait" else "portrait"
+    name = event_name or "Results"
+    styles = style_html or '<link rel="stylesheet" href="https://sailingsa.co.za/css/main.css">'
+    extra = (
+        f"@page {{ size: A4 {paper}; margin: 8mm; }}"
+        "html,body{background:#fff}"
+        ".site-header,.admin-v10-second-header,.regatta-sa-toolbar,"
+        ".midmar-live-media,.print-share-bar,.fleet-entries-closed-badge,"
+        ".club-race-step,.dam-bottle-py-math{display:none!important}"
+        ".fleet-section,.fleet-section .table-wrapper,.fleet-section .table-container{"
+        "display:block!important;visibility:visible!important;overflow:visible!important;"
+        "height:auto!important;max-height:none!important}"
+        ".fleet-results-table{display:table!important;visibility:visible!important;"
+        "width:100%!important}"
+        ".fleet-results-table th.class-col,.fleet-results-table td.class-col{"
+        "display:table-cell!important;visibility:visible!important}"
+        ".fleet-results-table .rs-class-row-logo,.fleet-results-table .rs-club-row-logo,"
+        ".fleet-results-table .rs-club-row-logo-sm,.fleet-results-table .rs-club-with-logo>img{"
+        "display:inline-block!important;visibility:visible!important;max-height:1.4em}"
+        "tr.medal-gold,tr.medal-gold td{background-color:#D4AF37}"
+        "tr.medal-silver,tr.medal-silver td{background-color:#D7D7D7}"
+        "tr.medal-bronze,tr.medal-bronze td{background-color:#CE8946}"
+    )
+    header = absolutize_parent_urls(_strip_entries_closed_badge(header_html or ""))
+    body = "".join(absolutize_parent_urls(f.get("html") or "") for f in fleets or [])
+    base = (sheet_url or _SITE).rstrip("/") + "/"
+    return (
+        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">"
+        f'<base href="{base}">'
+        f"<title>{name}</title>"
+        f"{styles}<style>{extra}</style></head>"
+        f'<body class="regatta-page">{header}{body}</body></html>'
+    )
 
 
 _LEFT_LOGO_RE = re.compile(
@@ -443,8 +584,9 @@ def apply_parent_truth_to_pdf(
     use_name = parent_page_event_name(page) if page else ""
     use_host = parent_page_host(page) if page else ""
     use_status = parent_page_status_line(page) if page else ""
-    use_header = extract_parent_header_html(page) if page else ""
+    use_header = absolutize_parent_urls(extract_parent_header_html(page) if page else "")
     use_entries = parent_page_entries_count(page) if page else ""
+    use_styles = parent_page_style_html(page) if page else ""
     parent_chunks = extract_parent_fleet_htmls(page) if page else []
     out: list[dict[str, Any]] = []
     if parent_chunks:
@@ -474,4 +616,5 @@ def apply_parent_truth_to_pdf(
         "status_line": use_status or status_line,
         "header_html": use_header,
         "entries_count": use_entries,
+        "style_html": use_styles,
     }
