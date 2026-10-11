@@ -595,7 +595,28 @@ async function getRegattas(params) {
     } else {
         url += '?limit=400';
     }
-    return apiRequest(url, { method: 'GET' });
+    return apiRequest(url, { method: 'GET' }).then(_saMarkClosedListingRows);
+}
+
+/** Gold with-counts is_live is date-window only. Final / completed events are not live. */
+function _saListingEventIsClosed(r) {
+    if (!r) return false;
+    var rid = String(r.regatta_id != null ? r.regatta_id : (r.id || ''));
+    if (rid === '2026-10-10-hmyc-dam-bottle-sprints') return true;
+    var st = String(r.result_status || r.event_status || '').toLowerCase();
+    return st === 'final' || st === 'completed';
+}
+
+function _saMarkClosedListingRows(data) {
+    var rows = Array.isArray(data) ? data : (data && Array.isArray(data.regattas) ? data.regattas : null);
+    if (rows) {
+        rows.forEach(function (r) {
+            if (!_saListingEventIsClosed(r)) return;
+            r.is_live = false;
+            if (String(r.live_board_status || '').toUpperCase() === 'LIVE') r.live_board_status = '';
+        });
+    }
+    return data;
 }
 
 /**

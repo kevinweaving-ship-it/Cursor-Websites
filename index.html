@@ -11161,9 +11161,17 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
             }, true);
         }
 
+            function _saRegattaListingIsLive(r) {
+                if (!r) return false;
+                var rid = String(r.regatta_id != null ? r.regatta_id : (r.id || ''));
+                if (rid === '2026-10-10-hmyc-dam-bottle-sprints') return false;
+                var st = String(r.result_status || r.event_status || '').toLowerCase();
+                if (st === 'final' || st === 'completed') return false;
+                return !!r.is_live;
+            }
             function _sortRegattasNewestFirst(list) {
                 return (list || []).slice().sort(function(a, b) {
-                    var liveA = !!a.is_live, liveB = !!b.is_live;
+                    var liveA = _saRegattaListingIsLive(a), liveB = _saRegattaListingIsLive(b);
                     if (liveA !== liveB) return liveA ? -1 : 1;
                     var da = String(a.start_date || a.end_date || a.as_at_time || '').slice(0, 10);
                     var db = String(b.start_date || b.end_date || b.as_at_time || '').slice(0, 10);
@@ -11551,7 +11559,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
 
             var parents = nestRegattaParents(regattas);
             var count = parents.length;
-            var liveN = parents.filter(function(r) { return !!r.is_live; }).length;
+            var liveN = parents.filter(function(r) { return _saRegattaListingIsLive(r); }).length;
             var labelText = searchQuery
                 ? 'Regatta Search for "<span style="color:#c00;font-weight:700;">' + esc(searchQuery) + '</span>" = Results (' + count + ')'
                 : (liveN
@@ -11671,7 +11679,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 var card = document.createElement('div');
                 card.className = 'sa-home-regatta-card';
                 var boardSt = String(r.live_board_status || '').toUpperCase();
-                var isLiveWindow = !!r.is_live;
+                var isLiveWindow = _saRegattaListingIsLive(r);
                 if (isLiveWindow && boardSt === 'POSTPONED') card.classList.add('sa-home-regatta-card--postponed');
                 else if (isLiveWindow && boardSt === 'RACING') card.classList.add('sa-home-regatta-card--racing');
                 else if (isLiveWindow) card.classList.add('sa-home-regatta-card--live');
