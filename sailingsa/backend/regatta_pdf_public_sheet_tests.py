@@ -149,6 +149,7 @@ def test_parent_mirror_document_keeps_parent_links() -> None:
     assert "ssa-print-footer" not in doc
     assert "mark-on-color" not in doc
     assert "Entries closed" not in doc
+    assert 'data-dbs-ready="1"' in doc
     dirty = (
         "<style>body{color:#001f3f}@media print{.fleet-section{display:none}}</style>"
         '<link rel="stylesheet" href="/css/main.css">'
@@ -158,6 +159,7 @@ def test_parent_mirror_document_keeps_parent_links() -> None:
     styles = parent_page_style_html(dirty)
     assert "@media print" not in styles
     assert "main.css" in styles
+    assert "<style>" not in styles
 
 
 _PARENT_HEADER = """
@@ -189,10 +191,31 @@ def test_parent_header_is_copied() -> None:
     assert "2026 Dam Bottle Sprints" in html
     assert "entry-total-line" in html
     assert "4 Entries" in html
+    assert "regatta-header-club-logo-img" in html
+    assert html.count("<div") == html.lower().count("</div>")
     assert parent_page_event_name(_PARENT_HEADER) == "2026 Dam Bottle Sprints"
     assert parent_page_status_line(_PARENT_HEADER) == "Results are Final as at 11 October 2026 at 10:23"
     assert parent_page_entries_count(_PARENT_HEADER) == "4"
     assert pdf_page_orientation("2026-10-10-hmyc-dam-bottle-sprints") == ""
+
+
+def test_parent_header_keeps_right_logo_through_nested_divs() -> None:
+    from sailingsa.backend.regatta_pdf_public_sheet import extract_parent_header_html
+
+    nested = (
+        '<div class="regatta-header-wrap"><div class="header">'
+        '<div class="regatta-header-logo-col"><img class="regatta-header-left-logo-img" src="/artwork/Event Logo/Dam-Bottle-Sprints.png"></div>'
+        '<div class="regatta-header-main-col"><h1 class="regatta-name">2026 Dam Bottle Sprints</h1>'
+        '<div class="regatta-header-status-stack"><div class="status-line">Results are Final</div>'
+        '<div class="entry-total-line">4 Entries</div></div></div>'
+        '<div class="regatta-header-club-logo-col"><img class="regatta-header-club-logo-img" src="/artwork/Club Logo/HMYC.png"></div>'
+        "</div></div>"
+        '<div class="fleet-section"><span class="fleet-title-with-logo">Open Fleet</span></div>'
+    )
+    html = extract_parent_header_html(nested)
+    assert "regatta-header-club-logo-img" in html
+    assert "fleet-section" not in html
+    assert html.count("<div") == html.lower().count("</div>")
 
 
 if __name__ == "__main__":
@@ -201,5 +224,6 @@ if __name__ == "__main__":
     test_parent_sub_urls_stay_clickable()
     test_parent_mirror_document_keeps_parent_links()
     test_parent_header_is_copied()
+    test_parent_header_keeps_right_logo_through_nested_divs()
     print("ok")
 

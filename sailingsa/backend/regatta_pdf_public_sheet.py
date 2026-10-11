@@ -272,6 +272,7 @@ def sanitize_public_fleet_html(html: str, event_logo: str = "") -> str:
     out = html or ""
     out = _strip_entries_closed_badge(out)
     out = _strip_hidden_columns(out)
+    out = _ensure_parent_code_cells(out)
     out = _replace_fleet_header_class_logos(out, event_logo)
     out = _mirror_open_fleet_title(out)
     out = absolutize_parent_urls(out)
@@ -308,20 +309,10 @@ def _strip_media_print(css: str) -> str:
 
 
 def parent_page_style_html(html: str) -> str:
-    """Parent screen styles only — no invented @media print sheet."""
+    """Parent main.css only. Gold inline sheet CSS squashes Fleet into the header card."""
     parts: list[str] = []
     for m in re.finditer(r"<link\b[^>]*rel=[\"']stylesheet[\"'][^>]*>", html or "", flags=re.I):
         parts.append(absolutize_parent_urls(m.group(0)))
-    for m in re.finditer(r"(<style\b[^>]*>)([\s\S]*?)(</style>)", html or "", flags=re.I):
-        inner = _strip_media_print(m.group(2))
-        if inner.strip():
-            inner = re.sub(
-                r"[^{}]*\b(?:th|td)\.class-col[^{}]*\{[^{}]*display\s*:\s*none[^{}]*\}",
-                "",
-                inner,
-                flags=re.I,
-            )
-            parts.append(f"{m.group(1)}{inner}{m.group(3)}")
     return "\n".join(parts)
 
 
@@ -340,29 +331,70 @@ def build_parent_mirror_document(
     styles = style_html or '<link rel="stylesheet" href="https://sailingsa.co.za/css/main.css">'
     extra = (
         f"@page {{ size: A4 {paper}; margin: 8mm; }}"
-        "html,body{background:#fff}"
+        "html,body{background:#fff;color:#1a2750;margin:0;padding:0;"
+        "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,Helvetica,sans-serif}"
         ".site-header,.admin-v10-second-header,.regatta-sa-toolbar,"
         ".midmar-live-media,.print-share-bar,.fleet-entries-closed-badge,"
         ".club-race-step,.dam-bottle-py-math{display:none!important}"
-        ".fleet-section,.fleet-section .table-wrapper,.fleet-section .table-container{"
-        "display:block!important;visibility:visible!important;overflow:visible!important;"
-        "height:auto!important;max-height:none!important}"
-        ".fleet-results-table{display:table!important;visibility:visible!important;"
-        "width:100%!important}"
-        ".fleet-results-table th.class-col,.fleet-results-table td.class-col{"
-        "display:table-cell!important;visibility:visible!important}"
+        "body.regatta-page,.regatta-page{border:none!important;box-shadow:none!important;"
+        "background:#fff!important;max-width:none!important;padding:0!important;margin:0!important}"
+        ".regatta-header-wrap{width:100%;margin:0 0 10px 0}"
+        ".regatta-header-wrap .header{display:grid;"
+        "grid-template-columns:92px minmax(0,1fr) 92px;align-items:center;"
+        "border:1.5px solid #1a2750;border-radius:10px;"
+        "padding:8px 12px;background:#fff;width:100%;box-sizing:border-box}"
+        ".regatta-header-main-col{text-align:center}"
+        ".regatta-name{font-size:20px;font-weight:700;margin:0 0 2px 0;color:#1a2750}"
+        ".host-club,.status-line,.entry-total-line{font-size:13px;margin:1px 0;color:#1a2750}"
+        ".entry-total-line{display:inline-flex;align-items:center;gap:4px}"
+        ".fleet-section{border:none;background:transparent;padding:0;margin:0;width:100%}"
+        ".class-header,.class-header--with-logos{display:grid;"
+        "grid-template-columns:92px minmax(0,1fr) 92px;align-items:center;"
+        "border:2px solid #1a2750;border-radius:10px;"
+        "padding:12px 16px;background:#fff;width:100%;box-sizing:border-box;margin:0 0 14px 0}"
+        ".class-header-logo-col,.class-header-club-logo-col,.regatta-header-logo-col,"
+        ".regatta-header-club-logo-col{display:flex;align-items:center}"
+        ".class-header-club-logo-col,.regatta-header-club-logo-col{justify-content:flex-end}"
+        ".class-header-main-col{display:flex;flex-direction:column;align-items:center;"
+        "text-align:center;color:#1a2750}"
+        ".fleet-title-with-logo{display:inline-flex;align-items:center;gap:6px;"
+        "font-size:20px;font-weight:700;color:#1a2750}"
+        ".sailed-line{display:block;margin:2px 0 0 0;font-size:12px;font-weight:500;color:#1a2750}"
+        ".class-header-logo-col img,.class-header-club-logo-col img,"
+        ".regatta-header-left-logo-img,.regatta-header-club-logo-img{"
+        "max-height:72px;max-width:88px;width:auto;height:auto;object-fit:contain;display:block}"
+        ".rs-fleet-title-logo{height:1.1em;width:auto;max-height:1.1em;object-fit:contain}"
+        ".fleet-section .table-wrapper,.fleet-section .table-container{"
+        "display:block;overflow:visible;width:100%;margin:0}"
+        ".fleet-results-table{display:table;width:100%;min-width:100%;border-collapse:collapse;"
+        "table-layout:auto;font-size:12px}"
+        ".fleet-results-table th,.fleet-results-table td{padding:6px 8px;vertical-align:middle;"
+        "border-bottom:1px solid #e5e7eb}"
+        ".fleet-results-table thead th{background:#eef2f7;color:#1a2750;font-weight:700;"
+        "text-align:left}"
+        ".fleet-results-table th.race-col,.fleet-results-table td.race-col,"
+        ".fleet-results-table th.class-col,.fleet-results-table td.class-col,"
+        ".fleet-results-table th.rank-col,.fleet-results-table td.rank-col,"
+        ".fleet-results-table th.total-col,.fleet-results-table td.total-col,"
+        ".fleet-results-table th.nett-col,.fleet-results-table td.nett-col{"
+        "display:table-cell;text-align:center}"
         ".fleet-results-table .rs-class-row-logo,.fleet-results-table .rs-club-row-logo,"
         ".fleet-results-table .rs-club-row-logo-sm,.fleet-results-table .rs-club-with-logo>img{"
-        "display:inline-block!important;visibility:visible!important;max-height:1.4em}"
+        "display:inline-block;vertical-align:middle;max-height:22px;width:auto}"
+        ".fleet-results-table .helm-col a{color:#1d4ed8;text-decoration:underline}"
+        ".dam-bottle-code-stack,.code{display:flex;flex-direction:column;align-items:center;"
+        "line-height:1.1}"
+        ".wc-code{font-size:0.72em;font-weight:700}"
         "tr.medal-gold,tr.medal-gold td{background-color:#D4AF37}"
         "tr.medal-silver,tr.medal-silver td{background-color:#D7D7D7}"
         "tr.medal-bronze,tr.medal-bronze td{background-color:#CE8946}"
+        ".fleet-section,.fleet-section[data-block-id]{visibility:visible!important}"
     )
     header = absolutize_parent_urls(_strip_entries_closed_badge(header_html or ""))
     body = "".join(absolutize_parent_urls(f.get("html") or "") for f in fleets or [])
     base = (sheet_url or _SITE).rstrip("/") + "/"
     return (
-        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">"
+        '<!DOCTYPE html><html data-dbs-ready="1"><head><meta charset="UTF-8">'
         f'<base href="{base}">'
         f"<title>{name}</title>"
         f"{styles}<style>{extra}</style></head>"
@@ -511,18 +543,53 @@ def parent_page_status_line(html: str) -> str:
     return txt
 
 
-def extract_parent_header_html(html: str) -> str:
-    """Exact parent `.regatta-header-wrap` so the PDF header matches the URL."""
+def _extract_div_by_class(html: str, class_token: str) -> str:
+    """Match a classed div with balanced inner divs — do not cut at the first close."""
     m = re.search(
-        r'<div class="regatta-header-wrap">\s*<div class="header">[\s\S]*?</div>\s*</div>',
+        rf'<div\b[^>]*class="[^"]*\b{re.escape(class_token)}\b[^"]*"[^>]*>',
         html or "",
         flags=re.I,
     )
-    return m.group(0).strip() if m else ""
+    if not m:
+        return ""
+    src = html or ""
+    i = m.end()
+    depth = 1
+    low = src.lower()
+    while i < len(src) and depth:
+        nxt_open = low.find("<div", i)
+        nxt_close = low.find("</div>", i)
+        if nxt_close < 0:
+            break
+        if nxt_open >= 0 and nxt_open < nxt_close:
+            depth += 1
+            i = nxt_open + 4
+        else:
+            depth -= 1
+            i = nxt_close + 6
+    return src[m.start() : i].strip()
+
+
+def extract_parent_header_html(html: str) -> str:
+    """Exact parent `.regatta-header-wrap` so the PDF header matches the URL."""
+    return _extract_div_by_class(html, "regatta-header-wrap")
 
 
 def extract_parent_fleet_htmls(html: str) -> list[str]:
-    return [m.group(0) for m in _FLEET_RE.finditer(html or "")]
+    found: list[str] = []
+    src = html or ""
+    pos = 0
+    while True:
+        m = re.search(r'<div\b[^>]*class="[^"]*\bfleet-section\b', src[pos:], flags=re.I)
+        if not m:
+            break
+        abs_i = pos + m.start()
+        chunk = _extract_div_by_class(src[abs_i:], "fleet-section")
+        if not chunk:
+            break
+        found.append(chunk)
+        pos = abs_i + len(chunk)
+    return found
 
 
 def fetch_parent_page_html(slug: str, timeout: int = 20) -> str:
