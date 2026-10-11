@@ -53,6 +53,9 @@
       "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-col{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] th.dam-bottle-py-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.dam-bottle-py-col{text-align:center;font-variant-numeric:tabular-nums;min-width:2.6rem;font-weight:700}" +
+      ".regatta-page:not(.regatta-page--club-score-edit):not(.regatta-page--super-admin-edit) " +
+      ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-math," +
+      "html:not([data-dbs-admin='1']) .fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-py-math{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] .dam-bottle-et-hidden{display:none!important}" +
       ".fleet-section[data-block-id='" + RID + ":open'] td.total-col," +
       ".fleet-section[data-block-id='" + RID + ":open'] td.nett-col{min-width:2.4rem;text-align:center;font-weight:700;}" +
@@ -1008,6 +1011,25 @@
       .trim();
   }
 
+  function ensurePyMath(sec) {
+    if (!sec) return;
+    var el = sec.querySelector(".dam-bottle-py-math");
+    if (!el) {
+      el = document.createElement("p");
+      el.className = "sailed-line dam-bottle-py-math";
+      var sailed = sec.querySelector(".sailed-line:not(.dam-bottle-py-math)");
+      if (sailed && sailed.parentNode) sailed.parentNode.insertBefore(el, sailed.nextSibling);
+      else {
+        var title = sec.querySelector(".fleet-title-with-logo");
+        if (title && title.parentNode) title.parentNode.insertBefore(el, title.nextSibling);
+        else sec.insertBefore(el, sec.firstChild);
+      }
+    }
+    el.textContent =
+      "PY maths: corrected seconds = ET seconds × 1000 ÷ class PY. " +
+      "Lowest corrected wins. DNC/DNS/DNF = entries+1, no corrected.";
+  }
+
   function fillClassPy(table) {
     if (!table) return;
     var byClass = {};
@@ -1399,9 +1421,10 @@
     var pyTh = table.querySelector("thead th.dam-bottle-py-col");
     if (pyTh) {
       pyTh.textContent = "PY";
-      pyTh.setAttribute("title", "Class PY");
+      pyTh.setAttribute("title", "Class PY. Corrected = ET × 1000 ÷ PY");
     }
     fillClassPy(table);
+    ensurePyMath(sec);
     keepOneLabeled(table, "total-col", "Total");
     keepOneLabeled(table, "nett-col", "Nett");
     stampExistingRaceKeys(table);

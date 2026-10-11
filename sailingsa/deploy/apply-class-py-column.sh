@@ -27,17 +27,12 @@ fi
 from pathlib import Path
 p = Path("/var/www/sailingsa/js/regatta-pdf-share.js")
 t = p.read_text()
-t2 = t.replace("hmyc-dam-bottle-live-boot.js?v=dbs46", "hmyc-dam-bottle-live-boot.js?v=dbs47")
-t2 = t2.replace("hmyc-dam-bottle-live-boot.js?v=dbs47", "hmyc-dam-bottle-live-boot.js?v=dbs47")
-if "hmyc-dam-bottle-live-boot.js?v=dbs47" not in t2:
-    t2 = t2.replace(
-        "/js/hmyc-dam-bottle-live-boot.js?v=dbs46",
-        "/js/hmyc-dam-bottle-live-boot.js?v=dbs47",
-    )
-if "live-boot.js?v=dbs47" not in t2:
+t2 = t.replace("hmyc-dam-bottle-live-boot.js?v=dbs46", "hmyc-dam-bottle-live-boot.js?v=dbs48")
+t2 = t2.replace("hmyc-dam-bottle-live-boot.js?v=dbs47", "hmyc-dam-bottle-live-boot.js?v=dbs48")
+if "hmyc-dam-bottle-live-boot.js?v=dbs48" not in t2:
     raise SystemExit("boot cache bust failed")
 p.write_text(t2)
-print("boot query dbs47")
+print("boot query dbs48")
 PY'
 
 echo "Applied Class PY column files."
