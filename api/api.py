@@ -15108,8 +15108,18 @@ def run_daily_scrape():
 
                 new_records = []
                 consecutive_no_record = 0
-                max_consecutive_no_record = 10
+                # Blank SAS numbers are gaps. After 20 in a row, the last named ID is the end.
+                max_consecutive_no_record = 20
+                fetch_errors = 0
                 current_id = start_id
+                if use_sas_id_personal:
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS sas_id_gaps (
+                            sas_id integer PRIMARY KEY,
+                            first_seen_at timestamptz NOT NULL DEFAULT NOW(),
+                            last_seen_at timestamptz NOT NULL DEFAULT NOW()
+                        )
+                    """)
 
                 while consecutive_no_record < max_consecutive_no_record:
                     cur.execute(f"SELECT 1 FROM {target_table} WHERE {id_col}::text = %s", (str(current_id),))
@@ -15120,8 +15130,9 @@ def run_daily_scrape():
                     url = f"https://www.sailing.org.za/member-finder?parentBodyID={current_id}&firstname=&surname="
                     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
                     try:
-                        response = requests.get(url, headers=headers, timeout=10)
+                        response = requests.get(url, headers=headers, timeout=20)
                         response.raise_for_status()
+                        fetch_errors = 0
                         soup = BeautifulSoup(response.content, "html.parser")
 
                         if "SA Sailing ID:" in response.text and str(current_id) in response.text:
@@ -15172,15 +15183,28 @@ def run_daily_scrape():
                                 consecutive_no_record = 0
                                 break
                             else:
+                                if use_sas_id_personal:
+                                    cur.execute(
+                                        "INSERT INTO sas_id_gaps (sas_id) VALUES (%s) ON CONFLICT (sas_id) DO UPDATE SET last_seen_at = NOW()",
+                                        (current_id,),
+                                    )
                                 consecutive_no_record += 1
                         else:
+                            if use_sas_id_personal:
+                                cur.execute(
+                                    "INSERT INTO sas_id_gaps (sas_id) VALUES (%s) ON CONFLICT (sas_id) DO UPDATE SET last_seen_at = NOW()",
+                                    (current_id,),
+                                )
                             consecutive_no_record += 1
                         time.sleep(0.5)
                         current_id += 1
                     except Exception as e:
-                        print(f"Error scraping {current_id}: {e}")
-                        consecutive_no_record += 1
-                        current_id += 1
+                        fetch_errors += 1
+                        print(f"Error scraping {current_id}: {e} ({fetch_errors}/5)")
+                        if fetch_errors >= 5:
+                            return {"success": False, "error": f"SAS member finder failed 5 times at {current_id}: {e}"}
+                        time.sleep(1)
+                        continue
 
                 cur.execute(f"SELECT COUNT(*) FROM {target_table}")
                 after_count = cur.fetchone()[0]

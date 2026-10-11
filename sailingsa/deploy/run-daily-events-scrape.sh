@@ -78,6 +78,9 @@ log "--- Daily SAS events list scrape ---"
 if [ "$ON_SERVER" = true ] && [ -f "/var/www/sailingsa/scripts/scrape_sas_events_list.py" ]; then
   SCRAPER="/var/www/sailingsa/scripts/scrape_sas_events_list.py"
   OUTPUT_DIR="$SCRIPT_DIR"
+elif [ -f "$SCRIPT_DIR/../scripts/scrape_sas_events_list.py" ]; then
+  SCRAPER="$SCRIPT_DIR/../scripts/scrape_sas_events_list.py"
+  OUTPUT_DIR="$SCRIPT_DIR"
 elif [ -n "$PROJECT_ROOT" ] && [ -f "$PROJECT_ROOT/scrape_sas_events_list.py" ]; then
   SCRAPER="$PROJECT_ROOT/scrape_sas_events_list.py"
   OUTPUT_DIR="$SCRIPT_DIR"
