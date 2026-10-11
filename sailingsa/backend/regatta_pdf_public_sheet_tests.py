@@ -151,6 +151,8 @@ def test_parent_mirror_document_keeps_parent_links() -> None:
     assert "Entries closed" not in doc
     assert 'data-dbs-ready="1"' in doc
     assert "border:0.45pt solid #94a3b8" in doc
+    assert "border-left:1.1pt solid #1a2750" in doc
+    assert "border-right:1.1pt solid #1a2750" in doc
     dirty = (
         "<style>body{color:#001f3f}@media print{.fleet-section{display:none}}</style>"
         '<link rel="stylesheet" href="/css/main.css">'
