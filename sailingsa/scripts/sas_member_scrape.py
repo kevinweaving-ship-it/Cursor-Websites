@@ -18,17 +18,23 @@ def _get_db_url() -> str:
         sys.exit(1)
     return url
 
+class _FetchError(Exception):
+    """Member-finder request failed. Not the same as an empty ID."""
+
+
 def _fetch_member(sas_id: int) -> dict | None:
-    """Fetch one member page. Returns dict with first_name, last_name, full_name, year_of_birth or None if not found."""
+    """Fetch one member page. Returns dict with first_name, last_name, full_name, year_of_birth or None if not found.
+
+    Raises _FetchError when the request fails. Callers must not treat that as an empty ID.
+    """
     try:
         import urllib.request
         url = f"https://www.sailing.org.za/member-finder?parentBodyID={sas_id}&firstname=&surname="
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; SailingSA-scraper/1.0)"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"})
+        with urllib.request.urlopen(req, timeout=20) as resp:
             html = resp.read().decode("utf-8", errors="replace")
     except Exception as e:
-        print(f"[sas_member_scrape] {sas_id} fetch error: {e}", file=sys.stderr)
-        return None
+        raise _FetchError(str(e)) from e
     if "SA Sailing ID:" not in html or str(sas_id) not in html:
         return None
     try:
@@ -102,12 +108,28 @@ def main() -> None:
     if env_start and str(env_start).strip().isdigit():
         start_id = int(env_start.strip())
     consecutive_not_found = 0
-    max_consecutive = 20
+    # SAS leaves unused ID holes longer than 20 (29419–29440 is 22 empty, then 29441–29485 exist).
+    # Stopping at 20 marks the run successful and never reaches the next real members.
+    max_consecutive = 50
+    max_fetch_errors = 5
+    fetch_errors = 0
     delay_sec = 0.5
     added = 0
     current_id = start_id
     while consecutive_not_found < max_consecutive:
-        data = _fetch_member(current_id)
+        try:
+            data = _fetch_member(current_id)
+        except _FetchError as e:
+            fetch_errors += 1
+            print(f"[sas_member_scrape] {current_id} fetch error ({fetch_errors}/{max_fetch_errors}): {e}", file=sys.stderr)
+            if fetch_errors >= max_fetch_errors:
+                cur.close()
+                conn.close()
+                print(f"[sas_member_scrape] abort: member-finder failed {max_fetch_errors} times at {current_id}", file=sys.stderr)
+                sys.exit(1)
+            time.sleep(delay_sec)
+            continue
+        fetch_errors = 0
         if data:
             # Upsert into sas_id_personal (columns may vary; use minimal set)
             entity_key = str(current_id)

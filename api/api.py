@@ -15108,7 +15108,9 @@ def run_daily_scrape():
 
                 new_records = []
                 consecutive_no_record = 0
-                max_consecutive_no_record = 10
+                # Keep in step with sas_member_scrape.py. A 20-miss stop misses the live hole at 29419–29440.
+                max_consecutive_no_record = 50
+                fetch_errors = 0
                 current_id = start_id
 
                 while consecutive_no_record < max_consecutive_no_record:
@@ -15120,8 +15122,9 @@ def run_daily_scrape():
                     url = f"https://www.sailing.org.za/member-finder?parentBodyID={current_id}&firstname=&surname="
                     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
                     try:
-                        response = requests.get(url, headers=headers, timeout=10)
+                        response = requests.get(url, headers=headers, timeout=20)
                         response.raise_for_status()
+                        fetch_errors = 0
                         soup = BeautifulSoup(response.content, "html.parser")
 
                         if "SA Sailing ID:" in response.text and str(current_id) in response.text:
@@ -15178,9 +15181,12 @@ def run_daily_scrape():
                         time.sleep(0.5)
                         current_id += 1
                     except Exception as e:
-                        print(f"Error scraping {current_id}: {e}")
-                        consecutive_no_record += 1
-                        current_id += 1
+                        fetch_errors += 1
+                        print(f"Error scraping {current_id}: {e} ({fetch_errors}/5)")
+                        if fetch_errors >= 5:
+                            return {"success": False, "error": f"SAS member finder failed 5 times at {current_id}: {e}"}
+                        time.sleep(1)
+                        continue
 
                 cur.execute(f"SELECT COUNT(*) FROM {target_table}")
                 after_count = cur.fetchone()[0]
