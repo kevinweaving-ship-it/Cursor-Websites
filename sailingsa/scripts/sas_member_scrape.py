@@ -101,20 +101,36 @@ def main() -> None:
         sys.exit(1)
     conn = psycopg2.connect(db_url)
     cur = conn.cursor()
-    # Resolve max from sas_id_personal (sa_sailing_id can be text or int), or use START_ID env
-    cur.execute("SELECT COALESCE(MAX(NULLIF(TRIM(sa_sailing_id), '')::int), 0) FROM sas_id_personal WHERE sa_sailing_id ~ '^[0-9]+$'")
-    start_id = (cur.fetchone()[0] or 0) + 1
+    # Next search starts at the last ID we already have that has a name. Gaps are not people.
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS sas_id_gaps (
+            sas_id integer PRIMARY KEY,
+            first_seen_at timestamptz NOT NULL DEFAULT NOW(),
+            last_seen_at timestamptz NOT NULL DEFAULT NOW()
+        )
+    """)
+    conn.commit()
+    cur.execute("""
+        SELECT COALESCE(MAX(NULLIF(TRIM(sa_sailing_id), '')::int), 0)
+        FROM sas_id_personal
+        WHERE sa_sailing_id ~ '^[0-9]+$'
+          AND NULLIF(TRIM(COALESCE(full_name, '')), '') IS NOT NULL
+    """)
+    last_we_have = cur.fetchone()[0] or 0
+    start_id = int(last_we_have) + 1
     env_start = os.environ.get("START_ID")
     if env_start and str(env_start).strip().isdigit():
         start_id = int(env_start.strip())
     consecutive_not_found = 0
-    # SAS leaves unused ID holes longer than 20 (29419–29440 is 22 empty, then 29441–29485 exist).
-    # Stopping at 20 marks the run successful and never reaches the next real members.
-    max_consecutive = 50
+    # Unused SAS numbers are their gaps. Record each one and keep going.
+    # After 20 blanks in a row, the last ID that had a name is the last record.
+    max_consecutive = 20
     max_fetch_errors = 5
     fetch_errors = 0
+    gaps = 0
     delay_sec = 0.5
     added = 0
+    last_valid = int(last_we_have)
     current_id = start_id
     while consecutive_not_found < max_consecutive:
         try:
@@ -151,6 +167,8 @@ def main() -> None:
                         year_of_birth = EXCLUDED.year_of_birth
                 """, (str(current_id), data["first_name"], data["last_name"], data["full_name"], data["year_of_birth"]))
                 conn.commit()
+                cur.execute("DELETE FROM sas_id_gaps WHERE sas_id = %s", (current_id,))
+                conn.commit()
                 added += 1
                 consecutive_not_found = 0
                 action = "updated" if existed else "inserted"
@@ -163,6 +181,7 @@ def main() -> None:
                         conn.commit()
                     except Exception:
                         conn.rollback()
+                last_valid = current_id
                 print(f"[sas_member_scrape] added {current_id} {data.get('full_name', '')}", file=sys.stderr)
             except Exception as e:
                 # Try without year_of_birth if column missing
@@ -176,8 +195,11 @@ def main() -> None:
                             full_name = EXCLUDED.full_name
                     """, (str(current_id), data["first_name"], data["last_name"], data["full_name"]))
                     conn.commit()
+                    cur.execute("DELETE FROM sas_id_gaps WHERE sas_id = %s", (current_id,))
+                    conn.commit()
                     added += 1
                     consecutive_not_found = 0
+                    last_valid = current_id
                     action = "updated" if existed else "inserted"
                     if run_id and run_id.isdigit():
                         try:
@@ -191,12 +213,25 @@ def main() -> None:
                 except Exception as e2:
                     print(f"[sas_member_scrape] insert error {current_id}: {e2}", file=sys.stderr)
         else:
+            cur.execute(
+                """
+                INSERT INTO sas_id_gaps (sas_id) VALUES (%s)
+                ON CONFLICT (sas_id) DO UPDATE SET last_seen_at = NOW()
+                """,
+                (current_id,),
+            )
+            conn.commit()
+            gaps += 1
             consecutive_not_found += 1
+            print(f"[sas_member_scrape] gap {current_id}", file=sys.stderr)
         current_id += 1
         time.sleep(delay_sec)
     cur.close()
     conn.close()
-    print(f"[sas_member_scrape] done: start={start_id} end={current_id-1} added={added}", file=sys.stderr)
+    print(
+        f"[sas_member_scrape] done: start={start_id} last_valid={last_valid} gaps={gaps} added={added}",
+        file=sys.stderr,
+    )
 
 if __name__ == "__main__":
     main()

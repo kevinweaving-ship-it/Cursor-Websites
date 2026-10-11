@@ -15108,10 +15108,18 @@ def run_daily_scrape():
 
                 new_records = []
                 consecutive_no_record = 0
-                # Keep in step with sas_member_scrape.py. A 20-miss stop misses the live hole at 29419–29440.
-                max_consecutive_no_record = 50
+                # Blank SAS numbers are gaps. After 20 in a row, the last named ID is the end.
+                max_consecutive_no_record = 20
                 fetch_errors = 0
                 current_id = start_id
+                if use_sas_id_personal:
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS sas_id_gaps (
+                            sas_id integer PRIMARY KEY,
+                            first_seen_at timestamptz NOT NULL DEFAULT NOW(),
+                            last_seen_at timestamptz NOT NULL DEFAULT NOW()
+                        )
+                    """)
 
                 while consecutive_no_record < max_consecutive_no_record:
                     cur.execute(f"SELECT 1 FROM {target_table} WHERE {id_col}::text = %s", (str(current_id),))
@@ -15175,8 +15183,18 @@ def run_daily_scrape():
                                 consecutive_no_record = 0
                                 break
                             else:
+                                if use_sas_id_personal:
+                                    cur.execute(
+                                        "INSERT INTO sas_id_gaps (sas_id) VALUES (%s) ON CONFLICT (sas_id) DO UPDATE SET last_seen_at = NOW()",
+                                        (current_id,),
+                                    )
                                 consecutive_no_record += 1
                         else:
+                            if use_sas_id_personal:
+                                cur.execute(
+                                    "INSERT INTO sas_id_gaps (sas_id) VALUES (%s) ON CONFLICT (sas_id) DO UPDATE SET last_seen_at = NOW()",
+                                    (current_id,),
+                                )
                             consecutive_no_record += 1
                         time.sleep(0.5)
                         current_id += 1
