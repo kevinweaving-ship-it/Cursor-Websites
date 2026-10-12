@@ -9,7 +9,7 @@ Test / audit copies of the live SailingSA keypads, on the GoWifi / Aerialnet box
 
 Cams stay on the Sailing box (`sailingsa.co.za:8443` / `:8444`). WhatsApp stays on Sailing until the GoWifi number is linked here.
 
-Keypad APIs are proxied to live SailingSA until `/etc/aerialnet-olarm.env` is copied onto this box. Local `aerialnet-hansekop-api` / `aerialnet-voelklip-api` are already installed for that cutover.
+Olarm + Tuya env files are on the GoWifi box (`/etc/aerialnet-olarm.env`, `/etc/aerialnet-tuya.env`; never commit them). Localhost APIs are proven: `127.0.0.1:8003` and `:8004` `/api/arial/status` return `olarmConfigured: true`. Public `/api/arial/` and `/api/voelklip/` still proxy to Sailing — do not flip nginx until asked.
 
 ## Deploy
 
