@@ -712,21 +712,32 @@ def send_mail(msg: EmailMessage, dry_run: bool) -> None:
         print(f"\n[dry-run] From={msg['From']} To={msg['To']} Cc={msg['Cc']} Subject={msg['Subject']}")
         return
     archive_sent(msg)
-    if not GMAIL_USER or not GMAIL_PASS or GMAIL_USER.startswith("your-email"):
-        raise RuntimeError(
-            "Gmail SMTP required (Apple HCM2 blocks this VPS to iCloud). "
-            "Set GMAIL_USER and GMAIL_APP_PASSWORD, then re-run --send."
-        )
+    # Same path that already reached Cursor: local postfix → Google MX for hi@cursor.com.
+    # Authenticated Gmail SMTP is optional and only used when an app password exists.
+    if GMAIL_USER and GMAIL_PASS and not GMAIL_USER.startswith("your-email"):
+        try:
+            msg.replace_header("From", f"Kevin Weaving <{GMAIL_USER}>")
+        except KeyError:
+            msg["From"] = f"Kevin Weaving <{GMAIL_USER}>"
+        apply_party_headers(msg)
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as smtp:
+            smtp.starttls()
+            smtp.login(GMAIL_USER, GMAIL_PASS)
+            smtp.send_message(msg)
+        print(f"sent smtp.gmail.com From={msg['From']} To={msg['To']} Cc={msg['Cc']}")
+        return
     try:
-        msg.replace_header("From", f"Kevin Weaving <{GMAIL_USER}>")
-    except KeyError:
-        msg["From"] = f"Kevin Weaving <{GMAIL_USER}>"
-    apply_party_headers(msg)
-    with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as smtp:
-        smtp.starttls()
-        smtp.login(GMAIL_USER, GMAIL_PASS)
-        smtp.send_message(msg)
-    print(f"sent smtp.gmail.com From={msg['From']} To={msg['To']} Cc={msg['Cc']}")
+        with smtplib.SMTP("localhost", 25, timeout=30) as smtp:
+            smtp.send_message(msg)
+        print(f"sent smtp localhost:25 (Google MX for {MAIL_TO}) From={msg['From']} To={msg['To']} Cc={msg['Cc']}")
+        return
+    except OSError as exc:
+        sendmail = Path("/usr/sbin/sendmail")
+        if not sendmail.is_file():
+            raise
+        import subprocess
+        subprocess.run([str(sendmail), "-t", "-oi"], input=msg.as_bytes(), check=True)
+        print(f"sent sendmail From={msg['From']} To={msg['To']} Cc={msg['Cc']} (smtp fail: {exc})")
 
 
 def cmd_email(
