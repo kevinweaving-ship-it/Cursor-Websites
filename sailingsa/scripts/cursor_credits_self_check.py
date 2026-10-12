@@ -619,7 +619,11 @@ def month_case_letter(snap: dict[str, Any], month: str) -> tuple[str, str, str, 
         )
         return subject, plain, html, csv.encode(), "august_idle_sessions.csv"
     if month == "2026-09":
-        subject = "P1 spawn-failure log: 70 dead jobs in September (ref SEP-P1-70)"
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
+        subject = (
+            f"Hard-fail job log 1–26 Sep 2026 — 70 crashes / empty events "
+            f"— file {stamp}"
+        )
         plain = (
             "INCIDENT P1 — SEPTEMBER SPAWN FAILURES\n"
             "=====================================\n"
@@ -680,6 +684,44 @@ def build_email(snap: dict[str, Any], sequence: int, ticket: str, month: str | N
         f"{account_identity_block()}\n{monthly_split_block(snap, month)}\n"
         f"{detailed_evidence(evidence)}\n\nKevin Weaving\n{MAIL_CC}\n"
     )
+    return msg
+
+
+def build_first_ticket_addendum(
+    snap: dict[str, Any], month: str, ticket: str = "T-H16750"
+) -> EmailMessage:
+    sl = month_slice(snap, month)
+    msg = EmailMessage()
+    msg["From"] = f"Kevin Weaving <{MAIL_FROM}>"
+    msg["To"] = MAIL_TO
+    apply_party_headers(msg)
+    msg["Message-ID"] = make_msgid(domain="sailingsa.co.za")
+    msg["X-Cursor-Ticket"] = ticket
+    if month == "2026-09":
+        msg["Subject"] = f"Re: {ticket} — addendum: September spawn failures (70 hard fail)"
+        msg.set_content(
+            f"Please add this to existing ticket {ticket}. Not a new file.\n\n"
+            "September spawn failures\n"
+            "Not T-H16750's October slice. Failures only.\n\n"
+            f"jobs          {sl.get('agents')}\n"
+            f"hard fail     {sl.get('failedSpawnCount')}\n"
+            "died < 2s     66\n"
+            "opus-high     2\n"
+            f"hours         {sl.get('hours')}\n"
+            f"owner         {MAIL_CC}\n"
+            f"id            {ACCOUNT['cursor_user_id']}\n\n"
+            "Empty event logs. Credit September failed jobs on this same thread.\n"
+            f"Reply-all including {MAIL_CC}.\n\n"
+            f"Kevin Weaving / {MAIL_CC}\n"
+        )
+    else:
+        msg["Subject"] = f"Re: {ticket} — addendum: {MONTH_NAMES.get(month, month)}"
+        msg.set_content(
+            f"Please add this to existing ticket {ticket}. Not a new file.\n\n"
+            f"{MONTH_NAMES.get(month, month)}: {sl.get('agents')} agents, "
+            f"{sl.get('failedSpawnCount')} failed, {sl.get('hours')} h.\n"
+            f"Reply-all including {MAIL_CC}.\n\nKevin Weaving / {MAIL_CC}\n"
+        )
     return msg
 
 
@@ -746,6 +788,7 @@ def cmd_email(
     force: bool,
     month: str | None = None,
     copy_cc: bool = False,
+    on_first_ticket: bool = False,
 ) -> int:
     state = load_state()
     if state.get("resolved") and not force and not month and not copy_cc:
@@ -770,6 +813,24 @@ def cmd_email(
         if send and not force and not month and state.get("lastDigest") == digest and state.get("sends"):
             print(f"wait — already filed on {ticket} with this proof. Auto-reply only if they reject.")
             return 0
+    if on_first_ticket:
+        if not month:
+            print("need --month with --on-first-ticket")
+            return 1
+        msg = build_first_ticket_addendum(snap, month, ticket)
+        try:
+            send_mail(msg, dry_run=not send)
+        except (OSError, RuntimeError) as exc:
+            print(f"send failed: {exc}", file=sys.stderr)
+            return 1
+        if send:
+            state["addedToFirstTicket"] = list(
+                {*(state.get("addedToFirstTicket") or []), month}
+            )
+            state["lastSendAt"] = _utc_now()
+            save_state(state)
+            print(f"added {month} onto {ticket} Cc={MAIL_CC}")
+        return 0
     sequence = int(state.get("sends") or 0) + (0 if copy_cc else 1)
     msg = build_email(snap, sequence or 1, ticket, month)
     if copy_cc:
@@ -978,41 +1039,29 @@ def cmd_dispute(snap: dict[str, Any], inbound_path: Path | None, send: bool) -> 
                 seen.append(mid)
                 state["seenMessageIds"] = seen[-80:]
             subj = inbound.get("Subject") or ""
-            month_reopen = None
-            if re.search(r"August leftover|August 2026", subj, flags=re.I):
-                month_reopen = "2026-08"
-            elif re.search(r"September instant|September 2026", subj, flags=re.I):
-                month_reopen = "2026-09"
-            if month_reopen:
-                closed = next((t for t in tickets if t != orig), tickets[0])
-                reopen = EmailMessage()
-                reopen["From"] = f"Kevin Weaving <{MAIL_FROM}>"
-                reopen["To"] = MAIL_TO
-                reopen["Cc"] = MAIL_CC
-                apply_party_headers(reopen)
-                reopen["Message-ID"] = make_msgid(domain="sailingsa.co.za")
+            month_add = None
+            if re.search(r"August leftover|August 2026|AUG-IDLE|idle sessions", subj, flags=re.I):
+                month_add = "2026-08"
+            elif re.search(
+                r"September|spawn fail|hard-fail|SEP-P1|70 crashes|70 dead",
+                subj,
+                flags=re.I,
+            ):
+                month_add = "2026-09"
+            if month_add:
+                add = build_first_ticket_addendum(snap, month_add, orig)
                 if mid:
-                    reopen["In-Reply-To"] = mid
-                reopen["Subject"] = (
-                    f"Not a duplicate of {orig} — reopen {closed} as its own "
-                    f"{MONTH_NAMES[month_reopen]} ticket — reply-all {MAIL_CC}"
-                )
-                sl = month_slice(snap, month_reopen)
-                reopen.set_content(
-                    f"Hi intake,\n\n"
-                    f"{closed} is not a duplicate of {orig}.\n"
-                    f"{orig} is October 2026. This file is {MONTH_NAMES[month_reopen]} "
-                    f"({sl['agents']} agents, {sl['failedSpawnCount']} ERROR, "
-                    f"{sl['internalCount']} internal). Reopen {closed}, issue/keep "
-                    f"that ticket number, and reply-all including {MAIL_CC}.\n\n"
-                    f"Kevin Weaving / {MAIL_CC} / user {ACCOUNT['cursor_user_id']}\n"
-                )
+                    add["In-Reply-To"] = mid
+                    add["References"] = mid
                 if send:
-                    send_mail(reopen, dry_run=False)
+                    send_mail(add, dry_run=False)
+                    state["addedToFirstTicket"] = list(
+                        {*(state.get("addedToFirstTicket") or []), month_add}
+                    )
                     save_state(state)
                 else:
-                    print(email_text(reopen))
-                print(f"reopen {month_reopen} ticket {closed} — not {orig}")
+                    print(email_text(add))
+                print(f"duplicate close — added {month_add} onto {orig}")
                 return 0
             if send:
                 save_state(state)
@@ -1099,7 +1148,19 @@ def main() -> int:
         action="store_true",
         help="send Kevin's required CC copy only (do not re-file with Cursor)",
     )
+    p.add_argument(
+        "--from-local",
+        help="From local part: cursor, cursor2, cursor3, cursor4",
+    )
+    p.add_argument(
+        "--on-first-ticket",
+        action="store_true",
+        help="add this month onto T-H16750 instead of opening a new file",
+    )
     args = p.parse_args()
+    if args.from_local:
+        global MAIL_FROM
+        MAIL_FROM = f"{args.from_local.strip()}@sailingsa.co.za"
     snap = load_snapshot(args.snapshot)
     send = bool(args.send) and not args.dry_run
     if args.command == "audit":
@@ -1116,6 +1177,7 @@ def main() -> int:
         force=args.force,
         month=args.month,
         copy_cc=args.copy_cc,
+        on_first_ticket=args.on_first_ticket,
     )
 
 

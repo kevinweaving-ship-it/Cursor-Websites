@@ -64,7 +64,13 @@ def upload(local: pathlib.Path, remote: str) -> None:
         child.expect(pexpect.EOF)
 
 
-def send_months(months: list[str], copy_cc: bool = False, force: bool = False) -> int:
+def send_months(
+    months: list[str],
+    copy_cc: bool = False,
+    force: bool = False,
+    from_local: str | None = None,
+    on_first_ticket: bool = False,
+) -> int:
     src = ROOT / "sailingsa/scripts/cursor_credits_self_check.py"
     print(f"upload {src.name}")
     upload(src, f"{REMOTE}/cursor_credits_self_check.py")
@@ -73,6 +79,10 @@ def send_months(months: list[str], copy_cc: bool = False, force: bool = False) -
         extra += " --copy-cc"
     if force:
         extra += " --force"
+    if from_local:
+        extra += f" --from-local {from_local}"
+    if on_first_ticket:
+        extra += " --on-first-ticket"
     for month in months:
         print(f"--- email --month {month}{extra} --send ---")
         print(
@@ -89,14 +99,34 @@ def main() -> int:
         args = sys.argv[2:]
         copy_cc = "--copy-cc" in args
         force = "--force" in args
-        months = [a for a in args if a not in ("--copy-cc", "--force")] or [
+        on_first_ticket = "--on-first-ticket" in args
+        from_local = None
+        rest = []
+        i = 0
+        while i < len(args):
+            if args[i] == "--from-local" and i + 1 < len(args):
+                from_local = args[i + 1]
+                i += 2
+                continue
+            if args[i] in ("--copy-cc", "--force", "--on-first-ticket"):
+                i += 1
+                continue
+            rest.append(args[i])
+            i += 1
+        months = rest or [
             "2026-06",
             "2026-07",
             "2026-08",
             "2026-09",
             "2026-10",
         ]
-        return send_months(months, copy_cc=copy_cc, force=force)
+        return send_months(
+            months,
+            copy_cc=copy_cc,
+            force=force,
+            from_local=from_local,
+            on_first_ticket=on_first_ticket,
+        )
     print(f"SSH_LIVE deploy credits monitor → root@{SERVER}")
     files = [
         (ROOT / "sailingsa/scripts/cursor_credits_self_check.py", f"{REMOTE}/cursor_credits_self_check.py"),

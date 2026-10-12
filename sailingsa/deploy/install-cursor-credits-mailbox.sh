@@ -45,9 +45,22 @@ if [[ -d /etc/postfix ]] || command -v postfix >/dev/null 2>&1; then
   fi
   command -v newaliases >/dev/null 2>&1 && newaliases || true
   touch /etc/postfix/virtual
-  if ! grep -qE "^${FROM_ADDR}" /etc/postfix/virtual; then
-    echo "${FROM_ADDR} ${LOCAL_USER}" >> /etc/postfix/virtual
-  fi
+  for extra in cursor cursor2 cursor3 cursor4; do
+    extra_addr="${extra}@sailingsa.co.za"
+    extra_line="${extra}: ${CC_ADDR}, \"|${PIPE}\""
+    if grep -qE "^${extra}:" /etc/aliases; then
+      sed -i.bak -E "s|^${extra}:.*|${extra_line}|" /etc/aliases
+    else
+      echo "${extra_line}" >> /etc/aliases
+    fi
+    if ! grep -qE "^${extra_addr}" /etc/postfix/virtual; then
+      echo "${extra_addr} ${extra}" >> /etc/postfix/virtual
+    fi
+    if ! id -u "${extra}" >/dev/null 2>&1; then
+      useradd -r -m -s /usr/sbin/nologin "${extra}" || true
+    fi
+  done
+  command -v newaliases >/dev/null 2>&1 && newaliases || true
   command -v postmap >/dev/null 2>&1 && postmap /etc/postfix/virtual || true
   if [[ -f /etc/postfix/main.cf ]]; then
     postconf -e "myhostname = sailingsa.co.za" || true
