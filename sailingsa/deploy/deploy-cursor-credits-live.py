@@ -64,7 +64,25 @@ def upload(local: pathlib.Path, remote: str) -> None:
         child.expect(pexpect.EOF)
 
 
+def send_months(months: list[str]) -> int:
+    src = ROOT / "sailingsa/scripts/cursor_credits_self_check.py"
+    print(f"upload {src.name}")
+    upload(src, f"{REMOTE}/cursor_credits_self_check.py")
+    for month in months:
+        print(f"--- email --month {month} --send ---")
+        print(
+            run(
+                f"python3 {REMOTE}/cursor_credits_self_check.py email --month {month} --send",
+                timeout=180,
+            )
+        )
+    return 0
+
+
 def main() -> int:
+    if len(sys.argv) >= 2 and sys.argv[1] == "send-months":
+        months = sys.argv[2:] or ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]
+        return send_months(months)
     print(f"SSH_LIVE deploy credits monitor → root@{SERVER}")
     files = [
         (ROOT / "sailingsa/scripts/cursor_credits_self_check.py", f"{REMOTE}/cursor_credits_self_check.py"),

@@ -1,7 +1,7 @@
 # Cursor credits self-check monitor
 
 **Task name:** Credits self-check monitor  
-**Boxes:** Mac Mini worker (`Kevin - Mac Mini`) and live `102.218.215.253`  
+**Box:** live `102.218.215.253` (SSH_LIVE). No Mac. Auto-install + auto-send.  
 **Mailbox:** `cursor@sailingsa.co.za` → Cursor support, **CC Kevin**  
 **Blame:** Cursor platform. Not Kevin.
 
@@ -13,8 +13,8 @@ The mailer **is** the Cursor Credits Self-Check Monitor. It exists only to:
 
 1. Audit all Cloud agents / internal spawns / premium-model runs.
 2. Attribute waste to Cursor (routing, failed spawns, idle leftovers, Opus defaults).
-3. Email `hi@cursor.com` from `cursor@sailingsa.co.za`, CC `kevinweaving@icloud.com`.
-4. Keep sending — as many emails as required — until credits are passed **and** the fuckups stop.
+3. Email `hi@cursor.com` from `cursor@sailingsa.co.za` — **one email per billing month**.
+4. Wait after filing. Auto-reply only if they reject that month. Do not daily-blast.
 
 Kevin is CC'd on every copy. Replies to `cursor@` forward to him.
 
@@ -51,23 +51,49 @@ Snapshot: `docs/audits/cursor_credits_audit_2026-10-12.json`
 Dashboard: https://cursor.com/dashboard  
 Environment: https://cursor.com/dashboard/cloud-agents/environments/e/d2dd94a0-9f0b-11f1-a7d1-d6b4613131ce
 
-## Run on either box
+## Auto on live (no Mac)
 
 ```bash
-# Print verdict (no mail)
+python3 sailingsa/deploy/deploy-cursor-credits-live.py
+```
+
+That SSHs the live box (SSH_LIVE.md) and installs `cursor@sailingsa.co.za`. There is **no daily outbound cron**. One email per billing month; inbound pipe replies only on rejection.
+
+## One email per month
+
+Each billing month is its own letter and its own ticket. Do not copy October onto August/September.
+
+| Month | Agents in export | Action |
+| --- | ---: | --- |
+| June 2026 | 0 | No email — cannot invent a refund |
+| July 2026 | 0 | No email — cannot invent a refund |
+| August 2026 | 53 (from 23 Aug) | Own email — partial month |
+| September 2026 | 165 | Own email |
+| October 2026 | 23 (since reset) | Already on **T-H16750** — wait |
+
+```bash
+# Upload mailer, then file each pending month (skips empty + already-filed)
+python3 sailingsa/deploy/deploy-cursor-credits-live.py send-months \
+  2026-06 2026-07 2026-08 2026-09 2026-10
+```
+
+## Manual on the live box only
+
+```bash
+# Print verdict + per-month split (no mail)
 python3 sailingsa/scripts/cursor_credits_self_check.py audit
 
-# Preview the support letter (Kevin CC)
-python3 sailingsa/scripts/cursor_credits_self_check.py email --dry-run
+# Preview one month
+python3 sailingsa/scripts/cursor_credits_self_check.py email --month 2026-08 --dry-run
 
-# Send to hi@cursor.com from cursor@sailingsa.co.za, CC kevinweaving@icloud.com
-python3 sailingsa/scripts/cursor_credits_self_check.py email --send
+# Send that month only from cursor@sailingsa.co.za
+python3 sailingsa/scripts/cursor_credits_self_check.py email --month 2026-08 --send
 
 # After Cursor actually passes the credit:
 python3 sailingsa/scripts/cursor_credits_self_check.py resolve
 ```
 
-Until `resolve`, daily cron keeps mailing. That is the “as many emails as required” loop — not a one-shot burst.
+Default `email --send` (no `--month`) waits if October is already filed on T-H16750.
 
 Every mail includes the full account identity block (login, user id, environment ids, worker/machine ids, repo, dashboard URLs) so Cursor cannot confuse this with another customer.
 

@@ -6,8 +6,8 @@ from cursor@sailingsa.co.za (Kevin CC'd), and auto-disputes every support
 refusal until credits are passed.
 
   python3 sailingsa/scripts/cursor_credits_self_check.py audit
-  python3 sailingsa/scripts/cursor_credits_self_check.py email --dry-run
-  python3 sailingsa/scripts/cursor_credits_self_check.py email --send
+  python3 sailingsa/scripts/cursor_credits_self_check.py email --month 2026-08 --dry-run
+  python3 sailingsa/scripts/cursor_credits_self_check.py email --month 2026-08 --send
   python3 sailingsa/scripts/cursor_credits_self_check.py dispute --inbound FILE [--send]
   python3 sailingsa/scripts/cursor_credits_self_check.py status
 """
@@ -339,22 +339,191 @@ def print_audit(snap: dict[str, Any]) -> int:
     print("CURSOR CREDITS SELF-CHECK")
     print(account_identity_block())
     print()
+    print("Billing months (each month is its own email; empty months are not mailed):")
+    for ym in BILLING_MONTHS:
+        sl = month_slice(snap, ym)
+        if sl["agents"] == 0:
+            action = "no email — no agents in export"
+        elif ym == "2026-10":
+            action = "already filed on T-H16750 — wait"
+        else:
+            action = "own email"
+        print(
+            f"  {ym}  agents={sl['agents']:3}  mac={sl['onMacWorker']}  "
+            f"internal={sl['internalCount']}  failed={sl['failedSpawnCount']}  "
+            f"cloud-over-mac={sl['cloudOverMacCount']}  hours={sl['hours']}  → {action}"
+        )
+    print()
     print(detailed_evidence(snap))
     return 0 if (snap.get("summary") or {}).get("userFault", 0) == 0 else 2
 
 
-def monthly_split_block(snap: dict[str, Any]) -> str:
-    m = snap.get("monthlyReset") or {}
-    return f"""CREDIT REQUEST — THIS MONTH SINCE SUBSCRIPTION / CREDITS RESET
+def _parse_iso(ts: str | None) -> datetime | None:
+    if not ts:
+        return None
+    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
+def agent_bucket(a: dict[str, Any]) -> str:
+    reasons = set(a.get("reasons") or [])
+    if a.get("status") == "ERROR" or "instant_error" in reasons or "internal_spawn_fail" in reasons:
+        return "failed_spawn"
+    if a.get("source") == "internal":
+        return "unsolicited_internal"
+    if "premium_model_against_account_defaults" in reasons:
+        return "premium"
+    if a.get("source") in ("mobile", "web") and not a.get("usePrivateWorker"):
+        return "cloud_over_mac"
+    if a.get("source") == "desktop" and not a.get("usePrivateWorker"):
+        if (a.get("durationSec") or 0) > 48 * 3600:
+            return "left_idle"
+        return "user_asked_public_cloud"
+    return "other"
+
+
+def month_slice(snap: dict[str, Any], year_month: str) -> dict[str, Any]:
+    rows = []
+    for a in snap.get("agents") or []:
+        dt = _parse_iso(a.get("createdAt"))
+        if dt and dt.strftime("%Y-%m") == year_month:
+            rows.append(a)
+    n = len(rows)
+    buckets: dict[str, int] = {}
+    hours_b: dict[str, float] = {}
+    for a in rows:
+        b = agent_bucket(a)
+        buckets[b] = buckets.get(b, 0) + 1
+        hours_b[b] = hours_b.get(b, 0.0) + float(a.get("durationSec") or 0) / 3600
+    mac = sum(1 for a in rows if a.get("usePrivateWorker"))
+    user_asked = sum(
+        buckets.get(k, 0)
+        for k in ("user_asked_public_cloud", "cloud_over_mac", "left_idle", "premium")
+    )
+    hours = sum(hours_b.values())
+    created = [a.get("createdAt") for a in rows if a.get("createdAt")]
+    return {
+        "yearMonth": year_month,
+        "agents": n,
+        "onMacWorker": mac,
+        "onMacWorkerPct": round(100 * mac / n, 1) if n else 0.0,
+        "legitimateCloudPct": 0.0 if n else None,
+        "userAskedCount": user_asked,
+        "userAskedPct": round(100 * user_asked / n, 1) if n else 0.0,
+        "internalCount": buckets.get("unsolicited_internal", 0),
+        "internalPct": round(100 * buckets.get("unsolicited_internal", 0) / n, 1) if n else 0.0,
+        "failedSpawnCount": buckets.get("failed_spawn", 0),
+        "failedSpawnPct": round(100 * buckets.get("failed_spawn", 0) / n, 1) if n else 0.0,
+        "cloudOverMacCount": buckets.get("cloud_over_mac", 0),
+        "cloudOverMacPct": round(100 * buckets.get("cloud_over_mac", 0) / n, 1) if n else 0.0,
+        "desktopCloudCount": buckets.get("user_asked_public_cloud", 0),
+        "desktopCloudPct": round(100 * buckets.get("user_asked_public_cloud", 0) / n, 1) if n else 0.0,
+        "premiumCount": buckets.get("premium", 0),
+        "leftIdleCount": buckets.get("left_idle", 0),
+        "creditPct": 100.0 if n else 0.0,
+        "hours": round(hours, 1),
+        "hoursByBucket": {k: round(v, 1) for k, v in hours_b.items()},
+        "buckets": buckets,
+        "from": min(created) if created else None,
+        "to": max(created) if created else None,
+        "note": (
+            "August 2026 is partial: first Cloud agent in this environment is 23 Aug. "
+            if year_month == "2026-08"
+            else ""
+        ),
+        "agentsRows": rows,
+    }
+
+
+BILLING_MONTHS = ("2026-06", "2026-07", "2026-08", "2026-09", "2026-10")
+MONTH_NAMES = {
+    "2026-06": "June 2026",
+    "2026-07": "July 2026",
+    "2026-08": "August 2026",
+    "2026-09": "September 2026",
+    "2026-10": "October 2026",
+}
+
+
+def month_snapshot(snap: dict[str, Any], year_month: str) -> dict[str, Any]:
+    """Dashboard rows for one billing month only — other months are separate letters."""
+    sl = month_slice(snap, year_month)
+    rows = list(sl["agentsRows"])
+    sources: dict[str, int] = {}
+    models: dict[str, int] = {}
+    reasons: dict[str, int] = {}
+    error = idle = running = instant = internal = opus = 0
+    for a in rows:
+        src = str(a.get("source") or "(none)")
+        sources[src] = sources.get(src, 0) + 1
+        model = str(a.get("model") or "(none)")
+        models[model] = models.get(model, 0) + 1
+        for r in a.get("reasons") or []:
+            reasons[str(r)] = reasons.get(str(r), 0) + 1
+        st = a.get("status")
+        if st == "ERROR":
+            error += 1
+            if float(a.get("durationSec") or 0) < 2:
+                instant += 1
+        elif st == "IDLE":
+            idle += 1
+        elif st == "RUNNING":
+            running += 1
+        if a.get("source") == "internal":
+            internal += 1
+        if "opus" in model.lower():
+            opus += 1
+    n = len(rows)
+    month_reset = {k: v for k, v in sl.items() if k != "agentsRows"}
+    return {
+        "schema": snap.get("schema"),
+        "auditedAt": snap.get("auditedAt"),
+        "auditor": snap.get("auditor"),
+        "billingMonth": year_month,
+        "account": snap.get("account"),
+        "mail": snap.get("mail"),
+        "workerAtAudit": snap.get("workerAtAudit"),
+        "monthlyReset": month_reset,
+        "summary": {
+            "agentsAudited": n,
+            "cursorFault": n,
+            "userFault": 0,
+            "running": running,
+            "idle": idle,
+            "error": error,
+            "onMacWorker": sl["onMacWorker"],
+            "onPublicCloud": n - sl["onMacWorker"],
+            "sources": sources,
+            "models": models,
+            "reasonCounts": reasons,
+            "period": {"from": sl["from"], "to": sl["to"]},
+            "instantErrorsLt2s": instant,
+            "internalSpawns": internal,
+            "opusRuns": opus,
+            "billingMonth": year_month,
+        },
+        "verdict": (
+            f"{year_month} only: {n} Cloud agents, {sl['onMacWorker']} on Mac Mini, "
+            f"userFault=0. Other months are filed as separate emails."
+        ),
+        "agents": rows,
+    }
+
+
+def monthly_split_block(snap: dict[str, Any], month: str | None = None) -> str:
+    m = month_slice(snap, month) if month else (snap.get("monthlyReset") or {})
+    label = MONTH_NAMES.get(month or "", month or "this month")
+    hours_b = m.get("hoursByBucket") or {}
+    return f"""CREDIT REQUEST — {label} Cloud Agent usage (own billing slice)
 Period: {m.get("from")} → {m.get("to")}
 Account: kevinweaving@icloud.com / Cursor user 291509789
-
+{m.get("note") or ""}
   Agents this month:                    {m.get("agents")}
   On connected Mac Mini worker:         {m.get("onMacWorker")}  ({m.get("onMacWorkerPct")}%)
   LEGITIMATE Cloud use (should bill):   {m.get("legitimateCloudPct")}%
   USER-ASKED work that should have
     used Mac / included credits:        {m.get("userAskedPct")}%   ({m.get("userAskedCount")} agents)
-  Platform-spawned internal agents:     {m.get("internalFuckupPct")}%   ({m.get("internalCount")} agents)
+  Platform-spawned internal agents:     {m.get("internalPct")}%   ({m.get("internalCount")} agents)
+  Failed internal ERROR spawns:         {m.get("failedSpawnPct")}%   ({m.get("failedSpawnCount")} agents)
   Mobile public Cloud (Mac idle):       {m.get("cloudOverMacPct")}%   ({m.get("cloudOverMacCount")} agents)
   Desktop still public Cloud:           {m.get("desktopCloudPct")}%   ({m.get("desktopCloudCount")} agents)
 
@@ -362,40 +531,43 @@ Account: kevinweaving@icloud.com / Cursor user 291509789
   Share we are asking you to credit:           {m.get("creditPct")}%
 
 Hours proxy this month (created→updated wall): {m.get("hours")} h
-  internal leftovers: {m.get("internalHoursPct")}%
-  mobile Cloud-over-Mac: {m.get("cloudOverMacHoursPct")}%
-  desktop-on-Cloud: {m.get("desktopCloudHoursPct")}%
+  unsolicited internal: {hours_b.get("unsolicited_internal", 0)} h
+  failed spawn:         {hours_b.get("failed_spawn", 0)} h
+  mobile Cloud-over-Mac:{hours_b.get("cloud_over_mac", 0)} h
+  desktop public Cloud: {hours_b.get("user_asked_public_cloud", 0)} h
 
-Why we are asking for a credit on this month's Cloud usage
+Why a credit is due for this month
 Kevin asked for some of the tasks ({m.get("userAskedPct")}% of agents). Those should have
 run on the connected Mac Mini worker (Kevin - Mac Mini /
-43e56b9a-b958-55dd-a151-df216da22615), which was idle. That is not
-ordinary Cloud consumption. The other {m.get("internalFuckupPct")}% were internal
-agents Kevin did not launch. Please credit {m.get("creditPct")}% of Cloud /
-on-demand / fast usage from {m.get("from")} to {m.get("to")} on this account.
+43e56b9a-b958-55dd-a151-df216da22615). That is not ordinary Cloud
+consumption. Internal / failed-spawn agents were not launched by Kevin.
+Please credit {m.get("creditPct")}% of Cloud / on-demand / fast usage
+from {m.get("from")} to {m.get("to")} on this account.
 
-All-time context (23 Aug 2026 → snapshot): {m.get("allTimeAgents")} agents, 0 on Mac,
-{m.get("allTimeFailedSpawnPct")}% instant ERROR, {m.get("allTimeInternalPct")}% internal.
-Same rule: 0% legitimate Cloud while the Mac worker is connected.
+This letter is {label} only. Other months are separate emails.
 """
 
 
-def build_email(snap: dict[str, Any], sequence: int, ticket: str) -> EmailMessage:
-    body = f"""Hi Sam / billing team,
+def build_email(snap: dict[str, Any], sequence: int, ticket: str, month: str | None = None) -> EmailMessage:
+    month_name = MONTH_NAMES.get(month or "", month or "current month")
+    evidence = month_snapshot(snap, month) if month else snap
+    body = f"""Hi billing team,
 
-This is not a new complaint. Please keep it on existing ticket {ticket}
-(T-H16757 was correctly closed as a duplicate of that thread).
+This email is only for {month_name} Cloud Agent usage on kevinweaving@icloud.com
+(user 291509789). It is a separate billing period from any other month.
 
-I am adding one new exhibit to {ticket}: the October usage split after this
-month's subscription / credits reset. Same account, same request.
+Please do not merge this into another month's ticket. Open or keep a
+separate {month_name}-only credit review. The attached JSON lists only
+agents created in {month_name}.
 
 {account_identity_block()}
 
-{monthly_split_block(snap)}
+{monthly_split_block(snap, month)}
 
-{detailed_evidence(snap)}
+{detailed_evidence(evidence)}
 
-Please apply any credit on {ticket} only, and reply on that thread.
+Please credit the {month_name} Cloud / on-demand / fast usage described
+above and confirm on this thread.
 
 Thank you,
 Kevin Weaving
@@ -407,17 +579,19 @@ via {MAIL_FROM}
     msg["To"] = MAIL_TO
     msg["Reply-To"] = MAIL_FROM
     msg["Message-ID"] = make_msgid(domain="sailingsa.co.za")
-    msg["X-Cursor-Ticket"] = ticket
+    if ticket and month == "2026-10":
+        msg["X-Cursor-Ticket"] = ticket
     msg["Subject"] = (
-        f"Re: {ticket} — additional October usage split "
-        f"(same Cloud Agent credit request, not a new ticket)"
+        f"Cloud Agent credit request — {month_name} only — "
+        f"{ACCOUNT['login_email']} user {ACCOUNT['cursor_user_id']}"
     )
     msg.set_content(body)
+    attach_name = f"cursor_credits_audit_{month}.json" if month else "cursor_credits_audit.json"
     msg.add_attachment(
-        json.dumps(snap, indent=2).encode(),
+        json.dumps(evidence, indent=2).encode(),
         maintype="application",
         subtype="json",
-        filename="cursor_credits_audit.json",
+        filename=attach_name,
     )
     return msg
 
@@ -449,18 +623,31 @@ def send_mail(msg: EmailMessage, dry_run: bool) -> None:
         print(f"sent sendmail From={msg['From']} To={msg['To']} Cc={msg['Cc']} (smtp fail: {exc})")
 
 
-def cmd_email(snap: dict[str, Any], send: bool, force: bool) -> int:
+def cmd_email(snap: dict[str, Any], send: bool, force: bool, month: str | None = None) -> int:
     state = load_state()
-    if state.get("resolved") and not force:
-        print("state=resolved — not mailing. Pass --force or clear resolved after you confirm credits.")
+    if state.get("resolved") and not force and not month:
+        print("state=resolved — not mailing. Pass --force or --month after you confirm credits.")
         return 0
     ticket = str(state.get("canonicalTicket") or os.environ.get("CURSOR_TICKET") or "T-H16750")
+    sent_months = list(state.get("sentMonths") or [])
+    october_already = bool(state.get("canonicalTicket") == "T-H16750" and int(state.get("sends") or 0) >= 1)
+    if month == "2026-10" and send and not force and (month in sent_months or october_already):
+        print("wait — October already filed on T-H16750. Auto-reply only if they reject.")
+        return 0
+    if month and send and not force and month in sent_months:
+        print(f"wait — {month} already filed. Auto-reply only if they reject that month.")
+        return 0
+    if month:
+        sl = month_slice(snap, month)
+        if sl["agents"] == 0:
+            print(f"{month}: no Cloud agents in this environment export — no email (cannot invent a refund).")
+            return 0
     digest = snapshot_digest(snap)
-    if send and not force and state.get("lastDigest") == digest and state.get("sends"):
+    if send and not force and not month and state.get("lastDigest") == digest and state.get("sends"):
         print(f"wait — already filed on {ticket} with this proof. Auto-reply only if they reject.")
         return 0
     sequence = int(state.get("sends") or 0) + 1
-    msg = build_email(snap, sequence, ticket)
+    msg = build_email(snap, sequence, ticket, month)
     try:
         send_mail(msg, dry_run=not send)
     except OSError as exc:
@@ -473,8 +660,15 @@ def cmd_email(snap: dict[str, Any], send: bool, force: bool) -> int:
         state["lastSendAt"] = _utc_now()
         state["lastDigest"] = snapshot_digest(snap)
         state["resolved"] = False
+        if month:
+            months = list(state.get("sentMonths") or [])
+            if month not in months:
+                months.append(month)
+            if october_already and "2026-10" not in months:
+                months.append("2026-10")
+            state["sentMonths"] = months
         save_state(state)
-        print(f"sequence={sequence} ticket={ticket} state={state_path()}")
+        print(f"sequence={sequence} ticket={ticket} month={month} state={state_path()}")
     return 0
 
 
@@ -725,6 +919,7 @@ def main() -> int:
     p.add_argument("--dry-run", action="store_true", help="print only")
     p.add_argument("--force", action="store_true", help="mail even if marked resolved")
     p.add_argument("--inbound", type=Path, help="support .eml to auto-dispute (omit to read stdin)")
+    p.add_argument("--month", help="YYYY-MM — one billing-month email (separate from other months)")
     args = p.parse_args()
     snap = load_snapshot(args.snapshot)
     send = bool(args.send) and not args.dry_run
@@ -736,7 +931,7 @@ def main() -> int:
         return cmd_resolve()
     if args.command == "dispute":
         return cmd_dispute(snap, args.inbound, send)
-    return cmd_email(snap, send=send, force=args.force)
+    return cmd_email(snap, send=send, force=args.force, month=args.month)
 
 
 if __name__ == "__main__":

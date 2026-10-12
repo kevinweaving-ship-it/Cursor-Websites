@@ -20,4 +20,4 @@ Useless Cloud burn, failed internal computer-use spawns, Cloud-over-Mac routing,
 
 ## Mail
 
-Support mail is from `cursor@sailingsa.co.za` to `hi@cursor.com`, CC `kevinweaving@icloud.com`. Keep mailing until credits are passed and routing/spawn fuckups stop (`email --send`). Stop only after `resolve`.
+Support mail is from `cursor@sailingsa.co.za` to `hi@cursor.com`. One email per billing month (`email --month YYYY-MM --send`). Empty months (no agents in the export) are not mailed. October is already on T-H16750 — wait. Auto-reply only if they reject that month. Do not daily-blast. Stop a month after `resolve` or a confirmed credit.
