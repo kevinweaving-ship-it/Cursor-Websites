@@ -28,6 +28,9 @@ BOATS_IN_RACE = 6
 COLOURS = ("Blue", "Green")
 PENALTY_CODES = frozenset({"DNS", "DNF", "DSQ", "OCS", "RET", "NSC", "DNE", "BFD"})
 MAC_SEEDED_SAS = frozenset({"13516", "21052", "8612", "29414", "13517", "22974"})
+MATIES_HELM_SAS = frozenset({"20389", "8178", "6497"})
+EDEN_SAILOR_SAS = frozenset({"15711", "13488", "27609", "27610", "23531", "28588"})
+CHAMPIONSHIP_TEAM_COUNT = 8
 DEFAULT_PHYSICAL_BOATS = (
     ("Blue", 1),
     ("Blue", 2),
@@ -123,6 +126,12 @@ CREATE TABLE IF NOT EXISTS public.tsl_event_audit (
 
 def is_tsl_regatta(regatta_id: str) -> bool:
     return str(regatta_id or "").strip() in TSL_REGATTA_IDS
+
+
+def require_championship_teams(team_ids) -> None:
+    ids = [int(t) for t in (team_ids or [])]
+    if len(ids) != CHAMPIONSHIP_TEAM_COUNT:
+        raise ValueError("Do not generate an eight-team schedule until eight teams are registered")
 
 
 def display_name(row: dict) -> str:
@@ -884,10 +893,6 @@ def upsert_team(cur, regatta_id: str, body: dict, *, actor: str = "super_admin")
             raise ValueError(f"Helm SAS {helm_id} is not an existing sailor — SAS IDs are never invented")
         if crew_id and not crew:
             raise ValueError(f"Crew SAS {crew_id} is not an existing sailor — SAS IDs are never invented")
-        if helm and not sailor_allowed_for_club(helm, club.get("club_abbrev") or "", club.get("club_name") or ""):
-            raise ValueError(f"{helm['name']} is registered to another club")
-        if crew and not sailor_allowed_for_club(crew, club.get("club_abbrev") or "", club.get("club_name") or ""):
-            raise ValueError(f"{crew['name']} is registered to another club")
         resolved_boats.append({"boat_no": n, "helm": helm, "crew": crew, "helm_sas_id": helm_id or None, "crew_sas_id": crew_id or None})
 
     if team_id:
@@ -1647,14 +1652,7 @@ def register_tsl_routes(
         conn = get_db_connection()
         cur = _cur(conn)
         try:
-            club = _club_row(cur, int(club_id)) if club_id else None
-            sailors = search_sailors(
-                cur,
-                q,
-                club_abbrev=(club or {}).get("club_abbrev") or "",
-                club_name=(club or {}).get("club_name") or "",
-                limit=limit,
-            )
+            sailors = search_sailors(cur, q, limit=limit)
             return {"sailors": sailors}
         finally:
             cur.close()
@@ -1823,13 +1821,12 @@ def register_tsl_routes(
             ensure_schema(cur)
             teams = load_teams(cur, rid)
             ids = [int(t["team_id"]) for t in teams]
+            require_championship_teams(ids)
             if fmt == FORMAT_FLIGHTS16:
                 fa = [int(x) for x in (body.get("flight_a") or [])]
                 fb = [int(x) for x in (body.get("flight_b") or [])]
                 incoming = generate_flights16(fa, fb)
             else:
-                if len(ids) < 2:
-                    raise ValueError("Need at least two registered teams to generate a schedule")
                 incoming = generate_rr_matches(ids)
                 fa, fb = [], []
                 fmt = FORMAT_RR28

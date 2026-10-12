@@ -9,6 +9,7 @@ from sailingsa.backend.tsl_team_racing import (
     is_tsl_regatta,
     match_does_not_use_current_roster,
     rank_standings,
+    require_championship_teams,
     sailor_allowed_for_club,
     score_match,
     validate_roster_boats,
@@ -53,6 +54,11 @@ class TestRosterRules(unittest.TestCase):
         self.assertTrue(is_tsl_regatta("2026-10-17-mac-tsl-wc-team-sailing"))
         self.assertFalse(is_tsl_regatta("2026-09-25-tsc-420-nationals"))
         self.assertFalse(is_tsl_regatta("hyc-cape-classic-2026"))
+
+    def test_schedule_waits_for_eight_teams(self):
+        with self.assertRaises(ValueError):
+            require_championship_teams([1, 2, 3])
+        require_championship_teams(list(range(1, 9)))
 
 
 class TestAppendixDScoring(unittest.TestCase):
