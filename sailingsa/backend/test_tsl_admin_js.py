@@ -25,7 +25,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("bow_number", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261012t", JS)
+        self.assertIn("20261012u", JS)
         self.assertIn("syncSheetType", JS)
         self.assertIn("max-height:16px", JS)
         self.assertIn("max-width:28px", JS)
