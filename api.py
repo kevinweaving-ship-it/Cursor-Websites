@@ -27177,6 +27177,20 @@ def serve_robots_txt():
     body = f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n"
     return Response(content=body, media_type="text/plain", headers={"Cache-Control": "public, max-age=3600"})
 
+# TSL_TEAM_RACING_ROUTES_v1 — extra routes only; does not replace fleet / Appendix A.
+try:
+    from sailingsa.backend.tsl_team_racing import register_tsl_routes
+    register_tsl_routes(
+        app,
+        get_db_connection=get_db_connection,
+        return_db_connection=return_db_connection,
+        is_super_admin=_session_role_is_super_admin,
+        table_exists=table_exists,
+        column_exists=column_exists,
+    )
+except Exception as _tsl_exc:
+    print(f"[tsl] routes not registered: {_tsl_exc}", flush=True)
+
 # Serve /artwork/ from project artwork dir (e.g. TimAdvisor logo) so same-origin requests work
 ARTWORK_DIR = os.path.join(BASE_DIR, "artwork")
 if os.path.isdir(ARTWORK_DIR):

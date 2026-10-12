@@ -14,9 +14,9 @@
   var WX_ID = "ssa-regatta-slot-card";
   var MEDIA_ID = "mmLiptonReels";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012g";
+  var JS_VER = "20261012h";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
-  var MAC_LOGO = "/artwork/Club Logo/MAC.png";
+  var MAC_LOGO = "/img/mac-event-reels.jpg";
   var WX_API = "/api/wind2speed/mac";
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
   var BANDS = [[0, 5, "#12b028"], [5, 11, "#2563eb"], [11, 17, "#e67e00"], [17, 23, "#7c3aed"], [23, 60, "#DC143C"]];
@@ -363,7 +363,7 @@
       media.setAttribute("data-mm-poll", "1");
       media.setAttribute("data-mm-club-logo", MAC_LOGO);
       media.setAttribute("data-mm-club-href", "/club/mac");
-      media.setAttribute("data-mm-club-alt", "MAC");
+      media.setAttribute("data-mm-club-alt", "MAC Media");
       media.setAttribute("data-mm-brand-soon", MAC_LOGO);
       media.setAttribute("data-mm-brand-live", MAC_LOGO);
       media.setAttribute(
@@ -372,8 +372,8 @@
       );
       media.innerHTML =
         '<div class="mm-lipton-reels-compact">' +
-        '<a class="mm-lipton-reels-brand" href="/club/mac" aria-label="MAC">' +
-        '<img src="' + MAC_LOGO + '" alt="MAC" width="440" height="180" decoding="async">' +
+        '<a class="mm-lipton-reels-brand" href="/club/mac" aria-label="MAC club page">' +
+        '<img src="' + MAC_LOGO + '" alt="MAC Media" width="2014" height="780" decoding="async">' +
         "</a>" +
         '<div class="mm-lipton-reels-rail-wrap">' +
         '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>' +
