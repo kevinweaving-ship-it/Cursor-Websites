@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261012r";
+  var JS_VER = "20261012s";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -92,10 +92,12 @@
       ".regatta-page--super-admin-edit #macTslAdmin .tsl-public{display:none}",
       "#macTslSchedule .tsl-edit{display:none}",
       ".regatta-page--super-admin-edit #macTslSchedule .tsl-edit{display:block}",
-      "#macTslAdmin input,#macTslAdmin select,#macTslMatches input,#macTslMatches select,#macTslSchedule select{font:inherit;font-size:inherit;color:#1a2750;padding:3px 4px;margin:0;min-height:0;width:100%;max-width:100%;box-sizing:border-box;border:1px solid #1d294d;border-radius:0;background:#fff}",
-      "#macTslAdmin .tsl-sas{display:block;color:#1a2750;font:inherit}",
+      "#macTslAdmin input,#macTslAdmin select,#macTslMatches input,#macTslMatches select,#macTslSchedule select{font:inherit;font-size:inherit;color:#1a2750;padding:3px 4px;margin:0;min-height:0;width:auto;max-width:100%;box-sizing:border-box;border:1px solid #1d294d;border-radius:0;background:#fff}",
+      "#macTslAdmin .tsl-sas{display:inline;color:#1a2750;font:inherit;margin-left:4px}",
       "#macTslAdmin .tsl-sas--missing{color:#c62828}",
-      "#macTslAdmin .tsl-ac{position:relative}",
+      "#macTslAdmin .tsl-ac{position:relative;display:inline;white-space:nowrap}",
+      "#macTslAdmin .fleet-results-table th,#macTslAdmin .fleet-results-table td,#macTslSchedule .fleet-results-table th,#macTslSchedule .fleet-results-table td,#macTslMatches .fleet-results-table th,#macTslMatches .fleet-results-table td{white-space:nowrap}",
+      "#macTslAdmin .rs-club-with-logo,#macTslSchedule .rs-club-with-logo{display:inline-flex;flex-direction:row;flex-wrap:nowrap;align-items:center;white-space:nowrap}",
       "#macTslAdmin .tsl-ac-list{position:absolute;left:0;right:0;z-index:80;margin:0;padding:0;list-style:none;background:#fff;border:1px solid #1d294d;max-height:180px;overflow-y:auto}",
       "#macTslAdmin .tsl-ac-list li{margin:0;padding:4px 6px;cursor:pointer;color:#1a2750;font:inherit}",
       "#macTslAdmin .tsl-ac-list li:hover{background:#e9eefb}",
@@ -167,12 +169,17 @@
     );
   }
 
-  function teamLogoCell(team) {
-    var name = (team && (team.team_name || team.club_name || team.club_abbrev)) || "Team";
-    var img = team && team.club_logo
-      ? '<img class="rs-club-row-logo-sm" src="' + esc(team.club_logo) + '" alt="">'
-      : "";
-    return '<span class="rs-club-with-logo tsl-team-club">' + img + "<span>" + esc(name) + "</span></span>";
+  function clubCode(team) {
+    return (team && (team.club_abbrev || team.club_code)) || "";
+  }
+  function logoImg(src, code) {
+    if (!src) return "";
+    return '<img class="rs-club-row-logo-sm" src="' + esc(src) + '" alt="" title="' + esc(code || "") +
+      '" style="height:auto;width:auto;max-height:16px;max-width:28px;object-fit:contain;display:inline-block;vertical-align:middle;flex:0 0 auto">';
+  }
+  function clubCell(team) {
+    var code = clubCode(team);
+    return '<span class="rs-club-with-logo">' + logoImg(team && team.club_logo, code) + esc(code) + "</span>";
   }
 
   function sailorName(s) {
@@ -190,13 +197,13 @@
 
   function publicTeamsTable() {
     var html = '<div class="table-wrapper"><table class="fleet-results-table"><thead><tr>' +
-      "<th>Team</th><th>1 Helm</th><th>1 Crew</th><th>2 Helm</th><th>2 Crew</th><th>3 Helm</th><th>3 Crew</th>" +
+      '<th class="club-col">Team</th><th>1 Helm</th><th>1 Crew</th><th>2 Helm</th><th>2 Crew</th><th>3 Helm</th><th>3 Crew</th>' +
       "</tr></thead><tbody>";
     if (!(state.teams || []).length) {
       html += '<tr><td colspan="7">No teams registered.</td></tr>';
     }
     (state.teams || []).forEach(function (t) {
-      html += "<tr><td>" + teamLogoCell(t) + "</td>";
+      html += '<tr><td class="club-col">' + clubCell(t) + "</td>";
       for (var n = 1; n <= 3; n += 1) {
         var b = (t.boats || []).filter(function (x) { return Number(x.boat_no) === n; })[0] || {};
         html += "<td>" + esc(sailorName(b.helm)) + "</td><td>" + esc(sailorName(b.crew)) + "</td>";
@@ -254,49 +261,38 @@
     var sid = sailor && sailor.sas_id ? String(sailor.sas_id) : "";
     var name = sailor && sailor.name ? sailor.name : "";
     var warn = name && !sid;
+    var sas = sid ? "SAS " + sid : (name ? "SAS missing — not invented" : "");
     return (
-      '<div class="tsl-ac">' +
+      '<span class="tsl-ac">' +
         '<input type="text" data-role="' + role + '" data-boat="' + boatNo + '" value="' + esc(name) + '" placeholder="' + role + '" autocomplete="off" />' +
         '<input type="hidden" data-sas-role="' + role + '" data-boat="' + boatNo + '" value="' + esc(sid) + '" />' +
-        '<span class="tsl-sas' + (warn ? " tsl-sas--missing" : "") + '">' +
-          (sid ? "SAS " + esc(sid) : (name ? "SAS missing — not invented" : "")) +
-        "</span>" +
-      "</div>"
+        (sas ? '<span class="tsl-sas' + (warn ? " tsl-sas--missing" : "") + '">' + esc(sas) + "</span>" : "") +
+      "</span>"
     );
   }
 
-  function teamPanelHtml(team) {
+  function teamRowHtml(team) {
     team = team || {};
     var boats = team.boats || [{ boat_no: 1 }, { boat_no: 2 }, { boat_no: 3 }];
-    var logo = team.club_logo
-      ? '<img class="rs-club-row-logo-sm" src="' + esc(team.club_logo) + '" alt="">'
-      : '<span class="tsl-team-logo--empty"></span>';
-    var rows = "";
+    var code = clubCode(team);
+    var cells = "";
     for (var n = 1; n <= 3; n += 1) {
       var b = boats.filter(function (x) { return Number(x.boat_no) === n; })[0] || { boat_no: n };
-      rows += "<tr><th>" + n + "</th><td>" + sailorCell(n, "helm", b.helm) + "</td><td>" + sailorCell(n, "crew", b.crew) + "</td></tr>";
+      cells += "<td>" + sailorCell(n, "helm", b.helm) + "</td><td>" + sailorCell(n, "crew", b.crew) + "</td>";
     }
-    var pending = unassignedLine(team);
     return (
-      '<div class="tsl-team" data-team-id="' + esc(team.team_id || "") + '">' +
-        '<div class="table-wrapper"><table class="fleet-results-table">' +
-          "<thead><tr><th>Club</th><th>Team</th></tr></thead><tbody><tr>" +
-            '<td><div class="tsl-ac">' + logo +
-              '<input type="text" data-field="club" value="' + esc(team.club_name || team.club_abbrev || "") + '" placeholder="Club" autocomplete="off" />' +
-              '<input type="hidden" data-field="club_id" value="' + esc(team.club_id || "") + '" />' +
-            "</div></td>" +
-            '<td><input type="text" data-field="team_name" value="' + esc(team.team_name || "") + '" /></td>' +
-          "</tr></tbody></table></div>" +
-        '<div class="table-wrapper"><table class="fleet-results-table">' +
-          "<thead><tr><th></th><th>Helm</th><th>Crew</th></tr></thead><tbody>" +
-          rows + "</tbody></table></div>" +
-        (pending ? '<div class="sailed-line">Assign: ' + esc(pending) + "</div>" : "") +
-        '<div class="action-buttons">' +
-          '<button type="button" class="action-button tsl-save">Save Team</button>' +
+      '<tr class="tsl-team" data-team-id="' + esc(team.team_id || "") + '">' +
+        '<td class="club-col"><span class="rs-club-with-logo tsl-ac">' +
+          logoImg(team.club_logo, code) +
+          '<input type="text" data-field="club" value="' + esc(code) + '" placeholder="Club" autocomplete="off" />' +
+          '<input type="hidden" data-field="club_id" value="' + esc(team.club_id || "") + '" />' +
+        "</span></td>" +
+        '<td><input type="text" data-field="team_name" value="' + esc(team.team_name || "") + '" /></td>' +
+        cells +
+        '<td><button type="button" class="action-button tsl-save">Save Team</button>' +
           (team.team_id ? '<button type="button" class="action-button tsl-del">Remove</button>' : "") +
-        "</div>" +
-        '<div class="tsl-msg"></div>' +
-      "</div>"
+          '<span class="tsl-msg"></span></td>' +
+      "</tr>"
     );
   }
 
@@ -326,21 +322,21 @@
       bindTypeahead(clubInp, "club", function (q) {
         return "/api/tsl/" + encodeURIComponent(RID) + "/clubs-search?q=" + encodeURIComponent(q) + "&limit=40";
       }, function (it) {
-        clubInp.value = it.name || it.code || "";
+        clubInp.value = it.code || it.name || "";
         clubId.value = it.club_id;
         var nameInp = panel.querySelector('input[data-field="team_name"]');
-        if (nameInp && !nameInp.value.trim()) nameInp.value = it.name || it.code || "";
+        if (nameInp && !nameInp.value.trim()) nameInp.value = it.code || it.name || "";
         var img = panel.querySelector(".rs-club-row-logo-sm");
         if (it.logo) {
           if (!img || !img.tagName || img.tagName.toLowerCase() !== "img") {
             img = document.createElement("img");
             img.className = "rs-club-row-logo-sm";
-            var empty = panel.querySelector(".tsl-team-logo--empty");
+            img.setAttribute("style", "height:auto;width:auto;max-height:16px;max-width:28px;object-fit:contain;display:inline-block;vertical-align:middle;flex:0 0 auto");
             var ac = panel.querySelector(".tsl-ac");
-            if (empty && empty.parentNode) empty.parentNode.replaceChild(img, empty);
-            else if (ac) ac.insertBefore(img, ac.firstChild);
+            if (ac) ac.insertBefore(img, ac.firstChild);
           }
           img.src = it.logo;
+          img.title = it.code || "";
         }
       });
     }
@@ -359,7 +355,7 @@
       });
     });
     var save = panel.querySelector(".tsl-save");
-    var msg = panel.querySelector(".tsl-msg:last-child");
+    var msg = panel.querySelector(".tsl-msg");
     if (save) {
       save.addEventListener("click", function () {
         var body = collectTeam(panel);
@@ -398,21 +394,23 @@
     var root = document.getElementById(ROOT_ID);
     if (!root) return;
     var n = (state.teams || []).length;
-    var html = sheetHead("Teams", pendingNote() || (n ? n + " entries" : "No teams registered"));
+    var html = sheetHead("Teams", "Entries: " + n);
     html += '<div class="tsl-public">' + publicTeamsTable() + "</div>";
-    html += '<div class="tsl-edit">';
-    state.teams.forEach(function (t) { html += teamPanelHtml(t); });
-    html += '<div class="action-buttons"><button type="button" class="action-button" id="tslAddTeam">Add Team</button></div>';
-    html += '<div id="tslAddSlot"></div></div>';
+    html += '<div class="tsl-edit"><div class="table-wrapper"><table class="fleet-results-table"><thead><tr>' +
+      '<th class="club-col">Team</th><th>Name</th><th>1 Helm</th><th>1 Crew</th><th>2 Helm</th><th>2 Crew</th><th>3 Helm</th><th>3 Crew</th><th></th>' +
+      "</tr></thead><tbody id=\"tslTeamBody\">";
+    state.teams.forEach(function (t) { html += teamRowHtml(t); });
+    html += "</tbody></table></div>";
+    html += '<div class="action-buttons"><button type="button" class="action-button" id="tslAddTeam">Add Team</button></div></div>';
     root.innerHTML = html;
     root.querySelectorAll(".tsl-edit .tsl-team").forEach(wireTeamPanel);
     var add = document.getElementById("tslAddTeam");
     if (add) {
       add.addEventListener("click", function () {
-        var slot = document.getElementById("tslAddSlot");
-        if (!slot || slot.querySelector(".tsl-team")) return;
-        slot.innerHTML = teamPanelHtml({ boats: [{ boat_no: 1 }, { boat_no: 2 }, { boat_no: 3 }] });
-        wireTeamPanel(slot.querySelector(".tsl-team"));
+        var body = document.getElementById("tslTeamBody");
+        if (!body || body.querySelector('.tsl-team:not([data-team-id]), .tsl-team[data-team-id=""]')) return;
+        body.insertAdjacentHTML("beforeend", teamRowHtml({ boats: [{ boat_no: 1 }, { boat_no: 2 }, { boat_no: 3 }] }));
+        wireTeamPanel(body.querySelector(".tsl-team:last-child"));
       });
     }
   }
@@ -422,7 +420,7 @@
   }
   function teamName(id) {
     var t = teamById(id);
-    return t ? (t.team_name || t.club_abbrev || id) : (id ? String(id) : "—");
+    return t ? (clubCode(t) || t.team_name || id) : (id ? String(id) : "—");
   }
   function teamOptions(selected, excludeId) {
     var html = '<option value="">Select team</option>';
@@ -452,7 +450,7 @@
     })[0] || {};
   }
 
-  function boatRow(match, teamId, pairing) {
+  function boatCells(match, teamId, pairing) {
     var team = teamById(teamId);
     var b = findBoat(match, teamId, pairing);
     var roster = team && team.boats ? team.boats.filter(function (x) { return Number(x.boat_no) === pairing; })[0] : null;
@@ -462,50 +460,38 @@
     for (var i = 1; i <= 6; i += 1) {
       places += '<option value="' + i + '"' + (Number(b.finish_place) === i ? " selected" : "") + ">" + i + "</option>";
     }
+    var attr = ' data-team-id="' + esc(teamId || "") + '" data-pairing="' + pairing + '"';
     return (
-      "<tr data-team-id=\"" + esc(teamId || "") + "\" data-pairing=\"" + pairing + "\">" +
-        "<td>" + pairing + "</td>" +
-        '<td><select data-k="helm_sas_id">' + sailorOptions(team, helm) + "</select></td>" +
-        '<td><select data-k="crew_sas_id">' + sailorOptions(team, crew) + "</select></td>" +
-        '<td><select data-k="finish_place"><option value=""></option>' + places + "</select></td>" +
-      "</tr>"
+      '<td><select data-k="helm_sas_id"' + attr + ">" + sailorOptions(team, helm) + "</select></td>" +
+      '<td><select data-k="crew_sas_id"' + attr + ">" + sailorOptions(team, crew) + "</select></td>" +
+      '<td><select data-k="finish_place"' + attr + '><option value=""></option>' + places + "</select></td>"
     );
   }
 
   function matchHtml(match) {
+    var empty = "<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>";
     return (
       '<div class="tsl-match" data-match-id="' + match.match_id + '">' +
-        '<div class="tsl-sides">' +
-          '<div class="tsl-side" data-side="a">' +
-            '<div class="table-wrapper"><table class="fleet-results-table">' +
-              '<thead><tr><th colspan="4" class="tsl-blue">Team Blue</th></tr>' +
-              "<tr><th></th><th>Helm</th><th>Crew</th><th>Place</th></tr></thead>" +
-              "<tbody><tr><th>Blue</th><td colspan=\"3\"><select data-k=\"team_a_id\">" + teamOptions(match.team_a_id) + "</select></td></tr></tbody>" +
-              '<tbody class="tsl-a-boats">' +
-              (match.team_a_id ? [1, 2, 3].map(function (n) { return boatRow(match, match.team_a_id, n); }).join("") : "") +
-              "</tbody></table></div>" +
-          "</div>" +
-          '<div class="tsl-side" data-side="b">' +
-            '<div class="table-wrapper"><table class="fleet-results-table">' +
-              '<thead><tr><th colspan="4" class="tsl-green">Team Green</th></tr>' +
-              "<tr><th></th><th>Helm</th><th>Crew</th><th>Place</th></tr></thead>" +
-              "<tbody><tr><th>Green</th><td colspan=\"3\"><select data-k=\"team_b_id\">" + teamOptions(match.team_b_id, match.team_a_id) + "</select></td></tr></tbody>" +
-              '<tbody class="tsl-b-boats">' +
-              (match.team_b_id ? [1, 2, 3].map(function (n) { return boatRow(match, match.team_b_id, n); }).join("") : "") +
-              "</tbody></table></div>" +
-          "</div>" +
-        "</div>" +
-        '<div class="table-wrapper"><table class="fleet-results-table"><tbody>' +
-          "<tr><th>Official override</th><td><select data-k=\"override_winner_team_id\">" +
-            '<option value="">No override</option>' + teamOptions(match.override_winner_team_id) +
-          "</select></td></tr>" +
-          '<tr><th>Reason</th><td><input type="text" data-k="override_reason" value="' + esc(match.override_reason || "") + '" /></td></tr>' +
-        "</tbody></table></div>" +
-        '<div class="action-buttons">' +
-          '<button type="button" class="action-button tsl-save" data-complete="0">Save match</button>' +
+        '<div class="table-wrapper"><table class="fleet-results-table"><thead><tr>' +
+          "<th>M</th><th class=\"tsl-blue\">Team Blue</th><th>1 Helm</th><th>1 Crew</th><th>P</th><th>2 Helm</th><th>2 Crew</th><th>P</th><th>3 Helm</th><th>3 Crew</th><th>P</th>" +
+          "<th class=\"tsl-green\">Team Green</th><th>1 Helm</th><th>1 Crew</th><th>P</th><th>2 Helm</th><th>2 Crew</th><th>P</th><th>3 Helm</th><th>3 Crew</th><th>P</th>" +
+          "<th>Override</th><th>Reason</th><th></th></tr></thead><tbody><tr>" +
+          "<td><select id=\"tslMatchPick\">" +
+          (state.matches || []).map(function (m) {
+            return '<option value="' + m.match_no + '"' + (Number(m.match_no) === Number(match.match_no) ? " selected" : "") + ">" +
+              esc(m.label || ("M" + m.match_no)) + "</option>";
+          }).join("") +
+          "</select></td>" +
+          '<td class="club-col"><select data-k="team_a_id">' + teamOptions(match.team_a_id) + "</select></td>" +
+          (match.team_a_id ? [1, 2, 3].map(function (n) { return boatCells(match, match.team_a_id, n); }).join("") : empty) +
+          '<td class="club-col"><select data-k="team_b_id">' + teamOptions(match.team_b_id, match.team_a_id) + "</select></td>" +
+          (match.team_b_id ? [1, 2, 3].map(function (n) { return boatCells(match, match.team_b_id, n); }).join("") : empty) +
+          "<td><select data-k=\"override_winner_team_id\"><option value=\"\">No override</option>" + teamOptions(match.override_winner_team_id) + "</select></td>" +
+          '<td><input type="text" data-k="override_reason" value="' + esc(match.override_reason || "") + '" /></td>' +
+          '<td><button type="button" class="action-button tsl-save" data-complete="0">Save match</button>' +
           '<button type="button" class="action-button tsl-save" data-complete="1">Save and complete</button>' +
-        "</div>" +
-        '<div class="tsl-msg"></div>' +
+          '<span class="tsl-msg"></span></td>' +
+        "</tr></tbody></table></div>" +
       "</div>"
     );
   }
@@ -513,17 +499,18 @@
   function collectMatch(box) {
     var teamA = Number((box.querySelector('[data-k="team_a_id"]') || {}).value || 0);
     var teamB = Number((box.querySelector('[data-k="team_b_id"]') || {}).value || 0);
-    var boats = [];
-    box.querySelectorAll("tbody tr[data-pairing]").forEach(function (tr) {
-      var o = {
-        team_id: Number(tr.getAttribute("data-team-id")),
-        pairing_no: Number(tr.getAttribute("data-pairing"))
-      };
-      tr.querySelectorAll("[data-k]").forEach(function (el) {
-        o[el.getAttribute("data-k")] = el.value;
-      });
-      boats.push(o);
+    var map = {};
+    box.querySelectorAll("[data-pairing][data-k]").forEach(function (el) {
+      var key = el.getAttribute("data-team-id") + ":" + el.getAttribute("data-pairing");
+      if (!map[key]) {
+        map[key] = {
+          team_id: Number(el.getAttribute("data-team-id")),
+          pairing_no: Number(el.getAttribute("data-pairing"))
+        };
+      }
+      map[key][el.getAttribute("data-k")] = el.value;
     });
+    var boats = Object.keys(map).map(function (k) { return map[k]; });
     return {
       team_a_id: teamA || null,
       team_b_id: teamB || null,
@@ -541,15 +528,11 @@
   function wireMatch(box) {
     function refreshSides() {
       var mid = Number(box.getAttribute("data-match-id"));
-      var match = state.matches.filter(function (m) { return Number(m.match_id) === mid; })[0] || { boats: [] };
+      var match = state.matches.filter(function (m) { return Number(m.match_id) === mid; })[0];
+      if (!match) return;
       match.team_a_id = Number((box.querySelector('[data-k="team_a_id"]') || {}).value || 0) || null;
       match.team_b_id = Number((box.querySelector('[data-k="team_b_id"]') || {}).value || 0) || null;
-      var bSel = box.querySelector('[data-k="team_b_id"]');
-      if (bSel) bSel.innerHTML = teamOptions(match.team_b_id, match.team_a_id);
-      var aBody = box.querySelector(".tsl-a-boats");
-      var bBody = box.querySelector(".tsl-b-boats");
-      if (aBody) aBody.innerHTML = match.team_a_id ? [1, 2, 3].map(function (n) { return boatRow(match, match.team_a_id, n); }).join("") : "";
-      if (bBody) bBody.innerHTML = match.team_b_id ? [1, 2, 3].map(function (n) { return boatRow(match, match.team_b_id, n); }).join("") : "";
+      renderMatches();
     }
     var ta = box.querySelector('[data-k="team_a_id"]');
     if (ta) ta.addEventListener("change", refreshSides);
@@ -582,31 +565,29 @@
     var fmt = state.format || "rr28";
     var nTeams = (state.teams || []).length;
     var html = sheetHead("Schedule", (state.matches || []).length ? (state.matches.length + " matches") : "No matches yet.");
-    html += '<div class="tsl-edit"><div class="table-wrapper"><table class="fleet-results-table"><tbody>';
-    html += '<tr><th>Championship format</th><td><select id="tslFormat">' +
+    html += '<div class="table-wrapper"><table class="fleet-results-table"><thead><tr><th>M</th><th>Round/Flight</th><th class="club-col">Blue</th><th class="club-col">Green</th><th>Status</th><th>Winner</th></tr></thead><tbody>';
+    html += '<tr class="tsl-edit"><td colspan="6"><select id="tslFormat">' +
       '<option value="rr28"' + (fmt === "rr28" ? " selected" : "") + ">Full round robin (28 matches)</option>" +
       '<option value="flights16"' + (fmt === "flights16" ? " selected" : "") + ">Weather contingency (16 matches)</option>" +
-      "</select></td></tr>";
+      "</select> ";
     if (fmt === "flights16") {
-      html += '<tr><th>Flight A</th><td><select id="tslFa" multiple size="4">';
+      html += '<select id="tslFa" multiple size="1">';
       (state.teams || []).forEach(function (t) {
         var sel = ((state.settings || {}).flight_a || []).indexOf(t.team_id) >= 0 || ((state.settings || {}).flight_a || []).indexOf(String(t.team_id)) >= 0;
-        html += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(t.team_name) + "</option>";
+        html += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(clubCode(t) || t.team_name) + "</option>";
       });
-      html += "</select></td></tr><tr><th>Flight B</th><td><select id=\"tslFb\" multiple size=\"4\">";
+      html += '</select> <select id="tslFb" multiple size="1">';
       (state.teams || []).forEach(function (t) {
         var sel = ((state.settings || {}).flight_b || []).indexOf(t.team_id) >= 0 || ((state.settings || {}).flight_b || []).indexOf(String(t.team_id)) >= 0;
-        html += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(t.team_name) + "</option>";
+        html += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(clubCode(t) || t.team_name) + "</option>";
       });
-      html += "</select></td></tr>";
+      html += "</select> ";
     }
-    html += "</tbody></table></div>";
-    html += '<div class="action-buttons"><button type="button" class="action-button" id="tslGen">Generate schedule</button></div>';
-    html += '<div class="tsl-msg" id="tslSchedMsg">' + (nTeams < 8 ? "Register eight teams before generating the championship schedule." : "") + "</div></div>";
-    html += '<div class="table-wrapper"><table class="fleet-results-table"><thead><tr><th>M</th><th>Round/Flight</th><th>Blue</th><th>Green</th><th>Status</th><th>Winner</th></tr></thead><tbody>';
+    html += '<button type="button" class="action-button" id="tslGen">Generate schedule</button> <span class="tsl-msg" id="tslSchedMsg">' +
+      (nTeams < 8 ? "Register eight teams before generating the championship schedule." : "") + "</span></td></tr>";
     (state.matches || []).forEach(function (m) {
-      html += "<tr><td>" + esc(m.label || ("M" + m.match_no)) + "</td><td>" + esc(m.round_label || "") + "</td><td>" +
-        esc(teamName(m.team_a_id || m.team_blue_id)) + "</td><td>" + esc(teamName(m.team_b_id || m.team_green_id)) + "</td><td>" +
+      html += "<tr><td>" + esc(m.label || ("M" + m.match_no)) + "</td><td>" + esc(m.round_label || "") + '</td><td class="club-col">' +
+        clubCell(teamById(m.team_a_id || m.team_blue_id) || {}) + '</td><td class="club-col">' + clubCell(teamById(m.team_b_id || m.team_green_id) || {}) + "</td><td>" +
         esc(m.status || "") + "</td><td>" + esc(teamName(m.winner_team_id)) + "</td></tr>";
     });
     if (!(state.matches || []).length) html += '<tr><td colspan="6">No matches yet.</td></tr>';
@@ -671,12 +652,6 @@
     var current = matches.filter(function (m) { return Number(m.match_no) === Number(selectedMatchNo); })[0] || matches[0];
     selectedMatchNo = Number(current.match_no);
     var html = sheetHead("Match entry", current.label || ("M" + current.match_no));
-    html += '<div class="table-wrapper"><table class="fleet-results-table"><tbody><tr><th>Match</th><td><select id="tslMatchPick">';
-    matches.forEach(function (m) {
-      html += '<option value="' + m.match_no + '"' + (Number(m.match_no) === selectedMatchNo ? " selected" : "") + ">" +
-        esc(m.label || ("M" + m.match_no)) + "</option>";
-    });
-    html += "</select></td></tr></tbody></table></div>";
     html += matchHtml(current);
     root.innerHTML = html;
     var pick = document.getElementById("tslMatchPick");
@@ -836,29 +811,36 @@
       var name = nameCell ? String(nameCell.textContent || "").replace(/\s+/g, " ").trim() : "";
       var club = clubCell ? String(clubCell.textContent || "").replace(/\s+/g, " ").trim() : "";
       var row = (state.standings || []).filter(function (s) {
-        return String(s.team_name || "").trim() === name || String(s.club_abbrev || "") === club;
+        return String(s.team_name || "").trim() === name || String(s.club_abbrev || "") === club || String(s.club_abbrev || "") === name;
       })[0];
-      if (nameCell && !nameCell.querySelector(".tsl-team-club")) {
-        var wrap = document.createElement("span");
-        wrap.className = "rs-club-with-logo tsl-team-club";
-        var logo = (clubCell && clubCell.querySelector("img")) || (row && row.club_logo ? null : null);
-        if (clubCell && clubCell.querySelector("img")) {
-          var img = clubCell.querySelector("img").cloneNode(true);
-          img.className = "rs-club-row-logo-sm";
-          img.alt = "";
-          wrap.appendChild(img);
-        } else if (row && row.club_logo) {
-          var img2 = document.createElement("img");
-          img2.className = "rs-club-row-logo-sm";
-          img2.src = row.club_logo;
-          img2.alt = "";
-          wrap.appendChild(img2);
+      if (nameCell) {
+        var code = (row && row.club_abbrev) || club || "";
+        var existing = nameCell.querySelector(".rs-club-with-logo");
+        if (existing) {
+          var keep = existing.querySelector("img");
+          existing.innerHTML = "";
+          if (keep) existing.appendChild(keep);
+          existing.appendChild(document.createTextNode(code || name));
+        } else if (!nameCell.querySelector(".tsl-team-club")) {
+          var wrap = document.createElement("span");
+          wrap.className = "rs-club-with-logo tsl-team-club";
+          if (clubCell && clubCell.querySelector("img")) {
+            var img = clubCell.querySelector("img").cloneNode(true);
+            img.className = "rs-club-row-logo-sm";
+            img.alt = "";
+            wrap.appendChild(img);
+          } else if (row && row.club_logo) {
+            var img2 = document.createElement("img");
+            img2.className = "rs-club-row-logo-sm";
+            img2.src = row.club_logo;
+            img2.alt = "";
+            wrap.appendChild(img2);
+          }
+          wrap.appendChild(document.createTextNode(code || name));
+          nameCell.innerHTML = "";
+          nameCell.appendChild(wrap);
         }
-        var label = document.createElement("span");
-        label.textContent = (row && row.team_name) || name || "";
-        wrap.appendChild(label);
-        nameCell.innerHTML = "";
-        nameCell.appendChild(wrap);
+        nameCell.classList.add("club-col");
       }
       if (!row) return;
       if (idx.rank != null && tr.cells[idx.rank]) tr.cells[idx.rank].textContent = row.rank || "";
