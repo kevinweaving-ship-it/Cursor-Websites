@@ -13,9 +13,8 @@
   var HOST_ID = "mac-tsl-live-cards";
   var WX_ID = "ssa-regatta-slot-card";
   var MEDIA_ID = "mmLiptonReels";
-  var SA_ID = "mac-tsl-mm-sa";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012e";
+  var JS_VER = "20261012f";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/artwork/Club Logo/MAC.png";
   var WX_API = "/api/wind2speed/mac";
@@ -70,15 +69,6 @@
       ".mac-tsl-live-cards .mm-lipton-reels{margin:10px 0 0;width:100%;box-sizing:border-box;}",
       ".mac-tsl-live-cards .mm-lipton-reels-brand{flex:0 0 auto;display:flex!important;align-items:center;justify-content:center;padding:8px!important;box-sizing:border-box;background:#fff!important;border:2px solid #001f3f;border-radius:8px;line-height:normal;cursor:pointer;filter:none!important;}",
       ".mac-tsl-live-cards .mm-lipton-reels-brand img{display:block!important;width:auto!important;height:auto!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center;filter:none!important;background:transparent!important;border:0;}",
-      ".mac-tsl-mm-sa{display:none;margin:10px 0 0;padding:12px 14px;box-sizing:border-box;background:#fff;border:2px solid #001f3f;border-radius:8px;}",
-      ".mac-tsl-live-cards.is-sa .mac-tsl-mm-sa{display:block;}",
-      ".mac-tsl-mm-sa-title{margin:0 0 8px;font:700 14px/1.2 Arial,Helvetica,sans-serif;color:#001f3f;}",
-      ".mac-tsl-mm-sa-drop{min-height:72px;border:1.5px dashed #1a2750;border-radius:8px;padding:8px;display:flex;align-items:center;justify-content:center;font:700 12px/1.3 Arial,Helvetica,sans-serif;color:#334155;}",
-      ".mac-tsl-mm-sa-file{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}",
-      ".mac-tsl-mm-sa-lab{display:block;margin-top:8px;font:700 12px/1.2 Arial,Helvetica,sans-serif;color:#1a2750;}",
-      ".mac-tsl-mm-sa-lab input{display:block;width:100%;min-height:44px;margin-top:4px;padding:8px;border:1.5px solid #1a2750;border-radius:8px;box-sizing:border-box;}",
-      ".mac-tsl-mm-sa-save{display:block;width:100%;min-height:44px;margin-top:8px;padding:10px 12px;border:1.5px solid #001f3f;border-radius:8px;background:#001f3f;color:#fff;font:700 14px/1.2 Arial,Helvetica,sans-serif;cursor:pointer;}",
-      ".mac-tsl-mm-sa-msg{min-height:18px;margin:6px 0 0;color:#334155;font:400 12px/1.3 Arial,Helvetica,sans-serif;}",
       "@media print{.mac-tsl-live-cards{display:none!important;}}",
       "#macTslNorDialog.card{max-width:44rem;width:calc(100% - 24px);max-height:90vh;overflow:auto;padding:0.5rem 0.75rem;border:2px solid #001f3f;border-radius:8px;box-shadow:0 4px 12px rgba(0,31,63,.12);}",
       "#macTslNorDialog::backdrop{background:rgba(0,31,63,.45);}",
@@ -241,115 +231,6 @@
     });
   }
 
-  function posterFromFile(file) {
-    return new Promise(function (resolve) {
-      if (!file) return resolve(null);
-      if (file.type && file.type.indexOf("image/") === 0) {
-        var img = new Image();
-        img.onload = function () {
-          resolve({ width: img.naturalWidth || 0, height: img.naturalHeight || 0, blob: null });
-        };
-        img.onerror = function () { resolve(null); };
-        img.src = URL.createObjectURL(file);
-        return;
-      }
-      var vid = document.createElement("video");
-      vid.preload = "metadata";
-      vid.muted = true;
-      vid.onloadedmetadata = function () {
-        resolve({ width: vid.videoWidth || 9, height: vid.videoHeight || 16, blob: null });
-      };
-      vid.onerror = function () { resolve({ width: 9, height: 16, blob: null }); };
-      vid.src = URL.createObjectURL(file);
-    });
-  }
-
-  function bindSa(host, sa) {
-    var drop = sa.querySelector("[data-mm-sa-drop]");
-    var input = sa.querySelector(".mac-tsl-mm-sa-file");
-    var preview = sa.querySelector("[data-mm-sa-preview]");
-    var label = sa.querySelector("[data-mm-sa-label]");
-    var save = sa.querySelector("[data-mm-sa-save]");
-    var msg = sa.querySelector("[data-mm-sa-msg]");
-    var pending = { file: null, width: 0, height: 0 };
-    function setMsg(t) { if (msg) msg.textContent = t || ""; }
-    function takeFile(file) {
-      if (!file) return;
-      pending = { file: file, width: 0, height: 0 };
-      if (preview) preview.textContent = file.name || "Ready";
-      posterFromFile(file).then(function (meta) {
-        if (!meta || pending.file !== file) return;
-        pending.width = meta.width || 0;
-        pending.height = meta.height || 0;
-      });
-    }
-    if (drop && input) {
-      drop.addEventListener("click", function () { input.click(); });
-      drop.addEventListener("dragover", function (e) { e.preventDefault(); });
-      drop.addEventListener("drop", function (e) {
-        e.preventDefault();
-        takeFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
-      });
-      input.addEventListener("change", function () {
-        takeFile(input.files && input.files[0]);
-      });
-    }
-    if (save) {
-      save.addEventListener("click", function () {
-        if (!pending.file) { setMsg("Drop a video or photo first."); return; }
-        var title = ((label && label.value) || "").trim() || "MAC Media clip";
-        save.disabled = true;
-        setMsg("Saving…");
-        posterFromFile(pending.file).then(function (meta) {
-          var w = pending.width || (meta && meta.width) || 16;
-          var h = pending.height || (meta && meta.height) || 9;
-          var fd = new FormData();
-          fd.append("file", pending.file, pending.file.name || "mac-media.jpg");
-          fd.append("label", title);
-          fd.append("started_at", new Date().toISOString().slice(0, 16));
-          fd.append("width", String(w));
-          fd.append("height", String(h));
-          fd.append("rotation", "0");
-          return fetch("/api/super-admin/regatta/" + encodeURIComponent(RID) + "/mm-clips", {
-            method: "POST",
-            body: fd,
-            credentials: "include",
-          }).then(function (r) {
-            return r.json().then(function (j) { return { ok: r.ok, j: j }; }).catch(function () {
-              return { ok: r.ok, j: null };
-            });
-          });
-        }).then(function (o) {
-          save.disabled = false;
-          if (!o || !o.ok) { setMsg("Save failed."); return; }
-          pending = { file: null, width: 0, height: 0 };
-          if (preview) preview.textContent = "Drop video or photo";
-          if (label) label.value = "";
-          setMsg("Saved.");
-          if (typeof window.mmLiptonReelsReplaceVideos === "function" && o.j && o.j.videos) {
-            window.mmLiptonReelsReplaceVideos(o.j.videos);
-          } else if (typeof window.mmLiptonReelsInit === "function") {
-            window.mmLiptonReelsInit();
-          }
-        }).catch(function () {
-          save.disabled = false;
-          setMsg("Save failed.");
-        });
-      });
-    }
-    fetch("/auth/session?path=" + encodeURIComponent((window.location && window.location.pathname) || "/"), {
-      credentials: "include",
-      cache: "no-store",
-    })
-      .then(function (r) { return r && r.ok ? r.json() : null; })
-      .then(function (session) {
-        var isSa = !!(session && (session.is_super_admin === true ||
-          (typeof window.sailingSessionIsSuperAdmin === "function" && window.sailingSessionIsSuperAdmin(session))));
-        host.classList.toggle("is-sa", isSa);
-      })
-      .catch(function () {});
-  }
-
   function openNorDialog() {
     var dlg = document.getElementById("macTslNorDialog");
     if (!dlg) return;
@@ -455,6 +336,8 @@
 
     var oldShell = document.getElementById("mac-tsl-media-card");
     if (oldShell && oldShell.parentNode) oldShell.parentNode.removeChild(oldShell);
+    var oldSa = document.getElementById("mac-tsl-mm-sa");
+    if (oldSa && oldSa.parentNode) oldSa.parentNode.removeChild(oldSa);
 
     var media = document.getElementById(MEDIA_ID);
     if (!media) {
@@ -483,24 +366,6 @@
         '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--next" data-mm-rail-next aria-label="Next clips" hidden>›</button>' +
         "</div></div>";
       host.appendChild(media);
-    }
-
-    var sa = document.getElementById(SA_ID);
-    if (!sa) {
-      sa = document.createElement("section");
-      sa.id = SA_ID;
-      sa.className = "card mac-tsl-mm-sa";
-      sa.innerHTML =
-        '<div class="mac-tsl-mm-sa-title">Add clip</div>' +
-        '<div class="mac-tsl-mm-sa-drop" data-mm-sa-drop>' +
-        '<input class="mac-tsl-mm-sa-file" type="file" accept="image/*,video/*,.heic,.mp4,.mov,.webm,.m4v,.3gp" aria-label="Drop or choose video or photo">' +
-        '<div class="mac-tsl-mm-sa-drop-visual" data-mm-sa-preview>Drop video or photo</div>' +
-        "</div>" +
-        '<label class="mac-tsl-mm-sa-lab">Label<input type="text" data-mm-sa-label maxlength="120" placeholder="MAC Media clip"></label>' +
-        '<button type="button" class="mac-tsl-mm-sa-save" data-mm-sa-save>Save to card</button>' +
-        '<p class="mac-tsl-mm-sa-msg" data-mm-sa-msg></p>';
-      host.appendChild(sa);
-      bindSa(host, sa);
     }
 
     loadCss("/css/mm-lipton-reels.css?v=" + JS_VER);

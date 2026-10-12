@@ -16,6 +16,7 @@ SLUG = "2026-10-17-mac-tsl-wc-team-sailing"
 REELS = Path("/var/www/sailingsa/js/mm-lipton-reels-card.js")
 INGEST = Path("/opt/arial-whatsapp-poc/event_whatsapp_ingest.py")
 ARCHIVE = Path("/opt/arial-whatsapp-poc/event_group_archive.js")
+POC = Path("/opt/arial-whatsapp-poc/poc.js")
 API = Path("/var/www/sailingsa/api/api.py")
 
 
@@ -320,6 +321,28 @@ MAC_WA_RID = "2026-10-17-mac-tsl-wc-team-sailing"
 """,
         "ingest-mac-label",
     )
+    text = apply_one(
+        text,
+        """        lower({sql_str(subject)}) LIKE '%mac media%'
+        OR lower({sql_str(subject)}) LIKE '%tsl%media%'
+        OR lower({sql_str(subject)}) LIKE '%media%mac%'
+""",
+        """        lower({sql_str(subject)}) LIKE '%mac%media%'
+        OR lower({sql_str(subject)}) LIKE '%media%mac%'
+        OR lower({sql_str(subject)}) LIKE '%tsl%media%'
+""",
+        "ingest-mac-name-loose",
+    )
+    text = apply_one(
+        text,
+        """  AND g.group_jid IS NULL
+  AND CURRENT_DATE BETWEEN g.valid_from AND g.valid_until
+""",
+        """  AND (g.group_jid IS NULL OR btrim(COALESCE(g.group_jid, '')) = '')
+  AND CURRENT_DATE BETWEEN g.valid_from AND g.valid_until
+""",
+        "ingest-empty-jid",
+    )
     return text
 
 
@@ -333,6 +356,49 @@ def patch_archive(text: str) -> str:
 """,
         "archive-mac-name",
     )
+
+
+def patch_archive_loose(text: str) -> str:
+    return apply_one(
+        text,
+        """    || s.includes('mac media') || s.includes('team sailing') || s.includes('tsl');
+""",
+        """    || (s.includes('mac') && s.includes('media')) || s.includes('team sailing') || s.includes('tsl');
+""",
+        "archive-mac-name-loose",
+    )
+
+
+def patch_poc(text: str) -> str:
+    text = apply_one(
+        text,
+        """    if (req.method === 'POST' && url.pathname === '/fetch-group-history') {
+""",
+        """    if (req.method === 'POST' && url.pathname === '/refresh-groups') {
+      if (!sock || st.state !== 'UP') throw new Error('whatsapp not UP');
+      const groups = await listParticipatingGroups(sock);
+      event('event-groups', { n: (groups || []).length, names: (groups || []).map((g) => g.subject).slice(0, 20), via: 'http' });
+      return send(200, { ok: true, n: (groups || []).length, names: (groups || []).map((g) => g.subject) });
+    }
+    if (req.method === 'POST' && url.pathname === '/fetch-group-history') {
+""",
+        "poc-refresh-groups",
+    )
+    text = apply_one(
+        text,
+        """setInterval(writeHealth, 10000);
+""",
+        """setInterval(writeHealth, 10000);
+setInterval(() => {
+  if (!sock || st.state !== 'UP') return;
+  listParticipatingGroups(sock).then((groups) => {
+    event('event-groups', { n: (groups || []).length, names: (groups || []).map((g) => g.subject).slice(0, 20), via: 'poll' });
+  }).catch((e) => event('event-groups-failed', { error: String(e), via: 'poll' }));
+}, 120000);
+""",
+        "poc-group-poll",
+    )
+    return text
 
 
 def main() -> int:
@@ -352,6 +418,16 @@ def main() -> int:
         if new_archive != archive:
             ARCHIVE.write_text(new_archive, encoding="utf-8")
             print(f"Wrote {ARCHIVE}")
+        loose = patch_archive_loose(ARCHIVE.read_text(encoding="utf-8"))
+        if loose != ARCHIVE.read_text(encoding="utf-8"):
+            ARCHIVE.write_text(loose, encoding="utf-8")
+            print(f"Wrote {ARCHIVE} loose")
+    if POC.is_file():
+        poc = POC.read_text(encoding="utf-8")
+        new_poc = patch_poc(poc)
+        if new_poc != poc:
+            POC.write_text(new_poc, encoding="utf-8")
+            print(f"Wrote {POC}")
     if API.is_file():
         api = API.read_text(encoding="utf-8")
         new_api = api.replace(

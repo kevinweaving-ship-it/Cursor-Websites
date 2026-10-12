@@ -162,7 +162,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         )
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
-            '<script src="/js/mac-tsl-live-cards.js?v=20261012e" defer></script>' if is_mac_tsl else ""
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012f" defer></script>' if is_mac_tsl else ""
         )
         mac_tsl_page_attrs = ' data-mac-tsl="1" data-mac-cam="later"' if is_mac_tsl else ""
         live_board_script = _regatta_live_board_toggle_script() + _regatta_live_race_autoscore_script(str(regatta_id)) + _regatta_as_at_live_clock_script()
@@ -281,10 +281,11 @@ def main() -> int:
     text = apply_one(text, ENTRIES_ANCHOR, ENTRIES_INSERT, "entries_icon")
     text = apply_one(text, NOR_LINK_ANCHOR, NOR_LINK_INSERT, "nor_link", allow_multi=3)
     for old_pin, new_pin in (
-        ("mac-tsl-live-cards.js?v=20261012a", "mac-tsl-live-cards.js?v=20261012e"),
-        ("mac-tsl-live-cards.js?v=20261012b", "mac-tsl-live-cards.js?v=20261012e"),
-        ("mac-tsl-live-cards.js?v=20261012c", "mac-tsl-live-cards.js?v=20261012e"),
-        ("mac-tsl-live-cards.js?v=20261012d", "mac-tsl-live-cards.js?v=20261012e"),
+        ("mac-tsl-live-cards.js?v=20261012a", "mac-tsl-live-cards.js?v=20261012f"),
+        ("mac-tsl-live-cards.js?v=20261012b", "mac-tsl-live-cards.js?v=20261012f"),
+        ("mac-tsl-live-cards.js?v=20261012c", "mac-tsl-live-cards.js?v=20261012f"),
+        ("mac-tsl-live-cards.js?v=20261012d", "mac-tsl-live-cards.js?v=20261012f"),
+        ("mac-tsl-live-cards.js?v=20261012e", "mac-tsl-live-cards.js?v=20261012f"),
     ):
         if old_pin in text:
             text = text.replace(old_pin, new_pin)
