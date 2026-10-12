@@ -161,6 +161,26 @@ def patch_reels(text: str) -> str:
 """,
         "reels-mac-brand-click",
     )
+    text = apply_one(
+        text,
+        """        brand.style.display = '';
+        brand.style.width = innerH * art + border + 'px';
+        brand.style.height = outerH + 'px';
+      }
+""",
+        """        brand.style.display = '';
+        brand.style.width = innerH * art + border + 'px';
+        brand.style.height = outerH + 'px';
+        if (isMacTsl()) {
+          brand.style.boxSizing = 'border-box';
+          brand.style.padding = '2px';
+          brand.style.height = outerH + 'px';
+          brand.style.width = Math.round(outerH * 2014 / 780) + 'px';
+        }
+      }
+""",
+        "reels-mac-logo-tile-aspect",
+    )
     return text
 
 

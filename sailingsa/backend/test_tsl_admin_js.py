@@ -48,12 +48,14 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertNotIn("sizeMacBrand", cards)
         self.assertNotIn("mac-tsl-reels--logo-only", cards)
         self.assertNotIn("markLogoOnly", cards)
-        self.assertNotIn("2014/780", cards)
+        self.assertIn("fillMacLogoTile", cards)
+        self.assertIn("MAC_ART_W = 2014", cards)
+        self.assertIn("MAC_ART_H = 780", cards)
         self.assertIn("mm-lipton-reels--compact", cards)
         self.assertIn("mm-lipton-reels-rail-wrap", cards)
         self.assertIn("/img/mac-event-reels.jpg", cards)
         self.assertIn("background:#fff!important", cards)
-        self.assertIn("20261012m", cards)
+        self.assertIn("20261012n", cards)
         self.assertIn("#eventInfoStrip", cards)
         self.assertIn("hideEventInfoStrip", cards)
         self.assertIn("regatta-entry.js", cards)
@@ -66,7 +68,12 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("EIS_CALL_INSERT", patch)
         self.assertIn('_tsl_no_eis = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"', patch)
         self.assertIn("2026-09-13-zvyc-cape-classic", patch)
-        self.assertIn("mac-tsl-live-cards.js?v=20261012m", patch)
+        self.assertIn("mac-tsl-live-cards.js?v=20261012n", patch)
+        media = (ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_media.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("reels-mac-logo-tile-aspect", media)
+        self.assertIn("outerH * 2014 / 780", media)
 
 
 if __name__ == "__main__":
