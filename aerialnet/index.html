@@ -29,6 +29,7 @@
     }
     a { color: inherit; }
     .site-banner {
+      position: relative;
       background: #fff;
       display: flex;
       align-items: center;
@@ -37,6 +38,24 @@
       min-height: 76px;
       padding: calc(10px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) 10px calc(20px + env(safe-area-inset-left));
     }
+    .header-user {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+      max-width: 42%;
+      overflow: hidden;
+      color: var(--navy);
+      font-weight: 700;
+      font-size: 1.2rem;
+      line-height: 1.1;
+      text-align: center;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      pointer-events: none;
+    }
+    .header-user[hidden] { display: none; }
     .site-banner img {
       display: block;
       width: min(280px, 58vw);
@@ -69,15 +88,18 @@
       z-index: 80;
       background: rgba(4, 22, 48, 0.62);
       display: flex;
-      align-items: stretch;
+      align-items: center;
       justify-content: center;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      padding: 16px;
     }
     .keypad-modal-panel {
       display: flex;
       flex-direction: column;
-      width: min(920px, 100%);
-      background: #edf1f6;
+      width: min(480px, 100%);
+      height: min(760px, 100%);
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
       box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
     }
     .keypad-modal-bar {
@@ -115,9 +137,9 @@
       flex: 1 1 auto;
       width: 100%;
       min-height: 0;
-      height: calc(100dvh - 48px);
+      height: 100%;
       border: 0;
-      background: #edf1f6;
+      background: #fff;
     }
     .hero {
       position: relative;
@@ -182,6 +204,7 @@
       .lead { font-size: 0.9rem; margin-bottom: 8px; }
       .enquire { min-height: 40px; padding: 8px 14px; }
       .user-login { min-height: 36px; padding: 6px 12px; font-size: 0.9rem; }
+      .header-user { font-size: 1rem; max-width: 36%; }
       .keypad-modal-panel { width: 100%; }
     }
     @media (max-height: 520px) {
@@ -203,12 +226,13 @@
 <body>
   <header class="site-banner">
     <img src="artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks">
+    <p class="header-user" id="header-user" hidden></p>
     <a class="user-login" id="user-login" href="/hansekop/">User Login</a>
   </header>
   <div class="keypad-modal" id="keypad-modal" hidden>
     <div class="keypad-modal-panel" role="dialog" aria-modal="true" aria-labelledby="keypad-modal-title">
       <div class="keypad-modal-bar">
-        <h2 id="keypad-modal-title">Hansekop Keypad</h2>
+        <h2 id="keypad-modal-title">User Login</h2>
         <button type="button" class="keypad-modal-close" id="keypad-modal-close" aria-label="Close">&times;</button>
       </div>
       <iframe id="keypad-frame" title="Hansekop Keypad" src="about:blank"></iframe>
@@ -242,17 +266,56 @@
       }
       window.aerialHero = { play: playHero, pause: pauseHero };
       var login = document.getElementById("user-login");
+      var headerUser = document.getElementById("header-user");
       var modal = document.getElementById("keypad-modal");
       var frame = document.getElementById("keypad-frame");
       var closeBtn = document.getElementById("keypad-modal-close");
+      function readSession() {
+        var raw = null;
+        try { raw = localStorage.getItem("arialUser"); } catch (e) {}
+        if (!raw) {
+          try { raw = sessionStorage.getItem("arialUser"); } catch (e2) {}
+        }
+        if (!raw) return null;
+        try {
+          var user = JSON.parse(raw);
+          if (!user || !(user.name || user.from)) return null;
+          return user;
+        } catch (e3) {
+          return null;
+        }
+      }
+      function applySession(user) {
+        var loggedIn = !!(user && (user.name || user.from));
+        if (headerUser) {
+          headerUser.textContent = loggedIn ? (user.name || user.from) : "";
+          headerUser.hidden = !loggedIn;
+        }
+        if (login) {
+          login.textContent = loggedIn ? "LogOut" : "User Login";
+          login.setAttribute("aria-label", loggedIn ? "LogOut" : "User Login");
+        }
+        document.body.classList.toggle("user-logged-in", loggedIn);
+      }
+      function headerLogout() {
+        try { localStorage.removeItem("arialUser"); } catch (e) {}
+        try { sessionStorage.removeItem("arialUser"); } catch (e2) {}
+        applySession(null);
+        try {
+          if (frame && frame.contentWindow) {
+            frame.contentWindow.postMessage({ type: "arial-logout" }, window.location.origin);
+          }
+        } catch (e3) {}
+        closeKeypad();
+      }
       function openKeypad(ev) {
         if (ev) ev.preventDefault();
         if (!modal || !frame) {
-          window.location.href = "/hansekop/";
+          window.location.href = "/hansekop/?login=1";
           return;
         }
         if (!frame.getAttribute("src") || frame.getAttribute("src") === "about:blank") {
-          frame.src = "/hansekop/";
+          frame.src = "/hansekop/?login=1";
         }
         modal.hidden = false;
         document.body.classList.add("keypad-open");
@@ -266,7 +329,25 @@
         if (login) login.focus();
         if (!reduce && !save) playHero();
       }
-      if (login) login.addEventListener("click", openKeypad);
+      applySession(readSession());
+      window.addEventListener("storage", function (ev) {
+        if (ev.key === "arialUser") applySession(readSession());
+      });
+      window.addEventListener("message", function (ev) {
+        if (ev.origin !== window.location.origin) return;
+        var data = ev.data || {};
+        if (data.type !== "arial-user") return;
+        if (data.user && (data.user.name || data.user.from)) applySession(data.user);
+        else applySession(readSession());
+      });
+      if (login) login.addEventListener("click", function (ev) {
+        if (document.body.classList.contains("user-logged-in")) {
+          if (ev) ev.preventDefault();
+          headerLogout();
+          return;
+        }
+        openKeypad(ev);
+      });
       if (closeBtn) closeBtn.addEventListener("click", closeKeypad);
       if (modal) {
         modal.addEventListener("click", function (ev) {

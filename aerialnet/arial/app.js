@@ -2322,17 +2322,39 @@
     var pinOk = null;
     var pin = "";
     var lcdHold = null;
+    var LOGIN_ONLY = /(?:\?|&)login=1(?:&|$)/.test(location.search);
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=43", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102" },
-        "9876": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "9876" },
-        "2640": { name: "Comnet", from: "Comnet", logo: "/arial/users/comnet.png?v=1", code: "2640" },
-        "6114": { name: "Kevin", from: "Kevin", logo: null, code: "6114" },
-        "2525": { name: "Bugsy", from: "Bugsy", logo: null, code: "2525" },
-        "1111": { name: "Tim", from: "Tim", logo: null, code: "1111" },
-        "0843": { name: "Annette", from: "Annette", logo: null, code: "0843" },
-        "0765": { name: "Jenny", from: "Jenny", logo: "/arial/users/jenny.png?v=2", code: "0765" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=43", code: "7302", url: "/users/pingoa/" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102", url: "/users/amoroc/" },
+        "9876": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "9876", url: "/users/onguard/" },
+        "2640": { name: "Comnet", from: "Comnet", logo: "/arial/users/comnet.png?v=1", code: "2640", url: "/users/comnet/" },
+        "6114": { name: "Kevin", from: "Kevin", logo: null, code: "6114", url: "/users/kevin/" },
+        "2525": { name: "Bugsy", from: "Bugsy", logo: null, code: "2525", url: "/users/bugsy/" },
+        "1111": { name: "Tim", from: "Tim", logo: null, code: "1111", url: "/users/tim/" },
+        "0843": { name: "Annette", from: "Annette", logo: null, code: "0843", url: "/users/annette/" },
+        "0765": { name: "Jenny", from: "Jenny", logo: "/arial/users/jenny.png?v=2", code: "0765", url: "/users/jenny/" }
     };
+    if (LOGIN_ONLY) {
+        document.documentElement.classList.add("login-only");
+        var loginStyle = document.createElement("style");
+        loginStyle.textContent = ".login-only .arial-below,.login-only .lights-pop{display:none!important}";
+        document.head.appendChild(loginStyle);
+    }
+    function userPage(user) {
+        return (user && user.url) || "/";
+    }
+    function leaveForUser(user) {
+        if (!LOGIN_ONLY || !user) return;
+        var url = userPage(user);
+        setTimeout(function () {
+            try {
+                if (window.top && window.top !== window) window.top.location.href = url;
+                else location.href = url;
+            } catch (e) {
+                location.href = url;
+            }
+        }, 400);
+    }
     // Per-site keypad users (mirrors ARIAL_KEYPAD_USERS on the API): a PIN not assigned to this alarm is rejected at login.
     var SITE_USERS = Array.isArray(CFG.keypadUsers) && CFG.keypadUsers.length ? CFG.keypadUsers.map(function (n) { return String(n).toLowerCase(); }) : null;
     function userAllowedHere(u) {
@@ -2381,6 +2403,17 @@
         }
     }
 
+    function tellHeader() {
+        try {
+            if (!window.parent || window.parent === window) return;
+            var user = window.arialUser;
+            window.parent.postMessage({
+                type: "arial-user",
+                user: user ? { name: user.name || "", from: user.from || "" } : null
+            }, window.location.origin);
+        } catch (e) {}
+    }
+
     function logOut() {
         window.arialUser = null;
         pin = "";
@@ -2393,6 +2426,7 @@
         showUserLogo(null);
         setPadLoggedIn(false);
         setWelcome("");
+        tellHeader();
         loadStatus();
     }
 
@@ -2403,6 +2437,11 @@
         try { sessionStorage.removeItem(siteKey("arialUser")); } catch (e) {}
         showUserLogo(user);
         setPadLoggedIn(!!(user && user.code));
+        tellHeader();
+        if (LOGIN_ONLY) {
+            leaveForUser(user);
+            return;
+        }
         if (window.arialDevice) applyLeds(window.arialDevice);
     }
 
@@ -2848,7 +2887,7 @@
     function submitPin() {
         var user = CODES[pin];
         pin = "";
-        if (user && !userAllowedHere(user)) user = null;   // valid PIN elsewhere, but not assigned to this alarm
+        if (user && !LOGIN_ONLY && !userAllowedHere(user)) user = null;   // valid PIN elsewhere, but not assigned to this alarm
         if (user) {
             loadPinOkBuffer();
             setTimeout(pinAccepted, 1000);
@@ -3714,4 +3753,9 @@
         if (!(armPending || localExitLeft() > 0 || panelIsExiting(window.arialDevice))) return;
         showArming(localExitLeft());
     }, 250);
+    window.addEventListener("message", function (ev) {
+        if (ev.origin !== window.location.origin) return;
+        var data = ev.data || {};
+        if (data.type === "arial-logout") logOut();
+    });
 })();
