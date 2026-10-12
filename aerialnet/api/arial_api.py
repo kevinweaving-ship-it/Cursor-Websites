@@ -10,6 +10,7 @@ import fcntl
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import secrets
@@ -24,6 +25,8 @@ from typing import Any, Optional, AsyncIterator
 import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+
+log = logging.getLogger("arial")
 
 OLARM_BASE = "https://api.olarm.com"
 # Olarm's deviceApiAccessOnly filter 404s for shared devices whose owner has not enabled API access (Klein River House);
@@ -896,7 +899,9 @@ def _probe_remember(out: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-HOME_API_URL = (os.getenv("ARIAL_HOME_API_URL") or "http://127.0.0.1:8008").rstrip("/")
+# The committed Smart Life worker serves /home on the control port (8007).
+# Port 8008 was a separate reader that was never stored in git.
+HOME_API_URL = (os.getenv("ARIAL_HOME_API_URL") or (SHARING_CTRL_URL if TUYA_TRANSPORT == "sharing" else "http://127.0.0.1:8008")).rstrip("/")
 
 
 def _home_api_get(path: str, timeout: float = 8.0) -> dict[str, Any] | None:

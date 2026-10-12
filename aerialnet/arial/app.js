@@ -3158,6 +3158,17 @@
         areaPending[num] = p;
     }
 
+    function armedAreaNums() {
+        var areas = window.arialDevice && Array.isArray(window.arialDevice.arialAreas) ? window.arialDevice.arialAreas : [];
+        var nums = [];
+        var i;
+        for (i = 0; i < areas.length && i < AREA_KEYS.length; i += 1) {
+            var st = effectiveAreaState(i, areas);
+            if (st === "arm" || st === "stay" || st === "sleep" || st === "countdown" || areaPending[i + 1]) nums.push(i + 1);
+        }
+        return nums;
+    }
+
     function toggleArea(num) {
         if (!requireLogin()) return;
         var areas = window.arialDevice && Array.isArray(window.arialDevice.arialAreas) ? window.arialDevice.arialAreas : [];
@@ -3200,9 +3211,14 @@
             return;
         }
         if (multiArea && key === "TOGGLE") {
-            // Multi-partition panel: the lock has no function for now; each area key is its own lock.
-            beep();
+            // The padlock is DISARM while any partition is armed, and ARM for the house when none are.
+            if (!isLoggedIn()) { rejectNeedLogin(); saveClick(key); return; }
+            var armedNums = armedAreaNums();
+            if (!armedNums.length && panelLooksArmed(window.arialDevice)) armedNums = [1];
+            if (armedNums.length) armedNums.forEach(function (n) { toggleArea(n); });
+            else toggleArea(1);
             saveClick(key);
+            if (typeof window.onArialKey === "function") window.onArialKey(key);
             return;
         }
         var isArmed = panelLooksArmed(window.arialDevice);

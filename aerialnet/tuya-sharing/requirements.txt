@@ -1,0 +1,5 @@
+tuya-device-sharing-sdk==0.2.15
+cryptography==46.0.3
+qrcode==8.2
+pillow==11.3.0
+requests==2.32.5

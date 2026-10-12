@@ -1,0 +1,20 @@
+[Unit]
+Description=Aerialnet Smart Life sharing worker (meter + home)
+After=network.target aerialnet-hansekop-api.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/tuya-sharing
+Environment=TUYA_SHARING_STATE=/opt/tuya-sharing/state
+Environment=TUYA_SHARING_HOME_NAMES=Aerial Networks HSK,Voelklip - Home
+Environment=TUYA_SHARING_CTRL_HOST=127.0.0.1
+Environment=TUYA_SHARING_CTRL_PORT=8007
+Environment=ARIAL_INGEST_URL=http://127.0.0.1:8003/api/arial/meter/ingest
+EnvironmentFile=-/etc/aerialnet-tuya.env
+ExecStart=/opt/tuya-sharing/venv/bin/python /opt/tuya-sharing/worker.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
