@@ -102,7 +102,7 @@ Known teams so far (seed as entry rows, rank NULL, no races):
 - **Status line:** first scored race → `Results are Provisional as at DD Month YYYY at HH:MM` from the sheet clock. Final when the OA says so.
 - **Public:** never edits scores. Empty race columns stay hidden until R1 exists.
 
-Super-admin drop and WhatsApp **MAC Media** both write this slug’s `/mm-clips` (same as Dart / Midmar). Bind: `event_whatsapp_groups.group_name='MAC Media'`. Cam card waits for the MAC URL.
+Super-admin drop and WhatsApp **MAC Media** both write this slug’s `/mm-clips` (same as Dart / Midmar). Bind: `event_whatsapp_groups.group_name='MAC Media'`. Box number **076 263 9937** (GoWifi). Cam card waits for the MAC URL.
 
 Live apply (full-box SSH): `docs` + `sailingsa/deploy/SSH_LIVE.md`.
 

@@ -15,6 +15,7 @@ from pathlib import Path
 SLUG = "2026-10-17-mac-tsl-wc-team-sailing"
 REELS = Path("/var/www/sailingsa/js/mm-lipton-reels-card.js")
 INGEST = Path("/opt/arial-whatsapp-poc/event_whatsapp_ingest.py")
+ARCHIVE = Path("/opt/arial-whatsapp-poc/event_group_archive.js")
 API = Path("/var/www/sailingsa/api/api.py")
 
 
@@ -164,6 +165,19 @@ def patch_ingest(text: str) -> str:
     )
     text = apply_one(
         text,
+        """      g.regatta_id <> '2026-10-10-hmyc-dam-bottle-sprints'
+      AND (
+        lower({sql_str(subject)}) LIKE '%cape classic%'
+""",
+        """      g.regatta_id <> '2026-10-10-hmyc-dam-bottle-sprints'
+      AND g.regatta_id <> '2026-10-17-mac-tsl-wc-team-sailing'
+      AND (
+        lower({sql_str(subject)}) LIKE '%cape classic%'
+""",
+        "ingest-no-steal",
+    )
+    text = apply_one(
+        text,
         """    '2026-09-13-zvyc-cape-classic',
     '2026-09-19-hmyc-midmar-cup',
     '2026-10-10-hmyc-dam-bottle-sprints'
@@ -282,6 +296,18 @@ MAC_WA_RID = "2026-10-17-mac-tsl-wc-team-sailing"
     return text
 
 
+def patch_archive(text: str) -> str:
+    return apply_one(
+        text,
+        """    || s.includes('event media') || s.includes('dam bottle') || s.includes('sprints');
+""",
+        """    || s.includes('event media') || s.includes('dam bottle') || s.includes('sprints')
+    || s.includes('mac media') || s.includes('team sailing') || s.includes('tsl');
+""",
+        "archive-mac-name",
+    )
+
+
 def main() -> int:
     reels = REELS.read_text(encoding="utf-8")
     new_reels = patch_reels(reels)
@@ -293,6 +319,12 @@ def main() -> int:
     if new_ingest != ingest:
         INGEST.write_text(new_ingest, encoding="utf-8")
         print(f"Wrote {INGEST}")
+    if ARCHIVE.is_file():
+        archive = ARCHIVE.read_text(encoding="utf-8")
+        new_archive = patch_archive(archive)
+        if new_archive != archive:
+            ARCHIVE.write_text(new_archive, encoding="utf-8")
+            print(f"Wrote {ARCHIVE}")
     if API.is_file():
         api = API.read_text(encoding="utf-8")
         new_api = api.replace(
