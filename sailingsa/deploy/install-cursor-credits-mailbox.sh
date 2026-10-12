@@ -31,8 +31,12 @@ if command -v postfix >/dev/null 2>&1 || [[ -d /etc/postfix ]]; then
   fi
   ALIASES=/etc/aliases
   touch "$ALIASES"
-  if ! grep -qE "^${LOCAL_USER}:" "$ALIASES"; then
-    echo "${LOCAL_USER}: ${CC_ADDR}" >> "$ALIASES"
+  PIPE="/usr/local/lib/cursor-credits/dispute-inbound.sh"
+  ALIAS_LINE="${LOCAL_USER}: ${CC_ADDR}, \"|${PIPE}\""
+  if grep -qE "^${LOCAL_USER}:" "$ALIASES"; then
+    sed -i.bak -E "s|^${LOCAL_USER}:.*|${ALIAS_LINE}|" "$ALIASES"
+  else
+    echo "$ALIAS_LINE" >> "$ALIASES"
   fi
   if command -v newaliases >/dev/null 2>&1; then
     newaliases || true
@@ -60,10 +64,20 @@ fi
 install -d -m 0755 /var/lib/cursor-credits /usr/local/lib/cursor-credits
 if [[ -n "$SCRIPT_SRC" && -f "$SCRIPT_SRC" ]]; then
   install -m 0755 "$SCRIPT_SRC" /usr/local/lib/cursor-credits/cursor_credits_self_check.py
-  SNAP_DIR="$(cd "$(dirname "$SCRIPT_SRC")/.." && pwd)/docs/audits"
-  if [[ -d "$SNAP_DIR" ]]; then
-    mkdir -p /usr/local/lib/cursor-credits/docs/audits
-    cp -f "$SNAP_DIR"/cursor_credits_audit_*.json /usr/local/lib/cursor-credits/docs/audits/ 2>/dev/null || true
+  for SNAP_DIR in \
+      "$(cd "$(dirname "$SCRIPT_SRC")/../.." && pwd)/docs/audits" \
+      "$(cd "$(dirname "$SCRIPT_SRC")/.." && pwd)/docs/audits" \
+      /var/www/sailingsa/docs/audits
+  do
+    if [[ -d "$SNAP_DIR" ]]; then
+      mkdir -p /usr/local/lib/cursor-credits/docs/audits
+      cp -f "$SNAP_DIR"/cursor_credits_audit_*.json /usr/local/lib/cursor-credits/docs/audits/ 2>/dev/null || true
+      break
+    fi
+  done
+  if [[ -f "$(dirname "$0")/cursor-credits-dispute-inbound.sh" ]]; then
+    install -m 0755 "$(dirname "$0")/cursor-credits-dispute-inbound.sh" \
+      /usr/local/lib/cursor-credits/dispute-inbound.sh
   fi
 fi
 

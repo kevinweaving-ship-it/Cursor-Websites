@@ -5,10 +5,18 @@
   "account": {
     "name": "Kevin Weaving",
     "email": "kevinweaving@icloud.com",
+    "ccEmail": "kevinweaving@icloud.com",
+    "caseMailbox": "cursor@sailingsa.co.za",
     "cursorUserId": 291509789,
+    "owningUserId": 291509789,
+    "repo": "github.com/kevinweaving-ship-it/Cursor-Websites",
     "dashboard": "https://cursor.com/dashboard",
     "agents": "https://cursor.com/agents",
-    "environment": "https://cursor.com/dashboard/cloud-agents/environments/e/d2dd94a0-9f0b-11f1-a7d1-d6b4613131ce"
+    "billing": "https://cursor.com/dashboard/billing",
+    "usage": "https://cursor.com/settings/usage",
+    "environment": "https://cursor.com/dashboard/cloud-agents/environments/e/d2dd94a0-9f0b-11f1-a7d1-d6b4613131ce",
+    "environmentPublicId": "d2dd94a0-9f0b-11f1-a7d1-d6b4613131ce",
+    "environmentVersionId": "d2f0a7fb-9f0b-11f1-a7d1-d6b4613131ce"
   },
   "mail": {
     "from": "cursor@sailingsa.co.za",
@@ -23,6 +31,8 @@
   "workerAtAudit": {
     "displayName": "Kevin - Mac Mini",
     "workerId": "43e56b9a-b958-55dd-a151-df216da22615",
+    "machineDisplayName": "Kevin - Mac Mini",
+    "machineId": "317bc7fbbf808a6cf3ded36d6ceb835a2d434f23562987f506c32dedbb987350",
     "connected": true,
     "isInUse": false,
     "eligibleForSubagent": true,

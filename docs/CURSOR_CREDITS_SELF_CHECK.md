@@ -69,6 +69,28 @@ python3 sailingsa/scripts/cursor_credits_self_check.py resolve
 
 Until `resolve`, daily cron keeps mailing. That is the “as many emails as required” loop — not a one-shot burst.
 
+Every mail includes the full account identity block (login, user id, environment ids, worker/machine ids, repo, dashboard URLs) so Cursor cannot confuse this with another customer.
+
+## Auto-dispute every support reply
+
+Inbound to `cursor@sailingsa.co.za` is piped to:
+
+```bash
+python3 sailingsa/scripts/cursor_credits_self_check.py dispute --inbound FILE --send
+```
+
+If From is Cursor support (`hi@cursor.com` / `@cursor.com` / `@anysphere.com`):
+
+- **Credit confirmed** (and no refusal language) → mark resolved, stop mailing.
+- **Anything else** (policy paste, “on-demand not refundable”, “user launched it”, “not eligible”, “cancel instead”) → **auto-reject** in a reply-all with Kevin CC’d. Point-by-point proof from Cursor’s own dashboard. Same account identity block. Same audit attachment.
+
+Manual test:
+
+```bash
+python3 sailingsa/scripts/cursor_credits_self_check.py dispute \
+  --inbound docs/audits/cursor_support_refusal_sample.eml --dry-run
+```
+
 ## Install mailbox + cron (either box)
 
 **Live** (from the Mac, using [SSH_LIVE](../sailingsa/deploy/SSH_LIVE.md)):
