@@ -59,15 +59,7 @@ if [[ -d /etc/postfix ]] || command -v postfix >/dev/null 2>&1; then
   echo "mailbox ready: $FROM_ADDR → $CC_ADDR + auto-dispute pipe"
 fi
 
-cat > /etc/cron.d/cursor-credits-self-check <<'CRON'
-# Auto mail hi@cursor.com from cursor@sailingsa.co.za, CC Kevin, until resolve.
-MAILTO=kevinweaving@icloud.com
-20 6 * * * root SMTP_HOST=localhost CURSOR_MAIL_FROM=cursor@sailingsa.co.za CURSOR_MAIL_CC=kevinweaving@icloud.com /usr/bin/python3 /usr/local/lib/cursor-credits/cursor_credits_self_check.py email --send >> /var/log/cursor-credits-mail.log 2>&1
-CRON
-chmod 644 /etc/cron.d/cursor-credits-self-check
-echo "cron daily 06:20 enabled"
+rm -f /etc/cron.d/cursor-credits-self-check
+echo "no daily outbound cron — wait; inbound pipe replies only on rejection"
 
-echo "FIRST SEND now"
-SMTP_HOST=localhost CURSOR_MAIL_FROM="$FROM_ADDR" CURSOR_MAIL_CC="$CC_ADDR" \
-  /usr/bin/python3 "$LIB/cursor_credits_self_check.py" email --send
-echo "install+send finished"
+echo "install finished (no extra send)"

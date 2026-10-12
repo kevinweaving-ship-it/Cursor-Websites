@@ -92,16 +92,16 @@ REFUSAL_RULES = [
     (
         "on_demand_not_refundable",
         r"on-demand|already consumed|fast.request|usage you have already|not refundable",
-        "REJECTED: 'already consumed / on-demand not refundable' does not apply. "
+        "Reply: 'already consumed / on-demand not refundable' does not apply. "
         "Consumed means useful completed work. Your own dashboard shows 66 ERROR "
         "agents dead in under 2 seconds with empty event logs — no work was done. "
         "199 internal spawns were created by Cursor, not by Kevin. Billing for "
-        "failed platform jobs is a Cursor fuckup, not consumed usage.",
+        "failed platform jobs is platform waste, not consumed usage.",
     ),
     (
         "user_launched",
         r"you (launched|started|requested|initiated)|customer (initiated|requested)|user error|as requested",
-        "REJECTED: 'user launched / user error' is false on your own records. "
+        "Reply: 'user launched / user error' is false on your own records. "
         "userFault=0. 199/241 agents are source=internal (Cursor-spawned). "
         "0/241 used the connected Mac Mini worker. Kevin's standing rule is "
         "Mac only / no Cloud-over-Mac. You routed to public Cloud anyway.",
@@ -109,7 +109,7 @@ REFUSAL_RULES = [
     (
         "subscription_14_day",
         r"14 days|no usage during|most recent subscription|not eligible for a refund",
-        "REJECTED: the 14-day unused-subscription rule is for cancelling an unused "
+        "Reply: the 14-day unused-subscription rule is for cancelling an unused "
         "plan. This is a billing correction for platform-fault Cloud/on-demand "
         "waste on kevinweaving@icloud.com (user 291509789). Your refunds page "
         "also says to contact support when a charge looks incorrect. It does.",
@@ -117,7 +117,7 @@ REFUSAL_RULES = [
     (
         "expected_behavior",
         r"expected behaviour|expected behavior|working as (intended|designed)|by design",
-        "REJECTED: 'working as designed' cannot include (1) public Cloud while "
+        "Reply: 'working as designed' cannot include (1) public Cloud while "
         "Kevin - Mac Mini is connected and idle, (2) 69 internal spawn failures, "
         "(3) 66 deaths in <2s with no events, (4) claude-4.5-opus-high-thinking "
         "on mobile against this account's credit-burn rule.",
@@ -125,21 +125,21 @@ REFUSAL_RULES = [
     (
         "cancel_instead",
         r"cancel(ling)? (your )?subscription|stop future|you can cancel",
-        "REJECTED: cancelling a future renewal does not restore credits already "
+        "Reply: cancelling a future renewal does not restore credits already "
         "burned by Cursor's routing and failed spawns. We want the wasted usage "
         "credited back on this account, not a cancellation lecture.",
     ),
     (
         "policy_no_exceptions",
         r"unable to grant|outside of (stated )?policy|cannot (issue|grant) (a )?refund",
-        "REJECTED: policy language does not override your own telemetry. This "
-        "case is Cursor reporting Cursor's own fuckups. If you refuse, you are "
+        "Reply: policy language does not override your own telemetry. This "
+        "case is Cursor's own dashboard export. If you refuse, you are "
         "disputing your dashboard for user 291509789 / kevinweaving@icloud.com.",
     ),
     (
         "mobile_or_web_launch",
         r"you (used|chose|launched).{0,40}mobile|from the (ios|android|mobile) app|you chose cloud",
-        "REJECTED: a mobile prompt still has to honour the connected private "
+        "Reply: a mobile prompt still has to honour the connected private "
         "worker. At audit, worker 43e56b9a-b958-55dd-a151-df216da22615 "
         "(Kevin - Mac Mini) was connected, idle, eligible. You still placed "
         "241 agents on public Cloud. That is your routing, not Kevin's choice.",
@@ -147,7 +147,7 @@ REFUSAL_RULES = [
     (
         "no_invoice",
         r"invoice|receipt|charge amount|last four",
-        "REJECTED as a stall. Account identity is complete below. Look up "
+        "Reply: account identity is below — this is not a stall. Account identity is complete below. Look up "
         "kevinweaving@icloud.com / user 291509789 / environment "
         "d2dd94a0-9f0b-11f1-a7d1-d6b4613131ce and the attached agent list. "
         "You hold the invoices. We hold your dashboard export.",
@@ -280,7 +280,7 @@ def detailed_evidence(snap: dict[str, Any]) -> str:
     worker = snap.get("workerAtAudit") or {}
     g = agent_groups(snap)
     parts = [
-        "INDISPUTABLE EVIDENCE (Cursor's own dashboard — your fuckup, not Kevin's)",
+        "Evidence from Cursor Cloud Agents for this login (not an estimate)",
         f"Snapshot: {snap.get('auditedAt')}  digest={snapshot_digest(snap)}",
         f"Period: {period.get('from')} → {period.get('to')}",
         f"Agents audited: {s.get('agentsAudited')}",
@@ -327,11 +327,9 @@ def detailed_evidence(snap: dict[str, Any]) -> str:
             "Verdict:",
             snap.get("verdict") or "",
             "",
-            "WHY THIS CANNOT BE DISPUTED",
-            "Every row above is a record Cursor stored for this login. We did not",
-            "estimate it. If you reject the refund, you are rejecting your own",
-            "agent list, worker roster, source field, model field, and timestamps.",
-            "That is Cursor reporting Cursor's own fuckups. User fault is 0.",
+            "These rows are records Cursor stored for this login, not an estimate.",
+            "Rejecting them means rejecting your own agent list, worker roster,",
+            "source field, model field, and timestamps. Account-holder fault: 0.",
         ]
     )
     return "\n".join(parts)
@@ -356,26 +354,25 @@ Account: kevinweaving@icloud.com / Cursor user 291509789
   LEGITIMATE Cloud use (should bill):   {m.get("legitimateCloudPct")}%
   USER-ASKED work that should have
     used Mac / included credits:        {m.get("userAskedPct")}%   ({m.get("userAskedCount")} agents)
-  CURSOR FUCKUP (unsolicited internal): {m.get("internalFuckupPct")}%   ({m.get("internalCount")} agents)
-  Cloud-over-Mac (mobile, Mac idle):    {m.get("cloudOverMacPct")}%   ({m.get("cloudOverMacCount")} agents)
+  Platform-spawned internal agents:     {m.get("internalFuckupPct")}%   ({m.get("internalCount")} agents)
+  Mobile public Cloud (Mac idle):       {m.get("cloudOverMacPct")}%   ({m.get("cloudOverMacCount")} agents)
   Desktop still public Cloud:           {m.get("desktopCloudPct")}%   ({m.get("desktopCloudCount")} agents)
 
-  % REAL / should have been used as Cloud:     {m.get("legitimateCloudPct")}%
-  % FUCKUP / refund or credit NOW:             {m.get("creditPct")}%
+  Share that is legitimate Cloud use:          {m.get("legitimateCloudPct")}%
+  Share we are asking you to credit:           {m.get("creditPct")}%
 
 Hours proxy this month (created→updated wall): {m.get("hours")} h
   internal leftovers: {m.get("internalHoursPct")}%
   mobile Cloud-over-Mac: {m.get("cloudOverMacHoursPct")}%
   desktop-on-Cloud: {m.get("desktopCloudHoursPct")}%
 
-WHY 100% OF THIS MONTH'S CLOUD BILL IS CREDITABLE
+Why we are asking for a credit on this month's Cloud usage
 Kevin asked for some of the tasks ({m.get("userAskedPct")}% of agents). Those should have
 run on the connected Mac Mini worker (Kevin - Mac Mini /
-43e56b9a-b958-55dd-a151-df216da22615) which was idle. That is not
-legitimate Cloud consumption. The other {m.get("internalFuckupPct")}% were Cursor
-internal spawns Kevin did not launch. Failed/wrong-machine usage is
-your fuckup, not his. Credit {m.get("creditPct")}% of Cloud / on-demand / fast
-usage from {m.get("from")} to {m.get("to")} on this account.
+43e56b9a-b958-55dd-a151-df216da22615), which was idle. That is not
+ordinary Cloud consumption. The other {m.get("internalFuckupPct")}% were internal
+agents Kevin did not launch. Please credit {m.get("creditPct")}% of Cloud /
+on-demand / fast usage from {m.get("from")} to {m.get("to")} on this account.
 
 All-time context (23 Aug 2026 → snapshot): {m.get("allTimeAgents")} agents, 0 on Mac,
 {m.get("allTimeFailedSpawnPct")}% instant ERROR, {m.get("allTimeInternalPct")}% internal.
@@ -383,60 +380,37 @@ Same rule: 0% legitimate Cloud while the Mac worker is connected.
 """
 
 
-def build_email(snap: dict[str, Any], sequence: int) -> EmailMessage:
-    body = f"""To Cursor Support / Billing ({MAIL_TO})
+def build_email(snap: dict[str, Any], sequence: int, ticket: str) -> EmailMessage:
+    body = f"""Hi Sam / billing team,
 
-WHO THIS IS / WHAT I DO
-I am the Cursor Credits Self-Check Monitor for the account below. I run on
-the live sailingsa.co.za box (box mail, no Mac). I read
-Cursor's own Cloud Agents dashboard for this login and I file a billing
-complaint whenever Cursor burns credits that are not Kevin's fault.
+This is not a new complaint. Please keep it on existing ticket {ticket}
+(T-H16757 was correctly closed as a duplicate of that thread).
 
-I send from {MAIL_FROM}. Kevin is CC'd on every mail ({ACCOUNT['cc_email']}).
-Every support reply to this mailbox is auto-disputed. A refusal or
-'explanation' is not accepted. Only a written credit on this exact account
-closes the case.
+I am adding one new exhibit to {ticket}: the October usage split after this
+month's subscription / credits reset. Same account, same request.
 
 {account_identity_block()}
 
 {monthly_split_block(snap)}
 
-WHY YOU ARE GETTING THIS MAIL
-You have not passed a credit after repeated requests about your own fuckups.
-This is outbound sequence #{sequence}. I will send as many emails as
-required — hundreds or thousands if that is what it takes — until:
-
-  1. Wasted Cloud / on-demand / premium-model usage on THIS account is credited.
-  2. You stop routing SailingSA work to public Cloud while Kevin's Mac Mini
-     worker is connected and idle, stop spawning failed internal agents, and
-     stop selecting Opus / Max / high-thinking against this account's rule.
-
 {detailed_evidence(snap)}
 
-WHAT WE WANT
-Look up THIS account only (kevinweaving@icloud.com / user 291509789).
-Review usage {((snap.get("summary") or {}).get("period") or {}).get("from")} → {((snap.get("summary") or {}).get("period") or {}).get("to")}.
-Pass the credit. Confirm in writing to {MAIL_FROM} and {MAIL_CC}.
+Please apply any credit on {ticket} only, and reply on that thread.
 
-If you reply with a refusal, policy quote, or 'user error' story, the
-inbound pipe will reject it and send the proof again. Do not confuse this
-account with anyone else — the identity block is complete.
-
-— Cursor Credits Self-Check Monitor
-  From: {MAIL_FROM}
-  Account holder (CC): {ACCOUNT['name']} <{MAIL_CC}>
-  Cursor user id: {ACCOUNT['cursor_user_id']}
+Thank you,
+Kevin Weaving
+{ACCOUNT['login_email']} / Cursor user {ACCOUNT['cursor_user_id']}
+via {MAIL_FROM}
 """
     msg = EmailMessage()
-    msg["From"] = f"Cursor Credits Monitor <{MAIL_FROM}>"
+    msg["From"] = f"Kevin Weaving <{MAIL_FROM}>"
     msg["To"] = MAIL_TO
-    msg["Cc"] = MAIL_CC
-    msg["Reply-To"] = f"{MAIL_FROM}, {MAIL_CC}"
+    msg["Reply-To"] = MAIL_FROM
     msg["Message-ID"] = make_msgid(domain="sailingsa.co.za")
+    msg["X-Cursor-Ticket"] = ticket
     msg["Subject"] = (
-        f"CREDIT {((snap.get('monthlyReset') or {}).get('creditPct'))}% of Oct Cloud "
-        f"since reset — {ACCOUNT['login_email']} user {ACCOUNT['cursor_user_id']} "
-        f"— sequence {sequence}"
+        f"Re: {ticket} — additional October usage split "
+        f"(same Cloud Agent credit request, not a new ticket)"
     )
     msg.set_content(body)
     msg.add_attachment(
@@ -480,8 +454,13 @@ def cmd_email(snap: dict[str, Any], send: bool, force: bool) -> int:
     if state.get("resolved") and not force:
         print("state=resolved — not mailing. Pass --force or clear resolved after you confirm credits.")
         return 0
+    ticket = str(state.get("canonicalTicket") or os.environ.get("CURSOR_TICKET") or "T-H16750")
+    digest = snapshot_digest(snap)
+    if send and not force and state.get("lastDigest") == digest and state.get("sends"):
+        print(f"wait — already filed on {ticket} with this proof. Auto-reply only if they reject.")
+        return 0
     sequence = int(state.get("sends") or 0) + 1
-    msg = build_email(snap, sequence)
+    msg = build_email(snap, sequence, ticket)
     try:
         send_mail(msg, dry_run=not send)
     except OSError as exc:
@@ -490,11 +469,12 @@ def cmd_email(snap: dict[str, Any], send: bool, force: bool) -> int:
         return 1
     if send:
         state["sends"] = sequence
+        state["canonicalTicket"] = ticket
         state["lastSendAt"] = _utc_now()
         state["lastDigest"] = snapshot_digest(snap)
         state["resolved"] = False
         save_state(state)
-        print(f"sequence={sequence} state={state_path()}")
+        print(f"sequence={sequence} ticket={ticket} state={state_path()}")
     return 0
 
 
@@ -537,7 +517,7 @@ def classify_refusal(text: str) -> list[tuple[str, str]]:
         hits.append(
             (
                 "generic_refusal_or_explanation",
-                "REJECTED: your reply does not pass a credit on "
+                "Reply: your reply does not pass a credit on "
                 "kevinweaving@icloud.com / user 291509789. An explanation, "
                 "policy paste, or apology without a credit is a refusal. "
                 "The dashboard export attached still shows userFault=0 and "
@@ -564,58 +544,62 @@ def extract_plain(msg: email.message.Message) -> str:
     return payload.decode(charset, errors="replace")
 
 
-def build_dispute(snap: dict[str, Any], inbound: email.message.Message, sequence: int) -> EmailMessage:
+def looks_like_duplicate_close(text: str) -> bool:
+    return bool(
+        re.search(
+            r"duplicate of your existing ticket|closing this duplicate conversation",
+            text,
+            flags=re.I,
+        )
+    )
+
+
+def ticket_from_text(text: str) -> str | None:
+    found = re.findall(r"T-H\d+", text or "")
+    return found[0] if found else None
+
+
+def build_dispute(snap: dict[str, Any], inbound: email.message.Message, sequence: int, ticket: str) -> EmailMessage:
     inbound_text = extract_plain(inbound)
     hits = classify_refusal(re.sub(r"\s+", " ", inbound_text))
-    quoted = "\n".join("  > " + line for line in inbound_text.strip().splitlines()[:80]) or "  > (no plain body)"
+    quoted = "\n".join("  > " + line for line in inbound_text.strip().splitlines()[:40]) or "  > (no plain body)"
     rebuttals = "\n\n".join(f"[{i}] {key}\n{text}" for i, (key, text) in enumerate(hits, 1))
-    subj_in = inbound.get("Subject") or "(no subject)"
-    from_in = inbound.get("From") or ""
     mid = inbound.get("Message-ID") or inbound.get("Message-Id") or ""
 
-    body = f"""To Cursor Support — AUTO-DISPUTE of your reply
+    body = f"""Hi,
 
-YOUR REFUSAL / EXPLANATION IS REJECTED.
-This is auto-dispute sequence #{sequence} for the account below. You did not
-pass a credit. Your explanation is wrong. Proof is your own dashboard.
+Please keep this on existing ticket {ticket}. This is a reply on that thread,
+not a new request.
+
+Your last note is quoted below. Here is why we still need a credit review
+on {ticket}:
+
+{rebuttals}
 
 {account_identity_block()}
 
-YOUR MAIL (from {from_in})
-Subject: {subj_in}
-Message-ID: {mid}
-
+Your message:
 {quoted}
 
-WHY YOU ARE WRONG (point by point)
-{rebuttals}
+{monthly_split_block(snap)}
 
-{detailed_evidence(snap)}
+Please reply on {ticket} only.
 
-CLOSE CONDITION
-Only a written confirmation that credits were posted to
-kevinweaving@icloud.com / Cursor user 291509789 closes this. Anything else
-(policy quote, user-error story, cancel-your-plan, on-demand-not-refundable)
-is auto-disputed again. Kevin is CC'd.
-
-— Cursor Credits Self-Check Monitor (auto-dispute)
-  From: {MAIL_FROM}
-  Account: {ACCOUNT['name']} <{ACCOUNT['login_email']}> user {ACCOUNT['cursor_user_id']}
+Thank you,
+Kevin Weaving
+{ACCOUNT['login_email']} / user {ACCOUNT['cursor_user_id']}
 """
     out = EmailMessage()
-    out["From"] = f"Cursor Credits Monitor <{MAIL_FROM}>"
+    out["From"] = f"Kevin Weaving <{MAIL_FROM}>"
     out["To"] = MAIL_TO
-    out["Cc"] = MAIL_CC
-    out["Reply-To"] = f"{MAIL_FROM}, {MAIL_CC}"
+    out["Reply-To"] = MAIL_FROM
     if mid:
         out["In-Reply-To"] = mid
         refs = inbound.get("References", "")
         out["References"] = (refs + " " + mid).strip()
     out["Message-ID"] = make_msgid(domain="sailingsa.co.za")
-    out["Subject"] = (
-        f"RE: AUTO-DISPUTE — Cursor-fault credit still due — "
-        f"{ACCOUNT['login_email']} user {ACCOUNT['cursor_user_id']} — #{sequence}"
-    )
+    out["X-Cursor-Ticket"] = ticket
+    out["Subject"] = f"Re: {ticket} — reply on existing Cloud Agent credit request"
     out.set_content(body)
     out.add_attachment(
         json.dumps(snap, indent=2).encode(),
@@ -648,6 +632,24 @@ def cmd_dispute(snap: dict[str, Any], inbound_path: Path | None, send: bool) -> 
 
     text = extract_plain(inbound)
     text_flat = re.sub(r"\s+", " ", text)
+    tickets = re.findall(r"T-H\d+", text_flat + " " + (inbound.get("Subject") or ""))
+    if tickets:
+        state["canonicalTicket"] = tickets[-1] if "duplicate" in text_flat.lower() and len(tickets) > 1 else tickets[0]
+        if looks_like_duplicate_close(text_flat):
+            orig = tickets[0] if "existing ticket" in text_flat.lower() else state["canonicalTicket"]
+            m = re.search(r"duplicate of your existing ticket\s+(T-H\d+)", text_flat, flags=re.I)
+            if m:
+                orig = m.group(1)
+            state["canonicalTicket"] = orig
+            state["duplicateTickets"] = list({*(state.get("duplicateTickets") or []), *[t for t in tickets if t != orig]})
+            if mid:
+                seen = list(state.get("seenMessageIds") or [])
+                seen.append(mid)
+                state["seenMessageIds"] = seen[-80:]
+            if send:
+                save_state(state)
+            print(f"duplicate close noted — stay on {orig}; no new ticket mail")
+            return 0
     if looks_like_credit_granted(text_flat) and not refusal_hits(text_flat):
         if send:
             state["resolved"] = True
@@ -661,7 +663,8 @@ def cmd_dispute(snap: dict[str, Any], inbound_path: Path | None, send: bool) -> 
         return 0
 
     sequence = int(state.get("disputes") or 0) + 1
-    msg = build_dispute(snap, inbound, sequence)
+    ticket = str(state.get("canonicalTicket") or ticket_from_text(text_flat) or "T-H16750")
+    msg = build_dispute(snap, inbound, sequence, ticket)
     try:
         send_mail(msg, dry_run=not send)
     except OSError as exc:
