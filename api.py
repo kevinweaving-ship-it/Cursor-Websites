@@ -21994,8 +21994,14 @@ def _class_logo_url_from_fleet_name(name: str) -> Optional[str]:
         "hobie 16": "/artwork/Class Logo/Hobie-16-Class-Logo.png",
         "df95": "/artwork/Class Logo/DF95-Class-Logo.png",
         "sonnet": "/artwork/Class Logo/Sonnet-Class-Logo.png",
+        "tsl": "/artwork/Class Logo/TSL-Class-Logo.png",
+        "team sailing": "/artwork/Class Logo/TSL-Class-Logo.png",
+        "team sailing league": "/artwork/Class Logo/TSL-Class-Logo.png",
     }
     return file_map.get(key)
+
+
+MAC_TSL_WC_2026_REGATTA_SLUG = "2026-10-17-mac-tsl-wc-team-sailing"
 
 
 def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
@@ -22004,6 +22010,8 @@ def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[
     en = str(event_name or "").lower()
     if "lipton" in rid or "lipton" in en:
         return "/js/lipton-dev-event-logo.png"
+    if rid == MAC_TSL_WC_2026_REGATTA_SLUG or "team sailing" in en:
+        return "/artwork/Class Logo/TSL-Class-Logo.png"
     return None
 
 
@@ -26025,11 +26033,11 @@ def _format_regatta_host_display(abbrev: str, fullname: str, legacy_coalesce: st
 def _format_regatta_status_line(status_word: str, as_at_time) -> str:
     """Format status line per RESULTS_HTML_STATUS_LINE_RULE. as_at_time from API (results table then regattas). No datetime.now/start_date.
     If as_at_time exists and is formattable: 'Results are <Status> as at DD Month YYYY at HH:MM'.
-    If as_at_time is NULL or invalid: 'Results are <Status> (snapshot time not recorded)'."""
+    If as_at_time is NULL or invalid: omit the status line (empty string)."""
     word = (status_word or "Final").strip() or "Final"
     escaped_word = html_module.escape(word)
     if not as_at_time:
-        return f"Results are {escaped_word} (snapshot time not recorded)"
+        return ""
     if hasattr(as_at_time, "strftime"):
         status_date = as_at_time.strftime("%d %B %Y at %H:%M")
         return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
@@ -26048,7 +26056,7 @@ def _format_regatta_status_line(status_word: str, as_at_time) -> str:
             return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
         except Exception:
             pass
-    return f"Results are {escaped_word} (snapshot time not recorded)"
+    return ""
 
 
 def _resolve_class_slug_to_class_id(class_slug: str):
