@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261012q";
+  var JS_VER = "20261012r";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -100,6 +100,7 @@
       "#macTslAdmin .tsl-ac-list li{margin:0;padding:4px 6px;cursor:pointer;color:#1a2750;font:inherit}",
       "#macTslAdmin .tsl-ac-list li:hover{background:#e9eefb}",
       "#macTslAdmin .tsl-ac-sub{display:block;font:inherit;color:#1a2750}",
+      ".regatta-page[data-mac-tsl=\"1\"] .rs-club-row-logo-sm,#macTslAdmin .rs-club-row-logo-sm{display:inline-block;height:auto;width:auto;max-height:16px;max-width:28px;object-fit:contain;vertical-align:middle;flex:0 0 auto}",
       "#macTslAdmin .tsl-team,#macTslMatches .tsl-match{margin:0;padding:0;border:none;background:none;box-shadow:none}",
       "#macTslAdmin .tsl-del{color:#c62828}",
       "#macTslAdmin .tsl-msg,#macTslSchedule .tsl-msg,#macTslMatches .tsl-msg{color:#1a2750;margin:6px 0;font:inherit}",
@@ -188,7 +189,7 @@
   }
 
   function publicTeamsTable() {
-    var html = '<div class="table-wrapper"><table><thead><tr>' +
+    var html = '<div class="table-wrapper"><table class="fleet-results-table"><thead><tr>' +
       "<th>Team</th><th>1 Helm</th><th>1 Crew</th><th>2 Helm</th><th>2 Crew</th><th>3 Helm</th><th>3 Crew</th>" +
       "</tr></thead><tbody>";
     if (!(state.teams || []).length) {
@@ -278,7 +279,7 @@
     var pending = unassignedLine(team);
     return (
       '<div class="tsl-team" data-team-id="' + esc(team.team_id || "") + '">' +
-        '<div class="table-wrapper"><table>' +
+        '<div class="table-wrapper"><table class="fleet-results-table">' +
           "<thead><tr><th>Club</th><th>Team</th></tr></thead><tbody><tr>" +
             '<td><div class="tsl-ac">' + logo +
               '<input type="text" data-field="club" value="' + esc(team.club_name || team.club_abbrev || "") + '" placeholder="Club" autocomplete="off" />' +
@@ -286,7 +287,7 @@
             "</div></td>" +
             '<td><input type="text" data-field="team_name" value="' + esc(team.team_name || "") + '" /></td>' +
           "</tr></tbody></table></div>" +
-        '<div class="table-wrapper"><table>' +
+        '<div class="table-wrapper"><table class="fleet-results-table">' +
           "<thead><tr><th></th><th>Helm</th><th>Crew</th></tr></thead><tbody>" +
           rows + "</tbody></table></div>" +
         (pending ? '<div class="sailed-line">Assign: ' + esc(pending) + "</div>" : "") +
@@ -476,7 +477,7 @@
       '<div class="tsl-match" data-match-id="' + match.match_id + '">' +
         '<div class="tsl-sides">' +
           '<div class="tsl-side" data-side="a">' +
-            '<div class="table-wrapper"><table>' +
+            '<div class="table-wrapper"><table class="fleet-results-table">' +
               '<thead><tr><th colspan="4" class="tsl-blue">Team Blue</th></tr>' +
               "<tr><th></th><th>Helm</th><th>Crew</th><th>Place</th></tr></thead>" +
               "<tbody><tr><th>Blue</th><td colspan=\"3\"><select data-k=\"team_a_id\">" + teamOptions(match.team_a_id) + "</select></td></tr></tbody>" +
@@ -485,7 +486,7 @@
               "</tbody></table></div>" +
           "</div>" +
           '<div class="tsl-side" data-side="b">' +
-            '<div class="table-wrapper"><table>' +
+            '<div class="table-wrapper"><table class="fleet-results-table">' +
               '<thead><tr><th colspan="4" class="tsl-green">Team Green</th></tr>' +
               "<tr><th></th><th>Helm</th><th>Crew</th><th>Place</th></tr></thead>" +
               "<tbody><tr><th>Green</th><td colspan=\"3\"><select data-k=\"team_b_id\">" + teamOptions(match.team_b_id, match.team_a_id) + "</select></td></tr></tbody>" +
@@ -494,7 +495,7 @@
               "</tbody></table></div>" +
           "</div>" +
         "</div>" +
-        '<div class="table-wrapper"><table><tbody>' +
+        '<div class="table-wrapper"><table class="fleet-results-table"><tbody>' +
           "<tr><th>Official override</th><td><select data-k=\"override_winner_team_id\">" +
             '<option value="">No override</option>' + teamOptions(match.override_winner_team_id) +
           "</select></td></tr>" +
@@ -581,7 +582,7 @@
     var fmt = state.format || "rr28";
     var nTeams = (state.teams || []).length;
     var html = sheetHead("Schedule", (state.matches || []).length ? (state.matches.length + " matches") : "No matches yet.");
-    html += '<div class="tsl-edit"><div class="table-wrapper"><table><tbody>';
+    html += '<div class="tsl-edit"><div class="table-wrapper"><table class="fleet-results-table"><tbody>';
     html += '<tr><th>Championship format</th><td><select id="tslFormat">' +
       '<option value="rr28"' + (fmt === "rr28" ? " selected" : "") + ">Full round robin (28 matches)</option>" +
       '<option value="flights16"' + (fmt === "flights16" ? " selected" : "") + ">Weather contingency (16 matches)</option>" +
@@ -602,7 +603,7 @@
     html += "</tbody></table></div>";
     html += '<div class="action-buttons"><button type="button" class="action-button" id="tslGen">Generate schedule</button></div>';
     html += '<div class="tsl-msg" id="tslSchedMsg">' + (nTeams < 8 ? "Register eight teams before generating the championship schedule." : "") + "</div></div>";
-    html += '<div class="table-wrapper"><table><thead><tr><th>M</th><th>Round/Flight</th><th>Blue</th><th>Green</th><th>Status</th><th>Winner</th></tr></thead><tbody>';
+    html += '<div class="table-wrapper"><table class="fleet-results-table"><thead><tr><th>M</th><th>Round/Flight</th><th>Blue</th><th>Green</th><th>Status</th><th>Winner</th></tr></thead><tbody>';
     (state.matches || []).forEach(function (m) {
       html += "<tr><td>" + esc(m.label || ("M" + m.match_no)) + "</td><td>" + esc(m.round_label || "") + "</td><td>" +
         esc(teamName(m.team_a_id || m.team_blue_id)) + "</td><td>" + esc(teamName(m.team_b_id || m.team_green_id)) + "</td><td>" +
@@ -670,7 +671,7 @@
     var current = matches.filter(function (m) { return Number(m.match_no) === Number(selectedMatchNo); })[0] || matches[0];
     selectedMatchNo = Number(current.match_no);
     var html = sheetHead("Match entry", current.label || ("M" + current.match_no));
-    html += '<div class="table-wrapper"><table><tbody><tr><th>Match</th><td><select id="tslMatchPick">';
+    html += '<div class="table-wrapper"><table class="fleet-results-table"><tbody><tr><th>Match</th><td><select id="tslMatchPick">';
     matches.forEach(function (m) {
       html += '<option value="' + m.match_no + '"' + (Number(m.match_no) === selectedMatchNo ? " selected" : "") + ">" +
         esc(m.label || ("M" + m.match_no)) + "</option>";
