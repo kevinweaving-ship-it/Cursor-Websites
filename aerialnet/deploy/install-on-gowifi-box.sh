@@ -39,28 +39,9 @@ fi
 
 install -m 644 "$ROOT/deploy/aerialnet-hansekop-api.service" /etc/systemd/system/aerialnet-hansekop-api.service
 install -m 644 "$ROOT/deploy/aerialnet-voelklip-api.service" /etc/systemd/system/aerialnet-voelklip-api.service
+# Tokens already live on this box. Never contact the Sailing box from here.
 touch /etc/aerialnet-olarm.env /etc/aerialnet-tuya.env
 chmod 600 /etc/aerialnet-olarm.env /etc/aerialnet-tuya.env
-
-# Optional: copy tokens + PIN users from the Sailing box if this host can reach it.
-SAIL="${SAILING_BOX:-root@102.218.215.253}"
-if [ -n "${SAILING_SSH_KEY:-}" ] && [ -f "${SAILING_SSH_KEY}" ]; then
-  SSH=(ssh -i "$SAILING_SSH_KEY" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-  SCP=(scp -i "$SAILING_SSH_KEY" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-else
-  SSH=(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-  SCP=(scp -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8)
-fi
-if "${SSH[@]}" "$SAIL" "test -f /etc/sailingsa-olarm.env" 2>/dev/null; then
-  echo "copying Olarm/Tuya env and keypad users from Sailing box (not printed)"
-  "${SCP[@]}" "$SAIL:/etc/sailingsa-olarm.env" /etc/aerialnet-olarm.env >/dev/null
-  "${SCP[@]}" "$SAIL:/etc/sailingsa-tuya.env" /etc/aerialnet-tuya.env >/dev/null || true
-  "${SCP[@]}" "$SAIL:/var/www/sailingsa/api/data/arial_users.json" "$DATA_DIR/arial_users.json" >/dev/null || true
-  chmod 600 /etc/aerialnet-olarm.env /etc/aerialnet-tuya.env
-  chown www-data:www-data "$DATA_DIR/arial_users.json" 2>/dev/null || true
-else
-  echo "Sailing box not reachable from here — leave /etc/aerialnet-olarm.env for a later copy"
-fi
 
 install -m 644 "$ROOT/deploy/nginx-aerialnet-keypads.conf" "$NGINX_SNIP"
 # Inject include into the aerialnet.co.za TLS server if missing.
