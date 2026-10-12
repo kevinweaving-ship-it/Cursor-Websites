@@ -16,6 +16,9 @@ fi
 
 echo "copy $SRC -> $BOX:/root/aerialnet-keypads"
 "${SSH[@]}" "$BOX" "mkdir -p /root/aerialnet-keypads"
+"${SCP[@]}" \
+  "$SRC/index.html" \
+  "$BOX:/root/aerialnet-keypads/index.html"
 "${SCP[@]}" -r \
   "$SRC/hansekop" \
   "$SRC/voelklip" \

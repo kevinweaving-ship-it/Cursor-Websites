@@ -11,6 +11,8 @@ Cams stay on the Sailing box (`sailingsa.co.za:8443` / `:8444`). WhatsApp stays 
 
 Olarm + Tuya env files are on the GoWifi box (`/etc/aerialnet-olarm.env`, `/etc/aerialnet-tuya.env`; never commit them). Localhost APIs are proven: `127.0.0.1:8003` and `:8004` `/api/arial/status` return `olarmConfigured: true`. Public `/api/arial/` and `/api/voelklip/` still proxy to Sailing — do not flip nginx until asked.
 
+The Aerialnet landing header has **User Login**, which opens the Hansekop keypad (`/hansekop/`).
+
 ## Deploy
 
 From a host that can SSH to `box.gowifi.co.za` (`102.209.119.186`):

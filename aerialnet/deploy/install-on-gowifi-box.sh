@@ -1,6 +1,6 @@
 #!/bin/bash
 # Install Hansekop + Voelklip keypads on the GoWifi / Aerialnet box.
-# Does not change the SailingSA box. Landing page at / is left as-is.
+# Does not change the SailingSA box. Landing index.html is copied when present.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -17,6 +17,9 @@ fi
 echo "www=$WWW api=$API_DIR"
 
 mkdir -p "$WWW/hansekop" "$WWW/voelklip" "$WWW/arial" "$API_DIR" "$DATA_DIR"
+if [ -f "$ROOT/index.html" ]; then
+  cp -a "$ROOT/index.html" "$WWW/index.html"
+fi
 cp -a "$ROOT/hansekop/index.html" "$WWW/hansekop/index.html"
 cp -a "$ROOT/voelklip/index.html" "$WWW/voelklip/index.html"
 cp -a "$ROOT/arial/." "$WWW/arial/"
