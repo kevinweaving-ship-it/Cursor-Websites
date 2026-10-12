@@ -104,4 +104,14 @@ Known teams so far (seed as entry rows, rank NULL, no races):
 
 Super-admin media drop (WhatsApp → this slug’s `/mm-clips`) can be wired when the event WhatsApp exists. Cam card waits for the MAC URL.
 
-Live apply (SSH, not Cloud-only): `docs` + `sailingsa/deploy/SSH_LIVE.md`. Clear `/var/tmp/sailingsa_regatta_with_counts.json` after insert. Never replace live `api.py` with this repo snapshot.
+Live apply (full-box SSH): `docs` + `sailingsa/deploy/SSH_LIVE.md`.
+
+1. Snapshot `/var/www/sailingsa/api/api.py` then `chattr -i`.
+2. `python3 sailingsa/deploy/create_2026_mac_tsl_wc_event_url.py` with live `DB_URL`.
+3. Surgical patch only: `python3 sailingsa/deploy/patch_live_mac_tsl_wc_event_url.py /var/www/sailingsa/api/api.py` (wind `/api/wind2speed/mac`, TSL logo rules, omit status until `as_at_time`, inject `/js/mac-tsl-live-cards.js`).
+4. Copy `js/mac-tsl-live-cards.js` → `/var/www/sailingsa/js/`.
+5. `chattr +i`, restart `sailingsa-api`, delete `/var/tmp/sailingsa_regatta_with_counts.json`.
+
+Never replace live `api.py` with this repo snapshot.
+
+**Live (2026-10-12):** Event URL is up. SAS event 380433 linked as `events.event_id=202753`. Cam still later.
