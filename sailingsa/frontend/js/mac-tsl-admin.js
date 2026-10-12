@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261012a";
+  var JS_VER = "20261012b";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -710,8 +710,8 @@
     if (!table) return;
     var thead = table.tHead && table.tHead.rows[0];
     if (!thead) return;
-    var hideNames = { class: 1, "sail no": 1, "sailno": 1, total: 1, nett: 1, "jib": 1, "bow": 1, "hull": 1, discards: 1, "to count": 1, colour: 1 };
-    var mlNames = { "boat name": 1, team: 1, helm: 1, crew: 1, helms: 1, crews: 1, losses: 1, "win %": 1, played: 1, matches: 1 };
+    var hideNames = { class: 1, "sail no": 1, "sailno": 1, total: 1, nett: 1, "jib": 1, "bow": 1, "hull": 1, discards: 1, "to count": 1, colour: 1, club: 1 };
+    var mlNames = { helm: 1, crew: 1, helms: 1, crews: 1, losses: 1, "win %": 1, played: 1, matches: 1 };
     Array.prototype.forEach.call(thead.cells, function (th) {
       var lab = headerLabel(th);
       if (hideNames[lab]) th.classList.add("tsl-hide-mp");
@@ -813,6 +813,22 @@
       var row = (state.standings || []).filter(function (s) {
         return String(s.team_name || "").trim() === name || String(s.club_abbrev || "") === club;
       })[0];
+      if (nameCell && !nameCell.querySelector(".tsl-team-club")) {
+        var wrap = document.createElement("span");
+        wrap.className = "rs-club-with-logo tsl-team-club";
+        var logo = clubCell && clubCell.querySelector("img");
+        if (logo) {
+          var img = logo.cloneNode(true);
+          img.className = "rs-club-row-logo-sm";
+          img.alt = "";
+          wrap.appendChild(img);
+        }
+        var label = document.createElement("span");
+        label.textContent = (row && row.team_name) || name || "";
+        wrap.appendChild(label);
+        nameCell.innerHTML = "";
+        nameCell.appendChild(wrap);
+      }
       if (!row) return;
       if (idx.rank != null && tr.cells[idx.rank]) tr.cells[idx.rank].textContent = row.rank || "";
       if (idx.wins != null && tr.cells[idx.wins]) tr.cells[idx.wins].textContent = row.wins;

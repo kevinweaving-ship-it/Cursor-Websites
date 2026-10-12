@@ -162,8 +162,8 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         )
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
-            '<script src="/js/mac-tsl-live-cards.js?v=20261012h" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261012a" defer></script>'
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012i" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
             if is_mac_tsl
             else ""
         )
@@ -314,13 +314,17 @@ def main() -> int:
         ("mac-tsl-live-cards.js?v=20261012d", "mac-tsl-live-cards.js?v=20261012h"),
         ("mac-tsl-live-cards.js?v=20261012e", "mac-tsl-live-cards.js?v=20261012h"),
         ("mac-tsl-live-cards.js?v=20261012f", "mac-tsl-live-cards.js?v=20261012h"),
-        ("mac-tsl-live-cards.js?v=20261012g", "mac-tsl-live-cards.js?v=20261012h"),
+        ("mac-tsl-live-cards.js?v=20261012g", "mac-tsl-live-cards.js?v=20261012i"),
+        ("mac-tsl-live-cards.js?v=20261012h", "mac-tsl-live-cards.js?v=20261012i"),
     ):
         if old_pin in text:
             text = text.replace(old_pin, new_pin)
             print(f"pin {new_pin}")
-    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261012a" defer></script>'
-    cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012h" defer></script>'
+    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
+    cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012i" defer></script>'
+    if "mac-tsl-admin.js?v=20261012a" in text:
+        text = text.replace("mac-tsl-admin.js?v=20261012a", "mac-tsl-admin.js?v=20261012b")
+        print("pin admin 20261012b")
     if cards_tag in text and admin_tag not in text:
         text = text.replace(cards_tag, cards_tag + admin_tag)
         print("inject mac-tsl-admin.js next to live-cards")
