@@ -101,8 +101,9 @@
       ".tsl-field{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 120px}",
       ".tsl-field label{font-size:0.85rem;font-weight:700;color:#001f3f;text-transform:uppercase;letter-spacing:.02em}",
       ".tsl-field input,.tsl-field select,.tsl-boats select{min-height:36px;padding:4px 8px;border:1.5px solid #001f3f;border-radius:6px;font-size:13px;color:#1e293b;background:#fff;width:100%;box-sizing:border-box}",
-      ".tsl-boats th,.tsl-boats td{padding:0.4rem 0.6rem;border-bottom:1px solid #e0e0e0;vertical-align:top;text-align:left}",
-      ".tsl-sas{display:block;margin-top:2px;font-size:0.9rem;color:#334155}",
+      ".tsl-boats th,.tsl-boats td{padding:0.4rem 0.6rem;border-bottom:1px solid #e0e0e0;vertical-align:top;text-align:left;overflow-wrap:anywhere;word-break:break-word}",
+      ".tsl-sas{display:block;margin-top:2px;font-size:0.9rem;color:#334155;overflow-wrap:anywhere}",
+      ".tsl-field input,.tsl-field select,.tsl-boats select{max-width:100%}",
       ".tsl-sas--missing{color:#b91c1c}",
       ".tsl-ac{position:relative}",
       ".tsl-ac-list{position:absolute;left:0;right:0;z-index:80;margin:2px 0 0;padding:4px 0;list-style:none;background:#fff;border:2px solid #001f3f;border-radius:8px;max-height:200px;overflow-y:auto}",
@@ -566,20 +567,22 @@
     html += '<div class="tsl-edit tsl-row2"><div class="tsl-field"><label>Championship format</label><select id="tslFormat">' +
       '<option value="rr28"' + (fmt === "rr28" ? " selected" : "") + ">Full round robin (28 matches)</option>" +
       '<option value="flights16"' + (fmt === "flights16" ? " selected" : "") + ">Weather contingency (16 matches)</option>" +
-      "</select></div>";
-    html += '<div class="tsl-field"' + (fmt === "flights16" ? "" : ' hidden') + '><label>Flight A</label><select id="tslFa" multiple size="4">';
-    (state.teams || []).forEach(function (t) {
-      var sel = ((state.settings || {}).flight_a || []).indexOf(t.team_id) >= 0 || ((state.settings || {}).flight_a || []).indexOf(String(t.team_id)) >= 0;
-      html += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(t.team_name) + "</option>";
-    });
-    html += "</select></div><div class=\"tsl-field\"" + (fmt === "flights16" ? "" : " hidden") + "><label>Flight B</label><select id=\"tslFb\" multiple size=\"4\">";
-    (state.teams || []).forEach(function (t) {
-      var sel = ((state.settings || {}).flight_b || []).indexOf(t.team_id) >= 0 || ((state.settings || {}).flight_b || []).indexOf(String(t.team_id)) >= 0;
-      html += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(t.team_name) + "</option>";
-    });
-    html += "</select></div></div>";
+      "</select></div></div>";
+    if (fmt === "flights16") {
+      html += '<div class="tsl-edit tsl-row2"><div class="tsl-field"><label>Flight A</label><select id="tslFa" multiple size="4">';
+      (state.teams || []).forEach(function (t) {
+        var sel = ((state.settings || {}).flight_a || []).indexOf(t.team_id) >= 0 || ((state.settings || {}).flight_a || []).indexOf(String(t.team_id)) >= 0;
+        html += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(t.team_name) + "</option>";
+      });
+      html += "</select></div><div class=\"tsl-field\"><label>Flight B</label><select id=\"tslFb\" multiple size=\"4\">";
+      (state.teams || []).forEach(function (t) {
+        var sel = ((state.settings || {}).flight_b || []).indexOf(t.team_id) >= 0 || ((state.settings || {}).flight_b || []).indexOf(String(t.team_id)) >= 0;
+        html += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(t.team_name) + "</option>";
+      });
+      html += "</select></div></div>";
+    }
     html += '<div class="tsl-edit tsl-row2"><button type="button" class="tsl-save" id="tslGen">Generate schedule</button></div>';
-    html += '<div class="tsl-msg" id="tslSchedMsg">' + (nTeams < 8 ? "Register eight teams before generating the championship schedule." : "") + "</div>";
+    html += '<div class="tsl-msg tsl-edit" id="tslSchedMsg">' + (nTeams < 8 ? "Register eight teams before generating the championship schedule." : "") + "</div>";
     html += '<div class="table-container"><table class="table"><thead><tr><th>M</th><th>Round/Flight</th><th>Blue</th><th>Green</th><th>Status</th><th>Winner</th></tr></thead><tbody>';
     (state.matches || []).forEach(function (m) {
       html += "<tr><td>" + esc(m.label || ("M" + m.match_no)) + "</td><td>" + esc(m.round_label || "") + "</td><td>" +
