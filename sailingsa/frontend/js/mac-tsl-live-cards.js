@@ -14,7 +14,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var MEDIA_ID = "mmLiptonReels";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012k";
+  var JS_VER = "20261012l";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/img/mac-event-reels.jpg";
   var WX_API = "/api/wind2speed/mac";
@@ -89,8 +89,41 @@
       ".regatta-page[data-mac-tsl=\"1\"] #regattaMmClipUrls,",
       ".regatta-page[data-mac-tsl=\"1\"] #regattaWaShowWrap,",
       ".regatta-page[data-mac-tsl=\"1\"] #mmLiveFbCard,",
-      ".regatta-page[data-mac-tsl=\"1\"] .mm-live-fb-card{display:none!important;}"
+      ".regatta-page[data-mac-tsl=\"1\"] .mm-live-fb-card,",
+      ".regatta-page[data-mac-tsl=\"1\"] #eventInfoStrip,",
+      ".regatta-page[data-mac-tsl=\"1\"] .event-info-strip,",
+      ".regatta-page[data-mac-tsl=\"1\"] .eis-sa-bar,",
+      ".regatta-page[data-mac-tsl=\"1\"] #eisSaBar,",
+      ".regatta-page[data-mac-tsl=\"1\"] .eis-enter,",
+      ".regatta-page[data-mac-tsl=\"1\"] .eis-sa-save,",
+      ".regatta-page[data-mac-tsl=\"1\"] #regatta-entry-modal,",
+      ".regatta-page[data-mac-tsl=\"1\"] .re-modal{display:none!important;}"
     ].join("");
+  }
+
+  function hideEventInfoStrip() {
+    var sels = [
+      "#eventInfoStrip",
+      ".event-info-strip",
+      ".eis-sa-bar",
+      "#eisSaBar",
+      ".eis-enter",
+      "#regatta-entry-modal",
+      ".re-modal"
+    ];
+    var i;
+    var nodes;
+    var n;
+    for (i = 0; i < sels.length; i += 1) {
+      nodes = document.querySelectorAll(sels[i]);
+      for (n = 0; n < nodes.length; n += 1) {
+        if (nodes[n] && nodes[n].parentNode) nodes[n].parentNode.removeChild(nodes[n]);
+      }
+    }
+    nodes = document.querySelectorAll('script[src*="regatta-entry.js"],link[href*="regatta-entry.css"]');
+    for (n = 0; n < nodes.length; n += 1) {
+      if (nodes[n] && nodes[n].parentNode) nodes[n].parentNode.removeChild(nodes[n]);
+    }
   }
 
   function n1(x) {
@@ -323,9 +356,10 @@
     var page = document.querySelector(".regatta-page");
     if (!page) return;
     injectCss();
+    hideEventInfoStrip();
     bindNor();
     var junk = page.querySelectorAll(
-      ".regatta-sa-hub-news-wrap, #regattaWaShowWrap, #mmLiveFbCard, .mm-live-fb-card"
+      ".regatta-sa-hub-news-wrap, #regattaWaShowWrap, #mmLiveFbCard, .mm-live-fb-card, #eventInfoStrip, .event-info-strip, .eis-sa-bar, #eisSaBar"
     );
     for (var ji = 0; ji < junk.length; ji += 1) {
       if (junk[ji] && junk[ji].parentNode) junk[ji].parentNode.removeChild(junk[ji]);

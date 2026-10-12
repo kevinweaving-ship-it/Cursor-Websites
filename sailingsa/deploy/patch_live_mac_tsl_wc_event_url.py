@@ -163,7 +163,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         )
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
-            '<script src="/js/mac-tsl-live-cards.js?v=20261012k" defer></script>'
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012l" defer></script>'
             '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
             if is_mac_tsl
             else ""
@@ -241,6 +241,53 @@ SA_CHROME_ANCHOR = '''    ls_attr = html_module.escape(ls_key, quote=True)
     cur = _normalize_hub_news_badge_label_for_ui(hub_badge_label)
 '''
 
+EIS_FN_ANCHOR = '''    """Below main header / above first fleet — invite-style info + loud ENTER CTA."""
+    # Cape Classic Event Header is locked: Super Admin / Admin never get the editor shell.
+    if str(regatta_id or "").strip() == "2026-09-13-zvyc-cape-classic":
+        is_super_admin = False
+'''
+
+EIS_FN_INSERT = '''    """Below main header / above first fleet — invite-style info + loud ENTER CTA."""
+    # TSL Event URLs: no ENTER / event-info-strip (fleet-entry CTA is not used).
+    if str(regatta_id or "").strip() == "2026-10-17-mac-tsl-wc-team-sailing":
+        return ""
+    # Cape Classic Event Header is locked: Super Admin / Admin never get the editor shell.
+    if str(regatta_id or "").strip() == "2026-09-13-zvyc-cape-classic":
+        is_super_admin = False
+'''
+
+EIS_CALL_ANCHOR = '''        event_info_frag = _render_event_info_strip_html(
+            str(regatta_id),
+            is_super_admin=bool(is_sa) and str(regatta_id) != "2026-09-13-zvyc-cape-classic",
+        )
+        # REGATTA_ENTRY_FLOW_2026_07_23
+        _eis_cfg = _wc_regatta_event_info_strip_cfg(str(regatta_id))
+        entry_script = (
+            '<link rel="stylesheet" href="/js/regatta-entry.css?v=20260723e8">'
+            '<script src="/js/regatta-entry.js?v=20260723e8" defer></script>'
+            if (_eis_cfg.get("enter") or {}).get("url") or (_eis_cfg.get("enter") or {}).get("label")
+            else ""
+        )
+'''
+
+EIS_CALL_INSERT = '''        event_info_frag = _render_event_info_strip_html(
+            str(regatta_id),
+            is_super_admin=bool(is_sa) and str(regatta_id) != "2026-09-13-zvyc-cape-classic",
+        )
+        # REGATTA_ENTRY_FLOW_2026_07_23
+        _eis_cfg = _wc_regatta_event_info_strip_cfg(str(regatta_id))
+        _tsl_no_eis = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
+        if _tsl_no_eis:
+            event_info_frag = ""
+        entry_script = (
+            '<link rel="stylesheet" href="/js/regatta-entry.css?v=20260723e8">'
+            '<script src="/js/regatta-entry.js?v=20260723e8" defer></script>'
+            if (not _tsl_no_eis)
+            and ((_eis_cfg.get("enter") or {}).get("url") or (_eis_cfg.get("enter") or {}).get("label"))
+            else ""
+        )
+'''
+
 SA_CHROME_INSERT = '''    ls_attr = html_module.escape(ls_key, quote=True)
     if str(regatta_id or "").strip() == "2026-10-17-mac-tsl-wc-team-sailing":
         return (
@@ -308,6 +355,8 @@ def main() -> int:
     text = apply_one(text, ENTRIES_ANCHOR, ENTRIES_INSERT, "entries_icon")
     text = apply_one(text, NOR_LINK_ANCHOR, NOR_LINK_INSERT, "nor_link", allow_multi=3)
     text = apply_one(text, SA_CHROME_ANCHOR, SA_CHROME_INSERT, "sa_chrome")
+    text = apply_one(text, EIS_FN_ANCHOR, EIS_FN_INSERT, "eis_fn")
+    text = apply_one(text, EIS_CALL_ANCHOR, EIS_CALL_INSERT, "eis_call")
     for old_pin in (
         "mac-tsl-live-cards.js?v=20261012a",
         "mac-tsl-live-cards.js?v=20261012b",
@@ -319,10 +368,11 @@ def main() -> int:
         "mac-tsl-live-cards.js?v=20261012h",
         "mac-tsl-live-cards.js?v=20261012i",
         "mac-tsl-live-cards.js?v=20261012j",
+        "mac-tsl-live-cards.js?v=20261012k",
     ):
         if old_pin in text:
-            text = text.replace(old_pin, "mac-tsl-live-cards.js?v=20261012k")
-            print("pin mac-tsl-live-cards.js?v=20261012k")
+            text = text.replace(old_pin, "mac-tsl-live-cards.js?v=20261012l")
+            print("pin mac-tsl-live-cards.js?v=20261012l")
     # Listing / header left slot is Event Logo only (Class Logo is rejected by hub cards).
     if TSL_CLASS_LOGO in text and TSL_LOGO not in text:
         text = text.replace(
@@ -343,7 +393,7 @@ def main() -> int:
         f'return "{TSL_LOGO}"',
     )
     admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
-    cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012k" defer></script>'
+    cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012l" defer></script>'
     if "mac-tsl-admin.js?v=20261012a" in text:
         text = text.replace("mac-tsl-admin.js?v=20261012a", "mac-tsl-admin.js?v=20261012b")
         print("pin admin 20261012b")

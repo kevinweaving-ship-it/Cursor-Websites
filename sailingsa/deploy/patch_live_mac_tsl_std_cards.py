@@ -16,7 +16,7 @@ CLASS_LOGO = "/artwork/Class Logo/TSL-Class-Logo.png"
 EVENT_LOGO = "/artwork/Event Logo/TSL-Team-Sailing.png"
 EVENT_LOGO_FILE = "TSL-Team-Sailing.png"
 CARDS_OLD = "mac-tsl-live-cards.js?v=20261012i"
-CARDS_NEW = "mac-tsl-live-cards.js?v=20261012k"
+CARDS_NEW = "mac-tsl-live-cards.js?v=20261012l"
 
 LANDING_IMG = (
     f'<img class="sa-home-regatta-event-logo" src="{EVENT_LOGO}?v=20261012j" '

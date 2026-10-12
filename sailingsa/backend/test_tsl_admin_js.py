@@ -49,7 +49,20 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("mm-lipton-reels--compact", cards)
         self.assertIn("mac-tsl-reels--logo-only", cards)
         self.assertIn("background:#fff!important", cards)
-        self.assertIn("20261012k", cards)
+        self.assertIn("20261012l", cards)
+        self.assertIn("#eventInfoStrip", cards)
+        self.assertIn("hideEventInfoStrip", cards)
+        self.assertIn("regatta-entry.js", cards)
+
+    def test_live_patch_skips_eis_for_tsl_only(self):
+        patch = (ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_wc_event_url.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("EIS_FN_INSERT", patch)
+        self.assertIn("EIS_CALL_INSERT", patch)
+        self.assertIn('_tsl_no_eis = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"', patch)
+        self.assertIn("2026-09-13-zvyc-cape-classic", patch)
+        self.assertIn("mac-tsl-live-cards.js?v=20261012l", patch)
 
 
 if __name__ == "__main__":

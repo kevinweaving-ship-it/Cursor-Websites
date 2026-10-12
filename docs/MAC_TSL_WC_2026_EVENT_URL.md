@@ -59,6 +59,8 @@ This Event URL is the **gold / default TSL template** — first build used for l
 
 JS: `/js/mac-tsl-live-cards.js` (also `sailingsa/frontend/js/mac-tsl-live-cards.js`). NOR body: `/js/mac-tsl-nor.html`. Not loaded on other slugs.
 
+No ENTER / event-info-strip on TSL Event URLs (no Clock / Pin / Free entry / ENTER URL editor). Fleet-entry CTA stays on Cape Classic and other non-TSL events. Live skip is slug-gated in `_render_event_info_strip_html` + `regatta-entry.js`; JS also strips leftover `#eventInfoStrip` / `.eis-sa-bar` on `[data-mac-tsl="1"]`.
+
 ---
 
 ## Notice of Race (on this Event URL)
