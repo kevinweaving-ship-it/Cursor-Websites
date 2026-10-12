@@ -49,8 +49,10 @@ STATE_CANDIDATES = [
 MAIL_FROM = os.environ.get("CURSOR_MAIL_FROM", "cursor@sailingsa.co.za")
 MAIL_TO = os.environ.get("CURSOR_SUPPORT_TO", "hi@cursor.com")
 MAIL_CC = os.environ.get("CURSOR_MAIL_CC", "kevinweaving@icloud.com")
-SMTP_HOST = os.environ.get("SMTP_HOST", "localhost")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "25"))
+GMAIL_USER = os.environ.get("GMAIL_USER") or os.environ.get("SMTP_USER") or ""
+GMAIL_PASS = os.environ.get("GMAIL_APP_PASSWORD") or os.environ.get("SMTP_PASS") or ""
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com" if GMAIL_USER else "localhost")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587" if GMAIL_USER else "25"))
 
 # Frozen identity for this account — every mail repeats this block.
 ACCOUNT = {
@@ -710,18 +712,21 @@ def send_mail(msg: EmailMessage, dry_run: bool) -> None:
         print(f"\n[dry-run] From={msg['From']} To={msg['To']} Cc={msg['Cc']} Subject={msg['Subject']}")
         return
     archive_sent(msg)
+    if not GMAIL_USER or not GMAIL_PASS or GMAIL_USER.startswith("your-email"):
+        raise RuntimeError(
+            "Gmail SMTP required (Apple HCM2 blocks this VPS to iCloud). "
+            "Set GMAIL_USER and GMAIL_APP_PASSWORD, then re-run --send."
+        )
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
-            smtp.send_message(msg)
-        print(f"sent smtp {SMTP_HOST}:{SMTP_PORT} From={msg['From']} To={msg['To']} Cc={msg['Cc']}")
-        return
-    except OSError as exc:
-        sendmail = Path("/usr/sbin/sendmail")
-        if not sendmail.is_file():
-            raise
-        import subprocess
-        subprocess.run([str(sendmail), "-t", "-oi"], input=msg.as_bytes(), check=True)
-        print(f"sent sendmail From={msg['From']} To={msg['To']} Cc={msg['Cc']} (smtp fail: {exc})")
+        msg.replace_header("From", f"Kevin Weaving <{GMAIL_USER}>")
+    except KeyError:
+        msg["From"] = f"Kevin Weaving <{GMAIL_USER}>"
+    apply_party_headers(msg)
+    with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as smtp:
+        smtp.starttls()
+        smtp.login(GMAIL_USER, GMAIL_PASS)
+        smtp.send_message(msg)
+    print(f"sent smtp.gmail.com From={msg['From']} To={msg['To']} Cc={msg['Cc']}")
 
 
 def cmd_email(
