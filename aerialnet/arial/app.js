@@ -2409,7 +2409,7 @@
             var user = window.arialUser;
             window.parent.postMessage({
                 type: "arial-user",
-                user: user ? { name: user.name || "", from: user.from || "" } : null
+                user: user ? { name: user.name || "", from: user.from || "", url: user.url || "" } : null
             }, window.location.origin);
         } catch (e) {}
     }

@@ -31,34 +31,50 @@
     .site-banner {
       position: relative;
       background: #fff;
+      min-height: 76px;
+      padding: calc(10px + env(safe-area-inset-top)) 0 10px;
+    }
+    .site-banner-inner {
+      width: min(720px, calc(100% - 32px));
+      margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      min-height: 76px;
-      padding: calc(10px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) 10px calc(20px + env(safe-area-inset-left));
+    }
+    .header-account {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 0 0 auto;
     }
     .header-user {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       margin: 0;
-      max-width: 42%;
-      overflow: hidden;
-      color: var(--navy);
+      padding: 4px 12px;
+      background: #178a3d;
+      color: #fff;
       font-weight: 700;
-      font-size: 1.2rem;
-      line-height: 1.1;
+      font-size: 0.85rem;
+      line-height: 1.2;
       text-align: center;
+      text-decoration: none;
       white-space: nowrap;
-      text-overflow: ellipsis;
-      pointer-events: none;
+      border-radius: 999px;
     }
     .header-user[hidden] { display: none; }
+    .site-logo {
+      display: block;
+      flex: 0 1 auto;
+      min-width: 0;
+      line-height: 0;
+    }
     .site-banner img {
       display: block;
-      width: min(280px, 58vw);
+      width: min(240px, 46vw);
       height: auto;
     }
     .user-login {
@@ -204,7 +220,8 @@
       .lead { font-size: 0.9rem; margin-bottom: 8px; }
       .enquire { min-height: 40px; padding: 8px 14px; }
       .user-login { min-height: 36px; padding: 6px 12px; font-size: 0.9rem; }
-      .header-user { font-size: 1rem; max-width: 36%; }
+      .header-user { font-size: 0.78rem; padding: 3px 10px; }
+      .site-banner img { width: min(168px, 42vw); }
       .keypad-modal-panel { width: 100%; }
     }
     @media (max-height: 520px) {
@@ -225,9 +242,13 @@
 </head>
 <body>
   <header class="site-banner">
-    <img src="artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks">
-    <p class="header-user" id="header-user" hidden></p>
-    <a class="user-login" id="user-login" href="/hansekop/">User Login</a>
+    <div class="site-banner-inner">
+      <a class="site-logo" href="https://aerialnet.co.za/"><img src="artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks"></a>
+      <div class="header-account">
+        <a class="user-login" id="user-login" href="/hansekop/">User Login</a>
+        <a class="header-user" id="header-user" hidden></a>
+      </div>
+    </div>
   </header>
   <div class="keypad-modal" id="keypad-modal" hidden>
     <div class="keypad-modal-panel" role="dialog" aria-modal="true" aria-labelledby="keypad-modal-title">
@@ -287,9 +308,15 @@
       }
       function applySession(user) {
         var loggedIn = !!(user && (user.name || user.from));
+        if (user && !user.url) {
+          var stored = readSession();
+          if (stored && stored.url) user.url = stored.url;
+        }
         if (headerUser) {
           headerUser.textContent = loggedIn ? (user.name || user.from) : "";
           headerUser.hidden = !loggedIn;
+          if (loggedIn && user.url) headerUser.setAttribute("href", user.url);
+          else headerUser.removeAttribute("href");
         }
         if (login) {
           login.textContent = loggedIn ? "LogOut" : "User Login";

@@ -16,34 +16,50 @@ a { color: inherit; }
 .site-banner {
   position: relative;
   background: #fff;
+  min-height: 76px;
+  padding: 10px 0;
+}
+.site-banner-inner {
+  width: min(720px, calc(100% - 32px));
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 76px;
-  padding: 10px 20px;
+}
+.site-logo {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  line-height: 0;
 }
 .site-banner img {
   display: block;
-  width: min(280px, 58vw);
+  width: min(240px, 46vw);
   height: auto;
 }
+.header-account {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
 .header-user {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin: 0;
-  max-width: 42%;
-  overflow: hidden;
-  color: var(--navy);
+  padding: 4px 12px;
+  background: #178a3d;
+  color: #fff;
   font-weight: 700;
-  font-size: 1.2rem;
-  line-height: 1.1;
+  font-size: 0.85rem;
+  line-height: 1.2;
   text-align: center;
+  text-decoration: none;
   white-space: nowrap;
-  text-overflow: ellipsis;
-  pointer-events: none;
+  border-radius: 999px;
 }
 .user-logout {
   display: inline-flex;
@@ -76,3 +92,8 @@ a { color: inherit; }
   font-size: 1.4rem;
 }
 .card p { margin: 0; }
+@media (max-width: 700px) {
+  .site-banner img { width: min(168px, 42vw); }
+  .user-logout { min-height: 36px; padding: 6px 12px; font-size: 0.9rem; }
+  .header-user { font-size: 0.78rem; padding: 3px 10px; }
+}

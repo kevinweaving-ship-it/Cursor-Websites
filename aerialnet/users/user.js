@@ -21,7 +21,10 @@
     window.location.replace("/");
     return;
   }
-  if (nameEl) nameEl.textContent = user.name || user.from || "";
+  if (nameEl) {
+    nameEl.textContent = user.name || user.from || "";
+    if (user.url) nameEl.setAttribute("href", user.url);
+  }
   if (logout) {
     logout.addEventListener("click", function (ev) {
       ev.preventDefault();
