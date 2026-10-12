@@ -29,11 +29,16 @@ Same `.header` as every Event URL / results sheet:
 | Slot | Content |
 | --- | --- |
 | **Left** | Event logo — `/artwork/Class Logo/TSL-Class-Logo.png` (`_regatta_named_event_logo_url`) |
-| **Centre** | Event name · `Host: MAC - Milnerton Aquatic Club` (link `/club/mac`) · status line only when `as_at_time` is set |
+| **Centre** | Event name · `Host: MAC - Milnerton Aquatic Club` (link `/club/mac`) · gold status stack |
 | **Right** | Host club logo — MAC from `/api/club-logo/MAC` |
 
+Gold centre stack (same as Ullman upcoming / 420 raced):
+
+- Before racing: `Upcoming Event — 17–18 Oct 2026` plus people-icon `N Entries` (0 is shown).
+- After the first scored race: `Results are Provisional` + as-at date line + entries icon, from `regattas.result_status` / `regattas.as_at_time`.
+
 No Venue line (host and venue are the same club).  
-No `(snapshot time not recorded)`. Empty status until racing has a real as-at time.
+No `(snapshot time not recorded)`. Do not invent as-at from the event dates.
 
 ---
 
@@ -108,7 +113,7 @@ Live apply (full-box SSH): `docs` + `sailingsa/deploy/SSH_LIVE.md`.
 
 1. Snapshot `/var/www/sailingsa/api/api.py` then `chattr -i`.
 2. `python3 sailingsa/deploy/create_2026_mac_tsl_wc_event_url.py` with live `DB_URL`.
-3. Surgical patch only: `python3 sailingsa/deploy/patch_live_mac_tsl_wc_event_url.py /var/www/sailingsa/api/api.py` (wind `/api/wind2speed/mac`, TSL logo rules, omit status until `as_at_time`, inject `/js/mac-tsl-live-cards.js`).
+3. Surgical patch only: `python3 sailingsa/deploy/patch_live_mac_tsl_wc_event_url.py /var/www/sailingsa/api/api.py` (wind `/api/wind2speed/mac`, TSL logo rules, Upcoming Event + dates + entries icon, inject `/js/mac-tsl-live-cards.js`).
 4. Copy `js/mac-tsl-live-cards.js` → `/var/www/sailingsa/js/`.
 5. `chattr +i`, restart `sailingsa-api`, delete `/var/tmp/sailingsa_regatta_with_counts.json`.
 

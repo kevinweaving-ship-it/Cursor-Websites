@@ -176,22 +176,52 @@ PAGE_INSERT = '''            f"<div class=\\"regatta-page\\"{_regatta_page_live_
             f"{mm_card_script}{sa_toolbar_script}{wc_club_edit_script}{entry_script}{live_board_script}{mac_tsl_js}"
 '''
 
-PASS_B_ANCHOR = '''                if _pass_b and not _pdf_sl:
-                    status_line_text = _pass_b.get("status_visible") or status_line_text
-            except Exception as _pass_b_err:
-                print(f"[pass_b] bits { _pass_b_err }", flush=True)
-'''
-
-PASS_B_INSERT = '''                if _pass_b and not _pdf_sl:
-                    status_line_text = _pass_b.get("status_visible") or status_line_text
-            except Exception as _pass_b_err:
-                print(f"[pass_b] bits { _pass_b_err }", flush=True)
-        if str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing" and not as_at_time:
+PASS_B_WIPE = '''        if str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing" and not as_at_time:
             status_line_text = ""
 '''
 
+STATUS_DEFAULT_ANCHOR = '''            result_status = (row.get("result_status") or "").strip() or "Final"
+            as_at_time = row.get("as_at_time")
+'''
 
-def apply_one(text: str, anchor: str, insert: str, name: str) -> str:
+STATUS_DEFAULT_INSERT = '''            result_status = (row.get("result_status") or "").strip()
+            if str(regatta_id or "").strip() != "2026-10-17-mac-tsl-wc-team-sailing":
+                result_status = result_status or "Final"
+            as_at_time = row.get("as_at_time")
+'''
+
+ENTRIES_ANCHOR = '''    if n <= 0:
+        return ""
+    try:  # CC_EVENT_HEADER_ENTRIES_v1
+        from sailingsa.backend.cape_classic_fleet_sheet import (
+            cape_classic_entries_line_html,
+        )
+        return cape_classic_entries_line_html(n)
+'''
+
+ENTRIES_INSERT = '''    if n <= 0:
+        if str(regatta_id or "").strip() != "2026-10-17-mac-tsl-wc-team-sailing":
+            return ""
+        n = 0
+    try:  # CC_EVENT_HEADER_ENTRIES_v1
+        from sailingsa.backend.cape_classic_fleet_sheet import (
+            cape_classic_entries_line_html,
+        )
+        _entries_html = cape_classic_entries_line_html(n)
+        if _entries_html:
+            return _entries_html
+        if str(regatta_id or "").strip() == "2026-10-17-mac-tsl-wc-team-sailing":
+            from sailingsa.backend.cape_classic_fleet_sheet import _ENTRIES_USERS_SVG
+            return (
+                '<div class="entry-total-line entry-total-line--icon">'
+                f'<span class="entry-total-ico">{_ENTRIES_USERS_SVG}</span>'
+                f"{n} Entries</div>"
+            )
+        return _entries_html
+'''
+
+
+def apply_one(text: str, anchor: str, insert: str, name: str, *, allow_multi: int = 1) -> str:
     if insert in text and name != "wind":
         print(f"skip {name}: already present")
         return text
@@ -200,10 +230,22 @@ def apply_one(text: str, anchor: str, insert: str, name: str) -> str:
         return text
     if anchor not in text:
         raise SystemExit(f"ERROR: anchor not found for {name}")
-    if text.count(anchor) != 1:
-        raise SystemExit(f"ERROR: anchor for {name} is not unique ({text.count(anchor)})")
-    print(f"patch {name}")
-    return text.replace(anchor, insert, 1)
+    found = text.count(anchor)
+    if found != allow_multi:
+        raise SystemExit(f"ERROR: anchor for {name} count={found} expected={allow_multi}")
+    print(f"patch {name} x{found}")
+    return text.replace(anchor, insert)
+
+
+def revert_pass_b_wipe(text: str) -> str:
+    if PASS_B_WIPE not in text:
+        print("skip pass_b_status: wipe already removed")
+        return text
+    found = text.count(PASS_B_WIPE)
+    if found != 1:
+        raise SystemExit(f"ERROR: pass_b wipe count={found} expected=1")
+    print("revert pass_b_status wipe (keep Upcoming Event + dates)")
+    return text.replace(PASS_B_WIPE, "", 1)
 
 
 def main() -> int:
@@ -218,7 +260,9 @@ def main() -> int:
     text = apply_one(text, STATUS_ANCHOR, STATUS_INSERT, "status")
     text = apply_one(text, TOOLBAR_ANCHOR, TOOLBAR_INSERT, "toolbar")
     text = apply_one(text, PAGE_ANCHOR, PAGE_INSERT, "page")
-    text = apply_one(text, PASS_B_ANCHOR, PASS_B_INSERT, "pass_b_status")
+    text = revert_pass_b_wipe(text)
+    text = apply_one(text, STATUS_DEFAULT_ANCHOR, STATUS_DEFAULT_INSERT, "status_default", allow_multi=2)
+    text = apply_one(text, ENTRIES_ANCHOR, ENTRIES_INSERT, "entries_icon")
     if text == orig:
         print("No changes (already patched).")
         return 0
@@ -230,6 +274,9 @@ def main() -> int:
         'data-mac-tsl="1"',
         SLUG,
         TSL_LOGO,
+        "Upcoming Event",
+        "entry-total-line--icon",
+        PASS_B_WIPE.strip(),
     ):
         print(f"  grep {needle!r}: {text.count(needle)}")
     return 0

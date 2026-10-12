@@ -239,7 +239,7 @@ def ensure_regatta(cur, mac: dict, dry_run: bool) -> str:
     if col_exists(cur, "regattas", "source_url"):
         cols.append("source_url")
         vals.append(SAS_URL)
-    # No result_status / as_at_time until racing — omit the status line.
+    # No result_status / as_at_time until racing — gold header shows Upcoming Event + dates.
 
     placeholders = ", ".join(["%s"] * len(cols))
     print(f"regattas: INSERT {REGATTA_ID} number={number} host=MAC")
