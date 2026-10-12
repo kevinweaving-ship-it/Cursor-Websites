@@ -110,8 +110,18 @@ NOR scoring is positional 3-on-3 (lowest team total wins), not W/L.
 
 Known teams so far (seed as entry rows, rank NULL, no races):
 
-1. S.A. Sailing Eden District — Lulonke Lenks, Christiaan Cilliers, Isabella Watson, Arthur Watson, Owen Conradie, Rainier Lamprecht (roles not given)
-2. Stellenbosch University / Maties — helms Corben Smith, Conrad Holm, Chiara Fruet; crews Shakur Abrahams, Nadia Bahnemann, Robyn Rosselli
+1. **MAC** (verified 2026-10-12) — `sailingsa/deploy/seed_mac_tsl_mac_team_roster.py`
+
+   | Boat | Helm | Crew |
+   | --- | --- | --- |
+   | 1 | Kamva Mgcubhe **13516** | Maddison Smit **21052** |
+   | 2 | Tristan Gress **8612** | Thandokazi Sibanyoni **29414** |
+   | 3 | Unam Lubhelwana **13517** | Alexa Aab **22974** |
+
+   Club `club_id=58`. Thandokazi’s `full_name` in SAS is `Sibanyoni, Thandokazi`; display uses first+last. No second MAC team in the event DB.
+
+2. S.A. Sailing Eden District — Lulonke Lenks, Christiaan Cilliers, Isabella Watson, Arthur Watson, Owen Conradie, Rainier Lamprecht (roles not given)
+3. Stellenbosch University / Maties — helms Corben Smith, Conrad Holm, Chiara Fruet; crews Shakur Abrahams, Nadia Bahnemann, Robyn Rosselli
 
 ---
 
