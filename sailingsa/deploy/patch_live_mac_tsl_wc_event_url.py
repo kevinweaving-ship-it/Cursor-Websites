@@ -162,7 +162,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         )
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
-            '<script src="/js/mac-tsl-live-cards.js?v=20261012f" defer></script>' if is_mac_tsl else ""
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012g" defer></script>' if is_mac_tsl else ""
         )
         mac_tsl_page_attrs = ' data-mac-tsl="1" data-mac-cam="later"' if is_mac_tsl else ""
         live_board_script = _regatta_live_board_toggle_script() + _regatta_live_race_autoscore_script(str(regatta_id)) + _regatta_as_at_live_clock_script()
@@ -233,6 +233,29 @@ NOR_LINK_INSERT = '''                + _cape_classic_total_entries_line_html(str
                 + "</div>"
 '''
 
+SA_CHROME_ANCHOR = '''    ls_attr = html_module.escape(ls_key, quote=True)
+    cur = _normalize_hub_news_badge_label_for_ui(hub_badge_label)
+'''
+
+SA_CHROME_INSERT = '''    ls_attr = html_module.escape(ls_key, quote=True)
+    if str(regatta_id or "").strip() == "2026-10-17-mac-tsl-wc-team-sailing":
+        return (
+            '<div class="regatta-sa-mode-wrap" id="regattaSaModeWrap" data-regatta-id="'
+            + rid_attr
+            + '" data-ls-key="'
+            + ls_attr
+            + '">'
+            '<span class="regatta-sa-mode-text regatta-sa-mode-text--public">Public</span>'
+            '<label class="regatta-sa-switch" title="Off = Public view, On = Super Admin (edit)">'
+            '<input type="checkbox" id="regattaSaEditToggle" autocomplete="off" aria-label="Public view; check for Super Admin edit mode">'
+            '<span class="regatta-sa-slider" aria-hidden="true"></span>'
+            "</label>"
+            '<span class="regatta-sa-mode-text regatta-sa-mode-text--edit" title="Super Admin (edit mode)">Super Admin (edit)</span>'
+            "</div>"
+        )
+    cur = _normalize_hub_news_badge_label_for_ui(hub_badge_label)
+'''
+
 
 def apply_one(text: str, anchor: str, insert: str, name: str, *, allow_multi: int = 1) -> str:
     if insert in text and name != "wind":
@@ -280,12 +303,14 @@ def main() -> int:
     text = apply_one(text, STATUS_DEFAULT_ANCHOR, STATUS_DEFAULT_INSERT, "status_default", allow_multi=2)
     text = apply_one(text, ENTRIES_ANCHOR, ENTRIES_INSERT, "entries_icon")
     text = apply_one(text, NOR_LINK_ANCHOR, NOR_LINK_INSERT, "nor_link", allow_multi=3)
+    text = apply_one(text, SA_CHROME_ANCHOR, SA_CHROME_INSERT, "sa_chrome")
     for old_pin, new_pin in (
-        ("mac-tsl-live-cards.js?v=20261012a", "mac-tsl-live-cards.js?v=20261012f"),
-        ("mac-tsl-live-cards.js?v=20261012b", "mac-tsl-live-cards.js?v=20261012f"),
-        ("mac-tsl-live-cards.js?v=20261012c", "mac-tsl-live-cards.js?v=20261012f"),
-        ("mac-tsl-live-cards.js?v=20261012d", "mac-tsl-live-cards.js?v=20261012f"),
-        ("mac-tsl-live-cards.js?v=20261012e", "mac-tsl-live-cards.js?v=20261012f"),
+        ("mac-tsl-live-cards.js?v=20261012a", "mac-tsl-live-cards.js?v=20261012g"),
+        ("mac-tsl-live-cards.js?v=20261012b", "mac-tsl-live-cards.js?v=20261012g"),
+        ("mac-tsl-live-cards.js?v=20261012c", "mac-tsl-live-cards.js?v=20261012g"),
+        ("mac-tsl-live-cards.js?v=20261012d", "mac-tsl-live-cards.js?v=20261012g"),
+        ("mac-tsl-live-cards.js?v=20261012e", "mac-tsl-live-cards.js?v=20261012g"),
+        ("mac-tsl-live-cards.js?v=20261012f", "mac-tsl-live-cards.js?v=20261012g"),
     ):
         if old_pin in text:
             text = text.replace(old_pin, new_pin)

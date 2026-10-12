@@ -14,7 +14,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var MEDIA_ID = "mmLiptonReels";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012f";
+  var JS_VER = "20261012g";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/artwork/Club Logo/MAC.png";
   var WX_API = "/api/wind2speed/mac";
@@ -77,7 +77,16 @@
       ".mac-tsl-nor-close{min-height:44px;min-width:44px;padding:8px 12px;border:1.5px solid #001f3f;border-radius:8px;background:#001f3f;color:#fff;font:700 14px/1.2 Arial,Helvetica,sans-serif;cursor:pointer;}",
       ".mac-tsl-nor-doc p{margin:0 0 0.75rem;color:#1e293b;line-height:1.6;}",
       ".mac-tsl-nor-doc .section-title{margin:1rem 0 0.4rem;}",
-      ".regatta-header-status-stack #macTslNorOpen{color:#1a2750;font-weight:700;}"
+      ".regatta-header-status-stack #macTslNorOpen{color:#1a2750;font-weight:700;}",
+      ".regatta-page[data-mac-tsl=\"1\"] .regatta-sa-hub-news-wrap,",
+      ".regatta-page[data-mac-tsl=\"1\"] #regattaHubNewsType,",
+      ".regatta-page[data-mac-tsl=\"1\"] #regattaMmLiveFbFeed,",
+      ".regatta-page[data-mac-tsl=\"1\"] #regattaMmFeedSource,",
+      ".regatta-page[data-mac-tsl=\"1\"] #regattaMmFbPage,",
+      ".regatta-page[data-mac-tsl=\"1\"] #regattaMmClipUrls,",
+      ".regatta-page[data-mac-tsl=\"1\"] #regattaWaShowWrap,",
+      ".regatta-page[data-mac-tsl=\"1\"] #mmLiveFbCard,",
+      ".regatta-page[data-mac-tsl=\"1\"] .mm-live-fb-card{display:none!important;}"
     ].join("");
   }
 
@@ -312,6 +321,12 @@
     if (!page) return;
     injectCss();
     bindNor();
+    var junk = page.querySelectorAll(
+      ".regatta-sa-hub-news-wrap, #regattaWaShowWrap, #mmLiveFbCard, .mm-live-fb-card"
+    );
+    for (var ji = 0; ji < junk.length; ji += 1) {
+      if (junk[ji] && junk[ji].parentNode) junk[ji].parentNode.removeChild(junk[ji]);
+    }
     var host = document.getElementById(HOST_ID);
     if (!host) {
       host = document.createElement("div");

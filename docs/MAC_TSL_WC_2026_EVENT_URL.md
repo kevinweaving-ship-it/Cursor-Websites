@@ -52,7 +52,7 @@ Order under the header: **Wind → Media → (Cam later) → TSL Fleet**.
 | Card | Status |
 | --- | --- |
 | **Wind** | Live. Gold slot card. Data from [Wind2Speed widget 3](https://wind2speed.africa/widgetPage/3) / station **W2SMAC01** via `GET /api/wind2speed/mac` (`apidata/wsdata/3`). Dial + 1h spark + Now/Avg/Gust kt. |
-| **Media** | Same 5-clip card as HMYC Dart / Midmar. MAC club logo **as-is on white** (click → `/club/mac`). Clips from WhatsApp **MAC Media** only — no Add Clip panel. |
+| **Media** | Same 5-clip card as HMYC Dart / Midmar. MAC club logo **as-is on white** (click → `/club/mac`, not Marine Megastore). Clips from WhatsApp **MAC Media** only. No Add Clip, News type, Live video, Feed source, Facebook page, Facebook clip URLs, or WhatsApp Hide. |
 | **Live cam** | **Not shown.** `data-mac-cam="later"`. Wait for the MAC feed URL before adding a cam card. |
 
 JS: `/js/mac-tsl-live-cards.js` (also `sailingsa/frontend/js/mac-tsl-live-cards.js`). NOR body: `/js/mac-tsl-nor.html`. Not loaded on other slugs.
