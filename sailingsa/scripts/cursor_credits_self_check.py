@@ -555,44 +555,141 @@ This letter is {label} only. Other months are separate emails.
 """
 
 
-def build_email(snap: dict[str, Any], sequence: int, ticket: str, month: str | None = None) -> EmailMessage:
-    month_name = MONTH_NAMES.get(month or "", month or "current month")
-    evidence = month_snapshot(snap, month) if month else snap
-    body = f"""Hi billing team,
+def apply_party_headers(msg: EmailMessage) -> None:
+    """Kevin must be Cc so Cursor's desk CCs him on the auto-reply."""
+    if not msg.get("Cc"):
+        msg["Cc"] = MAIL_CC
+    msg["Reply-To"] = f"{ACCOUNT['name']} <{MAIL_CC}>, Credits monitor <{MAIL_FROM}>"
 
-This email is only for {month_name} Cloud Agent usage on kevinweaving@icloud.com
-(user 291509789). It is a separate billing period from any other month.
 
-Please do not merge this into another month's ticket. Open or keep a
-separate {month_name}-only credit review. The attached JSON lists only
-agents created in {month_name}.
+def month_case_letter(snap: dict[str, Any], month: str) -> tuple[str, str, dict[str, Any]]:
+    """Each month is a different case so Sam cannot close it as T-H16750."""
+    sl = month_slice(snap, month)
+    ev = month_snapshot(snap, month)
+    if month == "2026-08":
+        subject = (
+            "NEW CASE file August leftover IDLE Cloud sessions "
+            f"— 53 idle / 0 ERROR — user {ACCOUNT['cursor_user_id']}"
+        )
+        body = f"""Hi billing intake,
+
+Open a NEW ticket number for August 2026 leftover IDLE Cloud sessions.
+Do not close this as a duplicate of T-H16750. That ticket is October 2026
+reset usage only. This file is a different defect and a different month.
+
+Reply-all. Keep {MAIL_CC} on every reply so Kevin receives your ticket number.
+
+What this August file is (not October, not September)
+- Window: 23 Aug 2026 → 31 Aug 2026 (partial; first Cloud row in this env)
+- 53 Cloud agents, every one IDLE, ERROR count = 0
+- 42 were unsolicited internal leftovers
+- 0 instant-dead spawns (September is the ERROR-storm month; this is not that)
+- 1863.4 hours wall leftover
+- 0 ran on the connected Mac Mini worker
+- userFault = 0
+
+Ask: credit August 2026 leftover idle / internal Cloud usage on
+kevinweaving@icloud.com (user 291509789) and reply with the NEW ticket id.
 
 {account_identity_block()}
 
 {monthly_split_block(snap, month)}
 
+{detailed_evidence(ev)}
+
+Issue a new August ticket number. Reply-all including {MAIL_CC}.
+
+Kevin Weaving
+{MAIL_CC} / user {ACCOUNT['cursor_user_id']}
+"""
+        return subject, body, ev
+    if month == "2026-09":
+        subject = (
+            "NEW CASE file September instant-ERROR spawn storm "
+            f"— 70 dead <2s + 2 Opus — user {ACCOUNT['cursor_user_id']}"
+        )
+        body = f"""Hi billing intake,
+
+Open a NEW ticket number for the September 2026 instant-ERROR spawn storm.
+Do not close this as a duplicate of T-H16750. That ticket is October 2026
+reset usage only. September is a different defect: failed internal spawns
+that died in under two seconds with empty dashboard event logs.
+
+Reply-all. Keep {MAIL_CC} on every reply so Kevin receives your ticket number.
+
+What this September file is (not October, not August)
+- Window: 1 Sep 2026 → 26 Sep 2026
+- 165 Cloud agents
+- 70 ERROR / failed internal spawns; 66 died in under 2 seconds
+- 2 mobile runs used claude-4.5-opus-high-thinking
+- August had 0 ERROR — this is not the August leftover-idle file
+- 4220.8 hours wall
+- 0 ran on the connected Mac Mini worker
+- userFault = 0
+
+Ask: credit September 2026 failed-spawn / Opus / leftover Cloud usage on
+kevinweaving@icloud.com (user 291509789) and reply with the NEW ticket id.
+
+{account_identity_block()}
+
+{monthly_split_block(snap, month)}
+
+{detailed_evidence(ev)}
+
+Issue a new September ticket number. Reply-all including {MAIL_CC}.
+
+Kevin Weaving
+{MAIL_CC} / user {ACCOUNT['cursor_user_id']}
+"""
+        return subject, body, ev
+    month_name = MONTH_NAMES.get(month, month)
+    subject = (
+        f"NEW CASE file {month_name} Cloud usage "
+        f"— user {ACCOUNT['cursor_user_id']}"
+    )
+    body = f"""Hi billing intake,
+
+Open a NEW ticket number for {month_name} only. Do not merge into T-H16750.
+Reply-all and keep {MAIL_CC} on every reply.
+
+{account_identity_block()}
+{monthly_split_block(snap, month)}
+{detailed_evidence(ev)}
+
+Kevin Weaving
+{MAIL_CC} / user {ACCOUNT['cursor_user_id']}
+"""
+    return subject, body, ev
+
+
+def build_email(snap: dict[str, Any], sequence: int, ticket: str, month: str | None = None) -> EmailMessage:
+    if month and month != "2026-10":
+        subject, body, evidence = month_case_letter(snap, month)
+    else:
+        evidence = month_snapshot(snap, month) if month else snap
+        subject = f"Re: T-H16750 — October 2026 only (existing ticket, not a new file)"
+        body = f"""Hi billing team,
+
+This stays on existing ticket T-H16750. October 2026 only.
+
+Reply-all. Keep {MAIL_CC} on every reply.
+
+{account_identity_block()}
+{monthly_split_block(snap, month)}
 {detailed_evidence(evidence)}
 
-Please credit the {month_name} Cloud / on-demand / fast usage described
-above and confirm on this thread.
-
-Thank you,
 Kevin Weaving
-{ACCOUNT['login_email']} / Cursor user {ACCOUNT['cursor_user_id']}
-via {MAIL_FROM}
+{MAIL_CC} / user {ACCOUNT['cursor_user_id']}
 """
     msg = EmailMessage()
     msg["From"] = f"Kevin Weaving <{MAIL_FROM}>"
     msg["To"] = MAIL_TO
     msg["Cc"] = MAIL_CC
-    msg["Reply-To"] = MAIL_FROM
+    apply_party_headers(msg)
     msg["Message-ID"] = make_msgid(domain="sailingsa.co.za")
     if ticket and month == "2026-10":
         msg["X-Cursor-Ticket"] = ticket
-    msg["Subject"] = (
-        f"Cloud Agent credit request — {month_name} only — "
-        f"{ACCOUNT['login_email']} user {ACCOUNT['cursor_user_id']}"
-    )
+    msg["Subject"] = subject
     msg.set_content(body)
     attach_name = f"cursor_credits_audit_{month}.json" if month else "cursor_credits_audit.json"
     msg.add_attachment(
@@ -829,7 +926,7 @@ Kevin Weaving
     out["From"] = f"Kevin Weaving <{MAIL_FROM}>"
     out["To"] = MAIL_TO
     out["Cc"] = MAIL_CC
-    out["Reply-To"] = MAIL_FROM
+    apply_party_headers(out)
     if mid:
         out["In-Reply-To"] = mid
         refs = inbound.get("References", "")
@@ -883,6 +980,43 @@ def cmd_dispute(snap: dict[str, Any], inbound_path: Path | None, send: bool) -> 
                 seen = list(state.get("seenMessageIds") or [])
                 seen.append(mid)
                 state["seenMessageIds"] = seen[-80:]
+            subj = inbound.get("Subject") or ""
+            month_reopen = None
+            if re.search(r"August leftover|August 2026", subj, flags=re.I):
+                month_reopen = "2026-08"
+            elif re.search(r"September instant|September 2026", subj, flags=re.I):
+                month_reopen = "2026-09"
+            if month_reopen:
+                closed = next((t for t in tickets if t != orig), tickets[0])
+                reopen = EmailMessage()
+                reopen["From"] = f"Kevin Weaving <{MAIL_FROM}>"
+                reopen["To"] = MAIL_TO
+                reopen["Cc"] = MAIL_CC
+                apply_party_headers(reopen)
+                reopen["Message-ID"] = make_msgid(domain="sailingsa.co.za")
+                if mid:
+                    reopen["In-Reply-To"] = mid
+                reopen["Subject"] = (
+                    f"Not a duplicate of {orig} — reopen {closed} as its own "
+                    f"{MONTH_NAMES[month_reopen]} ticket — reply-all {MAIL_CC}"
+                )
+                sl = month_slice(snap, month_reopen)
+                reopen.set_content(
+                    f"Hi intake,\n\n"
+                    f"{closed} is not a duplicate of {orig}.\n"
+                    f"{orig} is October 2026. This file is {MONTH_NAMES[month_reopen]} "
+                    f"({sl['agents']} agents, {sl['failedSpawnCount']} ERROR, "
+                    f"{sl['internalCount']} internal). Reopen {closed}, issue/keep "
+                    f"that ticket number, and reply-all including {MAIL_CC}.\n\n"
+                    f"Kevin Weaving / {MAIL_CC} / user {ACCOUNT['cursor_user_id']}\n"
+                )
+                if send:
+                    send_mail(reopen, dry_run=False)
+                    save_state(state)
+                else:
+                    print(email_text(reopen))
+                print(f"reopen {month_reopen} ticket {closed} — not {orig}")
+                return 0
             if send:
                 save_state(state)
             print(f"duplicate close noted — stay on {orig}; no new ticket mail")

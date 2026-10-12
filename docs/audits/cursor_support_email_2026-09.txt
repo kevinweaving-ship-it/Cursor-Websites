@@ -1,11 +1,24 @@
-Hi billing team,
+Hi billing intake,
 
-This email is only for September 2026 Cloud Agent usage on kevinweaving@icloud.com
-(user 291509789). It is a separate billing period from any other month.
+Open a NEW ticket number for the September 2026 instant-ERROR spawn storm.
+Do not close this as a duplicate of T-H16750. That ticket is October 2026
+reset usage only. September is a different defect: failed internal spawns
+that died in under two seconds with empty dashboard event logs.
 
-Please do not merge this into another month's ticket. Open or keep a
-separate September 2026-only credit review. The attached JSON lists only
-agents created in September 2026.
+Reply-all. Keep kevinweaving@icloud.com on every reply so Kevin receives your ticket number.
+
+What this September file is (not October, not August)
+- Window: 1 Sep 2026 → 26 Sep 2026
+- 165 Cloud agents
+- 70 ERROR / failed internal spawns; 66 died in under 2 seconds
+- 2 mobile runs used claude-4.5-opus-high-thinking
+- August had 0 ERROR — this is not the August leftover-idle file
+- 4220.8 hours wall
+- 0 ran on the connected Mac Mini worker
+- userFault = 0
+
+Ask: credit September 2026 failed-spawn / Opus / leftover Cloud usage on
+kevinweaving@icloud.com (user 291509789) and reply with the NEW ticket id.
 
 ACCOUNT IDENTITY — do not confuse with any other customer
   Legal / display name    Kevin Weaving
@@ -206,13 +219,10 @@ These rows are records Cursor stored for this login, not an estimate.
 Rejecting them means rejecting your own agent list, worker roster,
 source field, model field, and timestamps. Account-holder fault: 0.
 
-Please credit the September 2026 Cloud / on-demand / fast usage described
-above and confirm on this thread.
+Issue a new September ticket number. Reply-all including kevinweaving@icloud.com.
 
-Thank you,
 Kevin Weaving
-kevinweaving@icloud.com / Cursor user 291509789
-via cursor@sailingsa.co.za
+kevinweaving@icloud.com / user 291509789
 
 
-[dry-run] From=Kevin Weaving <cursor@sailingsa.co.za> To=hi@cursor.com Cc=kevinweaving@icloud.com Subject=Cloud Agent credit request — September 2026 only — kevinweaving@icloud.com user 291509789
+[dry-run] From=Kevin Weaving <cursor@sailingsa.co.za> To=hi@cursor.com Cc=kevinweaving@icloud.com Subject=NEW CASE file September instant-ERROR spawn storm — 70 dead <2s + 2 Opus — user 291509789

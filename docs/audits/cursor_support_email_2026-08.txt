@@ -1,11 +1,22 @@
-Hi billing team,
+Hi billing intake,
 
-This email is only for August 2026 Cloud Agent usage on kevinweaving@icloud.com
-(user 291509789). It is a separate billing period from any other month.
+Open a NEW ticket number for August 2026 leftover IDLE Cloud sessions.
+Do not close this as a duplicate of T-H16750. That ticket is October 2026
+reset usage only. This file is a different defect and a different month.
 
-Please do not merge this into another month's ticket. Open or keep a
-separate August 2026-only credit review. The attached JSON lists only
-agents created in August 2026.
+Reply-all. Keep kevinweaving@icloud.com on every reply so Kevin receives your ticket number.
+
+What this August file is (not October, not September)
+- Window: 23 Aug 2026 → 31 Aug 2026 (partial; first Cloud row in this env)
+- 53 Cloud agents, every one IDLE, ERROR count = 0
+- 42 were unsolicited internal leftovers
+- 0 instant-dead spawns (September is the ERROR-storm month; this is not that)
+- 1863.4 hours wall leftover
+- 0 ran on the connected Mac Mini worker
+- userFault = 0
+
+Ask: credit August 2026 leftover idle / internal Cloud usage on
+kevinweaving@icloud.com (user 291509789) and reply with the NEW ticket id.
 
 ACCOUNT IDENTITY — do not confuse with any other customer
   Legal / display name    Kevin Weaving
@@ -124,13 +135,10 @@ These rows are records Cursor stored for this login, not an estimate.
 Rejecting them means rejecting your own agent list, worker roster,
 source field, model field, and timestamps. Account-holder fault: 0.
 
-Please credit the August 2026 Cloud / on-demand / fast usage described
-above and confirm on this thread.
+Issue a new August ticket number. Reply-all including kevinweaving@icloud.com.
 
-Thank you,
 Kevin Weaving
-kevinweaving@icloud.com / Cursor user 291509789
-via cursor@sailingsa.co.za
+kevinweaving@icloud.com / user 291509789
 
 
-[dry-run] From=Kevin Weaving <cursor@sailingsa.co.za> To=hi@cursor.com Cc=kevinweaving@icloud.com Subject=Cloud Agent credit request — August 2026 only — kevinweaving@icloud.com user 291509789
+[dry-run] From=Kevin Weaving <cursor@sailingsa.co.za> To=hi@cursor.com Cc=kevinweaving@icloud.com Subject=NEW CASE file August leftover IDLE Cloud sessions — 53 idle / 0 ERROR — user 291509789

@@ -64,11 +64,15 @@ def upload(local: pathlib.Path, remote: str) -> None:
         child.expect(pexpect.EOF)
 
 
-def send_months(months: list[str], copy_cc: bool = False) -> int:
+def send_months(months: list[str], copy_cc: bool = False, force: bool = False) -> int:
     src = ROOT / "sailingsa/scripts/cursor_credits_self_check.py"
     print(f"upload {src.name}")
     upload(src, f"{REMOTE}/cursor_credits_self_check.py")
-    extra = " --copy-cc" if copy_cc else ""
+    extra = ""
+    if copy_cc:
+        extra += " --copy-cc"
+    if force:
+        extra += " --force"
     for month in months:
         print(f"--- email --month {month}{extra} --send ---")
         print(
@@ -84,14 +88,15 @@ def main() -> int:
     if len(sys.argv) >= 2 and sys.argv[1] == "send-months":
         args = sys.argv[2:]
         copy_cc = "--copy-cc" in args
-        months = [a for a in args if a != "--copy-cc"] or [
+        force = "--force" in args
+        months = [a for a in args if a not in ("--copy-cc", "--force")] or [
             "2026-06",
             "2026-07",
             "2026-08",
             "2026-09",
             "2026-10",
         ]
-        return send_months(months, copy_cc=copy_cc)
+        return send_months(months, copy_cc=copy_cc, force=force)
     print(f"SSH_LIVE deploy credits monitor → root@{SERVER}")
     files = [
         (ROOT / "sailingsa/scripts/cursor_credits_self_check.py", f"{REMOTE}/cursor_credits_self_check.py"),
