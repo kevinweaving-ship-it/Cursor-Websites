@@ -20,6 +20,8 @@ Do **not** change this slug after create.
 
 Do not reuse March `328007` or July GLYC `370796`.
 
+**WC structure (locked):** `docs/TSL_WC_STRUCTURE.md` — regional league only, per-event teams, 3v3 positional, SAS boats rotated.
+
 ---
 
 ## Std header (do not invent a new layout)
@@ -89,7 +91,7 @@ TSL is **team vs team**, not Appendix A boats. Map onto `public.results` like th
 
 | Display | `results` column | Admin live |
 | --- | --- | --- |
-| Rank | `rank` | Auto from wins, then race-off / nett |
+| Rank | `rank` | From race outcomes (NOR / RO). Ties “not possible” per structure answers. |
 | Team | `boat_name` | Text (Eden District, Maties, …) |
 | Club | `club_raw` + `club_id` | Club code (MAC, Maties, GYLC, …) |
 | Helms | `helm_name` | Three names, `"; "` joined (Title Case, SAS ID is the person) |
@@ -116,7 +118,7 @@ Known teams so far (seed as entry rows, rank NULL, no races):
 
 - **Who:** Super Admin (`regatta-sa-toolbar.js` already on the Event URL). Club manager later if MAC has one.
 - **When:** Saturday 17 Oct after first warning (11:00). Add R1, then R2… Do not change the slug.
-- **How:** Enter each team-race as the 3-boat place total on the team row (NOR: lowest score wins). Rank from race wins / knockout, then nett.
+- **How:** Enter each team-race as the 3-boat place total on the team row (NOR: lowest score wins). Injury sub only, RO approval, same roster. Final sheet signed off by Race Officer / Coordinator.
 - **Status line:** first scored race → `Results are Provisional as at DD Month YYYY at HH:MM` from the sheet clock. Final when the OA says so.
 - **Public:** never edits scores. Empty race columns stay hidden until R1 exists.
 
