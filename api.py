@@ -22093,6 +22093,7 @@ def _class_logo_url_from_fleet_name(name: str) -> Optional[str]:
 
 
 MAC_TSL_WC_2026_REGATTA_SLUG = "2026-10-17-mac-tsl-wc-team-sailing"
+MAC_TSL_WC_2026_EVENT_LOGO = "/artwork/Event Logo/TSL-Team-Sailing.png"
 
 
 def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
@@ -22102,7 +22103,7 @@ def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[
     if "lipton" in rid or "lipton" in en:
         return "/js/lipton-dev-event-logo.png"
     if rid == MAC_TSL_WC_2026_REGATTA_SLUG or "team sailing" in en:
-        return "/artwork/Class Logo/TSL-Class-Logo.png"
+        return MAC_TSL_WC_2026_EVENT_LOGO
     return None
 
 
@@ -24543,6 +24544,9 @@ def _render_result_sheet_fleet(
     show_hull = _optional_col_visible("hull", has_hull_no)
     show_crew_col = _optional_col_visible("crew", has_crew)
     show_races = bool(race_columns)
+    is_mac_tsl = str(regatta_id or "").strip() == MAC_TSL_WC_2026_REGATTA_SLUG
+    if is_mac_tsl:
+        show_boat = True
 
     thead = ""
     if _pref_on("rank"):
@@ -24554,14 +24558,14 @@ def _render_result_sheet_fleet(
     if _pref_on("sail_no"):
         thead += '<th class="sail-col">Sail No</th>'
     if show_boat:
-        thead += "<th>Boat Name</th>"
+        thead += "<th>Team</th>" if is_mac_tsl else "<th>Boat Name</th>"
     if show_jib:
         thead += "<th>Jib No</th>"
     if show_bow:
         thead += "<th>Bow No</th>"
     if show_hull:
         thead += "<th>Hull No</th>"
-    if _pref_on("club"):
+    if _pref_on("club") and not is_mac_tsl:
         thead += '<th class="club-col">Club</th>'
     if _pref_on("helm"):
         thead += '<th class="helm-col">Helm</th>'
@@ -24712,7 +24716,20 @@ def _render_result_sheet_fleet(
             row_html += f'<td class="sail-col">{_wc_cell(sail_str, sail_raw, "sail_number", None, 32)}</td>'
         if show_boat:
             bn = str(r.get("boat_name") or "")
-            row_html += f'<td>{_wc_cell(html_module.escape(bn), bn, "boat_name", None, 120)}</td>'
+            if is_mac_tsl:
+                code = re.sub(r"[^\w\-]", "", (club_raw or "").strip())
+                logo = (
+                    f'<img class="rs-club-row-logo-sm" src="/api/club-logo/{html_module.escape(code)}" alt="" loading="lazy" decoding="async">'
+                    if code
+                    else ""
+                )
+                team_html = (
+                    f'<span class="rs-club-with-logo tsl-team-club">{logo}'
+                    f"<span>{html_module.escape(bn)}</span></span>"
+                )
+                row_html += f'<td>{_wc_cell(team_html, bn, "boat_name", None, 120)}</td>'
+            else:
+                row_html += f'<td>{_wc_cell(html_module.escape(bn), bn, "boat_name", None, 120)}</td>'
         if show_jib:
             jv = str(r.get("jib_no") or "")
             row_html += f'<td>{_wc_cell(html_module.escape(jv), jv, "jib_no", None, 32)}</td>'
@@ -24722,7 +24739,7 @@ def _render_result_sheet_fleet(
         if show_hull:
             hv = str(r.get("hull_no") or "")
             row_html += f'<td>{_wc_cell(html_module.escape(hv), hv, "hull_no", None, 32)}</td>'
-        if _pref_on("club"):
+        if _pref_on("club") and not is_mac_tsl:
             row_html += f'<td class="club-col">{_wc_cell(club_link_html, club_raw, "club_code", None, 32, "club", club_xin)}</td>'
         if _pref_on("helm"):
             row_html += f'<td class="helm-col">{_wc_cell(helm_str, helm_raw or "", "helm_name", None, 120, "helm", helm_xin)}</td>'
@@ -26840,7 +26857,10 @@ def serve_regatta_standalone(slug: str, request: Request):
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         is_mac_tsl = str(regatta_id) == MAC_TSL_WC_2026_REGATTA_SLUG
         mac_tsl_js = (
-            '<script src="/js/mac-tsl-live-cards.js?v=20261012b" defer></script>' if is_mac_tsl else ""
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012j" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
+            if is_mac_tsl
+            else ""
         )
         page_attrs = (
             ' class="regatta-page" data-mac-tsl="1" data-mac-cam="later"'

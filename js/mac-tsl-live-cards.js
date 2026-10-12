@@ -14,7 +14,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var MEDIA_ID = "mmLiptonReels";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012i";
+  var JS_VER = "20261012j";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/img/mac-event-reels.jpg";
   var WX_API = "/api/wind2speed/mac";
@@ -67,8 +67,6 @@
       ".ssa-regatta-slot-card .wx-iv{color:#1a2750;text-align:right;}",
       ".ssa-regatta-slot-card .wx-iv small{margin-left:4px;color:inherit;}",
       ".mac-tsl-live-cards .mm-lipton-reels{margin:10px 0 0;width:100%;box-sizing:border-box;}",
-      ".mac-tsl-live-cards .mm-lipton-reels-brand{flex:0 0 auto!important;display:flex!important;align-items:stretch!important;justify-content:stretch!important;padding:2px!important;box-sizing:border-box;background:#fff!important;border:2px solid #001f3f;border-radius:8px;line-height:0;cursor:pointer;filter:none!important;overflow:hidden;height:100%!important;aspect-ratio:2014/780!important;width:auto!important;max-width:none!important;}",
-      ".mac-tsl-live-cards .mm-lipton-reels-brand img{display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain!important;object-position:center;filter:none!important;background:#fff!important;border:0;}",
       "@media print{.mac-tsl-live-cards{display:none!important;}}",
       "#macTslNorDialog.card{max-width:44rem;width:calc(100% - 24px);max-height:90vh;overflow:auto;padding:0.5rem 0.75rem;border:2px solid #001f3f;border-radius:8px;box-shadow:0 4px 12px rgba(0,31,63,.12);}",
       "#macTslNorDialog::backdrop{background:rgba(0,31,63,.45);}",
@@ -373,7 +371,7 @@
       media.innerHTML =
         '<div class="mm-lipton-reels-compact">' +
         '<a class="mm-lipton-reels-brand" href="/club/mac" aria-label="MAC club page">' +
-        '<img src="' + MAC_LOGO + '" alt="MAC Media" width="2014" height="780" decoding="async">' +
+        '<img src="' + MAC_LOGO + '" alt="MAC Media" decoding="async">' +
         "</a>" +
         '<div class="mm-lipton-reels-rail-wrap">' +
         '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>' +
@@ -383,45 +381,9 @@
       host.appendChild(media);
     }
 
-    function sizeMacBrand() {
-      var root = document.getElementById(MEDIA_ID);
-      if (!root) return;
-      var brand = root.querySelector(".mm-lipton-reels-brand");
-      var compact = root.querySelector(".mm-lipton-reels-compact") || root;
-      if (!brand) return;
-      var h = Math.round((compact.getBoundingClientRect() || {}).height || 0);
-      if (h < 56) h = 96;
-      var w = Math.round(h * (2014 / 780));
-      brand.style.setProperty("height", h + "px", "important");
-      brand.style.setProperty("width", w + "px", "important");
-      brand.style.setProperty("flex-basis", w + "px", "important");
-      brand.style.setProperty("padding", "2px", "important");
-      brand.style.setProperty("background", "#fff", "important");
-      var img = brand.querySelector("img");
-      if (img) {
-        img.style.setProperty("width", "100%", "important");
-        img.style.setProperty("height", "100%", "important");
-        img.style.setProperty("object-fit", "contain", "important");
-        img.style.setProperty("max-width", "none", "important");
-        img.style.setProperty("max-height", "none", "important");
-      }
-    }
-
     loadCss("/css/mm-lipton-reels.css?v=" + JS_VER);
     loadScript("/js/mm-lipton-reels-card.js?v=mactslmedia1").then(function () {
       if (typeof window.mmLiptonReelsInit === "function") window.mmLiptonReelsInit();
-      sizeMacBrand();
-      window.setTimeout(sizeMacBrand, 50);
-      window.setTimeout(sizeMacBrand, 300);
-      window.setTimeout(sizeMacBrand, 1200);
-      if (!window.__ssaMacBrandRO && window.ResizeObserver) {
-        var compact = document.querySelector("#" + MEDIA_ID + " .mm-lipton-reels-compact");
-        if (compact) {
-          window.__ssaMacBrandRO = new ResizeObserver(function () { sizeMacBrand(); });
-          window.__ssaMacBrandRO.observe(compact);
-        }
-      }
-      window.addEventListener("resize", sizeMacBrand);
     });
 
     function loadWx() {

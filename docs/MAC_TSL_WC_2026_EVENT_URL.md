@@ -31,7 +31,7 @@ Same `.header` as every Event URL / results sheet:
 
 | Slot | Content |
 | --- | --- |
-| **Left** | Event logo — `/artwork/Class Logo/TSL-Class-Logo.png` (`_regatta_named_event_logo_url`) |
+| **Left** | Event logo — `/artwork/Event Logo/TSL-Team-Sailing.png` (same TSL mark; Event Logo folder so All Regattas / landing cards use the std left slot) |
 | **Centre** | Event name · `Host: MAC - Milnerton Aquatic Club` (link `/club/mac`) · gold status stack |
 | **Right** | Host club logo — MAC from `/api/club-logo/MAC` |
 

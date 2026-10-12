@@ -32,7 +32,7 @@ except Exception as _tsl_exc:
 '''
 
 ADMIN_JS = '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
-CARDS_JS = '<script src="/js/mac-tsl-live-cards.js?v=20261012i" defer></script>'
+CARDS_JS = '<script src="/js/mac-tsl-live-cards.js?v=20261012j" defer></script>'
 
 
 def main() -> int:

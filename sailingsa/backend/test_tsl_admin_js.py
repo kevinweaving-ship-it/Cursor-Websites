@@ -32,6 +32,24 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
 
+    def test_event_logo_uses_event_logo_folder(self):
+        self.assertIn('/artwork/Event Logo/TSL-Team-Sailing.png', API)
+        self.assertIn('MAC_TSL_WC_2026_EVENT_LOGO', API)
+
+    def test_results_table_team_not_club_duplicate(self):
+        self.assertIn('thead += "<th>Team</th>" if is_mac_tsl else "<th>Boat Name</th>"', API)
+        self.assertIn("if _pref_on(\"club\") and not is_mac_tsl:", API)
+        self.assertIn("tsl-team-club", API)
+
+
+class TestTslLiveCardsStd(unittest.TestCase):
+    def test_media_brand_is_std_hmyc_slot(self):
+        cards = (ROOT / "js" / "mac-tsl-live-cards.js").read_text(encoding="utf-8")
+        self.assertNotIn("2014/780", cards)
+        self.assertNotIn("sizeMacBrand", cards)
+        self.assertIn("mm-lipton-reels--compact", cards)
+        self.assertIn("20261012j", cards)
+
 
 if __name__ == "__main__":
     unittest.main()

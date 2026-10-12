@@ -12,7 +12,8 @@ import sys
 from pathlib import Path
 
 SLUG = "2026-10-17-mac-tsl-wc-team-sailing"
-TSL_LOGO = "/artwork/Class Logo/TSL-Class-Logo.png"
+TSL_CLASS_LOGO = "/artwork/Class Logo/TSL-Class-Logo.png"
+TSL_LOGO = "/artwork/Event Logo/TSL-Team-Sailing.png"
 
 WIND_ANCHOR = '''        return JSONResponse(
             content={"ok": False, "err": str(e)[:200]},
@@ -162,7 +163,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         )
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
-            '<script src="/js/mac-tsl-live-cards.js?v=20261012i" defer></script>'
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012j" defer></script>'
             '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
             if is_mac_tsl
             else ""
@@ -307,21 +308,41 @@ def main() -> int:
     text = apply_one(text, ENTRIES_ANCHOR, ENTRIES_INSERT, "entries_icon")
     text = apply_one(text, NOR_LINK_ANCHOR, NOR_LINK_INSERT, "nor_link", allow_multi=3)
     text = apply_one(text, SA_CHROME_ANCHOR, SA_CHROME_INSERT, "sa_chrome")
-    for old_pin, new_pin in (
-        ("mac-tsl-live-cards.js?v=20261012a", "mac-tsl-live-cards.js?v=20261012h"),
-        ("mac-tsl-live-cards.js?v=20261012b", "mac-tsl-live-cards.js?v=20261012h"),
-        ("mac-tsl-live-cards.js?v=20261012c", "mac-tsl-live-cards.js?v=20261012h"),
-        ("mac-tsl-live-cards.js?v=20261012d", "mac-tsl-live-cards.js?v=20261012h"),
-        ("mac-tsl-live-cards.js?v=20261012e", "mac-tsl-live-cards.js?v=20261012h"),
-        ("mac-tsl-live-cards.js?v=20261012f", "mac-tsl-live-cards.js?v=20261012h"),
-        ("mac-tsl-live-cards.js?v=20261012g", "mac-tsl-live-cards.js?v=20261012i"),
-        ("mac-tsl-live-cards.js?v=20261012h", "mac-tsl-live-cards.js?v=20261012i"),
+    for old_pin in (
+        "mac-tsl-live-cards.js?v=20261012a",
+        "mac-tsl-live-cards.js?v=20261012b",
+        "mac-tsl-live-cards.js?v=20261012c",
+        "mac-tsl-live-cards.js?v=20261012d",
+        "mac-tsl-live-cards.js?v=20261012e",
+        "mac-tsl-live-cards.js?v=20261012f",
+        "mac-tsl-live-cards.js?v=20261012g",
+        "mac-tsl-live-cards.js?v=20261012h",
+        "mac-tsl-live-cards.js?v=20261012i",
     ):
         if old_pin in text:
-            text = text.replace(old_pin, new_pin)
-            print(f"pin {new_pin}")
+            text = text.replace(old_pin, "mac-tsl-live-cards.js?v=20261012j")
+            print("pin mac-tsl-live-cards.js?v=20261012j")
+    # Listing / header left slot is Event Logo only (Class Logo is rejected by hub cards).
+    if TSL_CLASS_LOGO in text and TSL_LOGO not in text:
+        text = text.replace(
+            f'("{SLUG.replace("-", " ")}", "{TSL_CLASS_LOGO}"',
+            f'("2026 10 17 mac tsl wc team sailing", "{TSL_LOGO}"',
+        )
+        text = text.replace(
+            f'("team sailing league", "{TSL_CLASS_LOGO}"',
+            f'("team sailing league", "{TSL_LOGO}"',
+        )
+        text = text.replace(
+            f'("team sailing", "{TSL_CLASS_LOGO}"',
+            f'("team sailing", "{TSL_LOGO}"',
+        )
+        print("retarget TSL event-logo rules to Event Logo folder")
+    text = text.replace(
+        f'return "{TSL_CLASS_LOGO}"',
+        f'return "{TSL_LOGO}"',
+    )
     admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
-    cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012i" defer></script>'
+    cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012j" defer></script>'
     if "mac-tsl-admin.js?v=20261012a" in text:
         text = text.replace("mac-tsl-admin.js?v=20261012a", "mac-tsl-admin.js?v=20261012b")
         print("pin admin 20261012b")
