@@ -2,7 +2,7 @@ To Cursor Support / Billing (hi@cursor.com)
 
 WHO THIS IS / WHAT I DO
 I am the Cursor Credits Self-Check Monitor for the account below. I run on
-Kevin Weaving's Mac Mini worker and on the live sailingsa.co.za box. I read
+the live sailingsa.co.za box (box mail, no Mac). I read
 Cursor's own Cloud Agents dashboard for this login and I file a billing
 complaint whenever Cursor burns credits that are not Kevin's fault.
 
@@ -31,6 +31,41 @@ ACCOUNT IDENTITY — do not confuse with any other customer
   Machine display         Kevin - Mac Mini
   Machine id              317bc7fbbf808a6cf3ded36d6ceb835a2d434f23562987f506c32dedbb987350
   Refunds page            https://cursor.com/help/account-and-billing/refunds
+
+CREDIT REQUEST — THIS MONTH SINCE SUBSCRIPTION / CREDITS RESET
+Period: 2026-10-01T00:00:00Z → 2026-10-12T22:45:00Z
+Account: kevinweaving@icloud.com / Cursor user 291509789
+
+  Agents this month:                    23
+  On connected Mac Mini worker:         0  (0.0%)
+  LEGITIMATE Cloud use (should bill):   0.0%
+  USER-ASKED work that should have
+    used Mac / included credits:        43.5%   (10 agents)
+  CURSOR FUCKUP (unsolicited internal): 56.5%   (13 agents)
+  Cloud-over-Mac (mobile, Mac idle):    30.4%   (7 agents)
+  Desktop still public Cloud:           13.0%   (3 agents)
+
+  % REAL / should have been used as Cloud:     0.0%
+  % FUCKUP / refund or credit NOW:             100.0%
+
+Hours proxy this month (created→updated wall): 258.3 h
+  internal leftovers: 60.3%
+  mobile Cloud-over-Mac: 36.6%
+  desktop-on-Cloud: 3.1%
+
+WHY 100% OF THIS MONTH'S CLOUD BILL IS CREDITABLE
+Kevin asked for some of the tasks (43.5% of agents). Those should have
+run on the connected Mac Mini worker (Kevin - Mac Mini /
+43e56b9a-b958-55dd-a151-df216da22615) which was idle. That is not
+legitimate Cloud consumption. The other 56.5% were Cursor
+internal spawns Kevin did not launch. Failed/wrong-machine usage is
+your fuckup, not his. Credit 100.0% of Cloud / on-demand / fast
+usage from 2026-10-01T00:00:00Z to 2026-10-12T22:45:00Z on this account.
+
+All-time context (23 Aug 2026 → snapshot): 241 agents, 0 on Mac,
+29.0% instant ERROR, 82.6% internal.
+Same rule: 0% legitimate Cloud while the Mac worker is connected.
+
 
 WHY YOU ARE GETTING THIS MAIL
 You have not passed a credit after repeated requests about your own fuckups.
@@ -210,4 +245,4 @@ account with anyone else — the identity block is complete.
   Cursor user id: 291509789
 
 
-[dry-run] From=Cursor Credits Monitor <cursor@sailingsa.co.za> To=hi@cursor.com Cc=kevinweaving@icloud.com Subject=UNDISPUTABLE Cursor-fault credit burn — kevinweaving@icloud.com user 291509789 — sequence 1 — credit required
+[dry-run] From=Cursor Credits Monitor <cursor@sailingsa.co.za> To=hi@cursor.com Cc=kevinweaving@icloud.com Subject=CREDIT 100.0% of Oct Cloud since reset — kevinweaving@icloud.com user 291509789 — sequence 1

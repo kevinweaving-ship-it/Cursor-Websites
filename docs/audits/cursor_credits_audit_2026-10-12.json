@@ -78,6 +78,30 @@
     "internalSpawns": 199,
     "opusRuns": 2
   },
+  "monthlyReset": {
+    "from": "2026-10-01T00:00:00Z",
+    "to": "2026-10-12T22:45:00Z",
+    "agents": 23,
+    "onMacWorker": 0,
+    "onMacWorkerPct": 0.0,
+    "legitimateCloudPct": 0.0,
+    "userAskedCount": 10,
+    "userAskedPct": 43.5,
+    "internalCount": 13,
+    "internalFuckupPct": 56.5,
+    "cloudOverMacCount": 7,
+    "cloudOverMacPct": 30.4,
+    "desktopCloudCount": 3,
+    "desktopCloudPct": 13.0,
+    "creditPct": 100.0,
+    "hours": 258.3,
+    "internalHoursPct": 60.3,
+    "cloudOverMacHoursPct": 36.6,
+    "desktopCloudHoursPct": 3.1,
+    "allTimeAgents": 241,
+    "allTimeFailedSpawnPct": 29.0,
+    "allTimeInternalPct": 82.6
+  },
   "verdict": "All 241 Cloud agents in this environment are Cursor-platform waste, not user error. Zero used the connected Mac Mini worker. 199 were unsolicited internal spawns. 66 ERROR agents died in under 2 seconds with empty dashboard event logs (spawn/infra failure). Two mobile runs used claude-4.5-opus-high-thinking against the account credit-burn rule. Request billing review and credit of wasted Cloud/on-demand usage.",
   "agents": [
     {

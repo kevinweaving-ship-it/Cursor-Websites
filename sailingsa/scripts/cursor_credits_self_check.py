@@ -345,12 +345,50 @@ def print_audit(snap: dict[str, Any]) -> int:
     return 0 if (snap.get("summary") or {}).get("userFault", 0) == 0 else 2
 
 
+def monthly_split_block(snap: dict[str, Any]) -> str:
+    m = snap.get("monthlyReset") or {}
+    return f"""CREDIT REQUEST — THIS MONTH SINCE SUBSCRIPTION / CREDITS RESET
+Period: {m.get("from")} → {m.get("to")}
+Account: kevinweaving@icloud.com / Cursor user 291509789
+
+  Agents this month:                    {m.get("agents")}
+  On connected Mac Mini worker:         {m.get("onMacWorker")}  ({m.get("onMacWorkerPct")}%)
+  LEGITIMATE Cloud use (should bill):   {m.get("legitimateCloudPct")}%
+  USER-ASKED work that should have
+    used Mac / included credits:        {m.get("userAskedPct")}%   ({m.get("userAskedCount")} agents)
+  CURSOR FUCKUP (unsolicited internal): {m.get("internalFuckupPct")}%   ({m.get("internalCount")} agents)
+  Cloud-over-Mac (mobile, Mac idle):    {m.get("cloudOverMacPct")}%   ({m.get("cloudOverMacCount")} agents)
+  Desktop still public Cloud:           {m.get("desktopCloudPct")}%   ({m.get("desktopCloudCount")} agents)
+
+  % REAL / should have been used as Cloud:     {m.get("legitimateCloudPct")}%
+  % FUCKUP / refund or credit NOW:             {m.get("creditPct")}%
+
+Hours proxy this month (created→updated wall): {m.get("hours")} h
+  internal leftovers: {m.get("internalHoursPct")}%
+  mobile Cloud-over-Mac: {m.get("cloudOverMacHoursPct")}%
+  desktop-on-Cloud: {m.get("desktopCloudHoursPct")}%
+
+WHY 100% OF THIS MONTH'S CLOUD BILL IS CREDITABLE
+Kevin asked for some of the tasks ({m.get("userAskedPct")}% of agents). Those should have
+run on the connected Mac Mini worker (Kevin - Mac Mini /
+43e56b9a-b958-55dd-a151-df216da22615) which was idle. That is not
+legitimate Cloud consumption. The other {m.get("internalFuckupPct")}% were Cursor
+internal spawns Kevin did not launch. Failed/wrong-machine usage is
+your fuckup, not his. Credit {m.get("creditPct")}% of Cloud / on-demand / fast
+usage from {m.get("from")} to {m.get("to")} on this account.
+
+All-time context (23 Aug 2026 → snapshot): {m.get("allTimeAgents")} agents, 0 on Mac,
+{m.get("allTimeFailedSpawnPct")}% instant ERROR, {m.get("allTimeInternalPct")}% internal.
+Same rule: 0% legitimate Cloud while the Mac worker is connected.
+"""
+
+
 def build_email(snap: dict[str, Any], sequence: int) -> EmailMessage:
     body = f"""To Cursor Support / Billing ({MAIL_TO})
 
 WHO THIS IS / WHAT I DO
 I am the Cursor Credits Self-Check Monitor for the account below. I run on
-Kevin Weaving's Mac Mini worker and on the live sailingsa.co.za box. I read
+the live sailingsa.co.za box (box mail, no Mac). I read
 Cursor's own Cloud Agents dashboard for this login and I file a billing
 complaint whenever Cursor burns credits that are not Kevin's fault.
 
@@ -360,6 +398,8 @@ Every support reply to this mailbox is auto-disputed. A refusal or
 closes the case.
 
 {account_identity_block()}
+
+{monthly_split_block(snap)}
 
 WHY YOU ARE GETTING THIS MAIL
 You have not passed a credit after repeated requests about your own fuckups.
@@ -394,8 +434,9 @@ account with anyone else — the identity block is complete.
     msg["Reply-To"] = f"{MAIL_FROM}, {MAIL_CC}"
     msg["Message-ID"] = make_msgid(domain="sailingsa.co.za")
     msg["Subject"] = (
-        f"UNDISPUTABLE Cursor-fault credit burn — {ACCOUNT['login_email']} "
-        f"user {ACCOUNT['cursor_user_id']} — sequence {sequence} — credit required"
+        f"CREDIT {((snap.get('monthlyReset') or {}).get('creditPct'))}% of Oct Cloud "
+        f"since reset — {ACCOUNT['login_email']} user {ACCOUNT['cursor_user_id']} "
+        f"— sequence {sequence}"
     )
     msg.set_content(body)
     msg.add_attachment(
@@ -420,9 +461,18 @@ def send_mail(msg: EmailMessage, dry_run: bool) -> None:
         print(email_text(msg))
         print(f"\n[dry-run] From={msg['From']} To={msg['To']} Cc={msg['Cc']} Subject={msg['Subject']}")
         return
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
-        smtp.send_message(msg)
-    print(f"sent From={msg['From']} To={msg['To']} Cc={msg['Cc']}")
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
+            smtp.send_message(msg)
+        print(f"sent smtp {SMTP_HOST}:{SMTP_PORT} From={msg['From']} To={msg['To']} Cc={msg['Cc']}")
+        return
+    except OSError as exc:
+        sendmail = Path("/usr/sbin/sendmail")
+        if not sendmail.is_file():
+            raise
+        import subprocess
+        subprocess.run([str(sendmail), "-t", "-oi"], input=msg.as_bytes(), check=True)
+        print(f"sent sendmail From={msg['From']} To={msg['To']} Cc={msg['Cc']} (smtp fail: {exc})")
 
 
 def cmd_email(snap: dict[str, Any], send: bool, force: bool) -> int:
