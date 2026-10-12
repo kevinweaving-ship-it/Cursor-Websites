@@ -163,7 +163,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         )
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
-            '<script src="/js/mac-tsl-live-cards.js?v=20261012n" defer></script>'
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012o" defer></script>'
             '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
             if is_mac_tsl
             else ""
@@ -371,10 +371,11 @@ def main() -> int:
         "mac-tsl-live-cards.js?v=20261012k",
         "mac-tsl-live-cards.js?v=20261012l",
         "mac-tsl-live-cards.js?v=20261012m",
+        "mac-tsl-live-cards.js?v=20261012n",
     ):
         if old_pin in text:
-            text = text.replace(old_pin, "mac-tsl-live-cards.js?v=20261012n")
-            print("pin mac-tsl-live-cards.js?v=20261012n")
+            text = text.replace(old_pin, "mac-tsl-live-cards.js?v=20261012o")
+            print("pin mac-tsl-live-cards.js?v=20261012o")
     # Listing / header left slot is Event Logo only (Class Logo is rejected by hub cards).
     if TSL_CLASS_LOGO in text and TSL_LOGO not in text:
         text = text.replace(
@@ -395,7 +396,7 @@ def main() -> int:
         f'return "{TSL_LOGO}"',
     )
     admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261012b" defer></script>'
-    cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012n" defer></script>'
+    cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012o" defer></script>'
     if "mac-tsl-admin.js?v=20261012a" in text:
         text = text.replace("mac-tsl-admin.js?v=20261012a", "mac-tsl-admin.js?v=20261012b")
         print("pin admin 20261012b")

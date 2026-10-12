@@ -161,26 +161,16 @@ def patch_reels(text: str) -> str:
 """,
         "reels-mac-brand-click",
     )
-    text = apply_one(
-        text,
-        """        brand.style.display = '';
-        brand.style.width = innerH * art + border + 'px';
-        brand.style.height = outerH + 'px';
-      }
-""",
-        """        brand.style.display = '';
-        brand.style.width = innerH * art + border + 'px';
-        brand.style.height = outerH + 'px';
-        if (isMacTsl()) {
+    bad_wide = """        if (isMacTsl()) {
           brand.style.boxSizing = 'border-box';
           brand.style.padding = '2px';
           brand.style.height = outerH + 'px';
           brand.style.width = Math.round(outerH * 2014 / 780) + 'px';
         }
-      }
-""",
-        "reels-mac-logo-tile-aspect",
-    )
+"""
+    if bad_wide in text:
+        text = text.replace(bad_wide, "", 1)
+        print("revert reels-mac-logo-tile-aspect (keep HMYC brand width)")
     return text
 
 
