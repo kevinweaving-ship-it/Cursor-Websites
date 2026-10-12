@@ -25,7 +25,15 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("bow_number", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261012p", JS)
+        self.assertIn("20261012q", JS)
+        self.assertIn("class-header", JS)
+        self.assertIn("action-button", JS)
+        self.assertIn("table-wrapper", JS)
+        self.assertIn("fleet-section", JS)
+        self.assertNotIn("section-title", JS)
+        self.assertNotIn('el.className = "card"', JS)
+        self.assertNotIn("0.9rem", JS)
+        self.assertNotIn("36px", JS)
 
     def test_one_results_table_transformed(self):
         self.assertIn("applyStandingsTable", JS)
