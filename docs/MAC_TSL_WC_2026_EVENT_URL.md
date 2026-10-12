@@ -34,7 +34,7 @@ Same `.header` as every Event URL / results sheet:
 
 Gold centre stack (same as Ullman upcoming / 420 raced):
 
-- Before racing: `Upcoming Event — 17–18 Oct 2026` plus people-icon `N Entries` (0 is shown).
+- Before racing: `Upcoming Event — 17–18 Oct 2026` plus people-icon `N Entries` (0 is shown) plus **Notice of Race** (opens the NOR popup; `#nor` on this Event URL).
 - After the first scored race: `Results are Provisional` + as-at date line + entries icon, from `regattas.result_status` / `regattas.as_at_time`.
 
 No Venue line (host and venue are the same club).  
@@ -52,7 +52,20 @@ Order under the header: **Wind → Media → (Cam later) → TSL Fleet**.
 | **Media** | Same 5-clip card as HMYC Dart / Midmar. MAC club logo in the HMYC logo slot. `/mm-clips` for this slug. WhatsApp group **MAC Media**. |
 | **Live cam** | **Not shown.** `data-mac-cam="later"`. Wait for the MAC feed URL before adding a cam card. |
 
-JS: `/js/mac-tsl-live-cards.js` (also `sailingsa/frontend/js/mac-tsl-live-cards.js`). Not loaded on other slugs.
+JS: `/js/mac-tsl-live-cards.js` (also `sailingsa/frontend/js/mac-tsl-live-cards.js`). NOR body: `/js/mac-tsl-nor.html`. Not loaded on other slugs.
+
+---
+
+## Notice of Race (on this Event URL)
+
+Gold text is in `/js/mac-tsl-nor.html`. The Event URL header link **Notice of Race** pops it (`#nor`). Link slot can move later — do not change the Event URL slug.
+
+SAS entry: https://www.sailing.org.za/events/380433  
+Invitation: TSL@MAC WhatsApp. Briefing Saturday 17 Oct 09:00 at the MAC clubhouse. Racing done by 16:00 Sunday. SI from the RO / clubhouse notice board.
+
+NOR teams (8): EDEN, OVERBERG, ZVYC, RCYC Training Centre, Stellenbosch University Sailing Club, UCT Sailing Club, IZIVUNGU, MAC.
+
+Scoring in the NOR is **3-on-3 positional** (places 1–6 summed; **lowest team score wins**), knockout / 28-race round-robin for 8 teams. Store race numbers in `R1`… — not Appendix A, not W/L.
 
 ---
 
@@ -82,15 +95,15 @@ TSL is **team vs team**, not Appendix A boats. Map onto `public.results` like th
 | Helms | `helm_name` | Three names, `"; "` joined (Title Case, SAS ID is the person) |
 | Crews | `crew_name` | Three names, `"; "` joined |
 | Helm SAS | `helm_sa_sailing_id` | First helm SAS; others in notes / later crew2 if needed |
-| R1 … Rn | `race_scores` JSON `R1`… | **W** / **L** (or points if NOR says so) |
-| Wins | derived / `nett_points_raw` | Computed |
+| R1 … Rn | `race_scores` JSON `R1`… | Team race score (sum of 3 boat places) |
+| Wins | derived | Knockout / round-robin wins |
 | Losses | derived | Computed |
-| Nett | `nett_points_raw` | Wins, or points if NOR uses points |
+| Nett | `nett_points_raw` | Lower is better (NOR) |
 
 Hidden / unused until a sheet needs them: Sail No, Jib, Bow, Hull, Class (always TSL).
 
 Do **not** invent Appendix A places. Do **not** write race scores until the first race is sailed.  
-NOR / SI still outstanding — if the sheet is points not W/L, keep the same columns and store numbers in `R1`… instead of W/L.
+NOR scoring is positional 3-on-3 (lowest team total wins), not W/L.
 
 Known teams so far (seed as entry rows, rank NULL, no races):
 
@@ -103,7 +116,7 @@ Known teams so far (seed as entry rows, rank NULL, no races):
 
 - **Who:** Super Admin (`regatta-sa-toolbar.js` already on the Event URL). Club manager later if MAC has one.
 - **When:** Saturday 17 Oct after first warning (11:00). Add R1, then R2… Do not change the slug.
-- **How:** Enter each team-race as W/L on the team row (same idea as Dart place entry on `club-score-edit.js`, TSL-specific). Rank recalculates from wins.
+- **How:** Enter each team-race as the 3-boat place total on the team row (NOR: lowest score wins). Rank from race wins / knockout, then nett.
 - **Status line:** first scored race → `Results are Provisional as at DD Month YYYY at HH:MM` from the sheet clock. Final when the OA says so.
 - **Public:** never edits scores. Empty race columns stay hidden until R1 exists.
 

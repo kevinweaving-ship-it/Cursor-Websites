@@ -15,7 +15,8 @@
   var MEDIA_ID = "mmLiptonReels";
   var SA_ID = "mac-tsl-mm-sa";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012b";
+  var JS_VER = "20261012c";
+  var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/artwork/Club Logo/MAC.png";
   var WX_API = "/api/wind2speed/mac";
   var PTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
@@ -78,7 +79,15 @@
       ".mac-tsl-mm-sa-lab input{display:block;width:100%;min-height:44px;margin-top:4px;padding:8px;border:1.5px solid #1a2750;border-radius:8px;box-sizing:border-box;}",
       ".mac-tsl-mm-sa-save{display:block;width:100%;min-height:44px;margin-top:8px;padding:10px 12px;border:1.5px solid #001f3f;border-radius:8px;background:#001f3f;color:#fff;font:700 14px/1.2 Arial,Helvetica,sans-serif;cursor:pointer;}",
       ".mac-tsl-mm-sa-msg{min-height:18px;margin:6px 0 0;color:#334155;font:400 12px/1.3 Arial,Helvetica,sans-serif;}",
-      "@media print{.mac-tsl-live-cards{display:none!important;}}"
+      "@media print{.mac-tsl-live-cards{display:none!important;}}",
+      "#macTslNorDialog.card{max-width:44rem;width:calc(100% - 24px);max-height:90vh;overflow:auto;padding:0.5rem 0.75rem;border:2px solid #001f3f;border-radius:8px;box-shadow:0 4px 12px rgba(0,31,63,.12);}",
+      "#macTslNorDialog::backdrop{background:rgba(0,31,63,.45);}",
+      ".mac-tsl-nor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:0.4rem;}",
+      ".mac-tsl-nor-head .section-title{margin:0;flex:1 1 auto;}",
+      ".mac-tsl-nor-close{min-height:44px;min-width:44px;padding:8px 12px;border:1.5px solid #001f3f;border-radius:8px;background:#001f3f;color:#fff;font:700 14px/1.2 Arial,Helvetica,sans-serif;cursor:pointer;}",
+      ".mac-tsl-nor-doc p{margin:0 0 0.75rem;color:#1e293b;line-height:1.6;}",
+      ".mac-tsl-nor-doc .section-title{margin:1rem 0 0.4rem;}",
+      ".regatta-header-status-stack #macTslNorOpen{color:#1a2750;font-weight:700;}"
     ].join("");
   }
 
@@ -341,11 +350,87 @@
       .catch(function () {});
   }
 
+  function openNorDialog() {
+    var dlg = document.getElementById("macTslNorDialog");
+    if (!dlg) return;
+    if (typeof dlg.showModal === "function") dlg.showModal();
+    else dlg.setAttribute("open", "open");
+    if (window.location.hash !== "#nor") {
+      try { history.replaceState(null, "", "#nor"); } catch (e) { window.location.hash = "nor"; }
+    }
+  }
+
+  function closeNorDialog() {
+    var dlg = document.getElementById("macTslNorDialog");
+    if (!dlg) return;
+    if (typeof dlg.close === "function") dlg.close();
+    else dlg.removeAttribute("open");
+    if (window.location.hash === "#nor") {
+      try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
+    }
+  }
+
+  function bindNor() {
+    var stack = document.querySelector(".regatta-header-status-stack");
+    if (stack && !document.getElementById("macTslNorOpen")) {
+      var line = document.createElement("div");
+      line.className = "status-line";
+      line.innerHTML = '<a href="#nor" id="macTslNorOpen">Notice of Race</a>';
+      stack.appendChild(line);
+    }
+    var dlg = document.getElementById("macTslNorDialog");
+    if (!dlg) {
+      dlg = document.createElement("dialog");
+      dlg.id = "macTslNorDialog";
+      dlg.className = "card";
+      dlg.setAttribute("aria-labelledby", "macTslNorTitle");
+      dlg.innerHTML =
+        '<div class="mac-tsl-nor-head">' +
+        '<h2 class="section-title" id="macTslNorTitle">Notice of Race</h2>' +
+        '<button type="button" class="mac-tsl-nor-close" data-mac-tsl-nor-close>Close</button>' +
+        "</div>" +
+        '<div class="mac-tsl-nor-body"><p>Loading Notice of Race…</p></div>';
+      document.body.appendChild(dlg);
+      fetch(NOR_SRC, { cache: "no-store" })
+        .then(function (res) {
+          if (!res.ok) throw new Error("nor " + res.status);
+          return res.text();
+        })
+        .then(function (html) {
+          var body = dlg.querySelector(".mac-tsl-nor-body");
+          if (body) body.innerHTML = html;
+        })
+        .catch(function () {
+          var body = dlg.querySelector(".mac-tsl-nor-body");
+          if (body) body.innerHTML = "<p>Notice of Race could not be loaded. Refresh the Event URL and try again.</p>";
+        });
+    }
+    var openBtn = document.getElementById("macTslNorOpen");
+    if (openBtn && !openBtn.getAttribute("data-mac-tsl-nor-bound")) {
+      openBtn.setAttribute("data-mac-tsl-nor-bound", "1");
+      openBtn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        openNorDialog();
+      });
+    }
+    var closeBtn = dlg.querySelector("[data-mac-tsl-nor-close]");
+    if (closeBtn && !closeBtn.getAttribute("data-mac-tsl-nor-bound")) {
+      closeBtn.setAttribute("data-mac-tsl-nor-bound", "1");
+      closeBtn.addEventListener("click", function () { closeNorDialog(); });
+    }
+    if (!dlg.getAttribute("data-mac-tsl-nor-bound")) {
+      dlg.setAttribute("data-mac-tsl-nor-bound", "1");
+      dlg.addEventListener("cancel", function () { closeNorDialog(); });
+    }
+    if (window.location.hash === "#nor") openNorDialog();
+  }
+
   function mount() {
     if (!onThisEvent()) return;
     var page = document.querySelector(".regatta-page");
     if (!page) return;
     injectCss();
+    bindNor();
     var host = document.getElementById(HOST_ID);
     if (!host) {
       host = document.createElement("div");
