@@ -33,4 +33,9 @@
       window.location.href = "/";
     });
   }
+  window.addEventListener("message", function (ev) {
+    if (ev.origin !== window.location.origin) return;
+    var data = ev.data || {};
+    if (data.type === "arial-user" && !data.user) window.location.href = "/";
+  });
 })();
