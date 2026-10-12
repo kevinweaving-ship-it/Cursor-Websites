@@ -1,0 +1,23 @@
+---
+description: Credits self-check — stop Cursor credit burn; blame Cursor, not Kevin
+alwaysApply: true
+---
+
+# Credits self-check (mandatory)
+
+Before expensive Cloud work, run the dashboard self-check. Full task: `docs/CURSOR_CREDITS_SELF_CHECK.md`. Tool (Mac Mini or live box): `python3 sailingsa/scripts/cursor_credits_self_check.py audit`.
+
+## Stop conditions
+
+1. Call `cursor-cloud-run-info`. If this run is public Cloud (`usePrivateWorker` false) and a Mac Mini worker is connected/idle, **SailingSA work stops** unless the user explicitly asked for Cloud in this message (or this is the credits monitor).
+2. Call `cursor-cloud-list-cloud-agents` with `RUNNING`. Do not spawn more agents if another is already RUNNING.
+3. Do not use Opus / Max / high-thinking / Best-of-N. Do not start recurring Cloud timers.
+4. Do not launch subagents unless the user asked.
+
+## Blame
+
+Useless Cloud burn, failed internal computer-use spawns, Cloud-over-Mac routing, and premium-model defaults are **Cursor platform fault**. Do not call them user error. Evidence is Cursor's own dashboard — not disputable as "the customer did it".
+
+## Mail
+
+Support mail is from `cursor@sailingsa.co.za` to `hi@cursor.com`, CC `kevinweaving@icloud.com`. Keep mailing until credits are passed and routing/spawn fuckups stop (`email --send`). Stop only after `resolve`.

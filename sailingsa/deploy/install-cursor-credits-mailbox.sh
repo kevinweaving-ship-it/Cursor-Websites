@@ -11,8 +11,12 @@ LOCAL_USER="${CURSOR_MAIL_LOCAL:-cursor}"
 SCRIPT_SRC=""
 if [[ -f "${1:-}" ]]; then
   SCRIPT_SRC="$1"
+elif [[ -f "$(dirname "$0")/../scripts/cursor_credits_self_check.py" ]]; then
+  SCRIPT_SRC="$(cd "$(dirname "$0")/.." && pwd)/scripts/cursor_credits_self_check.py"
 elif [[ -f "$(dirname "$0")/../../scripts/cursor_credits_self_check.py" ]]; then
   SCRIPT_SRC="$(cd "$(dirname "$0")/../.." && pwd)/scripts/cursor_credits_self_check.py"
+elif [[ -f /var/www/sailingsa/sailingsa/scripts/cursor_credits_self_check.py ]]; then
+  SCRIPT_SRC=/var/www/sailingsa/sailingsa/scripts/cursor_credits_self_check.py
 elif [[ -f /var/www/sailingsa/scripts/cursor_credits_self_check.py ]]; then
   SCRIPT_SRC=/var/www/sailingsa/scripts/cursor_credits_self_check.py
 fi

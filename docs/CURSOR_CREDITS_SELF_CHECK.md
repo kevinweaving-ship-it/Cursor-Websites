@@ -55,16 +55,16 @@ Environment: https://cursor.com/dashboard/cloud-agents/environments/e/d2dd94a0-9
 
 ```bash
 # Print verdict (no mail)
-python3 scripts/cursor_credits_self_check.py audit
+python3 sailingsa/scripts/cursor_credits_self_check.py audit
 
 # Preview the support letter (Kevin CC)
-python3 scripts/cursor_credits_self_check.py email --dry-run
+python3 sailingsa/scripts/cursor_credits_self_check.py email --dry-run
 
 # Send to hi@cursor.com from cursor@sailingsa.co.za, CC kevinweaving@icloud.com
-python3 scripts/cursor_credits_self_check.py email --send
+python3 sailingsa/scripts/cursor_credits_self_check.py email --send
 
 # After Cursor actually passes the credit:
-python3 scripts/cursor_credits_self_check.py resolve
+python3 sailingsa/scripts/cursor_credits_self_check.py resolve
 ```
 
 Until `resolve`, daily cron keeps mailing. That is the “as many emails as required” loop — not a one-shot burst.
@@ -75,7 +75,7 @@ Until `resolve`, daily cron keeps mailing. That is the “as many emails as requ
 
 ```bash
 scp -i ~/.ssh/sailingsa_live_key \
-  scripts/cursor_credits_self_check.py \
+  sailingsa/scripts/cursor_credits_self_check.py \
   docs/audits/cursor_credits_audit_2026-10-12.json \
   root@102.218.215.253:/tmp/
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
@@ -92,7 +92,7 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
 
 ```bash
 sudo bash sailingsa/deploy/install-cursor-credits-mailbox.sh
-python3 scripts/cursor_credits_self_check.py email --send
+python3 sailingsa/scripts/cursor_credits_self_check.py email --send
 ```
 
 Creates:
