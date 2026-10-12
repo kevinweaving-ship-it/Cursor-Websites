@@ -4,7 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Onguard · Aerial Networks</title>
-  <link rel="stylesheet" href="/users/user.css?v=6">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <meta name="an-user" content="onguard">
+  <link rel="icon" href="/artwork/aerial-networks-logo-mark.png" type="image/png">
+  <link rel="apple-touch-icon" href="/artwork/aerial-networks-logo-mark.png">
+  <link rel="stylesheet" href="/users/user.css?v=7">
+  <script>
+  (function () {
+    var slug = "onguard";
+    var user = null;
+    try { user = JSON.parse(localStorage.getItem("arialUser") || "null"); } catch (e) {}
+    var url = user && user.url ? String(user.url) : "";
+    var match = /\/users\/([^/]+)/.exec(url);
+    if (!user || !match || match[1] !== slug) location.replace("/");
+  })();
+  </script>
 </head>
 <body data-user="onguard">
   <header class="site-banner">
@@ -22,6 +38,6 @@
       <p>Devices and power for this account.</p>
     </section>
   </main>
-  <script src="/users/user.js?v=2"></script>
+  <script src="/users/user.js?v=3"></script>
 </body>
 </html>

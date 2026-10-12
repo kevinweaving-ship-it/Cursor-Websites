@@ -4,9 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kevin · Aerial Networks</title>
-  <link rel="stylesheet" href="/users/user.css?v=6">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <meta name="an-user" content="kevin">
+  <link rel="icon" href="/artwork/aerial-networks-logo-mark.png" type="image/png">
+  <link rel="apple-touch-icon" href="/artwork/aerial-networks-logo-mark.png">
+  <link rel="stylesheet" href="/users/user.css?v=7">
+  <script>
+  (function () {
+    var slug = "kevin";
+    var user = null;
+    try { user = JSON.parse(localStorage.getItem("arialUser") || "null"); } catch (e) {}
+    var url = user && user.url ? String(user.url) : "";
+    var match = /\/users\/([^/]+)/.exec(url);
+    if (!user || !match || match[1] !== slug) location.replace("/");
+  })();
+  </script>
 </head>
-<body data-user="kevin" class="panel-user">
+<body data-user="kevin" class="panel-user" data-panel="/hansekop/">
   <header class="site-banner">
     <div class="site-banner-inner">
       <a class="site-logo" href="https://aerialnet.co.za/"><img src="/artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks"></a>
@@ -17,8 +33,8 @@
     </div>
   </header>
   <main class="page">
-    <iframe class="panel-frame" src="/hansekop/?panel=1" title="Hansekop keypad"></iframe>
+    
   </main>
-  <script src="/users/user.js?v=2"></script>
+  <script src="/users/user.js?v=3"></script>
 </body>
 </html>

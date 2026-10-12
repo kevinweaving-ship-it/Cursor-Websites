@@ -18,7 +18,6 @@ a { color: inherit; }
   background: #fff;
   min-height: 76px;
   padding: 10px 0;
-  border: 1.5px solid #041630;
 }
 .site-banner-inner {
   width: min(720px, calc(100% - 32px));
@@ -92,6 +91,14 @@ body.panel-user {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+body.panel-user .site-banner-inner {
+  width: min(92vw, 416px);
+}
+@media (min-width: 700px) {
+  body.panel-user .site-banner-inner {
+    width: min(92vw, 480px);
+  }
 }
 body.panel-user .page {
   flex: 1 1 auto;

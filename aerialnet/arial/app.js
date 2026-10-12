@@ -2323,7 +2323,6 @@
     var pin = "";
     var lcdHold = null;
     var LOGIN_ONLY = /(?:\?|&)login=1(?:&|$)/.test(location.search);
-    if (/(?:\?|&)panel=1(?:&|$)/.test(location.search)) document.documentElement.classList.add("panel-embed");
     var CODES = {
         "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=43", code: "7302", url: "/users/pingoa/" },
         "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102", url: "/users/amoroc/" },

@@ -1162,12 +1162,6 @@ html, body {
     border-bottom: 6px solid #001f3f;
 }
 
-html.panel-embed .arial-below,
-html.panel-embed .arial-desk .arial-below:not([hidden]) {
-    width: min(720px, calc(100% - 32px));
-    max-width: 720px;
-}
-
 .arial-below .card + .card {
     margin-top: 10px;
 }

@@ -25,6 +25,16 @@
     nameEl.textContent = user.name || user.from || "";
     if (user.url) nameEl.setAttribute("href", user.url);
   }
+  var panel = document.body.getAttribute("data-panel");
+  var page = document.querySelector(".page");
+  if (panel && page && !page.querySelector(".panel-frame")) {
+    var frame = document.createElement("iframe");
+    frame.className = "panel-frame";
+    frame.title = "Keypad";
+    frame.setAttribute("referrerpolicy", "no-referrer");
+    frame.src = panel;
+    page.appendChild(frame);
+  }
   if (logout) {
     logout.addEventListener("click", function (ev) {
       ev.preventDefault();
