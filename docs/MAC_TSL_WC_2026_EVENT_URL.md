@@ -52,7 +52,7 @@ Order under the header: **Wind → Media → (Cam later) → TSL Fleet**.
 | Card | Status |
 | --- | --- |
 | **Wind** | Live. Gold slot card. Data from [Wind2Speed widget 3](https://wind2speed.africa/widgetPage/3) / station **W2SMAC01** via `GET /api/wind2speed/mac` (`apidata/wsdata/3`). Dial + 1h spark + Now/Avg/Gust kt. |
-| **Media** | Same 5-clip card as HMYC Dart / Midmar. Brand is the **MAC Event Reels / MAC Media** mark (`/img/mac-event-reels.jpg`, as-is on white). Click → `/club/mac`, not Marine Megastore. Clips from WhatsApp **MAC Media** only. No Add Clip, News type, Live video, Feed source, Facebook page, Facebook clip URLs, or WhatsApp Hide. |
+| **Media** | Same 6-slot HMYC Dart / Midmar strip: MAC Event Reels mark far left (scaled, white), 5 clip tiles from WhatsApp **MAC Media** (`/mm-clips`). Click brand → `/club/mac`. No Add Clip / News / Live / Facebook chrome. |
 
 This Event URL is the **gold / default TSL template** — first build used for later TSL events. Keep the Event Reels club mark in the media slot; do not swap in the plain club-logo PNG there.
 | **Live cam** | **Not shown.** `data-mac-cam="later"`. Wait for the MAC feed URL before adding a cam card. |

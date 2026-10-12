@@ -43,13 +43,17 @@ class TestTslAdminContract(unittest.TestCase):
 
 
 class TestTslLiveCardsStd(unittest.TestCase):
-    def test_media_brand_fills_card_on_white(self):
+    def test_media_is_hmyc_six_slot_strip(self):
         cards = (ROOT / "js" / "mac-tsl-live-cards.js").read_text(encoding="utf-8")
         self.assertNotIn("sizeMacBrand", cards)
+        self.assertNotIn("mac-tsl-reels--logo-only", cards)
+        self.assertNotIn("markLogoOnly", cards)
+        self.assertNotIn("2014/780", cards)
         self.assertIn("mm-lipton-reels--compact", cards)
-        self.assertIn("mac-tsl-reels--logo-only", cards)
+        self.assertIn("mm-lipton-reels-rail-wrap", cards)
+        self.assertIn("/img/mac-event-reels.jpg", cards)
         self.assertIn("background:#fff!important", cards)
-        self.assertIn("20261012l", cards)
+        self.assertIn("20261012m", cards)
         self.assertIn("#eventInfoStrip", cards)
         self.assertIn("hideEventInfoStrip", cards)
         self.assertIn("regatta-entry.js", cards)
@@ -62,7 +66,7 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("EIS_CALL_INSERT", patch)
         self.assertIn('_tsl_no_eis = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"', patch)
         self.assertIn("2026-09-13-zvyc-cape-classic", patch)
-        self.assertIn("mac-tsl-live-cards.js?v=20261012l", patch)
+        self.assertIn("mac-tsl-live-cards.js?v=20261012m", patch)
 
 
 if __name__ == "__main__":
