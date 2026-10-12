@@ -58,14 +58,6 @@ Use these names to scope work and split agents:
 
 When asked to "fix the app" or "update the site", ask which area or file to focus on first.
 
-## Cloud Agent local run
-
-Open the site at http://127.0.0.1:8080. Nginx serves repo files from the checkout root and proxies `/api/` plus other dynamic routes to uvicorn on port 8081. A direct HTTP request to uvicorn is redirected to https://sailingsa.co.za, so use port 8080.
-
-Launch with `cd api && uvicorn api:app` so the parent directory is the web root. Local Postgres is `postgresql://sailors_user:change_me_strong@localhost:5432/sailors_master`. That database is empty except for the small tables behind `/api/sa-id-stats`. It is not a production results copy.
-
-The API import needs `python-multipart` (listed in `api/requirements.txt`).
-
 ## RESULTS_LINE cleanup (locked — RESULT_REGATTAS)
 
 **`docs/RESULTS_LINE_CLEANUP_COMPLETE.md`** — Results-line / `result_status` work for regattas with rows in `public.results` only. **Do not** map `Unknown` or auto-fix unapproved values; remaining invalid rows are **intentional** until per-regatta review. Scripts: `list_distinct_result_statuses_results_only.py`, `apply_result_status_map.py`, `qa_results_line_metrics.py`. **Next (controlled):** HOST / `host_club_id` linking on the same results-only set.
