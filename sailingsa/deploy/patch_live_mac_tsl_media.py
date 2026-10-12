@@ -24,6 +24,9 @@ def apply_one(text: str, anchor: str, insert: str, name: str) -> str:
     if insert in text:
         print(f"skip {name}: already present")
         return text
+    if name == "reels-mac-logo" and "if (isMacTsl() && clubLogo)" in text:
+        print(f"skip {name}: MAC logo hook already present")
+        return text
     if anchor not in text:
         raise SystemExit(f"ERROR: anchor not found for {name}")
     if text.count(anchor) != 1:
