@@ -561,7 +561,11 @@ def apply_party_headers(msg: EmailMessage) -> None:
         msg.replace_header("Cc", MAIL_CC)
     except KeyError:
         msg["Cc"] = MAIL_CC
-    msg["Reply-To"] = f"{ACCOUNT['name']} <{MAIL_CC}>, Credits monitor <{MAIL_FROM}>"
+    reply = f"{ACCOUNT['name']} <{MAIL_CC}>, Credits monitor <{MAIL_FROM}>"
+    try:
+        msg.replace_header("Reply-To", reply)
+    except KeyError:
+        msg["Reply-To"] = reply
     if MAIL_CC.lower() not in (msg.get("Cc") or "").lower():
         raise RuntimeError("refusing to send: Kevin is not on Cc")
 
