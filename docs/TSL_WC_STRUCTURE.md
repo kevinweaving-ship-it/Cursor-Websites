@@ -99,7 +99,7 @@ Bios (club, gender, race, age) go on the SAS event page: https://www.sailing.org
 1. Formal conditions for a sailor changing teams mid-season.
 2. Whether this final is round-robin + final, knockout only, or NOR flights if short of races.
 3. PRO vs TSL Coordinator vs both for results sign-off.
-4. The SAS post-event booklet (on the box).
+4. The five Jacques Smit TSL PDFs (handbooks + 2026 program) — **not on the box**. See `docs/TSL_WC_HANDBOOKS.md`.
 5. National / international step after regional leagues.
 
 ---

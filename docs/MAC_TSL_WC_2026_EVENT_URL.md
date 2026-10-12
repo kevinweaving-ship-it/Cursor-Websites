@@ -20,7 +20,8 @@ Do **not** change this slug after create.
 
 Do not reuse March `328007` or July GLYC `370796`.
 
-**WC structure (locked):** `docs/TSL_WC_STRUCTURE.md` — regional league only, per-event teams, 3v3 positional, SAS boats rotated.
+**WC structure (locked):** `docs/TSL_WC_STRUCTURE.md` — regional league only, per-event teams, 3v3 positional, SAS boats rotated.  
+**Handbooks:** `docs/TSL_WC_HANDBOOKS.md` — Jacques Smit TSL PDFs are **not on the box**.
 
 ---
 
