@@ -130,6 +130,33 @@ def patch_reels(text: str) -> str:
 """,
         "reels-mac-logo",
     )
+    text = apply_one(
+        text,
+        """    if (isMacTsl() && clubLogo) {
+      if (img.getAttribute('src') !== clubLogo) img.setAttribute('src', clubLogo);
+      img.setAttribute('alt', root.getAttribute('data-mm-club-alt') || 'MAC');
+      return;
+    }
+""",
+        """    if (isMacTsl() && clubLogo) {
+      if (img.getAttribute('src') !== clubLogo) img.setAttribute('src', clubLogo);
+      img.setAttribute('alt', root.getAttribute('data-mm-club-alt') || 'MAC');
+      var macLink = img.closest && img.closest('.mm-lipton-reels-brand');
+      var macHref = root.getAttribute('data-mm-club-href') || '/club/mac';
+      if (macLink && macHref) macLink.setAttribute('href', macHref);
+      return;
+    }
+""",
+        "reels-mac-club-href",
+    )
+    text = apply_one(
+        text,
+        """      if (brand && isDartNats()) return;
+""",
+        """      if (brand && (isDartNats() || isMacTsl())) return;
+""",
+        "reels-mac-brand-click",
+    )
     return text
 
 

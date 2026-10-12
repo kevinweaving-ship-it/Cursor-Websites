@@ -15,7 +15,7 @@
   var MEDIA_ID = "mmLiptonReels";
   var SA_ID = "mac-tsl-mm-sa";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012d";
+  var JS_VER = "20261012e";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/artwork/Club Logo/MAC.png";
   var WX_API = "/api/wind2speed/mac";
@@ -68,8 +68,8 @@
       ".ssa-regatta-slot-card .wx-iv{color:#1a2750;text-align:right;}",
       ".ssa-regatta-slot-card .wx-iv small{margin-left:4px;color:inherit;}",
       ".mac-tsl-live-cards .mm-lipton-reels{margin:10px 0 0;width:100%;box-sizing:border-box;}",
-      ".mac-tsl-live-cards .mm-lipton-reels-brand{flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:6px 8px;cursor:default;}",
-      ".mac-tsl-live-cards .mm-lipton-reels-brand img{display:block;max-height:88px;max-width:120px;width:auto;height:auto;object-fit:contain;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-brand{flex:0 0 auto;display:flex!important;align-items:center;justify-content:center;padding:8px!important;box-sizing:border-box;background:#fff!important;border:2px solid #001f3f;border-radius:8px;line-height:normal;cursor:pointer;filter:none!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-brand img{display:block!important;width:auto!important;height:auto!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center;filter:none!important;background:transparent!important;border:0;}",
       ".mac-tsl-mm-sa{display:none;margin:10px 0 0;padding:12px 14px;box-sizing:border-box;background:#fff;border:2px solid #001f3f;border-radius:8px;}",
       ".mac-tsl-live-cards.is-sa .mac-tsl-mm-sa{display:block;}",
       ".mac-tsl-mm-sa-title{margin:0 0 8px;font:700 14px/1.2 Arial,Helvetica,sans-serif;color:#001f3f;}",
@@ -474,9 +474,9 @@
       );
       media.innerHTML =
         '<div class="mm-lipton-reels-compact">' +
-        '<div class="mm-lipton-reels-brand" aria-label="MAC">' +
-        '<img src="' + MAC_LOGO + '" alt="MAC" width="320" height="213" decoding="async">' +
-        "</div>" +
+        '<a class="mm-lipton-reels-brand" href="/club/mac" aria-label="MAC">' +
+        '<img src="' + MAC_LOGO + '" alt="MAC" width="440" height="180" decoding="async">' +
+        "</a>" +
         '<div class="mm-lipton-reels-rail-wrap">' +
         '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>' +
         '<div class="mm-lipton-reels-rail" data-mm-compact></div>' +
