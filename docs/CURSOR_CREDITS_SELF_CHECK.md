@@ -13,10 +13,10 @@ The mailer **is** the Cursor Credits Self-Check Monitor. It exists only to:
 
 1. Audit all Cloud agents / internal spawns / premium-model runs.
 2. Attribute waste to Cursor (routing, failed spawns, idle leftovers, Opus defaults).
-3. Email `hi@cursor.com` from `cursor@sailingsa.co.za` — **one email per billing month**.
+3. Email `hi@cursor.com` from `cursor@sailingsa.co.za`, **CC `kevinweaving@icloud.com`** — one email per billing month.
 4. Wait after filing. Auto-reply only if they reject that month. Do not daily-blast.
 
-Kevin is CC'd on every copy. Replies to `cursor@` forward to him.
+Kevin is CC'd on every letter (`msg["Cc"] = kevinweaving@icloud.com`). Apple HCM2 may bounce the iCloud inbox from this VPS; the Cc header still goes to Cursor, and a sent `.eml` is kept on the box.
 
 ## Why the report cannot be disputed
 

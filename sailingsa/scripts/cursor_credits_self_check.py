@@ -577,6 +577,7 @@ via {MAIL_FROM}
     msg = EmailMessage()
     msg["From"] = f"Kevin Weaving <{MAIL_FROM}>"
     msg["To"] = MAIL_TO
+    msg["Cc"] = MAIL_CC
     msg["Reply-To"] = MAIL_FROM
     msg["Message-ID"] = make_msgid(domain="sailingsa.co.za")
     if ticket and month == "2026-10":
@@ -604,11 +605,26 @@ def email_text(msg: EmailMessage) -> str:
     return msg.get_content()
 
 
+def archive_sent(msg: EmailMessage) -> None:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", (msg.get("Subject") or "mail")[:80])
+    name = f"{stamp}_{safe}.eml"
+    for dest in (Path("/var/lib/cursor-credits/sent"), REPO_ROOT / "docs/audits/sent"):
+        try:
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / name).write_bytes(msg.as_bytes())
+        except OSError:
+            continue
+
+
 def send_mail(msg: EmailMessage, dry_run: bool) -> None:
+    if not msg.get("Cc"):
+        msg["Cc"] = MAIL_CC
     if dry_run:
         print(email_text(msg))
         print(f"\n[dry-run] From={msg['From']} To={msg['To']} Cc={msg['Cc']} Subject={msg['Subject']}")
         return
+    archive_sent(msg)
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
             smtp.send_message(msg)
@@ -623,37 +639,56 @@ def send_mail(msg: EmailMessage, dry_run: bool) -> None:
         print(f"sent sendmail From={msg['From']} To={msg['To']} Cc={msg['Cc']} (smtp fail: {exc})")
 
 
-def cmd_email(snap: dict[str, Any], send: bool, force: bool, month: str | None = None) -> int:
+def cmd_email(
+    snap: dict[str, Any],
+    send: bool,
+    force: bool,
+    month: str | None = None,
+    copy_cc: bool = False,
+) -> int:
     state = load_state()
-    if state.get("resolved") and not force and not month:
+    if state.get("resolved") and not force and not month and not copy_cc:
         print("state=resolved — not mailing. Pass --force or --month after you confirm credits.")
         return 0
     ticket = str(state.get("canonicalTicket") or os.environ.get("CURSOR_TICKET") or "T-H16750")
     sent_months = list(state.get("sentMonths") or [])
     october_already = bool(state.get("canonicalTicket") == "T-H16750" and int(state.get("sends") or 0) >= 1)
-    if month == "2026-10" and send and not force and (month in sent_months or october_already):
-        print("wait — October already filed on T-H16750. Auto-reply only if they reject.")
-        return 0
-    if month and send and not force and month in sent_months:
-        print(f"wait — {month} already filed. Auto-reply only if they reject that month.")
-        return 0
     if month:
         sl = month_slice(snap, month)
         if sl["agents"] == 0:
             print(f"{month}: no Cloud agents in this environment export — no email (cannot invent a refund).")
             return 0
-    digest = snapshot_digest(snap)
-    if send and not force and not month and state.get("lastDigest") == digest and state.get("sends"):
-        print(f"wait — already filed on {ticket} with this proof. Auto-reply only if they reject.")
-        return 0
-    sequence = int(state.get("sends") or 0) + 1
-    msg = build_email(snap, sequence, ticket, month)
+    if not copy_cc:
+        if month == "2026-10" and send and not force and (month in sent_months or october_already):
+            print("wait — October already filed on T-H16750. Auto-reply only if they reject.")
+            return 0
+        if month and send and not force and month in sent_months:
+            print(f"wait — {month} already filed. Auto-reply only if they reject that month.")
+            return 0
+        digest = snapshot_digest(snap)
+        if send and not force and not month and state.get("lastDigest") == digest and state.get("sends"):
+            print(f"wait — already filed on {ticket} with this proof. Auto-reply only if they reject.")
+            return 0
+    sequence = int(state.get("sends") or 0) + (0 if copy_cc else 1)
+    msg = build_email(snap, sequence or 1, ticket, month)
+    if copy_cc:
+        msg.replace_header("To", MAIL_CC)
+        msg.replace_header("Subject", f"COPY (already filed with Cursor) — {msg['Subject']}")
     try:
         send_mail(msg, dry_run=not send)
     except OSError as exc:
         print(f"SMTP failed ({SMTP_HOST}:{SMTP_PORT}): {exc}", file=sys.stderr)
         print("Install mailbox on the box, then re-run with email --send")
         return 1
+    if send and copy_cc:
+        copies = list(state.get("ccCopies") or [])
+        if month and month not in copies:
+            copies.append(month)
+        state["ccCopies"] = copies
+        state["lastCcAt"] = _utc_now()
+        save_state(state)
+        print(f"cc-copy month={month} to={MAIL_CC} state={state_path()}")
+        return 0
     if send:
         state["sends"] = sequence
         state["canonicalTicket"] = ticket
@@ -786,6 +821,7 @@ Kevin Weaving
     out = EmailMessage()
     out["From"] = f"Kevin Weaving <{MAIL_FROM}>"
     out["To"] = MAIL_TO
+    out["Cc"] = MAIL_CC
     out["Reply-To"] = MAIL_FROM
     if mid:
         out["In-Reply-To"] = mid
@@ -920,6 +956,11 @@ def main() -> int:
     p.add_argument("--force", action="store_true", help="mail even if marked resolved")
     p.add_argument("--inbound", type=Path, help="support .eml to auto-dispute (omit to read stdin)")
     p.add_argument("--month", help="YYYY-MM — one billing-month email (separate from other months)")
+    p.add_argument(
+        "--copy-cc",
+        action="store_true",
+        help="send Kevin's required CC copy only (do not re-file with Cursor)",
+    )
     args = p.parse_args()
     snap = load_snapshot(args.snapshot)
     send = bool(args.send) and not args.dry_run
@@ -931,7 +972,13 @@ def main() -> int:
         return cmd_resolve()
     if args.command == "dispute":
         return cmd_dispute(snap, args.inbound, send)
-    return cmd_email(snap, send=send, force=args.force, month=args.month)
+    return cmd_email(
+        snap,
+        send=send,
+        force=args.force,
+        month=args.month,
+        copy_cc=args.copy_cc,
+    )
 
 
 if __name__ == "__main__":
