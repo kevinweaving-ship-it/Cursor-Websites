@@ -37,6 +37,20 @@ No `(snapshot time not recorded)`. Empty status until racing has a real as-at ti
 
 ---
 
+## Live cards (this Event URL only)
+
+Order under the header: **Wind → Media → (Cam later) → TSL Fleet**.
+
+| Card | Status |
+| --- | --- |
+| **Wind** | Live. Gold slot card. Data from [Wind2Speed widget 3](https://wind2speed.africa/widgetPage/3) / station **W2SMAC01** via `GET /api/wind2speed/mac` (`apidata/wsdata/3`). Dial + 1h spark + Now/Avg/Gust kt. |
+| **Media** | Empty shell. `No media yet`. Own `/mm-clips` only — no Midmar leftovers. |
+| **Live cam** | **Not shown.** `data-mac-cam="later"`. Wait for the MAC feed URL before adding a cam card. |
+
+JS: `/js/mac-tsl-live-cards.js` (also `sailingsa/frontend/js/mac-tsl-live-cards.js`). Not loaded on other slugs.
+
+---
+
 ## Fleet header + its data
 
 Same `.class-header` as other Event URLs:
@@ -87,5 +101,7 @@ Known teams so far (seed as entry rows, rank NULL, no races):
 - **How:** Enter each team-race as W/L on the team row (same idea as Dart place entry on `club-score-edit.js`, TSL-specific). Rank recalculates from wins.
 - **Status line:** first scored race → `Results are Provisional as at DD Month YYYY at HH:MM` from the sheet clock. Final when the OA says so.
 - **Public:** never edits scores. Empty race columns stay hidden until R1 exists.
+
+Super-admin media drop (WhatsApp → this slug’s `/mm-clips`) can be wired when the event WhatsApp exists. Cam card waits for the MAC URL.
 
 Live apply (SSH, not Cloud-only): `docs` + `sailingsa/deploy/SSH_LIVE.md`. Clear `/var/tmp/sailingsa_regatta_with_counts.json` after insert. Never replace live `api.py` with this repo snapshot.

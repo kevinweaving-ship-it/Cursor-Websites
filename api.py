@@ -779,6 +779,97 @@ def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Opt
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
+def _wind2speed_station_card(station_id: int, source_path: str, default_name: str):
+    """Wind2Speed widgetPage/{id} → knots + direction for a gold wind card."""
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            r = client.get(f"https://wind2speed.africa/apidata/wsdata/{int(station_id)}")
+            r.raise_for_status()
+            payload = r.json()
+        raw = payload.get("data") if isinstance(payload, dict) else None
+        inner = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        stats = inner.get("stats") or {}
+        station = inner.get("station") or {}
+        kmh_kn = 1.852
+
+        def _kn(v):
+            if v is None:
+                return None
+            try:
+                return round(float(v) / kmh_kn, 1)
+            except (TypeError, ValueError):
+                return None
+
+        hour = []
+        for row in inner.get("tableData") or []:
+            if not isinstance(row, dict):
+                continue
+            hour.append(
+                {
+                    "t": row.get("obsTimeLocal"),
+                    "avg_kt": _kn(row.get("windspeedAvg")),
+                    "high_kt": _kn(row.get("windspeedHigh")),
+                    "low_kt": _kn(row.get("windspeedLow")),
+                }
+            )
+        hour.sort(key=lambda p: p.get("t") or "")
+        if hour and hour[-1].get("t"):
+            try:
+                t1 = datetime.fromisoformat(str(hour[-1]["t"]).replace("Z", "").split(".")[0])
+                t0 = t1 - timedelta(hours=1)
+                hour = [
+                    p
+                    for p in hour
+                    if p.get("t")
+                    and datetime.fromisoformat(str(p["t"]).replace("Z", "").split(".")[0]) >= t0
+                ]
+            except Exception:
+                hour = hour[-24:]
+
+        body = {
+            "ok": True,
+            "source": source_path,
+            "station": station.get("nam") or default_name,
+            "code": station.get("cod"),
+            "lr": stats.get("lr"),
+            "wind_kt": stats.get("wslr"),
+            "gust_kt": stats.get("wshlr"),
+            "avg_kt": stats.get("wsa"),
+            "low_kt": stats.get("wsl"),
+            "high_kt": stats.get("wsh"),
+            "wind_dir": stats.get("wdlr"),
+            "wind_dir_name": stats.get("wdlrn"),
+            "avg_dir": stats.get("wda"),
+            "avg_dir_name": stats.get("wdn"),
+            "dir_low": stats.get("wdrl"),
+            "dir_high": stats.get("wdrh"),
+            "wds": stats.get("wds") or [],
+            "wdsm": stats.get("wdsm") or [],
+            "hour": hour,
+            "interval": payload.get("interval") or 40000,
+            "pressure": stats.get("prs"),
+        }
+        return JSONResponse(
+            content=body,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+            },
+        )
+    except Exception as e:
+        return JSONResponse(
+            content={"ok": False, "err": str(e)[:200]},
+            status_code=502,
+            headers={"Cache-Control": "no-store"},
+        )
+
+
+@app.get("/api/wind2speed/mac")
+def api_wind2speed_mac():
+    """MAC Wind2Speed station 3 (W2SMAC01) — knots + direction for the TSL Event URL wind card."""
+    return _wind2speed_station_card(3, "wind2speed.africa/widgetPage/3", "Milnerton Aquatic Club")
+
+
 @app.get("/api/stats")
 async def api_stats():
     """Public stats for /stats page. Registered before /sailor/{slug} so /stats is not caught as slug."""
@@ -26747,6 +26838,15 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        is_mac_tsl = str(regatta_id) == MAC_TSL_WC_2026_REGATTA_SLUG
+        mac_tsl_js = (
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012a" defer></script>' if is_mac_tsl else ""
+        )
+        page_attrs = (
+            ' class="regatta-page" data-mac-tsl="1" data-mac-cam="later"'
+            if is_mac_tsl
+            else ' class="regatta-page"'
+        )
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
@@ -26756,7 +26856,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
+            f"<div{page_attrs}>{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}{mac_tsl_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
