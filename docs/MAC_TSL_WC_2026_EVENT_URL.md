@@ -44,7 +44,7 @@ Order under the header: **Wind → Media → (Cam later) → TSL Fleet**.
 | Card | Status |
 | --- | --- |
 | **Wind** | Live. Gold slot card. Data from [Wind2Speed widget 3](https://wind2speed.africa/widgetPage/3) / station **W2SMAC01** via `GET /api/wind2speed/mac` (`apidata/wsdata/3`). Dial + 1h spark + Now/Avg/Gust kt. |
-| **Media** | Empty shell. `No media yet`. Own `/mm-clips` only — no Midmar leftovers. |
+| **Media** | Same 5-clip card as HMYC Dart / Midmar. MAC club logo in the HMYC logo slot. `/mm-clips` for this slug. WhatsApp group **MAC Media**. |
 | **Live cam** | **Not shown.** `data-mac-cam="later"`. Wait for the MAC feed URL before adding a cam card. |
 
 JS: `/js/mac-tsl-live-cards.js` (also `sailingsa/frontend/js/mac-tsl-live-cards.js`). Not loaded on other slugs.
@@ -102,7 +102,7 @@ Known teams so far (seed as entry rows, rank NULL, no races):
 - **Status line:** first scored race → `Results are Provisional as at DD Month YYYY at HH:MM` from the sheet clock. Final when the OA says so.
 - **Public:** never edits scores. Empty race columns stay hidden until R1 exists.
 
-Super-admin media drop (WhatsApp → this slug’s `/mm-clips`) can be wired when the event WhatsApp exists. Cam card waits for the MAC URL.
+Super-admin drop and WhatsApp **MAC Media** both write this slug’s `/mm-clips` (same as Dart / Midmar). Bind: `event_whatsapp_groups.group_name='MAC Media'`. Cam card waits for the MAC URL.
 
 Live apply (full-box SSH): `docs` + `sailingsa/deploy/SSH_LIVE.md`.
 
