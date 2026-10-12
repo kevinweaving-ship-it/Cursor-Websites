@@ -321,6 +321,13 @@ def detailed_evidence(snap: dict[str, Any]) -> str:
     parts.extend(_agent_section(f"ERROR agents — platform spawn/infra fail ({len(g['error'])}):", g["error"]))
     parts.append("")
     parts.extend(_agent_section(f"IDLE over 48h — leftover Cloud sessions ({len(g['idle_long'])}):", g["idle_long"]))
+    incidents = list(snap.get("pendingIncidents") or [])
+    if incidents:
+        parts.extend(["", "Pending for NEXT fuckup report (not mailed yet):"])
+        for inc in incidents:
+            parts.append(f"  - {inc.get('at')}  {inc.get('bcId')}  mailed={inc.get('sent')}")
+            for fact in inc.get("facts") or []:
+                parts.append(f"      {fact}")
     parts.extend(
         [
             "",

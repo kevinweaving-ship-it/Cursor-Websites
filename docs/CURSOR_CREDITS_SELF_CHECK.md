@@ -29,6 +29,16 @@ The snapshot is taken from Cursor's own Cloud Agents API/dashboard for this logi
 
 If Cursor disputes the burn, they are disputing their own dashboard. User fault in the 2026-10-12 audit: **0**.
 
+## Next fuckup report (not mailed yet)
+
+Queued on this same monitor `bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1` (public Cloud, Mac idle):
+
+- Required **Cc kevinweaving@icloud.com** was omitted on the August and September `hi@` letters.
+- Follow-up burned more Cloud instead of a one-line answer.
+- This run is itself Cloud-over-Mac. That is why Kevin needs this tool. It has to stop.
+
+Do not send a new ticket for this. Attach it to the next rejection reply or the next monthly letter.
+
 ## Audit (2026-10-12, this login)
 
 | Metric | Count |

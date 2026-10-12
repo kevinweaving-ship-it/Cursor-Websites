@@ -68,7 +68,10 @@
       "left_idle_over_48h": 20,
       "instant_error": 68,
       "internal_spawn_fail": 69,
-      "premium_model_against_account_defaults": 2
+      "premium_model_against_account_defaults": 2,
+      "cloud_over_mac": 1,
+      "required_cc_omitted": 1,
+      "extra_cloud_after_october_filed": 1
     },
     "period": {
       "from": "2026-08-23T16:00:56Z",
@@ -111,16 +114,20 @@
       "source": "mobile",
       "model": "cursor-grok-4.6-high-fast",
       "createdAt": "2026-10-12T22:38:54Z",
-      "updatedAt": "2026-10-12T22:40:51Z",
+      "updatedAt": "2026-10-12T23:32:00Z",
       "durationSec": 116.447,
-      "branchName": null,
+      "branchName": "cursor/credits-self-check-monitor-05e1",
       "usePrivateWorker": false,
       "url": "https://cursor.com/agents/bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1",
       "blame": "cursor_platform",
       "userBlame": false,
       "reasons": [
-        "public_cloud_not_mac_worker"
-      ]
+        "public_cloud_not_mac_worker",
+        "cloud_over_mac",
+        "required_cc_omitted",
+        "extra_cloud_after_october_filed"
+      ],
+      "note": "Queued for next fuckup report. Do not open a new ticket."
     },
     {
       "bcId": "bc-1e0a7f5a-5b4f-5d3c-a524-91b2d47e5305",
@@ -4798,6 +4805,22 @@
       "reasons": [
         "public_cloud_not_mac_worker",
         "left_idle_over_48h"
+      ]
+    }
+  ],
+  "pendingIncidents": [
+    {
+      "at": "2026-10-12T23:32:00Z",
+      "bcId": "bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1",
+      "name": "Credits self-check monitor",
+      "includeIn": "next_fuckup_report",
+      "sent": false,
+      "url": "https://cursor.com/agents/bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1",
+      "facts": [
+        "Same monitor stayed on public Cloud (usePrivateWorker=false) after October was already filed on T-H16750.",
+        "Required Cc kevinweaving@icloud.com was omitted on August and September letters to hi@cursor.com.",
+        "Follow-up burned more Cloud instead of a one-line yes/no on the CC question.",
+        "Mac Mini worker was the standing rule. This run is Cloud-over-Mac. This is why Kevin needs this tool; it has to stop."
       ]
     }
   ]
