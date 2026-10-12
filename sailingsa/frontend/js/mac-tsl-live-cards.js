@@ -14,7 +14,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var MEDIA_ID = "mmLiptonReels";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012j";
+  var JS_VER = "20261012k";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/img/mac-event-reels.jpg";
   var WX_API = "/api/wind2speed/mac";
@@ -66,7 +66,12 @@
       ".ssa-regatta-slot-card .wx-il{color:#334155;}",
       ".ssa-regatta-slot-card .wx-iv{color:#1a2750;text-align:right;}",
       ".ssa-regatta-slot-card .wx-iv small{margin-left:4px;color:inherit;}",
-      ".mac-tsl-live-cards .mm-lipton-reels{margin:10px 0 0;width:100%;box-sizing:border-box;}",
+      ".mac-tsl-live-cards .mm-lipton-reels{margin:10px 0 0;width:100%;box-sizing:border-box;background:#fff!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-brand{background:#fff!important;padding:2px!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-brand img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;object-position:center;background:#fff!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels.mac-tsl-reels--logo-only .mm-lipton-reels-rail-wrap{display:none!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels.mac-tsl-reels--logo-only .mm-lipton-reels-compact{display:block!important;height:auto!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels.mac-tsl-reels--logo-only .mm-lipton-reels-brand{display:block!important;width:100%!important;max-width:100%!important;height:auto!important;flex:none!important;aspect-ratio:2014/780!important;box-sizing:border-box!important;}",
       "@media print{.mac-tsl-live-cards{display:none!important;}}",
       "#macTslNorDialog.card{max-width:44rem;width:calc(100% - 24px);max-height:90vh;overflow:auto;padding:0.5rem 0.75rem;border:2px solid #001f3f;border-radius:8px;box-shadow:0 4px 12px rgba(0,31,63,.12);}",
       "#macTslNorDialog::backdrop{background:rgba(0,31,63,.45);}",
@@ -381,9 +386,31 @@
       host.appendChild(media);
     }
 
+    function markLogoOnly() {
+      var root = document.getElementById(MEDIA_ID);
+      if (!root) return;
+      var has = false;
+      try {
+        var init = JSON.parse(root.getAttribute("data-mm-initial") || "{}");
+        has = Array.isArray(init.videos) && init.videos.some(function (v) {
+          return v && (v.url || v.id || v.src || v.clip_url);
+        });
+      } catch (e) {}
+      if (!has) {
+        has = !!root.querySelector(
+          "[data-mm-compact] iframe, [data-mm-compact] video, [data-mm-compact] a[href*='youtu'], [data-mm-compact] a[href*='facebook']"
+        );
+      }
+      if (has) root.classList.remove("mac-tsl-reels--logo-only");
+      else root.classList.add("mac-tsl-reels--logo-only");
+    }
+
     loadCss("/css/mm-lipton-reels.css?v=" + JS_VER);
     loadScript("/js/mm-lipton-reels-card.js?v=mactslmedia1").then(function () {
       if (typeof window.mmLiptonReelsInit === "function") window.mmLiptonReelsInit();
+      markLogoOnly();
+      window.setTimeout(markLogoOnly, 50);
+      window.setTimeout(markLogoOnly, 400);
     });
 
     function loadWx() {

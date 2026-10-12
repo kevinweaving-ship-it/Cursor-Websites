@@ -43,12 +43,13 @@ class TestTslAdminContract(unittest.TestCase):
 
 
 class TestTslLiveCardsStd(unittest.TestCase):
-    def test_media_brand_is_std_hmyc_slot(self):
+    def test_media_brand_fills_card_on_white(self):
         cards = (ROOT / "js" / "mac-tsl-live-cards.js").read_text(encoding="utf-8")
-        self.assertNotIn("2014/780", cards)
         self.assertNotIn("sizeMacBrand", cards)
         self.assertIn("mm-lipton-reels--compact", cards)
-        self.assertIn("20261012j", cards)
+        self.assertIn("mac-tsl-reels--logo-only", cards)
+        self.assertIn("background:#fff!important", cards)
+        self.assertIn("20261012k", cards)
 
 
 if __name__ == "__main__":
