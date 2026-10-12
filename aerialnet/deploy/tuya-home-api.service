@@ -1,0 +1,21 @@
+[Unit]
+Description=Home read API (analytics over the Smart Life collector)
+After=network.target
+
+[Service]
+User=tuya-sharing
+Group=tuya-sharing
+WorkingDirectory=/opt/tuya-sharing
+EnvironmentFile=-/etc/tuya-sharing.env
+Environment=HOME_API_PORT=8008
+ExecStart=/opt/tuya-sharing/venv/bin/python /opt/tuya-sharing/home_api.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadOnlyPaths=/opt/tuya-sharing/state
+
+[Install]
+WantedBy=multi-user.target

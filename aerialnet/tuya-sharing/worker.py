@@ -51,7 +51,7 @@ def light_ids() -> list[str]:
 
 _MAIN_SW = re.compile(r"^switch(_\d+)?$")     # switch_1.. gangs, or a breaker's single "switch"
 HOME_NAME = os.getenv("TUYA_SHARING_HOME_NAME") or "Voelklip - Home"        # (legacy single-home label)
-HOME_NAMES = [x.strip() for x in (os.getenv("TUYA_SHARING_HOME_NAMES") or os.getenv("ARIAL_TUYA_HOME") or "Aerial Networks HSK,Voelklip - Home").split(",") if x.strip()]
+HOME_NAMES = [x.strip() for x in (os.getenv("TUYA_SHARING_HOME_NAMES") or os.getenv("ARIAL_TUYA_HOME") or "Voelklip - Home,My Home ..,Aerial Networks HSK").split(",") if x.strip()]
 HOME_DB = Path(os.getenv("TUYA_SHARING_STATE") or "/opt/tuya-sharing/state") / "home_events.sqlite"
 HOME_RECORD_SKIP = {"switch_backlight", "light_mode", "child_lock",
                     "unlock_offline_pd", "unlock_offline_clear", "remote_no_pd_setkey", "remote_no_dp_key", "lock_record",
@@ -568,7 +568,11 @@ class Worker(SharingDeviceListener):
                 reason = self.push_q.get(timeout=1)
             except queue.Empty:
                 continue
-            self._push_now(reason)
+            try:
+                self._push_now(reason)
+            except Exception as exc:
+                self.push_errors += 1
+                log.warning("push_loop: %s", exc)
 
     def _push_now(self, reason: str) -> bool:
         if not INGEST_TOKEN:
@@ -590,16 +594,20 @@ class Worker(SharingDeviceListener):
         try:
             r = requests.post(INGEST_URL, json=payload, timeout=5,
                               headers={"Authorization": f"Bearer {INGEST_TOKEN}"})
-            ok = r.status_code == 200 and r.json().get("ok") is True
+            try:
+                body = r.json() if r.content else {}
+            except ValueError:
+                body = {}
+            ok = r.status_code == 200 and isinstance(body, dict) and body.get("ok") is True
             if not ok:
                 self.push_errors += 1
-                log.warning("ingest %s -> %s %s", reason, r.status_code, r.text[:200])
+                log.warning("ingest %s -> %s %s", reason, r.status_code, (r.text or "")[:200])
             else:
                 with self.lock:
                     self.last_push = {"at": time.time(), "reason": reason, "ts": ts, "v": n["v"], "a": n["a"],
                                       "w": n["w"], "kwh": n["kwh"], "online": n["online"]}
             return ok
-        except requests.RequestException as exc:
+        except Exception as exc:
             self.push_errors += 1
             log.warning("ingest %s failed: %s", reason, exc)
             return False
