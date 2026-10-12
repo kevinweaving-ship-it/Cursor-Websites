@@ -58,7 +58,7 @@ JS: `/js/mac-tsl-live-cards.js` (also `sailingsa/frontend/js/mac-tsl-live-cards.
 
 ## Notice of Race (on this Event URL)
 
-Gold text is in `/js/mac-tsl-nor.html`. The Event URL header link **Notice of Race** pops it (`#nor`). Link slot can move later — do not change the Event URL slug.
+Gold text is in `/js/mac-tsl-nor.html`. Official file: `/js/2026-10-17-mac-tsl-wc-nor.docx`. The Event URL header link **Notice of Race** pops it (`#nor`). Link slot can move later — do not change the Event URL slug.
 
 SAS entry: https://www.sailing.org.za/events/380433  
 Invitation: TSL@MAC WhatsApp. Briefing Saturday 17 Oct 09:00 at the MAC clubhouse. Racing done by 16:00 Sunday. SI from the RO / clubhouse notice board.

@@ -15,7 +15,7 @@
   var MEDIA_ID = "mmLiptonReels";
   var SA_ID = "mac-tsl-mm-sa";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012c";
+  var JS_VER = "20261012d";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/artwork/Club Logo/MAC.png";
   var WX_API = "/api/wind2speed/mac";

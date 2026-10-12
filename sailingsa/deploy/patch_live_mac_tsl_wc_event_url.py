@@ -162,7 +162,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         )
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
-            '<script src="/js/mac-tsl-live-cards.js?v=20261012c" defer></script>' if is_mac_tsl else ""
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012d" defer></script>' if is_mac_tsl else ""
         )
         mac_tsl_page_attrs = ' data-mac-tsl="1" data-mac-cam="later"' if is_mac_tsl else ""
         live_board_script = _regatta_live_board_toggle_script() + _regatta_live_race_autoscore_script(str(regatta_id)) + _regatta_as_at_live_clock_script()
@@ -220,6 +220,19 @@ ENTRIES_INSERT = '''    if n <= 0:
         return _entries_html
 '''
 
+NOR_LINK_ANCHOR = '''                + _cape_classic_total_entries_line_html(str(regatta_id), fleets)
+                + "</div>"
+'''
+
+NOR_LINK_INSERT = '''                + _cape_classic_total_entries_line_html(str(regatta_id), fleets)
+                + (
+                    '<div class="status-line"><a href="#nor" id="macTslNorOpen">Notice of Race</a></div>'
+                    if str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
+                    else ""
+                )
+                + "</div>"
+'''
+
 
 def apply_one(text: str, anchor: str, insert: str, name: str, *, allow_multi: int = 1) -> str:
     if insert in text and name != "wind":
@@ -266,9 +279,15 @@ def main() -> int:
     text = revert_pass_b_wipe(text)
     text = apply_one(text, STATUS_DEFAULT_ANCHOR, STATUS_DEFAULT_INSERT, "status_default", allow_multi=2)
     text = apply_one(text, ENTRIES_ANCHOR, ENTRIES_INSERT, "entries_icon")
-    if "mac-tsl-live-cards.js?v=20261012b" in text:
-        text = text.replace("mac-tsl-live-cards.js?v=20261012b", "mac-tsl-live-cards.js?v=20261012c")
-        print("pin mac-tsl-live-cards.js v=20261012c")
+    text = apply_one(text, NOR_LINK_ANCHOR, NOR_LINK_INSERT, "nor_link", allow_multi=3)
+    for old_pin, new_pin in (
+        ("mac-tsl-live-cards.js?v=20261012a", "mac-tsl-live-cards.js?v=20261012d"),
+        ("mac-tsl-live-cards.js?v=20261012b", "mac-tsl-live-cards.js?v=20261012d"),
+        ("mac-tsl-live-cards.js?v=20261012c", "mac-tsl-live-cards.js?v=20261012d"),
+    ):
+        if old_pin in text:
+            text = text.replace(old_pin, new_pin)
+            print(f"pin {new_pin}")
     if text == orig:
         print("No changes (already patched).")
         return 0
