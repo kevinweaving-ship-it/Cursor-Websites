@@ -228,6 +228,9 @@ def apply_one(text: str, anchor: str, insert: str, name: str, *, allow_multi: in
     if name == "wind" and '@app.get("/api/wind2speed/mac")' in text:
         print("skip wind: already present")
         return text
+    if name in {"toolbar", "page"} and "mac-tsl-live-cards.js" in text and 'data-mac-tsl="1"' in text:
+        print(f"skip {name}: MAC TSL JS already injected")
+        return text
     if anchor not in text:
         raise SystemExit(f"ERROR: anchor not found for {name}")
     found = text.count(anchor)
