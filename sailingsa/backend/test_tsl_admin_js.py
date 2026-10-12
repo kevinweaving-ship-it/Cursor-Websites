@@ -49,6 +49,7 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertNotIn("mac-tsl-reels--logo-only", cards)
         self.assertNotIn("markLogoOnly", cards)
         self.assertIn("fillMacLogoTile", cards)
+        self.assertIn("mm-lipton-reels-card.js?v=mactslmedia2", cards)
         self.assertIn("MAC_ART_W = 2014", cards)
         self.assertIn("MAC_ART_H = 780", cards)
         self.assertIn("mm-lipton-reels--compact", cards)

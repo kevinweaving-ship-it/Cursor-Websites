@@ -439,7 +439,7 @@
     }
 
     loadCss("/css/mm-lipton-reels.css?v=" + JS_VER);
-    loadScript("/js/mm-lipton-reels-card.js?v=mactslmedia1").then(function () {
+    loadScript("/js/mm-lipton-reels-card.js?v=mactslmedia2").then(function () {
       if (typeof window.mmLiptonReelsInit === "function") window.mmLiptonReelsInit();
       fillMacLogoTile();
       window.setTimeout(fillMacLogoTile, 50);
