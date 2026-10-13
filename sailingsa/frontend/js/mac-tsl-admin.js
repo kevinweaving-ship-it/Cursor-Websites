@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014c";
+  var JS_VER = "20261014d";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -192,6 +192,10 @@
       "#macTslTeamsCard .tsl-new-team-hit{cursor:pointer;display:inline-flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:6px;white-space:nowrap;border:none;background:none;padding:0;margin:0;color:#1a2750;font:inherit}",
       "#macTslTeamsCard .tsl-new-team-card .club-race-step-add{display:inline-flex;flex:0 0 auto}",
       "#macTslTeamsCard .tsl-new-team-card .tsl-sailor-name{cursor:pointer}",
+      ".regatta-page--super-admin-edit #macTslTeamsCard .tsl-team-edit-hit{cursor:pointer;border:none;background:none;padding:0;margin:0;color:#1a2750;font:inherit}",
+      "#tslNamePop.tsl-pop--team{max-width:42em}",
+      "#tslNamePop #tslPopRemove{color:#c62828;padding:2px 8px;min-height:0;line-height:1.2}",
+      "#tslNamePop .tsl-pop-roster{max-width:100%;overflow:auto}",
       "#macTslTeamsCard .tsl-role-btn[disabled]{cursor:default;text-decoration:none}",
       "#macTslTeamsCard .tsl-role-on{text-decoration:underline}",
       "#macTslTeamsCard #tslSlotPick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff;max-width:100%;box-sizing:border-box}",
@@ -303,11 +307,15 @@
   function teamHead(team) {
     var code = clubCode(team);
     var full = teamFullName(team) || code;
-    return '<span class="rs-club-with-logo tsl-team-head">' +
-      logoImg(team && team.club_logo, code) +
+    var inner = logoImg(team && team.club_logo, code) +
       '<span class="tsl-team-code">' + esc(code) + "</span>" +
       '<span class="tsl-team-dot" aria-hidden="true">·</span>' +
-      '<span class="tsl-team-full">' + esc(full) + "</span></span>";
+      '<span class="tsl-team-full">' + esc(full) + "</span>";
+    if (isSaEdit() && team && team.team_id) {
+      return '<button type="button" class="rs-club-with-logo tsl-team-head tsl-team-edit-hit" data-team-id="' +
+        esc(team.team_id) + '">' + inner + "</button>";
+    }
+    return '<span class="rs-club-with-logo tsl-team-head">' + inner + "</span>";
   }
   function logoImg(src, code) {
     if (!src) return "";
@@ -1299,11 +1307,34 @@
       '<span class="tsl-msg" id="tslPopMsg"></span>';
   }
 
+  function popInnerTeamEdit(team) {
+    var code = clubCode(team);
+    var full = teamFullName(team) || code;
+    return '<div class="tsl-pop-row">' +
+      clubHitHtml({
+        club_id: team && team.club_id,
+        code: code,
+        name: (team && team.club_name) || full,
+        logo: team && team.club_logo
+      }) +
+      "</div>" +
+      '<div class="tsl-pop-row">' +
+      '<input id="tslPopTeamName" class="wc-result-field-input" type="text" autocomplete="off" placeholder="Team name" value="' +
+      esc(full) + '" />' +
+      '<button type="button" class="action-button" id="tslPopSave">Save</button>' +
+      "</div>" +
+      '<div class="tsl-pop-roster">' + teamRosterTable(team) + "</div>" +
+      '<div class="tsl-pop-row">' +
+      '<button type="button" class="action-button tsl-del" id="tslPopRemove">Remove team</button>' +
+      "</div>" +
+      '<span class="tsl-msg" id="tslPopMsg"></span>';
+  }
+
   function setPopBody(html, wide) {
     var pop = ensureNamePop();
     pop.innerHTML = html;
-    if (wide) pop.classList.add("tsl-pop--wide");
-    else pop.classList.remove("tsl-pop--wide");
+    pop.classList.toggle("tsl-pop--wide", !!wide);
+    pop.classList.toggle("tsl-pop--team", pickState.mode === "teamedit");
     bindNamePopControls();
     return pop;
   }
@@ -1333,8 +1364,10 @@
         else if (t.id === "tslPopSave") {
           e.preventDefault();
           if (pickState.mode === "add") saveAddSailor();
+          else if (pickState.mode === "teamedit") saveTeamEdit();
           else saveNameReplace();
         } else if (t.id === "tslPopTeamGo") { e.preventDefault(); createTeamFromPop(); }
+        else if (t.id === "tslPopRemove") { e.preventDefault(); removeTeamFromPop(); }
         else if (t.id === "tslPopSexM") { e.preventDefault(); setPopSex("M"); }
         else if (t.id === "tslPopSexF") { e.preventDefault(); setPopSex("F"); }
         else if (t.id === "tslPopHelm") { e.preventDefault(); setPopRole("helm"); }
@@ -1351,6 +1384,7 @@
         if (e.target.closest && (
           e.target.closest(".tsl-sailor-name") ||
           e.target.closest(".tsl-new-team-hit") ||
+          e.target.closest(".tsl-team-edit-hit") ||
           e.target.closest("#tslAddTeam") ||
           e.target.closest(".tsl-new-team-card")
         )) return;
@@ -1361,6 +1395,10 @@
         if (e.key === "Enter" && pickState.mode === "teamname") {
           e.preventDefault();
           createTeamFromPop();
+        }
+        if (e.key === "Enter" && pickState.mode === "teamedit") {
+          e.preventDefault();
+          saveTeamEdit();
         }
       });
       document._tslNamePopDoc = true;
@@ -1875,6 +1913,105 @@
     }
   }
 
+  function bindRosterClicks(root) {
+    if (!root) return;
+    root.querySelectorAll(".tsl-sex").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-sas") ||
+          ("slot:" + (btn.getAttribute("data-team-id") || "") + ":" + (btn.getAttribute("data-boat") || "") + ":" + (btn.getAttribute("data-role") || ""));
+        var cur = String(btn.textContent || sexChoice[id] || "").trim().toUpperCase();
+        var next = cur === "F" ? "M" : "F";
+        if (cur !== "M" && cur !== "F") next = "M";
+        sexChoice[id] = next;
+        btn.textContent = next;
+        saveSlotSex(btn.getAttribute("data-team-id"), btn.getAttribute("data-boat"), btn.getAttribute("data-role"), next);
+      });
+    });
+    root.querySelectorAll(".tsl-sailor-name").forEach(function (el) {
+      el.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isSaEdit()) return;
+        if (!el.getAttribute("data-team-id") || el.closest(".tsl-new-team-card")) {
+          openNewTeam();
+          return;
+        }
+        if (el.getAttribute("data-empty") === "1") {
+          openAddSailor(el);
+          return;
+        }
+        openNameReplace(el);
+      });
+    });
+    root.querySelectorAll(".tsl-move").forEach(function (btn) {
+      btn.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        var dir = dirFromClick(e, btn);
+        queueSailorMove(btn.getAttribute("data-team-id"), btn.getAttribute("data-boat"), btn.getAttribute("data-role"), dir);
+      });
+    });
+  }
+
+  function openTeamEdit(teamId) {
+    if (!isSaEdit()) return;
+    var team = teamById(teamId);
+    if (!team) return;
+    pickState.mode = "teamedit";
+    pickState.teamId = String(team.team_id || "");
+    pickState.selected = null;
+    pickState.replacement = null;
+    var pop = setPopBody(popInnerTeamEdit(team), true);
+    bindRosterClicks(pop);
+    var msg = document.getElementById("tslPopMsg");
+    if (msg) msg.textContent = "Edit team name, sailors, or Remove team.";
+    pop.hidden = false;
+    var inp = document.getElementById("tslPopTeamName");
+    if (inp) inp.focus();
+  }
+
+  function saveTeamEdit() {
+    var team = teamById(pickState.teamId);
+    var inp = document.getElementById("tslPopTeamName");
+    var msg = document.getElementById("tslPopMsg");
+    if (!team) return;
+    var name = inp ? String(inp.value || "").trim() : "";
+    if (!name) {
+      if (msg) msg.textContent = "Enter a team name.";
+      return;
+    }
+    var body = boatsPayload(team, rosterBoats(team));
+    body.team_name = name;
+    if (msg) msg.textContent = "Saving…";
+    api("/api/tsl/" + encodeURIComponent(RID) + "/teams/" + encodeURIComponent(team.team_id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function () {
+      closeNamePop();
+      return loadState();
+    }).catch(function (e) {
+      if (msg) msg.textContent = (e && e.message) || "Save failed";
+    });
+  }
+
+  function removeTeamFromPop() {
+    var team = teamById(pickState.teamId);
+    var msg = document.getElementById("tslPopMsg");
+    if (!team || !team.team_id) return;
+    var label = teamFullName(team) || clubCode(team) || "this team";
+    if (!window.confirm("Remove " + label + " from the event?")) return;
+    if (msg) msg.textContent = "Removing…";
+    api("/api/tsl/" + encodeURIComponent(RID) + "/teams/" + encodeURIComponent(team.team_id), { method: "DELETE" })
+      .then(function () {
+        closeNamePop();
+        return loadState();
+      })
+      .catch(function (e) {
+        if (msg) msg.textContent = (e && e.message) || "Remove failed";
+      });
+  }
+
   function swapSailorSlot(teamId, boat, role, dir, steps) {
     var team = teamById(teamId);
     if (!team) return;
@@ -2217,32 +2354,12 @@
 
   function wireTeamCardClicks(card) {
     if (!card) return;
-    card.querySelectorAll(".tsl-sex").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var id = btn.getAttribute("data-sas") ||
-          ("slot:" + (btn.getAttribute("data-team-id") || "") + ":" + (btn.getAttribute("data-boat") || "") + ":" + (btn.getAttribute("data-role") || ""));
-        var cur = String(btn.textContent || sexChoice[id] || "").trim().toUpperCase();
-        var next = cur === "F" ? "M" : "F";
-        if (cur !== "M" && cur !== "F") next = "M";
-        sexChoice[id] = next;
-        btn.textContent = next;
-        saveSlotSex(btn.getAttribute("data-team-id"), btn.getAttribute("data-boat"), btn.getAttribute("data-role"), next);
-      });
-    });
-    card.querySelectorAll(".tsl-sailor-name").forEach(function (el) {
-      el.addEventListener("click", function (e) {
+    bindRosterClicks(card);
+    card.querySelectorAll(".tsl-team-edit-hit").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
         e.preventDefault();
         e.stopPropagation();
-        if (!isSaEdit()) return;
-        if (!el.getAttribute("data-team-id") || el.closest(".tsl-new-team-card")) {
-          openNewTeam();
-          return;
-        }
-        if (el.getAttribute("data-empty") === "1") {
-          openAddSailor(el);
-          return;
-        }
-        openNameReplace(el);
+        openTeamEdit(btn.getAttribute("data-team-id"));
       });
     });
     card.querySelectorAll(".tsl-new-team-hit").forEach(function (btn) {
@@ -2253,14 +2370,6 @@
       });
     });
     bindNamePopControls();
-    card.querySelectorAll(".tsl-move").forEach(function (btn) {
-      btn.addEventListener("mousedown", function (e) { e.preventDefault(); });
-      btn.addEventListener("click", function (e) {
-        e.preventDefault();
-        var dir = dirFromClick(e, btn);
-        queueSailorMove(btn.getAttribute("data-team-id"), btn.getAttribute("data-boat"), btn.getAttribute("data-role"), dir);
-      });
-    });
     var nameInp = document.getElementById("tslPickName");
     if (nameInp) {
       bindTypeahead(nameInp, "sailor", function (q) {

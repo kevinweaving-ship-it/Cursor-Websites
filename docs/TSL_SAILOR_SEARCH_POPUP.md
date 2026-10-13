@@ -4,7 +4,7 @@ Working Super Admin picker on the MAC TSL Event URL. **Reuse this same system** 
 
 Live: https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing  
 Code: `js/mac-tsl-admin.js` (keep `sailingsa/frontend/js/mac-tsl-admin.js` in sync).  
-Pin: `mac-tsl-admin.js?v=` in `api.py`. Current working pin **`20261014c`**.
+Pin: `mac-tsl-admin.js?v=` in `api.py`. Current working pin **`20261014d`**.
 
 ---
 
@@ -82,6 +82,10 @@ Super Admin only. After the last team card, a standard `.tsl-team-card.tsl-new-t
 5. Blank cell on any team: click **—** → same add flow (sailor + sex + Helm/Crew). Named cell still uses the replace card (original | ← | search).
 
 Keep: `.card`, `.action-button`, `.wc-result-field-input`, `.tsl-ac-list`, 16px field, body-fixed card, `/api/search?hub=1`, hit format **name | logo | SAS**. No invented SAS. Club of an existing team does not change when a sailor is added.
+
+## Edit / remove an existing team
+
+Super Admin clicks the **team name** (header on that team’s card). Same body-fixed `.card` popup shows the club line, an editable **Team name**, the same roster table (sailors / S / Helm-Crew still work), **Save**, and **Remove team**. Remove calls `DELETE /api/tsl/{rid}/teams/{id}` (blocked if the team has a completed match). After remove, cards refresh and the New Team card stays last.
 
 Do not: over-the-name absolute card, TSL sailors-search for the typeahead, hide empty results with no status line, raw `TimWeaving` query.
 
