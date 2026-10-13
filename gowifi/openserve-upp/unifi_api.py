@@ -257,6 +257,101 @@ def _iface_rates(block: dict) -> dict:
     return {"down_bps": down, "up_bps": up, "down_mbps": _mbps(down), "up_mbps": _mbps(up)}
 
 
+def _sta_client(row: dict, app: str | None = None) -> dict | None:
+    """One IP the UniFi console is serving. Live rates from the same sta dump the console uses."""
+    if not isinstance(row, dict):
+        return None
+    ip = (row.get("ip") or row.get("last_ip") or "").strip()
+    if not ip:
+        return None
+    rates = _iface_rates(row)
+    name = (row.get("name") or row.get("hostname") or row.get("oui") or "").strip() or ip
+    return {
+        "ip": ip,
+        "name": name,
+        "hostname": (row.get("hostname") or "").strip() or None,
+        "mac": (row.get("mac") or "").strip() or None,
+        "network": (row.get("network") or row.get("essid") or "").strip() or None,
+        "vlan": row.get("vlan"),
+        "wired": bool(row.get("is_wired")),
+        "used_down_mbps": rates["down_mbps"],
+        "used_up_mbps": rates["up_mbps"],
+        "app": app,
+    }
+
+
+def _dpi_app_names(key: str, host_id: str) -> dict[int, str]:
+    try:
+        pack = _classic(key, host_id, "/integration/v1/dpi/applications")
+    except Exception:
+        return {}
+    rows = pack.get("data") if isinstance(pack.get("data"), list) else pack.get("applications") or []
+    out: dict[int, str] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        app_id = row.get("id") if row.get("id") is not None else row.get("applicationId")
+        label = (row.get("name") or row.get("applicationName") or "").strip()
+        if app_id is None or not label:
+            continue
+        try:
+            out[int(app_id)] = label
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _dpi_top_by_mac(key: str, host_id: str) -> dict[str, str]:
+    names = _dpi_app_names(key, host_id)
+    try:
+        pack = _classic(key, host_id, "/api/s/default/stat/stadpi")
+    except Exception:
+        return {}
+    out: dict[str, str] = {}
+    for row in pack.get("data") or []:
+        if not isinstance(row, dict):
+            continue
+        mac = (row.get("mac") or "").strip()
+        if not mac:
+            continue
+        best = None
+        best_bytes = -1
+        for app in row.get("by_app") or []:
+            if not isinstance(app, dict):
+                continue
+            total = float(app.get("rx_bytes") or 0) + float(app.get("tx_bytes") or 0)
+            if total <= best_bytes:
+                continue
+            best_bytes = total
+            app_id = app.get("app")
+            label = names.get(int(app_id)) if app_id is not None and str(app_id).isdigit() else None
+            best = label or (f"app {app_id}" if app_id is not None else None)
+        if best:
+            out[mac] = best
+    return out
+
+
+def _served_clients(key: str, host_id: str, with_dpi: bool = False) -> dict:
+    """IPs the console is serving right now, plus live Mbps (and top DPI app when asked)."""
+    if not host_id:
+        return {"ok": False, "clients": [], "error": "no host id"}
+    try:
+        pack = _classic(key, host_id, "/api/s/default/stat/sta")
+    except Exception as exc:
+        return {"ok": False, "clients": [], "error": str(exc)[:200]}
+    dpi = _dpi_top_by_mac(key, host_id) if with_dpi else {}
+    clients = []
+    for row in pack.get("data") or []:
+        item = _sta_client(row, dpi.get((row.get("mac") or "").strip()) if isinstance(row, dict) else None)
+        if item:
+            clients.append(item)
+    clients.sort(
+        key=lambda c: (c.get("used_down_mbps") or 0) + (c.get("used_up_mbps") or 0),
+        reverse=True,
+    )
+    return {"ok": True, "clients": clients, "count": len(clients)}
+
+
 def _wan_gauges(key: str, host_id: str) -> list[dict]:
     """Two fibres + LTE from this console. Names and rates from UniFi only."""
     if not host_id:
@@ -484,16 +579,21 @@ def _host_live_fetch(want: str) -> dict:
     host = _find_host(want, hosts)
     if not host:
         return {"ok": False, "live": True, "error": "host not found", "want": want}
+    hid = host.get("id") or ""
     try:
-        gauges = _wan_live(key, host.get("id") or "")
+        gauges = _wan_live(key, hid)
     except Exception as exc:
         return {"ok": False, "live": True, "error": str(exc)[:200], "gauges": []}
+    served = _served_clients(key, hid, with_dpi=False)
     return {
         "ok": True,
         "live": True,
         "as_at": _as_at(),
         "poll_ms": 2000,
         "gauges": gauges,
+        "clients": served.get("clients") or [],
+        "clients_ok": bool(served.get("ok")),
+        "clients_error": served.get("error"),
         "cached": False,
     }
 
@@ -592,6 +692,10 @@ def host_detail(want: str) -> dict:
         gauges = []
         connector = {**(connector or {}), "gauges_error": str(exc)[:200]}
     card["gauges"] = gauges
+    served = _served_clients(key, host.get("id") or "", with_dpi=True)
+    card["clients"] = served.get("clients") or []
+    if served.get("error"):
+        connector = {**(connector or {}), "clients_error": served["error"]}
     return {
         "ok": True,
         "live": True,
@@ -696,6 +800,27 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK iface-rates")
+    row = _sta_client(
+        {
+            "ip": "192.168.1.40",
+            "name": "HPP",
+            "hostname": "hpp",
+            "mac": "aa:bb:cc:dd:ee:ff",
+            "network": "LAN",
+            "is_wired": True,
+            "rx_bytes-r": 2_500_000,
+            "tx_bytes-r": 125_000,
+        },
+        "YouTube",
+    )
+    if not row or row["ip"] != "192.168.1.40" or row["used_down_mbps"] != 20.0 or row["app"] != "YouTube":
+        print("FAIL sta-client", row)
+        failed += 1
+    elif _sta_client({"name": "no-ip"}) is not None:
+        print("FAIL sta-client-empty-ip")
+        failed += 1
+    else:
+        print("OK sta-client")
     stamped = _as_at(datetime(2026, 10, 7, 7, 44, 52, tzinfo=timezone.utc))
     if stamped != "2026-10-07 07:44:52":
         print("FAIL as-at", stamped)

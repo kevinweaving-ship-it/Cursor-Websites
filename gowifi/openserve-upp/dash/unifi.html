@@ -213,6 +213,12 @@ function mergeGauges(base, live) {
     });
   });
 }
+function mergeClients(prev, next) {
+  if (!next || !next.length) return prev || [];
+  const apps = {};
+  (prev || []).forEach(c => { if (c && c.mac && c.app) apps[c.mac] = c.app; });
+  return next.map(c => Object.assign({}, c, { app: c.app || apps[c.mac] || "" }));
+}
 function pushHist(gauges) {
   (gauges || []).forEach(g => {
     if (!HISTORY[g.id]) HISTORY[g.id] = { down: [], up: [] };
@@ -371,6 +377,20 @@ function paintChild(h, connector) {
     const bits = [w.isp, w.external_ip, w.uptime != null ? ("uptime " + Number(w.uptime).toFixed(1) + "%") : "", w.port_up === true ? "port up" : w.port_up === false ? "port down" : ""].filter(Boolean);
     return `<div class="card"><div class="k">${esc(w.name)}</div><div class="v">${esc(bits.join(" · "))}</div></div>`;
   }).join("");
+  const served = h.clients || [];
+  const mb = v => v == null || v === "" ? "—" : Number(v).toFixed(2);
+  const clientsTable = served.length
+    ? `<div class="card"><table class="dev"><thead><tr><th>IP</th><th>Name</th><th>Network</th><th>Down</th><th>Up</th><th>App</th></tr></thead><tbody>` +
+      served.map(c => `<tr>
+        <td>${esc(c.ip)}</td>
+        <td>${esc(c.name || c.hostname || "—")}${c.wired ? `<div class="meta">wired</div>` : ""}</td>
+        <td>${esc(c.network || (c.vlan != null ? "vlan "+c.vlan : "—"))}</td>
+        <td>${esc(mb(c.used_down_mbps))} Mb</td>
+        <td>${esc(mb(c.used_up_mbps))} Mb</td>
+        <td>${esc(c.app || "—")}</td>
+      </tr>`).join("") +
+      `</tbody></table></div>`
+    : `<div class="empty">No IPs on this console right now.</div>`;
   const rows = ((h.devices || {}).rows) || [];
   const table = rows.length
     ? `<div class="card"><table class="dev"><thead><tr><th>Device</th><th>Model</th><th>Status</th><th>Version</th><th>IP</th></tr></thead><tbody>` +
@@ -390,6 +410,7 @@ function paintChild(h, connector) {
     </div>` +
     gaugesHtml +
     (wans ? `<h2>WAN</h2>${wans}` : "") +
+    `<h2>Served IPs · live ${served.length ? "· " + served.length : ""}</h2>${clientsTable}` +
     `<h2>Devices</h2>${table}`;
   document.getElementById("share-note").textContent =
     landing ? "Ticked for landing — not published" : "Nothing ticked";
@@ -441,6 +462,7 @@ function pollTick() {
         STALE = false;
         LAST_OK_MS = Date.now();
         CURRENT.gauges = mergeGauges(CURRENT.gauges, data.gauges || []);
+        if (data.clients) CURRENT.clients = mergeClients(CURRENT.clients, data.clients);
         pushHist(CURRENT.gauges);
         paintChild(CURRENT, CONNECTOR);
         setLiveBanner("this machine", data.as_at);
