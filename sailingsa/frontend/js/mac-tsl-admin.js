@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013f";
+  var JS_VER = "20261013g";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -115,6 +115,8 @@
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
       ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet){display:none}",
+      "#macTslTeamsCard .tsl-team-cards{display:flex;flex-direction:column}",
+      "@media (orientation:landscape),(min-width:769px){#macTslTeamsCard .tsl-team-cards{flex-direction:row;flex-wrap:wrap}#macTslTeamsCard .tsl-team-card{flex:1 1 50%;max-width:50%;box-sizing:border-box}}",
       ".regatta-page[data-mac-tsl=\"1\"] th.tsl-hide-mp,.regatta-page[data-mac-tsl=\"1\"] td.tsl-hide-mp{display:none}",
       ".regatta-page[data-mac-tsl=\"1\"] .tsl-col-wins,.regatta-page[data-mac-tsl=\"1\"] .tsl-mcol{text-align:center;font-weight:bold}",
       "@media (max-width: 480px) and (orientation: portrait){",
@@ -198,7 +200,7 @@
       document.head.appendChild(style);
     }
     style.textContent = [
-      "#macTslAdmin,#macTslAdmin *,#macTslSchedule,#macTslSchedule *,#macTslMatches,#macTslMatches *{",
+      "#macTslAdmin,#macTslAdmin *,#macTslSchedule,#macTslSchedule *,#macTslMatches,#macTslMatches *,#macTslTeamsCard,#macTslTeamsCard *{",
       "font-size:" + tdCs.fontSize + "!important;",
       "line-height:" + tdCs.lineHeight + "!important;",
       "font-family:" + tdCs.fontFamily + "!important;",
@@ -877,6 +879,23 @@
     }
   }
 
+  function teamCardsHtml() {
+    var teams = (state.teams || []).slice().sort(function (a, b) {
+      return String(clubCode(a) || a.team_name || "").localeCompare(
+        String(clubCode(b) || b.team_name || ""),
+        undefined,
+        { sensitivity: "base" }
+      );
+    });
+    var inner = "";
+    teams.forEach(function (t) {
+      var code = clubCode(t);
+      inner += '<div class="card tsl-team-card" data-team-id="' + esc(t.team_id || "") + '">' +
+        '<span class="rs-club-with-logo">' + logoImg(t.club_logo, code) + esc(code) + "</span></div>";
+    });
+    return '<div class="fleet-title-row">Teams</div><div class="tsl-team-cards">' + inner + "</div>";
+  }
+
   function insertTeamsCard() {
     var gold = document.getElementById("macTslGoldSheet");
     if (!gold || !gold.parentNode) return;
@@ -885,8 +904,8 @@
       card = document.createElement("div");
       card.id = "macTslTeamsCard";
       card.setAttribute("class", "card");
-      card.innerHTML = '<div class="fleet-title-row">Teams</div>';
     }
+    card.innerHTML = teamCardsHtml();
     if (gold.nextSibling !== card) gold.parentNode.insertBefore(card, gold.nextSibling);
   }
 

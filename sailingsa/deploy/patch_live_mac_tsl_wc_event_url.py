@@ -164,7 +164,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261012o" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261013f" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261013g" defer></script>'
             if is_mac_tsl
             else ""
         )
@@ -395,29 +395,31 @@ def main() -> int:
         f'return "{TSL_CLASS_LOGO}"',
         f'return "{TSL_LOGO}"',
     )
-    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261013f" defer></script>'
+    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261013g" defer></script>'
     cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012o" defer></script>'
     if "mac-tsl-admin.js?v=20261012a" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261012a", "mac-tsl-admin.js?v=20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261012a", "mac-tsl-admin.js?v=20261013g")
     if "mac-tsl-admin.js?v=20261012b" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261012b", "mac-tsl-admin.js?v=20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261012b", "mac-tsl-admin.js?v=20261013g")
     if "mac-tsl-admin.js?v=20261012p" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261012p", "mac-tsl-admin.js?v=20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261012p", "mac-tsl-admin.js?v=20261013g")
     if "mac-tsl-admin.js?v=20261012t" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261012t", "mac-tsl-admin.js?v=20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261012t", "mac-tsl-admin.js?v=20261013g")
     if "mac-tsl-admin.js?v=20261012u" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261012u", "mac-tsl-admin.js?v=20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261012u", "mac-tsl-admin.js?v=20261013g")
     if "mac-tsl-admin.js?v=20261013a" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261013a", "mac-tsl-admin.js?v=20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261013a", "mac-tsl-admin.js?v=20261013g")
     if "mac-tsl-admin.js?v=20261013b" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261013b", "mac-tsl-admin.js?v=20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261013b", "mac-tsl-admin.js?v=20261013g")
     if "mac-tsl-admin.js?v=20261013c" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261013c", "mac-tsl-admin.js?v=20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261013c", "mac-tsl-admin.js?v=20261013g")
     if "mac-tsl-admin.js?v=20261013d" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261013d", "mac-tsl-admin.js?v=20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261013d", "mac-tsl-admin.js?v=20261013g")
     if "mac-tsl-admin.js?v=20261013e" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261013e", "mac-tsl-admin.js?v=20261013f")
-        print("pin admin 20261013f")
+        text = text.replace("mac-tsl-admin.js?v=20261013e", "mac-tsl-admin.js?v=20261013g")
+    if "mac-tsl-admin.js?v=20261013f" in text:
+        text = text.replace("mac-tsl-admin.js?v=20261013f", "mac-tsl-admin.js?v=20261013g")
+        print("pin admin 20261013g")
     if cards_tag in text and admin_tag not in text:
         text = text.replace(cards_tag, cards_tag + admin_tag)
         print("inject mac-tsl-admin.js next to live-cards")
