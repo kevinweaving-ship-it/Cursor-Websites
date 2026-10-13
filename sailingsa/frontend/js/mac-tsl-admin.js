@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014a";
+  var JS_VER = "20261014b";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -90,7 +90,8 @@
     s.textContent = [
       ".regatta-page[data-mac-tsl=\"1\"]{overflow-x:hidden}",
       ".regatta-page[data-mac-tsl=\"1\"] .table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}",
-      "#macTslAdmin,#macTslSchedule{display:block}",
+      "#macTslAdmin{display:none}",
+      "#macTslSchedule{display:block}",
       "#macTslMatches{display:none}",
       ".regatta-page--super-admin-edit #macTslMatches{display:block}",
       "#macTslAdmin .tsl-edit{display:none}",
@@ -517,10 +518,8 @@
   function renderTeams() {
     var root = document.getElementById(ROOT_ID);
     if (!root) return;
-    var n = (state.teams || []).length;
-    var html = fleetHead("Teams", "Entries: " + n) + publicTeamsTable().replace("<tbody>", '<tbody id="tslTeamBody">');
-    root.innerHTML = html;
-    root.querySelectorAll(".tsl-team").forEach(wireTeamPanel);
+    root.innerHTML = "";
+    root.hidden = true;
   }
 
   function teamById(id) {
