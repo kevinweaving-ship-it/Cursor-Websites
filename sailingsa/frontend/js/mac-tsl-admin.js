@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014f";
+  var JS_VER = "20261014i";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -153,11 +153,28 @@
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
       "#macTslFlightsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin:0 0 8px;position:relative;overflow:hidden}",
       "#macTslFlightsCard .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
+      "#macTslFlightsCard .tsl-flight-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:100%;min-width:0;box-sizing:border-box}",
       "#macTslFlightsCard .tsl-flight-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:100%!important;min-width:0;overflow:hidden}",
-      "#macTslFlightsCard .tsl-flight-head{font-weight:bold;margin:0 0 8px}",
-      "#macTslFlightsCard .table-wrapper{margin:8px 0 0;max-width:100%;overflow:hidden}",
+      "#macTslFlightsCard .tsl-flight-head{font-weight:bold;margin:0}",
+      "#macTslFlightsCard .tsl-flight-card .table-wrapper{margin:8px 0 0;max-width:100%;overflow:hidden}",
+      "#macTslFlightsCard .tsl-flight-card .fleet-results-table{transform-origin:top left}",
       "#macTslFlightsCard .fleet-results-table th{font-weight:bold}",
       "#macTslFlightsCard .fleet-results-table th,#macTslFlightsCard .fleet-results-table td{padding:2px 4px}",
+      "#macTslFlightsCard .tsl-colour-sq{display:inline-block;width:14px;height:14px;border:1px solid #1a2750;background:#fff;padding:0;margin:0;vertical-align:middle;box-sizing:border-box;cursor:default}",
+      "#macTslFlightsCard .tsl-colour-sq.tsl-colour-blue{background:#1d4ed8;border-color:#1d4ed8}",
+      "#macTslFlightsCard .tsl-colour-sq.tsl-colour-green{background:#15803d;border-color:#15803d}",
+      ".regatta-page--super-admin-edit #macTslFlightsCard .tsl-colour-sq{cursor:pointer}",
+      "#macTslFlightsCard .tsl-bpt{display:inline-flex;align-items:center;gap:6px;margin:0 0 0 auto;font-weight:bold}",
+      "#macTslFlightsCard .tsl-flight-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
+      "#macTslFlightsCard .tsl-flight-team{position:relative;display:inline-block;min-width:6em}",
+      "#macTslFlightsCard .tsl-flight-team-hit{display:inline-flex;align-items:center;gap:4px;border:none;background:none;padding:0;margin:0;color:#1a2750;font:inherit;cursor:default;white-space:nowrap}",
+      ".regatta-page--super-admin-edit #macTslFlightsCard .tsl-flight-team-hit{cursor:pointer}",
+      "#macTslFlightsCard .tsl-flight-team-list{position:absolute;left:0;z-index:80;margin:0;padding:0;list-style:none;background:#fff;border:1px solid #1d294d;max-height:180px;overflow-y:auto;min-width:12em}",
+      "#macTslFlightsCard .tsl-flight-team-list[hidden]{display:none}",
+      "#macTslFlightsCard .tsl-flight-team-list li{margin:0;padding:4px 6px;cursor:pointer;color:#1a2750;white-space:nowrap}",
+      "#macTslFlightsCard .tsl-flight-team-list li:hover{background:#e9eefb}",
+      "#macTslFlightsCard .tsl-rank{width:2.2em;min-width:2.2em;text-align:center;font:inherit;color:#1a2750}",
+      ".regatta-page--super-admin-edit #macTslFlightsCard .tsl-bpt .action-button{padding:2px 8px;min-height:0;line-height:1.2}",
       "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin-top:0;position:relative;overflow:hidden}",
       "#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0}",
       "#macTslTeamsCard .tsl-team-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:100%;min-width:0;box-sizing:border-box}",
@@ -210,7 +227,7 @@
       "#macTslTeamsCard #tslSlotPick[hidden]{display:none}",
       "#macTslTeamsCard #tslPickName{min-width:12em;max-width:18em}",
       "#macTslTeamsCard #tslPickClub{max-width:12em}",
-      "@media (max-width:900px){#macTslTeamsCard .tsl-team-cards{grid-template-columns:1fr}#macTslTeamsCard{padding:4px}#macTslTeamsCard .tsl-team-card{padding:4px}#macTslTeamsCard .tsl-move{width:14px;height:14px;margin:0 2px 0 0}}",
+      "@media (max-width:900px){#macTslTeamsCard .tsl-team-cards,#macTslFlightsCard .tsl-flight-cards{grid-template-columns:1fr}#macTslTeamsCard,#macTslFlightsCard{padding:4px}#macTslTeamsCard .tsl-team-card,#macTslFlightsCard .tsl-flight-card{padding:4px}#macTslTeamsCard .tsl-move{width:14px;height:14px;margin:0 2px 0 0}}",
       ".regatta-page[data-mac-tsl=\"1\"] th.tsl-hide-mp,.regatta-page[data-mac-tsl=\"1\"] td.tsl-hide-mp{display:none}",
       ".regatta-page[data-mac-tsl=\"1\"] .tsl-col-wins,.regatta-page[data-mac-tsl=\"1\"] .tsl-mcol{text-align:center;font-weight:bold}",
       "@media (max-width: 480px) and (orientation: portrait){",
@@ -2406,54 +2423,196 @@
     });
   }
 
-  function flightOneRows() {
-    var boats = (state.boats || []).slice();
-    if (!boats.length) {
-      boats = [
-        { colour: "Blue", boat_no: 1 },
-        { colour: "Blue", boat_no: 2 },
-        { colour: "Blue", boat_no: 3 },
-        { colour: "Green", boat_no: 1 },
-        { colour: "Green", boat_no: 2 },
-        { colour: "Green", boat_no: 3 }
-      ];
-    }
-    var m = (state.matches || []).filter(function (x) {
-      return String(x.flight || x.round_label || "").toLowerCase().indexOf("flight 1") >= 0 ||
-        String(x.flight || "") === "1" ||
-        Number(x.match_no) === 1;
+  function flightMatch(n) {
+    var want = String(n);
+    return (state.matches || []).filter(function (x) {
+      return String(x.flight || "") === want ||
+        String(x.round_label || "").toLowerCase().indexOf("flight " + want) >= 0 ||
+        Number(x.match_no) === Number(n);
     })[0] || null;
-    var blueTeam = m ? teamById(m.team_a_id || m.blue_team_id) : null;
-    var greenTeam = m ? teamById(m.team_b_id || m.green_team_id) : null;
-    return boats.map(function (b) {
-      var colour = String(b.colour || "");
-      var team = /green/i.test(colour) ? greenTeam : blueTeam;
-      return {
-        rank: "",
-        bow: b.bow_number || b.boat_no || "",
-        colour: colour,
-        team: team
-      };
+  }
+
+  function emptyFlightSheet() {
+    var lines = function () {
+      var o = {};
+      var b;
+      for (b = 1; b <= 6; b += 1) o[String(b)] = { colour: "", team_id: null, rank: null };
+      return o;
+    };
+    return { boats_per_team: { "1": 3, "2": 3 }, "1": lines(), "2": lines() };
+  }
+
+  function flightSheet() {
+    var src = (state.settings || {}).flight_sheet;
+    return src || emptyFlightSheet();
+  }
+
+  function flightCell(fl, bow) {
+    var sheet = flightSheet();
+    return ((sheet[String(fl)] || {})[String(bow)]) || { colour: "", team_id: null, rank: null };
+  }
+
+  function boatsPerTeam(fl) {
+    var n = Number((flightSheet().boats_per_team || {})[String(fl)] || 3);
+    return n === 1 || n === 2 ? n : 3;
+  }
+
+  function flightColour(fl, bow) {
+    return String(flightCell(fl, bow).colour || "");
+  }
+
+  function colourCount(fl, colour, exceptBow) {
+    var n = 0;
+    var bow;
+    for (bow = 1; bow <= 6; bow += 1) {
+      if (exceptBow && Number(bow) === Number(exceptBow)) continue;
+      if (flightColour(fl, bow) === colour) n += 1;
+    }
+    return n;
+  }
+
+  function teamCount(fl, teamId, exceptBow) {
+    var n = 0;
+    var bow;
+    if (!teamId) return 0;
+    for (bow = 1; bow <= 6; bow += 1) {
+      if (exceptBow && Number(bow) === Number(exceptBow)) continue;
+      if (Number(flightCell(fl, bow).team_id) === Number(teamId)) n += 1;
+    }
+    return n;
+  }
+
+  function nextFlightColour(fl, bow) {
+    var cur = flightColour(fl, bow);
+    var order = ["", "Blue", "Green"];
+    var i = order.indexOf(cur);
+    if (i < 0) i = 0;
+    var k;
+    for (k = 1; k <= 3; k += 1) {
+      var next = order[(i + k) % 3];
+      if (!next) return "";
+      if (colourCount(fl, next, bow) < 3) return next;
+    }
+    return "";
+  }
+
+  function paintColourSq(btn, colour) {
+    btn.classList.toggle("tsl-colour-blue", colour === "Blue");
+    btn.classList.toggle("tsl-colour-green", colour === "Green");
+    btn.setAttribute("aria-label", colour || "Colour");
+    btn.title = colour || "";
+  }
+
+  function setFlightCellLocal(fl, bow, patch) {
+    if (!state.settings) state.settings = {};
+    var sheet = flightSheet();
+    if (!sheet[String(fl)]) sheet[String(fl)] = {};
+    var cell = Object.assign({}, flightCell(fl, bow), patch || {});
+    sheet[String(fl)][String(bow)] = cell;
+    state.settings.flight_sheet = sheet;
+  }
+
+  function saveFlightLine(body) {
+    return api("/api/tsl/" + encodeURIComponent(RID) + "/flight-colours", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (d) {
+      if (!state.settings) state.settings = {};
+      if (d && d.flight_sheet) state.settings.flight_sheet = d.flight_sheet;
+      if (d && d.flight_colours) state.settings.flight_colours = d.flight_colours;
+      return d;
     });
   }
 
-  function flightsCardHtml() {
-    var rows = "";
-    flightOneRows().forEach(function (r) {
-      var colourClass = /green/i.test(r.colour) ? "tsl-green" : (/blue/i.test(r.colour) ? "tsl-blue" : "");
-      var teamHtml = r.team ? clubCell(r.team) : "";
-      rows += "<tr>" +
-        '<td class="rank-col">' + esc(r.rank) + "</td>" +
-        "<td>" + esc(r.bow) + "</td>" +
-        "<td" + (colourClass ? ' class="' + colourClass + '"' : "") + ">" + esc(r.colour) + "</td>" +
-        '<td class="club-col">' + teamHtml + "</td></tr>";
+  function enteredTeams() {
+    return (state.teams || []).slice().sort(function (a, b) {
+      return String(clubCode(a) || a.team_name || "").localeCompare(
+        String(clubCode(b) || b.team_name || ""),
+        undefined,
+        { sensitivity: "base" }
+      );
     });
-    return '<div class="fleet-title-row">Flights</div>' +
-      '<div class="card tsl-flight-card">' +
-      '<div class="tsl-flight-head">Flight 1</div>' +
+  }
+
+  function teamListLabel(team) {
+    if (!team) return "—";
+    var code = clubCode(team);
+    var full = teamFullName(team) || code;
+    return '<span class="rs-club-with-logo tsl-team-head">' +
+      logoImg(team.club_logo, code) +
+      '<span class="tsl-team-code">' + esc(code) + "</span>" +
+      '<span class="tsl-team-dot" aria-hidden="true">·</span>' +
+      '<span class="tsl-team-full">' + esc(full) + "</span></span>";
+  }
+
+  function flightTeamCell(n, bow, team) {
+    var sa = isSaEdit();
+    var list = "";
+    if (sa) {
+      list = '<ul class="tsl-ac-list tsl-flight-team-list" hidden><li data-team-id="">—</li>';
+      enteredTeams().forEach(function (t) {
+        list += '<li data-team-id="' + esc(t.team_id) + '">' + teamListLabel(t) + "</li>";
+      });
+      list += "</ul>";
+    }
+    return '<span class="tsl-flight-team tsl-ac">' +
+      '<button type="button" class="tsl-flight-team-hit" data-flight="' + n + '" data-bow="' + bow + '">' +
+      teamListLabel(team) + "</button>" + list + "</span>";
+  }
+
+  function flightRankCell(n, bow, rank) {
+    if (!isSaEdit()) return esc(rank || "");
+    return '<input class="wc-result-field-input tsl-rank" type="text" inputmode="numeric" maxlength="1" data-flight="' +
+      n + '" data-bow="' + bow + '" value="' + esc(rank || "") + '" aria-label="Rank" />';
+  }
+
+  function flightRows(n) {
+    var out = [];
+    var bow;
+    for (bow = 1; bow <= 6; bow += 1) {
+      var cell = flightCell(n, bow);
+      out.push({
+        rank: cell.rank || "",
+        bow: String(bow),
+        colour: cell.colour || "",
+        team: cell.team_id ? teamById(cell.team_id) : null
+      });
+    }
+    return out;
+  }
+
+  function flightCardHtml(n) {
+    var rows = "";
+    var bpt = boatsPerTeam(n);
+    flightRows(n).forEach(function (r) {
+      var sqClass = "tsl-colour-sq" +
+        (r.colour === "Blue" ? " tsl-colour-blue" : r.colour === "Green" ? " tsl-colour-green" : "");
+      rows += "<tr>" +
+        '<td class="rank-col">' + flightRankCell(n, r.bow, r.rank) + "</td>" +
+        "<td>" + esc(r.bow) + "</td>" +
+        "<td><button type=\"button\" class=\"" + sqClass + "\" data-flight=\"" + n +
+        "\" data-bow=\"" + esc(r.bow) + "\" aria-label=\"" + esc(r.colour || "Colour") + "\"></button></td>" +
+        '<td class="club-col">' + flightTeamCell(n, r.bow, r.team) + "</td></tr>";
+    });
+    var bptBtns = "";
+    if (isSaEdit()) {
+      bptBtns = '<span class="tsl-bpt">Boats / team ' +
+        [1, 2, 3].map(function (x) {
+          return '<button type="button" class="action-button tsl-role-btn' + (bpt === x ? " tsl-role-on" : "") +
+            '" data-flight="' + n + '" data-bpt="' + x + '">' + x + "</button>";
+        }).join("") + "</span>";
+    }
+    return '<div class="card tsl-flight-card">' +
+      '<div class="tsl-flight-top"><div class="tsl-flight-head">Flight ' + n + "</div>" + bptBtns + "</div>" +
       '<div class="table-wrapper"><table class="fleet-results-table">' +
       "<thead><tr><th class=\"rank-col\">Rank</th><th>Bow no</th><th>Colour</th><th class=\"club-col\">Team</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></div></div>";
+  }
+
+  function flightsCardHtml() {
+    return '<div class="fleet-title-row">Flights</div>' +
+      '<div class="tsl-flight-cards">' + flightCardHtml(1) + flightCardHtml(2) + "</div>";
   }
 
   function insertFlightsCard() {
@@ -2466,7 +2625,117 @@
       card.setAttribute("class", "card");
     }
     card.innerHTML = flightsCardHtml();
+    wireFlightClicks(card);
     if (gold.nextSibling !== card) gold.parentNode.insertBefore(card, gold.nextSibling);
+    requestAnimationFrame(function () { fitTeamCardTables(); });
+  }
+
+  function closeFlightTeamLists(except) {
+    document.querySelectorAll("#macTslFlightsCard .tsl-flight-team-list").forEach(function (ul) {
+      if (except && ul === except) return;
+      ul.hidden = true;
+    });
+  }
+
+  function wireFlightClicks(card) {
+    if (!card) return;
+    card.querySelectorAll(".tsl-colour-sq").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (!isSaEdit()) return;
+        var fl = btn.getAttribute("data-flight");
+        var bow = btn.getAttribute("data-bow");
+        var prev = flightColour(fl, bow);
+        var next = nextFlightColour(fl, bow);
+        if (next === prev && prev) btn.title = "No more than 3 " + prev;
+        setFlightCellLocal(fl, bow, { colour: next });
+        paintColourSq(btn, next);
+        saveFlightLine({ flight: Number(fl), bow: Number(bow), colour: next }).catch(function (err) {
+          setFlightCellLocal(fl, bow, { colour: prev });
+          paintColourSq(btn, prev);
+          btn.title = (err && err.message) || "Save failed";
+        });
+      });
+    });
+    card.querySelectorAll(".tsl-flight-team-hit").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isSaEdit()) return;
+        var list = btn.parentNode && btn.parentNode.querySelector(".tsl-flight-team-list");
+        if (!list) return;
+        var open = list.hidden;
+        closeFlightTeamLists(list);
+        list.hidden = !open;
+      });
+    });
+    card.querySelectorAll(".tsl-flight-team-list li").forEach(function (li) {
+      li.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        var wrap = li.parentNode && li.parentNode.parentNode;
+        var btn = wrap && wrap.querySelector(".tsl-flight-team-hit");
+        if (!btn) return;
+        var fl = btn.getAttribute("data-flight");
+        var bow = btn.getAttribute("data-bow");
+        var tid = li.getAttribute("data-team-id") || "";
+        var prev = flightCell(fl, bow).team_id;
+        if (tid && teamCount(fl, tid, bow) >= boatsPerTeam(fl)) {
+          btn.title = "Already " + boatsPerTeam(fl) + " boats for that team";
+          closeFlightTeamLists();
+          return;
+        }
+        var team = tid ? teamById(tid) : null;
+        setFlightCellLocal(fl, bow, { team_id: tid ? Number(tid) : null });
+        btn.innerHTML = teamListLabel(team);
+        closeFlightTeamLists();
+        saveFlightLine({ flight: Number(fl), bow: Number(bow), team_id: tid ? Number(tid) : "" }).catch(function (err) {
+          setFlightCellLocal(fl, bow, { team_id: prev || null });
+          btn.innerHTML = teamListLabel(prev ? teamById(prev) : null);
+          btn.title = (err && err.message) || "Save failed";
+        });
+      });
+    });
+    card.querySelectorAll(".tsl-rank").forEach(function (inp) {
+      inp.addEventListener("change", function () {
+        if (!isSaEdit()) return;
+        var fl = inp.getAttribute("data-flight");
+        var bow = inp.getAttribute("data-bow");
+        var raw = String(inp.value || "").trim();
+        var prev = flightCell(fl, bow).rank;
+        var rank = raw === "" ? "" : Number(raw);
+        if (raw !== "" && (rank < 1 || rank > 6 || !/^[1-6]$/.test(raw))) {
+          inp.value = prev || "";
+          inp.title = "Rank must be 1 to 6";
+          return;
+        }
+        setFlightCellLocal(fl, bow, { rank: rank === "" ? null : rank });
+        saveFlightLine({ flight: Number(fl), bow: Number(bow), rank: rank }).catch(function (err) {
+          setFlightCellLocal(fl, bow, { rank: prev || null });
+          inp.value = prev || "";
+          inp.title = (err && err.message) || "Save failed";
+        });
+      });
+    });
+    card.querySelectorAll("[data-bpt]").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (!isSaEdit()) return;
+        var fl = btn.getAttribute("data-flight");
+        var n = Number(btn.getAttribute("data-bpt"));
+        saveFlightLine({ flight: Number(fl), boats_per_team: n }).then(function () {
+          insertFlightsCard();
+        }).catch(function (err) {
+          window.alert((err && err.message) || "Save failed");
+        });
+      });
+    });
+    if (!document._tslFlightTeamDoc) {
+      document.addEventListener("click", function (e) {
+        if (e.target.closest && e.target.closest(".tsl-flight-team")) return;
+        closeFlightTeamLists();
+      });
+      document._tslFlightTeamDoc = true;
+    }
   }
 
   function insertTeamsCard() {
@@ -2485,9 +2754,12 @@
   }
 
   function fitTeamCardTables() {
-    var root = document.getElementById("macTslTeamsCard");
-    if (!root) return;
-    var wraps = root.querySelectorAll(".tsl-team-card .table-wrapper");
+    var teamRoot = document.getElementById("macTslTeamsCard");
+    var flightRoot = document.getElementById("macTslFlightsCard");
+    var wraps = [];
+    if (teamRoot) wraps = wraps.concat(Array.prototype.slice.call(teamRoot.querySelectorAll(".tsl-team-card .table-wrapper")));
+    if (flightRoot) wraps = wraps.concat(Array.prototype.slice.call(flightRoot.querySelectorAll(".tsl-flight-card .table-wrapper")));
+    if (!wraps.length) return;
     var boxes = [];
     var maxNeed = 0;
     var minAvail = 0;

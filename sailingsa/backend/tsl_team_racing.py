@@ -588,6 +588,12 @@ def ensure_schema(cur) -> None:
         """,
         ("2026-10-17-mac-tsl-wc-team-sailing", "2026-10-17-mac-tsl-wc-team-sailing"),
     )
+    cur.execute(
+        "ALTER TABLE public.tsl_event_settings ADD COLUMN IF NOT EXISTS flight_colours jsonb"
+    )
+    cur.execute(
+        "ALTER TABLE public.tsl_event_settings ADD COLUMN IF NOT EXISTS flight_sheet jsonb"
+    )
 
 
 def _club_row(cur, club_id: int) -> Optional[dict]:
@@ -1461,9 +1467,82 @@ def save_physical_boats(cur, regatta_id: str, boats: list[dict], *, actor: str =
     return load_physical_boats(cur, regatta_id)
 
 
+def empty_flight_sheet() -> dict:
+    def lines():
+        return {str(b): {"colour": "", "team_id": None, "rank": None} for b in range(1, 7)}
+    return {"boats_per_team": {"1": 3, "2": 3}, "1": lines(), "2": lines()}
+
+
+def _cell(raw) -> dict:
+    if not isinstance(raw, dict):
+        return {"colour": "", "team_id": None, "rank": None}
+    letter = str(raw.get("colour") or "").strip()[:1].upper()
+    colour = "Blue" if letter == "B" else "Green" if letter == "G" else ""
+    tid = raw.get("team_id")
+    try:
+        tid = int(tid) if tid not in (None, "", 0, "0") else None
+    except (TypeError, ValueError):
+        tid = None
+    rank = raw.get("rank")
+    try:
+        rank = int(rank) if rank not in (None, "") else None
+    except (TypeError, ValueError):
+        rank = None
+    if rank is not None and (rank < 1 or rank > 6):
+        rank = None
+    return {"colour": colour, "team_id": tid, "rank": rank}
+
+
+def _norm_flight_sheet(raw, colours_legacy=None) -> dict:
+    out = empty_flight_sheet()
+    data = raw or {}
+    if isinstance(data, str):
+        data = json.loads(data or "{}")
+    if not isinstance(data, dict):
+        data = {}
+    bpt = data.get("boats_per_team") or {}
+    if not isinstance(bpt, dict):
+        bpt = {}
+    for fl in ("1", "2"):
+        n = bpt.get(fl, bpt.get(int(fl), 3))
+        try:
+            n = int(n)
+        except (TypeError, ValueError):
+            n = 3
+        if n not in (1, 2, 3):
+            n = 3
+        out["boats_per_team"][fl] = n
+        src = data.get(fl) or data.get(int(fl)) or {}
+        if not isinstance(src, dict):
+            src = {}
+        legacy = (colours_legacy or {}).get(fl) or {}
+        for bow in range(1, 7):
+            cell = src.get(str(bow), src.get(bow))
+            if not isinstance(cell, dict):
+                cell = {"colour": cell or legacy.get(str(bow)) or legacy.get(bow) or ""}
+            elif not cell.get("colour") and (legacy.get(str(bow)) or legacy.get(bow)):
+                cell = dict(cell)
+                cell["colour"] = legacy.get(str(bow)) or legacy.get(bow)
+            out[fl][str(bow)] = _cell(cell)
+    return out
+
+
+def _colours_from_sheet(sheet: dict) -> dict:
+    out = {"1": {}, "2": {}}
+    for fl in ("1", "2"):
+        for bow, cell in (sheet.get(fl) or {}).items():
+            if cell.get("colour"):
+                out[fl][str(bow)] = cell["colour"]
+    return out
+
+
+def _norm_flight_colours(raw) -> dict:
+    return _colours_from_sheet(_norm_flight_sheet({}, raw))
+
+
 def load_settings(cur, regatta_id: str) -> dict:
     cur.execute(
-        "SELECT format, flight_a, flight_b FROM tsl_event_settings WHERE regatta_id = %s",
+        "SELECT format, flight_a, flight_b, flight_colours, flight_sheet FROM tsl_event_settings WHERE regatta_id = %s",
         (regatta_id,),
     )
     row = cur.fetchone()
@@ -1472,14 +1551,119 @@ def load_settings(cur, regatta_id: str) -> dict:
             "INSERT INTO tsl_event_settings (regatta_id, format) VALUES (%s, 'rr28')",
             (regatta_id,),
         )
-        return {"format": "rr28", "flight_a": [], "flight_b": []}
+        sheet = empty_flight_sheet()
+        return {
+            "format": "rr28",
+            "flight_a": [],
+            "flight_b": [],
+            "flight_colours": {"1": {}, "2": {}},
+            "flight_sheet": sheet,
+        }
     fa = row.get("flight_a") or []
     fb = row.get("flight_b") or []
+    fc = row.get("flight_colours") or {}
+    fs = row.get("flight_sheet") or {}
     if isinstance(fa, str):
         fa = json.loads(fa)
     if isinstance(fb, str):
         fb = json.loads(fb)
-    return {"format": (row.get("format") or "rr28"), "flight_a": fa or [], "flight_b": fb or []}
+    if isinstance(fc, str):
+        fc = json.loads(fc)
+    if isinstance(fs, str):
+        fs = json.loads(fs)
+    sheet = _norm_flight_sheet(fs, fc)
+    return {
+        "format": (row.get("format") or "rr28"),
+        "flight_a": fa or [],
+        "flight_b": fb or [],
+        "flight_colours": _colours_from_sheet(sheet),
+        "flight_sheet": sheet,
+    }
+
+
+def _write_flight_sheet(cur, regatta_id: str, sheet: dict) -> None:
+    cur.execute(
+        """
+        INSERT INTO tsl_event_settings (regatta_id, format, flight_sheet, flight_colours)
+        VALUES (%s, 'rr28', %s, %s)
+        ON CONFLICT (regatta_id)
+        DO UPDATE SET flight_sheet = EXCLUDED.flight_sheet, flight_colours = EXCLUDED.flight_colours
+        """,
+        (regatta_id, _json_payload(sheet), _json_payload(_colours_from_sheet(sheet))),
+    )
+
+
+def save_flight_line(
+    cur,
+    regatta_id: str,
+    *,
+    flight: int = 1,
+    bow: int = 0,
+    colour=None,
+    team_id=None,
+    rank=None,
+    boats_per_team=None,
+    actor: str = "super_admin",
+) -> dict:
+    ensure_schema(cur)
+    sheet = _norm_flight_sheet(load_settings(cur, regatta_id).get("flight_sheet"))
+    fl = "1" if int(flight) == 1 else "2"
+    if boats_per_team is not None:
+        n = int(boats_per_team)
+        if n not in (1, 2, 3):
+            raise ValueError("Boats per team must be 1, 2 or 3")
+        counts = {}
+        for cell in (sheet[fl] or {}).values():
+            tid = cell.get("team_id")
+            if tid:
+                counts[int(tid)] = counts.get(int(tid), 0) + 1
+        if any(c > n for c in counts.values()):
+            raise ValueError("Clear extra team boats before changing to " + str(n) + " per team")
+        sheet["boats_per_team"][fl] = n
+    if bow:
+        if int(bow) < 1 or int(bow) > 6:
+            raise ValueError("Bow no must be 1 to 6")
+        bow_s = str(int(bow))
+        cell = dict(sheet[fl][bow_s])
+        if colour is not None:
+            letter = str(colour or "").strip()[:1].upper()
+            want = "Blue" if letter == "B" else "Green" if letter == "G" else ""
+            others = [c.get("colour") for b, c in sheet[fl].items() if b != bow_s]
+            if want and others.count(want) >= 3:
+                raise ValueError("No more than 3 " + want)
+            cell["colour"] = want
+        if team_id is not None:
+            try:
+                tid = int(team_id) if team_id not in ("", None, 0, "0") else None
+            except (TypeError, ValueError):
+                tid = None
+            if tid:
+                bpt = int(sheet["boats_per_team"].get(fl) or 3)
+                used = sum(1 for b, c in sheet[fl].items() if b != bow_s and c.get("team_id") == tid)
+                if used >= bpt:
+                    raise ValueError("Already " + str(bpt) + " boat" + ("s" if bpt != 1 else "") + " for that team")
+            cell["team_id"] = tid
+        if rank is not None:
+            try:
+                r = int(rank) if rank not in ("", None) else None
+            except (TypeError, ValueError):
+                r = None
+            if r is not None and (r < 1 or r > 6):
+                raise ValueError("Rank must be 1 to 6")
+            if r is not None:
+                for b, c in sheet[fl].items():
+                    if b != bow_s and c.get("rank") == r:
+                        raise ValueError("Rank " + str(r) + " already used")
+            cell["rank"] = r
+        sheet[fl][bow_s] = cell
+    _write_flight_sheet(cur, regatta_id, sheet)
+    _audit(cur, regatta_id, "flight_sheet", actor=actor, payload={"flight": fl, "bow": bow})
+    return sheet
+
+
+def save_flight_bow_colour(cur, regatta_id: str, flight: int, bow: int, colour: str, *, actor: str = "super_admin") -> dict:
+    sheet = save_flight_line(cur, regatta_id, flight=flight, bow=bow, colour=colour, actor=actor)
+    return _colours_from_sheet(sheet)
 
 
 def championship_standings(teams: list[dict], matches: list[dict], settings: dict) -> list[dict]:
@@ -1875,6 +2059,41 @@ def register_tsl_routes(
             delete_team(cur, rid, int(team_id), actor=_actor(request))
             conn.commit()
             return {"ok": True}
+        except ValueError as e:
+            conn.rollback()
+            raise _HTTP(status_code=400, detail=str(e))
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+            return_db_connection(conn)
+
+    @app.patch("/api/tsl/{regatta_id}/flight-colours")
+    def api_tsl_flight_colours(request: Request, regatta_id: str, body: dict = Body(default={})):
+        _sa(request)
+        rid = _rid(regatta_id)
+        payload = body or {}
+        conn = get_db_connection()
+        cur = _cur(conn)
+        try:
+            sheet = save_flight_line(
+                cur,
+                rid,
+                flight=int(payload.get("flight") or 1),
+                bow=int(payload.get("bow") or 0),
+                colour=payload["colour"] if "colour" in payload else None,
+                team_id=payload["team_id"] if "team_id" in payload else None,
+                rank=payload["rank"] if "rank" in payload else None,
+                boats_per_team=payload["boats_per_team"] if "boats_per_team" in payload else None,
+                actor=_actor(request),
+            )
+            conn.commit()
+            return {
+                "ok": True,
+                "flight_sheet": sheet,
+                "flight_colours": _colours_from_sheet(sheet),
+            }
         except ValueError as e:
             conn.rollback()
             raise _HTTP(status_code=400, detail=str(e))
