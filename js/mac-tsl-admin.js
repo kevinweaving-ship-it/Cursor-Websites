@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013z";
+  var JS_VER = "20261014a";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -134,11 +134,13 @@
       "#macTslGoldSheet tbody tr:last-child td:last-child{border-bottom-right-radius:8px}",
       "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
-      "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;padding:8px;margin-top:0;position:relative}",
+      "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin-top:0;position:relative;overflow:hidden}",
       "#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0}",
-      "#macTslTeamsCard .tsl-team-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;box-sizing:border-box}",
-      "#macTslTeamsCard .tsl-team-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:none!important}",
-      "#macTslTeamsCard .tsl-team-card .table-wrapper{margin:8px 0 0}",
+      "#macTslTeamsCard .tsl-team-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:100%;min-width:0;box-sizing:border-box}",
+      "#macTslTeamsCard .tsl-team-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:100%!important;min-width:0;overflow:hidden}",
+      "#macTslTeamsCard .tsl-team-card .table-wrapper{margin:8px 0 0;max-width:100%;overflow:hidden}",
+      "#macTslTeamsCard .tsl-team-card .fleet-results-table{transform-origin:top left}",
+      "#macTslTeamsCard .tsl-team-card .fleet-results-table th,#macTslTeamsCard .tsl-team-card .fleet-results-table td{padding:2px 4px}",
       "#macTslTeamsCard .tsl-team-head{display:inline-flex;flex-direction:row;flex-wrap:nowrap;align-items:center;white-space:nowrap}",
       "#macTslTeamsCard .tsl-team-head .rs-club-row-logo-sm{margin:0 4px 0 0}",
       "#macTslTeamsCard .tsl-team-code{display:inline-flex;align-items:center}",
@@ -168,7 +170,7 @@
       "#macTslTeamsCard #tslSlotPick[hidden]{display:none}",
       "#macTslTeamsCard #tslPickName{min-width:12em;max-width:18em}",
       "#macTslTeamsCard #tslPickClub{max-width:12em}",
-      "@media (max-width:768px) and (orientation:portrait){#macTslTeamsCard .tsl-team-cards{grid-template-columns:1fr}}",
+      "@media (max-width:900px){#macTslTeamsCard .tsl-team-cards{grid-template-columns:1fr}#macTslTeamsCard{padding:4px}#macTslTeamsCard .tsl-team-card{padding:4px}#macTslTeamsCard .tsl-move{width:14px;height:14px;margin:0 2px 0 0}}",
       ".regatta-page[data-mac-tsl=\"1\"] th.tsl-hide-mp,.regatta-page[data-mac-tsl=\"1\"] td.tsl-hide-mp{display:none}",
       ".regatta-page[data-mac-tsl=\"1\"] .tsl-col-wins,.regatta-page[data-mac-tsl=\"1\"] .tsl-mcol{text-align:center;font-weight:bold}",
       "@media (max-width: 480px) and (orientation: portrait){",
@@ -1833,6 +1835,39 @@
     card.innerHTML = teamCardsHtml();
     wireTeamCardClicks(card);
     if (gold.nextSibling !== card) gold.parentNode.insertBefore(card, gold.nextSibling);
+    requestAnimationFrame(function () { fitTeamCardTables(); });
+  }
+
+  function fitTeamCardTables() {
+    var root = document.getElementById("macTslTeamsCard");
+    if (!root) return;
+    var wraps = root.querySelectorAll(".tsl-team-card .table-wrapper");
+    var boxes = [];
+    var maxNeed = 0;
+    var minAvail = 0;
+    for (var i = 0; i < wraps.length; i += 1) {
+      var wrap = wraps[i];
+      var table = wrap.querySelector("table");
+      if (!table) continue;
+      table.style.transform = "none";
+      wrap.style.height = "";
+      boxes.push({ wrap: wrap, table: table });
+      if (table.scrollWidth > maxNeed) maxNeed = table.scrollWidth;
+      var avail = wrap.clientWidth;
+      if (avail > 0 && (!minAvail || avail < minAvail)) minAvail = avail;
+    }
+    if (!maxNeed || !minAvail) return;
+    var scale = maxNeed > minAvail ? minAvail / maxNeed : 1;
+    for (var j = 0; j < boxes.length; j += 1) {
+      var box = boxes[j];
+      if (scale < 0.999) {
+        box.table.style.transform = "scale(" + scale + ")";
+        box.wrap.style.height = Math.ceil(box.table.offsetHeight * scale) + "px";
+      } else {
+        box.table.style.transform = "none";
+        box.wrap.style.height = "";
+      }
+    }
   }
 
   function applyStandingsTable() {
@@ -2010,6 +2045,7 @@
     renderSchedule();
     renderMatches();
     syncSheetType();
+    requestAnimationFrame(function () { fitTeamCardTables(); });
   }
 
   function loadState() {
@@ -2029,6 +2065,13 @@
     if (tog && !tog._tslBound) {
       tog.addEventListener("change", function () { renderAll(); });
       tog._tslBound = true;
+    }
+    if (!window._tslFitBound) {
+      window.addEventListener("resize", function () {
+        clearTimeout(fitTeamCardTables._t);
+        fitTeamCardTables._t = setTimeout(fitTeamCardTables, 50);
+      });
+      window._tslFitBound = true;
     }
   }
 
