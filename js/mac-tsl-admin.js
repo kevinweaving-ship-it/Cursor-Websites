@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014n";
+  var JS_VER = "20261014o";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -1039,8 +1039,10 @@
     });
     if (anyDone) {
       built.sort(function (a, b) {
-        if (a.scored !== b.scored) return b.scored - a.scored;
-        if (a.scored && b.scored && a.total !== b.total) return a.total - b.total;
+        if (!a.scored && !b.scored) return 0;
+        if (!a.scored) return 1;
+        if (!b.scored) return -1;
+        if (a.total !== b.total) return a.total - b.total;
         if (a.wonLast !== b.wonLast) return a.wonLast ? -1 : 1;
         return 0;
       });

@@ -4,7 +4,7 @@ Working Super Admin picker on the MAC TSL Event URL. **Reuse this same system** 
 
 Live: https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing  
 Code: `js/mac-tsl-admin.js` (keep `sailingsa/frontend/js/mac-tsl-admin.js` in sync).  
-Pin: `mac-tsl-admin.js?v=` in `api.py`. Current working pin **`20261014n`**.
+Pin: `mac-tsl-admin.js?v=` in `api.py`. Current working pin **`20261014o`**.
 
 The popup is a body-fixed `.card` (`#tslNamePop`) centred on the Flight or Team card (`placeNamePop` / `showNamePop`). Flight team pick uses the same popup — do not open a list inside the table cell.
 
