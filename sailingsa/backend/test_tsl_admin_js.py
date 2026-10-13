@@ -25,7 +25,11 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("bow_number", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261012u", JS)
+        self.assertIn("20261013a", JS)
+        self.assertIn("macTslGoldSheet", JS)
+        self.assertIn("tslGoldTable", JS)
+        self.assertIn("insertGoldRaceTable", JS)
+        self.assertIn("r <= 28", JS)
         self.assertIn("syncSheetType", JS)
         self.assertIn("max-height:16px", JS)
         self.assertIn("max-width:28px", JS)
@@ -43,6 +47,7 @@ class TestTslAdminContract(unittest.TestCase):
 
     def test_one_results_table_transformed(self):
         self.assertIn("applyStandingsTable", JS)
+        self.assertIn("insertGoldRaceTable", JS)
         self.assertNotIn("tsl-results-2", JS)
         self.assertNotIn("id=\"tslOverall2\"", JS)
         self.assertLessEqual(JS.count("createElement(\"table\")"), 0)

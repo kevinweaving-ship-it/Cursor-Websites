@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261012u";
+  var JS_VER = "20261013a";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -131,8 +131,13 @@
       document.querySelector(".regatta-page");
   }
   function resultsTable() {
-    var sec = fleetSection();
-    return (sec && (sec.querySelector("table.fleet-results-table") || sec.querySelector("table"))) || null;
+    var sec = firstFleet() || fleetSection();
+    if (!sec) return null;
+    var tables = sec.querySelectorAll("table.fleet-results-table, table");
+    for (var i = 0; i < tables.length; i += 1) {
+      if (tables[i].id !== "tslGoldTable") return tables[i];
+    }
+    return null;
   }
   function knownFor(team) {
     var name = (team && (team.team_name || team.club_abbrev)) || "";
@@ -731,6 +736,81 @@
   function headerLabel(th) {
     return String(th.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
   }
+  function goldRaceRows() {
+    var rows = [];
+    var table = resultsTable();
+    if (table && table.tBodies[0]) {
+      Array.prototype.forEach.call(table.tBodies[0].rows, function (tr) {
+        var rankEl = tr.querySelector(".rank-col") || tr.cells[0];
+        var logo = tr.querySelector(".rs-club-with-logo");
+        var img = logo && logo.querySelector("img");
+        var code = logo ? String(logo.textContent || "").replace(/\s+/g, " ").trim() : "";
+        rows.push({
+          rank: rankEl ? String(rankEl.textContent || "").replace(/\s+/g, " ").trim() : "",
+          code: code,
+          logo: img ? (img.getAttribute("src") || "") : ""
+        });
+      });
+    }
+    if (!rows.length) {
+      (state.teams || []).forEach(function (t, i) {
+        rows.push({ rank: String(i + 1), code: clubCode(t), logo: t.club_logo || "" });
+      });
+    }
+    return rows;
+  }
+
+  function goldRaceTableHtml() {
+    var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th>';
+    var emptyRaces = "";
+    var r;
+    for (r = 1; r <= 28; r += 1) {
+      heads += '<th class="race-col">R' + r + "</th>";
+      emptyRaces += '<td class="race-col"></td>';
+    }
+    heads += '<th class="total-col">Total</th>';
+    var body = "";
+    goldRaceRows().forEach(function (row) {
+      body += "<tr>" +
+        '<td class="rank-col">' + esc(row.rank) + "</td>" +
+        '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(row.logo, row.code) + esc(row.code) + "</span></td>" +
+        emptyRaces +
+        '<td class="total-col"></td>' +
+        "</tr>";
+    });
+    if (!body) {
+      body = '<tr><td class="rank-col"></td><td class="club-col"></td>' + emptyRaces + '<td class="total-col"></td></tr>';
+    }
+    return (
+      '<div class="table-wrapper" id="macTslGoldSheet">' +
+        '<table class="fleet-results-table rs-compact-row-logos" id="tslGoldTable">' +
+          "<thead><tr>" + heads + "</tr></thead><tbody>" + body + "</tbody>" +
+        "</table>" +
+      "</div>"
+    );
+  }
+
+  function insertGoldRaceTable() {
+    var sec = firstFleet();
+    if (!sec) return;
+    var html = goldRaceTableHtml();
+    var existing = document.getElementById("macTslGoldSheet");
+    if (existing) {
+      existing.outerHTML = html;
+      return;
+    }
+    var box = document.createElement("div");
+    box.innerHTML = html;
+    var node = box.firstChild;
+    var oldWrap = sec.querySelector(".table-wrapper");
+    if (oldWrap) oldWrap.parentNode.insertBefore(node, oldWrap);
+    else {
+      var hdr = sec.querySelector(".class-header");
+      if (hdr) hdr.parentNode.insertBefore(node, hdr.nextSibling);
+      else sec.appendChild(node);
+    }
+  }
+
   function applyStandingsTable() {
     var table = resultsTable();
     if (!table) return;
@@ -900,6 +980,7 @@
     tidyFleetHeader();
     injectMButtons();
     applyStandingsTable();
+    insertGoldRaceTable();
     renderTeams();
     renderSchedule();
     renderMatches();
