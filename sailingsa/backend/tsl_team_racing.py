@@ -630,13 +630,17 @@ def _load_sailor(cur, sas_id: str) -> Optional[dict]:
         return None
     d = dict(row)
     sex = _sex_letter(d.get("gender"))
+    club = (d.get("primary_club") or d.get("club_1") or "").strip()
     return {
         "sas_id": str(d.get("sas_id") or sid),
         "name": display_name(d),
         "full_name": d.get("full_name") or "",
-        "club": (d.get("primary_club") or d.get("club_1") or "").strip() or None,
+        "first_name": d.get("first_name") or "",
+        "last_name": d.get("last_name") or "",
+        "club": club or None,
         "primary_club": d.get("primary_club") or "",
         "club_1": d.get("club_1") or "",
+        "club_logo": f"/api/club-logo/{club}" if club else "",
         "gender": d.get("gender") or "",
         "sex": sex,
     }
@@ -1376,9 +1380,16 @@ def search_sailors(cur, q: str, *, club_abbrev: str = "", club_name: str = "", l
             "sas_id": str(d.get("sas_id") or ""),
             "name": display_name(d),
             "full_name": d.get("full_name") or "",
+            "first_name": d.get("first_name") or "",
+            "last_name": d.get("last_name") or "",
             "club": (d.get("primary_club") or d.get("club_1") or "").strip() or None,
             "primary_club": d.get("primary_club") or "",
             "club_1": d.get("club_1") or "",
+            "club_logo": (
+                f"/api/club-logo/{(d.get('primary_club') or d.get('club_1') or '').strip()}"
+                if (d.get("primary_club") or d.get("club_1") or "").strip()
+                else ""
+            ),
         }
         if club_abbrev or club_name:
             if not sailor_allowed_for_club(sailor, club_abbrev, club_name):
