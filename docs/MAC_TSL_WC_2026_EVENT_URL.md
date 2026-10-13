@@ -144,6 +144,8 @@ https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing
 - **Public:** never edits scores. Empty match columns stay hidden until M1 exists.
 - **MP:** Rank | Club | Colour | M1… | Wins. **ML:** same table, extra columns (team / sailors / losses / win %) — no second table.
 
+**Sailor replace / search popup (reuse later for Add Team):** `docs/TSL_SAILOR_SEARCH_POPUP.md` — landing `/api/search`, body-fixed `.card`, hit row `name | club logo | SAS ID`.
+
 Code: `sailingsa/backend/tsl_team_racing.py`, `sailingsa/backend/tsl_schedule.py`, `js/mac-tsl-admin.js`.
 
 Tests:

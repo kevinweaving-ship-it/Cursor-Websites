@@ -31,6 +31,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertIn("searchHitHtml", JS)
         self.assertIn("normalizeSearchHit", JS)
         self.assertIn("spaceCamel", JS)
+        self.assertTrue((ROOT / "docs" / "TSL_SAILOR_SEARCH_POPUP.md").is_file())
         self.assertIn("ensureNamePop", JS)
         self.assertIn("/api/search?q=", JS)
         self.assertIn("font-size:16px!important", JS)

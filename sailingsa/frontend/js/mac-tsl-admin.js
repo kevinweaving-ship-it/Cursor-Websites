@@ -1,6 +1,7 @@
 /**
  * MAC TSL WC — Event URL results + admin. Same .class-header / table / .action-button as the fleet sheet.
  * Only /regatta/2026-10-17-mac-tsl-wc-team-sailing. No club-score-edit.
+ * Sailor search popup (reuse for Add Team / add sailors): docs/TSL_SAILOR_SEARCH_POPUP.md
  */
 (function () {
   "use strict";
