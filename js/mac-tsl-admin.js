@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013a";
+  var JS_VER = "20261013b";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -761,25 +761,24 @@
   }
 
   function goldRaceTableHtml() {
-    var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th>';
+    var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
     var emptyRaces = "";
     var r;
     for (r = 1; r <= 28; r += 1) {
       heads += '<th class="race-col">R' + r + "</th>";
       emptyRaces += '<td class="race-col"></td>';
     }
-    heads += '<th class="total-col">Total</th>';
     var body = "";
     goldRaceRows().forEach(function (row) {
       body += "<tr>" +
         '<td class="rank-col">' + esc(row.rank) + "</td>" +
         '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(row.logo, row.code) + esc(row.code) + "</span></td>" +
-        emptyRaces +
         '<td class="total-col"></td>' +
+        emptyRaces +
         "</tr>";
     });
     if (!body) {
-      body = '<tr><td class="rank-col"></td><td class="club-col"></td>' + emptyRaces + '<td class="total-col"></td></tr>';
+      body = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td>' + emptyRaces + "</tr>";
     }
     return (
       '<div class="table-wrapper" id="macTslGoldSheet">' +

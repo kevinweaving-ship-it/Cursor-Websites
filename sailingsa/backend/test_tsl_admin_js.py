@@ -25,7 +25,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("bow_number", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261013a", JS)
+        self.assertIn("20261013b", JS)
         self.assertIn("macTslGoldSheet", JS)
         self.assertIn("tslGoldTable", JS)
         self.assertIn("insertGoldRaceTable", JS)
