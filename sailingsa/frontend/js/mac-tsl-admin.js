@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014m";
+  var JS_VER = "20261014n";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -946,9 +946,61 @@
   }
 
   function goldRaceNos() {
-    var nos = { 1: true };
-    closedMatches().forEach(function (m) { nos[Number(m.match_no)] = true; });
-    return Object.keys(nos).map(Number).sort(function (a, b) { return b - a; });
+    var nos = [1];
+    if (allocatedBows(2) || flightDone(2)) nos.push(2);
+    return nos;
+  }
+
+  function flightDone(fl) {
+    var need = 0;
+    var have = 0;
+    var bow;
+    for (bow = 1; bow <= 6; bow += 1) {
+      var cell = flightCell(fl, bow);
+      if (!cell.team_id) continue;
+      need += 1;
+      if (cell.rank) have += 1;
+    }
+    return need >= 2 && have === need;
+  }
+
+  function teamFlightScore(fl, team) {
+    if (!team) return "";
+    var sum = 0;
+    var need = 0;
+    var have = 0;
+    var bow;
+    for (bow = 1; bow <= 6; bow += 1) {
+      var cell = flightCell(fl, bow);
+      if (Number(cell.team_id) !== Number(team.team_id)) continue;
+      need += 1;
+      if (cell.rank) {
+        have += 1;
+        sum += Number(cell.rank);
+      }
+    }
+    if (!need || have !== need) return "";
+    return String(sum);
+  }
+
+  function lastFlightWinnerId() {
+    var fl;
+    for (fl = 2; fl >= 1; fl -= 1) {
+      if (!flightDone(fl)) continue;
+      var bestId = 0;
+      var best = 0;
+      (state.teams || []).forEach(function (t) {
+        var sc = teamFlightScore(fl, t);
+        if (sc === "") return;
+        var n = Number(sc);
+        if (!bestId || n < best) {
+          bestId = Number(t.team_id);
+          best = n;
+        }
+      });
+      return bestId;
+    }
+    return 0;
   }
 
   function matchByNo(n) {
@@ -956,9 +1008,9 @@
   }
 
   function goldRaceTableHtml() {
-    var closed = closedMatches();
     var raceNos = goldRaceNos();
-    var lastWin = closed.length ? Number(closed[0].winner_team_id || 0) : 0;
+    var anyDone = raceNos.some(function (n) { return flightDone(n); });
+    var lastWin = lastFlightWinnerId();
     var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
     raceNos.forEach(function (n) {
       heads += '<th class="race-col">F' + n + "</th>";
@@ -966,28 +1018,33 @@
     var built = goldRaceRows().map(function (row) {
       var team = teamByCode(row.code);
       var total = 0;
+      var scored = 0;
       var races = [];
       raceNos.forEach(function (n) {
-        var m = matchByNo(n);
-        var sc = (m && String(m.status || "").toLowerCase() === "complete") ? closedRaceScore(m, team) : "";
-        if (sc !== "" && !isNaN(Number(sc))) total += Number(sc);
+        var sc = teamFlightScore(n, team);
+        if (sc !== "" && !isNaN(Number(sc))) {
+          total += Number(sc);
+          scored += 1;
+        }
         races.push(sc);
       });
       return {
         row: row,
         team: team,
         total: total,
+        scored: scored,
         races: races,
         wonLast: !!(team && lastWin && Number(team.team_id) === lastWin)
       };
     });
-    if (closed.length) {
+    if (anyDone) {
       built.sort(function (a, b) {
-        if (a.total !== b.total) return a.total - b.total;
+        if (a.scored !== b.scored) return b.scored - a.scored;
+        if (a.scored && b.scored && a.total !== b.total) return a.total - b.total;
         if (a.wonLast !== b.wonLast) return a.wonLast ? -1 : 1;
         return 0;
       });
-      built.forEach(function (item, i) { item.rank = i + 1; });
+      built.forEach(function (item, i) { item.rank = item.scored ? (i + 1) : ""; });
     }
     var body = "";
     built.forEach(function (item) {
@@ -996,13 +1053,13 @@
         races += '<td class="race-col' + (sc !== "" ? " score-counts" : "") + '">' + esc(sc) + "</td>";
       });
       var medal = "";
-      if (closed.length && item.rank === 1) medal = "medal-gold";
-      else if (closed.length && item.rank === 2) medal = "medal-silver";
-      else if (closed.length && item.rank === 3) medal = "medal-bronze";
+      if (anyDone && item.rank === 1) medal = "medal-gold";
+      else if (anyDone && item.rank === 2) medal = "medal-silver";
+      else if (anyDone && item.rank === 3) medal = "medal-bronze";
       body += "<tr" + (medal ? ' class="' + medal + '"' : "") + ">" +
-        '<td class="rank-col">' + (closed.length ? String(item.rank) : "") + "</td>" +
+        '<td class="rank-col">' + (item.rank ? String(item.rank) : "") + "</td>" +
         '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) + esc(item.row.code) + "</span></td>" +
-        '<td class="total-col">' + (closed.length ? String(item.total) : "") + "</td>" +
+        '<td class="total-col">' + (item.scored ? String(item.total) : "") + "</td>" +
         races +
         "</tr>";
     });
@@ -2977,6 +3034,7 @@
         inp._tslSaving = true;
         setFlightCellLocal(fl, bow, { rank: rank === "" ? null : rank });
         saveFlightLine({ flight: Number(fl), bow: Number(bow), rank: rank }).then(function () {
+          insertGoldRaceTable();
           insertFlightsCard();
         }).catch(function (err) {
           setFlightCellLocal(fl, bow, { rank: prev || null });
