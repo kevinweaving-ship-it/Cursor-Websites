@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013g";
+  var JS_VER = "20261013h";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -115,8 +115,10 @@
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
       ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet){display:none}",
-      "#macTslTeamsCard .tsl-team-cards{display:flex;flex-direction:column}",
-      "@media (orientation:landscape),(min-width:769px){#macTslTeamsCard .tsl-team-cards{flex-direction:row;flex-wrap:wrap}#macTslTeamsCard .tsl-team-card{flex:1 1 50%;max-width:50%;box-sizing:border-box}}",
+      "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%}",
+      "#macTslTeamsCard .tsl-team-cards{display:flex;flex-wrap:wrap;width:100%;box-sizing:border-box}",
+      "#macTslTeamsCard .tsl-team-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:50%!important;max-width:50%!important;flex:0 0 50%!important}",
+      "@media (max-width:768px) and (orientation:portrait){#macTslTeamsCard .tsl-team-cards{flex-direction:column}#macTslTeamsCard .tsl-team-card{width:100%!important;max-width:100%!important;flex:0 0 100%!important}}",
       ".regatta-page[data-mac-tsl=\"1\"] th.tsl-hide-mp,.regatta-page[data-mac-tsl=\"1\"] td.tsl-hide-mp{display:none}",
       ".regatta-page[data-mac-tsl=\"1\"] .tsl-col-wins,.regatta-page[data-mac-tsl=\"1\"] .tsl-mcol{text-align:center;font-weight:bold}",
       "@media (max-width: 480px) and (orientation: portrait){",
