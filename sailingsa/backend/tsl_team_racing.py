@@ -1469,13 +1469,13 @@ def save_physical_boats(cur, regatta_id: str, boats: list[dict], *, actor: str =
 
 def empty_flight_sheet() -> dict:
     def lines():
-        return {str(b): {"colour": "", "team_id": None, "rank": None} for b in range(1, 7)}
+        return {str(b): {"colour": "", "team_id": None, "rank": None, "boat_no": None} for b in range(1, 7)}
     return {"boats_per_team": {"1": 3, "2": 3}, "1": lines(), "2": lines()}
 
 
 def _cell(raw) -> dict:
     if not isinstance(raw, dict):
-        return {"colour": "", "team_id": None, "rank": None}
+        return {"colour": "", "team_id": None, "rank": None, "boat_no": None}
     letter = str(raw.get("colour") or "").strip()[:1].upper()
     colour = "Blue" if letter == "B" else "Green" if letter == "G" else ""
     tid = raw.get("team_id")
@@ -1490,7 +1490,16 @@ def _cell(raw) -> dict:
         rank = None
     if rank is not None and (rank < 1 or rank > 6):
         rank = None
-    return {"colour": colour, "team_id": tid, "rank": rank}
+    boat_no = raw.get("boat_no")
+    try:
+        boat_no = int(boat_no) if boat_no not in (None, "", 0, "0") else None
+    except (TypeError, ValueError):
+        boat_no = None
+    if boat_no is not None and boat_no not in (1, 2, 3):
+        boat_no = None
+    if not tid:
+        boat_no = None
+    return {"colour": colour, "team_id": tid, "rank": rank, "boat_no": boat_no}
 
 
 def _norm_flight_sheet(raw, colours_legacy=None) -> dict:
@@ -1602,6 +1611,7 @@ def save_flight_line(
     colour=None,
     team_id=None,
     rank=None,
+    boat_no=None,
     boats_per_team=None,
     actor: str = "super_admin",
 ) -> dict:
@@ -1643,7 +1653,28 @@ def save_flight_line(
                 used = sum(1 for b, c in sheet[fl].items() if b != bow_s and c.get("team_id") == tid)
                 if used >= 3:
                     raise ValueError("Already 3 boats for that team")
+            if tid != cell.get("team_id"):
+                cell["boat_no"] = None
             cell["team_id"] = tid
+        if boat_no is not None:
+            try:
+                bn = int(boat_no) if boat_no not in ("", None, 0, "0") else None
+            except (TypeError, ValueError):
+                bn = None
+            if bn is not None and bn not in (1, 2, 3):
+                raise ValueError("Sailor pair must be 1 to 3")
+            tid = cell.get("team_id")
+            if bn and not tid:
+                raise ValueError("Select a team first")
+            if bn and tid:
+                taken = [
+                    c.get("boat_no")
+                    for b, c in sheet[fl].items()
+                    if b != bow_s and c.get("team_id") == tid
+                ]
+                if bn in taken:
+                    raise ValueError("That pair is already in this flight")
+            cell["boat_no"] = bn
         if rank is not None:
             try:
                 r = int(rank) if rank not in ("", None) else None
@@ -2086,6 +2117,7 @@ def register_tsl_routes(
                 colour=payload["colour"] if "colour" in payload else None,
                 team_id=payload["team_id"] if "team_id" in payload else None,
                 rank=payload["rank"] if "rank" in payload else None,
+                boat_no=payload["boat_no"] if "boat_no" in payload else None,
                 boats_per_team=payload["boats_per_team"] if "boats_per_team" in payload else None,
                 actor=_actor(request),
             )

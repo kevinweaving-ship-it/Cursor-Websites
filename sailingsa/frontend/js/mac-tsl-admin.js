@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014k";
+  var JS_VER = "20261014l";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -168,8 +168,8 @@
       ".regatta-page--super-admin-edit #macTslFlightsCard .tsl-colour-sq{cursor:pointer}",
       "#macTslFlightsCard .tsl-flight-top{display:block}",
       "#macTslFlightsCard .tsl-flight-team{display:inline-block;min-width:6em}",
-      "#macTslFlightsCard .tsl-flight-team-hit{display:inline-flex;align-items:center;gap:4px;border:none;background:none;padding:0;margin:0;color:#1a2750;font:inherit;cursor:default;white-space:nowrap}",
-      ".regatta-page--super-admin-edit #macTslFlightsCard .tsl-flight-team-hit{cursor:pointer}",
+      "#macTslFlightsCard .tsl-flight-team-hit,#macTslFlightsCard .tsl-flight-sail-hit{display:inline-flex;align-items:center;gap:4px;border:none;background:none;padding:0;margin:0;color:#1a2750;font:inherit;cursor:default;white-space:nowrap}",
+      ".regatta-page--super-admin-edit #macTslFlightsCard .tsl-flight-team-hit,.regatta-page--super-admin-edit #macTslFlightsCard .tsl-flight-sail-hit{cursor:pointer}",
       "#macTslFlightsCard .tsl-rank,#macTslFlightsCard input.tsl-rank{width:1.4em;min-width:1.4em;max-width:2em;height:auto;min-height:0!important;padding:0!important;margin:0;border:none;border-radius:0;background:transparent;text-align:center;font:inherit;font-size:inherit;line-height:inherit;color:#1a2750;box-sizing:border-box}",
       "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin-top:0;position:relative;overflow:hidden}",
       "#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0}",
@@ -1453,6 +1453,7 @@
           e.target.closest(".tsl-new-team-hit") ||
           e.target.closest(".tsl-team-edit-hit") ||
           e.target.closest(".tsl-flight-team-hit") ||
+          e.target.closest(".tsl-flight-sail-hit") ||
           e.target.closest("#tslAddTeam") ||
           e.target.closest(".tsl-new-team-card")
         )) return;
@@ -2481,7 +2482,7 @@
     var lines = function () {
       var o = {};
       var b;
-      for (b = 1; b <= 6; b += 1) o[String(b)] = { colour: "", team_id: null, rank: null };
+      for (b = 1; b <= 6; b += 1) o[String(b)] = { colour: "", team_id: null, rank: null, boat_no: null };
       return o;
     };
     return { boats_per_team: { "1": 3, "2": 3 }, "1": lines(), "2": lines() };
@@ -2494,7 +2495,7 @@
 
   function flightCell(fl, bow) {
     var sheet = flightSheet();
-    return ((sheet[String(fl)] || {})[String(bow)]) || { colour: "", team_id: null, rank: null };
+    return ((sheet[String(fl)] || {})[String(bow)]) || { colour: "", team_id: null, rank: null, boat_no: null };
   }
 
   function allocatedBows(fl) {
@@ -2607,6 +2608,78 @@
       teamListLabel(team) + "</button></span>";
   }
 
+  function personFilled(p) {
+    if (!p) return false;
+    if (p.sas_id) return true;
+    var n = splitName(p).name;
+    return !!(n && n !== "—");
+  }
+
+  function pairEntered(pair) {
+    return personFilled(pair && pair.helm) || personFilled(pair && pair.crew);
+  }
+
+  function pairPersonLabel(p, role) {
+    var n = splitName(p);
+    if (!personFilled(p)) return "";
+    var first = n.first || (n.name !== "—" ? n.name : "");
+    var initial = (n.last || "").charAt(0).toUpperCase();
+    var bit = initial ? (first + " " + initial) : first;
+    return bit ? (bit + " (" + role + ")") : "";
+  }
+
+  function pairLabel(pair) {
+    var bits = [];
+    var h = pairPersonLabel(pair && pair.helm, "H");
+    var c = pairPersonLabel(pair && pair.crew, "C");
+    if (h) bits.push(h);
+    if (c) bits.push(c);
+    return bits.join(", ") || "—";
+  }
+
+  function enteredPairs(team) {
+    var out = [];
+    rosterBoats(team).forEach(function (b, i) {
+      if (pairEntered(b)) out.push({ boat_no: i + 1, helm: b.helm, crew: b.crew });
+    });
+    return out;
+  }
+
+  function usedPairNos(fl, teamId, exceptBow) {
+    var used = {};
+    var bow;
+    if (!teamId) return used;
+    for (bow = 1; bow <= 6; bow += 1) {
+      if (exceptBow && Number(bow) === Number(exceptBow)) continue;
+      var cell = flightCell(fl, bow);
+      if (Number(cell.team_id) === Number(teamId) && cell.boat_no) used[Number(cell.boat_no)] = true;
+    }
+    return used;
+  }
+
+  function availablePairs(fl, team, exceptBow) {
+    var used = usedPairNos(fl, team && team.team_id, exceptBow);
+    return enteredPairs(team).filter(function (p) { return !used[p.boat_no]; });
+  }
+
+  function pairByNo(team, boatNo) {
+    var n = Number(boatNo);
+    if (!n) return null;
+    return enteredPairs(team).filter(function (p) { return Number(p.boat_no) === n; })[0] || null;
+  }
+
+  function firstFreePairNo(fl, team, exceptBow) {
+    var avail = availablePairs(fl, team, exceptBow);
+    return avail.length ? avail[0].boat_no : null;
+  }
+
+  function flightSailCell(n, bow, team, boatNo) {
+    var pair = team ? pairByNo(team, boatNo) : null;
+    return '<span class="tsl-flight-sail">' +
+      '<button type="button" class="tsl-flight-sail-hit" data-flight="' + n + '" data-bow="' + bow + '">' +
+      esc(pairLabel(pair)) + "</button></span>";
+  }
+
   function popInnerFlightTeam(fl, bow) {
     return '<div class="tsl-pop-row"><span class="tsl-pop-flight-lab">Flight ' +
       esc(fl) + " · Bow " + esc(bow) + "</span></div>" +
@@ -2660,12 +2733,93 @@
       if (msg) msg.textContent = "Already 3 boats for that team";
       return;
     }
-    var prev = flightCell(fl, bow).team_id;
-    setFlightCellLocal(fl, bow, { team_id: tid ? Number(tid) : null });
+    var prev = flightCell(fl, bow);
+    var team = tid ? teamById(tid) : null;
+    var pairNo = team ? firstFreePairNo(fl, team, bow) : null;
+    setFlightCellLocal(fl, bow, { team_id: tid ? Number(tid) : null, boat_no: pairNo || null });
     closeNamePop();
     insertFlightsCard();
-    saveFlightLine({ flight: Number(fl), bow: Number(bow), team_id: tid ? Number(tid) : "" }).catch(function (err) {
-      setFlightCellLocal(fl, bow, { team_id: prev || null });
+    saveFlightLine({
+      flight: Number(fl),
+      bow: Number(bow),
+      team_id: tid ? Number(tid) : "",
+      boat_no: pairNo || ""
+    }).catch(function (err) {
+      setFlightCellLocal(fl, bow, { team_id: prev.team_id || null, boat_no: prev.boat_no || null });
+      insertFlightsCard();
+      window.alert((err && err.message) || "Save failed");
+    });
+  }
+
+  function openFlightSailPick(btn) {
+    if (!isSaEdit() || !btn) return;
+    var fl = btn.getAttribute("data-flight");
+    var bow = btn.getAttribute("data-bow");
+    var cell = flightCell(fl, bow);
+    var team = cell.team_id ? teamById(cell.team_id) : null;
+    pickState.mode = "flightsail";
+    pickState.flight = fl;
+    pickState.bow = bow;
+    setPopBody(popInnerFlightTeam(fl, bow), true);
+    var list = document.getElementById("tslPopList");
+    var msg = document.getElementById("tslPopMsg");
+    if (!team) {
+      if (msg) msg.textContent = "Select a team first";
+      showNamePop(btn);
+      return;
+    }
+    var avail = availablePairs(fl, team, bow);
+    if (list) {
+      list.innerHTML = "";
+      var clear = document.createElement("li");
+      clear.setAttribute("data-boat-no", "");
+      clear.textContent = "—";
+      clear.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        chooseFlightSail("");
+      });
+      list.appendChild(clear);
+      avail.forEach(function (p) {
+        var li = document.createElement("li");
+        li.setAttribute("data-boat-no", String(p.boat_no));
+        li.textContent = pairLabel(p);
+        li.addEventListener("mousedown", function (e) {
+          e.preventDefault();
+          chooseFlightSail(li.getAttribute("data-boat-no") || "");
+        });
+        list.appendChild(li);
+      });
+      list.hidden = false;
+    }
+    if (msg) {
+      if (!enteredPairs(team).length) msg.textContent = "Add sailors on the team card";
+      else if (!avail.length) msg.textContent = "No pairs left";
+      else msg.textContent = avail.length === 1 ? "Last pair for this team" : "Select a pair";
+    }
+    showNamePop(btn);
+  }
+
+  function chooseFlightSail(boatNo) {
+    var fl = pickState.flight;
+    var bow = pickState.bow;
+    var msg = document.getElementById("tslPopMsg");
+    if (!fl || !bow) return;
+    var prev = flightCell(fl, bow);
+    var team = prev.team_id ? teamById(prev.team_id) : null;
+    if (boatNo && !team) {
+      if (msg) msg.textContent = "Select a team first";
+      return;
+    }
+    var bn = boatNo ? Number(boatNo) : null;
+    if (bn && usedPairNos(fl, prev.team_id, bow)[bn]) {
+      if (msg) msg.textContent = "That pair is already in this flight";
+      return;
+    }
+    setFlightCellLocal(fl, bow, { boat_no: bn });
+    closeNamePop();
+    insertFlightsCard();
+    saveFlightLine({ flight: Number(fl), bow: Number(bow), boat_no: bn || "" }).catch(function (err) {
+      setFlightCellLocal(fl, bow, { boat_no: prev.boat_no || null });
       insertFlightsCard();
       window.alert((err && err.message) || "Save failed");
     });
@@ -2686,7 +2840,8 @@
         rank: cell.rank || "",
         bow: String(bow),
         colour: cell.colour || "",
-        team: cell.team_id ? teamById(cell.team_id) : null
+        team: cell.team_id ? teamById(cell.team_id) : null,
+        boat_no: cell.boat_no || null
       });
     }
     return out;
@@ -2702,12 +2857,13 @@
         "<td><button type=\"button\" class=\"" + sqClass + "\" data-flight=\"" + n +
         "\" data-bow=\"" + esc(r.bow) + "\" aria-label=\"" + esc(r.colour || "Colour") + "\"></button></td>" +
         "<td>" + esc(r.bow) + "</td>" +
-        '<td class="club-col">' + flightTeamCell(n, r.bow, r.team) + "</td></tr>";
+        '<td class="club-col">' + flightTeamCell(n, r.bow, r.team) + "</td>" +
+        "<td>" + flightSailCell(n, r.bow, r.team, r.boat_no) + "</td></tr>";
     });
     return '<div class="card tsl-flight-card">' +
       '<div class="tsl-flight-head">Flight ' + n + "</div>" +
       '<div class="table-wrapper"><table class="fleet-results-table">' +
-      "<thead><tr><th class=\"rank-col\">Rank</th><th>Colour</th><th>Bow no</th><th class=\"club-col\">Team</th></tr></thead>" +
+      "<thead><tr><th class=\"rank-col\">Rank</th><th>Colour</th><th>Bow no</th><th class=\"club-col\">Team</th><th>Sailors</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></div></div>";
   }
 
@@ -2757,6 +2913,14 @@
         e.stopPropagation();
         if (!isSaEdit()) return;
         openFlightTeamPick(btn);
+      });
+    });
+    card.querySelectorAll(".tsl-flight-sail-hit").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isSaEdit()) return;
+        openFlightSailPick(btn);
       });
     });
     card.querySelectorAll(".tsl-rank").forEach(function (inp) {
