@@ -134,6 +134,36 @@ def require_championship_teams(team_ids) -> None:
         raise ValueError("Do not generate an eight-team schedule until eight teams are registered")
 
 
+def _sex_letter(value: Any) -> str:
+    raw = str(value or "").strip().upper()
+    if raw.startswith("M"):
+        return "M"
+    if raw.startswith("F"):
+        return "F"
+    return ""
+
+
+def _save_sailor_sex(cur, sas_id: str, sex: str) -> None:
+    sid = str(sas_id or "").strip()
+    letter = _sex_letter(sex)
+    if not sid or letter not in ("M", "F"):
+        return
+    cur.execute(
+        """
+        UPDATE public.sas_id_personal
+           SET gender = %s
+         WHERE sa_sailing_id::text = %s
+        """,
+        (letter, sid),
+    )
+
+
+def _boat_sex(raw: dict, role: str) -> str:
+    key = f"{role}_sex"
+    person = raw.get(role) if isinstance(raw.get(role), dict) else {}
+    return _sex_letter(raw.get(key) or (person or {}).get("sex") or (person or {}).get("gender"))
+
+
 def display_name(row: dict) -> str:
     first = str(row.get("first_name") or "").strip()
     last = str(row.get("last_name") or "").strip()
@@ -522,6 +552,18 @@ def ensure_schema(cur) -> None:
     )
     cur.execute(
         """
+        ALTER TABLE public.tsl_event_team_boats
+          ADD COLUMN IF NOT EXISTS helm_sex text
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE public.tsl_event_team_boats
+          ADD COLUMN IF NOT EXISTS crew_sex text
+        """
+    )
+    cur.execute(
+        """
         CREATE UNIQUE INDEX IF NOT EXISTS tsl_event_teams_abbrev_uidx
           ON public.tsl_event_teams (regatta_id, team_abbrev)
           WHERE team_abbrev IS NOT NULL AND team_abbrev <> ''
@@ -573,7 +615,8 @@ def _load_sailor(cur, sas_id: str) -> Optional[dict]:
                TRIM(COALESCE(first_name, '')) AS first_name,
                TRIM(COALESCE(last_name, '')) AS last_name,
                TRIM(COALESCE(primary_club, '')) AS primary_club,
-               TRIM(COALESCE(club_1::text, '')) AS club_1
+               TRIM(COALESCE(club_1::text, '')) AS club_1,
+               TRIM(COALESCE(gender, '')) AS gender
         FROM public.sas_id_personal
         WHERE sa_sailing_id::text = %s
         LIMIT 1
@@ -584,6 +627,7 @@ def _load_sailor(cur, sas_id: str) -> Optional[dict]:
     if not row:
         return None
     d = dict(row)
+    sex = _sex_letter(d.get("gender"))
     return {
         "sas_id": str(d.get("sas_id") or sid),
         "name": display_name(d),
@@ -591,6 +635,8 @@ def _load_sailor(cur, sas_id: str) -> Optional[dict]:
         "club": (d.get("primary_club") or d.get("club_1") or "").strip() or None,
         "primary_club": d.get("primary_club") or "",
         "club_1": d.get("club_1") or "",
+        "gender": d.get("gender") or "",
+        "sex": sex,
     }
 
 
@@ -612,7 +658,9 @@ def _team_warnings(boats: list[dict]) -> list[str]:
 def _fetch_team_boats(cur, team_id: int) -> list[dict]:
     cur.execute(
         """
-        SELECT boat_no, helm_sas_id, crew_sas_id
+        SELECT boat_no, helm_sas_id, crew_sas_id,
+               TRIM(COALESCE(helm_sex, '')) AS helm_sex,
+               TRIM(COALESCE(crew_sex, '')) AS crew_sex
         FROM public.tsl_event_team_boats
         WHERE team_id = %s
         ORDER BY boat_no
@@ -625,6 +673,16 @@ def _fetch_team_boats(cur, team_id: int) -> list[dict]:
         row = by_no.get(n) or {"boat_no": n, "helm_sas_id": None, "crew_sas_id": None}
         helm = _load_sailor(cur, row.get("helm_sas_id")) if row.get("helm_sas_id") else None
         crew = _load_sailor(cur, row.get("crew_sas_id")) if row.get("crew_sas_id") else None
+        helm_sex = _sex_letter(row.get("helm_sex"))
+        crew_sex = _sex_letter(row.get("crew_sex"))
+        if helm and helm_sex:
+            helm["sex"] = helm_sex
+        elif helm_sex:
+            helm = {"sas_id": "", "name": "", "sex": helm_sex}
+        if crew and crew_sex:
+            crew["sex"] = crew_sex
+        elif crew_sex:
+            crew = {"sas_id": "", "name": "", "sex": crew_sex}
         out.append({"boat_no": n, "helm": helm, "crew": crew})
     return out
 
@@ -867,6 +925,7 @@ def _unique_team_identity(cur, regatta_id: str, team_name: str, team_abbrev: str
 
 
 def upsert_team(cur, regatta_id: str, body: dict, *, actor: str = "super_admin") -> dict:
+    ensure_schema(cur)
     club_id = int(body.get("club_id") or 0)
     club = _club_row(cur, club_id)
     if not club:
@@ -882,6 +941,20 @@ def upsert_team(cur, regatta_id: str, body: dict, *, actor: str = "super_admin")
     if ident:
         raise ValueError(ident)
 
+    existing_sex = {}
+    if team_id:
+        cur.execute(
+            """
+            SELECT boat_no,
+                   TRIM(COALESCE(helm_sex, '')) AS helm_sex,
+                   TRIM(COALESCE(crew_sex, '')) AS crew_sex
+              FROM public.tsl_event_team_boats
+             WHERE team_id = %s
+            """,
+            (int(team_id),),
+        )
+        existing_sex = {int(r["boat_no"]): dict(r) for r in (cur.fetchall() or [])}
+
     resolved_boats = []
     for n in range(1, BOATS_PER_TEAM + 1):
         raw = next((b for b in boats_in if int(b.get("boat_no") or 0) == n), {}) or {}
@@ -893,7 +966,24 @@ def upsert_team(cur, regatta_id: str, body: dict, *, actor: str = "super_admin")
             raise ValueError(f"Helm SAS {helm_id} is not an existing sailor — SAS IDs are never invented")
         if crew_id and not crew:
             raise ValueError(f"Crew SAS {crew_id} is not an existing sailor — SAS IDs are never invented")
-        resolved_boats.append({"boat_no": n, "helm": helm, "crew": crew, "helm_sas_id": helm_id or None, "crew_sas_id": crew_id or None})
+        prev = existing_sex.get(n) or {}
+        helm_sex = _boat_sex(raw, "helm") or _sex_letter(prev.get("helm_sex"))
+        crew_sex = _boat_sex(raw, "crew") or _sex_letter(prev.get("crew_sex"))
+        if helm and helm_sex:
+            helm["sex"] = helm_sex
+        if crew and crew_sex:
+            crew["sex"] = crew_sex
+        _save_sailor_sex(cur, helm_id, helm_sex)
+        _save_sailor_sex(cur, crew_id, crew_sex)
+        resolved_boats.append({
+            "boat_no": n,
+            "helm": helm,
+            "crew": crew,
+            "helm_sas_id": helm_id or None,
+            "crew_sas_id": crew_id or None,
+            "helm_sex": helm_sex or None,
+            "crew_sex": crew_sex or None,
+        })
 
     if team_id:
         cur.execute(
@@ -932,12 +1022,15 @@ def upsert_team(cur, regatta_id: str, body: dict, *, actor: str = "super_admin")
     for b in resolved_boats:
         cur.execute(
             """
-            INSERT INTO tsl_event_team_boats (team_id, boat_no, helm_sas_id, crew_sas_id)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO tsl_event_team_boats (team_id, boat_no, helm_sas_id, crew_sas_id, helm_sex, crew_sex)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (team_id, boat_no)
-            DO UPDATE SET helm_sas_id = EXCLUDED.helm_sas_id, crew_sas_id = EXCLUDED.crew_sas_id
+            DO UPDATE SET helm_sas_id = EXCLUDED.helm_sas_id,
+                          crew_sas_id = EXCLUDED.crew_sas_id,
+                          helm_sex = EXCLUDED.helm_sex,
+                          crew_sex = EXCLUDED.crew_sex
             """,
-            (int(team["team_id"]), b["boat_no"], b["helm_sas_id"], b["crew_sas_id"]),
+            (int(team["team_id"]), b["boat_no"], b["helm_sas_id"], b["crew_sas_id"], b.get("helm_sex"), b.get("crew_sex")),
         )
 
     result_id = _sync_result_row(cur, team, resolved_boats)

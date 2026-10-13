@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013q";
+  var JS_VER = "20261013r";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -1141,7 +1141,9 @@
         return {
           boat_no: i + 1,
           helm_sas_id: (b.helm && b.helm.sas_id) || "",
-          crew_sas_id: (b.crew && b.crew.sas_id) || ""
+          crew_sas_id: (b.crew && b.crew.sas_id) || "",
+          helm_sex: (b.helm && b.helm.sex) || "",
+          crew_sex: (b.crew && b.crew.sex) || ""
         };
       })
     };
@@ -1159,6 +1161,17 @@
     return saveBoatsQuiet(team, boats).then(function () { return loadState(); }).catch(function (e) {
       if (msg) msg.textContent = e.message || "Save failed";
     });
+  }
+
+  function saveSlotSex(teamId, boat, role, sex) {
+    var team = teamById(teamId);
+    if (!team) return;
+    var boats = rosterBoats(team);
+    var idx = Number(boat) - 1;
+    if (!boats[idx]) return;
+    if (!boats[idx][role]) boats[idx][role] = emptyPerson();
+    boats[idx][role].sex = sex === "F" ? "F" : "M";
+    return saveBoats(team, boats);
   }
 
   function applyPickedSailor(sailor, role) {
@@ -1335,6 +1348,7 @@
         if (cur !== "M" && cur !== "F") next = "M";
         sexChoice[id] = next;
         btn.textContent = next;
+        saveSlotSex(btn.getAttribute("data-team-id"), btn.getAttribute("data-boat"), btn.getAttribute("data-role"), next);
       });
     });
     card.querySelectorAll(".tsl-sailor-pick").forEach(function (btn) {
