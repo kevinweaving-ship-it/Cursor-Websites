@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013v";
+  var JS_VER = "20261013w";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -1438,8 +1438,8 @@
         "<td>" + esc(c.sas_id || "") + "</td></tr>";
     });
     return '<div class="table-wrapper"><table class="fleet-results-table">' +
-      "<thead><tr><th>No</th><th>Sex</th><th class=\"helm-col\">Helm</th><th>SAS ID</th>" +
-      "<th>Sex</th><th class=\"crew-col\">Crew</th><th>SAS ID</th></tr></thead>" +
+      "<thead><tr><th>No</th><th>S</th><th class=\"helm-col\">Helm</th><th>SAS ID</th>" +
+      "<th>S</th><th class=\"crew-col\">Crew</th><th>SAS ID</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></div>";
   }
 
