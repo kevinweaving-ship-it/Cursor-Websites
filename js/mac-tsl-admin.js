@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014s";
+  var JS_VER = "20261014t";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -181,6 +181,7 @@
       ".regatta-page--super-admin-edit #macTslFlightsCard .tsl-flight-team-hit,.regatta-page--super-admin-edit #macTslFlightsCard .tsl-flight-sail-hit{cursor:pointer}",
       "#macTslFlightsCard .tsl-rank,#macTslFlightsCard input.tsl-rank{width:2.8em;min-width:2.2em;max-width:3.4em;height:auto;min-height:0!important;padding:0!important;margin:0;border:none;border-radius:0;background:transparent;text-align:center;font:inherit;font-size:inherit;line-height:inherit;color:#1a2750;box-sizing:border-box}",
       "#macTslFlightsCard .tsl-flight-note{margin-top:12px}",
+      "#macTslFlightsCard .tsl-flight-note .tsl-wl{text-align:center;font-weight:bold}",
       "#macTslFlightsCard .tsl-flight-card.tsl-flight-shut .tsl-flight-note{display:none}",
       "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin-top:0;position:relative;overflow:hidden}",
       "#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0}",
@@ -3082,11 +3083,7 @@
     var bows = flightEnteredBows(n);
     var teams = flightTeamsInFlight(n);
     if (!bows.length || !teams.length) return "";
-    var heads = '<th class="club-col">Team</th>';
-    bows.forEach(function (b) { heads += "<th>B" + b + "</th>"; });
-    heads += "<th>Total</th>";
-    var rows = "";
-    teams.forEach(function (team) {
+    var built = teams.map(function (team) {
       var total = 0;
       var have = 0;
       var need = 0;
@@ -3105,13 +3102,48 @@
         }
         cells += "<td>" + esc(label) + "</td>";
       });
+      return {
+        team: team,
+        cells: cells,
+        total: total,
+        done: !!(need && have === need),
+        wl: ""
+      };
+    });
+    flightNoteWl(built);
+    var heads = '<th class="club-col">Team</th>';
+    bows.forEach(function (b) { heads += "<th>B" + b + "</th>"; });
+    heads += "<th>Total</th><th class=\"tsl-wl\">W / L</th>";
+    var rows = "";
+    built.forEach(function (item) {
       rows += "<tr>" +
-        '<td class="club-col">' + clubCell(team) + "</td>" +
-        cells +
-        "<td>" + (have && have === need ? String(total) : "") + "</td></tr>";
+        '<td class="club-col">' + clubCell(item.team) + "</td>" +
+        item.cells +
+        "<td>" + (item.done ? String(item.total) : "") + "</td>" +
+        '<td class="tsl-wl">' + esc(item.wl) + "</td></tr>";
     });
     return '<div class="table-wrapper tsl-flight-note"><table class="fleet-results-table">' +
       "<thead><tr>" + heads + "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+  }
+
+  function flightNoteWl(rows) {
+    var done = (rows || []).filter(function (r) { return r.done; });
+    if (done.length < 2) return;
+    var best = null;
+    var tie = false;
+    done.forEach(function (r) {
+      if (best == null || r.total < best) {
+        best = r.total;
+        tie = false;
+      } else if (r.total === best) {
+        tie = true;
+      }
+    });
+    if (tie || best == null) return;
+    rows.forEach(function (r) {
+      if (!r.done) return;
+      r.wl = r.total === best ? "W" : "L";
+    });
   }
 
   function flightsCardHtml() {
