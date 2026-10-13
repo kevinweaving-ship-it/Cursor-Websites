@@ -1,0 +1,86 @@
+{
+  "schema": "sailingsa.cursor_credits_today.v1",
+  "auditedAt": "2026-10-13T14:26:31Z",
+  "auditor": "credits-self-check-monitor",
+  "source": "Cursor Cloud Agents MCP (list-cloud-agents, list-self-hosted-workers, run-info, get-events, batch-fetch-details)",
+  "dayUtc": "2026-10-13",
+  "account": {
+    "name": "Kevin Weaving",
+    "email": "kevinweaving@icloud.com",
+    "cursorUserId": 291509789,
+    "repo": "github.com/kevinweaving-ship-it/Cursor-Websites",
+    "environmentPublicId": "d2dd94a0-9f0b-11f1-a7d1-d6b4613131ce"
+  },
+  "workerAtAudit": {
+    "displayName": "Kevin - Mac Mini",
+    "workerId": "43e56b9a-b958-55dd-a151-df216da22615",
+    "machineId": "317bc7fbbf808a6cf3ded36d6ceb835a2d434f23562987f506c32dedbb987350",
+    "connected": true,
+    "connectedAt": "2026-10-13T09:46:16Z",
+    "isInUse": false,
+    "activeBcId": null,
+    "eligibleForSubagent": true,
+    "sharedAssignmentAllowed": true,
+    "agentsOnMacToday": 0
+  },
+  "summary": {
+    "agentsCreatedToday": 0,
+    "instantErrorToday": 0,
+    "errorToday": 0,
+    "agentsWithActivityToday": 3,
+    "runningNow": 2,
+    "onMacWorkerToday": 0,
+    "onPublicCloudToday": 3,
+    "internalUnsolicitedActiveToday": 1,
+    "cursorFault": 3,
+    "userFault": 0,
+    "mailSentToday": false
+  },
+  "agentsActiveToday": [
+    {
+      "bcId": "bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1",
+      "name": "Credits self-check monitor",
+      "url": "https://cursor.com/agents/bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1",
+      "createdAt": "2026-10-12T22:38:54Z",
+      "source": "mobile",
+      "status": "RUNNING",
+      "model": "cursor-grok-4.6-high-fast",
+      "usePrivateWorker": false,
+      "privateWorkerId": null,
+      "cursorFault": ["cloud_over_mac", "public_cloud_not_mac_worker"],
+      "note": "User-requested credits monitor. Task is requested. Placement on public Cloud while Mac idle is Cursor routing fault. Still burning today."
+    },
+    {
+      "bcId": "bc-01a130e6-2e44-7567-adbd-581dea125270",
+      "name": "Sialingsa ssl documentation",
+      "url": "https://cursor.com/agents/bc-01a130e6-2e44-7567-adbd-581dea125270",
+      "createdAt": "2026-10-12T16:15:54Z",
+      "source": "mobile",
+      "status": "RUNNING",
+      "model": "cursor-grok-4.6-high-fast",
+      "usePrivateWorker": false,
+      "privateWorkerId": null,
+      "pr": "https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/218",
+      "cursorFault": ["cloud_over_mac", "public_cloud_not_mac_worker", "stacked_public_cloud_while_mac_idle"],
+      "note": "User-started mobile thread. Placement on public Cloud while Mac idle is Cursor routing. Running at the same time as this monitor."
+    },
+    {
+      "bcId": "bc-1e0a7f5a-5b4f-5d3c-a524-91b2d47e5305",
+      "name": "Verify live Flights card",
+      "url": "https://cursor.com/agents/bc-1e0a7f5a-5b4f-5d3c-a524-91b2d47e5305",
+      "createdAt": "2026-10-12T19:17:59Z",
+      "lastMessageActivityAt": "2026-10-13T13:45:12Z",
+      "source": "internal",
+      "status": "IDLE",
+      "model": null,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "privateWorkerId": null,
+      "events": 0,
+      "pr": null,
+      "filesChanged": null,
+      "cursorFault": ["unsolicited_internal_spawn", "cloud_over_mac", "public_cloud_not_mac_worker", "empty_events_no_code"],
+      "note": "Cursor-spawned internal agent. Not created by Kevin. Empty events, no branch, no model, no PR, no diff. Had activity today on public Cloud while Mac idle."
+    }
+  ]
+}

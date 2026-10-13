@@ -1,0 +1,16 @@
+INCIDENT P1 — SEPTEMBER SPAWN FAILURES
+=====================================
+Do not file this against T-H16750 (October). Do not file this against
+the August idle-session memo (that week had zero failures).
+
+Owner to notify on every reply: kevinweaving@icloud.com
+Id 291509789
+Window 2026-09-01T05:48:56Z .. 2026-09-26T17:34:34Z
+Jobs 165 | HARD FAIL 70 | sub-2s deaths 66 | Opus-high 2 | hours 4220.8
+
+These jobs died with empty dashboard event logs. That is a platform
+spawn defect, not consumed usage. Apply a billing correction for
+September failures and send the new incident id to the owner above.
+
+
+[dry-run] From=Kevin Weaving <cursor@sailingsa.co.za> To=hi@cursor.com Cc=kevinweaving@icloud.com Subject=P1 spawn-failure log: 70 dead jobs in September (ref SEP-P1-70)
