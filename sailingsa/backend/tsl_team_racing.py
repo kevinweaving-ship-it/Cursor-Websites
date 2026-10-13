@@ -29,6 +29,11 @@ BOATS_PER_TEAM = 3
 BOATS_IN_RACE = 6
 COLOURS = ("Blue", "Green")
 PENALTY_CODES = frozenset({"DNS", "DNF", "DSQ", "OCS", "RET", "NSC", "DNE", "BFD"})
+FLIGHT_RANK_CODES = frozenset({
+    "DNC", "DNS", "DNF", "RET", "DSQ", "OCS", "BFD", "UFD", "DPI", "NSC", "DNE",
+})
+FLIGHT_BOATS = 6
+FLIGHT_CODE_POINTS = FLIGHT_BOATS + 1
 MAC_SEEDED_SAS = frozenset({"13516", "21052", "8612", "29414", "13517", "22974"})
 MATIES_HELM_SAS = frozenset({"20389", "8178", "6497"})
 EDEN_SAILOR_SAS = frozenset({"15711", "13488", "27609", "27610", "23531", "28588"})
@@ -1515,6 +1520,34 @@ def _ensure_flight(sheet: dict, fl: str) -> None:
         sheet["boats_per_team"][fl] = 3
 
 
+def _parse_flight_rank(raw):
+    if raw in (None, ""):
+        return None
+    if isinstance(raw, int):
+        return raw if 1 <= raw <= FLIGHT_BOATS else None
+    s = str(raw).strip().upper()
+    if not s:
+        return None
+    if s in FLIGHT_RANK_CODES:
+        return s
+    try:
+        n = int(s)
+    except (TypeError, ValueError):
+        return None
+    if 1 <= n <= FLIGHT_BOATS:
+        return n
+    return None
+
+
+def flight_rank_points(rank) -> Optional[int]:
+    parsed = _parse_flight_rank(rank)
+    if parsed is None:
+        return None
+    if isinstance(parsed, int):
+        return parsed
+    return FLIGHT_CODE_POINTS
+
+
 def _cell(raw) -> dict:
     if not isinstance(raw, dict):
         return {"colour": "", "team_id": None, "rank": None, "boat_no": None}
@@ -1525,13 +1558,7 @@ def _cell(raw) -> dict:
         tid = int(tid) if tid not in (None, "", 0, "0") else None
     except (TypeError, ValueError):
         tid = None
-    rank = raw.get("rank")
-    try:
-        rank = int(rank) if rank not in (None, "") else None
-    except (TypeError, ValueError):
-        rank = None
-    if rank is not None and (rank < 1 or rank > 6):
-        rank = None
+    rank = _parse_flight_rank(raw.get("rank"))
     boat_no = raw.get("boat_no")
     try:
         boat_no = int(boat_no) if boat_no not in (None, "", 0, "0") else None
@@ -1738,18 +1765,19 @@ def save_flight_line(
                     raise ValueError("That pair is already in this flight")
             cell["boat_no"] = bn
         if rank is not None:
-            try:
-                r = int(rank) if rank not in ("", None) else None
-            except (TypeError, ValueError):
+            if rank in ("", None):
                 r = None
-            if r is not None and (r < 1 or r > 6):
-                raise ValueError("Rank must be 1 to 6")
+            else:
+                r = _parse_flight_rank(rank)
+                if r is None:
+                    raise ValueError("Rank must be 1 to 6 or a standard code")
             if r is not None:
                 if not (cell.get("colour") and cell.get("team_id") and cell.get("boat_no")):
                     raise ValueError("Colour, team and sailors first")
-                for b, c in sheet[fl].items():
-                    if b != bow_s and c.get("rank") == r:
-                        raise ValueError("Rank " + str(r) + " already used")
+                if isinstance(r, int):
+                    for b, c in sheet[fl].items():
+                        if b != bow_s and c.get("rank") == r:
+                            raise ValueError("Rank " + str(r) + " already used")
             cell["rank"] = r
         sheet[fl][bow_s] = cell
     _write_flight_sheet(cur, regatta_id, sheet)
