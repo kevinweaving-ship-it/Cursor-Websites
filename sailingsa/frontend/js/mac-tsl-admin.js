@@ -9,7 +9,8 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014p";
+  var JS_VER = "20261014q";
+  var MAX_FLIGHTS = 28;
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -35,6 +36,7 @@
     flight: "",
     bow: ""
   };
+  var flightFold = {};
   var moveBurst = null;
   var moveSaveTimer = 0;
   var selectedMatchNo = 0;
@@ -109,7 +111,7 @@
       ".regatta-page[data-mac-tsl=\"1\"]{overflow-x:hidden}",
       ".regatta-page[data-mac-tsl=\"1\"] .table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}",
       "#macTslAdmin{display:none}",
-      "#macTslSchedule{display:block}",
+      "#macTslSchedule{display:none!important}",
       "#macTslMatches{display:none}",
       ".regatta-page--super-admin-edit #macTslMatches{display:block}",
       "#macTslAdmin .tsl-edit{display:none}",
@@ -156,8 +158,11 @@
       "#macTslFlightsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin:0 0 8px;position:relative;overflow:hidden}",
       "#macTslFlightsCard .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
       "#macTslFlightsCard .tsl-flight-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:100%;min-width:0;box-sizing:border-box}",
+      "#macTslFlightsCard .tsl-flight-cards + .tsl-flight-cards{margin-top:8px}",
       "#macTslFlightsCard .tsl-flight-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:100%!important;min-width:0;overflow:hidden}",
-      "#macTslFlightsCard .tsl-flight-head{font-weight:bold;margin:0;text-align:left}",
+      "#macTslFlightsCard .tsl-flight-head{display:block;width:100%;text-align:center;font-weight:bold;margin:0;padding:0;border:none;background:none;color:#1a2750;font:inherit;cursor:pointer}",
+      "#macTslFlightsCard .tsl-flight-card.tsl-flight-shut{padding-bottom:8px}",
+      "#macTslFlightsCard .tsl-flight-card.tsl-flight-shut .table-wrapper{display:none}",
       "#macTslFlightsCard .tsl-flight-card .table-wrapper{margin:8px 0 0;max-width:100%;overflow:hidden}",
       "#macTslFlightsCard .tsl-flight-card .fleet-results-table{transform-origin:top left}",
       "#macTslFlightsCard .tsl-flight-card .fleet-results-table th,#macTslFlightsCard .tsl-flight-card .fleet-results-table td,#macTslTeamsCard .tsl-team-card .fleet-results-table th,#macTslTeamsCard .tsl-team-card .fleet-results-table td{padding:2px 4px;line-height:1.2;vertical-align:middle}",
@@ -747,78 +752,9 @@
   function renderSchedule() {
     var root = document.getElementById(SCHED_ID);
     if (!root) return;
-    var fmt = state.format || "rr28";
-    var nTeams = (state.teams || []).length;
-    var extra = '<span class="tsl-edit"> <select id="tslFormat" class="wc-result-field-input">' +
-      '<option value="rr28"' + (fmt === "rr28" ? " selected" : "") + ">Full round robin (28 matches)</option>" +
-      '<option value="flights16"' + (fmt === "flights16" ? " selected" : "") + ">Weather contingency (16 matches)</option>" +
-      "</select>";
-    if (fmt === "flights16") {
-      extra += ' <select id="tslFa" class="wc-result-field-input" multiple size="1">';
-      (state.teams || []).forEach(function (t) {
-        var sel = ((state.settings || {}).flight_a || []).indexOf(t.team_id) >= 0 || ((state.settings || {}).flight_a || []).indexOf(String(t.team_id)) >= 0;
-        extra += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(clubCode(t) || t.team_name) + "</option>";
-      });
-      extra += '</select> <select id="tslFb" class="wc-result-field-input" multiple size="1">';
-      (state.teams || []).forEach(function (t) {
-        var sel = ((state.settings || {}).flight_b || []).indexOf(t.team_id) >= 0 || ((state.settings || {}).flight_b || []).indexOf(String(t.team_id)) >= 0;
-        extra += '<option value="' + t.team_id + '"' + (sel ? " selected" : "") + ">" + esc(clubCode(t) || t.team_name) + "</option>";
-      });
-      extra += "</select>";
-    }
-    extra += ' <button type="button" class="fleet-sa-edit-hit" id="tslGen">Generate schedule</button> <span class="tsl-msg" id="tslSchedMsg">' +
-      (nTeams < 8 ? "Register eight teams before generating the championship schedule." : "") + "</span></span>";
-    var html = fleetHead("Schedule", (state.matches || []).length ? (state.matches.length + " matches") : "No matches yet.", extra);
-    html += '<div class="table-wrapper"><table class="fleet-results-table"><thead><tr><th>M</th><th>Round/Flight</th><th class="club-col">Blue</th><th class="club-col">Green</th><th>Status</th><th>Winner</th></tr></thead><tbody>';
-    (state.matches || []).forEach(function (m) {
-      html += "<tr><td>" + esc(m.label || ("M" + m.match_no)) + "</td><td>" + esc(m.round_label || "") + '</td><td class="club-col">' +
-        clubCell(teamById(m.team_a_id || m.team_blue_id) || {}) + '</td><td class="club-col">' + clubCell(teamById(m.team_b_id || m.team_green_id) || {}) + "</td><td>" +
-        esc(m.status || "") + "</td><td>" + esc(teamName(m.winner_team_id)) + "</td></tr>";
-    });
-    if (!(state.matches || []).length) html += '<tr><td colspan="6">No matches yet.</td></tr>';
-    html += "</tbody></table></div>";
-    root.innerHTML = html;
-    var fmtSel = document.getElementById("tslFormat");
-    if (fmtSel) {
-      fmtSel.addEventListener("change", function () {
-        state.format = fmtSel.value;
-        renderSchedule();
-      });
-    }
-    function selected(sel) {
-      return Array.prototype.map.call((sel && sel.selectedOptions) || [], function (o) { return Number(o.value); });
-    }
-    var gen = document.getElementById("tslGen");
-    if (gen) {
-      gen.addEventListener("click", function () {
-        var body = { format: (document.getElementById("tslFormat") || {}).value || "rr28", confirm: false };
-        if (body.format === "flights16") {
-          body.flight_a = selected(document.getElementById("tslFa"));
-          body.flight_b = selected(document.getElementById("tslFb"));
-        }
-        var msg = document.getElementById("tslSchedMsg");
-        api("/api/tsl/" + encodeURIComponent(RID) + "/schedule", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        }).then(function (d) {
-          if (d && d.needs_confirm) {
-            if (!window.confirm("This replaces open matches and keeps completed ones. Continue?")) return;
-            body.confirm = true;
-            return api("/api/tsl/" + encodeURIComponent(RID) + "/schedule", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body)
-            });
-          }
-          return d;
-        }).then(function (d) {
-          if (d && d.state) state = d.state;
-          if (msg) msg.textContent = (d && d.ok) ? "Schedule generated." : ((d && d.preview) ? "Confirm required." : "");
-          renderAll();
-        }).catch(function (e) { if (msg) msg.textContent = e.message; });
-      });
-    }
+    root.innerHTML = "";
+    root.hidden = true;
+    root.style.display = "none";
   }
 
   function renderMatches() {
@@ -946,8 +882,10 @@
   }
 
   function goldRaceNos() {
-    var nos = [1];
-    if (allocatedBows(2) || flightDone(2)) nos.push(2);
+    var nos = [];
+    var fl;
+    var max = maxOpenFlight();
+    for (fl = 1; fl <= max; fl += 1) nos.push(fl);
     return nos;
   }
 
@@ -985,7 +923,7 @@
 
   function lastFlightWinnerId() {
     var fl;
-    for (fl = 2; fl >= 1; fl -= 1) {
+    for (fl = MAX_FLIGHTS; fl >= 1; fl -= 1) {
       if (!flightDone(fl)) continue;
       var bestId = 0;
       var best = 0;
@@ -2557,6 +2495,89 @@
     return src || emptyFlightSheet();
   }
 
+  function clampFlight(n) {
+    var fl = Number(n) || 0;
+    if (fl < 1) return 1;
+    if (fl > MAX_FLIGHTS) return MAX_FLIGHTS;
+    return fl;
+  }
+
+  function pairStart(n) {
+    var fl = clampFlight(n);
+    return fl % 2 === 0 ? fl - 1 : fl;
+  }
+
+  function highestUsedFlight() {
+    var sheet = flightSheet();
+    var max = 2;
+    var fl;
+    for (fl = 1; fl <= MAX_FLIGHTS; fl += 1) {
+      if (!sheet[String(fl)]) continue;
+      if (allocatedBows(fl) || flightDone(fl)) max = fl;
+    }
+    return max;
+  }
+
+  function maxOpenFlight() {
+    var open = 2;
+    var pair;
+    for (pair = 1; pair < MAX_FLIGHTS; pair += 2) {
+      var b = pair + 1;
+      if (b > MAX_FLIGHTS) break;
+      if (flightDone(pair) && flightDone(b)) {
+        open = Math.min(MAX_FLIGHTS, b + 2);
+      } else {
+        break;
+      }
+    }
+    var used = highestUsedFlight();
+    var usedEnd = used % 2 === 0 ? used : Math.min(MAX_FLIGHTS, used + 1);
+    if (usedEnd > open) open = usedEnd;
+    return Math.min(MAX_FLIGHTS, open);
+  }
+
+  function flightPairsNewestFirst() {
+    var max = maxOpenFlight();
+    var pairs = [];
+    var pair;
+    for (pair = 1; pair <= max; pair += 2) {
+      var b = pair + 1;
+      if (b > MAX_FLIGHTS) break;
+      pairs.push([pair, b]);
+    }
+    pairs.reverse();
+    return pairs;
+  }
+
+  function isFlightCollapsed(n) {
+    var key = String(n);
+    if (flightFold[key] === true) return true;
+    if (flightFold[key] === false) return false;
+    return Number(n) < pairStart(maxOpenFlight());
+  }
+
+  function toggleFlightFold(n) {
+    flightFold[String(n)] = !isFlightCollapsed(n);
+  }
+
+  function ensureFlight(n) {
+    var fl = String(clampFlight(n));
+    if (!state.settings) state.settings = {};
+    var sheet = flightSheet();
+    if (!sheet[fl]) {
+      var lines = {};
+      var bow;
+      for (bow = 1; bow <= 6; bow += 1) {
+        lines[String(bow)] = { colour: "", team_id: null, rank: null, boat_no: null };
+      }
+      sheet[fl] = lines;
+    }
+    if (!sheet.boats_per_team) sheet.boats_per_team = {};
+    if (!sheet.boats_per_team[fl]) sheet.boats_per_team[fl] = 3;
+    state.settings.flight_sheet = sheet;
+    return sheet[fl];
+  }
+
   function flightCell(fl, bow) {
     var sheet = flightSheet();
     return ((sheet[String(fl)] || {})[String(bow)]) || { colour: "", team_id: null, rank: null, boat_no: null };
@@ -2944,28 +2965,36 @@
   }
 
   function flightCardHtml(n) {
+    ensureFlight(n);
+    var shut = isFlightCollapsed(n);
     var rows = "";
-    flightRows(n).forEach(function (r) {
-      var sqClass = "tsl-colour-sq" +
-        (r.colour === "Blue" ? " tsl-colour-blue" : r.colour === "Green" ? " tsl-colour-green" : "");
-      rows += "<tr>" +
-        '<td class="rank-col">' + flightRankCell(n, r.bow, r.rank) + "</td>" +
-        "<td><button type=\"button\" class=\"" + sqClass + "\" data-flight=\"" + n +
-        "\" data-bow=\"" + esc(r.bow) + "\" aria-label=\"" + esc(r.colour || "Colour") + "\"></button></td>" +
-        "<td>" + esc(r.bow) + "</td>" +
-        '<td class="club-col">' + flightTeamCell(n, r.bow, r.team) + "</td>" +
-        "<td>" + flightSailCell(n, r.bow, r.team, r.boat_no) + "</td></tr>";
-    });
-    return '<div class="card tsl-flight-card">' +
-      '<div class="tsl-flight-head">Flight ' + n + "</div>" +
-      '<div class="table-wrapper"><table class="fleet-results-table">' +
+    if (!shut) {
+      flightRows(n).forEach(function (r) {
+        var sqClass = "tsl-colour-sq" +
+          (r.colour === "Blue" ? " tsl-colour-blue" : r.colour === "Green" ? " tsl-colour-green" : "");
+        rows += "<tr>" +
+          '<td class="rank-col">' + flightRankCell(n, r.bow, r.rank) + "</td>" +
+          "<td><button type=\"button\" class=\"" + sqClass + "\" data-flight=\"" + n +
+          "\" data-bow=\"" + esc(r.bow) + "\" aria-label=\"" + esc(r.colour || "Colour") + "\"></button></td>" +
+          "<td>" + esc(r.bow) + "</td>" +
+          '<td class="club-col">' + flightTeamCell(n, r.bow, r.team) + "</td>" +
+          "<td>" + flightSailCell(n, r.bow, r.team, r.boat_no) + "</td></tr>";
+      });
+    }
+    return '<div class="card tsl-flight-card' + (shut ? " tsl-flight-shut" : "") + '">' +
+      '<button type="button" class="tsl-flight-head" data-flight="' + n +
+      '" aria-expanded="' + (shut ? "false" : "true") + '">Flight ' + n + "</button>" +
+      (shut ? "" : '<div class="table-wrapper"><table class="fleet-results-table">' +
       "<thead><tr><th class=\"rank-col\">Rank</th><th>Colour</th><th>Bow no</th><th class=\"club-col\">Team</th><th>Sailors</th></tr></thead>" +
-      "<tbody>" + rows + "</tbody></table></div></div>";
+      "<tbody>" + rows + "</tbody></table></div>") + "</div>";
   }
 
   function flightsCardHtml() {
-    return '<div class="fleet-title-row">Flights</div>' +
-      '<div class="tsl-flight-cards">' + flightCardHtml(1) + flightCardHtml(2) + "</div>";
+    var html = '<div class="fleet-title-row">Flights</div>';
+    flightPairsNewestFirst().forEach(function (pair) {
+      html += '<div class="tsl-flight-cards">' + flightCardHtml(pair[0]) + flightCardHtml(pair[1]) + "</div>";
+    });
+    return html;
   }
 
   function insertFlightsCard() {
@@ -2985,6 +3014,16 @@
 
   function wireFlightClicks(card) {
     if (!card) return;
+    card.querySelectorAll(".tsl-flight-head").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var fl = Number(btn.getAttribute("data-flight"));
+        if (!fl) return;
+        toggleFlightFold(fl);
+        insertFlightsCard();
+      });
+    });
     card.querySelectorAll(".tsl-colour-sq").forEach(function (btn) {
       btn.addEventListener("click", function (e) {
         e.preventDefault();

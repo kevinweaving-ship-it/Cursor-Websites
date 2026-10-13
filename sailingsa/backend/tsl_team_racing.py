@@ -33,6 +33,7 @@ MAC_SEEDED_SAS = frozenset({"13516", "21052", "8612", "29414", "13517", "22974"}
 MATIES_HELM_SAS = frozenset({"20389", "8178", "6497"})
 EDEN_SAILOR_SAS = frozenset({"15711", "13488", "27609", "27610", "23531", "28588"})
 CHAMPIONSHIP_TEAM_COUNT = 8
+MAX_FLIGHTS = 28
 DEFAULT_PHYSICAL_BOATS = (
     ("Blue", 1),
     ("Blue", 2),
@@ -1467,10 +1468,51 @@ def save_physical_boats(cur, regatta_id: str, boats: list[dict], *, actor: str =
     return load_physical_boats(cur, regatta_id)
 
 
+def _flight_lines() -> dict:
+    return {str(b): {"colour": "", "team_id": None, "rank": None, "boat_no": None} for b in range(1, 7)}
+
+
 def empty_flight_sheet() -> dict:
-    def lines():
-        return {str(b): {"colour": "", "team_id": None, "rank": None, "boat_no": None} for b in range(1, 7)}
-    return {"boats_per_team": {"1": 3, "2": 3}, "1": lines(), "2": lines()}
+    return {"boats_per_team": {"1": 3, "2": 3}, "1": _flight_lines(), "2": _flight_lines()}
+
+
+def _as_flight_no(key) -> Optional[str]:
+    try:
+        n = int(key)
+    except (TypeError, ValueError):
+        return None
+    if n < 1 or n > MAX_FLIGHTS:
+        return None
+    return str(n)
+
+
+def _sheet_flight_nos(data, colours_legacy=None) -> list[str]:
+    nos = {"1", "2"}
+    if isinstance(data, dict):
+        for k in data:
+            fl = _as_flight_no(k)
+            if fl:
+                nos.add(fl)
+        bpt = data.get("boats_per_team") or {}
+        if isinstance(bpt, dict):
+            for k in bpt:
+                fl = _as_flight_no(k)
+                if fl:
+                    nos.add(fl)
+    if isinstance(colours_legacy, dict):
+        for k in colours_legacy:
+            fl = _as_flight_no(k)
+            if fl:
+                nos.add(fl)
+    return [str(i) for i in range(1, MAX_FLIGHTS + 1) if str(i) in nos]
+
+
+def _ensure_flight(sheet: dict, fl: str) -> None:
+    if fl not in sheet:
+        sheet[fl] = _flight_lines()
+    sheet.setdefault("boats_per_team", {})
+    if fl not in sheet["boats_per_team"]:
+        sheet["boats_per_team"][fl] = 3
 
 
 def _cell(raw) -> dict:
@@ -1512,7 +1554,7 @@ def _norm_flight_sheet(raw, colours_legacy=None) -> dict:
     bpt = data.get("boats_per_team") or {}
     if not isinstance(bpt, dict):
         bpt = {}
-    for fl in ("1", "2"):
+    for fl in _sheet_flight_nos(data, colours_legacy):
         n = bpt.get(fl, bpt.get(int(fl), 3))
         try:
             n = int(n)
@@ -1520,11 +1562,14 @@ def _norm_flight_sheet(raw, colours_legacy=None) -> dict:
             n = 3
         if n not in (1, 2, 3):
             n = 3
+        _ensure_flight(out, fl)
         out["boats_per_team"][fl] = n
         src = data.get(fl) or data.get(int(fl)) or {}
         if not isinstance(src, dict):
             src = {}
-        legacy = (colours_legacy or {}).get(fl) or {}
+        legacy = (colours_legacy or {}).get(fl) or (colours_legacy or {}).get(int(fl) if str(fl).isdigit() else fl) or {}
+        if not isinstance(legacy, dict):
+            legacy = {}
         for bow in range(1, 7):
             cell = src.get(str(bow), src.get(bow))
             if not isinstance(cell, dict):
@@ -1537,11 +1582,21 @@ def _norm_flight_sheet(raw, colours_legacy=None) -> dict:
 
 
 def _colours_from_sheet(sheet: dict) -> dict:
-    out = {"1": {}, "2": {}}
-    for fl in ("1", "2"):
-        for bow, cell in (sheet.get(fl) or {}).items():
-            if cell.get("colour"):
+    out = {}
+    for key, block in (sheet or {}).items():
+        fl = _as_flight_no(key)
+        if not fl:
+            continue
+        out[fl] = {}
+        if not isinstance(block, dict):
+            continue
+        for bow, cell in block.items():
+            if isinstance(cell, dict) and cell.get("colour"):
                 out[fl][str(bow)] = cell["colour"]
+    if "1" not in out:
+        out["1"] = {}
+    if "2" not in out:
+        out["2"] = {}
     return out
 
 
@@ -1617,7 +1672,14 @@ def save_flight_line(
 ) -> dict:
     ensure_schema(cur)
     sheet = _norm_flight_sheet(load_settings(cur, regatta_id).get("flight_sheet"))
-    fl = "1" if int(flight) == 1 else "2"
+    try:
+        n = int(flight)
+    except (TypeError, ValueError):
+        raise ValueError("Flight must be 1 to " + str(MAX_FLIGHTS))
+    if n < 1 or n > MAX_FLIGHTS:
+        raise ValueError("Flight must be 1 to " + str(MAX_FLIGHTS))
+    fl = str(n)
+    _ensure_flight(sheet, fl)
     if boats_per_team is not None:
         n = int(boats_per_team)
         if n not in (1, 2, 3):
