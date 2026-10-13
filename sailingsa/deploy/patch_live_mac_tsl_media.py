@@ -397,20 +397,8 @@ def patch_poc(text: str) -> str:
 """,
         "poc-refresh-groups",
     )
-    text = apply_one(
-        text,
-        """setInterval(writeHealth, 10000);
-""",
-        """setInterval(writeHealth, 10000);
-setInterval(() => {
-  if (!sock || st.state !== 'UP') return;
-  listParticipatingGroups(sock).then((groups) => {
-    event('event-groups', { n: (groups || []).length, names: (groups || []).map((g) => g.subject).slice(0, 20), via: 'poll' });
-  }).catch((e) => event('event-groups-failed', { error: String(e), via: 'poll' }));
-}, 120000);
-""",
-        "poc-group-poll",
-    )
+    # Do not add a 120s group poll. It rate-limits the box and knocks
+    # signup Request Code offline (connectionReplaced / not UP).
     return text
 
 
