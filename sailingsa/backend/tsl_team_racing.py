@@ -1629,8 +1629,10 @@ def save_flight_line(
             letter = str(colour or "").strip()[:1].upper()
             want = "Blue" if letter == "B" else "Green" if letter == "G" else ""
             others = [c.get("colour") for b, c in sheet[fl].items() if b != bow_s]
-            if want and others.count(want) >= 3:
-                raise ValueError("No more than 3 " + want)
+            allocated = sum(1 for b, c in sheet[fl].items() if c.get("team_id"))
+            cap = 3 if allocated < 2 else min(3, (allocated + 1) // 2)
+            if want and others.count(want) >= cap:
+                raise ValueError("No more than " + str(cap) + " " + want)
             cell["colour"] = want
         if team_id is not None:
             try:
@@ -1638,10 +1640,9 @@ def save_flight_line(
             except (TypeError, ValueError):
                 tid = None
             if tid:
-                bpt = int(sheet["boats_per_team"].get(fl) or 3)
                 used = sum(1 for b, c in sheet[fl].items() if b != bow_s and c.get("team_id") == tid)
-                if used >= bpt:
-                    raise ValueError("Already " + str(bpt) + " boat" + ("s" if bpt != 1 else "") + " for that team")
+                if used >= 3:
+                    raise ValueError("Already 3 boats for that team")
             cell["team_id"] = tid
         if rank is not None:
             try:
