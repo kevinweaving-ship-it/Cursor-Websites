@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014x";
+  var JS_VER = "20261014y";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -40,7 +40,9 @@
     bow: ""
   };
   var FOLD_KEY = "macTslFlightFold:" + RID;
+  var SECTION_KEY = "macTslSectionFold:" + RID;
   var flightFold = loadFlightFold();
+  var sectionFold = loadSectionFold();
   var moveBurst = null;
   var moveSaveTimer = 0;
   var selectedMatchNo = 0;
@@ -159,7 +161,11 @@
       "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
       "#macTslFlightsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin:0 0 8px;position:relative;overflow:hidden}",
-      "#macTslFlightsCard .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
+      "#macTslFlightsCard .fleet-title-row,#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
+      "#macTslFlightsCard .tsl-section-head,#macTslTeamsCard .tsl-section-head{display:block;width:100%;text-align:center;font-weight:bold;border:none;background:none;color:#1a2750;font:inherit;cursor:pointer}",
+      "#macTslFlightsCard.tsl-section-shut,#macTslTeamsCard.tsl-section-shut{background:#fde8e8}",
+      "#macTslFlightsCard.tsl-section-shut .tsl-flight-cards,#macTslFlightsCard.tsl-section-shut .tsl-flight-note,#macTslTeamsCard.tsl-section-shut .tsl-team-cards,#macTslTeamsCard.tsl-section-shut #tslSlotPick{display:none}",
+      "#macTslFlightsCard.tsl-section-shut .fleet-title-row,#macTslTeamsCard.tsl-section-shut .fleet-title-row{margin:0}",
       "#macTslFlightsCard .tsl-flight-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:100%;min-width:0;box-sizing:border-box}",
       "#macTslFlightsCard .tsl-flight-cards + .tsl-flight-cards{margin-top:8px}",
       "#macTslFlightsCard .tsl-flight-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:100%!important;min-width:0;overflow:hidden}",
@@ -183,7 +189,7 @@
       "#macTslFlightsCard .tsl-flight-note .tsl-wl{text-align:center;font-weight:bold}",
       "#macTslFlightsCard .tsl-flight-card.tsl-flight-shut .tsl-flight-note{display:none}",
       "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin-top:0;position:relative;overflow:hidden}",
-      "#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0}",
+      "#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
       "#macTslTeamsCard .tsl-team-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:100%;min-width:0;box-sizing:border-box}",
       "#macTslTeamsCard .tsl-team-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:100%!important;min-width:0;overflow:hidden}",
       "#macTslTeamsCard .tsl-team-card .table-wrapper{margin:8px 0 0;max-width:100%;overflow:hidden}",
@@ -234,6 +240,7 @@
       "#macTslTeamsCard #tslPickName{min-width:12em;max-width:18em}",
       "#macTslTeamsCard #tslPickClub{max-width:12em}",
       "@media (max-width:900px){#macTslTeamsCard .tsl-team-cards,#macTslFlightsCard .tsl-flight-cards{grid-template-columns:1fr}#macTslTeamsCard,#macTslFlightsCard{padding:4px}#macTslTeamsCard .tsl-team-card,#macTslFlightsCard .tsl-flight-card{padding:4px}#macTslTeamsCard .tsl-move{width:14px;height:14px;margin:0 2px 0 0}}",
+      "@media (max-width:900px) and (orientation:portrait){#macTslFlightsCard .tsl-flight-cards{display:flex;flex-direction:column-reverse;gap:8px}}",
       ".regatta-page[data-mac-tsl=\"1\"] th.tsl-hide-mp,.regatta-page[data-mac-tsl=\"1\"] td.tsl-hide-mp{display:none}",
       ".regatta-page[data-mac-tsl=\"1\"] .tsl-col-wins,.regatta-page[data-mac-tsl=\"1\"] .tsl-mcol{text-align:center;font-weight:bold}",
       "@media (max-width: 480px) and (orientation: portrait){",
@@ -2437,7 +2444,7 @@
         teamRosterTable(t) + "</div>";
     });
     inner += newTeamCardHtml();
-    return '<div class="fleet-title-row">Teams</div><div class="tsl-team-cards">' + inner + "</div>" + pickPanelHtml();
+    return sectionHeadHtml("Teams", "teams") + '<div class="tsl-team-cards">' + inner + "</div>" + pickPanelHtml();
   }
 
   function wireTeamCardClicks(card) {
@@ -2586,6 +2593,65 @@
     try {
       if (window.localStorage) window.localStorage.setItem(FOLD_KEY, JSON.stringify(flightFold));
     } catch (e) {}
+  }
+
+  function loadSectionFold() {
+    try {
+      var raw = window.localStorage && window.localStorage.getItem(SECTION_KEY);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+      var out = {};
+      var k;
+      for (k in parsed) {
+        if (!Object.prototype.hasOwnProperty.call(parsed, k)) continue;
+        if (parsed[k] === true || parsed[k] === false) out[String(k)] = parsed[k];
+      }
+      return out;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveSectionFold() {
+    try {
+      if (window.localStorage) window.localStorage.setItem(SECTION_KEY, JSON.stringify(sectionFold));
+    } catch (e) {}
+  }
+
+  function isSectionCollapsed(key) {
+    return sectionFold[String(key)] === true;
+  }
+
+  function toggleSectionFold(key) {
+    sectionFold[String(key)] = !isSectionCollapsed(key);
+    saveSectionFold();
+  }
+
+  function sectionHeadHtml(label, key) {
+    var shut = isSectionCollapsed(key);
+    return '<button type="button" class="fleet-title-row tsl-section-head" data-section="' +
+      esc(key) + '" aria-expanded="' + (shut ? "false" : "true") + '">' + esc(label) + "</button>";
+  }
+
+  function paintSectionShut(card, key) {
+    if (!card) return;
+    card.classList.toggle("tsl-section-shut", isSectionCollapsed(key));
+  }
+
+  function wireSectionHead(card) {
+    if (!card) return;
+    card.querySelectorAll(".tsl-section-head").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var key = btn.getAttribute("data-section");
+        if (!key) return;
+        toggleSectionFold(key);
+        if (key === "flights") insertFlightsCard();
+        else if (key === "teams") insertTeamsCard();
+      });
+    });
   }
 
   function isFlightCollapsed(n) {
@@ -3176,7 +3242,7 @@
   }
 
   function flightsCardHtml() {
-    var html = '<div class="fleet-title-row">Flights</div>';
+    var html = sectionHeadHtml("Flights", "flights");
     flightPairsNewestFirst().forEach(function (pair) {
       html += '<div class="tsl-flight-cards">' + flightCardHtml(pair[0]) + flightCardHtml(pair[1]) + "</div>";
     });
@@ -3193,6 +3259,8 @@
       card.setAttribute("class", "card");
     }
     card.innerHTML = flightsCardHtml();
+    paintSectionShut(card, "flights");
+    wireSectionHead(card);
     wireFlightClicks(card);
     if (gold.nextSibling !== card) gold.parentNode.insertBefore(card, gold.nextSibling);
     requestAnimationFrame(function () { fitTeamCardTables(); });
@@ -3316,6 +3384,8 @@
       card.setAttribute("class", "card");
     }
     card.innerHTML = teamCardsHtml();
+    paintSectionShut(card, "teams");
+    wireSectionHead(card);
     wireTeamCardClicks(card);
     if (after.nextSibling !== card) after.parentNode.insertBefore(card, after.nextSibling);
     requestAnimationFrame(function () { fitTeamCardTables(); });
