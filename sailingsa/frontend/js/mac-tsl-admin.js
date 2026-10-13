@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013c";
+  var JS_VER = "20261013d";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -760,25 +760,59 @@
     return rows;
   }
 
-  function goldRaceTableHtml() {
-    var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
-    var emptyRaces = "";
-    var r;
-    for (r = 28; r >= 1; r -= 1) {
-      heads += '<th class="race-col">R' + r + "</th>";
-      emptyRaces += '<td class="race-col"></td>';
+  function closedMatches() {
+    return (state.matches || []).filter(function (m) {
+      return String(m.status || "").toLowerCase() === "complete";
+    }).slice().sort(function (a, b) {
+      return Number(b.match_no) - Number(a.match_no);
+    });
+  }
+
+  function teamByCode(code) {
+    var c = String(code || "").replace(/\s+/g, " ").trim().toUpperCase();
+    return (state.teams || []).filter(function (t) {
+      return String(clubCode(t) || "").toUpperCase() === c ||
+        String(t.team_name || "").toUpperCase() === c;
+    })[0];
+  }
+
+  function closedRaceScore(m, team) {
+    if (!team) return "";
+    var id = Number(team.team_id);
+    if (Number(m.team_a_id) === id || Number(m.team_blue_id) === id) {
+      return m.score_a == null || m.score_a === "" ? "" : String(m.score_a);
     }
+    if (Number(m.team_b_id) === id || Number(m.team_green_id) === id) {
+      return m.score_b == null || m.score_b === "" ? "" : String(m.score_b);
+    }
+    return "";
+  }
+
+  function goldRaceTableHtml() {
+    var closed = closedMatches();
+    var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
+    closed.forEach(function (m) {
+      heads += '<th class="race-col">R' + Number(m.match_no) + "</th>";
+    });
     var body = "";
     goldRaceRows().forEach(function (row) {
+      var team = teamByCode(row.code);
+      var total = 0;
+      var races = "";
+      closed.forEach(function (m) {
+        var sc = closedRaceScore(m, team);
+        if (sc !== "" && !isNaN(Number(sc))) total += Number(sc);
+        races += '<td class="race-col' + (sc !== "" ? " score-counts" : "") + '">' + esc(sc) + "</td>";
+      });
       body += "<tr>" +
         '<td class="rank-col">' + esc(row.rank) + "</td>" +
         '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(row.logo, row.code) + esc(row.code) + "</span></td>" +
-        '<td class="total-col"></td>' +
-        emptyRaces +
+        '<td class="total-col">' + (closed.length ? String(total) : "") + "</td>" +
+        races +
         "</tr>";
     });
     if (!body) {
-      body = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td>' + emptyRaces + "</tr>";
+      body = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td></tr>';
     }
     return (
       '<div class="table-wrapper" id="macTslGoldSheet">' +
