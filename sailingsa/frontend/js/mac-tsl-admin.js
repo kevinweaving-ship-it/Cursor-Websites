@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013x";
+  var JS_VER = "20261013y";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -154,9 +154,17 @@
       "#macTslTeamsCard .tsl-pop-arrow{width:22px;height:16px;border:none;padding:0;margin:0;background:url(/js/tsl-swap-left.png) center/contain no-repeat;cursor:pointer;flex:0 0 auto}",
       "#macTslTeamsCard #tslPopSearch{min-width:8em;max-width:11em}",
       "#macTslTeamsCard #tslPopSave{padding:2px 8px;min-height:0;line-height:1.2}",
-      "#macTslTeamsCard #tslPopList{position:relative;z-index:91;margin:0;max-height:160px;min-width:16em}",
+      "#macTslTeamsCard #tslPopList{position:relative;z-index:91;margin:0;padding:0;list-style:none;max-height:160px;min-width:12em;overflow-y:auto;background:#fff;border:1px solid #1d294d}",
+      "#macTslTeamsCard #tslPopList li{margin:0;padding:4px 6px;cursor:pointer;color:#1a2750}",
+      "#macTslTeamsCard #tslPopList li:hover{background:#e9eefb}",
       "#macTslTeamsCard .tsl-pop-hit,#macTslTeamsCard .tsl-pop-sailor{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}",
       "#macTslTeamsCard .tsl-pop-sep{margin:0 2px}",
+      "@media (max-width:768px) and (orientation:portrait){",
+      "#macTslTeamsCard #tslNamePop{position:fixed;left:8px;right:8px;top:16%;width:auto;max-width:none;z-index:200}",
+      "#macTslTeamsCard .tsl-pop-row{flex-wrap:wrap}",
+      "#macTslTeamsCard #tslPopSearch{font-size:16px!important;line-height:1.25!important;min-width:0;max-width:none;flex:1 1 100%;width:100%}",
+      "#macTslTeamsCard #tslPopList{min-width:0;width:100%;max-height:40vh}",
+      "}",
       "#macTslTeamsCard .tsl-role-btn[disabled]{cursor:default;text-decoration:none}",
       "#macTslTeamsCard .tsl-role-on{text-decoration:underline}",
       "#macTslTeamsCard #tslSlotPick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff;max-width:100%;box-sizing:border-box}",
@@ -1171,6 +1179,26 @@
       "</span>";
   }
 
+  function isMpPop() {
+    return !!(window.matchMedia && window.matchMedia("(max-width:768px) and (orientation: portrait)").matches);
+  }
+
+  function normalizeSearchHit(it) {
+    it = it || {};
+    var first = String(it.first_name || it.first_names || "").trim();
+    var last = String(it.last_name || it.surname || "").trim();
+    var club = String(it.club || it.primary_club || "").trim();
+    return {
+      first_name: first,
+      last_name: last,
+      name: String(it.name || (first + " " + last).trim()),
+      sas_id: String(it.sas_id || it.sa_sailing_id || ""),
+      club: club,
+      club_logo: String(it.club_logo || it.club_logo_url || (club ? "/api/club-logo/" + club : "")),
+      sex: it.sex || ""
+    };
+  }
+
   function searchHitHtml(s) {
     s = s || {};
     var n = splitName(s);
@@ -1253,19 +1281,30 @@
     if (!pop || !card) return;
     refreshNamePop();
     pop.hidden = false;
-    var ar = el.getBoundingClientRect();
-    var cr = card.getBoundingClientRect();
-    pop.style.left = Math.max(8, ar.left - cr.left) + "px";
-    pop.style.top = Math.max(8, ar.top - cr.top) + "px";
+    if (isMpPop()) {
+      pop.style.left = "";
+      pop.style.top = "";
+    } else {
+      var ar = el.getBoundingClientRect();
+      var cr = card.getBoundingClientRect();
+      pop.style.left = Math.max(8, ar.left - cr.left) + "px";
+      pop.style.top = Math.max(8, ar.top - cr.top) + "px";
+    }
     var search = document.getElementById("tslPopSearch");
     if (search) search.focus();
   }
 
   function showPopSearch(items) {
     var list = document.getElementById("tslPopList");
+    var msg = document.getElementById("tslPopMsg");
     if (!list) return;
     list.innerHTML = "";
-    if (!items.length) { list.hidden = true; return; }
+    if (!items.length) {
+      list.hidden = true;
+      if (msg && !msg.textContent) msg.textContent = "No sailors found.";
+      return;
+    }
+    if (msg) msg.textContent = "";
     items.forEach(function (it) {
       var li = document.createElement("li");
       li.className = "tsl-pop-hit";
@@ -1277,7 +1316,7 @@
           if (msg) msg.textContent = "SAS missing — not invented";
           return;
         }
-        pickState.selected = copyPerson(it);
+        pickState.selected = copyPerson(normalizeSearchHit(it));
         pickState.replacement = pickState.selected;
         pickState.swapped = false;
         refreshNamePop();
@@ -1677,12 +1716,20 @@
       var searchT = 0;
       popSearch.addEventListener("input", function () {
         var q = popSearch.value.trim();
+        var msg = document.getElementById("tslPopMsg");
+        if (msg) msg.textContent = "";
         clearTimeout(searchT);
         searchT = setTimeout(function () {
-          if (q.length < 2) { showPopSearch([]); return; }
-          api("/api/tsl/" + encodeURIComponent(RID) + "/sailors-search?q=" + encodeURIComponent(q) + "&limit=20")
-            .then(function (d) { showPopSearch((d && d.sailors) || []); })
-            .catch(function () { showPopSearch([]); });
+          if (q.length < 2) { showPopSearch([]); if (msg) msg.textContent = ""; return; }
+          api("/api/search?q=" + encodeURIComponent(q) + "&hub=1&limit=40")
+            .then(function (d) {
+              var rows = Array.isArray(d) ? d : ((d && d.sailors) || []);
+              showPopSearch(rows.map(normalizeSearchHit));
+            })
+            .catch(function (e) {
+              if (msg) msg.textContent = (e && e.message) || "Search failed";
+              showPopSearch([]);
+            });
         }, 120);
       });
       popSearch._tslBound = true;
