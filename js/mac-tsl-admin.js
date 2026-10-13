@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014v";
+  var JS_VER = "20261014w";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -2875,16 +2875,16 @@
       return;
     }
     var prev = flightCell(fl, bow);
-    var team = tid ? teamById(tid) : null;
-    var pairNo = team ? firstFreePairNo(fl, team, bow) : null;
-    setFlightCellLocal(fl, bow, { team_id: tid ? Number(tid) : null, boat_no: pairNo || null });
+    var same = tid && Number(prev.team_id) === Number(tid);
+    var boatNo = same ? (prev.boat_no || null) : null;
+    setFlightCellLocal(fl, bow, { team_id: tid ? Number(tid) : null, boat_no: boatNo });
     closeNamePop();
     insertFlightsCard();
     saveFlightLine({
       flight: Number(fl),
       bow: Number(bow),
       team_id: tid ? Number(tid) : "",
-      boat_no: pairNo || ""
+      boat_no: boatNo || ""
     }).catch(function (err) {
       setFlightCellLocal(fl, bow, { team_id: prev.team_id || null, boat_no: prev.boat_no || null });
       insertFlightsCard();
