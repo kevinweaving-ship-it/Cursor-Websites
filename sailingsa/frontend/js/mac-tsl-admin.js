@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013d";
+  var JS_VER = "20261013e";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -790,24 +790,50 @@
 
   function goldRaceTableHtml() {
     var closed = closedMatches();
+    var lastWin = closed.length ? Number(closed[0].winner_team_id || 0) : 0;
     var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
     closed.forEach(function (m) {
       heads += '<th class="race-col">R' + Number(m.match_no) + "</th>";
     });
-    var body = "";
-    goldRaceRows().forEach(function (row) {
+    var built = goldRaceRows().map(function (row) {
       var team = teamByCode(row.code);
       var total = 0;
-      var races = "";
+      var races = [];
       closed.forEach(function (m) {
         var sc = closedRaceScore(m, team);
         if (sc !== "" && !isNaN(Number(sc))) total += Number(sc);
+        races.push(sc);
+      });
+      return {
+        row: row,
+        team: team,
+        total: total,
+        races: races,
+        wonLast: !!(team && lastWin && Number(team.team_id) === lastWin)
+      };
+    });
+    if (closed.length) {
+      built.sort(function (a, b) {
+        if (a.total !== b.total) return a.total - b.total;
+        if (a.wonLast !== b.wonLast) return a.wonLast ? -1 : 1;
+        return 0;
+      });
+      built.forEach(function (item, i) { item.rank = i + 1; });
+    }
+    var body = "";
+    built.forEach(function (item) {
+      var races = "";
+      item.races.forEach(function (sc) {
         races += '<td class="race-col' + (sc !== "" ? " score-counts" : "") + '">' + esc(sc) + "</td>";
       });
-      body += "<tr>" +
-        '<td class="rank-col">' + esc(row.rank) + "</td>" +
-        '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(row.logo, row.code) + esc(row.code) + "</span></td>" +
-        '<td class="total-col">' + (closed.length ? String(total) : "") + "</td>" +
+      var medal = "";
+      if (closed.length && item.rank === 1) medal = "medal-gold";
+      else if (closed.length && item.rank === 2) medal = "medal-silver";
+      else if (closed.length && item.rank === 3) medal = "medal-bronze";
+      body += "<tr" + (medal ? ' class="' + medal + '"' : "") + ">" +
+        '<td class="rank-col">' + (closed.length ? String(item.rank) : "") + "</td>" +
+        '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) + esc(item.row.code) + "</span></td>" +
+        '<td class="total-col">' + (closed.length ? String(item.total) : "") + "</td>" +
         races +
         "</tr>";
     });
