@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013h";
+  var JS_VER = "20261013i";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -115,10 +115,12 @@
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
       ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet){display:none}",
-      "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%}",
-      "#macTslTeamsCard .tsl-team-cards{display:flex;flex-wrap:wrap;width:100%;box-sizing:border-box}",
-      "#macTslTeamsCard .tsl-team-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:50%!important;max-width:50%!important;flex:0 0 50%!important}",
-      "@media (max-width:768px) and (orientation:portrait){#macTslTeamsCard .tsl-team-cards{flex-direction:column}#macTslTeamsCard .tsl-team-card{width:100%!important;max-width:100%!important;flex:0 0 100%!important}}",
+      "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;padding:8px}",
+      "#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0}",
+      "#macTslTeamsCard .tsl-team-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;box-sizing:border-box}",
+      "#macTslTeamsCard .tsl-team-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:none!important}",
+      "#macTslTeamsCard .tsl-team-card .table-wrapper{margin:8px 0 0}",
+      "@media (max-width:768px) and (orientation:portrait){#macTslTeamsCard .tsl-team-cards{grid-template-columns:1fr}}",
       ".regatta-page[data-mac-tsl=\"1\"] th.tsl-hide-mp,.regatta-page[data-mac-tsl=\"1\"] td.tsl-hide-mp{display:none}",
       ".regatta-page[data-mac-tsl=\"1\"] .tsl-col-wins,.regatta-page[data-mac-tsl=\"1\"] .tsl-mcol{text-align:center;font-weight:bold}",
       "@media (max-width: 480px) and (orientation: portrait){",
@@ -881,6 +883,25 @@
     }
   }
 
+  function teamRosterTable(team) {
+    var boats = (team && team.boats) || [];
+    var rows = "";
+    var n;
+    for (n = 1; n <= 3; n += 1) {
+      var b = boats.filter(function (x) { return Number(x.boat_no) === n; })[0] || {};
+      var h = b.helm || {};
+      var c = b.crew || {};
+      rows += "<tr>" +
+        '<td class="helm-col">' + esc(h.name || "") + "</td>" +
+        "<td>" + esc(h.sas_id || "") + "</td>" +
+        '<td class="crew-col">' + esc(c.name || "") + "</td>" +
+        "<td>" + esc(c.sas_id || "") + "</td></tr>";
+    }
+    return '<div class="table-wrapper"><table class="fleet-results-table">' +
+      "<thead><tr><th class=\"helm-col\">Helm Name</th><th>SAS ID</th><th class=\"crew-col\">Crew Name</th><th>SAS ID</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody></table></div>";
+  }
+
   function teamCardsHtml() {
     var teams = (state.teams || []).slice().sort(function (a, b) {
       return String(clubCode(a) || a.team_name || "").localeCompare(
@@ -893,7 +914,8 @@
     teams.forEach(function (t) {
       var code = clubCode(t);
       inner += '<div class="card tsl-team-card" data-team-id="' + esc(t.team_id || "") + '">' +
-        '<span class="rs-club-with-logo">' + logoImg(t.club_logo, code) + esc(code) + "</span></div>";
+        '<span class="rs-club-with-logo">' + logoImg(t.club_logo, code) + esc(code) + "</span>" +
+        teamRosterTable(t) + "</div>";
     });
     return '<div class="fleet-title-row">Teams</div><div class="tsl-team-cards">' + inner + "</div>";
   }
