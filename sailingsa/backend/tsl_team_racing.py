@@ -19,6 +19,8 @@ import json
 import re
 from typing import Any, Callable, Optional
 
+from fastapi import Body, Request
+
 TSL_REGATTA_IDS = frozenset({"2026-10-17-mac-tsl-wc-team-sailing"})
 TSL_BLOCK_SUFFIX = ":tsl"
 CLASS_NAME = "TSL"
