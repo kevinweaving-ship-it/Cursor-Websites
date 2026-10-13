@@ -720,10 +720,10 @@ def build_single_thread_reply(
 This is the auto-reply on existing ticket {ticket} only.
 Do not open another ticket. One thread for every month on this account.
 
-Cursor login / account email: {MAIL_CC}
+From this point every outbound is cursor@sailingsa.co.za only (no cursor2).
+The Cursor account email is on Cc and Reply-To: {MAIL_CC}
 Cursor user id: {ACCOUNT['cursor_user_id']}
-Please treat this mailbox as the same customer as {MAIL_CC}.
-Reply-all and keep {MAIL_CC} on every reply.
+Kevin Weaving authorized this mailbox. Reply-all so {MAIL_CC} stays on the thread.
 
 September hard-fail URLs you asked for (empty event logs, died in under 2s):
 {urls}
@@ -1230,7 +1230,7 @@ def main() -> int:
     )
     p.add_argument(
         "--from-local",
-        help="From local part: cursor, cursor2, cursor3, cursor4",
+        help="From local part (cursor@ only)",
     )
     p.add_argument(
         "--on-first-ticket",
