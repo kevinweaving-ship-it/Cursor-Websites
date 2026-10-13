@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014e";
+  var JS_VER = "20261014f";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -151,6 +151,13 @@
       "#macTslGoldSheet tbody tr:last-child td:last-child{border-bottom-right-radius:8px}",
       "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
+      "#macTslFlightsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin:0 0 8px;position:relative;overflow:hidden}",
+      "#macTslFlightsCard .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
+      "#macTslFlightsCard .tsl-flight-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:100%!important;min-width:0;overflow:hidden}",
+      "#macTslFlightsCard .tsl-flight-head{font-weight:bold;margin:0 0 8px}",
+      "#macTslFlightsCard .table-wrapper{margin:8px 0 0;max-width:100%;overflow:hidden}",
+      "#macTslFlightsCard .fleet-results-table th{font-weight:bold}",
+      "#macTslFlightsCard .fleet-results-table th,#macTslFlightsCard .fleet-results-table td{padding:2px 4px}",
       "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin-top:0;position:relative;overflow:hidden}",
       "#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0}",
       "#macTslTeamsCard .tsl-team-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:100%;min-width:0;box-sizing:border-box}",
@@ -287,15 +294,15 @@
       document.head.appendChild(style);
     }
     style.textContent = [
-      "#macTslAdmin,#macTslAdmin *,#macTslSchedule,#macTslSchedule *,#macTslMatches,#macTslMatches *,#macTslTeamsCard,#macTslTeamsCard *{",
+      "#macTslAdmin,#macTslAdmin *,#macTslSchedule,#macTslSchedule *,#macTslMatches,#macTslMatches *,#macTslTeamsCard,#macTslTeamsCard *,#macTslFlightsCard,#macTslFlightsCard *{",
       "font-size:" + tdCs.fontSize + "!important;",
       "line-height:" + tdCs.lineHeight + "!important;",
       "font-family:" + tdCs.fontFamily + "!important;",
       "}",
-      "#macTslAdmin th,#macTslAdmin td,#macTslSchedule th,#macTslSchedule td,#macTslMatches th,#macTslMatches td{",
+      "#macTslAdmin th,#macTslAdmin td,#macTslSchedule th,#macTslSchedule td,#macTslMatches th,#macTslMatches td,#macTslFlightsCard th,#macTslFlightsCard td{",
       "padding:" + tdCs.padding + "!important;",
       "}",
-      "#macTslAdmin th,#macTslSchedule th,#macTslMatches th{font-weight:" + thCs.fontWeight + "!important;}"
+      "#macTslAdmin th,#macTslSchedule th,#macTslMatches th,#macTslFlightsCard th{font-weight:" + thCs.fontWeight + "!important;}"
     ].join("");
   }
 
@@ -2399,9 +2406,72 @@
     });
   }
 
-  function insertTeamsCard() {
+  function flightOneRows() {
+    var boats = (state.boats || []).slice();
+    if (!boats.length) {
+      boats = [
+        { colour: "Blue", boat_no: 1 },
+        { colour: "Blue", boat_no: 2 },
+        { colour: "Blue", boat_no: 3 },
+        { colour: "Green", boat_no: 1 },
+        { colour: "Green", boat_no: 2 },
+        { colour: "Green", boat_no: 3 }
+      ];
+    }
+    var m = (state.matches || []).filter(function (x) {
+      return String(x.flight || x.round_label || "").toLowerCase().indexOf("flight 1") >= 0 ||
+        String(x.flight || "") === "1" ||
+        Number(x.match_no) === 1;
+    })[0] || null;
+    var blueTeam = m ? teamById(m.team_a_id || m.blue_team_id) : null;
+    var greenTeam = m ? teamById(m.team_b_id || m.green_team_id) : null;
+    return boats.map(function (b) {
+      var colour = String(b.colour || "");
+      var team = /green/i.test(colour) ? greenTeam : blueTeam;
+      return {
+        rank: "",
+        bow: b.bow_number || b.boat_no || "",
+        colour: colour,
+        team: team
+      };
+    });
+  }
+
+  function flightsCardHtml() {
+    var rows = "";
+    flightOneRows().forEach(function (r) {
+      var colourClass = /green/i.test(r.colour) ? "tsl-green" : (/blue/i.test(r.colour) ? "tsl-blue" : "");
+      var teamHtml = r.team ? clubCell(r.team) : "";
+      rows += "<tr>" +
+        '<td class="rank-col">' + esc(r.rank) + "</td>" +
+        "<td>" + esc(r.bow) + "</td>" +
+        "<td" + (colourClass ? ' class="' + colourClass + '"' : "") + ">" + esc(r.colour) + "</td>" +
+        '<td class="club-col">' + teamHtml + "</td></tr>";
+    });
+    return '<div class="fleet-title-row">Flights</div>' +
+      '<div class="card tsl-flight-card">' +
+      '<div class="tsl-flight-head">Flight 1</div>' +
+      '<div class="table-wrapper"><table class="fleet-results-table">' +
+      "<thead><tr><th class=\"rank-col\">Rank</th><th>Bow no</th><th>Colour</th><th class=\"club-col\">Team</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody></table></div></div>";
+  }
+
+  function insertFlightsCard() {
     var gold = document.getElementById("macTslGoldSheet");
     if (!gold || !gold.parentNode) return;
+    var card = document.getElementById("macTslFlightsCard");
+    if (!card) {
+      card = document.createElement("div");
+      card.id = "macTslFlightsCard";
+      card.setAttribute("class", "card");
+    }
+    card.innerHTML = flightsCardHtml();
+    if (gold.nextSibling !== card) gold.parentNode.insertBefore(card, gold.nextSibling);
+  }
+
+  function insertTeamsCard() {
+    var after = document.getElementById("macTslFlightsCard") || document.getElementById("macTslGoldSheet");
+    if (!after || !after.parentNode) return;
     var card = document.getElementById("macTslTeamsCard");
     if (!card) {
       card = document.createElement("div");
@@ -2410,7 +2480,7 @@
     }
     card.innerHTML = teamCardsHtml();
     wireTeamCardClicks(card);
-    if (gold.nextSibling !== card) gold.parentNode.insertBefore(card, gold.nextSibling);
+    if (after.nextSibling !== card) after.parentNode.insertBefore(card, after.nextSibling);
     requestAnimationFrame(function () { fitTeamCardTables(); });
   }
 
@@ -2616,6 +2686,7 @@
     injectMButtons();
     applyStandingsTable();
     insertGoldRaceTable();
+    insertFlightsCard();
     insertTeamsCard();
     renderTeams();
     renderSchedule();

@@ -136,7 +136,8 @@ Known teams so far (seed as entry rows, rank NULL, no races):
 https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing
 
 - **Who:** Super Admin (`regatta-sa-toolbar.js` already on the Event URL). Club manager later if MAC has one.
-- **TEAMS** card sits at the bottom of the Event URL in SA edit mode. Club and sailor fields are searchable dropdowns against existing `clubs` / `sas_id_personal`. Team name defaults to the club name and must stay unique on the event (second club team = a different name, not invented sailors).
+- **Flights** card sits between the Fleet gold table and the Teams card. Heading **Flights**, inner **Flight 1** table: Rank | Bow no | Colour | Team.
+- **TEAMS** card sits below Flights. Club and sailor fields are searchable dropdowns against existing `clubs` / `sas_id_personal`. Team name defaults to the club name and must stay unique on the event (second club team = a different name, not invented sailors).
 - **M+ / M−** sit on the existing TSL fleet header (same slot as Cape Classic R+ / R−). They create/remove `tsl_event_matches` only. Dart 18 / Midmar / Appendix A `club-score-edit.js` is **not** loaded here.
 - **Match entry** card is below the overall results table: Team A / Team B dropdowns (registered teams only), Blue/Green colours, three boats each with bow / sail / helm / crew / place / penalty. Helm and crew lists are that team’s master roster only.
 - **Save match once** scores Appendix D3 (lowest total wins), then rewrites the existing results table cells to W / L / — and recalculates standings. Official override requires a reason and is audited.
