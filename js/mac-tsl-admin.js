@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014u";
+  var JS_VER = "20261014v";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -178,7 +178,7 @@
       "#macTslFlightsCard .tsl-flight-team{display:inline-block;min-width:6em}",
       "#macTslFlightsCard .tsl-flight-team-hit,#macTslFlightsCard .tsl-flight-sail-hit{display:inline-flex;align-items:center;gap:4px;border:none;background:none;padding:0;margin:0;color:#1a2750;font:inherit;cursor:default;white-space:nowrap}",
       ".regatta-page--super-admin-edit #macTslFlightsCard .tsl-flight-team-hit,.regatta-page--super-admin-edit #macTslFlightsCard .tsl-flight-sail-hit{cursor:pointer}",
-      "#macTslFlightsCard .tsl-rank,#macTslFlightsCard input.tsl-rank{width:2.8em;min-width:2.2em;max-width:3.4em;height:auto;min-height:0!important;padding:0!important;margin:0;border:none;border-radius:0;background:transparent;text-align:center;font:inherit;font-size:inherit;line-height:inherit;color:#1a2750;box-sizing:border-box}",
+      "#macTslFlightsCard .tsl-rank,#macTslFlightsCard input.tsl-rank{width:4.4em;min-width:3.6em;max-width:5.2em;height:auto;min-height:0!important;padding:0!important;margin:0;border:none;border-radius:0;background:transparent;text-align:center;font:inherit;font-size:inherit;line-height:inherit;color:#1a2750;box-sizing:border-box}",
       "#macTslFlightsCard .tsl-flight-note{margin-top:12px}",
       "#macTslFlightsCard .tsl-flight-note .tsl-wl{text-align:center;font-weight:bold}",
       "#macTslFlightsCard .tsl-flight-card.tsl-flight-shut .tsl-flight-note{display:none}",
@@ -797,13 +797,21 @@
     });
   }
 
+  function flightsSailedCount() {
+    var n = 0;
+    var fl;
+    for (fl = 1; fl <= MAX_FLIGHTS; fl += 1) {
+      if (flightDone(fl)) n += 1;
+    }
+    return n;
+  }
+
   function tidyFleetHeader() {
     var line = fleetSection() && fleetSection().querySelector(".sailed-line");
-    if (!line || line.getAttribute("data-tsl-tidy")) return;
-    line.setAttribute("data-tsl-tidy", "1");
-    line.textContent = String(line.textContent || "")
-      .replace(/\s*,\s*Discards:\s*[^,]+/i, "")
-      .replace(/\s*,\s*To count:\s*[^,]+/i, "");
+    if (!line) return;
+    line.textContent = "Flights: " + flightsSailedCount() +
+      ", Entries (Teams): " + (state.teams || []).length +
+      ", Scoring System: TSL";
   }
 
   function headerLabel(th) {
@@ -866,8 +874,13 @@
   function parseFlightRank(raw) {
     if (raw == null || raw === "") return null;
     if (typeof raw === "number" && raw >= 1 && raw <= FLIGHT_BOATS) return raw;
-    var s = String(raw).trim().toUpperCase();
+    var s = String(raw).trim().toUpperCase().replace(/\s+/g, " ");
     if (!s) return null;
+    var pts = String(FLIGHT_CODE_POINTS);
+    if (s.indexOf(pts) === 0) {
+      var rest = s.slice(pts.length).trim();
+      if (FLIGHT_RANK_CODES[rest]) return rest;
+    }
     if (FLIGHT_RANK_CODES[s]) return s;
     if (/^[1-6]$/.test(s)) return Number(s);
     return undefined;
@@ -883,7 +896,8 @@
   function flightRankLabel(rank) {
     var parsed = parseFlightRank(rank);
     if (parsed == null) return "";
-    return String(parsed);
+    if (typeof parsed === "number") return String(parsed);
+    return FLIGHT_CODE_POINTS + " " + parsed;
   }
 
   function hasFlightRank(rank) {
@@ -2958,11 +2972,11 @@
   }
 
   function flightRankCell(n, bow, rank) {
-    if (!isSaEdit()) return esc(rank || "");
+    if (!isSaEdit()) return esc(flightRankLabel(rank));
     if (!flightLineReady(n, bow)) {
-      return '<span class="tsl-rank-wait" title="Colour, team and sailors first">' + esc(rank || "") + "</span>";
+      return '<span class="tsl-rank-wait" title="Colour, team and sailors first">' + esc(flightRankLabel(rank)) + "</span>";
     }
-    return '<input class="wc-result-field-input tsl-rank" type="text" maxlength="3" data-flight="' +
+    return '<input class="wc-result-field-input tsl-rank" type="text" maxlength="6" data-flight="' +
       n + '" data-bow="' + bow + '" value="' + esc(flightRankLabel(rank)) +
       '" aria-label="Rank" title="1–6 or DNC DNS DNF RET DSQ OCS BFD UFD DPI NSC DNE" />';
   }

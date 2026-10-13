@@ -1525,9 +1525,14 @@ def _parse_flight_rank(raw):
         return None
     if isinstance(raw, int):
         return raw if 1 <= raw <= FLIGHT_BOATS else None
-    s = str(raw).strip().upper()
+    s = " ".join(str(raw).strip().upper().split())
     if not s:
         return None
+    pts = str(FLIGHT_CODE_POINTS)
+    if s.startswith(pts):
+        rest = s[len(pts) :].strip()
+        if rest in FLIGHT_RANK_CODES:
+            return rest
     if s in FLIGHT_RANK_CODES:
         return s
     try:
