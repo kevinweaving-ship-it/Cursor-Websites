@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013r";
+  var JS_VER = "20261013s";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -1164,14 +1164,26 @@
   }
 
   function saveSlotSex(teamId, boat, role, sex) {
+    var letter = sex === "F" ? "F" : "M";
     var team = teamById(teamId);
-    if (!team) return;
-    var boats = rosterBoats(team);
-    var idx = Number(boat) - 1;
-    if (!boats[idx]) return;
-    if (!boats[idx][role]) boats[idx][role] = emptyPerson();
-    boats[idx][role].sex = sex === "F" ? "F" : "M";
-    return saveBoats(team, boats);
+    if (team) {
+      var boats = rosterBoats(team);
+      var idx = Number(boat) - 1;
+      if (boats[idx]) {
+        if (!boats[idx][role]) boats[idx][role] = emptyPerson();
+        boats[idx][role].sex = letter;
+      }
+    }
+    return api("/api/tsl/" + encodeURIComponent(RID) + "/teams/" + encodeURIComponent(teamId) + "/slot-sex", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ boat: Number(boat) || 1, role: role, sex: letter })
+    }).then(function () { return loadState(); }).catch(function (e) {
+      var btn = document.querySelector(
+        '.tsl-sex[data-team-id="' + teamId + '"][data-boat="' + boat + '"][data-role="' + role + '"]'
+      );
+      if (btn) btn.title = e.message || "Save failed";
+    });
   }
 
   function applyPickedSailor(sailor, role) {

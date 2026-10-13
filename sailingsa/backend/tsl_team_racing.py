@@ -1676,7 +1676,7 @@ def register_tsl_routes(
     column_exists: Optional[Callable] = None,
 ) -> None:
     """Mount TSL endpoints on the existing FastAPI app. Live-safe extra routes only."""
-    from fastapi import HTTPException as _HTTP
+    from fastapi import Body, HTTPException as _HTTP, Request
     try:
         from psycopg2.extras import RealDictCursor
     except ImportError:
@@ -1721,7 +1721,7 @@ def register_tsl_routes(
             return_db_connection(conn)
 
     @app.get("/api/tsl/{regatta_id}/clubs-search")
-    def api_tsl_clubs_search(request, regatta_id: str, q: str = "", limit: int = 40):
+    def api_tsl_clubs_search(request: Request, regatta_id: str, q: str = "", limit: int = 40):
         _sa(request)
         _rid(regatta_id)
         conn = get_db_connection()
@@ -1734,7 +1734,7 @@ def register_tsl_routes(
 
     @app.get("/api/tsl/{regatta_id}/sailors-search")
     def api_tsl_sailors_search(
-        request,
+        request: Request,
         regatta_id: str,
         q: str = "",
         club: str = "",
@@ -1762,7 +1762,7 @@ def register_tsl_routes(
             return_db_connection(conn)
 
     @app.post("/api/tsl/{regatta_id}/teams")
-    def api_tsl_team_create(request, regatta_id: str, body: dict):
+    def api_tsl_team_create(request: Request, regatta_id: str, body: dict = Body(default={})):
         _sa(request)
         rid = _rid(regatta_id)
         conn = get_db_connection()
@@ -1783,7 +1783,7 @@ def register_tsl_routes(
             return_db_connection(conn)
 
     @app.patch("/api/tsl/{regatta_id}/teams/{team_id}")
-    def api_tsl_team_patch(request, regatta_id: str, team_id: int, body: dict):
+    def api_tsl_team_patch(request: Request, regatta_id: str, team_id: int, body: dict = Body(default={})):
         _sa(request)
         rid = _rid(regatta_id)
         payload = dict(body or {})
@@ -1805,8 +1805,55 @@ def register_tsl_routes(
             cur.close()
             return_db_connection(conn)
 
+    @app.patch("/api/tsl/{regatta_id}/teams/{team_id}/slot-sex")
+    def api_tsl_slot_sex(request: Request, regatta_id: str, team_id: int, body: dict = Body(default={})):
+        _sa(request)
+        _rid(regatta_id)
+        payload = dict(body or {})
+        boat = int(payload.get("boat") or 0)
+        role = str(payload.get("role") or "").strip().lower()
+        sex = _sex_letter(payload.get("sex"))
+        if boat < 1 or boat > BOATS_PER_TEAM or role not in ("helm", "crew") or sex not in ("M", "F"):
+            raise _HTTP(status_code=400, detail="boat, role, and sex required")
+        col = "helm_sex" if role == "helm" else "crew_sex"
+        sas_col = "helm_sas_id" if role == "helm" else "crew_sas_id"
+        conn = get_db_connection()
+        cur = _cur(conn)
+        try:
+            ensure_schema(cur)
+            cur.execute(
+                "SELECT team_id FROM public.tsl_event_teams WHERE team_id = %s AND regatta_id = %s",
+                (int(team_id), str(regatta_id)),
+            )
+            if not cur.fetchone():
+                raise ValueError("Team not found")
+            cur.execute(
+                f"""
+                INSERT INTO public.tsl_event_team_boats (team_id, boat_no, {col})
+                VALUES (%s, %s, %s)
+                ON CONFLICT (team_id, boat_no)
+                DO UPDATE SET {col} = EXCLUDED.{col}
+                RETURNING {sas_col} AS sas_id
+                """,
+                (int(team_id), boat, sex),
+            )
+            row = cur.fetchone() or {}
+            sas_id = str((row.get("sas_id") if isinstance(row, dict) else "") or "")
+            _save_sailor_sex(cur, sas_id, sex)
+            conn.commit()
+            return {"ok": True, "boat": boat, "role": role, "sex": sex}
+        except ValueError as e:
+            conn.rollback()
+            raise _HTTP(status_code=400, detail=str(e))
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+            return_db_connection(conn)
+
     @app.delete("/api/tsl/{regatta_id}/teams/{team_id}")
-    def api_tsl_team_delete(request, regatta_id: str, team_id: int):
+    def api_tsl_team_delete(request: Request, regatta_id: str, team_id: int):
         _sa(request)
         rid = _rid(regatta_id)
         conn = get_db_connection()
@@ -1826,7 +1873,7 @@ def register_tsl_routes(
             return_db_connection(conn)
 
     @app.post("/api/tsl/{regatta_id}/matches")
-    def api_tsl_match_create(request, regatta_id: str, body: dict = None):
+    def api_tsl_match_create(request: Request, regatta_id: str, body: dict = Body(default={})):
         _sa(request)
         rid = _rid(regatta_id)
         conn = get_db_connection()
@@ -1847,7 +1894,7 @@ def register_tsl_routes(
             return_db_connection(conn)
 
     @app.delete("/api/tsl/{regatta_id}/matches/last")
-    def api_tsl_match_delete_last(request, regatta_id: str, confirm: bool = False):
+    def api_tsl_match_delete_last(request: Request, regatta_id: str, confirm: bool = False):
         _sa(request)
         rid = _rid(regatta_id)
         conn = get_db_connection()
@@ -1870,7 +1917,7 @@ def register_tsl_routes(
             return_db_connection(conn)
 
     @app.patch("/api/tsl/{regatta_id}/matches/{match_id}")
-    def api_tsl_match_save(request, regatta_id: str, match_id: int, body: dict):
+    def api_tsl_match_save(request: Request, regatta_id: str, match_id: int, body: dict = Body(default={})):
         _sa(request)
         rid = _rid(regatta_id)
         conn = get_db_connection()
@@ -1890,7 +1937,7 @@ def register_tsl_routes(
             return_db_connection(conn)
 
     @app.patch("/api/tsl/{regatta_id}/boats")
-    def api_tsl_boats_save(request, regatta_id: str, body: dict):
+    def api_tsl_boats_save(request: Request, regatta_id: str, body: dict = Body(default={})):
         _sa(request)
         rid = _rid(regatta_id)
         conn = get_db_connection()
@@ -1911,7 +1958,7 @@ def register_tsl_routes(
             return_db_connection(conn)
 
     @app.post("/api/tsl/{regatta_id}/schedule")
-    def api_tsl_schedule(request, regatta_id: str, body: dict):
+    def api_tsl_schedule(request: Request, regatta_id: str, body: dict = Body(default={})):
         _sa(request)
         rid = _rid(regatta_id)
         from sailingsa.backend.tsl_schedule import FORMAT_FLIGHTS16, FORMAT_RR28, generate_flights16, generate_rr_matches
