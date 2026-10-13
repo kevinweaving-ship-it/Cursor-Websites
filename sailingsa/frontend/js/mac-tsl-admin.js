@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013y";
+  var JS_VER = "20261013z";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -148,23 +148,19 @@
       "#macTslTeamsCard .tsl-move{display:none;width:18px;height:18px;margin:0 4px 0 0;padding:0;border:none;background:url(/js/tsl-move-pad.png) center/contain no-repeat;vertical-align:middle;flex:0 0 auto;cursor:pointer}",
       ".regatta-page--super-admin-edit #macTslTeamsCard .tsl-move{display:inline-block}",
       ".regatta-page--super-admin-edit #macTslTeamsCard .tsl-sailor-name{cursor:pointer}",
-      "#macTslTeamsCard #tslNamePop{position:absolute;z-index:90;display:flex;flex-direction:column;gap:4px;margin:0;padding:6px 8px;border:2px solid #1a2750;border-radius:8px;background:#fff;width:max-content;max-width:min(36em,calc(100% - 16px));box-sizing:border-box}",
-      "#macTslTeamsCard #tslNamePop[hidden]{display:none}",
-      "#macTslTeamsCard .tsl-pop-row{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}",
-      "#macTslTeamsCard .tsl-pop-arrow{width:22px;height:16px;border:none;padding:0;margin:0;background:url(/js/tsl-swap-left.png) center/contain no-repeat;cursor:pointer;flex:0 0 auto}",
-      "#macTslTeamsCard #tslPopSearch{min-width:8em;max-width:11em}",
-      "#macTslTeamsCard #tslPopSave{padding:2px 8px;min-height:0;line-height:1.2}",
-      "#macTslTeamsCard #tslPopList{position:relative;z-index:91;margin:0;padding:0;list-style:none;max-height:160px;min-width:12em;overflow-y:auto;background:#fff;border:1px solid #1d294d}",
-      "#macTslTeamsCard #tslPopList li{margin:0;padding:4px 6px;cursor:pointer;color:#1a2750}",
-      "#macTslTeamsCard #tslPopList li:hover{background:#e9eefb}",
-      "#macTslTeamsCard .tsl-pop-hit,#macTslTeamsCard .tsl-pop-sailor{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}",
-      "#macTslTeamsCard .tsl-pop-sep{margin:0 2px}",
-      "@media (max-width:768px) and (orientation:portrait){",
-      "#macTslTeamsCard #tslNamePop{position:fixed;left:8px;right:8px;top:16%;width:auto;max-width:none;z-index:200}",
-      "#macTslTeamsCard .tsl-pop-row{flex-wrap:wrap}",
-      "#macTslTeamsCard #tslPopSearch{font-size:16px!important;line-height:1.25!important;min-width:0;max-width:none;flex:1 1 100%;width:100%}",
-      "#macTslTeamsCard #tslPopList{min-width:0;width:100%;max-height:40vh}",
-      "}",
+      "#tslNamePop{position:fixed;left:8px;right:8px;top:16%;z-index:400;display:flex;flex-direction:column;gap:6px;margin:0 auto;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff;width:auto;max-width:28em;box-sizing:border-box;overflow:visible}",
+      "#tslNamePop[hidden]{display:none}",
+      "#tslNamePop .tsl-pop-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}",
+      "#tslNamePop .tsl-pop-arrow{width:22px;height:16px;border:none;padding:0;margin:0;background:url(/js/tsl-swap-left.png) center/contain no-repeat;cursor:pointer;flex:0 0 auto}",
+      "#tslNamePop #tslPopSearch{font-size:16px!important;line-height:1.25!important;min-width:8em;flex:1 1 10em;max-width:100%}",
+      "#tslNamePop #tslPopSave{padding:2px 8px;min-height:0;line-height:1.2}",
+      "#tslNamePop #tslPopList{display:block;position:relative;z-index:401;margin:0;padding:0;list-style:none;max-height:40vh;overflow-y:auto;background:#fff;border:1px solid #1d294d}",
+      "#tslNamePop #tslPopList[hidden]{display:none}",
+      "#tslNamePop #tslPopList li{margin:0;padding:4px 6px;cursor:pointer;color:#1a2750}",
+      "#tslNamePop #tslPopList li:hover{background:#e9eefb}",
+      "#tslNamePop .tsl-pop-hit,#tslNamePop .tsl-pop-sailor{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}",
+      "#tslNamePop .tsl-pop-sep{margin:0 2px}",
+      "#tslNamePop #tslPopMsg{display:block;color:#1a2750;margin:0}",
       "#macTslTeamsCard .tsl-role-btn[disabled]{cursor:default;text-decoration:none}",
       "#macTslTeamsCard .tsl-role-on{text-decoration:underline}",
       "#macTslTeamsCard #tslSlotPick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff;max-width:100%;box-sizing:border-box}",
@@ -1179,8 +1175,20 @@
       "</span>";
   }
 
-  function isMpPop() {
-    return !!(window.matchMedia && window.matchMedia("(max-width:768px) and (orientation: portrait)").matches);
+  function spaceCamel(q) {
+    return String(q || "")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function filterHits(rows, tokens) {
+    if (!tokens.length) return rows;
+    return (rows || []).filter(function (s) {
+      var hay = [s.first_name, s.last_name, s.name, s.sas_id, s.club].join(" ").toLowerCase();
+      return tokens.every(function (t) { return hay.indexOf(t) !== -1; });
+    });
   }
 
   function normalizeSearchHit(it) {
@@ -1224,6 +1232,56 @@
       '<span class="tsl-msg" id="tslPopMsg"></span></div>';
   }
 
+  function bindNamePopControls() {
+    if (!document._tslPopSearchDel) {
+      var searchT = 0;
+      document.addEventListener("input", function (e) {
+        if (!e.target || e.target.id !== "tslPopSearch") return;
+        var q = e.target.value;
+        clearTimeout(searchT);
+        searchT = setTimeout(function () { runPopSearch(q); }, 80);
+      });
+      document._tslPopSearchDel = true;
+    }
+    if (!document._tslNamePopDoc) {
+      document.addEventListener("click", function (e) {
+        var box = document.getElementById("tslNamePop");
+        if (!box || box.hidden) return;
+        if (box.contains(e.target)) return;
+        if (e.target.closest && e.target.closest(".tsl-sailor-name")) return;
+        closeNamePop();
+      });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") closeNamePop();
+      });
+      document._tslNamePopDoc = true;
+    }
+    var popArrow = document.getElementById("tslPopArrow");
+    if (popArrow && !popArrow._tslBound) {
+      popArrow.addEventListener("click", swapNamePopSides);
+      popArrow._tslBound = true;
+    }
+    var popSave = document.getElementById("tslPopSave");
+    if (popSave && !popSave._tslBound) {
+      popSave.addEventListener("click", saveNameReplace);
+      popSave._tslBound = true;
+    }
+  }
+
+  function ensureNamePop() {
+    var pop = document.getElementById("tslNamePop");
+    if (!pop) {
+      var wrap = document.createElement("div");
+      wrap.innerHTML = namePopHtml();
+      pop = wrap.firstChild;
+      document.body.appendChild(pop);
+    } else if (pop.parentNode !== document.body) {
+      document.body.appendChild(pop);
+    }
+    bindNamePopControls();
+    return pop;
+  }
+
   function closeNamePop() {
     var pop = document.getElementById("tslNamePop");
     if (pop) pop.hidden = true;
@@ -1250,10 +1308,7 @@
       if (list) { list.hidden = true; list.innerHTML = ""; }
     } else {
       if (right) { right.hidden = true; right.innerHTML = ""; }
-      if (searchWrap) {
-        searchWrap.parentNode.hidden = false;
-        searchWrap.value = "";
-      }
+      if (searchWrap) searchWrap.parentNode.hidden = false;
       if (save) save.hidden = true;
     }
   }
@@ -1276,22 +1331,40 @@
     pickState.selected = null;
     pickState.replacement = null;
     pickState.swapped = false;
-    var pop = document.getElementById("tslNamePop");
-    var card = document.getElementById("macTslTeamsCard");
-    if (!pop || !card) return;
+    var pop = ensureNamePop();
+    if (!pop) return;
     refreshNamePop();
-    pop.hidden = false;
-    if (isMpPop()) {
-      pop.style.left = "";
-      pop.style.top = "";
-    } else {
-      var ar = el.getBoundingClientRect();
-      var cr = card.getBoundingClientRect();
-      pop.style.left = Math.max(8, ar.left - cr.left) + "px";
-      pop.style.top = Math.max(8, ar.top - cr.top) + "px";
-    }
     var search = document.getElementById("tslPopSearch");
+    if (search) search.value = "";
+    showPopSearch([]);
+    var msg = document.getElementById("tslPopMsg");
+    if (msg) msg.textContent = "Type a name";
+    pop.hidden = false;
     if (search) search.focus();
+  }
+
+  function runPopSearch(raw) {
+    var msg = document.getElementById("tslPopMsg");
+    var q = spaceCamel(raw);
+    var tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+    if (q.length < 2) {
+      showPopSearch([]);
+      if (msg) msg.textContent = q ? "Type a name" : "Type a name";
+      return;
+    }
+    if (msg) msg.textContent = "Searching…";
+    var fetchQ = tokens[0] && tokens[0].length >= 2 ? tokens[0] : q;
+    api("/api/search?q=" + encodeURIComponent(fetchQ) + "&hub=1&limit=80")
+      .then(function (d) {
+        var rows = (Array.isArray(d) ? d : ((d && d.sailors) || [])).map(normalizeSearchHit);
+        var hits = filterHits(rows, tokens);
+        showPopSearch(hits);
+        if (msg) msg.textContent = hits.length ? "" : "No sailors found.";
+      })
+      .catch(function (e) {
+        if (msg) msg.textContent = (e && e.message) || "Search failed";
+        showPopSearch([]);
+      });
   }
 
   function showPopSearch(items) {
@@ -1301,7 +1374,6 @@
     list.innerHTML = "";
     if (!items.length) {
       list.hidden = true;
-      if (msg && !msg.textContent) msg.textContent = "No sailors found.";
       return;
     }
     if (msg) msg.textContent = "";
@@ -1687,7 +1759,7 @@
         teamHead(t) +
         teamRosterTable(t) + "</div>";
     });
-    return '<div class="fleet-title-row">Teams</div><div class="tsl-team-cards">' + inner + "</div>" + namePopHtml() + pickPanelHtml();
+    return '<div class="fleet-title-row">Teams</div><div class="tsl-team-cards">' + inner + "</div>" + pickPanelHtml();
   }
 
   function wireTeamCardClicks(card) {
@@ -1711,51 +1783,7 @@
         openNameReplace(el);
       });
     });
-    var popSearch = document.getElementById("tslPopSearch");
-    if (popSearch && !popSearch._tslBound) {
-      var searchT = 0;
-      popSearch.addEventListener("input", function () {
-        var q = popSearch.value.trim();
-        var msg = document.getElementById("tslPopMsg");
-        if (msg) msg.textContent = "";
-        clearTimeout(searchT);
-        searchT = setTimeout(function () {
-          if (q.length < 2) { showPopSearch([]); if (msg) msg.textContent = ""; return; }
-          api("/api/search?q=" + encodeURIComponent(q) + "&hub=1&limit=40")
-            .then(function (d) {
-              var rows = Array.isArray(d) ? d : ((d && d.sailors) || []);
-              showPopSearch(rows.map(normalizeSearchHit));
-            })
-            .catch(function (e) {
-              if (msg) msg.textContent = (e && e.message) || "Search failed";
-              showPopSearch([]);
-            });
-        }, 120);
-      });
-      popSearch._tslBound = true;
-    }
-    if (!document._tslNamePopDoc) {
-      document.addEventListener("click", function (e) {
-        var pop = document.getElementById("tslNamePop");
-        if (!pop || pop.hidden) return;
-        if (pop.contains(e.target)) return;
-        closeNamePop();
-      });
-      document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") closeNamePop();
-      });
-      document._tslNamePopDoc = true;
-    }
-    var popArrow = document.getElementById("tslPopArrow");
-    if (popArrow && !popArrow._tslBound) {
-      popArrow.addEventListener("click", swapNamePopSides);
-      popArrow._tslBound = true;
-    }
-    var popSave = document.getElementById("tslPopSave");
-    if (popSave && !popSave._tslBound) {
-      popSave.addEventListener("click", saveNameReplace);
-      popSave._tslBound = true;
-    }
+    bindNamePopControls();
     card.querySelectorAll(".tsl-move").forEach(function (btn) {
       btn.addEventListener("mousedown", function (e) { e.preventDefault(); });
       btn.addEventListener("click", function (e) {
