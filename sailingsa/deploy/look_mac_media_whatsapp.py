@@ -9,10 +9,12 @@ import time
 import urllib.request
 from pathlib import Path
 
-GROUPS = Path("/opt/arial-whatsapp-poc/state/event-whatsapp/groups.json")
-HEALTH = Path("/opt/arial-whatsapp-poc/state/health.json")
-ENV = Path("/etc/arial-whatsapp-poc.env")
+GROUPS = Path("/opt/sailingsa-whatsapp-poc/state/event-whatsapp/groups.json")
+HEALTH = Path("/opt/sailingsa-whatsapp-poc/state/health.json")
+ENV = Path("/etc/sailingsa-whatsapp-poc.env")
 RID = "2026-10-17-mac-tsl-wc-team-sailing"
+LOOK_URL = "http://127.0.0.1:8012/refresh-groups"
+SAILING_BOX = "27683934779"
 
 
 def env_token() -> str:
@@ -33,7 +35,7 @@ def wa_up() -> bool:
 
 def refresh(token: str) -> dict:
     req = urllib.request.Request(
-        "http://127.0.0.1:8009/refresh-groups",
+        LOOK_URL,
         data=b"{}",
         headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
         method="POST",
@@ -54,6 +56,8 @@ def is_mac_media(name: str) -> bool:
     s = (name or "").lower()
     if "mac" in s and "media" in s:
         return True
+    if "ssl" in s and "mac" in s:
+        return True
     if "tsl" in s and "media" in s:
         return True
     if "team sailing" in s and "media" in s:
@@ -66,8 +70,8 @@ def bind(jid: str, subject: str) -> None:
     subject = subject.replace("'", "''")
     sql = (
         "UPDATE event_whatsapp_groups SET group_jid = '%s', group_name = COALESCE(NULLIF('%s',''), group_name), "
-        "monitor_number = COALESCE(NULLIF(monitor_number,''), '27762639937'), "
-        "display_number = COALESCE(NULLIF(display_number,''), '27762639937') "
+        "monitor_number = COALESCE(NULLIF(monitor_number,''), '" + SAILING_BOX + "'), "
+        "display_number = COALESCE(NULLIF(display_number,''), '" + SAILING_BOX + "') "
         "WHERE regatta_id = '%s' AND (group_jid IS NULL OR btrim(group_jid) = '');"
     ) % (jid, subject, RID)
     subprocess.check_call(["sudo", "-u", "postgres", "psql", "-d", "sailors_master", "-c", sql])
