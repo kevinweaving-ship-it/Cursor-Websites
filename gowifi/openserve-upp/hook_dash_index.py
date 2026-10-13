@@ -11,6 +11,7 @@ INCOMING_MARKER = "gowifi-incoming-fibre-hook"
 CLIENTS_MARKER = "gowifi-simple-clients-hook"
 INVOICES_MARKER = "gowifi-invoice-list-hook"
 UNIFI_MARKER = "gowifi-unifi-dash-hook"
+UISP_1X_MARKER = "gowifi-uisp-1x-hook"
 THEME_MARKER = "gowifi-light-theme"
 OUTAGE_MARKER = "gowifi-outages-online-out"
 THEME_CSS = f"""<style id="{THEME_MARKER}">
@@ -230,6 +231,58 @@ def _ensure_unifi(text: str) -> str:
     return text
 
 
+def _ensure_uisp_1x(text: str) -> str:
+    if UISP_1X_MARKER not in text:
+        hook = (
+            f"function uisp1xPage(){{ /* {UISP_1X_MARKER} */\n"
+            '  location.replace("/dash/uisp-1x.html");\n'
+            "}\n"
+        )
+        if "function unifiPage" in text:
+            text = text.replace("function unifiPage", hook + "function unifiPage", 1)
+        elif "function invoicesPage" in text:
+            text = text.replace("function invoicesPage", hook + "function invoicesPage", 1)
+        elif "function clientsPage" in text:
+            text = text.replace("function clientsPage", hook + "function clientsPage", 1)
+        else:
+            text = text.replace("let DATA=null;", hook + "let DATA=null;", 1)
+    if 'if(h==="/uisp-1x")' not in text:
+        if 'if(h==="/unifi")' in text:
+            text = text.replace(
+                'if(h==="/unifi"){ unifiPage(); return; }',
+                'if(h==="/uisp-1x"){ uisp1xPage(); return; }\n    if(h==="/unifi"){ unifiPage(); return; }',
+                1,
+            )
+        elif 'if(h==="/invoices")' in text:
+            text = text.replace(
+                'if(h==="/invoices"){ invoicesPage(); return; }',
+                'if(h==="/uisp-1x"){ uisp1xPage(); return; }\n    if(h==="/invoices"){ invoicesPage(); return; }',
+                1,
+            )
+    if 'href="/dash/uisp-1x.html"' not in text:
+        if 'href="/dash/unifi.html"' in text:
+            text = text.replace(
+                '    <a class="card tap" href="/dash/unifi.html"',
+                '    <a class="card tap" href="/dash/uisp-1x.html" style="display:block;margin-bottom:10px">\n'
+                '      <div class="row"><span class="name">UISP 1.x</span><span class="pill ok">console</span></div>\n'
+                '      <div class="meta">VK console · IPs it serves on 192.168.1.x · live rx/tx</div>\n'
+                "    </a>\n"
+                '    <a class="card tap" href="/dash/unifi.html"',
+                1,
+            )
+        elif 'href="/dash/invoices.html"' in text:
+            text = text.replace(
+                '    <a class="card tap" href="/dash/invoices.html"',
+                '    <a class="card tap" href="/dash/uisp-1x.html" style="display:block;margin-bottom:10px">\n'
+                '      <div class="row"><span class="name">UISP 1.x</span><span class="pill ok">console</span></div>\n'
+                '      <div class="meta">VK console · IPs it serves on 192.168.1.x · live rx/tx</div>\n'
+                "    </a>\n"
+                '    <a class="card tap" href="/dash/invoices.html"',
+                1,
+            )
+    return text
+
+
 def _strip_block(text: str, start_needle: str) -> str:
     start = text.find(start_needle)
     if start < 0:
@@ -367,6 +420,15 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK unifi-hook")
+    one_x = _ensure_uisp_1x(u)
+    if UISP_1X_MARKER not in one_x or 'href="/dash/uisp-1x.html"' not in one_x:
+        print("FAIL uisp-1x-hook-missing")
+        failed += 1
+    elif 'href="/dash/unifi.html"' not in one_x:
+        print("FAIL uisp-1x-ate-unifi")
+        failed += 1
+    else:
+        print("OK uisp-1x-hook")
     return failed
 
 
@@ -378,6 +440,7 @@ def main() -> int:
     text = _ensure_clients(text)
     text = _ensure_invoices(text)
     text = _ensure_unifi(text)
+    text = _ensure_uisp_1x(text)
     text = _ensure_incoming(text)
     text = _ensure_outages(text)
     if text == original:
@@ -387,7 +450,7 @@ def main() -> int:
         _backup(INDEX)
     INDEX.write_text(text)
     print(f"hooked {INDEX}")
-    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER, CLIENTS_MARKER, INVOICES_MARKER, UNIFI_MARKER, THEME_MARKER, OUTAGE_MARKER) if m not in text]
+    missing = [m for m in (ACCOUNTS_MARKER, INCOMING_MARKER, CLIENTS_MARKER, INVOICES_MARKER, UNIFI_MARKER, UISP_1X_MARKER, THEME_MARKER, OUTAGE_MARKER) if m not in text]
     if missing:
         print("WARN missing", missing)
         return 1

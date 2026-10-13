@@ -23,6 +23,7 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$SRC/dash/invoice.html" \
   "$SRC/dash/invoices.html" \
   "$SRC/dash/unifi.html" \
+  "$SRC/dash/uisp-1x.html" \
   "$BOX:/home/user-data/www/default/dash/"
 "${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp/legal"
 "${SCP[@]}" -r "$SRC/legal/." "$BOX:/root/gowifi-upp/legal/"
@@ -35,21 +36,21 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$SRC/mail_forwards.py" "$SRC/ensure_go_wifi_mail.sh" \
   "$SRC/upp_emails.py" "$SRC/upp_set_password.py" \
   "$SRC/qb_oauth.py" "$SRC/qb_api.py" "$SRC/fnb_api.py" "$SRC/fnb_statement.py" \
-  "$SRC/unifi_api.py" "$SRC/nginx-unifi.conf" "$SRC/gowifi-unifi-api.service" \
+  "$SRC/unifi_api.py" "$SRC/uisp_1x.py" "$SRC/nginx-unifi.conf" "$SRC/gowifi-unifi-api.service" \
   "$SRC/nginx-fnb.conf" "$SRC/gowifi-fnb-api.service" \
   "$SRC/install-on-box.sh" "$SRC/company.py" "$SRC/invoice_canned.py" "$SRC/recon.py" \
   "$BOX:/root/gowifi-upp/"
 "${SCP[@]}" -q \
   "$SRC/dash/clients.html" "$SRC/dash/accounts.html" "$SRC/dash/invoice.html" \
-  "$SRC/dash/invoices.html" "$SRC/dash/unifi.html" \
+  "$SRC/dash/invoices.html" "$SRC/dash/unifi.html" "$SRC/dash/uisp-1x.html" \
   "$BOX:/root/gowifi-upp/dash/" 2>/dev/null || "${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp/dash"
 "${SCP[@]}" \
   "$SRC/dash/clients.html" "$SRC/dash/accounts.html" "$SRC/dash/invoice.html" \
-  "$SRC/dash/invoices.html" "$SRC/dash/unifi.html" \
+  "$SRC/dash/invoices.html" "$SRC/dash/unifi.html" "$SRC/dash/uisp-1x.html" \
   "$BOX:/root/gowifi-upp/dash/"
 "${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp/data"
 "${SCP[@]}" -r "$SRC/data/." "$BOX:/root/gowifi-upp/data/"
 
 echo "install + refresh accounts.json"
 "${SSH[@]}" "$BOX" "bash /root/gowifi-upp/install-on-box.sh && python3 /root/gowifi-upp/audit_export.py"
-echo "done — hard-refresh https://gowifi.co.za/dash/clients.html /dash/invoices.html /dash/accounts.html /dash/unifi.html"
+echo "done — hard-refresh https://gowifi.co.za/dash/clients.html /dash/invoices.html /dash/accounts.html /dash/unifi.html /dash/uisp-1x.html"

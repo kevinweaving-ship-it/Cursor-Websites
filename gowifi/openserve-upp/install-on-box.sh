@@ -9,7 +9,7 @@ if [ "$SRC" != "$DEST" ]; then
     "$SRC/status_events.py" "$SRC/invoice_import.py" \
     "$SRC/site_lines.py" "$SRC/client_stories.py" "$SRC/books.py" \
     "$SRC/qb_import.py" "$SRC/qb_oauth.py" "$SRC/qb_api.py" \
-    "$SRC/netcash.py" "$SRC/fnb_api.py" "$SRC/fnb_statement.py" "$SRC/unifi_api.py" "$SRC/ledger.py" "$SRC/billing.py" "$SRC/packages.py" "$SRC/invoice_canned.py" "$SRC/company.py" \
+    "$SRC/netcash.py" "$SRC/fnb_api.py" "$SRC/fnb_statement.py" "$SRC/unifi_api.py" "$SRC/uisp_1x.py" "$SRC/ledger.py" "$SRC/billing.py" "$SRC/packages.py" "$SRC/invoice_canned.py" "$SRC/company.py" \
     "$SRC/compliance.py" "$SRC/clients.py" \
     "$SRC/customers.py" "$SRC/invoice_list.py" "$SRC/statements.py" "$SRC/recon.py" \
     "$SRC/checksum_accounts_mail.py" "$SRC/mail_forwards.py" \
@@ -26,7 +26,7 @@ chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" \
   "$DEST/audit_export.py" "$DEST/status_events.py" "$DEST/invoice_import.py" \
   "$DEST/site_lines.py" "$DEST/client_stories.py" "$DEST/books.py" \
   "$DEST/qb_import.py" "$DEST/qb_oauth.py" "$DEST/qb_api.py" \
-  "$DEST/netcash.py" "$DEST/fnb_api.py" "$DEST/fnb_statement.py" "$DEST/unifi_api.py" "$DEST/ledger.py" "$DEST/billing.py" "$DEST/packages.py" "$DEST/invoice_canned.py" "$DEST/company.py" \
+  "$DEST/netcash.py" "$DEST/fnb_api.py" "$DEST/fnb_statement.py" "$DEST/unifi_api.py" "$DEST/uisp_1x.py" "$DEST/ledger.py" "$DEST/billing.py" "$DEST/packages.py" "$DEST/invoice_canned.py" "$DEST/company.py" \
   "$DEST/compliance.py" "$DEST/clients.py" \
   "$DEST/customers.py" "$DEST/invoice_list.py" "$DEST/statements.py" "$DEST/recon.py" \
   "$DEST/mail_forwards.py" "$DEST/ensure_go_wifi_mail.sh" \
@@ -71,6 +71,12 @@ if [ -f "$SRC/dash/unifi.html" ]; then
     cp -a "$SRC/dash/unifi.html" "$DEST/dash/unifi.html"
   fi
   cp -a "$SRC/dash/unifi.html" "$DASH/unifi.html"
+fi
+if [ -f "$SRC/dash/uisp-1x.html" ]; then
+  if [ "$SRC/dash/uisp-1x.html" != "$DEST/dash/uisp-1x.html" ]; then
+    cp -a "$SRC/dash/uisp-1x.html" "$DEST/dash/uisp-1x.html"
+  fi
+  cp -a "$SRC/dash/uisp-1x.html" "$DASH/uisp-1x.html"
 fi
 HOOK="$SRC/hook_dash_index.py"
 [ -f "$HOOK" ] || HOOK="$DEST/hook_dash_index.py"
