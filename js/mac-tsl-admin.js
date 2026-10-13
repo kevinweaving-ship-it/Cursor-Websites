@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014r";
+  var JS_VER = "20261014s";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -39,7 +39,8 @@
     flight: "",
     bow: ""
   };
-  var flightFold = {};
+  var FOLD_KEY = "macTslFlightFold:" + RID;
+  var flightFold = loadFlightFold();
   var moveBurst = null;
   var moveSaveTimer = 0;
   var selectedMatchNo = 0;
@@ -2581,6 +2582,30 @@
     return pairs;
   }
 
+  function loadFlightFold() {
+    try {
+      var raw = window.localStorage && window.localStorage.getItem(FOLD_KEY);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+      var out = {};
+      var k;
+      for (k in parsed) {
+        if (!Object.prototype.hasOwnProperty.call(parsed, k)) continue;
+        if (parsed[k] === true || parsed[k] === false) out[String(k)] = parsed[k];
+      }
+      return out;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveFlightFold() {
+    try {
+      if (window.localStorage) window.localStorage.setItem(FOLD_KEY, JSON.stringify(flightFold));
+    } catch (e) {}
+  }
+
   function isFlightCollapsed(n) {
     var key = String(n);
     if (flightFold[key] === true) return true;
@@ -2590,6 +2615,7 @@
 
   function toggleFlightFold(n) {
     flightFold[String(n)] = !isFlightCollapsed(n);
+    saveFlightFold();
   }
 
   function ensureFlight(n) {

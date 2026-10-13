@@ -30,7 +30,11 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261014r", JS)
+        self.assertIn("20261014s", JS)
+        self.assertIn("loadFlightFold", JS)
+        self.assertIn("saveFlightFold", JS)
+        self.assertIn("macTslFlightFold:", JS)
+        self.assertIn("localStorage.setItem(FOLD_KEY", JS)
         self.assertIn("FLIGHT_RANK_CODES", JS)
         self.assertIn("flightRankPoints", JS)
         self.assertIn("flightNoteTableHtml", JS)
@@ -216,7 +220,7 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261014r", API)
+        self.assertIn("mac-tsl-admin.js?v=20261014s", API)
 
     def test_event_logo_uses_event_logo_folder(self):
         self.assertIn('/artwork/Event Logo/TSL-Team-Sailing.png', API)
