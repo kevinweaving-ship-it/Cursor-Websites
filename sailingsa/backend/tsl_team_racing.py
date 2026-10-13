@@ -1644,6 +1644,7 @@ def register_tsl_routes(
         request,
         regatta_id: str,
         q: str = "",
+        club: str = "",
         club_id: int = 0,
         limit: int = 35,
     ):
@@ -1652,7 +1653,16 @@ def register_tsl_routes(
         conn = get_db_connection()
         cur = _cur(conn)
         try:
-            sailors = search_sailors(cur, q, limit=limit)
+            club_abbrev = (club or "").strip()
+            club_name = ""
+            if club_id:
+                row = _club_row(cur, int(club_id))
+                if row:
+                    club_abbrev = club_abbrev or (row.get("club_abbrev") or "")
+                    club_name = row.get("club_name") or ""
+            sailors = search_sailors(
+                cur, q, club_abbrev=club_abbrev, club_name=club_name, limit=limit
+            )
             return {"sailors": sailors}
         finally:
             cur.close()

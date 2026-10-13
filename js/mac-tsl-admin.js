@@ -8,14 +8,14 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013p";
+  var JS_VER = "20261013q";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
   var SCHED_ID = "macTslSchedule";
   var state = { teams: [], matches: [], standings: [], format: "rr28", settings: {}, schedule: {} };
   var sexChoice = {};
-  var pickState = { teamId: "", boat: 1, role: "helm" };
+  var pickState = { teamId: "", boat: 1, role: "", fromRole: "", sailor: null, club: "" };
   var selectedMatchNo = 0;
   var KNOWN = {
     MATIES: {
@@ -144,8 +144,10 @@
       "#macTslTeamsCard .tsl-sex,#macTslTeamsCard .tsl-sailor-pick{display:inline;border:none;background:none;color:#1a2750;font:inherit;padding:0;margin:0;cursor:pointer;min-width:1em;text-align:left}",
       "#macTslTeamsCard .tsl-role-btn[disabled]{cursor:default;text-decoration:none}",
       "#macTslTeamsCard .tsl-role-on{text-decoration:underline}",
-      "#macTslTeamsCard #tslSlotPick{margin:8px 0 0;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff}",
+      "#macTslTeamsCard #tslSlotPick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff;max-width:100%;box-sizing:border-box}",
       "#macTslTeamsCard #tslSlotPick[hidden]{display:none}",
+      "#macTslTeamsCard #tslPickName{min-width:12em;max-width:18em}",
+      "#macTslTeamsCard #tslPickClub{max-width:12em}",
       "@media (max-width:768px) and (orientation:portrait){#macTslTeamsCard .tsl-team-cards{grid-template-columns:1fr}}",
       ".regatta-page[data-mac-tsl=\"1\"] th.tsl-hide-mp,.regatta-page[data-mac-tsl=\"1\"] td.tsl-hide-mp{display:none}",
       ".regatta-page[data-mac-tsl=\"1\"] .tsl-col-wins,.regatta-page[data-mac-tsl=\"1\"] .tsl-mcol{text-align:center;font-weight:bold}",
@@ -501,6 +503,28 @@
 
   function teamById(id) {
     return state.teams.filter(function (t) { return Number(t.team_id) === Number(id); })[0];
+  }
+  function teamByClub(code) {
+    var want = String(code || "");
+    if (!want) return null;
+    return (state.teams || []).filter(function (t) { return clubCode(t) === want; })[0] || null;
+  }
+  function emptyPerson() {
+    return { name: "", sas_id: "", sex: "" };
+  }
+  function slotEmpty(person) {
+    return !(person && (person.sas_id || person.name));
+  }
+  function firstOpenSlotSameRole(team, preferBoat, role) {
+    if (!team || !role) return null;
+    if (roleFilled(team, role) >= 3) return null;
+    var boats = rosterBoats(team);
+    var i = Number(preferBoat) - 1;
+    if (boats[i] && slotEmpty(boats[i][role])) return { boat: Number(preferBoat) || (i + 1), role: role };
+    for (i = 0; i < boats.length; i += 1) {
+      if (slotEmpty(boats[i][role])) return { boat: i + 1, role: role };
+    }
+    return null;
   }
   function teamName(id) {
     var t = teamById(id);
@@ -1051,24 +1075,13 @@
 
   function pickPanelHtml() {
     return '<div id="tslSlotPick" class="card" hidden>' +
-      '<div class="fleet-title-row">Choose sailor</div>' +
-      '<div class="table-wrapper"><table class="fleet-results-table"><tbody>' +
-      '<tr><th>Boat</th><td id="tslPickBoat"></td></tr>' +
-      '<tr><th>Helm</th><td><span class="tsl-ac"><input id="tslPickName" class="wc-result-field-input" type="text" autocomplete="off" /></span></td></tr>' +
-      '<tr><th>SAS ID</th><td id="tslPickSas"></td></tr>' +
-      '<tr><th>Club</th><td><select id="tslPickClub" class="wc-result-field-input"></select></td></tr>' +
-      '<tr><th>Role</th><td>' +
-        '<button type="button" class="action-button tsl-role-btn" id="tslPickHelm" data-role="helm">Helm</button> ' +
-        '<button type="button" class="action-button tsl-role-btn" id="tslPickCrew" data-role="crew">Crew</button> ' +
-        '<span id="tslPickRoleMsg"></span></td></tr>' +
-      "</tbody></table></div>" +
-      '<div class="tsl-row2">' +
-        '<button type="button" class="action-button" id="tslPickDel">Delete</button>' +
-        '<button type="button" class="action-button" id="tslPickClose">Close</button>' +
-        '<span class="tsl-msg" id="tslPickMsg"></span>' +
-      "</div>" +
-      '<div class="table-wrapper"><table class="fleet-results-table"><thead><tr><th>Name</th><th>SAS ID</th><th>Role</th></tr></thead>' +
-      '<tbody id="tslPickClubBody"></tbody></table></div></div>';
+      '<span class="tsl-ac"><input id="tslPickName" class="wc-result-field-input" type="text" autocomplete="off" placeholder="Name" /></span>' +
+      '<button type="button" class="action-button tsl-role-btn" id="tslPickHelm">Helm</button>' +
+      '<button type="button" class="action-button tsl-role-btn" id="tslPickCrew">Crew</button>' +
+      '<select id="tslPickClub" class="wc-result-field-input"></select>' +
+      '<button type="button" class="action-button" id="tslPickDel">Delete</button>' +
+      '<button type="button" class="action-button" id="tslPickClose">Close</button>' +
+      '<span class="tsl-msg" id="tslPickMsg"></span></div>';
   }
 
   function currentPickPerson() {
@@ -1080,13 +1093,10 @@
 
   function refreshPickRoleButtons() {
     var team = teamById(pickState.teamId);
-    var allow = team ? allowedRoles(team, pickState.boat, pickState.role) : ["helm", "crew"];
-    if (allow.indexOf(pickState.role) < 0) {
-      pickState.role = team ? forcedRole(team, pickState.boat, pickState.role) : "helm";
-    }
+    var allow = team ? allowedRoles(team, pickState.boat, pickState.role || "") : ["helm", "crew"];
     var helmBtn = document.getElementById("tslPickHelm");
     var crewBtn = document.getElementById("tslPickCrew");
-    var msg = document.getElementById("tslPickRoleMsg");
+    var msg = document.getElementById("tslPickMsg");
     if (helmBtn) {
       helmBtn.disabled = allow.indexOf("helm") < 0;
       helmBtn.classList.toggle("tsl-role-on", pickState.role === "helm");
@@ -1095,40 +1105,30 @@
       crewBtn.disabled = allow.indexOf("crew") < 0;
       crewBtn.classList.toggle("tsl-role-on", pickState.role === "crew");
     }
-    if (msg) {
-      msg.textContent = allow.length === 1
-        ? (allow[0] === "helm" ? "No crew left — must be helm" : "No helm left — must be crew")
-        : "";
+    if (msg && allow.length === 1) {
+      msg.textContent = allow[0] === "helm" ? "No crew left — must be helm" : "No helm left — must be crew";
     }
   }
 
-  function fillClubSailors() {
-    var clubEl = document.getElementById("tslPickClub");
-    var body = document.getElementById("tslPickClubBody");
-    if (!body) return;
-    var rows = clubSailorRows(clubEl ? clubEl.value : "");
-    body.innerHTML = rows || '<tr><td colspan="3">Select a club or type a name</td></tr>';
-  }
-
   function openSailorPick(teamId, boat, role) {
-    pickState = { teamId: String(teamId || ""), boat: Number(boat) || 1, role: role || "helm" };
+    pickState = { teamId: String(teamId || ""), boat: Number(boat) || 1, role: "", fromRole: role || "", sailor: null, club: "" };
     var team = teamById(pickState.teamId);
-    if (team) pickState.role = forcedRole(team, pickState.boat, pickState.role);
     var box = document.getElementById("tslSlotPick");
     if (!box) return;
     box.hidden = false;
-    var p = currentPickPerson();
-    var boatEl = document.getElementById("tslPickBoat");
+    var p = {};
+    if (team && role) {
+      var b = rosterBoats(team)[Number(pickState.boat) - 1] || {};
+      p = b[role] || {};
+      if (p.sas_id || p.name) pickState.sailor = { name: p.name || "", sas_id: p.sas_id || "" };
+    }
     var nameEl = document.getElementById("tslPickName");
-    var sasEl = document.getElementById("tslPickSas");
     var clubEl = document.getElementById("tslPickClub");
-    if (boatEl) boatEl.textContent = String(pickState.boat);
     if (nameEl) nameEl.value = p.name || "";
-    if (sasEl) sasEl.textContent = p.sas_id || "";
-    if (clubEl) clubEl.innerHTML = eventClubOptions(clubCode(team) || "");
+    pickState.club = clubCode(team) || "";
+    if (clubEl) clubEl.innerHTML = eventClubOptions(pickState.club);
     var msg = document.getElementById("tslPickMsg");
     if (msg) msg.textContent = "";
-    fillClubSailors();
     refreshPickRoleButtons();
   }
 
@@ -1147,17 +1147,21 @@
     };
   }
 
-  function saveBoats(team, boats, msg) {
+  function saveBoatsQuiet(team, boats) {
     return api("/api/tsl/" + encodeURIComponent(RID) + "/teams/" + encodeURIComponent(team.team_id), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(boatsPayload(team, boats))
-    }).then(function () { return loadState(); }).catch(function (e) {
+    });
+  }
+
+  function saveBoats(team, boats, msg) {
+    return saveBoatsQuiet(team, boats).then(function () { return loadState(); }).catch(function (e) {
       if (msg) msg.textContent = e.message || "Save failed";
     });
   }
 
-  function applyPickedSailor(sailor) {
+  function applyPickedSailor(sailor, role) {
     var team = teamById(pickState.teamId);
     var msg = document.getElementById("tslPickMsg");
     if (!team) return;
@@ -1165,7 +1169,12 @@
       if (msg) msg.textContent = "SAS missing — not invented";
       return;
     }
-    var role = forcedRole(team, pickState.boat, pickState.role);
+    var allow = allowedRoles(team, pickState.boat, role);
+    if (allow.indexOf(role) < 0) {
+      if (msg) msg.textContent = role === "helm" ? "No helm left — must be crew" : "No crew left — must be helm";
+      refreshPickRoleButtons();
+      return;
+    }
     pickState.role = role;
     var boats = rosterBoats(team);
     var idx = Number(pickState.boat) - 1;
@@ -1178,6 +1187,67 @@
     saveBoats(team, boats, msg);
   }
 
+  function chooseRole(role) {
+    var sailor = pickState.sailor;
+    if (sailor && sailor.sas_id) {
+      applyPickedSailor(sailor, role);
+      return;
+    }
+    moveSailorRole(role);
+  }
+
+  function pickedSailorOrSlot() {
+    if (pickState.sailor && pickState.sailor.sas_id) return pickState.sailor;
+    var team = teamById(pickState.teamId);
+    if (!team) return null;
+    var fromRole = pickState.fromRole || pickState.role;
+    var b = rosterBoats(team)[Number(pickState.boat) - 1] || {};
+    var p = (fromRole && b[fromRole]) || {};
+    if (p.sas_id) return { name: p.name || "", sas_id: p.sas_id, sex: p.sex || sexLetter(p) };
+    return null;
+  }
+
+  function changePickClubOnly() {
+    var clubEl = document.getElementById("tslPickClub");
+    var msg = document.getElementById("tslPickMsg");
+    var newCode = clubEl ? String(clubEl.value || "") : "";
+    pickState.club = newCode;
+    if (msg) msg.textContent = "";
+    var dest = teamByClub(newCode);
+    var src = teamById(pickState.teamId);
+    if (!dest || !src || Number(dest.team_id) === Number(src.team_id)) return;
+    var sailor = pickedSailorOrSlot();
+    if (!sailor || !sailor.sas_id) return;
+    var preferRole = pickState.fromRole || pickState.role || "";
+    var slot = firstOpenSlotSameRole(dest, pickState.boat, preferRole);
+    if (!slot) {
+      if (msg) msg.textContent = "No slot left at " + (clubCode(dest) || "that club");
+      return;
+    }
+    var srcBoats = rosterBoats(src);
+    srcBoats.forEach(function (b) {
+      ["helm", "crew"].forEach(function (role) {
+        if (b[role] && String(b[role].sas_id || "") === String(sailor.sas_id)) b[role] = emptyPerson();
+      });
+    });
+    var destBoats = rosterBoats(dest);
+    destBoats[slot.boat - 1][slot.role] = {
+      name: sailor.name || "",
+      sas_id: String(sailor.sas_id),
+      sex: sailor.sex || sexLetter(sailor)
+    };
+    pickState.teamId = String(dest.team_id);
+    pickState.boat = slot.boat;
+    pickState.fromRole = slot.role;
+    saveBoatsQuiet(src, srcBoats).then(function () {
+      return saveBoatsQuiet(dest, destBoats);
+    }).then(function () {
+      return loadState();
+    }).catch(function (e) {
+      if (msg) msg.textContent = e.message || "Save failed";
+    });
+  }
+
   function deletePickedSailor() {
     var team = teamById(pickState.teamId);
     var msg = document.getElementById("tslPickMsg");
@@ -1185,7 +1255,7 @@
     var boats = rosterBoats(team);
     var idx = Number(pickState.boat) - 1;
     if (!boats[idx]) return;
-    boats[idx][pickState.role] = { name: "", sas_id: "", sex: "" };
+    boats[idx][pickState.role || pickState.fromRole || "helm"] = { name: "", sas_id: "", sex: "" };
     saveBoats(team, boats, msg);
   }
 
@@ -1275,20 +1345,22 @@
     var nameInp = document.getElementById("tslPickName");
     if (nameInp) {
       bindTypeahead(nameInp, "sailor", function (q) {
-        return "/api/tsl/" + encodeURIComponent(RID) + "/sailors-search?q=" + encodeURIComponent(q) + "&limit=35";
+        var url = "/api/tsl/" + encodeURIComponent(RID) + "/sailors-search?q=" + encodeURIComponent(q) + "&limit=35";
+        if (pickState.club) url += "&club=" + encodeURIComponent(pickState.club);
+        return url;
       }, function (it) {
         nameInp.value = it.name || "";
-        var sasEl = document.getElementById("tslPickSas");
-        if (sasEl) sasEl.textContent = it.sas_id || "";
-        applyPickedSailor(it);
+        pickState.sailor = { name: it.name || "", sas_id: it.sas_id || "", club: it.club || "" };
+        var msg = document.getElementById("tslPickMsg");
+        if (msg) msg.textContent = it.sas_id ? "" : "SAS missing — not invented";
       });
     }
     var clubEl = document.getElementById("tslPickClub");
-    if (clubEl) clubEl.addEventListener("change", fillClubSailors);
+    if (clubEl) clubEl.addEventListener("change", changePickClubOnly);
     var helmBtn = document.getElementById("tslPickHelm");
-    if (helmBtn) helmBtn.addEventListener("click", function () { moveSailorRole("helm"); });
+    if (helmBtn) helmBtn.addEventListener("click", function () { chooseRole("helm"); });
     var crewBtn = document.getElementById("tslPickCrew");
-    if (crewBtn) crewBtn.addEventListener("click", function () { moveSailorRole("crew"); });
+    if (crewBtn) crewBtn.addEventListener("click", function () { chooseRole("crew"); });
     var delBtn = document.getElementById("tslPickDel");
     if (delBtn) delBtn.addEventListener("click", deletePickedSailor);
     var closeBtn = document.getElementById("tslPickClose");
@@ -1296,14 +1368,6 @@
       var box = document.getElementById("tslSlotPick");
       if (box) box.hidden = true;
     });
-    var body = document.getElementById("tslPickClubBody");
-    if (body) {
-      body.addEventListener("click", function (e) {
-        var tr = e.target && e.target.closest ? e.target.closest(".tsl-pick-row") : null;
-        if (!tr) return;
-        applyPickedSailor({ name: tr.getAttribute("data-name") || "", sas_id: tr.getAttribute("data-sas") || "" });
-      });
-    }
   }
 
   function insertTeamsCard() {
