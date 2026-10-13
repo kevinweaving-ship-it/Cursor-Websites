@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014t";
+  var JS_VER = "20261014u";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -142,8 +142,7 @@
       "#macTslMatches .tsl-sides{display:flex;gap:0;flex-wrap:wrap}",
       "#macTslMatches .tsl-side{flex:1 1 220px;min-width:0}",
       "#macTslAdmin .tsl-row2,#macTslSchedule .tsl-row2,#macTslMatches .tsl-row2{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}",
-      ".club-race-step.tsl-mstep{display:none;align-items:center;gap:6px;flex:0 0 auto}",
-      ".regatta-page--super-admin-edit .club-race-step.tsl-mstep{display:inline-flex}",
+      ".club-race-step.tsl-mstep,#tslMPlus,#tslMMinus,#tslAddTeam{display:none!important}",
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
       ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet){display:none}",
@@ -793,40 +792,8 @@
   }
 
   function injectMButtons() {
-    var sec = fleetSection();
-    if (!sec || sec.querySelector(".tsl-mstep")) return;
-    var box = document.createElement("div");
-    box.className = "club-race-step tsl-mstep";
-    box.setAttribute("role", "group");
-    box.setAttribute("aria-label", "Add or remove match");
-    box.innerHTML = '<button type="button" class="club-race-step-add" id="tslMPlus">M+</button>' +
-      '<button type="button" class="club-race-step-sub" id="tslMMinus">M−</button>' +
-      '<button type="button" class="club-race-step-add" id="tslAddTeam" aria-label="Add Team">T+</button>';
-    var title = sec.querySelector(".fleet-title-row") || sec.querySelector(".class-header-main-col");
-    if (title) title.appendChild(box);
-    else {
-      var hdr = sec.querySelector(".class-header");
-      if (hdr) hdr.appendChild(box);
-      else sec.insertBefore(box, sec.firstChild);
-    }
-    document.getElementById("tslMPlus").addEventListener("click", function () {
-      if (!isSaEdit()) return;
-      api("/api/tsl/" + encodeURIComponent(RID) + "/matches", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ round_label: "RR" })
-      }).then(loadState).catch(function (e) { window.alert(e.message); });
-    });
-    document.getElementById("tslMMinus").addEventListener("click", function () {
-      if (!isSaEdit()) return;
-      if (!window.confirm("Remove the last match?")) return;
-      api("/api/tsl/" + encodeURIComponent(RID) + "/matches/last?confirm=1", { method: "DELETE" })
-        .then(loadState)
-        .catch(function (e) { window.alert(e.message); });
-    });
-    document.getElementById("tslAddTeam").addEventListener("click", function () {
-      if (!isSaEdit()) return;
-      openNewTeam();
+    document.querySelectorAll(".tsl-mstep,#tslMPlus,#tslMMinus,#tslAddTeam").forEach(function (el) {
+      el.remove();
     });
   }
 
