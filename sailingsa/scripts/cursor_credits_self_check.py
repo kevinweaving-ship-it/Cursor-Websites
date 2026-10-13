@@ -687,6 +687,71 @@ def build_email(snap: dict[str, Any], sequence: int, ticket: str, month: str | N
     return msg
 
 
+def september_fail_urls(snap: dict[str, Any], limit: int = 8) -> list[str]:
+    rows = []
+    for a in snap.get("agents") or []:
+        ts = a.get("createdAt") or ""
+        if not ts.startswith("2026-09"):
+            continue
+        if a.get("status") != "ERROR":
+            continue
+        rows.append(a)
+    rows.sort(key=lambda a: float(a.get("durationSec") or 0))
+    out = []
+    for a in rows[:limit]:
+        out.append(
+            f"  {a.get('url')}  ({a.get('durationSec')}s, {a.get('name')})"
+        )
+    return out
+
+
+def build_single_thread_reply(
+    snap: dict[str, Any],
+    ticket: str,
+    in_reply_to: str | None = None,
+) -> EmailMessage:
+    """All months stay on one ticket. Auto-reply. Always Cc Kevin."""
+    aug = month_slice(snap, "2026-08")
+    sep = month_slice(snap, "2026-09")
+    octo = month_slice(snap, "2026-10")
+    urls = "\n".join(september_fail_urls(snap))
+    body = f"""Hi Sam,
+
+This is the auto-reply on existing ticket {ticket} only.
+Do not open another ticket. One thread for every month on this account.
+
+Cursor login / account email: {MAIL_CC}
+Cursor user id: {ACCOUNT['cursor_user_id']}
+Please treat this mailbox as the same customer as {MAIL_CC}.
+Reply-all and keep {MAIL_CC} on every reply.
+
+September hard-fail URLs you asked for (empty event logs, died in under 2s):
+{urls}
+
+Same thread — remaining months (not new claims):
+- August leftover idle: {aug.get('agents')} sessions, failed={aug.get('failedSpawnCount')}, {aug.get('hours')} h, {aug.get('from')} → {aug.get('to')}
+- September hard fail: {sep.get('agents')} jobs, hard fail {sep.get('failedSpawnCount')}, 66 died <2s, 2 Opus, {sep.get('hours')} h
+- October (already on T-H16750): {octo.get('agents')} agents, 0 on Mac worker, {octo.get('hours')} h — fold T-H16750 into {ticket} if you want one file
+
+Please credit the platform-fault usage on this single thread and confirm here.
+
+Kevin Weaving
+{MAIL_CC} / user {ACCOUNT['cursor_user_id']}
+"""
+    msg = EmailMessage()
+    msg["From"] = f"Kevin Weaving <{MAIL_FROM}>"
+    msg["To"] = MAIL_TO
+    apply_party_headers(msg)
+    msg["Subject"] = f"Re: {ticket} — account {MAIL_CC} — September URLs + all months on this thread"
+    msg["X-Cursor-Ticket"] = ticket
+    msg["Message-ID"] = make_msgid(domain="sailingsa.co.za")
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+        msg["References"] = in_reply_to
+    msg.set_content(body)
+    return msg
+
+
 def build_first_ticket_addendum(
     snap: dict[str, Any], month: str, ticket: str = "T-H16750"
 ) -> EmailMessage:
@@ -789,14 +854,37 @@ def cmd_email(
     month: str | None = None,
     copy_cc: bool = False,
     on_first_ticket: bool = False,
+    thread: bool = False,
+    ticket_id: str | None = None,
+    in_reply_to: str | None = None,
 ) -> int:
     state = load_state()
-    if state.get("resolved") and not force and not month and not copy_cc:
+    if state.get("resolved") and not force and not month and not copy_cc and not thread:
         print("state=resolved — not mailing. Pass --force or --month after you confirm credits.")
         return 0
-    ticket = str(state.get("canonicalTicket") or os.environ.get("CURSOR_TICKET") or "T-H16750")
+    ticket = str(
+        ticket_id
+        or state.get("canonicalTicket")
+        or os.environ.get("CURSOR_TICKET")
+        or "T-H17092"
+    )
+    if thread or (not month and not copy_cc):
+        msg = build_single_thread_reply(snap, ticket, in_reply_to)
+        try:
+            send_mail(msg, dry_run=not send)
+        except (OSError, RuntimeError) as exc:
+            print(f"send failed: {exc}", file=sys.stderr)
+            return 1
+        if send:
+            state["canonicalTicket"] = ticket
+            state["lastSendAt"] = _utc_now()
+            state["sends"] = int(state.get("sends") or 0) + 1
+            state["resolved"] = False
+            save_state(state)
+            print(f"thread reply ticket={ticket} Cc={MAIL_CC} state={state_path()}")
+        return 0
     sent_months = list(state.get("sentMonths") or [])
-    october_already = bool(state.get("canonicalTicket") == "T-H16750" and int(state.get("sends") or 0) >= 1)
+    october_already = bool(state.get("canonicalTicket") and int(state.get("sends") or 0) >= 1)
     if month:
         sl = month_slice(snap, month)
         if sl["agents"] == 0:
@@ -804,14 +892,10 @@ def cmd_email(
             return 0
     if not copy_cc:
         if month == "2026-10" and send and not force and (month in sent_months or october_already):
-            print("wait — October already filed on T-H16750. Auto-reply only if they reject.")
+            print(f"wait — October already filed on {ticket}. Auto-reply only if they reject.")
             return 0
         if month and send and not force and month in sent_months:
             print(f"wait — {month} already filed. Auto-reply only if they reject that month.")
-            return 0
-        digest = snapshot_digest(snap)
-        if send and not force and not month and state.get("lastDigest") == digest and state.get("sends"):
-            print(f"wait — already filed on {ticket} with this proof. Auto-reply only if they reject.")
             return 0
     if on_first_ticket:
         if not month:
@@ -827,6 +911,7 @@ def cmd_email(
             state["addedToFirstTicket"] = list(
                 {*(state.get("addedToFirstTicket") or []), month}
             )
+            state["canonicalTicket"] = ticket
             state["lastSendAt"] = _utc_now()
             save_state(state)
             print(f"added {month} onto {ticket} Cc={MAIL_CC}")
@@ -1048,20 +1133,15 @@ def cmd_dispute(snap: dict[str, Any], inbound_path: Path | None, send: bool) -> 
                 flags=re.I,
             ):
                 month_add = "2026-09"
-            if month_add:
-                add = build_first_ticket_addendum(snap, month_add, orig)
-                if mid:
-                    add["In-Reply-To"] = mid
-                    add["References"] = mid
+            if month_add or True:
+                add = build_single_thread_reply(snap, orig, mid)
                 if send:
                     send_mail(add, dry_run=False)
-                    state["addedToFirstTicket"] = list(
-                        {*(state.get("addedToFirstTicket") or []), month_add}
-                    )
+                    state["canonicalTicket"] = orig
                     save_state(state)
                 else:
                     print(email_text(add))
-                print(f"duplicate close — added {month_add} onto {orig}")
+                print(f"duplicate close — stayed on {orig} with all months")
                 return 0
             if send:
                 save_state(state)
@@ -1155,8 +1235,11 @@ def main() -> int:
     p.add_argument(
         "--on-first-ticket",
         action="store_true",
-        help="add this month onto T-H16750 instead of opening a new file",
+        help="add this month onto the open ticket instead of opening a new file",
     )
+    p.add_argument("--thread", action="store_true", help="auto-reply on the single open ticket")
+    p.add_argument("--ticket", help="ticket id to keep (default T-H17092 / state)")
+    p.add_argument("--in-reply-to", help="Message-ID to thread under")
     args = p.parse_args()
     if args.from_local:
         global MAIL_FROM
@@ -1178,6 +1261,9 @@ def main() -> int:
         month=args.month,
         copy_cc=args.copy_cc,
         on_first_ticket=args.on_first_ticket,
+        thread=args.thread,
+        ticket_id=args.ticket,
+        in_reply_to=args.in_reply_to,
     )
 
 
