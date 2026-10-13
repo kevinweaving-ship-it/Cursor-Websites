@@ -8,12 +8,13 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013j";
+  var JS_VER = "20261013l";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
   var SCHED_ID = "macTslSchedule";
   var state = { teams: [], matches: [], standings: [], format: "rr28", settings: {}, schedule: {} };
+  var sexChoice = {};
   var selectedMatchNo = 0;
   var KNOWN = {
     MATIES: {
@@ -29,13 +30,15 @@
       ]
     },
     "Eden District": {
-      sailors: [
-        { name: "Lulonke Lenks", sas_id: "15711", dob: "2010-05-14" },
-        { name: "Christian Cilliers", sas_id: "13488", dob: "2009-07-17" },
-        { name: "Isabella Watson", sas_id: "27609", dob: "2010-06-13" },
-        { name: "Arthur Watson", sas_id: "27610", dob: "2013-10-03" },
-        { name: "Owen Conradie", sas_id: "23531", dob: "2012-01-25" },
-        { name: "Rainier Lamprecht", sas_id: "28588", dob: "2008-05-23" }
+      helms: [
+        { name: "Lulonke Lenks", sas_id: "15711", sex: "M" },
+        { name: "Isabella Watson", sas_id: "27609", sex: "F" },
+        { name: "Owen Conradie", sas_id: "23531", sex: "M" }
+      ],
+      crews: [
+        { name: "Christian Cilliers", sas_id: "13488", sex: "M" },
+        { name: "Arthur Watson", sas_id: "27610", sex: "M" },
+        { name: "Rainier Lamprecht", sas_id: "28588", sex: "M" }
       ]
     }
   };
@@ -120,6 +123,16 @@
       "#macTslTeamsCard .tsl-team-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;box-sizing:border-box}",
       "#macTslTeamsCard .tsl-team-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:none!important}",
       "#macTslTeamsCard .tsl-team-card .table-wrapper{margin:8px 0 0}",
+      "#macTslTeamsCard .tsl-team-head{display:inline-flex;flex-direction:row;flex-wrap:nowrap;align-items:center;white-space:nowrap}",
+      "#macTslTeamsCard .tsl-team-head .rs-club-row-logo-sm{margin:0 4px 0 0}",
+      "#macTslTeamsCard .tsl-team-code{display:inline-flex;align-items:center}",
+      "#macTslTeamsCard .tsl-team-dot{display:inline-flex;align-items:center;justify-content:center;line-height:1;height:1em;margin:0 4px;align-self:center}",
+      "#macTslTeamsCard .tsl-team-full{display:inline-flex;align-items:center}",
+      "#macTslTeamsCard .tsl-sex{display:inline;border:none;background:none;color:#1a2750;font:inherit;padding:0;margin:0;cursor:pointer}",
+      "#macTslTeamsCard .tsl-slot-no{display:inline;border:none;background:none;color:#1a2750;font:inherit;padding:0;margin:0}",
+      ".regatta-page--super-admin-edit #macTslTeamsCard .tsl-slot-no{cursor:pointer;text-decoration:underline}",
+      "#macTslTeamsCard #tslSlotPick{margin:8px 0 0;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff}",
+      "#macTslTeamsCard #tslSlotPick[hidden]{display:none}",
       "@media (max-width:768px) and (orientation:portrait){#macTslTeamsCard .tsl-team-cards{grid-template-columns:1fr}}",
       ".regatta-page[data-mac-tsl=\"1\"] th.tsl-hide-mp,.regatta-page[data-mac-tsl=\"1\"] td.tsl-hide-mp{display:none}",
       ".regatta-page[data-mac-tsl=\"1\"] .tsl-col-wins,.regatta-page[data-mac-tsl=\"1\"] .tsl-mcol{text-align:center;font-weight:bold}",
@@ -219,6 +232,18 @@
   function clubCode(team) {
     return (team && (team.club_abbrev || team.club_code)) || "";
   }
+  function teamFullName(team) {
+    return String((team && team.team_name) || "").trim();
+  }
+  function teamHead(team) {
+    var code = clubCode(team);
+    var full = teamFullName(team) || code;
+    return '<span class="rs-club-with-logo tsl-team-head">' +
+      logoImg(team && team.club_logo, code) +
+      '<span class="tsl-team-code">' + esc(code) + "</span>" +
+      '<span class="tsl-team-dot" aria-hidden="true">·</span>' +
+      '<span class="tsl-team-full">' + esc(full) + "</span></span>";
+  }
   function logoImg(src, code) {
     if (!src) return "";
     return '<img class="rs-club-row-logo-sm" src="' + esc(src) + '" alt="" title="' + esc(code || "") +
@@ -229,8 +254,29 @@
     return '<span class="rs-club-with-logo">' + logoImg(team && team.club_logo, code) + esc(code) + "</span>";
   }
 
+  function consistentName(s) {
+    if (!s) return "";
+    var first = String(s.first_name || "").trim();
+    var last = String(s.last_name || "").trim();
+    var name = String(s.name || "").trim();
+    if (!first && name) {
+      if (name.indexOf(",") !== -1) {
+        var comma = name.split(",");
+        first = String(comma[1] || "").trim();
+        last = String(comma[0] || "").trim();
+      } else {
+        var bits = name.split(/\s+/).filter(Boolean);
+        first = bits[0] || "";
+        last = bits.length > 1 ? bits[bits.length - 1] : "";
+      }
+    }
+    first = (first.split(/\s+/)[0] || "").trim();
+    last = (last.split(/\s+/).pop() || last).trim();
+    return (first + " " + last).trim();
+  }
+
   function sailorName(s) {
-    return s && s.name ? s.name : "—";
+    return consistentName(s) || "—";
   }
 
   function pendingNote() {
@@ -883,39 +929,100 @@
     }
   }
 
-  function ageFromDob(dob) {
-    var p = String(dob || "").split("-");
-    if (p.length !== 3) return "";
-    var y = Number(p[0]);
-    var m = Number(p[1]);
-    var d = Number(p[2]);
-    if (!y || !m || !d) return "";
-    var age = 2026 - y;
-    if (m > 10 || (m === 10 && d > 17)) age -= 1;
-    return String(age);
+  function sexLetter(s) {
+    var id = String((s && s.sas_id) || "");
+    if (id && sexChoice[id]) return sexChoice[id];
+    var raw = String((s && (s.sex || s.gender)) || "").trim().toUpperCase();
+    if (raw.charAt(0) === "M") return "M";
+    if (raw.charAt(0) === "F") return "F";
+    return "";
   }
 
-  function sailorListTable(sailors) {
+  function rosterPerson(primary, fallback) {
+    var a = primary || {};
+    var b = fallback || {};
+    var person = {
+      name: consistentName(a) || consistentName(b),
+      sas_id: a.sas_id || b.sas_id || "",
+      sex: "",
+      gender: a.gender || b.gender || ""
+    };
+    person.sex = sexLetter({ sas_id: person.sas_id, sex: a.sex || b.sex, gender: person.gender });
+    return person;
+  }
+
+  function isGlycTeam(team) {
+    var code = String(clubCode(team) || "").toUpperCase();
+    var name = String(teamFullName(team) || "").toLowerCase();
+    return code === "GLYC" || name.indexOf("eden") !== -1;
+  }
+
+  function glycSlots(team) {
+    var slots = [];
+    rosterBoats(team).forEach(function (b, i) {
+      var h = b.helm || {};
+      var c = b.crew || {};
+      slots.push({ slot: i * 2 + 1, role: "helm", name: h.name || "", sas_id: h.sas_id || "", sex: sexLetter(h) });
+      slots.push({ slot: i * 2 + 2, role: "crew", name: c.name || "", sas_id: c.sas_id || "", sex: sexLetter(c) });
+    });
+    return slots;
+  }
+
+  function roleCounts(slots, exceptSlot) {
+    var helm = 0;
+    var crew = 0;
+    (slots || []).forEach(function (s) {
+      if (exceptSlot && Number(s.slot) === Number(exceptSlot)) return;
+      if (!s.sas_id && !s.name) return;
+      if (s.role === "helm") helm += 1;
+      if (s.role === "crew") crew += 1;
+    });
+    return { helm: helm, crew: crew };
+  }
+
+  function allowedRoles(slots, slot) {
+    var n = roleCounts(slots, slot);
+    var out = [];
+    if (n.helm < 3) out.push("helm");
+    if (n.crew < 3) out.push("crew");
+    return out;
+  }
+
+  function glycRosterTable(team) {
+    var tid = (team && team.team_id) || "";
     var rows = "";
-    (sailors || []).forEach(function (s) {
-      rows += "<tr><td class=\"helm-col\">" + esc(s.name || "") + "</td><td>" +
-        esc(s.sas_id || "") + "</td><td>" + esc(ageFromDob(s.dob)) + "</td></tr>";
+    glycSlots(team).forEach(function (s) {
+      rows += "<tr>" +
+        "<td>" + s.slot + "</td>" +
+        '<td><button type="button" class="tsl-sex" data-sas="' + esc(s.sas_id) + '" data-team-id="' + esc(tid) + '" data-slot="' + s.slot + '">' + esc(s.sex || "") + "</button></td>" +
+        '<td class="helm-col">' + esc(s.name || "") + "</td>" +
+        "<td>" + esc(s.sas_id || "") + "</td></tr>";
     });
     return '<div class="table-wrapper"><table class="fleet-results-table">' +
-      "<thead><tr><th class=\"helm-col\">Name</th><th>SAS ID</th><th>Age</th></tr></thead>" +
+      "<thead><tr><th>No</th><th>Sex</th><th class=\"helm-col\">Name</th><th>SAS ID</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></div>";
   }
 
-  function teamRosterTable(team) {
-    var known = knownFor(team);
-    if (known && known.sailors && known.sailors.length) {
-      return sailorListTable(known.sailors);
-    }
+  function rosterBoats(team) {
+    var known = knownFor(team) || {};
     var boats = (team && team.boats) || [];
-    var rows = "";
+    var out = [];
     var n;
     for (n = 1; n <= 3; n += 1) {
       var b = boats.filter(function (x) { return Number(x.boat_no) === n; })[0] || {};
+      var pairFromList = (known.sailors || []).length >= n * 2;
+      out.push({
+        helm: rosterPerson(b.helm, pairFromList ? known.sailors[n * 2 - 2] : (known.helms || [])[n - 1]),
+        crew: rosterPerson(b.crew, pairFromList ? known.sailors[n * 2 - 1] : (known.crews || [])[n - 1])
+      });
+    }
+    return out;
+  }
+
+  function teamRosterTable(team) {
+    if (isGlycTeam(team)) return glycRosterTable(team);
+    var rows = "";
+    rosterBoats(team).forEach(function (b) {
       var h = b.helm || {};
       var c = b.crew || {};
       rows += "<tr>" +
@@ -923,7 +1030,7 @@
         "<td>" + esc(h.sas_id || "") + "</td>" +
         '<td class="crew-col">' + esc(c.name || "") + "</td>" +
         "<td>" + esc(c.sas_id || "") + "</td></tr>";
-    }
+    });
     return '<div class="table-wrapper"><table class="fleet-results-table">' +
       "<thead><tr><th class=\"helm-col\">Helm Name</th><th>SAS ID</th><th class=\"crew-col\">Crew Name</th><th>SAS ID</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></div>";
@@ -939,12 +1046,27 @@
     });
     var inner = "";
     teams.forEach(function (t) {
-      var code = clubCode(t);
       inner += '<div class="card tsl-team-card" data-team-id="' + esc(t.team_id || "") + '">' +
-        '<span class="rs-club-with-logo">' + logoImg(t.club_logo, code) + esc(code) + "</span>" +
+        teamHead(t) +
         teamRosterTable(t) + "</div>";
     });
     return '<div class="fleet-title-row">Teams</div><div class="tsl-team-cards">' + inner + "</div>";
+  }
+
+  function wireTeamCardClicks(card) {
+    if (!card) return;
+    card.querySelectorAll(".tsl-sex").forEach(function (btn) {
+      if (btn._tslSex) return;
+      btn._tslSex = true;
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-sas") ||
+          ("slot:" + (btn.getAttribute("data-team-id") || "") + ":" + (btn.getAttribute("data-slot") || ""));
+        var cur = String(btn.textContent || sexChoice[id] || "").trim().toUpperCase();
+        var next = cur === "M" ? "F" : "M";
+        sexChoice[id] = next;
+        btn.textContent = next;
+      });
+    });
   }
 
   function insertTeamsCard() {
@@ -957,6 +1079,7 @@
       card.setAttribute("class", "card");
     }
     card.innerHTML = teamCardsHtml();
+    wireTeamCardClicks(card);
     if (gold.nextSibling !== card) gold.parentNode.insertBefore(card, gold.nextSibling);
   }
 

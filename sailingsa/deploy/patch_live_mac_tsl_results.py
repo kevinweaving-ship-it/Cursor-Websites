@@ -31,7 +31,7 @@ except Exception as _tsl_exc:
     print(f"[tsl] routes not registered: {_tsl_exc}", flush=True)
 '''
 
-ADMIN_JS = '<script src="/js/mac-tsl-admin.js?v=20261013j" defer></script>'
+ADMIN_JS = '<script src="/js/mac-tsl-admin.js?v=20261013l" defer></script>'
 CARDS_JS = '<script src="/js/mac-tsl-live-cards.js?v=20261012o" defer></script>'
 
 
