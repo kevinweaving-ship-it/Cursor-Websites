@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013b";
+  var JS_VER = "20261013c";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -764,7 +764,7 @@
     var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
     var emptyRaces = "";
     var r;
-    for (r = 1; r <= 28; r += 1) {
+    for (r = 28; r >= 1; r -= 1) {
       heads += '<th class="race-col">R' + r + "</th>";
       emptyRaces += '<td class="race-col"></td>';
     }
