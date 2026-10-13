@@ -24,7 +24,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261014o", JS)
+        self.assertIn("20261014p", JS)
         self.assertIn("macTslFlightsCard", JS)
         self.assertIn("insertFlightsCard", JS)
         self.assertIn("tsl-flight-head", JS)
@@ -64,7 +64,8 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertIn("Colour, team and sailors first", JS)
         self.assertIn("inp.blur()", JS)
         self.assertIn("teamFlightScore", JS)
-        self.assertIn("if (!a.scored) return 1", JS)
+        self.assertIn("b.scored - a.scored", JS)
+        self.assertIn("maxFlights", JS)
         self.assertIn("flightDone", JS)
         self.assertIn("insertGoldRaceTable", JS)
         self.assertIn("tsl-rank", JS)
@@ -199,7 +200,7 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261014o", API)
+        self.assertIn("mac-tsl-admin.js?v=20261014p", API)
 
     def test_event_logo_uses_event_logo_folder(self):
         self.assertIn('/artwork/Event Logo/TSL-Team-Sailing.png', API)
