@@ -1683,6 +1683,8 @@ def save_flight_line(
             if r is not None and (r < 1 or r > 6):
                 raise ValueError("Rank must be 1 to 6")
             if r is not None:
+                if not (cell.get("colour") and cell.get("team_id") and cell.get("boat_no")):
+                    raise ValueError("Colour, team and sailors first")
                 for b, c in sheet[fl].items():
                     if b != bow_s and c.get("rank") == r:
                         raise ValueError("Rank " + str(r) + " already used")

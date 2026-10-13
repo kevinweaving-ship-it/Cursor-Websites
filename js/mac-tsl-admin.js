@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014l";
+  var JS_VER = "20261014m";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -2637,6 +2637,22 @@
     return bits.join(", ") || "—";
   }
 
+  function pairPersonFull(p, roleWord) {
+    var n = splitName(p);
+    if (!personFilled(p)) return "";
+    var full = (n.first + " " + n.last).trim() || (n.name !== "—" ? n.name : "");
+    return full ? (full + " (" + roleWord + ")") : "";
+  }
+
+  function pairLabelFull(pair) {
+    var bits = [];
+    var h = pairPersonFull(pair && pair.helm, "Helm");
+    var c = pairPersonFull(pair && pair.crew, "Crew");
+    if (h) bits.push(h);
+    if (c) bits.push(c);
+    return bits.join(", ") || "—";
+  }
+
   function enteredPairs(team) {
     var out = [];
     rosterBoats(team).forEach(function (b, i) {
@@ -2782,7 +2798,7 @@
       avail.forEach(function (p) {
         var li = document.createElement("li");
         li.setAttribute("data-boat-no", String(p.boat_no));
-        li.textContent = pairLabel(p);
+        li.textContent = pairLabelFull(p);
         li.addEventListener("mousedown", function (e) {
           e.preventDefault();
           chooseFlightSail(li.getAttribute("data-boat-no") || "");
@@ -2825,8 +2841,16 @@
     });
   }
 
+  function flightLineReady(fl, bow) {
+    var cell = flightCell(fl, bow);
+    return !!(cell.colour && cell.team_id && cell.boat_no);
+  }
+
   function flightRankCell(n, bow, rank) {
     if (!isSaEdit()) return esc(rank || "");
+    if (!flightLineReady(n, bow)) {
+      return '<span class="tsl-rank-wait" title="Colour, team and sailors first">' + esc(rank || "") + "</span>";
+    }
     return '<input class="wc-result-field-input tsl-rank" type="text" inputmode="numeric" maxlength="1" data-flight="' +
       n + '" data-bow="' + bow + '" value="' + esc(rank || "") + '" aria-label="Rank" />';
   }
@@ -2844,6 +2868,14 @@
         boat_no: cell.boat_no || null
       });
     }
+    out.sort(function (a, b) {
+      var ar = Number(a.rank) || 0;
+      var br = Number(b.rank) || 0;
+      if (ar && br && ar !== br) return ar - br;
+      if (ar && !br) return -1;
+      if (!ar && br) return 1;
+      return Number(a.bow) - Number(b.bow);
+    });
     return out;
   }
 
@@ -2924,10 +2956,15 @@
       });
     });
     card.querySelectorAll(".tsl-rank").forEach(function (inp) {
-      inp.addEventListener("change", function () {
-        if (!isSaEdit()) return;
+      function saveRank() {
+        if (!isSaEdit() || inp._tslSaving) return;
         var fl = inp.getAttribute("data-flight");
         var bow = inp.getAttribute("data-bow");
+        if (!flightLineReady(fl, bow)) {
+          inp.value = "";
+          inp.title = "Colour, team and sailors first";
+          return;
+        }
         var raw = String(inp.value || "").trim();
         var prev = flightCell(fl, bow).rank;
         var rank = raw === "" ? "" : Number(raw);
@@ -2936,12 +2973,24 @@
           inp.title = "Rank must be 1 to 6";
           return;
         }
+        if ((prev || "") === (rank === "" ? "" : rank)) return;
+        inp._tslSaving = true;
         setFlightCellLocal(fl, bow, { rank: rank === "" ? null : rank });
-        saveFlightLine({ flight: Number(fl), bow: Number(bow), rank: rank }).catch(function (err) {
+        saveFlightLine({ flight: Number(fl), bow: Number(bow), rank: rank }).then(function () {
+          insertFlightsCard();
+        }).catch(function (err) {
           setFlightCellLocal(fl, bow, { rank: prev || null });
           inp.value = prev || "";
           inp.title = (err && err.message) || "Save failed";
+          inp._tslSaving = false;
         });
+      }
+      inp.addEventListener("change", saveRank);
+      inp.addEventListener("blur", saveRank);
+      inp.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        inp.blur();
       });
     });
   }
