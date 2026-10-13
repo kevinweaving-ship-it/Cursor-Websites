@@ -9,14 +9,30 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014b";
+  var JS_VER = "20261014c";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
   var SCHED_ID = "macTslSchedule";
   var state = { teams: [], matches: [], standings: [], format: "rr28", settings: {}, schedule: {} };
   var sexChoice = {};
-  var pickState = { teamId: "", boat: 1, role: "", fromRole: "", sailor: null, club: "" };
+  var pickState = {
+    teamId: "",
+    boat: 1,
+    role: "",
+    fromRole: "",
+    sailor: null,
+    club: "",
+    mode: "",
+    addLoop: false,
+    addStep: 1,
+    sex: "M",
+    clubPick: null,
+    original: null,
+    selected: null,
+    replacement: null,
+    swapped: false
+  };
   var moveBurst = null;
   var moveSaveTimer = 0;
   var selectedMatchNo = 0;
@@ -165,6 +181,17 @@
       "#tslNamePop .tsl-pop-hit,#tslNamePop .tsl-pop-sailor{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}",
       "#tslNamePop .tsl-pop-sep{margin:0 2px}",
       "#tslNamePop #tslPopMsg{display:block;color:#1a2750;margin:0}",
+      "#tslNamePop.tsl-pop--wide{max-width:42em}",
+      "#tslNamePop .tsl-pop-split{display:flex;align-items:flex-start;gap:8px}",
+      "#tslNamePop .tsl-pop-split-left{flex:1 1 12em;min-width:0;display:flex;flex-direction:column;gap:6px}",
+      "#tslNamePop.tsl-pop--wide #tslPopList{flex:1 1 14em;min-width:10em;max-height:40vh;position:relative}",
+      "#tslNamePop #tslPopTeamName{font-size:16px!important;line-height:1.25!important;min-width:8em;flex:1 1 12em;max-width:100%}",
+      "#tslNamePop .tsl-pop-toggles{display:flex;flex-wrap:wrap;align-items:center;gap:6px}",
+      "#tslNamePop .tsl-role-btn.tsl-role-on{text-decoration:underline}",
+      "#tslNamePop #tslPopSave,#tslNamePop #tslPopTeamGo,#tslNamePop #tslPopDone{padding:2px 8px;min-height:0;line-height:1.2}",
+      "#macTslTeamsCard .tsl-new-team-hit{cursor:pointer;display:inline-flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:6px;white-space:nowrap;border:none;background:none;padding:0;margin:0;color:#1a2750;font:inherit}",
+      "#macTslTeamsCard .tsl-new-team-card .club-race-step-add{display:inline-flex;flex:0 0 auto}",
+      "#macTslTeamsCard .tsl-new-team-card .tsl-sailor-name{cursor:pointer}",
       "#macTslTeamsCard .tsl-role-btn[disabled]{cursor:default;text-decoration:none}",
       "#macTslTeamsCard .tsl-role-on{text-decoration:underline}",
       "#macTslTeamsCard #tslSlotPick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff;max-width:100%;box-sizing:border-box}",
@@ -828,10 +855,7 @@
     });
     document.getElementById("tslAddTeam").addEventListener("click", function () {
       if (!isSaEdit()) return;
-      var body = document.getElementById("tslTeamBody");
-      if (!body || body.querySelector('.tsl-team[data-team-id=""]')) return;
-      body.insertAdjacentHTML("beforeend", teamRowHtml({ boats: [{ boat_no: 1 }, { boat_no: 2 }, { boat_no: 3 }] }));
-      wireTeamPanel(body.querySelector(".tsl-team:last-child"));
+      openNewTeam();
     });
   }
 
@@ -1161,11 +1185,12 @@
 
   function sailorPickCell(person, teamId, boatNo, role) {
     var p = person || {};
-    var label = p.name || "—";
+    var empty = slotEmpty(p);
+    var label = empty ? "—" : (p.name || "—");
     return '<td class="' + (role === "crew" ? "crew-col" : "helm-col") + '">' +
       '<span class="tsl-name-wrap">' + movePad(teamId, boatNo, role) +
       '<span class="tsl-sailor-name" data-team-id="' + esc(teamId) + '" data-boat="' + boatNo +
-      '" data-role="' + role + '">' + esc(label) + "</span></span></td>";
+      '" data-role="' + role + '" data-empty="' + (empty ? "1" : "0") + '">' + esc(label) + "</span></span></td>";
   }
 
   function sailorChip(s) {
@@ -1222,8 +1247,11 @@
   }
 
   function namePopHtml() {
-    return '<div id="tslNamePop" class="card" hidden>' +
-      '<div class="tsl-pop-row">' +
+    return '<div id="tslNamePop" class="card" hidden></div>';
+  }
+
+  function popInnerReplace() {
+    return '<div class="tsl-pop-row">' +
       '<span id="tslPopLeft"></span>' +
       '<button type="button" class="tsl-pop-arrow" id="tslPopArrow" aria-label="Swap"></button>' +
       '<span class="tsl-ac"><input id="tslPopSearch" class="wc-result-field-input" type="text" autocomplete="off" placeholder="Name" /></span>' +
@@ -1231,17 +1259,87 @@
       '<button type="button" class="action-button" id="tslPopSave" hidden>Save</button>' +
       "</div>" +
       '<ul id="tslPopList" class="tsl-ac-list" hidden></ul>' +
-      '<span class="tsl-msg" id="tslPopMsg"></span></div>';
+      '<span class="tsl-msg" id="tslPopMsg"></span>';
+  }
+
+  function popInnerClub() {
+    return '<div class="tsl-pop-split">' +
+      '<div class="tsl-pop-split-left">' +
+      '<span class="tsl-ac"><input id="tslPopSearch" class="wc-result-field-input" type="text" autocomplete="off" placeholder="Club" /></span>' +
+      "</div>" +
+      '<ul id="tslPopList" class="tsl-ac-list" hidden></ul>' +
+      "</div>" +
+      '<span class="tsl-msg" id="tslPopMsg"></span>';
+  }
+
+  function popInnerTeamName() {
+    return '<div class="tsl-pop-row" id="tslPopClubChip"></div>' +
+      '<div class="tsl-pop-row">' +
+      '<input id="tslPopTeamName" class="wc-result-field-input" type="text" autocomplete="off" placeholder="Team name" />' +
+      '<button type="button" class="action-button" id="tslPopTeamGo">Add team</button>' +
+      "</div>" +
+      '<span class="tsl-msg" id="tslPopMsg"></span>';
+  }
+
+  function popInnerAdd() {
+    return '<div class="tsl-pop-split">' +
+      '<div class="tsl-pop-split-left">' +
+      '<span class="tsl-ac"><input id="tslPopSearch" class="wc-result-field-input" type="text" autocomplete="off" placeholder="Name" /></span>' +
+      '<span id="tslPopChosen"></span>' +
+      '<div class="tsl-pop-toggles">' +
+      '<button type="button" class="action-button tsl-role-btn" id="tslPopSexM">M</button>' +
+      '<button type="button" class="action-button tsl-role-btn" id="tslPopSexF">F</button>' +
+      '<button type="button" class="action-button tsl-role-btn" id="tslPopHelm">Helm</button>' +
+      '<button type="button" class="action-button tsl-role-btn" id="tslPopCrew">Crew</button>' +
+      '<button type="button" class="action-button" id="tslPopSave">Save</button>' +
+      '<button type="button" class="action-button" id="tslPopDone">Done</button>' +
+      "</div></div>" +
+      '<ul id="tslPopList" class="tsl-ac-list" hidden></ul>' +
+      "</div>" +
+      '<span class="tsl-msg" id="tslPopMsg"></span>';
+  }
+
+  function setPopBody(html, wide) {
+    var pop = ensureNamePop();
+    pop.innerHTML = html;
+    if (wide) pop.classList.add("tsl-pop--wide");
+    else pop.classList.remove("tsl-pop--wide");
+    bindNamePopControls();
+    return pop;
   }
 
   function bindNamePopControls() {
     if (!document._tslPopSearchDel) {
       var searchT = 0;
       document.addEventListener("input", function (e) {
-        if (!e.target || e.target.id !== "tslPopSearch") return;
+        if (!e.target) return;
+        if (e.target.id !== "tslPopSearch") return;
         var q = e.target.value;
+        if (pickState.mode === "add" && pickState.selected) {
+          pickState.selected = null;
+          pickState.replacement = null;
+          refreshAddPop();
+        }
         clearTimeout(searchT);
-        searchT = setTimeout(function () { runPopSearch(q); }, 80);
+        searchT = setTimeout(function () {
+          if (pickState.mode === "club") runClubSearch(q);
+          else runPopSearch(q);
+        }, 80);
+      });
+      document.addEventListener("click", function (e) {
+        var t = e.target && e.target.closest ? e.target.closest("[id]") : e.target;
+        if (!t || !t.id) return;
+        if (t.id === "tslPopArrow") { e.preventDefault(); swapNamePopSides(); }
+        else if (t.id === "tslPopSave") {
+          e.preventDefault();
+          if (pickState.mode === "add") saveAddSailor();
+          else saveNameReplace();
+        } else if (t.id === "tslPopTeamGo") { e.preventDefault(); createTeamFromPop(); }
+        else if (t.id === "tslPopSexM") { e.preventDefault(); setPopSex("M"); }
+        else if (t.id === "tslPopSexF") { e.preventDefault(); setPopSex("F"); }
+        else if (t.id === "tslPopHelm") { e.preventDefault(); setPopRole("helm"); }
+        else if (t.id === "tslPopCrew") { e.preventDefault(); setPopRole("crew"); }
+        else if (t.id === "tslPopDone") { e.preventDefault(); closeNamePop(); }
       });
       document._tslPopSearchDel = true;
     }
@@ -1250,23 +1348,22 @@
         var box = document.getElementById("tslNamePop");
         if (!box || box.hidden) return;
         if (box.contains(e.target)) return;
-        if (e.target.closest && e.target.closest(".tsl-sailor-name")) return;
+        if (e.target.closest && (
+          e.target.closest(".tsl-sailor-name") ||
+          e.target.closest(".tsl-new-team-hit") ||
+          e.target.closest("#tslAddTeam") ||
+          e.target.closest(".tsl-new-team-card")
+        )) return;
         closeNamePop();
       });
       document.addEventListener("keydown", function (e) {
         if (e.key === "Escape") closeNamePop();
+        if (e.key === "Enter" && pickState.mode === "teamname") {
+          e.preventDefault();
+          createTeamFromPop();
+        }
       });
       document._tslNamePopDoc = true;
-    }
-    var popArrow = document.getElementById("tslPopArrow");
-    if (popArrow && !popArrow._tslBound) {
-      popArrow.addEventListener("click", swapNamePopSides);
-      popArrow._tslBound = true;
-    }
-    var popSave = document.getElementById("tslPopSave");
-    if (popSave && !popSave._tslBound) {
-      popSave.addEventListener("click", saveNameReplace);
-      popSave._tslBound = true;
     }
   }
 
@@ -1292,6 +1389,11 @@
     pickState.replacement = null;
     pickState.selected = null;
     pickState.swapped = false;
+    pickState.mode = "";
+    pickState.addLoop = false;
+    pickState.addStep = 1;
+    pickState.clubPick = null;
+    pickState.sex = "M";
   }
 
   function refreshNamePop() {
@@ -1333,7 +1435,8 @@
     pickState.selected = null;
     pickState.replacement = null;
     pickState.swapped = false;
-    var pop = ensureNamePop();
+    pickState.mode = "replace";
+    var pop = setPopBody(popInnerReplace(), false);
     if (!pop) return;
     refreshNamePop();
     var search = document.getElementById("tslPopSearch");
@@ -1382,19 +1485,29 @@
     items.forEach(function (it) {
       var li = document.createElement("li");
       li.className = "tsl-pop-hit";
-      li.innerHTML = searchHitHtml(it);
-      li.addEventListener("mousedown", function (e) {
-        e.preventDefault();
-        if (!it.sas_id) {
-          var msg = document.getElementById("tslPopMsg");
-          if (msg) msg.textContent = "SAS missing — not invented";
-          return;
-        }
-        pickState.selected = copyPerson(normalizeSearchHit(it));
-        pickState.replacement = pickState.selected;
-        pickState.swapped = false;
-        refreshNamePop();
-      });
+      if (pickState.mode === "club") {
+        li.innerHTML = clubHitHtml(it);
+        li.addEventListener("mousedown", function (e) {
+          e.preventDefault();
+          chooseClub(it);
+        });
+      } else {
+        li.innerHTML = searchHitHtml(it);
+        li.addEventListener("mousedown", function (e) {
+          e.preventDefault();
+          if (!it.sas_id) {
+            var msgEl = document.getElementById("tslPopMsg");
+            if (msgEl) msgEl.textContent = "SAS missing — not invented";
+            return;
+          }
+          pickState.selected = copyPerson(normalizeSearchHit(it));
+          pickState.replacement = pickState.selected;
+          pickState.swapped = false;
+          if (sexLetter(pickState.selected)) pickState.sex = sexLetter(pickState.selected);
+          if (pickState.mode === "add") refreshAddPop();
+          else refreshNamePop();
+        });
+      }
       list.appendChild(li);
     });
     list.hidden = false;
@@ -1423,6 +1536,343 @@
     writeRoster(team, boats);
     closeNamePop();
     paintAndSave(team);
+  }
+
+  function normalizeClub(it) {
+    it = it || {};
+    var code = String(it.code || it.club_abbrev || "").trim();
+    var name = String(it.name || it.club_name || it.club_fullname || "").trim();
+    return {
+      club_id: it.club_id ? Number(it.club_id) : 0,
+      code: code,
+      name: name,
+      logo: String(it.logo || it.club_logo || (code ? "/api/club-logo/" + code : ""))
+    };
+  }
+
+  function clubHitHtml(c) {
+    c = normalizeClub(c);
+    return '<span class="tsl-pop-hit">' +
+      logoImg(c.logo, c.code) +
+      '<span class="tsl-pop-sep"> | </span>' +
+      '<span class="tsl-pop-code">' + esc(c.code || "—") + "</span>" +
+      '<span class="tsl-pop-sep"> | </span>' +
+      '<span class="tsl-pop-club-name">' + esc(c.name || c.code || "—") + "</span></span>";
+  }
+
+  function filterClubHits(rows, tokens) {
+    if (!tokens.length) return rows;
+    return (rows || []).filter(function (c) {
+      var hay = [c.code, c.name].join(" ").toLowerCase();
+      return tokens.every(function (t) { return hay.indexOf(t) !== -1; });
+    });
+  }
+
+  function firstEmptyAny(team) {
+    if (!team) return null;
+    var boats = rosterBoats(team);
+    var i;
+    for (i = 0; i < boats.length; i += 1) {
+      if (slotEmpty(boats[i].helm)) return { boat: i + 1, role: "helm" };
+      if (slotEmpty(boats[i].crew)) return { boat: i + 1, role: "crew" };
+    }
+    return null;
+  }
+
+  function sailorOnTeam(team, sasId) {
+    if (!team || !sasId) return false;
+    var want = String(sasId);
+    var found = false;
+    rosterBoats(team).forEach(function (b) {
+      if (b.helm && String(b.helm.sas_id || "") === want) found = true;
+      if (b.crew && String(b.crew.sas_id || "") === want) found = true;
+    });
+    return found;
+  }
+
+  function newTeamCardHtml() {
+    if (!isSaEdit()) return "";
+    var dummy = { team_id: "", boats: [{ boat_no: 1 }, { boat_no: 2 }, { boat_no: 3 }] };
+    return '<div class="card tsl-team-card tsl-new-team-card" data-team-id="">' +
+      '<button type="button" class="tsl-new-team-hit" id="tslNewTeamHead">' +
+      '<span class="club-race-step-add" id="tslNewTeam" aria-hidden="true">+</span>' +
+      '<span class="tsl-team-full">New Team</span></button>' +
+      teamRosterTable(dummy) +
+      "</div>";
+  }
+
+  function openNewTeam() {
+    if (!isSaEdit()) return;
+    pickState.mode = "club";
+    pickState.clubPick = null;
+    pickState.selected = null;
+    pickState.replacement = null;
+    pickState.addLoop = true;
+    pickState.addStep = 1;
+    pickState.teamId = "";
+    pickState.boat = 1;
+    pickState.role = "helm";
+    pickState.sex = "M";
+    var pop = setPopBody(popInnerClub(), true);
+    var search = document.getElementById("tslPopSearch");
+    if (search) search.value = "";
+    var msg = document.getElementById("tslPopMsg");
+    if (msg) msg.textContent = "Type a club";
+    showPopSearch([]);
+    pop.hidden = false;
+    if (search) search.focus();
+    runClubSearch("");
+  }
+
+  function runClubSearch(raw) {
+    var msg = document.getElementById("tslPopMsg");
+    var q = spaceCamel(raw);
+    var tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+    if (msg) msg.textContent = "Searching…";
+    function paint(d) {
+      var rows = ((d && d.clubs) || (Array.isArray(d) ? d : [])).map(normalizeClub);
+      var hits = filterClubHits(rows, tokens);
+      showPopSearch(hits);
+      if (msg) msg.textContent = hits.length ? "" : (q ? "No clubs found." : "Type a club");
+    }
+    api("/api/tsl/" + encodeURIComponent(RID) + "/clubs-search?q=" + encodeURIComponent(q) + "&limit=40")
+      .then(paint)
+      .catch(function (e) {
+        return api("/api/super-admin/clubs-search?q=" + encodeURIComponent(q) + "&limit=40")
+          .then(paint)
+          .catch(function (e2) {
+            if (msg) msg.textContent = (e2 && e2.message) || (e && e.message) || "Search failed";
+            showPopSearch([]);
+          });
+      });
+  }
+
+  function chooseClub(it) {
+    var club = normalizeClub(it);
+    if (!club.club_id) {
+      var msg = document.getElementById("tslPopMsg");
+      if (msg) msg.textContent = "Select a club from the list.";
+      return;
+    }
+    pickState.clubPick = club;
+    pickState.mode = "teamname";
+    var pop = setPopBody(popInnerTeamName(), false);
+    var chip = document.getElementById("tslPopClubChip");
+    if (chip) chip.innerHTML = clubHitHtml(club);
+    var inp = document.getElementById("tslPopTeamName");
+    if (inp) {
+      inp.value = club.name || club.code || "";
+      inp.focus();
+      inp.select();
+    }
+    var note = document.getElementById("tslPopMsg");
+    if (note) {
+      note.textContent = teamByClub(club.code)
+        ? (club.code + " already has a team — enter a different team name.")
+        : "Enter the team name, then Add team.";
+    }
+    pop.hidden = false;
+  }
+
+  function createTeamFromPop() {
+    var club = pickState.clubPick;
+    var inp = document.getElementById("tslPopTeamName");
+    var msg = document.getElementById("tslPopMsg");
+    var name = inp ? String(inp.value || "").trim() : "";
+    if (!club || !club.club_id) {
+      if (msg) msg.textContent = "Select a club from the list.";
+      return;
+    }
+    if (!name) {
+      if (msg) msg.textContent = "Enter a team name.";
+      return;
+    }
+    var abbrev = club.code || name;
+    if (teamByClub(club.code)) abbrev = name;
+    if (msg) msg.textContent = "Saving…";
+    api("/api/tsl/" + encodeURIComponent(RID) + "/teams", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        club_id: club.club_id,
+        team_name: name,
+        team_abbrev: abbrev,
+        boats: []
+      })
+    }).then(function (d) {
+      return loadState().then(function () {
+        var tid = d && d.team && d.team.team_id;
+        var team = (tid && teamById(tid)) ||
+          (state.teams || []).filter(function (t) { return String(t.team_name || "") === name; })[0] ||
+          (d && d.team) ||
+          null;
+        if (!team) {
+          if (msg) msg.textContent = "Team saved.";
+          closeNamePop();
+          return;
+        }
+        openAddSailorLoop(team);
+      });
+    }).catch(function (e) {
+      if (msg) msg.textContent = (e && e.message) || "Save failed";
+    });
+  }
+
+  function setPopSex(letter) {
+    pickState.sex = letter === "F" ? "F" : "M";
+    refreshAddPop();
+  }
+
+  function setPopRole(role) {
+    var team = teamById(pickState.teamId);
+    var allow = team ? allowedRoles(team, pickState.boat, pickState.role || "") : ["helm", "crew"];
+    if (allow.indexOf(role) < 0) {
+      var msg = document.getElementById("tslPopMsg");
+      if (msg) msg.textContent = role === "helm" ? "No helm left — must be crew" : "No crew left — must be helm";
+      return;
+    }
+    pickState.role = role === "crew" ? "crew" : "helm";
+    refreshAddPop();
+  }
+
+  function refreshAddPop() {
+    var chosen = document.getElementById("tslPopChosen");
+    var search = document.getElementById("tslPopSearch");
+    var list = document.getElementById("tslPopList");
+    var save = document.getElementById("tslPopSave");
+    var helmBtn = document.getElementById("tslPopHelm");
+    var crewBtn = document.getElementById("tslPopCrew");
+    var mBtn = document.getElementById("tslPopSexM");
+    var fBtn = document.getElementById("tslPopSexF");
+    var msg = document.getElementById("tslPopMsg");
+    var team = teamById(pickState.teamId);
+    var allow = team ? allowedRoles(team, pickState.boat, pickState.role || "") : ["helm", "crew"];
+    if (chosen) chosen.innerHTML = pickState.selected ? sailorChip(pickState.selected) : "";
+    if (search && search.parentNode) search.parentNode.hidden = false;
+    if (save) save.hidden = !pickState.selected;
+    if (list && pickState.selected) { list.hidden = true; list.innerHTML = ""; }
+    if (helmBtn) {
+      helmBtn.disabled = allow.indexOf("helm") < 0;
+      helmBtn.classList.toggle("tsl-role-on", pickState.role === "helm");
+    }
+    if (crewBtn) {
+      crewBtn.disabled = allow.indexOf("crew") < 0;
+      crewBtn.classList.toggle("tsl-role-on", pickState.role === "crew");
+    }
+    if (mBtn) mBtn.classList.toggle("tsl-role-on", pickState.sex === "M");
+    if (fBtn) fBtn.classList.toggle("tsl-role-on", pickState.sex === "F");
+    if (msg) {
+      if (allow.length === 1) {
+        msg.textContent = allow[0] === "helm" ? "No crew left — must be helm" : "No helm left — must be crew";
+      } else if (pickState.addLoop) {
+        msg.textContent = "Sailor " + (pickState.addStep || 1) + " of 6 — type a name";
+      } else {
+        msg.textContent = pickState.selected ? "" : "Type a name";
+      }
+    }
+  }
+
+  function openAddSailorLoop(team) {
+    if (!team) return;
+    pickState.mode = "add";
+    pickState.addLoop = true;
+    pickState.addStep = pickState.addStep || 1;
+    pickState.teamId = String(team.team_id || "");
+    var slot = firstEmptyAny(team);
+    pickState.boat = slot ? slot.boat : 1;
+    pickState.role = slot ? slot.role : "helm";
+    pickState.fromRole = pickState.role;
+    pickState.selected = null;
+    pickState.replacement = null;
+    if (!pickState.sex) pickState.sex = "M";
+    var pop = setPopBody(popInnerAdd(), true);
+    var search = document.getElementById("tslPopSearch");
+    if (search) search.value = "";
+    showPopSearch([]);
+    refreshAddPop();
+    pop.hidden = false;
+    if (search) search.focus();
+  }
+
+  function openAddSailor(el) {
+    if (!isSaEdit()) return;
+    var teamId = el.getAttribute("data-team-id");
+    var boat = el.getAttribute("data-boat");
+    var role = el.getAttribute("data-role");
+    var team = teamById(teamId);
+    if (!team) return;
+    pickState.mode = "add";
+    pickState.addLoop = false;
+    pickState.addStep = 1;
+    pickState.teamId = String(teamId || "");
+    pickState.boat = Number(boat) || 1;
+    pickState.role = role === "crew" ? "crew" : "helm";
+    pickState.fromRole = pickState.role;
+    pickState.selected = null;
+    pickState.replacement = null;
+    pickState.sex = "M";
+    var pop = setPopBody(popInnerAdd(), true);
+    var search = document.getElementById("tslPopSearch");
+    if (search) search.value = "";
+    showPopSearch([]);
+    refreshAddPop();
+    pop.hidden = false;
+    if (search) search.focus();
+  }
+
+  function saveAddSailor() {
+    var incoming = pickState.selected || pickState.replacement;
+    var msg = document.getElementById("tslPopMsg");
+    if (!incoming || !incoming.sas_id) {
+      if (msg) msg.textContent = "SAS missing — not invented";
+      return;
+    }
+    var team = teamById(pickState.teamId);
+    if (!team) return;
+    if (sailorOnTeam(team, incoming.sas_id)) {
+      if (msg) msg.textContent = "Sailor already on this team";
+      return;
+    }
+    var role = pickState.role === "crew" ? "crew" : "helm";
+    var allow = allowedRoles(team, pickState.boat, pickState.role || "");
+    if (allow.indexOf(role) < 0) {
+      if (msg) msg.textContent = role === "helm" ? "No helm left — must be crew" : "No crew left — must be helm";
+      refreshAddPop();
+      return;
+    }
+    var slot = firstOpenSlotSameRole(team, pickState.boat, role) || firstEmptyAny(team);
+    if (!slot) {
+      if (msg) msg.textContent = "No slot left";
+      return;
+    }
+    var boats = rosterBoats(team);
+    var person = copyPerson(incoming);
+    person.sex = pickState.sex === "F" ? "F" : "M";
+    boats[slot.boat - 1][slot.role] = person;
+    writeRoster(team, boats);
+    var keepLoop = pickState.addLoop;
+    var nextStep = (pickState.addStep || 1) + 1;
+    if (keepLoop && nextStep <= 6 && firstEmptyAny(team)) {
+      pickState.addStep = nextStep;
+      pickState.selected = null;
+      pickState.replacement = null;
+      var next = firstEmptyAny(team);
+      pickState.boat = next.boat;
+      pickState.role = next.role;
+      pickState.fromRole = next.role;
+      pickState.sex = "M";
+      paintAndSave(team);
+      var pop = setPopBody(popInnerAdd(), true);
+      var search = document.getElementById("tslPopSearch");
+      if (search) search.value = "";
+      showPopSearch([]);
+      refreshAddPop();
+      pop.hidden = false;
+      if (search) search.focus();
+    } else {
+      closeNamePop();
+      paintAndSave(team);
+    }
   }
 
   function swapSailorSlot(teamId, boat, role, dir, steps) {
@@ -1761,6 +2211,7 @@
         teamHead(t) +
         teamRosterTable(t) + "</div>";
     });
+    inner += newTeamCardHtml();
     return '<div class="fleet-title-row">Teams</div><div class="tsl-team-cards">' + inner + "</div>" + pickPanelHtml();
   }
 
@@ -1782,7 +2233,23 @@
       el.addEventListener("click", function (e) {
         e.preventDefault();
         e.stopPropagation();
+        if (!isSaEdit()) return;
+        if (!el.getAttribute("data-team-id") || el.closest(".tsl-new-team-card")) {
+          openNewTeam();
+          return;
+        }
+        if (el.getAttribute("data-empty") === "1") {
+          openAddSailor(el);
+          return;
+        }
         openNameReplace(el);
+      });
+    });
+    card.querySelectorAll(".tsl-new-team-hit").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openNewTeam();
       });
     });
     bindNamePopControls();

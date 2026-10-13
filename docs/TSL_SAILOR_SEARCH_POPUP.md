@@ -4,7 +4,7 @@ Working Super Admin picker on the MAC TSL Event URL. **Reuse this same system** 
 
 Live: https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing  
 Code: `js/mac-tsl-admin.js` (keep `sailingsa/frontend/js/mac-tsl-admin.js` in sync).  
-Pin: `mac-tsl-admin.js?v=` in `api.py`. Current working pin **`20261013z`**.
+Pin: `mac-tsl-admin.js?v=` in `api.py`. Current working pin **`20261014c`**.
 
 ---
 
@@ -71,15 +71,17 @@ Save path today: `writeRoster` + `paintAndSave` → `PATCH /api/tsl/{rid}/teams/
 
 ---
 
-## Reuse later — Add Team / add sailors
+## Add Team / add sailors (same popup)
 
-When that work starts, **same popup + same search**. Change only the **save target**:
+Super Admin only. After the last team card, a standard `.tsl-team-card.tsl-new-team-card` stays last: **+** icon + **New Team** (same table header as other teams). After each new team is saved, this card is painted again so another team can always be added.
 
-- Replace slot (now): write `pickState.selected.sas_id` into that boat role.
-- Add sailor to a team: append/fill the next empty helm or crew slot with that `sas_id`.
-- Add team: first pick club (existing club search), then use **this** sailor search for the 3 helm + 3 crew. Still no invented SAS.
+1. Click **+ / New Team** (or T+, or an empty cell on that card).
+2. Club search — same body-fixed `.card`, 16px field, short list as you type. Hits: **Club Logo | Club code | Club Full name**. Endpoint: `GET /api/tsl/{rid}/clubs-search` (fallback `/api/super-admin/clubs-search`).
+3. Select club → **Team name** field (pre-filled with club full name; user edits) → **Add team**. `POST /api/tsl/{rid}/teams` with empty boats. Team card is written like the others even with 0 sailors.
+4. Then sailor add (1 of 6): **search left, list right** — same `/api/search?hub=1` + `filterHits` + **name | logo | SAS**. At the same time: **M/F** and **Helm/Crew** toggles + Save. After save, offer 2nd…6th. **Done** / Escape / 1 or 3 sailors is enough — team stays.
+5. Blank cell on any team: click **—** → same add flow (sailor + sex + Helm/Crew). Named cell still uses the replace card (original | ← | search).
 
-Keep: `.card`, `.action-button`, `.wc-result-field-input`, `.tsl-ac-list`, 16px field, body-fixed card, `/api/search?hub=1`, hit format **name | logo | SAS**.
+Keep: `.card`, `.action-button`, `.wc-result-field-input`, `.tsl-ac-list`, 16px field, body-fixed card, `/api/search?hub=1`, hit format **name | logo | SAS**. No invented SAS. Club of an existing team does not change when a sailor is added.
 
 Do not: over-the-name absolute card, TSL sailors-search for the typeahead, hide empty results with no status line, raw `TimWeaving` query.
 
