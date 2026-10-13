@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013s";
+  var JS_VER = "20261013t";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -142,6 +142,11 @@
       "#macTslTeamsCard .tsl-team-dot{display:inline-flex;align-items:center;justify-content:center;line-height:1;height:1em;margin:0 4px;align-self:center}",
       "#macTslTeamsCard .tsl-team-full{display:inline-flex;align-items:center}",
       "#macTslTeamsCard .tsl-sex,#macTslTeamsCard .tsl-sailor-pick{display:inline;border:none;background:none;color:#1a2750;font:inherit;padding:0;margin:0;cursor:pointer;min-width:1em;text-align:left}",
+      "#macTslTeamsCard .tsl-name-wrap{display:inline-flex;align-items:center;white-space:nowrap}",
+      "#macTslTeamsCard .tsl-move{display:none;grid-template-columns:1em 1em 1em;grid-template-rows:1em 1em 1em;place-items:center;margin:0 4px 0 0;line-height:1;vertical-align:middle}",
+      ".regatta-page--super-admin-edit #macTslTeamsCard .tsl-move{display:inline-grid}",
+      "#macTslTeamsCard .tsl-move-btn{display:inline;border:none;background:none;color:#1a2750;font:inherit;padding:0;margin:0;cursor:pointer;line-height:1;min-width:1em;text-align:center}",
+      "#macTslTeamsCard .tsl-move-btn[disabled]{cursor:default;opacity:0.35}",
       "#macTslTeamsCard .tsl-role-btn[disabled]{cursor:default;text-decoration:none}",
       "#macTslTeamsCard .tsl-role-on{text-decoration:underline}",
       "#macTslTeamsCard #tslSlotPick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff;max-width:100%;box-sizing:border-box}",
@@ -1039,12 +1044,68 @@
       esc(sexLetter(p) || "—") + "</button></td>";
   }
 
+  function copyPerson(p) {
+    p = p || {};
+    return { name: p.name || "", sas_id: p.sas_id || "", sex: p.sex || sexLetter(p) };
+  }
+
+  function moveArrow(teamId, boatNo, role, dir, enabled) {
+    var mark = { up: "↑", down: "↓", left: "←", right: "→" }[dir] || "";
+    return '<button type="button" class="tsl-move-btn" data-dir="' + dir +
+      '" data-team-id="' + esc(teamId) + '" data-boat="' + boatNo + '" data-role="' + role + '"' +
+      (enabled ? "" : " disabled") + ">" + mark + "</button>";
+  }
+
+  function movePad(teamId, boatNo, role) {
+    var n = Number(boatNo) || 1;
+    return '<span class="tsl-move">' +
+      "<span></span>" + moveArrow(teamId, boatNo, role, "up", n > 1) + "<span></span>" +
+      moveArrow(teamId, boatNo, role, "left", role === "crew") +
+      "<span></span>" +
+      moveArrow(teamId, boatNo, role, "right", role === "helm") +
+      "<span></span>" + moveArrow(teamId, boatNo, role, "down", n < 3) + "<span></span>" +
+      "</span>";
+  }
+
   function sailorPickCell(person, teamId, boatNo, role) {
     var p = person || {};
     var label = p.name || "—";
     return '<td class="' + (role === "crew" ? "crew-col" : "helm-col") + '">' +
-      '<button type="button" class="tsl-sailor-pick" data-team-id="' + esc(teamId) +
-      '" data-boat="' + boatNo + '" data-role="' + role + '">' + esc(label) + "</button></td>";
+      '<span class="tsl-name-wrap">' + movePad(teamId, boatNo, role) +
+      '<span class="tsl-sailor-name">' + esc(label) + "</span></span></td>";
+  }
+
+  function swapSailorSlot(teamId, boat, role, dir) {
+    var team = teamById(teamId);
+    if (!team) return;
+    var boats = rosterBoats(team);
+    var fromBoat = Number(boat) || 1;
+    var fromIdx = fromBoat - 1;
+    var fromRole = role === "crew" ? "crew" : "helm";
+    var toIdx = fromIdx;
+    var toRole = fromRole;
+    if (dir === "right") {
+      if (fromRole !== "helm") return;
+      toRole = "crew";
+    } else if (dir === "left") {
+      if (fromRole !== "crew") return;
+      toRole = "helm";
+    } else if (dir === "up") {
+      if (fromIdx <= 0) return;
+      toIdx = fromIdx - 1;
+    } else if (dir === "down") {
+      if (fromIdx >= 2) return;
+      toIdx = fromIdx + 1;
+    } else {
+      return;
+    }
+    if (!boats[fromIdx] || !boats[toIdx]) return;
+    var a = copyPerson(boats[fromIdx][fromRole]);
+    var b = copyPerson(boats[toIdx][toRole]);
+    if (!a.sas_id && !a.name && !b.sas_id && !b.name) return;
+    boats[fromIdx][fromRole] = b;
+    boats[toIdx][toRole] = a;
+    return saveBoats(team, boats);
   }
 
   function eventClubOptions(selected) {
@@ -1363,9 +1424,15 @@
         saveSlotSex(btn.getAttribute("data-team-id"), btn.getAttribute("data-boat"), btn.getAttribute("data-role"), next);
       });
     });
-    card.querySelectorAll(".tsl-sailor-pick").forEach(function (btn) {
+    card.querySelectorAll(".tsl-move-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        openSailorPick(btn.getAttribute("data-team-id"), btn.getAttribute("data-boat"), btn.getAttribute("data-role"));
+        if (btn.disabled) return;
+        swapSailorSlot(
+          btn.getAttribute("data-team-id"),
+          btn.getAttribute("data-boat"),
+          btn.getAttribute("data-role"),
+          btn.getAttribute("data-dir")
+        );
       });
     });
     var nameInp = document.getElementById("tslPickName");
