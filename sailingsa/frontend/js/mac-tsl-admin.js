@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261014w";
+  var JS_VER = "20261014x";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -2663,6 +2663,49 @@
     return n;
   }
 
+  function colourOwnerTeam(fl, colour, exceptBow) {
+    if (!colour) return null;
+    var bow;
+    for (bow = 1; bow <= 6; bow += 1) {
+      if (exceptBow && Number(bow) === Number(exceptBow)) continue;
+      var cell = flightCell(fl, bow);
+      if (cell.colour === colour && cell.team_id) return Number(cell.team_id);
+    }
+    return null;
+  }
+
+  function applyTeamToColourBow(fl, bow, teamId) {
+    var prev = flightCell(fl, bow);
+    var same = Number(prev.team_id) === Number(teamId);
+    setFlightCellLocal(fl, bow, {
+      team_id: Number(teamId),
+      boat_no: same ? (prev.boat_no || null) : null
+    });
+    return saveFlightLine({
+      flight: Number(fl),
+      bow: Number(bow),
+      team_id: Number(teamId),
+      boat_no: same ? (prev.boat_no || "") : ""
+    });
+  }
+
+  function backfillColourTeam(fl, colour, teamId, exceptBow) {
+    if (!colour || !teamId) return Promise.resolve();
+    var chain = Promise.resolve();
+    var bow;
+    for (bow = 1; bow <= 6; bow += 1) {
+      if (exceptBow && Number(bow) === Number(exceptBow)) continue;
+      var cell = flightCell(fl, bow);
+      if (cell.colour !== colour) continue;
+      if (Number(cell.team_id) === Number(teamId)) continue;
+      if (teamCount(fl, teamId, bow) >= 3) continue;
+      (function (b) {
+        chain = chain.then(function () { return applyTeamToColourBow(fl, b, teamId); });
+      })(bow);
+    }
+    return chain;
+  }
+
   function nextFlightColour(fl, bow) {
     var cur = flightColour(fl, bow);
     var order = ["", "Blue", "Green"];
@@ -2885,6 +2928,11 @@
       bow: Number(bow),
       team_id: tid ? Number(tid) : "",
       boat_no: boatNo || ""
+    }).then(function () {
+      var colour = flightCell(fl, bow).colour;
+      if (tid && colour) return backfillColourTeam(fl, colour, Number(tid), bow);
+    }).then(function () {
+      insertFlightsCard();
     }).catch(function (err) {
       setFlightCellLocal(fl, bow, { team_id: prev.team_id || null, boat_no: prev.boat_no || null });
       insertFlightsCard();
@@ -3168,13 +3216,32 @@
         if (!isSaEdit()) return;
         var fl = btn.getAttribute("data-flight");
         var bow = btn.getAttribute("data-bow");
-        var prev = flightColour(fl, bow);
+        var prevCell = flightCell(fl, bow);
+        var prev = prevCell.colour || "";
         var next = nextFlightColour(fl, bow);
         if (next === prev && prev) btn.title = "No more than " + colourCap(fl) + " " + prev;
-        setFlightCellLocal(fl, bow, { colour: next });
+        var owner = next ? colourOwnerTeam(fl, next, bow) : null;
+        var patch = { colour: next };
+        if (owner && (Number(prevCell.team_id) === Number(owner) || teamCount(fl, owner, bow) < 3)) {
+          var keep = Number(prevCell.team_id) === Number(owner);
+          patch.team_id = owner;
+          patch.boat_no = keep ? (prevCell.boat_no || null) : null;
+        }
+        setFlightCellLocal(fl, bow, patch);
         paintColourSq(btn, next);
-        saveFlightLine({ flight: Number(fl), bow: Number(bow), colour: next }).catch(function (err) {
-          setFlightCellLocal(fl, bow, { colour: prev });
+        var body = { flight: Number(fl), bow: Number(bow), colour: next };
+        if (patch.team_id) {
+          body.team_id = patch.team_id;
+          body.boat_no = patch.boat_no || "";
+        }
+        saveFlightLine(body).then(function () {
+          insertFlightsCard();
+        }).catch(function (err) {
+          setFlightCellLocal(fl, bow, {
+            colour: prev,
+            team_id: prevCell.team_id || null,
+            boat_no: prevCell.boat_no || null
+          });
           paintColourSq(btn, prev);
           btn.title = (err && err.message) || "Save failed";
         });
