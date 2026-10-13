@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013i";
+  var JS_VER = "20261013j";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -30,12 +30,12 @@
     },
     "Eden District": {
       sailors: [
-        { name: "Lulonke Lenks", sas_id: "15711" },
-        { name: "Christian Cilliers", sas_id: "13488" },
-        { name: "Isabella Watson", sas_id: "27609" },
-        { name: "Arthur Watson", sas_id: "27610" },
-        { name: "Owen Conradie", sas_id: "23531" },
-        { name: "Rainier Lamprecht", sas_id: "28588" }
+        { name: "Lulonke Lenks", sas_id: "15711", dob: "2010-05-14" },
+        { name: "Christian Cilliers", sas_id: "13488", dob: "2009-07-17" },
+        { name: "Isabella Watson", sas_id: "27609", dob: "2010-06-13" },
+        { name: "Arthur Watson", sas_id: "27610", dob: "2013-10-03" },
+        { name: "Owen Conradie", sas_id: "23531", dob: "2012-01-25" },
+        { name: "Rainier Lamprecht", sas_id: "28588", dob: "2008-05-23" }
       ]
     }
   };
@@ -883,7 +883,34 @@
     }
   }
 
+  function ageFromDob(dob) {
+    var p = String(dob || "").split("-");
+    if (p.length !== 3) return "";
+    var y = Number(p[0]);
+    var m = Number(p[1]);
+    var d = Number(p[2]);
+    if (!y || !m || !d) return "";
+    var age = 2026 - y;
+    if (m > 10 || (m === 10 && d > 17)) age -= 1;
+    return String(age);
+  }
+
+  function sailorListTable(sailors) {
+    var rows = "";
+    (sailors || []).forEach(function (s) {
+      rows += "<tr><td class=\"helm-col\">" + esc(s.name || "") + "</td><td>" +
+        esc(s.sas_id || "") + "</td><td>" + esc(ageFromDob(s.dob)) + "</td></tr>";
+    });
+    return '<div class="table-wrapper"><table class="fleet-results-table">' +
+      "<thead><tr><th class=\"helm-col\">Name</th><th>SAS ID</th><th>Age</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody></table></div>";
+  }
+
   function teamRosterTable(team) {
+    var known = knownFor(team);
+    if (known && known.sailors && known.sailors.length) {
+      return sailorListTable(known.sailors);
+    }
     var boats = (team && team.boats) || [];
     var rows = "";
     var n;
