@@ -8,7 +8,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261013l";
+  var JS_VER = "20261013o";
   var CSS_ID = "mac-tsl-admin-css";
   var ROOT_ID = "macTslAdmin";
   var MATCHES_ID = "macTslMatches";
@@ -26,7 +26,7 @@
       crews: [
         { name: "Shakur Abrahams", sas_id: "" },
         { name: "Nadia Bahnemann", sas_id: "" },
-        { name: "Robyn Rosselli", sas_id: "" }
+        { name: "Robyn Roselli", sas_id: "28089" }
       ]
     },
     "Eden District": {
@@ -118,7 +118,19 @@
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
       ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet){display:none}",
-      "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;padding:8px}",
+      "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:hidden;margin-top:20px;margin-bottom:20px}",
+      "#macTslGoldSheet .fleet-results-table{border:none;border-radius:8px}",
+      "#macTslGoldSheet thead tr:first-child th{border-top:none}",
+      "#macTslGoldSheet tbody tr:last-child td{border-bottom:none}",
+      "#macTslGoldSheet th:first-child,#macTslGoldSheet td:first-child{border-left:none}",
+      "#macTslGoldSheet th:last-child,#macTslGoldSheet td:last-child{border-right:none}",
+      "#macTslGoldSheet thead tr:first-child th:first-child{border-top-left-radius:8px}",
+      "#macTslGoldSheet thead tr:first-child th:last-child{border-top-right-radius:8px}",
+      "#macTslGoldSheet tbody tr:last-child td:first-child{border-bottom-left-radius:8px}",
+      "#macTslGoldSheet tbody tr:last-child td:last-child{border-bottom-right-radius:8px}",
+      "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}}",
+      "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
+      "#macTslTeamsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;padding:8px;margin-top:0}",
       "#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0}",
       "#macTslTeamsCard .tsl-team-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;box-sizing:border-box}",
       "#macTslTeamsCard .tsl-team-card{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;margin:0;padding:8px;width:auto!important;max-width:none!important}",
@@ -128,9 +140,9 @@
       "#macTslTeamsCard .tsl-team-code{display:inline-flex;align-items:center}",
       "#macTslTeamsCard .tsl-team-dot{display:inline-flex;align-items:center;justify-content:center;line-height:1;height:1em;margin:0 4px;align-self:center}",
       "#macTslTeamsCard .tsl-team-full{display:inline-flex;align-items:center}",
-      "#macTslTeamsCard .tsl-sex{display:inline;border:none;background:none;color:#1a2750;font:inherit;padding:0;margin:0;cursor:pointer}",
-      "#macTslTeamsCard .tsl-slot-no{display:inline;border:none;background:none;color:#1a2750;font:inherit;padding:0;margin:0}",
-      ".regatta-page--super-admin-edit #macTslTeamsCard .tsl-slot-no{cursor:pointer;text-decoration:underline}",
+      "#macTslTeamsCard .tsl-sex,#macTslTeamsCard .tsl-sailor-pick,#macTslTeamsCard .tsl-role-btn{display:inline;border:none;background:none;color:#1a2750;font:inherit;padding:0;margin:0;cursor:pointer}",
+      "#macTslTeamsCard .tsl-role-btn[disabled]{cursor:default;text-decoration:none}",
+      "#macTslTeamsCard .tsl-role-on{text-decoration:underline}",
       "#macTslTeamsCard #tslSlotPick{margin:8px 0 0;padding:8px;border:2px solid #1a2750;border-radius:8px;background:#fff}",
       "#macTslTeamsCard #tslSlotPick[hidden]{display:none}",
       "@media (max-width:768px) and (orientation:portrait){#macTslTeamsCard .tsl-team-cards{grid-template-columns:1fr}}",
@@ -957,52 +969,6 @@
     return code === "GLYC" || name.indexOf("eden") !== -1;
   }
 
-  function glycSlots(team) {
-    var slots = [];
-    rosterBoats(team).forEach(function (b, i) {
-      var h = b.helm || {};
-      var c = b.crew || {};
-      slots.push({ slot: i * 2 + 1, role: "helm", name: h.name || "", sas_id: h.sas_id || "", sex: sexLetter(h) });
-      slots.push({ slot: i * 2 + 2, role: "crew", name: c.name || "", sas_id: c.sas_id || "", sex: sexLetter(c) });
-    });
-    return slots;
-  }
-
-  function roleCounts(slots, exceptSlot) {
-    var helm = 0;
-    var crew = 0;
-    (slots || []).forEach(function (s) {
-      if (exceptSlot && Number(s.slot) === Number(exceptSlot)) return;
-      if (!s.sas_id && !s.name) return;
-      if (s.role === "helm") helm += 1;
-      if (s.role === "crew") crew += 1;
-    });
-    return { helm: helm, crew: crew };
-  }
-
-  function allowedRoles(slots, slot) {
-    var n = roleCounts(slots, slot);
-    var out = [];
-    if (n.helm < 3) out.push("helm");
-    if (n.crew < 3) out.push("crew");
-    return out;
-  }
-
-  function glycRosterTable(team) {
-    var tid = (team && team.team_id) || "";
-    var rows = "";
-    glycSlots(team).forEach(function (s) {
-      rows += "<tr>" +
-        "<td>" + s.slot + "</td>" +
-        '<td><button type="button" class="tsl-sex" data-sas="' + esc(s.sas_id) + '" data-team-id="' + esc(tid) + '" data-slot="' + s.slot + '">' + esc(s.sex || "") + "</button></td>" +
-        '<td class="helm-col">' + esc(s.name || "") + "</td>" +
-        "<td>" + esc(s.sas_id || "") + "</td></tr>";
-    });
-    return '<div class="table-wrapper"><table class="fleet-results-table">' +
-      "<thead><tr><th>No</th><th>Sex</th><th class=\"helm-col\">Name</th><th>SAS ID</th></tr></thead>" +
-      "<tbody>" + rows + "</tbody></table></div>";
-  }
-
   function rosterBoats(team) {
     var known = knownFor(team) || {};
     var boats = (team && team.boats) || [];
@@ -1019,20 +985,62 @@
     return out;
   }
 
+  function roleFilled(team, role, exceptBoat, exceptRole) {
+    var n = 0;
+    rosterBoats(team).forEach(function (b, i) {
+      if (exceptBoat && i + 1 === Number(exceptBoat) && exceptRole === role) return;
+      if (b[role] && (b[role].sas_id || b[role].name)) n += 1;
+    });
+    return n;
+  }
+
+  function allowedRoles(team, boatNo, currentRole) {
+    var out = [];
+    if (roleFilled(team, "helm", boatNo, currentRole) < 3) out.push("helm");
+    if (roleFilled(team, "crew", boatNo, currentRole) < 3) out.push("crew");
+    return out;
+  }
+
+  function forcedRole(team, boatNo, currentRole) {
+    var allow = allowedRoles(team, boatNo, currentRole);
+    if (allow.length === 1) return allow[0];
+    return currentRole || "helm";
+  }
+
+  function sexCell(person, teamId, boatNo, role) {
+    var p = person || {};
+    return '<td><button type="button" class="tsl-sex" data-sas="' + esc(p.sas_id || "") +
+      '" data-team-id="' + esc(teamId) + '" data-boat="' + boatNo + '" data-role="' + role + '">' +
+      esc(sexLetter(p)) + "</button></td>";
+  }
+
+  function sailorPickCell(person, teamId, boatNo, role) {
+    var p = person || {};
+    var label = p.name || "";
+    return '<td class="' + (role === "crew" ? "crew-col" : "helm-col") + '">' +
+      '<button type="button" class="tsl-sailor-pick" data-team-id="' + esc(teamId) +
+      '" data-boat="' + boatNo + '" data-role="' + role + '">' + esc(label) + "</button></td>";
+  }
+
   function teamRosterTable(team) {
-    if (isGlycTeam(team)) return glycRosterTable(team);
+    var tid = (team && team.team_id) || "";
     var rows = "";
-    rosterBoats(team).forEach(function (b) {
+    rosterBoats(team).forEach(function (b, i) {
+      var n = i + 1;
       var h = b.helm || {};
       var c = b.crew || {};
       rows += "<tr>" +
-        '<td class="helm-col">' + esc(h.name || "") + "</td>" +
+        "<td>" + n + "</td>" +
+        sexCell(h, tid, n, "helm") +
+        sailorPickCell(h, tid, n, "helm") +
         "<td>" + esc(h.sas_id || "") + "</td>" +
-        '<td class="crew-col">' + esc(c.name || "") + "</td>" +
+        sexCell(c, tid, n, "crew") +
+        sailorPickCell(c, tid, n, "crew") +
         "<td>" + esc(c.sas_id || "") + "</td></tr>";
     });
     return '<div class="table-wrapper"><table class="fleet-results-table">' +
-      "<thead><tr><th class=\"helm-col\">Helm Name</th><th>SAS ID</th><th class=\"crew-col\">Crew Name</th><th>SAS ID</th></tr></thead>" +
+      "<thead><tr><th>No</th><th>Sex</th><th class=\"helm-col\">Helm</th><th>SAS ID</th>" +
+      "<th>Sex</th><th class=\"crew-col\">Crew</th><th>SAS ID</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></div>";
   }
 
