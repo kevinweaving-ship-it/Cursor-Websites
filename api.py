@@ -20534,8 +20534,54 @@ def club_manage_page(request: Request):
     )
 
 
+def _club_manage_preview_index_path() -> str:
+    candidates = []
+    try:
+        candidates.append(os.path.join(_static_dir(), "index.html"))
+    except Exception:
+        pass
+    candidates.extend(
+        [
+            "/var/www/sailingsa/index.html",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "sailingsa", "frontend", "index.html"),
+        ]
+    )
+    for path in candidates:
+        if path and os.path.isfile(path):
+            return path
+    return ""
 
 
+@app.get("/club-manage-preview", response_class=HTMLResponse)
+def club_manage_preview_page(request: Request):
+    """Protected preview of the club-manage rebuild. Does not replace /club-manage."""
+    if not _get_session_sas_id(request):
+        return RedirectResponse(url="/login.html?returnTo=/club-manage-preview", status_code=302)
+    index_path = _club_manage_preview_index_path()
+    if not index_path:
+        raise HTTPException(status_code=404, detail="index.html not found")
+    with open(index_path, "r", encoding="utf-8", errors="replace") as f:
+        html = f.read()
+    html = re.sub(r"<title>[^<]*</title>", "<title>Club events preview | SailingSA</title>", html, count=1)
+    if re.search(r'<meta\s+name="robots"', html, flags=re.I):
+        html = re.sub(
+            r'<meta\s+name="robots"\s+content="[^"]*"\s*/?>',
+            '<meta name="robots" content="noindex, nofollow">',
+            html,
+            count=1,
+        )
+    else:
+        html = html.replace("</head>", '<meta name="robots" content="noindex, nofollow">\n</head>', 1)
+    inject = '<script src="/js/club-manage-preview.js?v=20261014preview"></script>\n'
+    bod = html.rfind("</body>")
+    if bod != -1:
+        html = html[:bod] + inject + html[bod:]
+    else:
+        html += inject
+    resp = HTMLResponse(html)
+    resp.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return resp
 
 
 # --- Phase 3: SAS-ID club registration + sailor self-entry (writes results only; no entries table) ---
