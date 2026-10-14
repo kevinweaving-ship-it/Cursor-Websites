@@ -1,6 +1,6 @@
 # SailingSA club-event architecture — Step 1 inventory
 
-**Status:** Step 1 complete (evidence pass). Plan only. No code, DB, or deploy. Competitor research (Step 2) not started.
+**Status:** Step 1 complete (evidence pass). Step 2 platform matrix is in `docs/CLUB_EVENT_PLATFORM_MATRIX.md`. Plan only. No code, DB, or deploy.
 
 **Date:** 14 October 2026.
 
@@ -308,4 +308,4 @@ Any Sailwave / HalSail / Manage2Sail automation must assume:
 4. **Status line and dates** are locked rules; ingest must not rewrite `start_date`/`end_date` from import time.
 5. **Club ACL is a live-only score-edit pilot** (`club_admin`/`club_manager` + `admin_club_id` == `regattas.host_club_id`) on three 2026 slugs. Git has none. A general “club uploads Sailwave HTML” product still needs a first-class permission + create/entry API, or stays ops-only.
 
-Step 2 (competitor matrix) waits on instruction.
+Step 2 (competitor matrix): `docs/CLUB_EVENT_PLATFORM_MATRIX.md`. Implementation waits on instruction.
