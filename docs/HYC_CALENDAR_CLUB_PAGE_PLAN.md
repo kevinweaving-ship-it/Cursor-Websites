@@ -8,7 +8,7 @@
 
 **Extends:** `docs/CLUB_PAGE_EVENT_WIZARD_PLAN.md` (Activate / Add / wizard on `/club/{abbrev}`). That placement still stands, but **live `/club/hyc` chrome is the list cards below**, not the workspace carousel fragment.
 
-**Unified product (do not implement HYC-only):** `docs/CLUB_CALENDAR_DUTY_MESSAGING_PLAN.md` — this PDF is the **first test-case checklist** for every-club season items, duty rosters, and messaging. Schema and APIs stay `club_id`-scoped.
+**Unified product (do not implement HYC-only):** `docs/CLUB_CALENDAR_DUTY_MESSAGING_PLAN.md` — this PDF is the **first test-case checklist** for every-club season items, duty rosters, messaging, and **calendar-name → sailor matching**. Duty names are matched to `sas_id_personal` / profiles with confidence scores; unknown club → propose the roster club (HYC here); never overwrite an existing affiliation; keep the calendar as evidence. Schema and APIs stay `club_id`-scoped.
 
 **Ask:** Approve the match rules, no-auto-regatta kinds, reusable fields, and missing fields before any implementation. Do not implement a Hermanus-only path.
 

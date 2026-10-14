@@ -12,7 +12,7 @@
 - `docs/HYC_CALENDAR_CLUB_PAGE_PLAN.md` — first-club checklist, SAS match, no auto-`regattas` for training / external / duty
 - `docs/CLUB_EVENT_SELF_SERVICE_PLAN.md` — Phases 1–5 already live (permissions, claim/create, entries, ingest, publish)
 
-**Ask:** Approve the architecture, tables, APIs, WhatsApp/email decisions, costs, and phases before any implementation.
+**Ask:** Approve the architecture, tables, APIs, WhatsApp/email decisions, **name→sailor matching + club proposals**, costs, and phases before any implementation.
 
 ---
 
@@ -28,6 +28,12 @@ Club officer ──► club_season_items (every club_id)
                      ├─ kind=training / informal / cruise / ops → calendar only
                      ├─ kind=external → link to other-host events row
                      └─ kind=duty     → club_duty_assignments (not an event)
+
+calendar names ──► match sas_id_personal + sailor profiles (confidence score)
+                     ├─ unique SAS-ID / unique name → provisional assignment link
+                     ├─ ambiguous name → officer confirm
+                     └─ club unknown → propose roster club (HYC on the test case);
+                        never overwrite an existing affiliation; keep calendar evidence
 
 club_duty_assignments ──► notifications (in-app, always)
                        ├─ optional WhatsApp Cloud API (opt-in, reply 1 / 2)
@@ -55,7 +61,7 @@ club admin board ──► who acknowledged / needs remind / no response
 | `user_sessions` | Cookie `session` | Gate all writes |
 | `GET /auth/session` | `sas_id`, `role`, `is_super_admin`, `admin_club_id`, `is_club_admin`, name | Already returns club fields in git |
 | `GET /api/club/me` | `admin_club_id`, `club_abbrev` | Officer gate on `/club/{abbrev}` |
-| `sas_id_personal` | Name, `club_1`…`club_5`, `primary_club`, `email`, `phone_primary` / `phone_secondary`, `parent_guardian_id` | Resolve who a duty name is; junior → parent for WhatsApp |
+| `sas_id_personal` | Name, `club_1`…`club_5`, `primary_club`, `email`, `phone_primary` / `phone_secondary`, `parent_guardian_id` | Resolve who a duty name is; junior → parent for WhatsApp. Club fields are **read for “already affiliated”** — never overwritten by a roster guess. |
 | Live roles | sailor ~69, super_admin 13, HMYC `club_manager` (98), ZVYC `club_admin` (3) | **HYC has no officer yet** — prerequisite for the test case |
 | `POST /auth/login`, `POST /api/register-account` | WhatsApp number required at register | Source of digits; still need opt-in |
 
@@ -218,7 +224,7 @@ Inbound user messages are free. Unused free service units do not roll over. A pa
 1. **`club_id` on every new row.** HYC is `WHERE club_id = :hyc`, not a Hermanus schema.
 2. **Two layers stay two layers.** SAS/club race → `events` ± `regattas`. Training / external / duty / informal never auto-insert `regattas`.
 3. **One season item per weekend cell.** Extra-info fleets are suggestions. Duty names are assignments, not titles.
-4. **Named people, not typed SAS IDs in the UI.** Dropdown = club members (from `sas_id_personal.club_*` + results at this club + registered users). IDs stay in JS.
+4. **Named people, not typed SAS IDs in the UI.** Dropdown = scored matches (`sas_id_personal` + profiles + results at this club). IDs stay in JS. Unique SAS-ID / unique high-score name may be **provisionally** linked; ambiguous names wait for the officer. Never overwrite `primary_club` / `club_*`. Calendar raw names stay as evidence.
 5. **Claim before create.** Match API across **all** `events`, then Claim / Activate / Add.
 6. **Header locked.** Admin board is a `.card` on `/club/{abbrev}`. Sailor view is a `.card` on the sailor profile (and optionally “My duties” on the same club page when logged in as a member).
 7. **Live `api.py` (~83k) is the patch target.** Never overwrite with git ~28k.
@@ -256,13 +262,52 @@ club_duty_assignments
   assignment_id    bigserial PK
   item_id          bigint NOT NULL REFERENCES club_season_items
   role_id          int NOT NULL REFERENCES club_duty_roles
-  sas_id           text                 -- null = unfilled slot
+  raw_name         text                 -- calendar spelling, always kept
+  sas_id           text                 -- null until linked (provisional or confirmed)
+  link_status      text                 -- unmatched | provisional | confirmed | rejected
   status           text NOT NULL DEFAULT 'unassigned'
                    -- unassigned | pending | acknowledged | snoozed | declined | no_response
   remind_at        timestamptz
   acknowledged_at  timestamptz
   snooze_count     int DEFAULT 0
   UNIQUE (item_id, role_id)             -- one person per role per weekend (v1)
+
+calendar_person_mentions          -- provenance; never UPDATE in place, append
+  mention_id       bigserial PK
+  club_id          int NOT NULL REFERENCES clubs
+  item_id          bigint REFERENCES club_season_items
+  assignment_id    bigint REFERENCES club_duty_assignments
+  raw_name         text NOT NULL        -- “Graig Girdlestone”, “Helen”
+  role_name        text
+  calendar_date    date
+  source           text NOT NULL        -- 'club_calendar' | 'officer_typed' | 'import'
+  source_ref       text                 -- e.g. HYC Calendar 2026_7, row/weekend
+  created_at       timestamptz
+
+calendar_person_matches           -- scored candidates; one mention → many rows
+  match_id         bigserial PK
+  mention_id       bigint NOT NULL REFERENCES calendar_person_mentions
+  sas_id           text                 -- null if no person yet
+  display_name     text
+  score            numeric(4,3)
+  method           text                 -- sas_id_exact | name_unique | name_fuzzy
+                                        -- | name_alias | results_club | rejected
+  rank             int
+  decision         text                 -- candidate | provisional | confirmed | rejected
+  decided_by_sas_id text
+  decided_at       timestamptz
+  notes            text
+
+club_affiliation_proposals        -- only when sailor club is unknown
+  proposal_id      bigserial PK
+  sas_id           text NOT NULL
+  proposed_club_id int NOT NULL REFERENCES clubs
+  mention_id       bigint REFERENCES calendar_person_mentions
+  status           text NOT NULL DEFAULT 'proposed'
+                   -- proposed | accepted | declined
+  decided_by_sas_id text
+  decided_at       timestamptz
+  -- UNIQUE (sas_id, proposed_club_id) WHERE status = 'proposed'
 
 notifications
   notification_id  bigserial PK
@@ -319,7 +364,10 @@ calendar_feed_tokens
 | POST | `/api/club/events/{id}/claim` | Existing; add flags above |
 | GET | `/api/club/{abbrev}/season` | Public: race/training/external cards already on the page + (members only) duty strip |
 | GET/PUT | `/api/club/{abbrev}/duty-roles` | Club catalog |
-| GET/POST/PATCH | `/api/club/{abbrev}/duties` | Assign / status. Admin sees counts: acknowledged / snoozed / pending / unassigned |
+| GET/POST/PATCH | `/api/club/{abbrev}/duties` | Assign / status. Admin sees counts: acknowledged / snoozed / pending / unassigned. POST body is a **name** (or chosen SAS from the picker), never a typed raw id field. |
+| GET | `/api/club/{abbrev}/people/match?name=` | Score `sas_id_personal` + profiles + results. Returns ranked candidates + club-known / club-unknown. |
+| POST | `/api/club/{abbrev}/people/choose` | Officer confirms a candidate (`mention_id`, `sas_id`). Writes match decision + optional affiliation proposal. |
+| POST | `/api/club/{abbrev}/people/propose-club` | Accept/decline `club_affiliation_proposals` only. Never PATCHes `sas_id_personal` unless accepted **and** all club slots were empty. |
 | POST | `/api/club/{abbrev}/duties/{id}/remind` | Queue reminder now |
 | GET | `/api/me/duties` | Logged-in sailor: my slots + status |
 | POST | `/api/me/duties/{id}/ack` | In-app 1 |
@@ -340,7 +388,8 @@ Same chrome as the club-page wizard plan, mapped to **live** cards (`.sa-home-re
 | Admin of this club | Upcoming heading | **Add New Event** |
 | Admin | Card actions | **Claim SAS Event** / **Activate Club Event** / **Manage** |
 | Admin | New `.card` below Upcoming, above Past/Sailors | Wizard (after a choice) **or** Duty board |
-| Admin | Duty board table | Role, sailor (named dropdown), status pill, Remind |
+| Admin | Duty board table | Role, **calendar name**, suggested sailor (named dropdown), match confidence, status pill, Remind |
+| Admin | Same card, unmatched names | “Needs confirmation” list: candidates + **Propose {club} as club** only when affiliation is empty |
 | Logged-in member of this club | “My duties” `.card` | Weekend, role, Acknowledge / Remind me again |
 | Visitor | Unchanged Upcoming / Past / Other / Sailors | No duty names unless the club later opts into a public roster (default **off**) |
 
@@ -389,15 +438,98 @@ Date mismatches (PDF 29er Nats in March vs SAS April; Agulhas April vs October; 
 
 ---
 
+## 6B. Calendar names → sailor profiles and club proposals (all 85 clubs)
+
+Duty and season cells carry **people’s names**, not SAS IDs (HYC PDF: “Peter du Preez”, “Kevin Weaving”, “Graig Girdlestone”). Match those strings to existing sailors. The **roster club** (HYC on the first test case, ZVYC/TSC/… on every other club page) may be **proposed** only when the sailor has **no** club on file. Same tables and routes for all 85 clubs. No `if club == HYC`.
+
+### What we match against (reuse)
+
+| Source | Use |
+| --- | --- |
+| `sas_id_personal` (`first_name`, `last_name`, `full_name`, `sa_sailing_id`) | Canonical person |
+| Sailor profiles (`GET /api/member/{sa_id}`, public `/sailor/{slug}`) | Same identity; show avatar + known club in the picker |
+| `results` helm/crew at this `club_id` | “Helen at HYC” rule already in `docs/README_SAS_ID_MATCHING_LOGIC.md` |
+| `name_alias`, `sailor_helm_aliases` | Nicknames / spelling (Pete/Peter, Deverson/Deversen) |
+| Existing fuzzy scorer | `docs/README_SAS_ID_MATCHING.md`: trigram + surname + nickname + **club bonus 0.12**. Auto-apply today is score ≥ 0.90 and margin ≥ 0.06 (`fuzzy_auto`) |
+| `GET /api/match/review/{regatta_id}` / `POST /api/match/choose` | Pattern only — new routes are club-scoped, not result-row-scoped |
+
+Do **not** reuse sail-number or family ±10 rules here (no sail on a duty cell). Do **not** write `results.helm_sa_sailing_id` from a duty match.
+
+### Confidence and what may be automatic
+
+| Tier | How we know | Assignment `sas_id` | Club affiliation |
+| --- | --- | --- | --- |
+| **A — Exact unique SAS-ID** | Calendar/import string is digits that equal exactly one `sa_sailing_id`, **or** officer paste of a unique SAS ID | **Provisional link** (`link_status=provisional`). Reminders wait until confirmed **or** the sailor acks (ack = confirm). | If `primary_club` and `club_1`…`club_5` are all empty → **propose** roster club. If any club is set → **leave as-is**. |
+| **B — Unique name** | One candidate, score ≥ 0.90, margin ≥ 0.06 (same thresholds as results `fuzzy_auto`) | Provisional link, same as A | Same propose-if-unknown rule |
+| **C — Ambiguous** | 0 candidates, or ≥2 within 0.06, or first-name-only with more than one hit at this club | `sas_id` stays null. Officer must choose. | No proposal until a person is chosen |
+| **D — No person** | Normalised name matches nobody | Keep `raw_name`. Offer “create temp / add sailor” later — **not** a fake SAS ID | No club write |
+
+Provisional is **not** silent membership. The duty board shows the suggested profile (name + avatar + SAS). Officer can reject. WhatsApp / email reminders for that slot stay off until `link_status=confirmed` **or** the sailor acknowledges in-app (which confirms the link).
+
+### Never overwrite an existing club
+
+A sailor “has a club” when any of `primary_club`, `club_1`…`club_5` is non-empty (after trim). Then:
+
+- Still link the **assignment** to their `sas_id` (they can do duty at a club that is not their home club).
+- **Do not** UPDATE `sas_id_personal` club columns.
+- **Do not** insert `club_affiliation_proposals`.
+- **Do not** rewrite `people_club_history`.
+
+If all club slots are empty (“unknown”):
+
+- Insert `club_affiliation_proposals` (`proposed_club_id` = the roster’s `club_id`, `status=proposed`).
+- Officer sees “Propose **{club abbrev}** as club — evidence: {calendar}, {date}, {role}”.
+- **Accept** fills the first empty slot (`primary_club` / `club_1` only if still empty at accept time; re-check). **Decline** leaves profile untouched.
+- If another process filled a club between propose and accept, accept is a no-op and the proposal is marked `declined` with note `already_affiliated`.
+
+HYC on the 2026/27 PDF is how we **test** “propose roster club”. ZVYC using the same board proposes **ZVYC**, not HYC.
+
+### Provenance (calendar is evidence)
+
+Every raw string is stored once and never overwritten:
+
+1. `calendar_person_mentions` — who appeared, which weekend, which role, which source file/row (`source_ref`).
+2. `calendar_person_matches` — every scored candidate (not just the winner). Decisions **append** (`candidate` → `provisional` / `confirmed` / `rejected`). Do not UPDATE a score row in place; insert a new decision row or set `decision` only with `decided_by` + `decided_at`.
+3. `club_affiliation_proposals.mention_id` — why we thought they belong to this club.
+
+Admin UI: “Matched to Kevin Weaving (SAS …) from HYC calendar 10 Oct 2026, Rescue — score 0.94 unique name.” Rejecting a match keeps the mention so a later officer can rematch.
+
+Do not delete mentions when a season item is edited; set item_id and add a new mention if the name changes.
+
+### Worked HYC examples (same engine, any club)
+
+| Calendar text | Likely tier | Club |
+| --- | --- | --- |
+| Kevin Weaving (unique profile + results at HYC) | B provisional | If he already has HYC (or any club) → no proposal. If empty → propose HYC |
+| Cheryl Deverson / Tim Deversen (alias + results) | B or C if two Deversons | Confirm if margin thin |
+| Helen (first name only) | C — same as matching-logic rule 4 | Officer picks |
+| Graig Girdlestone (typo vs Craig/Graig) | C unless one fuzzy candidate clears 0.90/0.06 | Officer picks |
+| Volunteer crews / No galley | Skip — not a person | — |
+
+### APIs (club-scoped)
+
+`GET /api/club/{abbrev}/people/match?name=` returns:
+
+```
+{ raw_name, candidates: [{ sas_id, display_name, score, method, club_known, club_display }],
+  can_provisional, can_propose_club }
+```
+
+`sas_id` is in JSON for the chooser `value` only — the officer sees **names**. `POST …/people/choose` writes mention + match + optional proposal. Super-admin can rematch; club admin only for their `club_id`.
+
+---
+
 ## 7. Gaps vs reuse (checklist)
 
 | Need | Reuse | Gap |
 | --- | --- | --- |
 | Club officer ACL | `admin_club_id` | Officers for the other 83 clubs, including HYC |
 | Member picker | `sas_id_personal.club_*` + results | No “club members” API yet |
+| Calendar name → sailor | Fuzzy scorer, `name_alias`, `GET /api/match/review` pattern | Club-scoped match + mention/match tables |
+| Club proposal when unknown | `primary_club` / `club_1`…`5` (read) | `club_affiliation_proposals`; accept must not overwrite |
 | Event match | Keyword helper + `GET /api/events` | Cross-host match route |
 | Club-only calendar | — | `club_season_items` + `create_regatta=false` |
-| Duty | — | roles + assignments + status |
+| Duty | — | roles + assignments + `raw_name` + `link_status` |
 | In-app notify | Avatars, session | `notifications` + sailor card |
 | WhatsApp send/receive | Login digits | WABA, opt-in, webhook, templates |
 | Email | `MAIL_FROM` string | MX + provider |
@@ -418,12 +550,14 @@ HYC dogfoods each phase; schema and routes are already multi-club.
 - No `regattas` unless race + confirm
 - Test: HYC Cape Classic 2027 Activate; ZVYC Classic Claim; Informal Add without slug
 
-### Phase B — Duty roster + admin board + in-app 1/2
+### Phase B — Duty roster + name match + admin board + in-app 1/2
 
-- `club_duty_roles` (seed on first open), `club_duty_assignments`, `notifications`
-- Admin table + member “My duties”
-- Remind = in-app only
-- Test: HYC 10–11 Oct weekend, four roles, named sailors
+- `club_duty_roles`, `club_duty_assignments` (`raw_name`, `link_status`), mention/match/proposal tables, `notifications`
+- Match calendar names to `sas_id_personal` + profiles; provisional only for unique SAS-ID / unique high-score name
+- Propose roster club **only** when affiliation is empty; never overwrite
+- Keep every raw calendar name as evidence
+- Admin table + member “My duties”; Remind = in-app only
+- Test: HYC 10–11 Oct weekend, four roles, named sailors (including a unique name, an ambiguous first name, and one unknown-club proposal)
 
 ### Phase C — Personal ICS
 
@@ -470,6 +604,10 @@ HYC dogfoods each phase; schema and routes are already multi-club.
 
 - HYC-only tables, routes, or `if abbrev == 'hyc'`
 - Auto-`regattas` for training, external, duty, informal, cruise, Christmas, work weekend
+- Overwrite `primary_club` / `club_1`…`club_5` because a roster listed the sailor
+- Invent a SAS ID for an unmatched calendar name
+- Auto-confirm ambiguous names (Helen, duplicate surnames, low margin)
+- Delete calendar mention rows after a rematch
 - Host steal on Claim SAS Event
 - Message WhatsApp logins without opt-in
 - Treat `@sailingsa.co.za` as a working mail system
