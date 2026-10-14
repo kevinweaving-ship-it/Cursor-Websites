@@ -41,7 +41,7 @@ Visitors keep today’s `/club/hyc`. Admins see the three actions on existing ca
 | Live club role | **None documented** | `club_manager`, `admin_club_id=98` |
 | Scoring pilots | Do not touch | Cape Classic host 3; Dart 18 / Dam Bottle host 98 |
 
-At implement time: `SELECT club_id, club_abbrev, club_fullname FROM clubs WHERE upper(club_abbrev) IN ('HYC','HMYC')`. Do not bind this work to account 98. A Hermanus `club_admin` / `club_manager` on the HYC `club_id` is a **prerequisite**, not implied by the HMYC pilot.
+At implement time: `SELECT club_id, club_abbrev, club_fullname FROM clubs WHERE upper(club_abbrev) IN ('HYC','HMYC')`. Do not bind this work to account 98. **Super Admin** can run the full wizard on `/club/hyc` without a Hermanus officer. A Hermanus `club_admin` is optional for dogfood, required only before HYC officers (not Super Admin) see the chips.
 
 ---
 

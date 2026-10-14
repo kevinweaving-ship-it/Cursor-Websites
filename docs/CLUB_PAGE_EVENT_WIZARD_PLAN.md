@@ -58,13 +58,16 @@ Current `/club/{abbrev}` body, in this order:
 
 After login, `GET /api/club/me` + `GET /api/club/me/events`.
 
-Show Activate / Add **only when** all of these are true:
+Show Activate / Add **only when**:
 
-- role is `club_admin` or `club_manager` (or `super_admin` scoped to this club)
-- `admin_club_id` equals this page’s club
-- the event’s `host_club_id` is this club (or Unassigned, for Claim only)
+- role is **`super_admin`** (full Event Management on **any** `/club/{abbrev}`, all 85 clubs; not limited by `admin_club_id`), **or**
+- role is `club_admin` / `club_manager` **and** `admin_club_id` equals this page’s club
+
+Claim still only targets this club’s host or Unassigned. Super Admin may Claim/Activate/Add on the page they opened; they do not steal another host except via the existing super-admin host-review tools.
 
 Sailors and anonymous visitors: **zero** extra buttons, **zero** extra cards. Same HTML they have today.
+
+After the club-page wizard is verified, **`/club-manage` redirects** (Super Admin → `/clubs`; officer → their club). Keep `/api/club/…` APIs; do not duplicate a second UI. See `docs/CLUB_CALENDAR_DUTY_MESSAGING_PLAN.md` §5.0 and §8.
 
 ---
 

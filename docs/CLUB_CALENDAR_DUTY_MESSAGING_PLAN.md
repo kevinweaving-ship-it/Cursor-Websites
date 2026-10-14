@@ -12,7 +12,7 @@
 - `docs/HYC_CALENDAR_CLUB_PAGE_PLAN.md` — first-club checklist, SAS match, no auto-`regattas` for training / external / duty
 - `docs/CLUB_EVENT_SELF_SERVICE_PLAN.md` — Phases 1–5 already live (permissions, claim/create, entries, ingest, publish)
 
-**Ask:** Approve the architecture, tables, APIs, WhatsApp/email decisions, **name→sailor matching + club proposals**, costs, and phases before any implementation.
+**Ask:** Approve the **consolidated phases in §8** (events, calendars, duties, §6B matching, messaging, WhatsApp, `/club-manage` retirement, Super Admin on every club page) before any implementation.
 
 ---
 
@@ -43,7 +43,13 @@ sailor personal calendar ──► signed ICS feed of my events + my duties
 club admin board ──► who acknowledged / needs remind / no response
 ```
 
-**Officer home stays `/club/{abbrev}`.** Visitors keep today’s club page. Header / nav stay locked (no new header bell unless separately authorised).
+**Event management lives on `/club/{abbrev}` only.** Super Admin has the full wizard on **every** club page (all 85). Club admin/manager: their assigned club only. Sailors and visitors: public controls only.
+
+**Retire `/club-manage` after the club-page wizard is verified.** Keep the Phase 1–5 APIs; do not duplicate a second UI. Redirect: Super Admin → `/clubs`; club officer → their `/club/{abbrev}`; others → login or public `/clubs`.
+
+**§6B (name → sailor + club proposal) is in scope for Phase B**, not a side doc.
+
+Visitors keep today’s club page. Header / nav stay locked (no new header bell unless separately authorised).
 
 **WhatsApp today is a login identifier, not a messenger.** Messaging must be new, opt-in, and POPIA-safe.
 
@@ -60,12 +66,25 @@ club admin board ──► who acknowledged / needs remind / no response
 | `user_accounts` | `sas_id`, `login_method` (`email` / `whatsapp` / `sas_id` / Facebook), `provider_id`, `email`, `password_hash`, `profile_picture_path`, live `role` + `admin_club_id` | Auth. WhatsApp **login** number is `provider_id` when `login_method='whatsapp'` (10 digits, leading 0). **Not** a messaging consent. |
 | `user_sessions` | Cookie `session` | Gate all writes |
 | `GET /auth/session` | `sas_id`, `role`, `is_super_admin`, `admin_club_id`, `is_club_admin`, name | Already returns club fields in git |
-| `GET /api/club/me` | `admin_club_id`, `club_abbrev` | Officer gate on `/club/{abbrev}` |
+| `GET /api/club/me` | `admin_club_id`, `club_abbrev`, `is_super_admin` | Officer gate. Super Admin does **not** need `admin_club_id`; they manage via the URL club. |
 | `sas_id_personal` | Name, `club_1`…`club_5`, `primary_club`, `email`, `phone_primary` / `phone_secondary`, `parent_guardian_id` | Resolve who a duty name is; junior → parent for WhatsApp. Club fields are **read for “already affiliated”** — never overwritten by a roster guess. |
 | Live roles | sailor ~69, super_admin 13, HMYC `club_manager` (98), ZVYC `club_admin` (3) | **HYC has no officer yet** — prerequisite for the test case |
 | `POST /auth/login`, `POST /api/register-account` | WhatsApp number required at register | Source of digits; still need opt-in |
 
 **Do not reuse as ACL:** `sas_id_personal.commodore` / `club_secretary` / `communication_preferences_1`–`4` (documented **empty**). `member_roles` + `roles` are SA **qualifications** (Instructor, Judge) via `GET /api/member/{sa_id}/roles` — display only, not duty roster.
+
+### 1.8 Who may manage (ACL — all phases)
+
+| Actor | Where they manage | What they see on `/club/{abbrev}` |
+| --- | --- | --- |
+| **`super_admin`** | **Any** of the 85 club pages. Full Event Management wizard, duty board, §6B confirm/propose, publish. Not limited by `admin_club_id`. | Admin chips + wizard + duty board on that page |
+| **`club_admin` / `club_manager`** | Only `admin_club_id` == this page’s club | Same admin chrome on **their** page; other clubs stay public |
+| **`sailor`** (logged in, not an officer of this club) | Own ack / snooze / ICS / notifications | Public page + “My duties” if assigned here |
+| **Visitor** (anon) | Nothing | Today’s public club page only |
+
+Writes take the **page club** from `/club/{abbrev}` (or `?club=` on APIs). Super Admin: allow if `is_super_admin`. Officer: allow if `admin_club_id` equals that club. Never show typed club IDs; Super Admin picks a club by opening `/club/hyc`, `/club/zvyc`, … from `/clubs`.
+
+`GET /api/club/me/events` stays host-scoped to the **page** club (Super Admin included). Do not dump all 85 calendars into one response.
 
 ### 1.2 Profile icons — **reuse display, do not invent a chat face**
 
@@ -377,7 +396,19 @@ calendar_feed_tokens
 | GET | `/api/whatsapp/webhook` + POST | Meta verify + inbound 1/2 |
 | POST | `/api/me/whatsapp/opt-in` | Store E.164 + consent |
 
-Reuse unchanged: `/api/club/me`, fleet/entry/ingest/publish, `/api/events`, public club HTML.
+Reuse unchanged: `/api/club/me`, fleet/entry/ingest/publish, `/api/events`, public club HTML. Super Admin is allowed on every write when `is_super_admin`; club officers only when session club equals the path club.
+
+### 5.0 Retire `/club-manage` (after verify — do not duplicate)
+
+Live `GET /club-manage` (~20355) and `/club-manage-preview` (~20556) are **not** the officer home. After Phase A is verified on at least two club pages as Super Admin (`/club/hyc` and `/club/zvyc`):
+
+| URL | After retirement |
+| --- | --- |
+| `GET /club-manage` | 302: Super Admin → **`/clubs`**; `club_admin` / `club_manager` → **`/club/{their-abbrev}`**; sailor → `/clubs`; anon → `/login.html?returnTo=/club-manage` (then the same redirect) |
+| `GET /club-manage-preview` | Same 302 (do not keep a second UI) |
+| `POST /api/club/events`, `…/claim`, fleets, entries, ingest, publish | **Keep.** Club-page JS calls these. No parallel “manage” API set |
+
+Do **not** retire the routes until the club-page wizard has completed Claim, Activate, and Add (no-regatta informal) as Super Admin on two clubs. Bookmark `/club-manage` must not 404.
 
 ### 5.4 UI slots (every `/club/{abbrev}`)
 
@@ -385,13 +416,13 @@ Same chrome as the club-page wizard plan, mapped to **live** cards (`.sa-home-re
 
 | Who | Slot | Control |
 | --- | --- | --- |
-| Admin of this club | Upcoming heading | **Add New Event** |
-| Admin | Card actions | **Claim SAS Event** / **Activate Club Event** / **Manage** |
-| Admin | New `.card` below Upcoming, above Past/Sailors | Wizard (after a choice) **or** Duty board |
-| Admin | Duty board table | Role, **calendar name**, suggested sailor (named dropdown), match confidence, status pill, Remind |
-| Admin | Same card, unmatched names | “Needs confirmation” list: candidates + **Propose {club} as club** only when affiliation is empty |
-| Logged-in member of this club | “My duties” `.card` | Weekend, role, Acknowledge / Remind me again |
-| Visitor | Unchanged Upcoming / Past / Other / Sailors | No duty names unless the club later opts into a public roster (default **off**) |
+| Super Admin (any club) or officer of **this** club | Upcoming heading | **Add New Event** |
+| Same | Card actions | **Claim SAS Event** / **Activate Club Event** / **Manage** |
+| Same | New `.card` below Upcoming, above Past/Sailors | Wizard (after a choice) **or** Duty board |
+| Same | Duty board table | Role, **calendar name**, suggested sailor (named dropdown), match confidence, status pill, Remind |
+| Same | Unmatched names | “Needs confirmation” + **Propose {club} as club** only when affiliation is empty |
+| Logged-in sailor assigned here (not necessarily officer) | “My duties” `.card` | Weekend, role, Acknowledge / Remind me again |
+| Visitor / other sailors | Unchanged Upcoming / Past / Other / Sailors | Public only |
 
 Wizard steps for `kind=race` stay Details → Fleets → Registration → Entries → Upload → Publish. Other kinds stop after Details (and duty assignments).
 
@@ -523,7 +554,8 @@ Do not delete mentions when a season item is edited; set item_id and add a new m
 
 | Need | Reuse | Gap |
 | --- | --- | --- |
-| Club officer ACL | `admin_club_id` | Officers for the other 83 clubs, including HYC |
+| Club officer ACL | `admin_club_id` + `is_super_admin` | Super Admin already exists (13). Officers for the other 83 clubs, including HYC, optional once Super Admin can dogfood |
+| `/club-manage` UI | Live GET + Phase 2–5 APIs | Retire UI after verify; APIs stay; Super Admin redirect = `/clubs` |
 | Member picker | `sas_id_personal.club_*` + results | No “club members” API yet |
 | Calendar name → sailor | Fuzzy scorer, `name_alias`, `GET /api/match/review` pattern | Club-scoped match + mention/match tables |
 | Club proposal when unknown | `primary_club` / `club_1`…`5` (read) | `club_affiliation_proposals`; accept must not overwrite |
@@ -539,62 +571,134 @@ Do not delete mentions when a season item is edited; set item_id and add a new m
 
 ---
 
-## 8. Phased implementation (after approval)
+## 8. Consolidated implementation plan (plan only)
 
-HYC dogfoods each phase; schema and routes are already multi-club.
+One sequence. Schema is multi-club from day one. Super Admin can verify every phase on any `/club/{abbrev}` without a Hermanus officer account. Club officers, when present, stay scoped to `admin_club_id`. §6B is Phase B, not a later add-on.
 
-### Phase A — Season overlay + match (no WhatsApp, no duty)
+```
+0 ACL + Super Admin on club pages
+  → A events + season overlay + SAS match + wizard on /club/{abbrev}
+  → A✓ verify then retire /club-manage (redirect; keep APIs)
+  → B duties + §6B name match + in-app 1/2
+  → C personal ICS
+  → D WhatsApp (one WABA)
+  → E email (optional, after MX)
+  → F more clubs / public roster opt-in
+```
 
-- `club_season_items`, match API, claim/create flags
-- Club-page Claim / Activate / Add on **any** `/club/{abbrev}`
-- No `regattas` unless race + confirm
-- Test: HYC Cape Classic 2027 Activate; ZVYC Classic Claim; Informal Add without slug
+### Dependencies
 
-### Phase B — Duty roster + name match + admin board + in-app 1/2
+| Phase | Depends on | Blocks |
+| --- | --- | --- |
+| **0** | Live `user_accounts.role`, `GET /auth/session`, `GET /api/club/me` | All UI |
+| **A** | 0; existing claim/create APIs; `events` scrape; keyword matcher | A✓, B, C |
+| **A✓** | A verified on ≥2 clubs as Super Admin | Must finish before deleting `/club-manage` HTML |
+| **B** | A (`club_season_items`); §6B tables; fuzzy scorer / `name_alias` | D (nothing to ack) |
+| **C** | A + B assignments | — |
+| **D** | B confirmed links + `whatsapp_opt_ins` | — |
+| **E** | B notifications table; real MX or `notify.` provider | Never blocks A–D |
+| **F** | A✓ + B stable | — |
 
-- `club_duty_roles`, `club_duty_assignments` (`raw_name`, `link_status`), mention/match/proposal tables, `notifications`
-- Match calendar names to `sas_id_personal` + profiles; provisional only for unique SAS-ID / unique high-score name
-- Propose roster club **only** when affiliation is empty; never overwrite
-- Keep every raw calendar name as evidence
-- Admin table + member “My duties”; Remind = in-app only
-- Test: HYC 10–11 Oct weekend, four roles, named sailors (including a unique name, an ambiguous first name, and one unknown-club proposal)
+Do not start D or E before B. Do not implement a Hermanus-only branch.
 
-### Phase C — Personal ICS
+### Phase 0 — ACL (no new product tables)
 
-- `calendar_feed_tokens`, `/cal/{token}.ics`
-- Test: subscribe HYC member in Google Calendar
+**Build**
 
-### Phase D — WhatsApp (one WABA)
+- Gate wizard / duty chrome with `GET /api/club/me`: `is_super_admin` **or** (`is_club_admin` and `admin_club_id` == page club).
+- All club write APIs: Super Admin = yes for the **URL** club; officer = session club only.
+- Super Admin landing for “manage” = `/clubs` (existing directory). They open `/club/hyc`, `/club/zvyc`, … and get the full wizard on each.
 
-- Meta verification, `duty_reminder` template, opt-in, webhook, cron
-- Test: same HYC weekend, 1/2 on a real phone, admin board updates
-- Kill switch: `WHATSAPP_ENABLED=0`
+**Cost:** engineering only.
 
-### Phase E — Email channel (optional)
+**Verify:** Super Admin sees Activate/Add on `/club/hyc` and `/club/zvyc`. ZVYC officer sees them only on `/club/zvyc`. Logged-out `/club/hyc` unchanged.
 
-- Decide human mailbox hosting **or** transactional-only
-- Add MX/SPF/DKIM for `notify.` if sending
-- Never block duty on email
+### Phase A — Events + club calendar (no duty, no WhatsApp)
 
-### Phase F — Roll out
+**Build**
 
-- Invite second club (ZVYC already has `club_admin`)
-- Club-configurable reminder offsets and role names
-- Public roster opt-in
+- `club_season_items`; `GET /api/club/events/match`; `create_regatta` / `assign_host` flags on claim/create (default false).
+- Club-page chips: Claim SAS Event / Activate Club Event / Add New Event + wizard `.card` (Details → Fleets → … only for `kind=race`).
+- No `regattas` for training, external, informal, cruise, ops.
 
-**Do not start at Phase D.** Without A–B the WhatsApp replies have nothing to update.
+**Reuse:** `POST /api/club/events`, `POST …/claim`, `GET /api/club/me/events` (scoped to **page** club), keyword match, `events.category`.
+
+**HYC test (Super Admin on `/club/hyc`):** Activate HYC Cape Classic 2027 (SAS 380677); Claim ZVYC Cape Classic (do not steal host 3); Add Informal without a slug.
+
+**Cost:** engineering only.
+
+### Phase A✓ — Retire `/club-manage`
+
+**Gate:** Phase A verify on `/club/hyc` **and** `/club/zvyc` as Super Admin (Claim, Activate, Add-without-regatta).
+
+**Then:** `GET /club-manage` and `/club-manage-preview` → 302 as in §5.0. Keep every `/api/club/…` route. Do not add a replacement dashboard.
+
+**Cost:** engineering only.
+
+### Phase B — Duties + §6B matching + in-app 1/2
+
+**Build (includes all of §6B)**
+
+- `club_duty_roles`, `club_duty_assignments` (`raw_name`, `link_status`), `calendar_person_mentions`, `calendar_person_matches`, `club_affiliation_proposals`, `notifications`.
+- Name → `sas_id_personal` + profiles: unique SAS-ID / unique ≥0.90+margin → **provisional**; ambiguous → officer confirm.
+- Propose **roster club** only when `primary_club` and `club_1`…`5` are empty. Never overwrite. Mentions are evidence; do not delete on rematch.
+- Admin board: acknowledged / needs reminding / no response / unassigned.
+- In-app 1 = Acknowledge, 2 = Remind me again. WhatsApp off.
+
+**Reuse:** fuzzy scorer, `name_alias`, avatars, `/api/match/choose` pattern.
+
+**HYC test:** 10–11 Oct weekend, four roles; one unique name, one “Helen”, one unknown-club proposal. Super Admin can run the same on `/club/zvyc` with ZVYC as the proposed club.
+
+**Cost:** engineering only.
+
+### Phase C — Personal calendar
+
+**Build:** `calendar_feed_tokens`, `GET /cal/{token}.ics` (my events + my duties).
+
+**Depends on:** A items + B assignments.
+
+**Cost:** engineering only.
+
+### Phase D — WhatsApp
+
+**Build:** One SailingSA WABA; Utility `duty_reminder`; opt-in; webhook 1/2; `run-duty-reminders.sh`; `WHATSAPP_ENABLED=0` kill switch.
+
+**Depends on:** B confirmed (or ack-confirmed) links. Do not message `login_method=whatsapp` without opt-in.
+
+**Cost:** $0 platform + **USD 0.0095**/utility; HYC test &lt; $2/month; 85-club mature ~$50–80/month. 1 000 free service replies/number/month.
+
+### Phase E — Email (optional)
+
+**Build:** Channel on `notification_deliveries` only after MX or `notify.sailingsa.co.za` provider. Human `@sailingsa.co.za` mailboxes are a **separate** Zoho/Workspace ticket (today: **no MX**).
+
+**Cost:** transactional free tier then ~$10–20/mo; Workspace ~R135 pp/mo if humans need mail. Never blocks A–D.
+
+### Phase F — Roll-out
+
+Second officer club (ZVYC already has `club_admin`), per-club reminder offsets and role names, optional public roster. Super Admin remains able to manage any of the 85.
+
+### Cost roll-up
+
+| Phase | Money |
+| --- | --- |
+| 0, A, A✓, B, C | Time only (existing VM + Postgres) |
+| D | Meta list rates above |
+| E | Provider + optional human mailboxes |
+| Buy Spond/TeamSnap | Rejected |
 
 ---
 
 ## 9. Cost sheet (order of magnitude)
 
+See §8 roll-up. Detail:
+
 | Item | When | Money |
 | --- | --- | --- |
-| Engineering Phases A–C | After approval | Time only (existing VM + Postgres) |
+| Engineering 0–C | After approval | Time only (existing VM + Postgres) |
 | Meta Cloud API | Phase D | $0 platform fee + **$0.0095**/utility; HYC test &lt; $2/month |
 | 85-club mature duty volume | Later | ~$50–80/month utility if widely used |
-| BSP | Only if A stalls | Extra markup — avoid |
-| Google Workspace / Zoho for humans | Separate | R0–135 pp/mo; not required for duty |
+| BSP | Only if D stalls | Extra markup — avoid |
+| Google Workspace / Zoho for humans | Separate from E | R0–135 pp/mo; not required for duty |
 | Transactional email | Phase E | Free tier then ~$10–20/mo |
 | Spond/TeamSnap | Rejected | Would duplicate login and lose SAS |
 
@@ -612,6 +716,8 @@ HYC dogfoods each phase; schema and routes are already multi-club.
 - Message WhatsApp logins without opt-in
 - Treat `@sailingsa.co.za` as a working mail system
 - Add header/nav notification chrome
+- Keep `/club-manage` as a second Event Management UI after A✓
+- Limit Super Admin to `admin_club_id` or one “home” club
 - Replace `/club/{abbrev}` with `/club-manage`
 - Rewrite slugs or the three scoring pilots
 - Auto-insert missing classes (Carioca)
@@ -623,6 +729,6 @@ HYC dogfoods each phase; schema and routes are already multi-club.
 
 ## 11. Approval
 
-Reply to implement **Phase A only** (multi-club season overlay + match + claim flags), with HYC as the first logged-in test club once a Hermanus `admin_club_id` exists.
+Reply to implement **Phase 0 + A only** (Super Admin on any club page + season overlay + match + claim flags). Super Admin can dogfood `/club/hyc` without a Hermanus officer. Retire `/club-manage` only after A✓.
 
-This document is not a licence to code WhatsApp, email hosting, or a Hermanus-only roster until you say so.
+This document is not a licence to code WhatsApp, email hosting, club-column overwrites, a Hermanus-only roster, or a replacement `/club-manage` until you say so.
