@@ -89,7 +89,7 @@ Once the MCP server is connected, give Cursor an **absolute path on the box** an
 2. Ask Cursor to call REA tools rather than guessing from source alone.
 3. Prefer these MCP tools first (no native engine required):
    - `analyze_javascript_application` — Electron / Node / web app graph
-   - `recover_javascript_sources` — unpack / reconstruct JS
+   - `recover_javascript_sources` — unpack / reconstruct JS (**needs Wakaru**; not installed)
    - `trace_javascript_semantics` — follow a feature through modules
    - `compare_javascript_export_shapes` — compare two builds
    - `analyze_web_bundle` / `trace_web_module_imports` — bundled frontends
@@ -112,6 +112,17 @@ Once the MCP server is connected, give Cursor an **absolute path on the box** an
 | Electron / asar we own | `/opt/rea/work/<name>/` or the `.asar` path | `analyze_javascript_application` |
 
 Stay on copies. Live `/home/user-data/www`, `/opt/aerialnet-arial`, and `/root/gowifi-upp` are production.
+
+## Recommendation (after two trials)
+
+**Retain REA on GoWifi. Use it selectively for reverse engineering — not routine SailingSA development.**
+
+Trials (see [usefulness-trial.md](usefulness-trial.md)):
+
+1. Owned, commented `sailingsa/frontend/js` — REA 48s / 4.2 MB, no rewrite-rule answer. Cursor-normal won.
+2. Apache-2.0 minified Mozilla PDF.js viewer (`pdfjs-dist-viewer-min@3.11.174`) — REA 116s / **50.5 MB** (~12.6M tokens if pasted into chat), worker semantic graph OOM, no open→`getDocument` narrative. Cursor-normal recovered the full load path in 0.07s because webpack kept export names. `recover-javascript-sources` needs Wakaru, which the official REA install does not ship (not installed).
+
+Keep the isolated `/opt/rea` install. Do not make `rea-gowifi` the daily Desktop MCP for hub/Event URL work. Turn it on for copies we cannot read cheaply (fully mangled JS, `asar`, .NET; native only after a later Ghidra install under `/opt/rea`).
 
 ## Reinstall / health
 
