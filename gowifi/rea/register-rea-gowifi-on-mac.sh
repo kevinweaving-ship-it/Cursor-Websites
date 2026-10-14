@@ -1,8 +1,9 @@
 #!/bin/bash
-# Run on Kevin's Mac Mini / Cursor Desktop only.
-# Creates ~/.ssh/rea_gowifi if missing, merges rea-gowifi into ~/.cursor/mcp.json
-# without removing other servers, then verifies REA 6.4.0 over SSH.
-# Does not install rea-agents locally. Does not touch production.
+# Run on Kevin's Mac Mini / Cursor Desktop only (uname must be Darwin).
+# Cloud Agents cannot place Task on My Machines; this file is the Desktop
+# registration path. Creates ~/.ssh/rea_gowifi if missing, merges rea-gowifi
+# into ~/.cursor/mcp.json without removing other servers, then verifies
+# REA 6.4.0 over SSH. Does not install rea-agents locally. Does not touch production.
 set -euo pipefail
 
 if [ "$(uname -s)" != "Darwin" ]; then
