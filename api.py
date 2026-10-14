@@ -21041,12 +21041,12 @@ def _phase4_ingest_mod():
     return mod
 
 
-async def _phase4_read_upload(upload: UploadFile) -> tuple:
+def _phase4_read_upload(upload: UploadFile) -> tuple:
     name = (upload.filename or "upload").strip() or "upload"
     ext = Path(name).suffix.lower()
     if ext in _PHASE4_REJECT_EXT:
         raise HTTPException(status_code=400, detail="Unsupported file type")
-    data = await upload.read()
+    data = upload.file.read()
     if not data:
         raise HTTPException(status_code=400, detail="Empty file")
     if len(data) > _PHASE4_MAX_BYTES:
@@ -21064,10 +21064,10 @@ def _phase4_guard_regatta(request: Request, rid: str):
 
 
 @app.post("/api/club/regattas/{regatta_id}/ingest/preview")
-async def api_club_ingest_preview(regatta_id: str, request: Request, file: UploadFile = File(...)):
+def api_club_ingest_preview(regatta_id: str, request: Request, file: UploadFile = File(...)):
     """Parse Sailwave HTML/CSV. No DB write."""
     rid = _phase4_guard_regatta(request, regatta_id)
-    name, data = await _phase4_read_upload(file)
+    name, data = _phase4_read_upload(file)
     mod = _phase4_ingest_mod()
     conn = get_db_connection()
     try:
@@ -21084,7 +21084,7 @@ async def api_club_ingest_preview(regatta_id: str, request: Request, file: Uploa
 
 
 @app.post("/api/club/regattas/{regatta_id}/ingest/commit")
-async def api_club_ingest_commit(
+def api_club_ingest_commit(
     regatta_id: str,
     request: Request,
     file: UploadFile = File(...),
@@ -21094,7 +21094,7 @@ async def api_club_ingest_commit(
     rid = _phase4_guard_regatta(request, regatta_id)
     if rid in _PHASE2_PILOT_SLUGS:
         raise HTTPException(status_code=400, detail="Cannot ingest into scoring-pilot slugs")
-    name, data = await _phase4_read_upload(file)
+    name, data = _phase4_read_upload(file)
     sas_id = _get_session_sas_id(request)
     mod = _phase4_ingest_mod()
     as_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

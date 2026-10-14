@@ -475,8 +475,8 @@ def commit_payload(conn, cur, *, rid, filename, data, preview_token, imported_by
         else:
             block_id = insert_block(cur, rid, cid, cname or used)
         for row in group:
-            _resolve, _name, resolve_helm_to_sa_id, _issue = _ingest_common()
-            helm_sas = resolve_helm_to_sa_id(cur, row.get("helm_name"), row.get("sail_number"), cid)
+            # Do not call resolve_helm_to_sa_id here: live API role cannot read sailor_helm_aliases.
+            helm_sas = None
             result_id = _find_existing(cur, rid, block_id, row, helm_sas)
             scores = json.dumps(row.get("race_scores") or {})
             if result_id:
