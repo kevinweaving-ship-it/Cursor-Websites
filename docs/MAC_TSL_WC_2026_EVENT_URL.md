@@ -163,7 +163,7 @@ Physical boats: `tsl_event_boats` (Blue 1–3, Green 1–3). Bow/sail are per-ma
 
 Live apply later (do not overwrite live `api.py`): copy the backend modules + JS, then `python3 sailingsa/deploy/patch_live_mac_tsl_results.py /var/www/sailingsa/api/api.py`. **Do not deploy without approval.**
 
-Clips come only from WhatsApp group **MAC Media** (same `/mm-clips` path as Dart / Midmar). There is no Add Clip box on the Event URL. Bind: `event_whatsapp_groups.group_name='MAC Media'`. Box number **068 393 4779** (SSA/TA Sailing box, Mtrack Telkom). **Not** GoWifi/Arial **076 263 9937** — that stays on the GW/AN box. Cam card waits for the MAC URL.
+Clips come only from WhatsApp group **MAC Media** (same `/mm-clips` path as Dart / Midmar). There is no Add Clip box on the Event URL. Bind: `event_whatsapp_groups.group_name='MAC Media'`. Box number **060 856 0172** (SSA/TA Sailing box). **Not** GoWifi/Arial **076 263 9937** — that stays on the GW/AN box. Cam card waits for the MAC URL. Ingest drains both Arial and sailing `inbox.jsonl` (`sailingsa/deploy/patch_live_ingest_sailing_inbox.py`).
 
 Live apply (full-box SSH): `docs` + `sailingsa/deploy/SSH_LIVE.md`.
 

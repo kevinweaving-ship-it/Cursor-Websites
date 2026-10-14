@@ -14,7 +14,7 @@ HEALTH = Path("/opt/sailingsa-whatsapp-poc/state/health.json")
 ENV = Path("/etc/sailingsa-whatsapp-poc.env")
 RID = "2026-10-17-mac-tsl-wc-team-sailing"
 LOOK_URL = "http://127.0.0.1:8012/refresh-groups"
-SAILING_BOX = "27683934779"
+SAILING_BOX = "27608560172"
 
 
 def env_token() -> str:
