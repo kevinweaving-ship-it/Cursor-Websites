@@ -1,6 +1,6 @@
 # SailingSA club self-service — Step 3 plan (for approval)
 
-**Status:** Phases 1–3 are live. Phases 4–5 (Sailwave HTML/CSV ingest + Provisional/Final publish) are on `cursor/club-phase4-5-ingest-045e`.
+**Status:** Phases 1–5 are live. Phases 4–5 (Sailwave HTML/CSV ingest + Provisional/Final publish) are on `cursor/club-phase4-5-ingest-045e`.
 
 **Date:** 14 October 2026.
 
