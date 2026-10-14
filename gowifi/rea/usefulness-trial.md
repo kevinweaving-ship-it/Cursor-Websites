@@ -2,7 +2,7 @@
 
 Two targets, same isolation: user `rea`, trees under `/opt/rea/work/…` only. Production was not written.
 
-**Recommendation (recorded):** Retain REA 6.4.0 on the GoWifi box. Use it **selectively for reverse engineering** (minified/asar/native copies). Do **not** turn it on for routine SailingSA development — Cursor’s normal reads are faster and cheaper there.
+**Closed (2026-10-14):** Testing stopped. Both trials showed REA 6.4.0 has **no meaningful advantage** over direct source inspection for current SailingSA work. Keep the isolated `/opt/rea` install. Do **not** install Wakaru, Ghidra, or other extras. Do **not** generate further Evidence dumps. Mac Mini Desktop MCP registration is **pending** (this Cloud Agent cannot write Darwin `~/.cursor/mcp.json` without a Task workaround).
 
 ## Setup this Cloud Agent could complete
 
@@ -116,21 +116,23 @@ That is the behaviour the question asked for.
 | Cursor credits if the artifact is fed into chat | ~**12.6M tokens** for the Evidence (will blow context; even a 1% slice is ~126k tokens) | ~**500 tokens** of useful snippets, or ~228k if you dumped all 912 KB of JS |
 | What it added | Inventory: 2 worker nodes, named viewer helpers, 328 endpoints | The actual open / worker / `getDocument` / `load` / render path |
 
-**Verdict:** Even on a **genuinely minified third-party webpack application**, REA did **not** save time or Cursor credits. Webpack left the public API names intact; Cursor-normal recovered the full load path from those names. REA’s dump was **~25× the source tree** (50.5 MB vs 2.0 MB) and still omitted the narrative. Source recovery (the feature that would matter most here) is **off** until Wakaru is installed under `/opt/rea` only.
+**Verdict:** Even on a **genuinely minified third-party webpack application**, REA did **not** save time or Cursor credits. Webpack left the public API names intact; Cursor-normal recovered the full load path from those names. REA’s dump was **~25× the source tree** (50.5 MB vs 2.0 MB) and still omitted the narrative. Source recovery needs Wakaru, which is **not** installed and **will not** be installed.
 
 ---
 
-## Combined recommendation
+## Combined recommendation (final)
+
+REA 6.4.0 stays on the GoWifi box, isolated. It is **not** used for routine SailingSA development. No further trials, dumps, or companion binaries (Wakaru / Ghidra / Hopper / IDA).
 
 | Use | Do |
 | --- | --- |
-| Routine SailingSA / hub / Event URL work | Cursor-normal. Do not add `rea-gowifi` to the daily Desktop MCP set for this. |
-| Reverse engineering a copy we do not have sources for (fully mangled JS, Electron `asar`, .NET, later native) | Isolated box REA, after copying into `/opt/rea/work/…`. Optional later: Wakaru (JS recover) or Ghidra (native), still under `/opt/rea` only. |
-| Live production trees | Never. Stay off `/home/user-data`, `/root/gowifi-upp`, Aerialnet, nginx, MariaDB. |
+| Routine SailingSA / hub / Event URL work | Cursor-normal. Do not add `rea-gowifi` to the daily Desktop MCP set. |
+| Isolated install | Leave as-is under `/opt/rea`. Do not point it at live trees. |
+| Live production | Never. Stay off `/home/user-data`, `/root/gowifi-upp`, Aerialnet, nginx, MariaDB. |
 
-Retain the isolated GoWifi install. Use it selectively.
+## Mac Desktop (pending)
 
-## Mac Desktop (do this on the Mini)
+Left pending. A Cloud Agent cannot run [register-rea-gowifi-on-mac.sh](register-rea-gowifi-on-mac.sh) on Darwin without a Task/My Machines workaround, which we are not using. When you are at the Mini:
 
 ```bash
 bash gowifi/rea/register-rea-gowifi-on-mac.sh

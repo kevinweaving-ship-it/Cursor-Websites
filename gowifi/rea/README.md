@@ -34,7 +34,7 @@ Copy a target into `/opt/rea/work/…` (create as `rea`) before analysis. Do not
 - `rea` cannot read `/root/secrets` or `/root/gowifi-upp`, cannot write nginx / Aerialnet / MIAB web root
 - nginx, Mail-in-a-Box, MariaDB, GoWifi APIs, and Aerialnet keypad APIs stayed **active**; no new listen ports
 
-`rea doctor` without a client still reports `unsupported_host` for **Ubuntu 22.04** (official floor is 24.04+) and missing Hopper/Ghidra/IDA. That does **not** block JavaScript / .NET / web inspection. Native PE/ELF decompile needs a later Ghidra install under `/opt/rea` only, if we choose to add it.
+`rea doctor` without a client still reports `unsupported_host` for **Ubuntu 22.04** (official floor is 24.04+) and missing Hopper/Ghidra/IDA. That is accepted. **Do not** install Wakaru, Ghidra, Hopper, IDA, or other extras. **Do not** generate further Evidence dumps.
 
 ## Connect Cursor (Mac / desktop)
 
@@ -54,7 +54,7 @@ REA’s MCP server is **stdio**. Cursor on your Mac launches it over SSH as the 
      < gowifi/rea/add-cursor-pubkey.sh
    ```
 
-3. On the Mac Mini only, run [register-rea-gowifi-on-mac.sh](register-rea-gowifi-on-mac.sh). It merges `rea-gowifi` into `~/.cursor/mcp.json` and keeps every other server. Do **not** run `npx rea-agents setup --client cursor` on the Mac if you want this box — that would register a second, local REA. See [usefulness-trial.md](usefulness-trial.md).
+3. **Pending:** Mac Mini Desktop MCP was not registered from Cloud Agents (Linux VM; Task does not land on Darwin). When you are at the Mini, run [register-rea-gowifi-on-mac.sh](register-rea-gowifi-on-mac.sh). It merges `rea-gowifi` into `~/.cursor/mcp.json` and keeps every other server. Do **not** run `npx rea-agents setup --client cursor` on the Mac if you want this box — that would register a second, local REA. See [usefulness-trial.md](usefulness-trial.md).
 
 4. Fully quit and restart Cursor. Confirm **rea** is connected under Settings → MCP.
 
@@ -113,16 +113,14 @@ Once the MCP server is connected, give Cursor an **absolute path on the box** an
 
 Stay on copies. Live `/home/user-data/www`, `/opt/aerialnet-arial`, and `/root/gowifi-upp` are production.
 
-## Recommendation (after two trials)
+## Recommendation (testing closed)
 
-**Retain REA on GoWifi. Use it selectively for reverse engineering — not routine SailingSA development.**
+**Keep REA 6.4.0 installed and isolated on GoWifi. Do not use it for routine SailingSA development.** Both trials showed **no meaningful advantage** over direct source inspection for current requirements. No further tests, no Wakaru/Ghidra, no more large Evidence dumps. Mac Mini `rea-gowifi` MCP is **pending** until someone runs the Darwin script locally.
 
 Trials (see [usefulness-trial.md](usefulness-trial.md)):
 
 1. Owned, commented `sailingsa/frontend/js` — REA 48s / 4.2 MB, no rewrite-rule answer. Cursor-normal won.
-2. Apache-2.0 minified Mozilla PDF.js viewer (`pdfjs-dist-viewer-min@3.11.174`) — REA 116s / **50.5 MB** (~12.6M tokens if pasted into chat), worker semantic graph OOM, no open→`getDocument` narrative. Cursor-normal recovered the full load path in 0.07s because webpack kept export names. `recover-javascript-sources` needs Wakaru, which the official REA install does not ship (not installed).
-
-Keep the isolated `/opt/rea` install. Do not make `rea-gowifi` the daily Desktop MCP for hub/Event URL work. Turn it on for copies we cannot read cheaply (fully mangled JS, `asar`, .NET; native only after a later Ghidra install under `/opt/rea`).
+2. Apache-2.0 minified Mozilla PDF.js viewer (`pdfjs-dist-viewer-min@3.11.174`) — REA 116s / **50.5 MB**, worker semantic graph OOM, no open→`getDocument` narrative. Cursor-normal recovered the full load path in 0.07s (webpack kept export names).
 
 ## Reinstall / health
 
