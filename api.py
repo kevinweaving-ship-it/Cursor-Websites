@@ -20354,13 +20354,38 @@ def api_super_admin_calendar_event(event_id: int, request: Request, payload: dic
 
 @app.get("/club-manage", response_class=HTMLResponse)
 def club_manage_page(request: Request):
-    """Minimal club events table + class picker. Existing design-system classes only."""
+    """Club self-service UI for event, fleet, SAS entry, Sailwave ingest, and publish."""
     _ensure_phase2_columns()
     try:
         _require_club_writer(request)
     except HTTPException as exc:
         if exc.status_code == 401:
-            return RedirectResponse(url="/login.html?next=/club-manage", status_code=302)
+            return RedirectResponse(url="/login.html?returnTo=/club-manage", status_code=302)
+        if exc.status_code == 403:
+            return HTMLResponse(
+                """<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Club events | SailingSA</title>
+<link rel="stylesheet" href="/css/main.css">
+</head><body>
+<header class="site-header"><div class="container">
+<a href="/" class="logo" title="Home"><img src="/assets/logos/sailingsa-logo.png" alt="SailingSA Logo"></a>
+<nav class="nav-inline" aria-label="Main">
+<a href="/">Home</a><a href="/sailors">Sailors</a><a href="/regattas">Regattas</a><a href="/classes">Classes</a><a href="/clubs">Clubs</a><a href="/events">Events</a><a href="/about">About</a>
+</nav>
+</div></header>
+<div class="container">
+<div class="card">
+<h1 class="section-title">Club events</h1>
+<p>A club admin or club manager login is required.</p>
+<p><a href="/login.html?returnTo=/club-manage">Log in</a></p>
+</div>
+</div>
+</body></html>
+""",
+                status_code=403,
+            )
         raise
     return HTMLResponse(
         """<!DOCTYPE html>
@@ -20369,25 +20394,48 @@ def club_manage_page(request: Request):
 <title>Club events | SailingSA</title>
 <link rel="stylesheet" href="/css/main.css">
 </head><body>
+<header class="site-header"><div class="container">
+<a href="/" class="logo" title="Home"><img src="/assets/logos/sailingsa-logo.png" alt="SailingSA Logo"></a>
+<nav class="nav-inline" aria-label="Main">
+<a href="/">Home</a><a href="/sailors">Sailors</a><a href="/regattas">Regattas</a><a href="/classes">Classes</a><a href="/clubs">Clubs</a><a href="/events">Events</a><a href="/about">About</a>
+</nav>
+</div></header>
 <div class="container">
   <h1 class="section-title">Club events</h1>
   <div id="club-manage-who" class="card"></div>
+
   <div class="card">
-    <h2 class="section-title">Create event</h2>
+    <h2 class="section-title">1. Create event</h2>
     <form id="club-manage-create">
       <p><label>Title <input name="title" required></label></p>
       <p><label>Start <input name="start_date" type="date" required></label>
          <label>End <input name="end_date" type="date"></label></p>
       <p><label>Venue <input name="venue_text"></label></p>
-      <p><label>Class <select name="class_id" id="club-manage-class"><option value="">— optional —</option></select></label></p>
-      <p><button type="submit">Create</button></p>
+      <p><button type="submit">Create event</button></p>
     </form>
     <p id="club-manage-msg"></p>
   </div>
+
   <div class="card">
-    <h2 class="section-title">Add entry</h2>
+    <h2 class="section-title">2. Add fleet and open entries</h2>
+    <form id="club-manage-fleet">
+      <p><label>Regatta <input name="regatta_id" class="club-rid" required></label>
+         <label>Class <select name="class_id" id="club-manage-class"></select></label></p>
+      <p><button type="submit">Add fleet</button></p>
+    </form>
+    <p id="club-manage-fleet-msg"></p>
+    <form id="club-manage-open">
+      <p><label>Event id <input name="event_id" id="club-manage-event-id" required></label>
+         <label>Entries <select name="entry_open"><option value="true">Open</option><option value="false">Closed</option></select></label></p>
+      <p><button type="submit">Set entry_open</button></p>
+    </form>
+    <p id="club-manage-open-msg"></p>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">3. Register SAS sailor</h2>
     <form id="club-manage-entry">
-      <p><label>Regatta <input name="regatta_id" required></label>
+      <p><label>Regatta <input name="regatta_id" class="club-rid" required></label>
          <label>Class <select name="class_id" id="club-manage-entry-class"></select></label></p>
       <p><label>SAS ID <input name="sas_id"></label>
          <label>Helm name <input name="helm_name"></label>
@@ -20396,24 +20444,27 @@ def club_manage_page(request: Request):
     </form>
     <p id="club-manage-entry-msg"></p>
   </div>
+
   <div class="card">
-    <h2 class="section-title">Upload results</h2>
+    <h2 class="section-title">4. Upload Sailwave results</h2>
     <form id="club-manage-ingest">
-      <p><label>Regatta <input name="regatta_id" required></label>
+      <p><label>Regatta <input name="regatta_id" class="club-rid" required></label>
          <label>File <input name="file" type="file" accept=".html,.htm,.csv,text/html,text/csv" required></label></p>
       <p><button type="submit">Preview and commit</button></p>
     </form>
     <p id="club-manage-ingest-msg"></p>
   </div>
+
   <div class="card">
-    <h2 class="section-title">Publish</h2>
+    <h2 class="section-title">5. Publish</h2>
     <form id="club-manage-publish">
-      <p><label>Regatta <input name="regatta_id" required></label>
+      <p><label>Regatta <input name="regatta_id" class="club-rid" required></label>
          <label>Status <select name="result_status"><option>Provisional</option><option>Final</option></select></label></p>
       <p><button type="submit">Set status</button></p>
     </form>
     <p id="club-manage-publish-msg"></p>
   </div>
+
   <div class="card">
     <h2 class="section-title">Hosted events</h2>
     <div class="table-container">
@@ -20426,13 +20477,22 @@ def club_manage_page(request: Request):
 </div>
 <script>
 (function () {
+  function sessQ(url) {
+    var s = new URLSearchParams(window.location.search).get('session');
+    if (!s) return url;
+    return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'session=' + encodeURIComponent(s);
+  }
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];
     });
   }
+  function fillRid(rid, eventId) {
+    document.querySelectorAll('.club-rid').forEach(function (el) { el.value = rid || ''; });
+    if (eventId) document.getElementById('club-manage-event-id').value = eventId;
+  }
   async function j(url, opt) {
-    var r = await fetch(url, Object.assign({credentials:'same-origin', headers:{'Content-Type':'application/json'}}, opt || {}));
+    var r = await fetch(sessQ(url), Object.assign({credentials:'same-origin', headers:{'Content-Type':'application/json'}}, opt || {}));
     var b = null; try { b = await r.json(); } catch (e) { b = {}; }
     if (!r.ok) throw new Error((b && b.detail) || r.statusText || 'Request failed');
     return b;
@@ -20443,14 +20503,13 @@ def club_manage_page(request: Request):
     document.getElementById('club-manage-who').textContent =
       (me.role || '') + ' · club ' + (me.club_abbrev || me.admin_club_id || '');
     var sel = document.getElementById('club-manage-class');
-    sel.innerHTML = '<option value="">— optional —</option>';
+    sel.innerHTML = '<option value="">— class —</option>';
     (data.race_classes || []).forEach(function (c) {
       var o = document.createElement('option');
       o.value = c.class_id; o.textContent = c.class_name;
       sel.appendChild(o);
     });
-    var esel = document.getElementById('club-manage-entry-class');
-    esel.innerHTML = sel.innerHTML;
+    document.getElementById('club-manage-entry-class').innerHTML = sel.innerHTML;
     var tb = document.querySelector('#club-manage-table tbody');
     tb.innerHTML = '';
     (data.events || []).forEach(function (e) {
@@ -20463,6 +20522,7 @@ def club_manage_page(request: Request):
       var tr = document.createElement('tr');
       tr.innerHTML = '<td>' + esc(e.start_date || '') + '</td><td>' + esc(e.event_name || '') +
         '</td><td>' + esc(e.regatta_id || '') + '</td><td>' + esc(blocks.join(', ')) + '</td>';
+      tr.addEventListener('click', function () { fillRid(e.regatta_id, e.event_id); });
       tb.appendChild(tr);
     });
   }
@@ -20471,27 +20531,44 @@ def club_manage_page(request: Request):
     var msg = document.getElementById('club-manage-msg');
     var fd = new FormData(ev.target);
     var body = {title: fd.get('title'), start_date: fd.get('start_date'), end_date: fd.get('end_date') || fd.get('start_date'), venue_text: fd.get('venue_text')};
-    if (fd.get('class_id')) body.class_ids = [parseInt(fd.get('class_id'), 10)];
     try {
-      await j('/api/club/events', {method:'POST', body: JSON.stringify(body)});
-      msg.textContent = 'Created.';
+      var created = await j('/api/club/events', {method:'POST', body: JSON.stringify(body)});
+      msg.textContent = 'Created ' + (created.regatta_id || '');
+      fillRid(created.regatta_id, created.event_id);
       ev.target.reset();
       await load();
+    } catch (err) { msg.textContent = err.message || 'Failed'; }
+  });
+  document.getElementById('club-manage-fleet').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var msg = document.getElementById('club-manage-fleet-msg');
+    var fd = new FormData(ev.target);
+    try {
+      await j('/api/club/regattas/' + encodeURIComponent(fd.get('regatta_id')) + '/classes', {method:'POST', body: JSON.stringify({class_id: parseInt(fd.get('class_id'), 10)})});
+      msg.textContent = 'Fleet added.';
+      await load();
+    } catch (err) { msg.textContent = err.message || 'Failed'; }
+  });
+  document.getElementById('club-manage-open').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var msg = document.getElementById('club-manage-open-msg');
+    var fd = new FormData(ev.target);
+    try {
+      await j('/api/club/events/' + encodeURIComponent(fd.get('event_id')), {method:'PATCH', body: JSON.stringify({entry_open: fd.get('entry_open') === 'true'})});
+      msg.textContent = 'Entries ' + (fd.get('entry_open') === 'true' ? 'opened.' : 'closed.');
     } catch (err) { msg.textContent = err.message || 'Failed'; }
   });
   document.getElementById('club-manage-entry').addEventListener('submit', async function (ev) {
     ev.preventDefault();
     var msg = document.getElementById('club-manage-entry-msg');
     var fd = new FormData(ev.target);
-    var rid = fd.get('regatta_id');
     var body = {sail_number: fd.get('sail_number')};
     if (fd.get('class_id')) body.class_id = parseInt(fd.get('class_id'), 10);
     if (fd.get('sas_id')) body.sas_id = fd.get('sas_id');
     if (fd.get('helm_name')) body.helm_name = fd.get('helm_name');
     try {
-      await j('/api/club/regattas/' + encodeURIComponent(rid) + '/entries', {method:'POST', body: JSON.stringify(body)});
+      await j('/api/club/regattas/' + encodeURIComponent(fd.get('regatta_id')) + '/entries', {method:'POST', body: JSON.stringify(body)});
       msg.textContent = 'Entry added.';
-      ev.target.reset();
     } catch (err) { msg.textContent = err.message || 'Failed'; }
   });
   document.getElementById('club-manage-ingest').addEventListener('submit', async function (ev) {
@@ -20503,16 +20580,16 @@ def club_manage_page(request: Request):
     var body = new FormData();
     body.append('file', file);
     try {
-      var prev = await fetch('/api/club/regattas/' + encodeURIComponent(rid) + '/ingest/preview', {method:'POST', credentials:'same-origin', body: body});
+      var prev = await fetch(sessQ('/api/club/regattas/' + encodeURIComponent(rid) + '/ingest/preview'), {method:'POST', credentials:'same-origin', body: body});
       var pb = await prev.json();
       if (!prev.ok) throw new Error((pb && pb.detail) || 'Preview failed');
       var commit = new FormData();
       commit.append('file', file);
       commit.append('preview_token', pb.preview_token);
-      var cr = await fetch('/api/club/regattas/' + encodeURIComponent(rid) + '/ingest/commit', {method:'POST', credentials:'same-origin', body: commit});
+      var cr = await fetch(sessQ('/api/club/regattas/' + encodeURIComponent(rid) + '/ingest/commit'), {method:'POST', credentials:'same-origin', body: commit});
       var cb = await cr.json();
       if (!cr.ok) throw new Error((cb && cb.detail) || 'Commit failed');
-      msg.textContent = 'Committed ' + (cb.rows_updated || 0) + ' updated, ' + (cb.rows_added || 0) + ' added.';
+      msg.textContent = 'Previewed ' + (pb.count || 0) + ' rows. Committed ' + (cb.rows_updated || 0) + ' updated, ' + (cb.rows_added || 0) + ' added.';
     } catch (err) { msg.textContent = err.message || 'Failed'; }
   });
   document.getElementById('club-manage-publish').addEventListener('submit', async function (ev) {
@@ -20532,10 +20609,6 @@ def club_manage_page(request: Request):
 </body></html>
 """
     )
-
-
-
-
 
 
 # --- Phase 3: SAS-ID club registration + sailor self-entry (writes results only; no entries table) ---
