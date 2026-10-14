@@ -1,6 +1,6 @@
 # SailingSA club self-service — Step 3 plan (for approval)
 
-**Status:** Phase 1 is live. Phase 2 (club event create/claim/edit/fleets) is on `cursor/club-phase2-events-045e`. Phases 3–5 not started.
+**Status:** Phase 1 and Phase 2 are live. Phase 3 (SAS-ID club registration and sailor self-entry) is on `cursor/club-phase3-entries-045e`. Phases 4–5 not started.
 
 **Date:** 14 October 2026.
 

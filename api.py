@@ -19527,7 +19527,7 @@ def api_club_me(request: Request):
     }
 
 
-# --- Phase 2: club event create / claim / fleets (do not start Phase 3) ---
+# --- Phase 2: club event create / claim / fleets ---
 
 _PHASE2_COLS_READY = False
 _PHASE2_PILOT_SLUGS = (
@@ -20385,6 +20385,18 @@ def club_manage_page(request: Request):
     <p id="club-manage-msg"></p>
   </div>
   <div class="card">
+    <h2 class="section-title">Add entry</h2>
+    <form id="club-manage-entry">
+      <p><label>Regatta <input name="regatta_id" required></label>
+         <label>Class <select name="class_id" id="club-manage-entry-class"></select></label></p>
+      <p><label>SAS ID <input name="sas_id"></label>
+         <label>Helm name <input name="helm_name"></label>
+         <label>Sail no <input name="sail_number" required></label></p>
+      <p><button type="submit">Add entry</button></p>
+    </form>
+    <p id="club-manage-entry-msg"></p>
+  </div>
+  <div class="card">
     <h2 class="section-title">Hosted events</h2>
     <div class="table-container">
       <table class="table" id="club-manage-table">
@@ -20419,6 +20431,8 @@ def club_manage_page(request: Request):
       o.value = c.class_id; o.textContent = c.class_name;
       sel.appendChild(o);
     });
+    var esel = document.getElementById('club-manage-entry-class');
+    esel.innerHTML = sel.innerHTML;
     var tb = document.querySelector('#club-manage-table tbody');
     tb.innerHTML = '';
     (data.events || []).forEach(function (e) {
@@ -20447,6 +20461,21 @@ def club_manage_page(request: Request):
       await load();
     } catch (err) { msg.textContent = err.message || 'Failed'; }
   });
+  document.getElementById('club-manage-entry').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var msg = document.getElementById('club-manage-entry-msg');
+    var fd = new FormData(ev.target);
+    var rid = fd.get('regatta_id');
+    var body = {sail_number: fd.get('sail_number')};
+    if (fd.get('class_id')) body.class_id = parseInt(fd.get('class_id'), 10);
+    if (fd.get('sas_id')) body.sas_id = fd.get('sas_id');
+    if (fd.get('helm_name')) body.helm_name = fd.get('helm_name');
+    try {
+      await j('/api/club/regattas/' + encodeURIComponent(rid) + '/entries', {method:'POST', body: JSON.stringify(body)});
+      msg.textContent = 'Entry added.';
+      ev.target.reset();
+    } catch (err) { msg.textContent = err.message || 'Failed'; }
+  });
   load().catch(function (err) {
     document.getElementById('club-manage-who').textContent = err.message || 'Failed to load';
   });
@@ -20458,6 +20487,493 @@ def club_manage_page(request: Request):
 
 
 
+
+
+
+# --- Phase 3: SAS-ID club registration + sailor self-entry (writes results only; no entries table) ---
+
+_PHASE3_COLS_READY = False
+_PHASE3_EMPTY_SCORE_SENTINELS = ("", "{}", "[]", "null", "none")
+
+
+def _ensure_phase3_columns() -> None:
+    """Additive results.entry_source. Does not alter pilots or existing scores."""
+    _ensure_phase2_columns()
+    global _PHASE3_COLS_READY
+    if _PHASE3_COLS_READY:
+        return
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        try:
+            if table_exists("results") and not column_exists("results", "entry_source"):
+                cur.execute("ALTER TABLE public.results ADD COLUMN entry_source text")
+            conn.commit()
+            cache = globals().get("_SCHEMA_EXISTS_CACHE")
+            if isinstance(cache, dict):
+                for key in list(cache):
+                    if isinstance(key, tuple) and len(key) >= 2 and key[1] == "results":
+                        cache.pop(key, None)
+            _PHASE3_COLS_READY = True
+        finally:
+            cur.close()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        return_db_connection(conn)
+
+
+def _phase3_person_name(first_name="", last_name="", full_name=""):
+    fn = globals().get("_sas_personal_display_name")
+    if callable(fn):
+        try:
+            name = fn(first_name or "", last_name or "", full_name or "")
+            if name:
+                return str(name).strip()
+        except Exception:
+            pass
+    first = str(first_name or "").strip()
+    last = str(last_name or "").strip()
+    joined = " ".join(p for p in (first, last) if p)
+    if joined:
+        return joined
+    raw = str(full_name or "").strip()
+    if "," in raw:
+        parts = [p.strip() for p in raw.split(",", 1)]
+        if len(parts) == 2 and parts[0] and parts[1]:
+            return "%s %s" % (parts[1], parts[0])
+    return raw
+
+
+def _phase3_resolve_sas_person(cur, sas_id, *, required=True):
+    """Resolve official name from sas_id_personal. Never invents a SAS ID."""
+    sid = str(sas_id or "").strip()
+    if not sid:
+        if required:
+            raise HTTPException(status_code=400, detail="SAS ID is required")
+        return None
+    if not sid.isdigit():
+        raise HTTPException(status_code=400, detail="Invalid SAS ID")
+    cur.execute(
+        """
+        SELECT sa_sailing_id, first_name, last_name, full_name
+        FROM public.sas_id_personal
+        WHERE sa_sailing_id::text = %s
+        LIMIT 1
+        """,
+        (sid,),
+    )
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=400, detail="Unknown SAS ID")
+    sa = _row_get(row, "sa_sailing_id") if "_row_get" in globals() else (row["sa_sailing_id"] if isinstance(row, dict) else row[0])
+    try:
+        sa_int = int(sa)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Unknown SAS ID")
+    name = _phase3_person_name(
+        _row_get(row, "first_name") if "_row_get" in globals() else (row["first_name"] if isinstance(row, dict) else row[1]),
+        _row_get(row, "last_name") if "_row_get" in globals() else (row["last_name"] if isinstance(row, dict) else row[2]),
+        _row_get(row, "full_name") if "_row_get" in globals() else (row["full_name"] if isinstance(row, dict) else row[3]),
+    )
+    if not name:
+        raise HTTPException(status_code=400, detail="SAS ID has no official name")
+    return sa_int, name
+
+
+def _phase3_block_for_class(cur, rid, class_ref):
+    cid, cname = _phase2_resolve_race_class(cur, class_ref)
+    cur.execute(
+        """
+        SELECT block_id, class_id, class_canonical, class_original, fleet_label
+        FROM public.regatta_blocks
+        WHERE regatta_id::text = %s AND class_id = %s
+        LIMIT 1
+        """,
+        (rid, cid),
+    )
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=400, detail="Class is not declared on this regatta")
+    return {
+        "class_id": cid,
+        "class_name": cname,
+        "block_id": str(_row_get(row, "block_id") if "_row_get" in globals() else row["block_id"]),
+        "class_canonical": (str(_row_get(row, "class_canonical") or cname)).strip() or cname,
+        "class_original": (str(_row_get(row, "class_original") or cname)).strip() or cname,
+        "fleet_label": (str(_row_get(row, "fleet_label") or cname)).strip() or cname,
+    }
+
+
+def _phase3_club_id(cur, raw, default=None):
+    if raw is None or raw == "":
+        return default
+    try:
+        cid = int(raw)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="club_id must be an integer")
+    cur.execute("SELECT club_id FROM public.clubs WHERE club_id = %s LIMIT 1", (cid,))
+    if not cur.fetchone():
+        raise HTTPException(status_code=400, detail="Unknown club_id")
+    return cid
+
+
+def _phase3_entry_open(cur, rid) -> bool:
+    if not table_exists("events") or not column_exists("events", "entry_open"):
+        return False
+    cur.execute(
+        """
+        SELECT 1 FROM public.events
+        WHERE regatta_id::text = %s AND COALESCE(entry_open, FALSE) IS TRUE
+        LIMIT 1
+        """,
+        (rid,),
+    )
+    return bool(cur.fetchone())
+
+
+def _phase3_assert_unique(cur, rid, block_id, helm_sas, helm_name, sail_number):
+    if helm_sas is not None:
+        cur.execute(
+            """
+            SELECT result_id FROM public.results
+            WHERE regatta_id::text = %s AND helm_sa_sailing_id::text = %s
+            LIMIT 1
+            """,
+            (rid, str(helm_sas)),
+        )
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Sailor already entered in this event")
+        return
+    cur.execute(
+        """
+        SELECT result_id FROM public.results
+        WHERE regatta_id::text = %s
+          AND block_id = %s
+          AND helm_sa_sailing_id IS NULL
+          AND LOWER(TRIM(COALESCE(helm_name, ''))) = LOWER(TRIM(%s))
+          AND LOWER(TRIM(COALESCE(sail_number, ''))) = LOWER(TRIM(%s))
+        LIMIT 1
+        """,
+        (rid, block_id, helm_name or "", sail_number or ""),
+    )
+    if cur.fetchone():
+        raise HTTPException(status_code=409, detail="Duplicate entry for this fleet")
+
+
+def _phase3_race_scores_empty(scores) -> bool:
+    if scores is None:
+        return True
+    raw = scores
+    if isinstance(scores, memoryview):
+        scores = scores.tobytes().decode("utf-8", "replace")
+    if isinstance(scores, (bytes, bytearray)):
+        scores = scores.decode("utf-8", "replace")
+    if isinstance(scores, str):
+        text = scores.strip()
+        if text.lower() in _PHASE3_EMPTY_SCORE_SENTINELS:
+            return True
+        try:
+            scores = json.loads(text)
+        except Exception:
+            return False
+    if isinstance(scores, dict):
+        if not scores:
+            return True
+        return all(v is None or str(v).strip() == "" for v in scores.values())
+    if isinstance(scores, (list, tuple)):
+        if not scores:
+            return True
+        return all(v is None or str(v).strip() == "" for v in scores)
+    return False
+
+
+def _phase3_normalize_items(payload):
+    if payload is None:
+        raise HTTPException(status_code=400, detail="JSON body is required")
+    if isinstance(payload, list):
+        items = payload
+    elif isinstance(payload, dict):
+        if isinstance(payload.get("entries"), list):
+            items = payload.get("entries")
+        else:
+            items = [payload]
+    else:
+        raise HTTPException(status_code=400, detail="Body must be an object or list")
+    if not items:
+        raise HTTPException(status_code=400, detail="At least one entry is required")
+    out = []
+    for item in items:
+        if not isinstance(item, dict):
+            raise HTTPException(status_code=400, detail="Each entry must be an object")
+        out.append(item)
+    return out
+
+
+def _phase3_insert_result(cur, *, rid, block, helm_name, helm_sas, crew_name, crew_sas,
+                          sail_number, club_id, club_raw, entry_source):
+    cols = [
+        "regatta_id",
+        "block_id",
+        "class_original",
+        "class_canonical",
+        "fleet_label",
+        "class_id",
+        "sail_number",
+        "helm_name",
+        "helm_sa_sailing_id",
+        "crew_name",
+        "crew_sa_sailing_id",
+        "club_id",
+        "club_raw",
+        "raced",
+        "race_scores",
+    ]
+    vals = [
+        rid,
+        block["block_id"],
+        block["class_original"],
+        block["class_canonical"],
+        block["fleet_label"],
+        block["class_id"],
+        sail_number,
+        helm_name,
+        helm_sas,
+        crew_name or "",
+        crew_sas,
+        club_id,
+        club_raw,
+        True,
+        "{}",
+    ]
+    if column_exists("results", "entry_source"):
+        cols.append("entry_source")
+        vals.append(entry_source)
+    ph = []
+    for col in cols:
+        ph.append("%s::jsonb" if col == "race_scores" else "%s")
+    cur.execute(
+        "INSERT INTO public.results (%s) VALUES (%s) RETURNING result_id"
+        % (", ".join(cols), ", ".join(ph)),
+        tuple(vals),
+    )
+    row = cur.fetchone()
+    result_id = _row_get(row, "result_id") if "_row_get" in globals() else (row["result_id"] if isinstance(row, dict) else row[0])
+    return int(result_id)
+
+
+def _phase3_prepare_entry(cur, rid, item, *, default_club_id, forced_sas=None, entry_source):
+    class_ref = item.get("class_id")
+    if class_ref is None:
+        class_ref = item.get("class") or item.get("alias")
+    if class_ref is None or class_ref == "":
+        raise HTTPException(status_code=400, detail="class_id is required")
+    sail_number = str(item.get("sail_number") or "").strip()
+    if not sail_number:
+        raise HTTPException(status_code=400, detail="sail_number is required")
+    block = _phase3_block_for_class(cur, rid, class_ref)
+    if forced_sas is not None:
+        helm_sas, helm_name = _phase3_resolve_sas_person(cur, forced_sas, required=True)
+    else:
+        raw_sas = item.get("sas_id")
+        if raw_sas is None or str(raw_sas).strip() == "":
+            helm_sas = None
+            helm_name = str(item.get("helm_name") or "").strip()
+            if not helm_name:
+                raise HTTPException(status_code=400, detail="helm_name is required when sas_id is omitted")
+        else:
+            helm_sas, helm_name = _phase3_resolve_sas_person(cur, raw_sas, required=True)
+    crew_sas = None
+    crew_name = ""
+    raw_crew = item.get("crew_sas_id")
+    if raw_crew is not None and str(raw_crew).strip() != "":
+        crew_sas, crew_name = _phase3_resolve_sas_person(cur, raw_crew, required=True)
+    club_id = _phase3_club_id(cur, item.get("club_id"), default_club_id)
+    club_raw = None
+    if club_id is not None:
+        club_raw = _phase2_club_abbrev(cur, club_id)
+    _phase3_assert_unique(cur, rid, block["block_id"], helm_sas, helm_name, sail_number)
+    result_id = _phase3_insert_result(
+        cur,
+        rid=rid,
+        block=block,
+        helm_name=helm_name,
+        helm_sas=helm_sas,
+        crew_name=crew_name,
+        crew_sas=crew_sas,
+        sail_number=sail_number,
+        club_id=club_id,
+        club_raw=club_raw,
+        entry_source=entry_source,
+    )
+    return {
+        "result_id": result_id,
+        "regatta_id": rid,
+        "block_id": block["block_id"],
+        "class_id": block["class_id"],
+        "class_name": block["class_name"],
+        "sail_number": sail_number,
+        "helm_name": helm_name,
+        "sas_id": str(helm_sas) if helm_sas is not None else None,
+        "crew_sas_id": str(crew_sas) if crew_sas is not None else None,
+        "entry_source": entry_source,
+    }
+
+
+def _phase3_load_host_regatta(cur, rid):
+    cur.execute(
+        "SELECT regatta_id, host_club_id FROM public.regattas WHERE regatta_id = %s LIMIT 1",
+        (rid,),
+    )
+    reg = cur.fetchone()
+    if not reg:
+        raise HTTPException(status_code=404, detail="Regatta not found")
+    return reg
+
+
+@app.post("/api/club/regattas/{regatta_id}/entries")
+def api_club_add_regatta_entries(regatta_id: str, request: Request, payload: dict):
+    """Club host adds one or many results-table entries. Does not require entry_open. Does not write entries."""
+    _ensure_phase3_columns()
+    _require_club_writer(request)
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        raise HTTPException(status_code=400, detail="regatta_id is required")
+    items = _phase3_normalize_items(payload if isinstance(payload, dict) else None)
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            reg = _phase3_load_host_regatta(cur, rid)
+            if not _session_can_manage_host(request, reg.get("host_club_id")):
+                raise HTTPException(status_code=403, detail="Not the host club for this regatta")
+            host_id = None
+            try:
+                host_id = int(reg.get("host_club_id")) if reg.get("host_club_id") is not None else None
+            except (TypeError, ValueError):
+                host_id = None
+            created = []
+            for item in items:
+                created.append(
+                    _phase3_prepare_entry(
+                        cur,
+                        rid,
+                        item,
+                        default_club_id=host_id,
+                        forced_sas=None,
+                        entry_source="club_entry",
+                    )
+                )
+            conn.commit()
+            return {"ok": True, "regatta_id": rid, "created": created, "count": len(created)}
+        except HTTPException:
+            conn.rollback()
+            raise
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+    finally:
+        return_db_connection(conn)
+
+
+@app.post("/api/regattas/{regatta_id}/enter")
+def api_regatta_self_enter(regatta_id: str, request: Request, payload: dict):
+    """Logged-in sailor enters own SAS ID only. Requires linked events.entry_open."""
+    _ensure_phase3_columns()
+    session_sas = _get_session_sas_id(request)
+    if not session_sas:
+        raise HTTPException(status_code=401, detail="Login required")
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        raise HTTPException(status_code=400, detail="regatta_id is required")
+    body = payload if isinstance(payload, dict) else {}
+    # Session SAS is the only identity. Ignore client-supplied sas_id / helm_name.
+    item = {
+        "class_id": body.get("class_id") if body.get("class_id") is not None else body.get("class"),
+        "sail_number": body.get("sail_number"),
+        "crew_sas_id": body.get("crew_sas_id"),
+        "club_id": body.get("club_id"),
+    }
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            _phase3_load_host_regatta(cur, rid)
+            if not _phase3_entry_open(cur, rid):
+                raise HTTPException(status_code=403, detail="Entries are not open")
+            created = _phase3_prepare_entry(
+                cur,
+                rid,
+                item,
+                default_club_id=None,
+                forced_sas=session_sas,
+                entry_source="sailor_self",
+            )
+            conn.commit()
+            return {"ok": True, "regatta_id": rid, "created": [created], "count": 1}
+        except HTTPException:
+            conn.rollback()
+            raise
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+    finally:
+        return_db_connection(conn)
+
+
+@app.delete("/api/club/regattas/{regatta_id}/entries/{result_id}")
+def api_club_delete_regatta_entry(regatta_id: str, result_id: int, request: Request):
+    """Club host may delete an unscored results row only. Never deletes scored rows."""
+    _ensure_phase3_columns()
+    _require_club_writer(request)
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        raise HTTPException(status_code=400, detail="regatta_id is required")
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            reg = _phase3_load_host_regatta(cur, rid)
+            if not _session_can_manage_host(request, reg.get("host_club_id")):
+                raise HTTPException(status_code=403, detail="Not the host club for this regatta")
+            cur.execute(
+                """
+                SELECT result_id, race_scores
+                FROM public.results
+                WHERE result_id = %s AND regatta_id::text = %s
+                LIMIT 1
+                """,
+                (int(result_id), rid),
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Entry not found")
+            if not _phase3_race_scores_empty(row.get("race_scores")):
+                raise HTTPException(status_code=409, detail="Cannot delete a scored entry")
+            cur.execute(
+                "DELETE FROM public.results WHERE result_id = %s AND regatta_id::text = %s",
+                (int(result_id), rid),
+            )
+            conn.commit()
+            return {"ok": True, "deleted": int(result_id), "regatta_id": rid}
+        except HTTPException:
+            conn.rollback()
+            raise
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+    finally:
+        return_db_connection(conn)
 
 def _hub_hero_json_path() -> Path:
     return Path(_static_dir()) / "data" / "hub_hero.json"
