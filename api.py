@@ -19518,11 +19518,14 @@ def api_club_me(request: Request):
     if not sas_id:
         raise HTTPException(status_code=401, detail="Login required")
     club_fields = _session_club_fields(request)
+    is_super = _session_role_is_super_admin(request)
     return {
         "sas_id": sas_id,
         "role": _get_session_role(request),
         "admin_club_id": club_fields.get("admin_club_id"),
         "is_club_admin": club_fields.get("is_club_admin"),
+        "is_super_admin": is_super,
+        "can_manage_all_clubs": is_super,
         "club_abbrev": club_fields.get("club_abbrev"),
     }
 
@@ -19557,6 +19560,29 @@ def _ensure_phase2_columns() -> None:
                     cur.execute("ALTER TABLE public.regattas ADD COLUMN origin text DEFAULT 'ops_ingest'")
                 if not column_exists("regattas", "created_by_sas_id"):
                     cur.execute("ALTER TABLE public.regattas ADD COLUMN created_by_sas_id text")
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS public.club_season_items (
+                    item_id bigserial PRIMARY KEY,
+                    club_id integer NOT NULL,
+                    title text NOT NULL,
+                    start_date date NOT NULL,
+                    end_date date,
+                    kind text NOT NULL DEFAULT 'race',
+                    category text,
+                    event_id integer,
+                    extra_info text,
+                    created_by_sas_id text,
+                    created_at timestamptz DEFAULT now()
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS club_season_items_club_date_title
+                ON public.club_season_items (club_id, start_date, title)
+                """
+            )
             conn.commit()
             cache = globals().get("_SCHEMA_EXISTS_CACHE")
             if isinstance(cache, dict):
@@ -19592,6 +19618,104 @@ def _require_club_host_club_id(request: Request) -> int:
     if club_id is None:
         raise HTTPException(status_code=403, detail="No admin_club_id on account")
     return club_id
+
+
+def _phase2_lookup_club_id(cur, ref):
+    if ref is None or str(ref).strip() == "":
+        return None
+    raw = str(ref).strip()
+    if raw.isdigit():
+        cur.execute("SELECT club_id FROM public.clubs WHERE club_id = %s LIMIT 1", (int(raw),))
+        row = cur.fetchone()
+        return int(row["club_id"] if isinstance(row, dict) else row[0]) if row else None
+    cur.execute(
+        """
+        SELECT club_id FROM public.clubs
+        WHERE lower(trim(COALESCE(club_abbrev, ''))) = lower(trim(%s))
+           OR lower(trim(both '-' from regexp_replace(regexp_replace(lower(trim(COALESCE(club_abbrev, ''))), '[^a-z0-9\\s\\-]', '', 'g'), '\\s+', '-', 'g'))) = lower(trim(%s))
+        LIMIT 1
+        """,
+        (raw, raw),
+    )
+    row = cur.fetchone()
+    return int(row["club_id"] if isinstance(row, dict) else row[0]) if row else None
+
+
+def _resolve_managed_club_id(request: Request, cur, club_ref=None) -> int:
+    sas_id, session_club, is_super = _require_club_writer(request)
+    page_id = _phase2_lookup_club_id(cur, club_ref) if club_ref else None
+    if is_super:
+        if page_id is not None:
+            return page_id
+        if session_club is not None:
+            return int(session_club)
+        raise HTTPException(status_code=400, detail="club is required")
+    if session_club is None:
+        raise HTTPException(status_code=403, detail="No admin_club_id on account")
+    if page_id is not None and int(page_id) != int(session_club):
+        raise HTTPException(status_code=403, detail="Not the host club for this page")
+    return int(session_club)
+
+
+def _phase2_bool(raw, default=False) -> bool:
+    if raw is None:
+        return bool(default)
+    if isinstance(raw, bool):
+        return raw
+    return str(raw).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _upsert_season_item(cur, *, club_id, title, start_date, end_date, kind, category, event_id, sas_id):
+    if not table_exists("club_season_items"):
+        return None
+    cur.execute(
+        """
+        INSERT INTO public.club_season_items
+            (club_id, title, start_date, end_date, kind, category, event_id, created_by_sas_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (club_id, start_date, title) DO UPDATE
+            SET end_date = EXCLUDED.end_date,
+                kind = EXCLUDED.kind,
+                category = COALESCE(EXCLUDED.category, public.club_season_items.category),
+                event_id = COALESCE(EXCLUDED.event_id, public.club_season_items.event_id)
+        RETURNING item_id
+        """,
+        (int(club_id), title, start_date, end_date, kind or "race", category, event_id, sas_id),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+    return int(row["item_id"] if isinstance(row, dict) else row[0])
+
+
+_NO_REGATTA_KINDS = frozenset({"training", "external", "informal", "cruise", "ops", "duty"})
+_VALID_CLUB_KINDS = frozenset({"race"}) | _NO_REGATTA_KINDS
+
+
+def _norm_club_kind(raw, default="race") -> str:
+    s = str(raw or default or "race").strip().lower()
+    if s in ("club", "dinghy event", "dinghy", "multiclass event"):
+        return "race"
+    if s not in _VALID_CLUB_KINDS:
+        return default if default in _VALID_CLUB_KINDS else "race"
+    return s
+
+
+def _kind_allows_regatta(kind: str) -> bool:
+    return _norm_club_kind(kind) == "race"
+
+
+def _year_stripped_event_name(name: str) -> str:
+    s = re.sub(r"\b(?:19|20)\d{2}\b", " ", name or "")
+    return _normalize_event_name_for_fuzzy(s)
+
+
+def _host_display_name(abbrev, fullname, host_id=None) -> str:
+    a = str(abbrev or "").strip()
+    f = str(fullname or "").strip()
+    if a and f and a.lower() != f.lower():
+        return "%s - %s" % (a, f)
+    return a or f or ("Club %s" % host_id if host_id is not None else "")
 
 
 def _session_can_manage_host(request: Request, host_club_id) -> bool:
@@ -19641,17 +19765,18 @@ def _phase2_unassigned_club_id(cur=None):
 
 
 def _phase2_host_is_claimable(host_club_id, session_club_id, is_super: bool, unassigned_id) -> bool:
+    """True when this page club may take host. Super Admin still cannot steal another host here."""
     if host_club_id is None:
         return True
     try:
         hid = int(host_club_id)
     except (TypeError, ValueError):
-        return bool(is_super)
+        return False
     if unassigned_id is not None and hid == int(unassigned_id):
         return True
     if session_club_id is not None and hid == int(session_club_id):
         return True
-    return bool(is_super)
+    return False
 
 
 def _phase2_slug_part(title: str) -> str:
@@ -19846,16 +19971,14 @@ def _phase2_race_classes(cur):
 
 
 @app.get("/api/club/me/events")
-def api_club_me_events(request: Request):
-    """Hosted calendar + results events for the session club. Never lists other clubs."""
+def api_club_me_events(request: Request, club: Optional[str] = Query(None)):
+    """Hosted calendar + results events for the page club. Super Admin may pass ?club=abbrev."""
     _ensure_phase2_columns()
-    sas_id, club_id, is_super = _require_club_writer(request)
-    if club_id is None:
-        return {"admin_club_id": None, "events": [], "regattas": [], "race_classes": []}
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
+            club_id = _resolve_managed_club_id(request, cur, club)
             events = []
             if table_exists("events"):
                 extra = ""
@@ -19947,11 +20070,56 @@ def api_club_me_events(request: Request):
                             "blocks": blocks,
                         }
                     )
+            season = []
+            if table_exists("club_season_items"):
+                cur.execute(
+                    """
+                    SELECT item_id, title, start_date, end_date, kind, category, event_id
+                    FROM public.club_season_items
+                    WHERE club_id = %s
+                    ORDER BY start_date DESC NULLS LAST, item_id DESC
+                    LIMIT 500
+                    """,
+                    (int(club_id),),
+                )
+                for row in cur.fetchall() or []:
+                    season.append(
+                        {
+                            "item_id": row.get("item_id"),
+                            "title": row.get("title"),
+                            "start_date": _iso_date(row.get("start_date")),
+                            "end_date": _iso_date(row.get("end_date")),
+                            "kind": row.get("kind"),
+                            "category": row.get("category"),
+                            "event_id": row.get("event_id"),
+                        }
+                    )
+            previous = []
+            seen_prev = set()
+            for row in regattas:
+                key = _year_stripped_event_name(row.get("event_name") or "")
+                if not key or key in seen_prev:
+                    continue
+                seen_prev.add(key)
+                previous.append(
+                    {
+                        "event_name": row.get("event_name"),
+                        "start_date": row.get("start_date"),
+                        "regatta_id": row.get("regatta_id"),
+                        "class_names": [
+                            b.get("class_name")
+                            for b in (row.get("blocks") or [])
+                            if b.get("class_name")
+                        ],
+                    }
+                )
             return {
                 "admin_club_id": int(club_id),
                 "club_abbrev": _phase2_club_abbrev(cur, club_id),
                 "events": events,
                 "regattas": regattas,
+                "season_items": season,
+                "previous_editions": previous[:40],
                 "race_classes": _phase2_race_classes(cur),
             }
         finally:
@@ -19962,11 +20130,9 @@ def api_club_me_events(request: Request):
 
 @app.post("/api/club/events")
 def api_club_create_event(request: Request, payload: dict):
-    """Create a club-origin events + regattas row and optional fleet blocks. host_club_id from session only."""
+    """Create a club-origin event. host_club_id from session or Super Admin page club. create_regatta default false."""
     _ensure_phase2_columns()
-    sas_id, club_id, is_super = _require_club_writer(request)
-    if club_id is None:
-        raise HTTPException(status_code=403, detail="No admin_club_id on account")
+    sas_id, _session_club, is_super = _require_club_writer(request)
     body = payload if isinstance(payload, dict) else {}
     title = str(body.get("title") or body.get("event_name") or "").strip()
     if not title:
@@ -19980,35 +20146,43 @@ def api_club_create_event(request: Request, payload: dict):
     venue_text = str(body.get("venue_text") or "").strip() or None
     nor_url = str(body.get("nor_url") or "").strip() or None
     si_url = str(body.get("si_url") or "").strip() or None
+    category = str(body.get("category") or "").strip() or None
+    kind = _norm_club_kind(body.get("kind"))
+    create_regatta = _phase2_bool(body.get("create_regatta"), False) and _kind_allows_regatta(kind)
     class_refs = body.get("class_ids") or body.get("classes") or []
     if class_refs and not isinstance(class_refs, list):
         class_refs = [class_refs]
+    if not create_regatta:
+        class_refs = []
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
+            club_id = _resolve_managed_club_id(request, cur, body.get("club") or body.get("club_abbrev"))
             abbrev = _phase2_club_abbrev(cur, club_id) or "club"
-            slug = _allocate_club_regatta_id(cur, start_date, abbrev, title)
-            _insert_club_regatta(
-                cur,
-                slug=slug,
-                title=title,
-                start_date=start_date,
-                end_date=end_date,
-                host_club_id=int(club_id),
-                club_abbrev=abbrev,
-                sas_id=sas_id,
-            )
+            slug = None
             blocks = []
-            for ref in class_refs:
-                cid, cname = _phase2_resolve_race_class(cur, ref)
-                blocks.append(
-                    {
-                        "block_id": _insert_regatta_block(cur, slug, cid, cname),
-                        "class_id": cid,
-                        "class_name": cname,
-                    }
+            if create_regatta:
+                slug = _allocate_club_regatta_id(cur, start_date, abbrev, title)
+                _insert_club_regatta(
+                    cur,
+                    slug=slug,
+                    title=title,
+                    start_date=start_date,
+                    end_date=end_date,
+                    host_club_id=int(club_id),
+                    club_abbrev=abbrev,
+                    sas_id=sas_id,
                 )
+                for ref in class_refs:
+                    cid, cname = _phase2_resolve_race_class(cur, ref)
+                    blocks.append(
+                        {
+                            "block_id": _insert_regatta_block(cur, slug, cid, cname),
+                            "class_id": cid,
+                            "class_name": cname,
+                        }
+                    )
             ev_cols = [
                 "source",
                 "source_event_id",
@@ -20048,6 +20222,9 @@ def api_club_create_event(request: Request, payload: dict):
             if column_exists("events", "entry_open"):
                 ev_cols.append("entry_open")
                 ev_vals.append(False)
+            if category and column_exists("events", "category"):
+                ev_cols.append("category")
+                ev_vals.append(category)
             cur.execute(
                 "INSERT INTO public.events (%s) VALUES (%s) RETURNING event_id"
                 % (", ".join(ev_cols), ", ".join(["%s"] * len(ev_vals))),
@@ -20055,11 +20232,25 @@ def api_club_create_event(request: Request, payload: dict):
             )
             erow = cur.fetchone()
             event_id = int(erow["event_id"] if isinstance(erow, dict) else erow[0])
+            item_id = _upsert_season_item(
+                cur,
+                club_id=club_id,
+                title=title,
+                start_date=start_date,
+                end_date=end_date,
+                kind=kind,
+                category=category,
+                event_id=event_id,
+                sas_id=sas_id,
+            )
             conn.commit()
             return {
                 "ok": True,
                 "event_id": event_id,
                 "regatta_id": slug,
+                "created_regatta": bool(slug),
+                "item_id": item_id,
+                "kind": kind,
                 "host_club_id": int(club_id),
                 "origin": "club",
                 "entry_open": False,
@@ -20077,45 +20268,262 @@ def api_club_create_event(request: Request, payload: dict):
         return_db_connection(conn)
 
 
-@app.post("/api/club/events/{event_id}/claim")
-def api_club_claim_event(event_id: int, request: Request):
-    """Claim a scraped calendar row for the session club. Does not rewrite existing slugs."""
+@app.get("/api/club/events/match")
+def api_club_events_match(
+    request: Request,
+    name: str = Query(""),
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    club: Optional[str] = Query(None),
+):
+    """All-events token + ±3-day match. Super Admin scopes via ?club=abbrev."""
     _ensure_phase2_columns()
-    sas_id, club_id, is_super = _require_club_writer(request)
-    if club_id is None and not is_super:
-        raise HTTPException(status_code=403, detail="No admin_club_id on account")
+    title = (name or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="name is required")
+    start_d = _parse_phase2_date(start, "start") if start else None
+    end_d = _parse_phase2_date(end, "end") if end else start_d
     conn = get_db_connection()
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
+            club_id = _resolve_managed_club_id(request, cur, club)
+            unassigned_id = _phase2_unassigned_club_id(cur)
+            extra = ""
+            args = []
+            if start_d is not None:
+                lo = start_d - timedelta(days=3)
+                hi = (end_d or start_d) + timedelta(days=3)
+                extra = " WHERE e.start_date BETWEEN %s AND %s"
+                args = [lo, hi]
+            cur.execute(
+                """
+                SELECT e.event_id, e.event_name, e.start_date, e.end_date, e.category,
+                       e.host_club_id, e.regatta_id, e.source, e.origin, e.source_url,
+                       c.club_abbrev, c.club_fullname
+                FROM public.events e
+                LEFT JOIN public.clubs c ON c.club_id = e.host_club_id
+                """
+                + extra
+                + """
+                ORDER BY e.start_date DESC NULLS LAST, e.event_id DESC
+                LIMIT 400
+                """,
+                tuple(args),
+            )
+            matches = []
+            for row in cur.fetchall() or []:
+                ev_name = row.get("event_name") or ""
+                score = _club_event_name_match_score(title, ev_name, row.get("regatta_id") or "")
+                if score < 0.45:
+                    continue
+                hid = row.get("host_club_id")
+                rid = row.get("regatta_id")
+                action = "claim"
+                try:
+                    same_host = hid is not None and int(hid) == int(club_id)
+                except (TypeError, ValueError):
+                    same_host = False
+                unassigned = False
+                try:
+                    unassigned = unassigned_id is not None and hid is not None and int(hid) == int(unassigned_id)
+                except (TypeError, ValueError):
+                    unassigned = False
+                if same_host:
+                    action = "manage" if rid else "activate"
+                elif hid is None or unassigned:
+                    action = "activate"
+                matches.append(
+                    {
+                        "event_id": row.get("event_id"),
+                        "event_name": ev_name,
+                        "start_date": _iso_date(row.get("start_date")),
+                        "end_date": _iso_date(row.get("end_date")),
+                        "category": row.get("category"),
+                        "host_club_id": hid,
+                        "host_display": _host_display_name(
+                            row.get("club_abbrev"), row.get("club_fullname"), hid
+                        ),
+                        "regatta_id": rid,
+                        "source": row.get("source"),
+                        "origin": row.get("origin"),
+                        "source_url": row.get("source_url"),
+                        "score": round(float(score), 3),
+                        "action": action,
+                    }
+                )
+            matches.sort(key=lambda m: (-(m.get("score") or 0), m.get("start_date") or ""), reverse=False)
+            key = _year_stripped_event_name(title)
+            previous = None
+            if key and table_exists("regattas"):
+                cur.execute(
+                    """
+                    SELECT r.regatta_id, r.event_name, r.start_date
+                    FROM public.regattas r
+                    WHERE r.host_club_id = %s
+                    ORDER BY r.start_date DESC NULLS LAST
+                    LIMIT 200
+                    """,
+                    (int(club_id),),
+                )
+                for row in cur.fetchall() or []:
+                    other = _year_stripped_event_name(row.get("event_name") or "")
+                    if not other or other != key:
+                        continue
+                    blocks = []
+                    if table_exists("regatta_blocks"):
+                        cur.execute(
+                            """
+                            SELECT class_canonical, class_original
+                            FROM public.regatta_blocks
+                            WHERE regatta_id = %s
+                            ORDER BY class_canonical NULLS LAST
+                            """,
+                            (row.get("regatta_id"),),
+                        )
+                        for b in cur.fetchall() or []:
+                            nm = b.get("class_canonical") or b.get("class_original")
+                            if nm:
+                                blocks.append(nm)
+                    previous = {
+                        "regatta_id": row.get("regatta_id"),
+                        "event_name": row.get("event_name"),
+                        "start_date": _iso_date(row.get("start_date")),
+                        "class_names": blocks,
+                    }
+                    break
+            return {
+                "admin_club_id": int(club_id),
+                "matches": matches[:12],
+                "previous_edition": previous,
+            }
+        finally:
+            cur.close()
+    finally:
+        return_db_connection(conn)
+
+
+@app.post("/api/club/season-items")
+def api_club_season_item(request: Request, payload: dict):
+    """Club-diary row. Never inserts regattas. Use POST /api/club/events for a race slug."""
+    _ensure_phase2_columns()
+    sas_id, _session_club, is_super = _require_club_writer(request)
+    body = payload if isinstance(payload, dict) else {}
+    title = str(body.get("title") or body.get("event_name") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    start_date = _parse_phase2_date(body.get("start_date"), "start_date")
+    if start_date is None:
+        raise HTTPException(status_code=400, detail="start_date is required")
+    end_date = _parse_phase2_date(body.get("end_date"), "end_date") or start_date
+    kind = _norm_club_kind(body.get("kind"), default="informal")
+    category = str(body.get("category") or "").strip() or None
+    event_id = body.get("event_id")
+    if event_id in ("", None):
+        event_id = None
+    else:
+        try:
+            event_id = int(event_id)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="event_id must be an integer")
+    if _phase2_bool(body.get("create_regatta"), False):
+        raise HTTPException(
+            status_code=400,
+            detail="season-items never create regattas; use POST /api/club/events with create_regatta=true",
+        )
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            club_id = _resolve_managed_club_id(request, cur, body.get("club") or body.get("club_abbrev"))
+            item_id = _upsert_season_item(
+                cur,
+                club_id=club_id,
+                title=title,
+                start_date=start_date,
+                end_date=end_date,
+                kind=kind,
+                category=category,
+                event_id=event_id,
+                sas_id=sas_id,
+            )
+            conn.commit()
+            return {
+                "ok": True,
+                "item_id": item_id,
+                "kind": kind,
+                "event_id": event_id,
+                "created_regatta": False,
+                "admin_club_id": int(club_id),
+            }
+        except HTTPException:
+            conn.rollback()
+            raise
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+    finally:
+        return_db_connection(conn)
+
+
+@app.post("/api/club/events/{event_id}/claim")
+def api_club_claim_event(
+    event_id: int,
+    request: Request,
+    club: Optional[str] = Query(None),
+    create_regatta: Optional[str] = Query(None),
+    assign_host: Optional[str] = Query(None),
+    kind: Optional[str] = Query(None),
+):
+    """Link a scraped row to this club. create_regatta/assign_host default false. Does not steal another host or rewrite slugs."""
+    _ensure_phase2_columns()
+    sas_id, _session_club, is_super = _require_club_writer(request)
+    want_regatta = _phase2_bool(create_regatta, False)
+    want_host = _phase2_bool(assign_host, False)
+    item_kind = _norm_club_kind(kind or ("race" if want_regatta or want_host else "external"))
+    if not _kind_allows_regatta(item_kind):
+        want_regatta = False
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            club_id = _resolve_managed_club_id(request, cur, club)
             cur.execute("SELECT * FROM public.events WHERE event_id = %s LIMIT 1", (int(event_id),))
             ev = cur.fetchone()
             if not ev:
                 raise HTTPException(status_code=404, detail="Event not found")
             origin = str(ev.get("origin") or "").strip().lower()
             source = str(ev.get("source") or "").strip().lower()
-            if origin == "club" or source == "club":
-                raise HTTPException(status_code=400, detail="Only scraped calendar rows can be claimed")
             unassigned_id = _phase2_unassigned_club_id(cur)
-            if not _phase2_host_is_claimable(ev.get("host_club_id"), club_id, is_super, unassigned_id):
-                raise HTTPException(status_code=403, detail="Event is hosted by another club")
-            assign_club = club_id
-            if assign_club is None:
-                raise HTTPException(status_code=403, detail="No admin_club_id on account")
+            if want_host or want_regatta:
+                if origin == "club" or source == "club":
+                    raise HTTPException(status_code=400, detail="Only scraped calendar rows can be claimed")
+                if not _phase2_host_is_claimable(ev.get("host_club_id"), club_id, is_super, unassigned_id):
+                    raise HTTPException(status_code=403, detail="Event is hosted by another club")
             current_host = ev.get("host_club_id")
-            should_set_host = current_host is None or (
-                unassigned_id is not None and int(current_host) == int(unassigned_id)
-            ) or int(current_host) == int(assign_club)
-            if should_set_host:
-                cur.execute(
-                    "UPDATE public.events SET host_club_id = %s WHERE event_id = %s",
-                    (int(assign_club), int(event_id)),
-                )
-                current_host = int(assign_club)
+            assigned_host = False
+            if want_host and _phase2_host_is_claimable(current_host, club_id, is_super, unassigned_id):
+                should_set_host = current_host is None or (
+                    unassigned_id is not None and int(current_host) == int(unassigned_id)
+                ) or int(current_host) == int(club_id)
+                if should_set_host and (current_host is None or int(current_host) != int(club_id)):
+                    cur.execute(
+                        "UPDATE public.events SET host_club_id = %s WHERE event_id = %s",
+                        (int(club_id), int(event_id)),
+                    )
+                    current_host = int(club_id)
+                    assigned_host = True
+                elif current_host is not None and int(current_host) == int(club_id):
+                    current_host = int(club_id)
             rid = ev.get("regatta_id")
             created_regatta = False
-            if not rid:
-                abbrev = _phase2_club_abbrev(cur, assign_club) or "club"
+            if want_regatta and not rid:
+                host_for_regatta = current_host if current_host is not None else club_id
+                if int(host_for_regatta) != int(club_id):
+                    raise HTTPException(status_code=403, detail="Event is hosted by another club")
+                abbrev = _phase2_club_abbrev(cur, club_id) or "club"
                 title = ev.get("event_name") or "Untitled"
                 start_date = ev.get("start_date")
                 if start_date is None:
@@ -20128,7 +20536,7 @@ def api_club_claim_event(event_id: int, request: Request):
                     title=title,
                     start_date=start_date,
                     end_date=end_date,
-                    host_club_id=int(current_host),
+                    host_club_id=int(host_for_regatta),
                     club_abbrev=abbrev,
                     sas_id=sas_id,
                 )
@@ -20138,6 +20546,17 @@ def api_club_claim_event(event_id: int, request: Request):
                 )
                 rid = slug
                 created_regatta = True
+            item_id = _upsert_season_item(
+                cur,
+                club_id=club_id,
+                title=ev.get("event_name") or "Untitled",
+                start_date=ev.get("start_date") or date.today(),
+                end_date=ev.get("end_date") or ev.get("start_date"),
+                kind=item_kind,
+                category=ev.get("category"),
+                event_id=int(event_id),
+                sas_id=sas_id,
+            )
             conn.commit()
             return {
                 "ok": True,
@@ -20145,6 +20564,9 @@ def api_club_claim_event(event_id: int, request: Request):
                 "host_club_id": int(current_host) if current_host is not None else None,
                 "regatta_id": rid,
                 "created_regatta": created_regatta,
+                "assigned_host": assigned_host,
+                "item_id": item_id,
+                "kind": item_kind,
             }
         except HTTPException:
             conn.rollback()
@@ -27894,7 +28316,7 @@ def _serve_club_page_impl(slug: str, club: tuple):
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
-        f"<div class=\"club-page\">{body}</div>{_seo_discovery_block_html()}</body></html>"
+        f"<div class=\"club-page\" data-club-abbrev=\"{html_module.escape((club_code or slug or '').strip())}\" data-club-id=\"{int(club_id)}\">{body}</div>{_seo_discovery_block_html()}<script src=\"/js/club-page-wizard.js?v=clubwz1\"></script></body></html>"
     )
     return HTMLResponse(doc)
 
