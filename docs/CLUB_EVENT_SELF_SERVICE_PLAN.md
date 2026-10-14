@@ -1,6 +1,6 @@
 # SailingSA club self-service — Step 3 plan (for approval)
 
-**Status:** Step 3 plan complete. Phase 1 is implemented and on live (`api.py` 81 565 lines, hash `16ffbca3…`). Phases 2–5 not started.
+**Status:** Phase 1 is live. Phase 2 (club event create/claim/edit/fleets) is on `cursor/club-phase2-events-045e`. Phases 3–5 not started.
 
 **Date:** 14 October 2026.
 
