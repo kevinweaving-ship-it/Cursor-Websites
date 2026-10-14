@@ -161,4 +161,4 @@ That is a **national publish + identity** product that **imports Sailwave**. It 
 4. Status line and event dates stay locked.
 5. Club ACL must be first-class before any club upload ships.
 
-Step 3 (implementation) waits on instruction.
+Step 3 (self-service plan): `docs/CLUB_EVENT_SELF_SERVICE_PLAN.md`. Implementation waits on approval.
