@@ -1,6 +1,6 @@
 # SailingSA club self-service — Step 3 plan (for approval)
 
-**Status:** Step 3 plan complete. Phase 1 implementation is on `cursor/club-phase1-permissions-045e` (live 81k `api.py` is the deploy base). Phases 2–5 not started.
+**Status:** Step 3 plan complete. Phase 1 is implemented and on live (`api.py` 81 565 lines, hash `16ffbca3…`). Phases 2–5 not started.
 
 **Date:** 14 October 2026.
 

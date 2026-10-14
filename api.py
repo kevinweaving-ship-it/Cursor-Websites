@@ -12442,22 +12442,35 @@ def _session_admin_club_id(request: Request):
         return None
 
 
+def _row_get(row, key, index=0):
+    """Read a column from a tuple or RealDictRow (live pool cursors are RealDict)."""
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[index]
+    except Exception:
+        return None
+
+
 def _regatta_host_club_id(regatta_id):
     rid = str(regatta_id or "").strip()
     if not rid or not table_exists("regattas") or not column_exists("regattas", "host_club_id"):
         return None
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
             cur.execute(
                 "SELECT host_club_id FROM public.regattas WHERE regatta_id = %s LIMIT 1",
                 (rid,),
             )
             row = cur.fetchone()
-            if not row or row[0] is None:
+            host_id = _row_get(row, "host_club_id")
+            if host_id is None:
                 return None
-            return int(row[0])
+            return int(host_id)
         finally:
             cur.close()
             return_db_connection(conn)
@@ -12486,13 +12499,14 @@ def _result_regatta_id(result_id):
         return None
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
             cur.execute("SELECT regatta_id FROM public.results WHERE result_id = %s LIMIT 1", (rid,))
             row = cur.fetchone()
-            if not row or row[0] is None:
+            value = _row_get(row, "regatta_id")
+            if value is None:
                 return None
-            return str(row[0]).strip()
+            return str(value).strip()
         finally:
             cur.close()
             return_db_connection(conn)
@@ -12516,15 +12530,16 @@ def _session_club_fields(request: Request) -> dict:
     if admin_club_id is not None and table_exists("clubs"):
         try:
             conn = get_db_connection()
-            cur = conn.cursor()
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             try:
                 cur.execute(
                     "SELECT club_abbrev FROM public.clubs WHERE club_id = %s LIMIT 1",
                     (int(admin_club_id),),
                 )
                 row = cur.fetchone()
-                if row and row[0]:
-                    club_abbrev = str(row[0]).strip()
+                value = _row_get(row, "club_abbrev")
+                if value:
+                    club_abbrev = str(value).strip()
             finally:
                 cur.close()
                 return_db_connection(conn)
@@ -13940,13 +13955,13 @@ def attach_person_to_result(request: Request, payload: dict):
     result_id = payload.get("result_id")
     role = payload.get("role")
     identifier = payload.get("id")
+    _require_result_identity_write(request, result_id)
 
     if not result_id or not identifier or not role:
         raise HTTPException(status_code=400, detail="result_id, role, and id are required")
     role_n = str(role).strip().lower()
     if role_n not in ("helm", "crew"):
         raise HTTPException(status_code=400, detail="role must be 'helm' or 'crew'")
-    _require_result_identity_write(request, result_id)
 
     ident = str(identifier).strip()
     if ident.isdigit():
