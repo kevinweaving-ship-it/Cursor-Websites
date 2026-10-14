@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body, Query, Request, File, UploadFile
+from fastapi import FastAPI, HTTPException, Body, Query, Request, File, UploadFile, Form
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -20397,6 +20397,24 @@ def club_manage_page(request: Request):
     <p id="club-manage-entry-msg"></p>
   </div>
   <div class="card">
+    <h2 class="section-title">Upload results</h2>
+    <form id="club-manage-ingest">
+      <p><label>Regatta <input name="regatta_id" required></label>
+         <label>File <input name="file" type="file" accept=".html,.htm,.csv,text/html,text/csv" required></label></p>
+      <p><button type="submit">Preview and commit</button></p>
+    </form>
+    <p id="club-manage-ingest-msg"></p>
+  </div>
+  <div class="card">
+    <h2 class="section-title">Publish</h2>
+    <form id="club-manage-publish">
+      <p><label>Regatta <input name="regatta_id" required></label>
+         <label>Status <select name="result_status"><option>Provisional</option><option>Final</option></select></label></p>
+      <p><button type="submit">Set status</button></p>
+    </form>
+    <p id="club-manage-publish-msg"></p>
+  </div>
+  <div class="card">
     <h2 class="section-title">Hosted events</h2>
     <div class="table-container">
       <table class="table" id="club-manage-table">
@@ -20474,6 +20492,36 @@ def club_manage_page(request: Request):
       await j('/api/club/regattas/' + encodeURIComponent(rid) + '/entries', {method:'POST', body: JSON.stringify(body)});
       msg.textContent = 'Entry added.';
       ev.target.reset();
+    } catch (err) { msg.textContent = err.message || 'Failed'; }
+  });
+  document.getElementById('club-manage-ingest').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var msg = document.getElementById('club-manage-ingest-msg');
+    var fd = new FormData(ev.target);
+    var rid = fd.get('regatta_id');
+    var file = fd.get('file');
+    var body = new FormData();
+    body.append('file', file);
+    try {
+      var prev = await fetch('/api/club/regattas/' + encodeURIComponent(rid) + '/ingest/preview', {method:'POST', credentials:'same-origin', body: body});
+      var pb = await prev.json();
+      if (!prev.ok) throw new Error((pb && pb.detail) || 'Preview failed');
+      var commit = new FormData();
+      commit.append('file', file);
+      commit.append('preview_token', pb.preview_token);
+      var cr = await fetch('/api/club/regattas/' + encodeURIComponent(rid) + '/ingest/commit', {method:'POST', credentials:'same-origin', body: commit});
+      var cb = await cr.json();
+      if (!cr.ok) throw new Error((cb && cb.detail) || 'Commit failed');
+      msg.textContent = 'Committed ' + (cb.rows_updated || 0) + ' updated, ' + (cb.rows_added || 0) + ' added.';
+    } catch (err) { msg.textContent = err.message || 'Failed'; }
+  });
+  document.getElementById('club-manage-publish').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var msg = document.getElementById('club-manage-publish-msg');
+    var fd = new FormData(ev.target);
+    try {
+      await j('/api/club/regattas/' + encodeURIComponent(fd.get('regatta_id')) + '/result-status', {method:'PATCH', body: JSON.stringify({result_status: fd.get('result_status')})});
+      msg.textContent = 'Published.';
     } catch (err) { msg.textContent = err.message || 'Failed'; }
   });
   load().catch(function (err) {
@@ -20964,6 +21012,187 @@ def api_club_delete_regatta_entry(regatta_id: str, result_id: int, request: Requ
             )
             conn.commit()
             return {"ok": True, "deleted": int(result_id), "regatta_id": rid}
+        except HTTPException:
+            conn.rollback()
+            raise
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+    finally:
+        return_db_connection(conn)
+
+
+
+# --- Phase 4–5: Sailwave HTML/CSV ingest + Provisional/Final publish ---
+
+_PHASE4_MAX_BYTES = 2 * 1024 * 1024
+_PHASE4_REJECT_EXT = {".blw", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".exe", ".dll", ".zip", ".bin"}
+
+
+def _phase4_ingest_mod():
+    here = os.path.dirname(os.path.abspath(__file__))
+    parent = os.path.dirname(here)
+    for path in (here, parent, "/var/www/sailingsa", "/var/www/sailingsa/api"):
+        if path and path not in sys.path:
+            sys.path.insert(0, path)
+    import club_sailwave_ingest as mod
+    return mod
+
+
+async def _phase4_read_upload(upload: UploadFile) -> tuple:
+    name = (upload.filename or "upload").strip() or "upload"
+    ext = Path(name).suffix.lower()
+    if ext in _PHASE4_REJECT_EXT:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+    data = await upload.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(data) > _PHASE4_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="file too large (max 2MB)")
+    return name, data
+
+
+def _phase4_guard_regatta(request: Request, rid: str):
+    _ensure_phase3_columns()
+    _require_club_writer(request)
+    rid = str(rid or "").strip()
+    if not rid:
+        raise HTTPException(status_code=400, detail="regatta_id is required")
+    return rid
+
+
+@app.post("/api/club/regattas/{regatta_id}/ingest/preview")
+async def api_club_ingest_preview(regatta_id: str, request: Request, file: UploadFile = File(...)):
+    """Parse Sailwave HTML/CSV. No DB write."""
+    rid = _phase4_guard_regatta(request, regatta_id)
+    name, data = await _phase4_read_upload(file)
+    mod = _phase4_ingest_mod()
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            reg = _phase3_load_host_regatta(cur, rid)
+            if not _session_can_manage_host(request, reg.get("host_club_id")):
+                raise HTTPException(status_code=403, detail="Not the host club for this regatta")
+            return mod.preview_payload(cur, rid, name, data)
+        finally:
+            cur.close()
+    finally:
+        return_db_connection(conn)
+
+
+@app.post("/api/club/regattas/{regatta_id}/ingest/commit")
+async def api_club_ingest_commit(
+    regatta_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    preview_token: str = Form(...),
+):
+    """UPDATE or INSERT results by match key. Never DELETE. Never rewrite start_date/end_date."""
+    rid = _phase4_guard_regatta(request, regatta_id)
+    if rid in _PHASE2_PILOT_SLUGS:
+        raise HTTPException(status_code=400, detail="Cannot ingest into scoring-pilot slugs")
+    name, data = await _phase4_read_upload(file)
+    sas_id = _get_session_sas_id(request)
+    mod = _phase4_ingest_mod()
+    as_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute(
+                "SELECT regatta_id, host_club_id, start_date, end_date FROM public.regattas WHERE regatta_id = %s LIMIT 1",
+                (rid,),
+            )
+            reg = cur.fetchone()
+            if not reg:
+                raise HTTPException(status_code=404, detail="Regatta not found")
+            if not _session_can_manage_host(request, reg.get("host_club_id")):
+                raise HTTPException(status_code=403, detail="Not the host club for this regatta")
+            start_before = reg.get("start_date")
+            end_before = reg.get("end_date")
+            try:
+                out = mod.commit_payload(
+                    conn,
+                    cur,
+                    rid=rid,
+                    filename=name,
+                    data=data,
+                    preview_token=preview_token,
+                    imported_by=sas_id,
+                    as_at_fallback=as_at,
+                    insert_block=_insert_regatta_block,
+                )
+            except ValueError as exc:
+                conn.rollback()
+                raise HTTPException(status_code=400, detail=str(exc))
+            cur.execute(
+                "SELECT start_date, end_date FROM public.regattas WHERE regatta_id = %s LIMIT 1",
+                (rid,),
+            )
+            after = cur.fetchone() or {}
+            if after.get("start_date") != start_before or after.get("end_date") != end_before:
+                conn.rollback()
+                raise HTTPException(status_code=500, detail="Ingest must not rewrite dates")
+            conn.commit()
+            return out
+        except HTTPException:
+            conn.rollback()
+            raise
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+    finally:
+        return_db_connection(conn)
+
+
+@app.patch("/api/club/regattas/{regatta_id}/result-status")
+def api_club_result_status(regatta_id: str, request: Request, payload: dict):
+    """Set Provisional|Final and optional as_at_time. Does not rewrite start_date/end_date."""
+    rid = _phase4_guard_regatta(request, regatta_id)
+    body = payload if isinstance(payload, dict) else {}
+    status = str(body.get("result_status") or "").strip()
+    if status not in ("Provisional", "Final"):
+        raise HTTPException(status_code=400, detail="result_status must be Provisional or Final")
+    as_at = body.get("as_at_time")
+    if as_at is not None and str(as_at).strip() == "":
+        as_at = None
+    if as_at is not None:
+        as_at = str(as_at).strip()
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute(
+                "SELECT regatta_id, host_club_id, start_date, end_date FROM public.regattas WHERE regatta_id = %s LIMIT 1",
+                (rid,),
+            )
+            reg = cur.fetchone()
+            if not reg:
+                raise HTTPException(status_code=404, detail="Regatta not found")
+            if not _session_can_manage_host(request, reg.get("host_club_id")):
+                raise HTTPException(status_code=403, detail="Not the host club for this regatta")
+            if as_at:
+                cur.execute(
+                    "UPDATE public.regattas SET result_status = %s, as_at_time = %s WHERE regatta_id = %s",
+                    (status, as_at, rid),
+                )
+            else:
+                cur.execute(
+                    "UPDATE public.regattas SET result_status = %s WHERE regatta_id = %s",
+                    (status, rid),
+                )
+            conn.commit()
+            return {
+                "ok": True,
+                "regatta_id": rid,
+                "result_status": status,
+                "as_at_time": as_at,
+            }
         except HTTPException:
             conn.rollback()
             raise

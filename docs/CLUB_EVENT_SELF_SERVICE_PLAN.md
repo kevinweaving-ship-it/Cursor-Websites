@@ -1,6 +1,6 @@
 # SailingSA club self-service — Step 3 plan (for approval)
 
-**Status:** Phases 1–3 are live. Phase 3 (SAS-ID club registration and sailor self-entry) is on `cursor/club-phase3-entries-045e` (live `api.py` 83 013, hash `bd13a271…`). Phases 4–5 not started.
+**Status:** Phases 1–3 are live. Phases 4–5 (Sailwave HTML/CSV ingest + Provisional/Final publish) are on `cursor/club-phase4-5-ingest-045e`.
 
 **Date:** 14 October 2026.
 
