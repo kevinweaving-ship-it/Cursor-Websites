@@ -76,13 +76,24 @@ def insert_helpers(dst: str, src: str) -> str:
 
 
 def patch_html(dst: str) -> str:
+    old_div = 'f"<div class=\\"club-page\\">{body}</div>{_seo_discovery_block_html()}"'
+    new_div = (
+        'f"<div class=\\"club-page\\" data-club-abbrev=\\"{(club_code or slug or \'\').strip()}\\" '
+        'data-club-id=\\"{int(club_id)}\\">{body}</div>{_seo_discovery_block_html()}"'
+    )
+    if old_div in dst:
+        dst = dst.replace(old_div, new_div, 1)
     old = '<div class="club-page">{body}</div>'
     new = (
-        '<div class="club-page" data-club-abbrev="{html_module.escape((club_code or slug or \'\').strip())}" '
+        '<div class="club-page" data-club-abbrev="{(club_code or slug or \'\').strip()}" '
         'data-club-id="{int(club_id)}">{body}</div>'
     )
-    if old in dst and "data-club-abbrev" not in dst.split("club-page-std.js", 1)[0][-800:]:
+    if old in dst and "data-club-abbrev" not in dst:
         dst = dst.replace(old, new, 1)
+    live_js = '"<script src=\\"/js/club-page-std.js?v=clubstd2\\" defer></script>"'
+    live_tag = live_js + '\n        "<script src=\\"/js/club-page-wizard.js?v=clubwz1\\"></script>"'
+    if "club-page-wizard.js" not in dst and live_js in dst:
+        dst = dst.replace(live_js, live_tag, 1)
     tag = '<script src="/js/club-page-wizard.js?v=clubwz1"></script>'
     needle = '<script src="/js/club-page-std.js?v=clubstd2" defer></script>'
     if tag not in dst and needle in dst:
