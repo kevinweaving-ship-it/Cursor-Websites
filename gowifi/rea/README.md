@@ -54,7 +54,7 @@ REA’s MCP server is **stdio**. Cursor on your Mac launches it over SSH as the 
      < gowifi/rea/add-cursor-pubkey.sh
    ```
 
-3. Merge [mcp.json.example](mcp.json.example) into **user** Cursor MCP config (`~/.cursor/mcp.json` on macOS). Point `-i` at your private key. Do **not** run `npx rea-agents setup --client cursor` on the Mac if you want this box — that would register a second, local REA.
+3. On the Mac Mini only, run [register-rea-gowifi-on-mac.sh](register-rea-gowifi-on-mac.sh). It merges `rea-gowifi` into `~/.cursor/mcp.json` and keeps every other server. Do **not** run `npx rea-agents setup --client cursor` on the Mac if you want this box — that would register a second, local REA. See [usefulness-trial.md](usefulness-trial.md).
 
 4. Fully quit and restart Cursor. Confirm **rea** is connected under Settings → MCP.
 

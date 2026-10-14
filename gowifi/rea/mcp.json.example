@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "rea": {
+    "rea-gowifi": {
       "command": "ssh",
       "args": [
         "-i",
