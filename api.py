@@ -26860,7 +26860,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         is_mac_tsl = str(regatta_id) == MAC_TSL_WC_2026_REGATTA_SLUG
         mac_tsl_js = (
-            '<script src="/js/mac-tsl-live-cards.js?v=20261012o" defer></script>'
+            '<script src="/js/mac-tsl-live-cards.js?v=20261012p" defer></script>'
             '<script src="/js/mac-tsl-admin.js?v=20261014y" defer></script>'
             if is_mac_tsl
             else ""

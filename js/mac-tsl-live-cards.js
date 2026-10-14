@@ -14,7 +14,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var MEDIA_ID = "mmLiptonReels";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012o";
+  var JS_VER = "20261012p";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/img/mac-event-reels.jpg";
   var WX_API = "/api/wind2speed/mac";
@@ -420,7 +420,7 @@
     }
 
     loadCss("/css/mm-lipton-reels.css?v=" + JS_VER);
-    loadScript("/js/mm-lipton-reels-card.js?v=mactslmedia3").then(function () {
+    loadScript("/js/mm-lipton-reels-card.js?v=mactslmedia4").then(function () {
       if (typeof window.mmLiptonReelsInit === "function") window.mmLiptonReelsInit();
     });
 

@@ -171,6 +171,24 @@ def patch_reels(text: str) -> str:
     if bad_wide in text:
         text = text.replace(bad_wide, "", 1)
         print("revert reels-mac-logo-tile-aspect (keep HMYC brand width)")
+    text = apply_one(
+        text,
+        "if (!(isMidmar() || isDartNats() || isDamBottle()) || !root._mmAutoPlaying) return;",
+        "if (!(isMidmar() || isDartNats() || isDamBottle() || isMacTsl()) || !root._mmAutoPlaying) return;",
+        "reels-mac-auto-end",
+    )
+    text = apply_one(
+        text,
+        "if (!(isMidmar() || isDartNats() || isDamBottle()) || !root) return;",
+        "if (!(isMidmar() || isDartNats() || isDamBottle() || isMacTsl()) || !root) return;",
+        "reels-mac-mark-browse",
+    )
+    text = apply_one(
+        text,
+        "if (!isMidmar() && !isDartNats() && !isDamBottle()) return;",
+        "if (!isMidmar() && !isDartNats() && !isDamBottle() && !isMacTsl()) return;",
+        "reels-mac-queue-fresh",
+    )
     return text
 
 
