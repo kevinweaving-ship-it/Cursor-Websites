@@ -6,6 +6,8 @@
 
 **Replaces as the product surface:** standalone `/club-manage` and `/club-manage-preview` dashboards. Those stay unused for officers. Event management **starts on the existing club page**.
 
+**HYC season calendar (plan only):** `docs/HYC_CALENDAR_CLUB_PAGE_PLAN.md` — Claim SAS Event / Activate Club Event / Add New Event, reusable vs missing fields, no auto-`regattas` for training / external / duty. Live `/club/hyc` uses `.sa-home-regatta-card` lists, not the workspace carousel fragment.
+
 **Ask:** Approve the slots below before any implementation.
 
 ---
