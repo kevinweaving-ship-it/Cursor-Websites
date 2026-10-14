@@ -498,6 +498,15 @@ function sailingSessionIsSuperAdmin(session) {
     return n === 'super_admin' || n === 'superadmin';
 }
 
+function sailingSessionClubId(session) {
+    if (!session) return null;
+    var id = session.admin_club_id;
+    if (id == null && session.user) id = session.user.admin_club_id;
+    if (id == null || id === '') return null;
+    var n = parseInt(id, 10);
+    return isNaN(n) ? null : n;
+}
+
 /**
  * Search for profiles
  */
@@ -657,6 +666,7 @@ window.loginWithUsernamePassword = loginWithUsernamePassword;
 window.checkSession = checkSession;
 window.sailingNormalizeRoleString = sailingNormalizeRoleString;
 window.sailingSessionIsSuperAdmin = sailingSessionIsSuperAdmin;
+window.sailingSessionClubId = sailingSessionClubId;
 window.getRegattaClassEntries = getRegattaClassEntries;
 window.getRegattas = getRegattas;
 
