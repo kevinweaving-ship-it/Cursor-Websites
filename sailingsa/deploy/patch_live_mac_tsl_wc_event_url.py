@@ -164,7 +164,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261012p" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261015a" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261015b" defer></script>'
             if is_mac_tsl
             else ""
         )
@@ -396,7 +396,7 @@ def main() -> int:
         f'return "{TSL_CLASS_LOGO}"',
         f'return "{TSL_LOGO}"',
     )
-    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261015a" defer></script>'
+    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261015b" defer></script>'
     cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261012p" defer></script>'
     if "mac-tsl-admin.js?v=20261012a" in text:
         text = text.replace("mac-tsl-admin.js?v=20261012a", "mac-tsl-admin.js?v=20261013g")
@@ -510,7 +510,9 @@ def main() -> int:
         text = text.replace("mac-tsl-admin.js?v=20261014x", "mac-tsl-admin.js?v=20261014y")
     if "mac-tsl-admin.js?v=20261014y" in text:
         text = text.replace("mac-tsl-admin.js?v=20261014y", "mac-tsl-admin.js?v=20261015a")
-        print("pin admin 20261015a")
+    if "mac-tsl-admin.js?v=20261015a" in text:
+        text = text.replace("mac-tsl-admin.js?v=20261015a", "mac-tsl-admin.js?v=20261015b")
+        print("pin admin 20261015b")
     tsl_edit_fn = (
         "def _session_can_edit_tsl(request: Request) -> bool:\n"
         '    """Super Admin or club admin may edit the TSL Event URL."""\n'

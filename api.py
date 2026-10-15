@@ -26880,7 +26880,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261012p" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261015a" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261015b" defer></script>'
             if is_mac_tsl
             else ""
         )

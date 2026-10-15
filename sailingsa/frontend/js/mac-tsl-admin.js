@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261015a";
+  var JS_VER = "20261015b";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -148,16 +148,22 @@
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
       ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet){display:none}",
-      "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:hidden;margin-top:20px;margin-bottom:20px}",
-      "#macTslGoldSheet .fleet-results-table{border:none;border-radius:8px}",
+      "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:hidden;margin-top:20px;margin-bottom:20px;max-width:100%}",
+      "#macTslGoldSheet .tsl-gold-wrap{display:flex;width:100%;max-width:100%;align-items:stretch;min-width:0;box-sizing:border-box}",
+      "#macTslGoldSheet .tsl-gold-left{flex:0 0 auto;overflow:hidden;min-width:0}",
+      "#macTslGoldSheet .tsl-gold-right{flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}",
+      "#macTslGoldSheet .fleet-results-table{border:none;border-radius:0;min-width:0;width:100%;margin:0}",
+      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content;width:100%}",
+      "#macTslGoldSheet .tsl-gold-right .race-col{min-width:2.4em}",
       "#macTslGoldSheet thead tr:first-child th{border-top:none}",
       "#macTslGoldSheet tbody tr:last-child td{border-bottom:none}",
-      "#macTslGoldSheet th:first-child,#macTslGoldSheet td:first-child{border-left:none}",
-      "#macTslGoldSheet th:last-child,#macTslGoldSheet td:last-child{border-right:none}",
-      "#macTslGoldSheet thead tr:first-child th:first-child{border-top-left-radius:8px}",
-      "#macTslGoldSheet thead tr:first-child th:last-child{border-top-right-radius:8px}",
-      "#macTslGoldSheet tbody tr:last-child td:first-child{border-bottom-left-radius:8px}",
-      "#macTslGoldSheet tbody tr:last-child td:last-child{border-bottom-right-radius:8px}",
+      "#macTslGoldSheet .tsl-gold-left th:first-child,#macTslGoldSheet .tsl-gold-left td:first-child{border-left:none}",
+      "#macTslGoldSheet .tsl-gold-right th:last-child,#macTslGoldSheet .tsl-gold-right td:last-child{border-right:none}",
+      "#macTslGoldSheet .tsl-gold-right th:first-child,#macTslGoldSheet .tsl-gold-right td:first-child{border-left:none}",
+      "#macTslGoldSheet .tsl-gold-left thead tr:first-child th:first-child{border-top-left-radius:8px}",
+      "#macTslGoldSheet .tsl-gold-right thead tr:first-child th:last-child{border-top-right-radius:8px}",
+      "#macTslGoldSheet .tsl-gold-left tbody tr:last-child td:first-child{border-bottom-left-radius:8px}",
+      "#macTslGoldSheet .tsl-gold-right tbody tr:last-child td:last-child{border-bottom-right-radius:8px}",
       "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
       "#macTslFlightsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin:0 0 8px;position:relative;overflow:hidden}",
@@ -972,10 +978,12 @@
     var raceNos = goldRaceNos();
     var anyDone = raceNos.some(function (n) { return flightDone(n); });
     var lastWin = lastFlightWinnerId();
-    var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
+    var leftHeads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
+    var raceHeads = "";
     raceNos.forEach(function (n) {
-      heads += '<th class="race-col">F' + n + "</th>";
+      raceHeads += '<th class="race-col">F' + n + "</th>";
     });
+    if (!raceHeads) raceHeads = '<th class="race-col">F1</th>';
     var built = goldRaceRows().map(function (row) {
       var team = teamByCode(row.code);
       var total = 0;
@@ -1014,33 +1022,75 @@
         item.rank = (item.scored && item.scored === maxFlights) ? (place += 1) : "";
       });
     }
-    var body = "";
+    var leftBody = "";
+    var raceBody = "";
     built.forEach(function (item) {
       var races = "";
       item.races.forEach(function (sc) {
         races += '<td class="race-col' + (sc !== "" ? " score-counts" : "") + '">' + esc(sc) + "</td>";
       });
+      if (!races) races = '<td class="race-col"></td>';
       var medal = "";
       if (anyDone && item.rank === 1) medal = "medal-gold";
       else if (anyDone && item.rank === 2) medal = "medal-silver";
       else if (anyDone && item.rank === 3) medal = "medal-bronze";
-      body += "<tr" + (medal ? ' class="' + medal + '"' : "") + ">" +
+      var trClass = medal ? ' class="' + medal + '"' : "";
+      leftBody += "<tr" + trClass + ">" +
         '<td class="rank-col">' + (item.rank ? String(item.rank) : "") + "</td>" +
         '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) + esc(item.row.code) + "</span></td>" +
         '<td class="total-col">' + (item.scored ? String(item.total) : "") + "</td>" +
-        races +
         "</tr>";
+      raceBody += "<tr" + trClass + ">" + races + "</tr>";
     });
-    if (!body) {
-      body = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td><td class="race-col"></td></tr>';
+    if (!leftBody) {
+      leftBody = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td></tr>';
+      raceBody = '<tr><td class="race-col"></td></tr>';
     }
     return (
       '<div class="table-wrapper" id="macTslGoldSheet">' +
-        '<table class="fleet-results-table rs-compact-row-logos" id="tslGoldTable">' +
-          "<thead><tr>" + heads + "</tr></thead><tbody>" + body + "</tbody>" +
-        "</table>" +
+        '<div class="tsl-gold-wrap">' +
+          '<div class="tsl-gold-left"><table class="fleet-results-table rs-compact-row-logos" id="tslGoldTable">' +
+            "<thead><tr>" + leftHeads + "</tr></thead><tbody>" + leftBody + "</tbody>" +
+          "</table></div>" +
+          '<div class="tsl-gold-right">' +
+            '<table class="fleet-results-table">' +
+              "<thead><tr>" + raceHeads + "</tr></thead><tbody>" + raceBody + "</tbody>" +
+            "</table>" +
+          "</div>" +
+        "</div>" +
       "</div>"
     );
+  }
+
+  function goldTableRows(table) {
+    var out = [];
+    if (!table) return out;
+    if (table.tHead && table.tHead.rows[0]) out.push(table.tHead.rows[0]);
+    Array.prototype.forEach.call(table.tBodies[0] ? table.tBodies[0].rows : [], function (r) {
+      out.push(r);
+    });
+    return out;
+  }
+
+  function syncGoldRowHeights() {
+    var wrap = document.getElementById("macTslGoldSheet");
+    if (!wrap) return;
+    var left = wrap.querySelector(".tsl-gold-left table");
+    var right = wrap.querySelector(".tsl-gold-right table");
+    if (!left || !right) return;
+    var a = goldTableRows(left);
+    var b = goldTableRows(right);
+    var n = Math.min(a.length, b.length);
+    var i;
+    for (i = 0; i < n; i += 1) {
+      a[i].style.height = "";
+      b[i].style.height = "";
+    }
+    for (i = 0; i < n; i += 1) {
+      var h = Math.max(a[i].getBoundingClientRect().height, b[i].getBoundingClientRect().height);
+      a[i].style.height = h + "px";
+      b[i].style.height = h + "px";
+    }
   }
 
   function insertGoldRaceTable() {
@@ -1050,18 +1100,19 @@
     var existing = document.getElementById("macTslGoldSheet");
     if (existing) {
       existing.outerHTML = html;
-      return;
+    } else {
+      var box = document.createElement("div");
+      box.innerHTML = html;
+      var node = box.firstChild;
+      var oldWrap = sec.querySelector(".table-wrapper");
+      if (oldWrap) oldWrap.parentNode.insertBefore(node, oldWrap);
+      else {
+        var hdr = sec.querySelector(".class-header");
+        if (hdr) hdr.parentNode.insertBefore(node, hdr.nextSibling);
+        else sec.appendChild(node);
+      }
     }
-    var box = document.createElement("div");
-    box.innerHTML = html;
-    var node = box.firstChild;
-    var oldWrap = sec.querySelector(".table-wrapper");
-    if (oldWrap) oldWrap.parentNode.insertBefore(node, oldWrap);
-    else {
-      var hdr = sec.querySelector(".class-header");
-      if (hdr) hdr.parentNode.insertBefore(node, hdr.nextSibling);
-      else sec.appendChild(node);
-    }
+    requestAnimationFrame(syncGoldRowHeights);
   }
 
   function sexLetter(s) {
@@ -3781,7 +3832,10 @@
     if (!window._tslFitBound) {
       window.addEventListener("resize", function () {
         clearTimeout(fitTeamCardTables._t);
-        fitTeamCardTables._t = setTimeout(fitTeamCardTables, 50);
+        fitTeamCardTables._t = setTimeout(function () {
+          fitTeamCardTables();
+          syncGoldRowHeights();
+        }, 50);
       });
       window._tslFitBound = true;
     }
