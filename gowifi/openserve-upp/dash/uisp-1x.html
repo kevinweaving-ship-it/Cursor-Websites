@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · UISP 1.x</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<style>
+:root {
+  --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a; --pad:16px;
+  --ml:844px;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:var(--acc); text-decoration:none; }
+a:hover { text-decoration:underline; }
+header.app {
+  position:sticky; top:0; z-index:5;
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:10px max(var(--pad), env(safe-area-inset-right)) 12px max(var(--pad), env(safe-area-inset-left));
+}
+.bar { display:flex; flex-direction:column; gap:6px; }
+header.app h1 { margin:0; font-size:22px; color:var(--acc); }
+header.app .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+.nav { display:flex; flex-wrap:wrap; gap:4px 16px; }
+.nav a { color:var(--acc); font-size:14px; min-height:40px; display:inline-flex; align-items:center; }
+.search {
+  width:100%; margin-top:10px; padding:12px 14px; font:16px/1.3 inherit;
+  color:var(--text); background:#fff; border:1px solid var(--line); border-radius:10px;
+}
+.search:focus { outline:2px solid var(--acc); border-color:var(--acc); }
+main {
+  padding:12px max(var(--pad), env(safe-area-inset-right)) 32px max(var(--pad), env(safe-area-inset-left));
+  width:100%;
+}
+.banner {
+  margin:0 0 12px; padding:12px 14px; border:1px solid var(--line); border-radius:12px;
+  background:#fff8e8; color:var(--text);
+}
+.banner.ok { background:#eef8f1; }
+.banner.bad { background:#fdecec; }
+.banner strong { color:var(--warn); }
+.banner.ok strong { color:var(--ok); }
+.banner.bad strong { color:var(--bad); }
+.counts { color:var(--muted); font-size:13px; margin:0 0 10px; }
+h2 {
+  margin:18px 0 8px; font-size:13px; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--acc);
+}
+.card {
+  width:100%; margin:0 0 10px; padding:12px 14px;
+  background:var(--card); color:var(--text);
+  border:1px solid var(--line); border-radius:12px;
+}
+.name { font-weight:700; font-size:16px; color:var(--acc); }
+.meta { color:var(--muted); font-size:13px; margin-top:4px; }
+.k { font-size:11px; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); }
+.field { display:flex; flex-direction:column; gap:2px; min-width:0; width:100%; }
+.v { margin-top:2px; }
+.name.small { font-size:14px; }
+.v.ok { color:var(--ok); font-weight:700; }
+.v.bad { color:var(--bad); font-weight:700; }
+.v.warn { color:var(--warn); font-weight:700; }
+.row { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; margin-top:10px; }
+.share {
+  display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:10px;
+  padding-top:10px; border-top:1px solid var(--line);
+}
+.table-wrap { width:100%; overflow:auto; }
+table.dev { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+table.dev th {
+  text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase;
+  letter-spacing:.04em; font-weight:700; padding:6px 8px 8px 0; border-bottom:1px solid var(--line);
+  position:sticky; top:0; background:#fff;
+}
+table.dev td { padding:7px 8px 7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+table.dev tr:last-child td { border-bottom:0; }
+table.dev th.num, table.dev td.num { text-align:right; white-space:nowrap; }
+table.dev td.ok { color:var(--ok); font-weight:700; }
+table.dev td.bad { color:var(--bad); font-weight:700; }
+table.dev td.hot { color:var(--acc); font-weight:700; }
+.empty { color:var(--muted); padding:20px 0; }
+.err { color:#8a1212; background:#fdecec; padding:12px; border-radius:10px; }
+@media (min-width: 600px) {
+  header.app, main {
+    width:100%; max-width:var(--ml);
+    margin-left:auto; margin-right:auto;
+  }
+  header.app { padding:12px 20px; }
+  .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; gap:16px; }
+  main { padding:14px 20px 36px; }
+  .grid3 { grid-template-columns:1fr 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="bar">
+    <div>
+      <h1>UISP traffic</h1>
+      <div class="sub">Console 1.x · NC Lightstruck 12.x backup</div>
+    </div>
+    <nav class="nav">
+      <a href="/dash/#/">Home</a>
+      <a href="/dash/clients.html">Clients</a>
+      <a href="/dash/accounts.html">Accounts</a>
+    </nav>
+  </div>
+  <input class="search" id="q" type="search" placeholder="Search IP, name, hardware, site" autocomplete="off">
+</header>
+<main>
+  <div class="banner" id="banner">Loading UISP console…</div>
+  <div id="console"></div>
+  <h2>IPs on 192.168.1.x</h2>
+  <div class="counts" id="counts"></div>
+  <div id="list"></div>
+  <div class="banner" id="nc-banner">NC Lightstruck Fibre · backup</div>
+  <div id="nc-card"></div>
+  <h2>IPs on 192.168.12.x</h2>
+  <div class="counts" id="nc-counts"></div>
+  <div id="nc-list"></div>
+</main>
+<script>
+const POLL_MS = 2000;
+const LAN_PREFIX = "192.168.1.";
+const NC12_PREFIX = "192.168.12.";
+const NC12_INVENTORY = [
+  {ip:"192.168.12.2", hardware:"MikroTik", name:"", note:"model unknown"},
+  {ip:"192.168.12.13", hardware:"Ubiquiti NanoBeam 5AC", name:""},
+  {ip:"192.168.12.39", hardware:"Ubiquiti LiteBeam 5AC", name:""},
+  {ip:"192.168.12.41", hardware:"Cambium", name:"Phillipa_MP", note:"model unknown"},
+  {ip:"192.168.12.56", hardware:"UniFi Dream Machine Pro", name:"1 Dream Machine Pro Hermanus", role:"udm"},
+  {ip:"192.168.12.66", hardware:"Cambium", name:"Phillipa_MP", note:"model unknown"},
+  {ip:"192.168.12.68", hardware:"", name:"", note:"web timeout"},
+  {ip:"192.168.12.101", hardware:"Cambium", name:"Mntp - Firestation", note:"model unknown"},
+  {ip:"192.168.12.102", hardware:"Cambium", name:"Firestation-mntp", note:"model unknown"},
+  {ip:"192.168.12.103", hardware:"Cambium", name:"Firestation_Lookout", note:"model unknown"},
+  {ip:"192.168.12.104", hardware:"Cambium", name:"Lookout to Firestation", note:"model unknown"},
+  {ip:"192.168.12.105", hardware:"Ubiquiti GigaBeam LR", name:"GigaBeam Walter Huis"},
+  {ip:"192.168.12.106", hardware:"Ubiquiti GigaBeam LR", name:"GigaBeam Lookout"},
+  {ip:"192.168.12.200", hardware:"TP-Link", name:"", note:"router · model unknown", role:"router"}
+];
+const $ = (s, el=document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({
+  "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+}[c]));
+
+function ident(d){ return (d && d.identification) || {}; }
+function ov(d){ return (d && d.overview) || {}; }
+function plainIp(cidr){ return String(cidr || "").split("/")[0].trim(); }
+function primaryIp(d){ return plainIp(d && d.ipAddress); }
+function is1x(ip){ return !!ip && ip.startsWith(LAN_PREFIX); }
+function is12x(ip){ return !!ip && ip.startsWith(NC12_PREFIX); }
+function isConsole(d){
+  const id = ident(d);
+  const name = String(id.name || "").toLowerCase();
+  if (name.includes("uisp-console") || name.endsWith("uisp console")) return true;
+  return id.role === "gateway" && id.type === "uispr";
+}
+function ifaceRates(iface){
+  const st = (iface && iface.statistics) || {};
+  const rx = Number(st.rxrate || 0);
+  const tx = Number(st.txrate || 0);
+  return { rx: Number.isFinite(rx) ? rx : 0, tx: Number.isFinite(tx) ? tx : 0 };
+}
+function maxRates(d){
+  let rx = 0, tx = 0;
+  for (const iface of (d && d.interfaces) || []){
+    const r = ifaceRates(iface);
+    if (r.rx > rx) rx = r.rx;
+    if (r.tx > tx) tx = r.tx;
+  }
+  return { rx, tx };
+}
+function ifaceName(iface){
+  return String(((iface && iface.identification) || {}).name || "");
+}
+function findIface(d, name){
+  return ((d && d.interfaces) || []).find(iface => ifaceName(iface) === name) || null;
+}
+function ifaceView(iface){
+  if (!iface) return null;
+  const idn = iface.identification || {};
+  const status = iface.status || {};
+  const addrs = (iface.addresses || []).map(a => a && a.cidr).filter(Boolean);
+  const r = ifaceRates(iface);
+  return {
+    name: idn.name || "",
+    display: idn.displayName || idn.name || "",
+    rx: r.rx, tx: r.tx, addrs,
+    plugged: status.plugged,
+    speed: status.currentSpeed
+  };
+}
+function lanAddr(d){
+  const br0 = findIface(d, "br0");
+  for (const a of (br0 && br0.addresses) || []){
+    const cidr = a && a.cidr;
+    if (is1x(plainIp(cidr))) return cidr;
+  }
+  return "";
+}
+function consoleView(d){
+  const id = ident(d);
+  const o = ov(d);
+  const lan = lanAddr(d) || "192.168.1.1/24";
+  return {
+    id: id.id,
+    name: id.name || "UISP Console",
+    role: id.role || "gateway",
+    model: id.modelName || id.model || "UISP Console",
+    mgmt_ip: primaryIp(d),
+    lan,
+    lan_ip: plainIp(lan) || "192.168.1.1",
+    status: o.status || id.status,
+    cpu: o.cpu,
+    ram: o.ram,
+    uptime: o.uptime,
+    br0: ifaceView(findIface(d, "br0")),
+    uplink: ifaceView(findIface(d, "9")),
+    lan_port: ifaceView(findIface(d, "8")),
+    switch: ifaceView(findIface(d, "switch0"))
+  };
+}
+function servedRow(d){
+  const id = ident(d);
+  const site = (id.site && typeof id.site === "object") ? id.site : {};
+  const r = maxRates(d);
+  return {
+    ip: primaryIp(d),
+    name: id.name || "",
+    role: id.role || "",
+    model: id.modelName || id.model || "",
+    status: ov(d).status || id.status || "",
+    site: site.name || "",
+    rx: r.rx,
+    tx: r.tx
+  };
+}
+function asList(payload){
+  if (Array.isArray(payload)) return payload;
+  if (payload && Array.isArray(payload.data)) return payload.data;
+  if (payload && payload.data && Array.isArray(payload.data.items)) return payload.data.items;
+  if (payload && Array.isArray(payload.items)) return payload.items;
+  if (payload && Array.isArray(payload.devices)) return payload.devices;
+  return [];
+}
+function merge12x(devices){
+  const live = {};
+  devices.filter(d => is12x(primaryIp(d))).forEach(d => { live[primaryIp(d)] = servedRow(d); });
+  const seen = new Set();
+  const rows = NC12_INVENTORY.map(inv => {
+    seen.add(inv.ip);
+    const hit = live[inv.ip];
+    return {
+      ip: inv.ip,
+      name: (hit && hit.name) || inv.name || "",
+      hardware: (hit && hit.model) || inv.hardware || "",
+      role: (hit && hit.role) || inv.role || "",
+      status: (hit && hit.status) || "",
+      site: (hit && hit.site) || "",
+      rx: hit ? hit.rx : null,
+      tx: hit ? hit.tx : null,
+      live: !!hit,
+      note: inv.note || ""
+    };
+  });
+  Object.keys(live).forEach(ip => {
+    if (seen.has(ip)) return;
+    const hit = live[ip];
+    rows.push({
+      ip, name: hit.name || "", hardware: hit.model || "", role: hit.role || "",
+      status: hit.status || "", site: hit.site || "", rx: hit.rx, tx: hit.tx, live: true, note: ""
+    });
+  });
+  rows.sort((a,b) => ((b.rx||0)+(b.tx||0)) - ((a.rx||0)+(a.tx||0)) || a.ip.localeCompare(b.ip, undefined, {numeric:true}));
+  return rows;
+}
+function build(payload){
+  const devices = asList(payload);
+  const consoleDev = devices.find(isConsole) || null;
+  const served = devices.filter(d => !isConsole(d) && is1x(primaryIp(d))).map(servedRow);
+  served.sort((a,b) => (b.rx + b.tx) - (a.rx + a.tx) || a.ip.localeCompare(b.ip, undefined, {numeric:true}));
+  const served12 = merge12x(devices);
+  return {
+    console: consoleDev ? consoleView(consoleDev) : null,
+    served, count: served.length,
+    nc12: {
+      name: "NC Lightstruck Fibre", isp: "RSA Web", speed: "1 Gigabit",
+      role: "backup", wan: "WAN3", udm_ip: "192.168.12.56",
+      router_ip: "192.168.12.200", lan: "192.168.12.0/24"
+    },
+    served_12x: served12,
+    count_12x: served12.length
+  };
+}
+
+function fmtRate(bps){
+  if (bps == null || bps === "") return "—";
+  const n = Number(bps);
+  if (!Number.isFinite(n) || n <= 0) return "0";
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + " M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + " k";
+  return String(Math.round(n));
+}
+function rateClass(bps){
+  return Number(bps || 0) >= 1e6 ? "hot" : "";
+}
+function sastNow(){
+  return new Date().toLocaleString("en-GB", {
+    timeZone: "Africa/Johannesburg",
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false
+  }) + " SAST";
+}
+function uptimeText(sec){
+  const n = Number(sec || 0);
+  if (!n) return "—";
+  const d = Math.floor(n / 86400);
+  const h = Math.floor((n % 86400) / 3600);
+  return d ? `${d}d ${h}h` : `${h}h`;
+}
+function statusCls(st){
+  const low = String(st || "").toLowerCase();
+  if (low === "active" || low === "online") return "ok";
+  if (low === "inactive" || low === "offline" || low === "disconnected") return "bad";
+  return "";
+}
+function field(label, value, extra){
+  return `<div class="field"><span class="k">${esc(label)}</span><div class="v${extra&&extra.cls?" "+extra.cls:""}">${value}</div></div>`;
+}
+
+let LAST = null;
+let LAST_ERR = "";
+
+function paint(){
+  const banner = $("#banner");
+  const box = $("#console");
+  const list = $("#list");
+  const counts = $("#counts");
+  const q = ($("#q").value || "").trim().toLowerCase();
+  if (LAST_ERR){
+    banner.className = "banner bad";
+    banner.innerHTML = `<strong>UISP</strong> · ${esc(LAST_ERR)}`;
+  }
+  if (!LAST){
+    if (!LAST_ERR){
+      banner.className = "banner";
+      banner.textContent = "Loading UISP console…";
+    }
+    return;
+  }
+  const c = LAST.console;
+  if (!c){
+    banner.className = "banner bad";
+    banner.innerHTML = "<strong>No UISP console</strong> · devices feed has no gateway on this site";
+    box.innerHTML = "";
+  } else {
+    const online = statusCls(c.status) === "ok";
+    banner.className = "banner " + (online ? "ok" : "bad");
+    banner.innerHTML = `<strong>${esc(c.name)}</strong> · ${esc(c.mgmt_ip)} on 0.x (port 9) · serves ${esc(c.lan)} · ${esc(sastNow())}`;
+    const lan = c.lan_port || {};
+    const up = c.uplink || {};
+    const br = c.br0 || {};
+    box.innerHTML = `<div class="card">
+      <div class="row">
+        <div>
+          <div class="name">${esc(c.name)}</div>
+          <div class="meta">${esc(c.model)} · ${esc(c.role)} · not UniFi</div>
+        </div>
+        <div class="v ${statusCls(c.status)}">${esc(c.status || "unknown")}</div>
+      </div>
+      <div class="grid3">
+        ${field("Serves 1.x", esc(c.lan))}
+        ${field("Mgmt 0.x", esc(c.mgmt_ip) + " · port 9")}
+        ${field("CPU / RAM", (c.cpu!=null?c.cpu+"%":"—") + " · " + (c.ram!=null?c.ram+"%":"—"))}
+        ${field("1.x port 8 rx / tx", esc(fmtRate(lan.rx)) + " / " + esc(fmtRate(lan.tx)))}
+        ${field("0.x port 9 rx / tx", esc(fmtRate(up.rx)) + " / " + esc(fmtRate(up.tx)))}
+        ${field("br0 1.1 rx / tx", esc(fmtRate(br.rx)) + " / " + esc(fmtRate(br.tx)))}
+      </div>
+      <div class="meta">Live iface rates from UISP (bits/s). Not destination websites. UniFi is the 0.x LAN.</div>
+    </div>`;
+  }
+  const rows = (LAST.served || []).filter(r => {
+    if (!q) return true;
+    return [r.ip, r.name, r.role, r.model, r.site].join(" ").toLowerCase().includes(q);
+  });
+  counts.textContent = q
+    ? `${rows.length} of ${LAST.count} on 192.168.1.x`
+    : `${LAST.count} IPs the console serves on 192.168.1.x · live max iface rx / tx`;
+  list.innerHTML = rows.length
+    ? `<div class="card table-wrap"><table class="dev">
+    <thead><tr>
+      <th>IP</th><th>Name</th><th>Role</th>
+      <th class="num">Down</th><th class="num">Up</th>
+    </tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td>${esc(r.ip)}</td>
+      <td><div class="name small">${esc(r.name || "Unknown")}</div>
+        <div class="meta">${esc(r.model)}${r.site?" · "+esc(r.site):""}</div></td>
+      <td class="${statusCls(r.status)}">${esc(r.role || "—")}</td>
+      <td class="num ${rateClass(r.rx)}">${esc(fmtRate(r.rx))}</td>
+      <td class="num ${rateClass(r.tx)}">${esc(fmtRate(r.tx))}</td>
+    </tr>`).join("")}</tbody>
+  </table></div>`
+    : `<div class="empty">No 1.x devices${q?" match":""}.</div>`;
+
+  const nc = LAST.nc12 || {};
+  const ncBanner = $("#nc-banner");
+  const ncCard = $("#nc-card");
+  const ncCounts = $("#nc-counts");
+  const ncList = $("#nc-list");
+  ncBanner.className = "banner";
+  ncBanner.innerHTML = `<strong>${esc(nc.name || "NC Lightstruck Fibre")}</strong> · ${esc(nc.isp || "RSA Web")} · ${esc(nc.speed || "1 Gigabit")} · ${esc(nc.wan || "WAN3")} · backup`;
+  ncCard.innerHTML = `<div class="card">
+    <div class="row">
+      <div>
+        <div class="name">${esc(nc.name || "NC Lightstruck Fibre")}</div>
+        <div class="meta">UDM Pro Hermanus WAN3 · backup · not the UISP console LAN</div>
+      </div>
+      <div class="v warn">backup</div>
+    </div>
+    <div class="grid3">
+      ${field("Serves 12.x", esc(nc.lan || "192.168.12.0/24"))}
+      ${field("UDM", esc(nc.udm_ip || "192.168.12.56"))}
+      ${field("TP-Link", esc(nc.router_ip || "192.168.12.200"))}
+    </div>
+    <div class="meta">Cambium / MikroTik / TP-Link are inventory. Live rx/tx only where UISP has the radio.</div>
+  </div>`;
+  const rows12 = (LAST.served_12x || []).filter(r => {
+    if (!q) return true;
+    return [r.ip, r.name, r.hardware, r.role, r.site, r.note].join(" ").toLowerCase().includes(q);
+  });
+  const liveN = (LAST.served_12x || []).filter(r => r.live).length;
+  ncCounts.textContent = q
+    ? `${rows12.length} of ${LAST.count_12x || 0} on 192.168.12.x`
+    : `${LAST.count_12x || 0} IPs on NC Lightstruck 12.x · ${liveN} live in UISP`;
+  ncList.innerHTML = rows12.length
+    ? `<div class="card table-wrap"><table class="dev">
+    <thead><tr>
+      <th>IP</th><th>Hardware</th><th>Name</th>
+      <th class="num">Down</th><th class="num">Up</th>
+    </tr></thead>
+    <tbody>${rows12.map(r => `<tr>
+      <td>${esc(r.ip)}</td>
+      <td>${esc(r.hardware || "Unknown")}${r.note?`<div class="meta">${esc(r.note)}</div>`:""}</td>
+      <td><div class="name small">${esc(r.name || "Unknown")}</div>
+        <div class="meta">${r.live?"UISP live":"inventory"}${r.site?" · "+esc(r.site):""}</div></td>
+      <td class="num ${rateClass(r.rx)}">${esc(fmtRate(r.rx))}</td>
+      <td class="num ${rateClass(r.tx)}">${esc(fmtRate(r.tx))}</td>
+    </tr>`).join("")}</tbody>
+  </table></div>`
+    : `<div class="empty">No 12.x devices${q?" match":""}.</div>`;
+}
+
+async function load(){
+  try {
+    const r = await fetch("/dash/api/devices?withInterfaces=true&t="+Date.now(), {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+    if (!r.ok) throw new Error("devices "+r.status);
+    LAST = build(await r.json());
+    LAST_ERR = "";
+  } catch (e) {
+    LAST_ERR = e && e.message ? e.message : "failed to load UISP devices";
+  }
+  paint();
+}
+
+$("#q").addEventListener("input", paint);
+load();
+setInterval(load, POLL_MS);
+</script>
+</body>
+</html>

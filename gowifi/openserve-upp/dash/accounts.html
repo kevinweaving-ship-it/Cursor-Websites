@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · Fibre accounts</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<style>
+:root {
+  --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a; --pad:16px;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:var(--acc); }
+header.app {
+  position:sticky; top:0; z-index:5;
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:12px var(--pad) 12px;
+}
+header.app h1 { margin:0; font-size:22px; color:var(--acc); }
+header.app .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+header.app a.back { display:inline-block; color:var(--acc); font-size:14px; min-height:40px; line-height:40px; margin-right:14px; }
+.search {
+  width:100%; margin-top:10px; padding:12px 14px; font:16px/1.3 inherit;
+  color:var(--text); background:#fff; border:1px solid var(--line); border-radius:10px;
+}
+.search:focus { outline:2px solid var(--acc); border-color:var(--acc); }
+main { padding:12px var(--pad) 28px; max-width:920px; margin:0 auto; }
+.grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.card {
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:12px; margin:0 0 10px;
+}
+.k { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+.v { font-size:22px; font-weight:700; margin-top:2px; }
+.row { display:flex; justify-content:space-between; gap:8px; align-items:center; }
+.pill { font-size:11px; font-weight:700; padding:3px 8px; border-radius:99px; white-space:nowrap; }
+button.pill { border:0; cursor:pointer; font:inherit; background:var(--acc); color:#fff; padding:8px 12px; }
+.ok { background:#e7f6ee; color:var(--ok); }
+.bad { background:#fdecec; color:var(--bad); }
+.warn { background:#fff4e0; color:var(--warn); }
+.list .item { padding:8px 0; border-top:1px solid var(--line); }
+.list .item:first-child { border-top:0; padding-top:2px; }
+.name { font-weight:650; }
+.meta { color:var(--muted); font-size:12px; margin-top:2px; }
+h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--acc); margin:18px 0 8px; }
+h2.toggle {
+  cursor:pointer; user-select:none; min-height:44px; display:flex; align-items:center; gap:8px;
+}
+h2.toggle .chev { color:var(--acc); font-size:14px; }
+.fold.hidden { display:none; }
+.scroll { overflow:auto; }
+.err { background:#fdecec; color:#8a1212; padding:12px; border-radius:12px; }
+table.compact { width:100%; border-collapse:collapse; font-size:13px; }
+.fnb-reg-wrap { width:100%; overflow:auto; }
+.fnb-reg {
+  width:100%; table-layout:fixed; border-collapse:collapse;
+  font-size:13px; font-variant-numeric:tabular-nums;
+}
+.fnb-reg col.d { width:11em; }
+.fnb-reg col.n { width:6.8em; }
+.fnb-reg th, .fnb-reg td {
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  vertical-align:middle; padding:7px 10px;
+  border-bottom:1px solid var(--line);
+  border-right:1px solid var(--line);
+}
+.fnb-reg th:last-child, .fnb-reg td:last-child { border-right:0; }
+.fnb-reg th {
+  text-align:left; color:var(--muted); font-size:11px; letter-spacing:.04em;
+  text-transform:uppercase; font-weight:700;
+  position:sticky; top:0; background:#fff;
+}
+.fnb-reg th.num, .fnb-reg td.num { text-align:right; }
+.fnb-reg tr:last-child td { border-bottom:0; }
+.fnb-reg tr.pending td { color:var(--warn); }
+.fnb-reg tr.posted td { color:var(--acc); }
+.fnb-reg td.spent { color:var(--bad); }
+table.compact th {
+  text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase;
+  letter-spacing:.04em; font-weight:700; padding:6px 6px 8px 0; border-bottom:1px solid var(--line);
+}
+table.compact td { padding:7px 8px 7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+table.compact tr:last-child td { border-bottom:0; }
+.num { white-space:nowrap; }
+@media (max-width:700px) {
+  .grid { grid-template-columns:1fr 1fr; }
+  .wide-only { display:none; }
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <a class="back" href="/dash/#/">← Home</a>
+  <a class="back" href="/dash/clients.html">Clients</a>
+  <a class="back" href="/dash/invoices.html">Invoices</a>
+  <h1>Fibre accounts</h1>
+  <div class="sub" id="sub">Openserve line status · join dates</div>
+  <input class="search" id="q" type="search" placeholder="Search name, address, B number, package" autocomplete="off">
+</header>
+<main id="app">Loading…</main>
+<script>
+const $ = (s,el=document)=>el.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const clock = v => {
+  if (!v) return "";
+  const m = String(v).match(/(\d{2}):(\d{2})/);
+  return m ? m[1]+":"+m[2] : "";
+};
+const whenClock = v => {
+  if (!v) return "never";
+  const m = String(v).match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (m) {
+    const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+    return `${m[3]} ${months[+m[2]-1]} ${m[1]}, ${m[4]}:${m[5]}`;
+  }
+  const t = String(v).match(/(\d{2}):(\d{2})/);
+  return t ? t[1]+":"+t[2] : String(v);
+};
+const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
+const cardMoney = c => {
+  const due = Number(c.due||0);
+  const paidUp = Boolean(c.paid_up || c.nil || c.status==="paid-up" || due<=0.004);
+  return {
+    name: c.name,
+    package: c.package,
+    speed: c.speed,
+    pay: c.pay,
+    discount: c.discount,
+    pending_do: c.pending_do,
+    last_paid_on: c.last_paid_on,
+    last_payment: c.last_payment,
+    billed: c.billed,
+    paid: c.paid||0,
+    due: paidUp ? Math.max(0, due) : due,
+    nil: paidUp,
+    status: paidUp ? "paid-up" : "owes",
+    access: c.access||"wireless",
+  };
+};
+const splitMoney = rows => {
+  const owes = (rows||[]).filter(r => r.status==="owes").sort((a,b)=>(b.due||0)-(a.due||0));
+  const paid = (rows||[]).filter(r => r.status==="paid-up").sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  return {
+    owes, paid,
+    due: owes.reduce((s,r)=>s+Number(r.due||0),0),
+    billed: (rows||[]).reduce((s,r)=>s+Number(r.billed||0),0),
+    received: (rows||[]).reduce((s,r)=>s+Number(r.paid||0),0),
+  };
+};
+const clientTable = (rows, empty) => {
+  const body = (rows||[]).map(r=>{
+    const paidUp = r.status==="paid-up" || r.nil;
+    const last = r.last_paid_on || (r.last_payment&&(r.last_payment.date||r.last_payment.paid_on)) || "";
+    return `
+    <tr>
+      <td><div class="name">${esc(r.name||"—")}</div>
+        <div class="meta">${esc(r.package||r.speed||"Wireless")} · ${esc(r.pay||"")}${r.discount?" · discount":""}${r.pending_do?` · D/O ${esc(r.pending_do.action_date)} not collected`:""}${last?` · last paid ${esc(last)}`:""}</div></td>
+      <td class="num">${esc(money(r.billed??r.invoice_amount))}</td>
+      <td class="num">${esc(money(r.paid||0))}</td>
+      <td class="num">${paidUp?`<span class="pill ok">Paid Up</span>`:`<span class="pill bad">Owes ${esc(money(r.due))}</span>`}</td>
+    </tr>`;
+  }).join("");
+  return `<table class="compact">
+    <thead><tr><th>Client</th><th>Billed</th><th>Paid</th><th>Status</th></tr></thead>
+    <tbody>${body || `<tr><td colspan="4" class="meta">${esc(empty||"None")}</td></tr>`}</tbody>
+  </table>`;
+};
+const clientBlock = (title, pack) => `
+    <h2>${esc(title)}</h2>
+    <div class="grid">
+      <div class="card"><div class="k">Still owe</div><div class="v">${(pack.owes||[]).length}</div><div class="meta">${money(pack.due)}</div></div>
+      <div class="card"><div class="k">Paid Up</div><div class="v">${(pack.paid||[]).length}</div><div class="meta">of ${(pack.owes||[]).length+(pack.paid||[]).length} billed ${money(pack.billed)}</div></div>
+      <div class="card"><div class="k">Paid</div><div class="v">${money(pack.received)}</div><div class="meta">on statements</div></div>
+    </div>
+    <h2 class="k" style="margin-top:8px">Still owe</h2>
+    <div class="card scroll">${clientTable(pack.owes, "Everyone paid up")}</div>
+    <h2 class="k">Paid Up</h2>
+    <div class="card scroll">${clientTable(pack.paid, "Nobody paid up yet")}</div>
+`;
+const pillFor = (status) => {
+  const s=(status||"").toLowerCase();
+  if (s==="active") return `<span class="pill ok">Active</span>`;
+  if (s==="suspended") return `<span class="pill warn">Suspended</span>`;
+  if (s.includes("cancel")) return `<span class="pill bad">Cancelled</span>`;
+  if (s.includes("unverified")) return `<span class="pill warn">Unverified</span>`;
+  return `<span class="pill warn">${esc(status||"—")}</span>`;
+};
+function render(data){
+  const c=data.counts||{};
+  const checked = clock(data.synced_at);
+  $("#sub").textContent = checked ? `Last check ${checked}` : "Openserve line status · join dates";
+  const monthsAsClient = (iso) => {
+    if (!iso) return "—";
+    const j = new Date(iso + "T00:00:00");
+    const t = new Date((data.as_at || "") + "T00:00:00");
+    if (Number.isNaN(j.getTime()) || Number.isNaN(t.getTime())) return "—";
+    let m = (t.getFullYear() - j.getFullYear()) * 12 + (t.getMonth() - j.getMonth());
+    if (t.getDate() < j.getDate()) m -= 1;
+    m = Math.max(0, m);
+    if (m < 12) return m === 1 ? "1 month" : m + " months";
+    const y = Math.floor(m / 12), r = m % 12;
+    const ys = y === 1 ? "1 year" : y + " years";
+    if (!r) return ys;
+    return ys + " " + (r === 1 ? "1 month" : r + " months");
+  };
+  const kindPill = r => {
+    const k=(r.story_kind||"").toLowerCase();
+    if (k==="redo") return `<span class="pill warn">Address error</span>`;
+    if (k==="move") return `<span class="pill warn">Moved house</span>`;
+    if (k==="cease") return `<span class="pill bad">Ended</span>`;
+    return "";
+  };
+  const hist = r => {
+    const text = r.story_label || [r.ordered_label && "Ordered "+r.ordered_label, r.installed_label && "Installed "+r.installed_label].filter(Boolean).join(" · ");
+    return text ? `<div class="meta">${esc(text)}</div>` : "";
+  };
+  const tenure = r => {
+    if (r.months_label && r.months_label!=="—") {
+      return r.line_status==="cancelled" ? "Was "+r.months_label : r.months_label;
+    }
+    if (r.line_status==="cancelled") return "Cancelled";
+    return monthsAsClient(r.activated || r.installed || r.joined);
+  };
+  const cancelledSNs = new Set((data.cancelled_lines||[]).map(r=>r.service_number).filter(Boolean));
+  const suspendedSNs = new Set((data.suspended||[]).map(r=>r.service_number).filter(Boolean));
+  const fibreFetch = r => {
+    const bits = [r.access_status, r.partner_status].filter(Boolean);
+    const when = clock(r.fibre_fetched_at || data.synced_at);
+    if (!bits.length && !when) return `<div class="meta">Fibre status not fetched</div>`;
+    return `<div class="meta">${esc(bits.join(" · ")||"fetched")}${when?` · ${esc(when)}`:""}</div>`;
+  };
+  const isClient = r => !r.incoming_role && !r.not_a_client;
+  const incomingRows = (data.incoming_fibre||[]).map(r=>`
+    <tr>
+      <td>
+        <div class="name">${esc(r.incoming_label||r.incoming_role||"—")}</div>
+        <div class="meta">${esc(r.uisp_site||"VK Pop")} · also on UISP · not a client · cost of wireless</div>
+        <div class="meta">${esc(r.address||"")}</div>
+        ${hist(r)}
+      </td>
+      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
+      <td>${pillFor(r.line_status)}${fibreFetch(r)}</td>
+      <td class="num">${esc(r.speed)}<div class="meta">${esc(tenure(r))}</div></td>
+      <td class="num">${money(r.cost)}<div class="meta">${esc(r.cost_label||"incl VAT we pay")}</div></td>
+    </tr>`).join("");
+  const pop = data.pop_cost || {};
+  const popBill = (data.books&&data.books.billing)||{};
+  const wirelessBilled = pop.billed_wireless!=null ? pop.billed_wireless : popBill.billed_wireless;
+  const popCover = pop.cover!=null ? pop.cover : (wirelessBilled!=null && pop.cost!=null ? Number(wirelessBilled)-Number(pop.cost) : null);
+  const clientName = r => `<div class="name">${esc(r.customer)}</div><div class="meta">${esc(r.address)}</div>`;
+  const activeRows = (data.active||[]).filter(r=>isClient(r) && r.line_status==="active" && !cancelledSNs.has(r.service_number) && !suspendedSNs.has(r.service_number)).map(r=>`
+    <tr>
+      <td>${clientName(r)}${hist(r)}</td>
+      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
+      <td>${pillFor(r.line_status)}${fibreFetch(r)}</td>
+      <td class="num">${esc(r.speed)}</td>
+      <td class="num">${esc(tenure(r))}</td>
+    </tr>`).join("");
+  const taken = new Set((data.active||[]).concat(data.suspended||[]).map(r=>r.service_number).filter(Boolean));
+  const cancelledLineRows = (data.cancelled_lines||[]).filter(r=>isClient(r) && !taken.has(r.service_number)).map(r=>`
+    <tr>
+      <td>${clientName(r)}${hist(r)}</td>
+      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)}</div></td>
+      <td>${pillFor("cancelled")} ${kindPill(r)}${fibreFetch(r)}</td>
+      <td class="num">${esc(tenure(r))}</td>
+    </tr>`).join("");
+  const suspendedRows = (data.suspended||[]).filter(r=>isClient(r) && r.line_status==="suspended" && !cancelledSNs.has(r.service_number)).map(r=>`
+    <tr>
+      <td>${clientName(r)}${hist(r)}</td>
+      <td class="num">${esc(r.service_number)}<div class="meta">${esc(r.product)} · ${esc(r.suspend_stints||0)} stint${(r.suspend_stints||0)===1?"":"s"}</div></td>
+      <td>${pillFor("suspended")}${fibreFetch(r)}</td>
+      <td class="num">${esc(r.speed)}</td>
+      <td class="num">${esc(r.suspend_for)}<div class="meta">installed ${esc(r.installed_label || r.joined_label)}</div></td>
+    </tr>`).join("");
+  const names={};
+  (data.active||[]).concat(data.cancelled_lines||[], data.suspended||[], data.incoming_fibre||[]).forEach(r=>{ if(r.service_number) names[r.service_number]=r.customer || r.incoming_label; });
+  const cov=data.mail_coverage||{};
+  const accountRows=(data.billing_accounts||[]).map(r=>`
+    <tr>
+      <td class="num">${esc(r.account_number)}</td>
+      <td>${esc(r.product_family||"—")}</td>
+      <td class="num">${esc(r.invoices)}</td>
+      <td class="num">${esc(r.from||"—")} → ${esc(r.to||"—")}</td>
+      <td class="num">${r.total==null?"—":Number(r.total).toFixed(2)}</td>
+    </tr>`).join("");
+  const chargeRows=(data.line_charges||[]).map(r=>`
+    <tr>
+      <td><div class="name">${esc(names[r.service_number]||"—")}</div><div class="meta">${esc(r.service_number)}</div></td>
+      <td class="num">${esc(r.invoices)}</td>
+      <td class="num">${esc(r.from||"—")} → ${esc(r.to||"—")}</td>
+      <td class="num">${r.total==null?"—":Number(r.total).toFixed(2)}</td>
+    </tr>`).join("");
+  const invoiceRows = (data.invoices||[]).map(r=>`
+    <tr>
+      <td class="num">${esc(r.invoice_number)}</td>
+      <td class="num">${esc(r.invoice_date||"—")}</td>
+      <td>${esc(r.product_family||"—")}<div class="meta">${esc(r.account_number||"")} ${(r.extras||[]).join(" · ")}</div></td>
+      <td class="num">${esc((r.services||[]).length)} lines</td>
+      <td class="num">${r.total==null?"—":Number(r.total).toFixed(2)}</td>
+    </tr>`).join("");
+  $("#app").innerHTML = `
+    <div class="grid">
+      <div class="card"><div class="k">Active</div><div class="v">${c.active??0}</div></div>
+      <div class="card"><div class="k">Suspended</div><div class="v">${c.suspended??0}</div></div>
+      <div class="card"><div class="k">Cancelled</div><div class="v">${c.cancelled_lines??0}</div></div>
+    </div>
+    <h2>GoWiFi incoming fibre · VK Pop</h2>
+    <div class="card"><div class="meta">${esc(pop.note||"Not clients. All info lives on this POP card. These Openserve lines are the incoming fibre at VK Pop — the backhaul cost that wireless income has to cover. A fibre fault here takes the wireless network with it.")}</div></div>
+    <div class="grid">
+      <div class="card"><div class="k">Monthly cost</div><div class="v">${money(pop.cost)}</div><div class="meta">${pop.lines||0} lines · incl VAT we pay</div></div>
+      <div class="card"><div class="k">Wireless billed</div><div class="v">${money(wirelessBilled)}</div><div class="meta">income these fibres have to generate</div></div>
+      <div class="card"><div class="k">Cover</div><div class="v">${money(popCover)}</div><div class="meta">wireless billed − POP cost</div></div>
+    </div>
+    <div class="card scroll">
+      <table class="compact">
+        <thead><tr><th>Role</th><th>Line</th><th>Status</th><th>Mb</th><th>Cost</th></tr></thead>
+        <tbody>${incomingRows || `<tr><td colspan="5" class="meta">None mapped</td></tr>`}</tbody>
+      </table>
+    </div>
+    ${(() => {
+      const pkg = data.books&&data.books.packages||{};
+      const prices = (pkg.webstream||[]).concat(pkg.office_connect||[]);
+      const pack = data.clients||{};
+      const moneyRows = (pack.cards||[]).concat(pack.offsets||[])
+        .filter(c => (Number(c.billed||0)>0.004) || (Number(c.due||0)>0.004) || (Number(c.paid||0)>0.004) || ((c.ledger||[]).length>0))
+        .map(cardMoney);
+      const wireless = splitMoney(moneyRows.filter(r => r.access!=="fibre" && r.access!=="offset"));
+      const fibre = splitMoney(moneyRows.filter(r => r.access==="fibre"));
+      const offset = splitMoney(moneyRows.filter(r => r.access==="offset"));
+      const priceBody = prices.map(r=>`
+        <tr>
+          <td>${esc(r.product||"—")}<div class="meta">${esc(r.label||r.family||"")}${r.retail_source==="live"?" · live":""}</div></td>
+          <td class="num">${esc(r.speed||"—")}</td>
+          <td class="num">${money(r.cost)}</td>
+          <td class="num">${r.retail==null?"—":Number(r.retail).toFixed(0)}</td>
+          <td class="num">${r.margin==null?"—":Number(r.margin).toFixed(2)}</td>
+        </tr>`).join("");
+      return `
+    <h2>Cost / Retail / Margin</h2>
+    <div class="card"><div class="meta">${esc(pkg.note||"Cost includes VAT we pay. Retail has no VAT.")}</div></div>
+    <div class="card scroll">
+      <table class="compact">
+        <thead><tr><th>Product</th><th>Speed</th><th>Cost</th><th>Retail</th><th>Margin</th></tr></thead>
+        <tbody>${priceBody || `<tr><td colspan="5" class="meta">No package card yet</td></tr>`}</tbody>
+      </table>
+    </div>
+    ${clientBlock("Wireless — who owes / who is paid up", wireless)}
+    ${clientBlock("Fibre — who owes / who is paid up", fibre)}
+    ${((offset.owes.length||offset.paid.length) ? clientBlock("Offset — invoiced / due", offset) : "")}`;
+    })()}
+    ${(() => {
+      const byN = {};
+      (((data.books||{}).history||{}).invoices||[]).concat(((data.books||{}).customer_invoices||{}).rows||[]).forEach(x=>{
+        const n=String(x.invoice_number||"");
+        if(!n) return;
+        const row=Object.assign({},x); delete row.statement; byN[n]=row;
+      });
+      const rows=Object.keys(byN).sort((a,b)=>{
+        const da=String(byN[a].invoice_date||"");
+        const db=String(byN[b].invoice_date||"");
+        if(da!==db) return db.localeCompare(da);
+        return Number(b)-Number(a);
+      }).map(k=>byN[k]);
+      if (!rows.length) return "";
+      return `
+    <h2>Invoices</h2>
+    <div class="card"><div class="meta">${rows.length} from the invoice table · <a href="/dash/invoices.html">All invoices</a></div></div>
+    <div class="card scroll">
+      <table class="compact">
+        <thead><tr><th>Inv</th><th>Client</th><th>Date</th><th>What</th><th class="num">Amount</th></tr></thead>
+        <tbody>${rows.slice(0,40).map(r=>`
+          <tr><td class="num"><a href="/dash/invoice.html?n=${esc(r.invoice_number)}">${esc(r.invoice_number)}</a></td>
+          <td>${esc(r.customer||"—")}</td>
+          <td>${esc(r.invoice_date||"—")}</td>
+          <td>${esc(r.description||"")}</td>
+          <td class="num">${Number(r.amount||0).toFixed(2)}</td></tr>`).join("")}</tbody>
+      </table>
+    </div>`;
+    })()}
+    <h2 class="toggle" id="books-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="books-fold">
+      <span class="chev">▸</span>
+      <span>Books</span>
+      <span class="meta">no QuickBooks</span>
+    </h2>
+    <div id="books-fold" class="fold hidden">
+      <div class="card"><div class="meta">${esc((data.books&&data.books.loop)||"Old QuickBooks history in, new invoices canned.")}</div>
+        <div class="meta"><a href="/dash/invoice.html" style="color:var(--acc)">Canned invoices</a> · next ${esc((data.books&&data.books.customer_invoices&&data.books.customer_invoices.next)||"—")}</div></div>
+      <div class="grid">
+        <div class="card"><div class="k">Old invoices</div><div class="v">${(data.books&&data.books.history&&data.books.history.count)||0}</div><div class="meta">statement sits on the invoice · ${esc((data.books&&data.books.history&&data.books.history.payment_count)||(data.books&&data.books.history&&data.books.history.payments&&data.books.history.payments.length)||0)} payments</div></div>
+        <div class="card"><div class="k">Openserve cost</div><div class="v">${(data.books&&data.books.openserve&&data.books.openserve.invoices)||0}</div><div class="meta">${(data.books&&data.books.openserve&&data.books.openserve.charged)!=null?Number(data.books.openserve.charged).toFixed(2):"—"}</div></div>
+        <div class="card"><div class="k">FNB</div><div class="v">${(data.books&&data.books.fnb&&data.books.fnb.balance)!=null?Number(data.books.fnb.balance).toFixed(2):"—"}</div><div class="meta">${esc((data.books&&data.books.fnb&&data.books.fnb.account_number)||"62860060278")} · last fetched ${esc(whenClock(data.books&&data.books.fnb&&(data.books.fnb.last_fetched_label||data.books.fnb.last_fetched)))}</div><div class="meta ${data.books&&data.books.fnb&&data.books.fnb.matched===false?"warn":"ok"}">${data.books&&data.books.fnb&&data.books.fnb.matched===false?`Needs attention ${Number(data.books.fnb.attention_amount||0).toFixed(2)}`:"Matched · system balance"}</div><div class="meta"><button type="button" class="pill fnb-fetch" id="fnb-fetch">Fetch FNB now</button> · <a href="/legal/fnb.html">Connect</a></div></div>
+        <div class="card"><div class="k">Netcash</div><div class="v">${(data.books&&data.books.netcash&&data.books.netcash.items)||((data.books&&data.books.netcash&&data.books.netcash.batches)||[]).length||0}</div><div class="meta">${esc((data.books&&data.books.netcash&&data.books.netcash.note)||"Paid / unpaid per batch")}</div></div>
+        <div class="card"><div class="k">Clients</div><div class="v">${((data.books&&data.books.billing&&data.books.billing.accounts)||(data.books&&data.books.ledger&&data.books.ledger.clients)||[]).length}</div><div class="meta">${esc((data.books&&data.books.billing&&data.books.billing.rule)||"Invoice 17th · month in advance")}</div></div>
+        <div class="card"><div class="k">Packages</div><div class="v">${(data.books&&data.books.packages&&data.books.packages.count)||((data.books&&data.books.packages&&data.books.packages.table)||[]).length||0}</div><div class="meta">Cost incl VAT · retail no VAT · markup to R99</div></div>
+        <div class="card"><div class="k">Loans</div><div class="v">${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).length}</div><div class="meta">${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).map(a=>esc(a.name.split(":").slice(-1)[0])+" "+Number(a.net||0).toFixed(0)).join(" · ")||"Kevin / Walter"}</div></div>
+      </div>
+      ${(() => {
+        const rows = (data.books&&data.books.netcash&&data.books.netcash.batches)||[];
+        if (!rows.length) return "";
+        return `<div class="card scroll">
+        <div class="k">Netcash · paid / unpaid per batch</div>
+        <table class="compact">
+          <thead><tr><th>Date</th><th>Batch</th><th>Account</th><th>Ref</th><th>Result</th><th class="num">Amount</th><th class="num">Unpaid</th></tr></thead>
+          <tbody>${rows.map(r=>`
+            <tr>
+              <td>${esc(r.paid_on||"—")}</td>
+              <td>${esc(r.batch_id||"—")}</td>
+              <td>${esc(r.account_name||r.payee||"—")}<div class="meta">${esc([r.account_ref,r.tracking_ref,r.extra_ref].filter(Boolean).join(" · "))}</div></td>
+              <td>${esc(r.account_ref||"—")}</td>
+              <td class="${r.result==="unpaid"?"bad":"ok"}">${esc(r.result||"paid")}</td>
+              <td class="num">${Number(r.amount||0).toFixed(2)}</td>
+              <td class="num">${Number(r.unpaid_amount||0).toFixed(2)}</td>
+            </tr>`).join("")}</tbody>
+        </table>
+      </div>`;
+      })()}
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Loan / expense</th><th>Kind</th><th>In</th><th>Out</th></tr></thead>
+          <tbody>${((data.books&&data.books.ledger&&data.books.ledger.loans)||[]).concat((data.books&&data.books.ledger&&data.books.ledger.expenses)||[]).slice(0,24).map(a=>`
+            <tr><td>${esc(a.name||"—")}</td><td>${esc(a.kind||"—")}</td>
+            <td class="num">${Number(a.received||0).toFixed(2)}</td>
+            <td class="num">${Number(a.spent||0).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No accounts yet</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Client</th><th>Inv 17th</th><th>D/O</th><th>Due</th></tr></thead>
+          <tbody>${((data.books&&data.books.billing&&data.books.billing.accounts)||[]).map(r=>`
+            <tr><td>${esc(r.name||"—")}<div class="meta">${esc(r.access||"")} · ${esc(r.package||r.method||"")}${r.discount?" · discount":""}${r.pending_do?` · D/O ${esc(r.pending_do.action_date)} ${esc(r.pending_do.status)}`:""}</div></td>
+            <td class="num">${esc(r.last_invoice_date||"—")}${r.invoice_amount!=null?`<div class="meta">${Number(r.invoice_amount).toFixed(2)}</div>`:""}</td>
+            <td class="num">${r.do_amount==null?"EFT":Number(r.do_amount).toFixed(2)}</td>
+            <td class="num">${r.nil?"nil":(r.due==null?"—":Number(r.due).toFixed(2))}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No client accounts yet</td></tr>`}</tbody>
+        </table>
+      </div>
+      ${(() => {
+        const watch = data.books&&data.books.packages&&data.books.packages.increase_watch;
+        if (!watch) return "";
+        return `<div class="card ${watch.due?"warn":""}"><div class="k">${esc(watch.headline||"Openserve increase watch")}</div>
+          <div class="meta">${esc(watch.note||"")}</div>
+          <div class="meta">${esc(watch.action||"")} · ${esc(watch.channel||"whatsapp")} · effective ${esc(watch.effective||"1 April")}${watch.due?" · due now":""}</div></div>`;
+      })()}
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Product</th><th>Speed</th><th>Cost</th><th>Retail</th></tr></thead>
+          <tbody>${((data.books&&data.books.packages&&data.books.packages.table)||[]).map(r=>`
+            <tr><td>${esc(r.product||"—")}<div class="meta">${esc(r.family||"")}${r.kind==="gigabit"?" · from 1 Jul 2026":""}${r.retail_source==="live"?" · live":""}</div></td>
+            <td class="num">${esc(r.speed||"—")}</td>
+            <td class="num">${r.cost==null?"—":Number(r.cost).toFixed(2)}<div class="meta">incl VAT we pay</div></td>
+            <td class="num">${r.retail==null?"—":Number(r.retail).toFixed(0)}${r.margin!=null?`<div class="meta">+${Number(r.margin).toFixed(0)}</div>`:""}</td></tr>`).join("") || `<tr><td colspan="4" class="meta">No wholesale table yet</td></tr>`}</tbody>
+        </table>
+        <div class="meta" style="margin-top:8px">${esc((data.books&&data.books.packages&&data.books.packages.note)||"")}</div>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Once-off</th><th>Amount</th><th></th></tr></thead>
+          <tbody>${((data.books&&data.books.packages&&data.books.packages.extras)||(data.books&&data.books.billing&&data.books.billing.extras)||[]).map(r=>`
+            <tr><td>${esc(r.label||"—")}<div class="meta">${esc(r.note||"")}</div></td>
+            <td class="num">${r.amount==null?"quote":Number(r.amount).toFixed(2)}</td>
+            <td class="meta">${r.on_monthly_do?"on D/O":"not on monthly D/O"}</td></tr>`).join("") || `<tr><td colspan="3" class="meta">No extras</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Date</th><th>Bounce / recovery</th><th>Amount</th></tr></thead>
+          <tbody>${((data.books&&data.books.ledger&&data.books.ledger.bounces)||[]).map(r=>`
+            <tr><td class="num">${esc(r.paid_on||"—")}</td><td>${esc(r.memo||r.payee||"—")}</td>
+            <td class="num">${r.amount==null?"—":Number(r.amount).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="3" class="meta">No bounce recoveries on FNB yet · waiting on Netcash history</td></tr>`}</tbody>
+        </table>
+      </div>
+      ${(() => {
+        const attn = (data.books&&data.books.fnb&&data.books.fnb.attention)||[];
+        if (!attn.length) return "";
+        return `<div class="card scroll warn"><div class="k">FNB needs attention ${Number((data.books.fnb&&data.books.fnb.attention_amount)||0).toFixed(2)}</div>
+        <table class="compact">
+          <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th></tr></thead>
+          <tbody>${attn.map(r=>`<tr><td class="num">${esc(r.paid_on||"—")}</td><td>${esc(r.what||r.description||"Needs recon")}</td>
+            <td class="num">${Number(r.amount||0).toFixed(2)}</td></tr>`).join("")}</tbody>
+        </table></div>`;
+      })()}
+      <div class="card scroll">
+        <div class="k">FNB register</div>
+        <div class="fnb-reg-wrap"><table class="fnb-reg">
+          <colgroup><col class="d"><col><col class="n"><col class="n"><col class="n"></colgroup>
+          <thead><tr><th>Date</th><th>Description</th><th class="num">Spent</th><th class="num">Received</th><th class="num">Balance</th></tr></thead>
+          <tbody>${((data.books&&data.books.fnb&&data.books.fnb.rows)||[]).map(r=>`
+            <tr class="${esc(r.tone==="pending"?"pending":"posted")}"><td>${esc(r.paid_on||"—")}</td><td title="${esc(r.description||"—")}">${esc(r.description||"—")}</td>
+            <td class="num spent">${r.spent==null?"":"-"+Number(Math.abs(r.spent)).toFixed(2)}</td>
+            <td class="num">${r.received==null?"":Number(r.received).toFixed(2)}</td>
+            <td class="num">${r.balance==null?"—":Number(r.balance).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="5" class="meta">No FNB rows on the system yet. Fetch from FNB Online.</td></tr>`}</tbody>
+        </table></div>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>#</th><th>Date</th><th>Client</th><th>What for</th><th>Amount</th></tr></thead>
+          <tbody>${((data.books&&data.books.history&&data.books.history.invoices)||[]).map(r=>`
+            <tr><td class="num"><a href="/dash/invoice.html?n=${esc(r.invoice_number)}" style="color:var(--acc)">${esc(r.invoice_number)}</a></td>
+            <td class="num">${esc(r.invoice_date||"—")}</td><td>${esc(r.customer||"—")}<div class="meta">${esc(r.source||"")}</div></td>
+            <td>${esc(r.description||"Monthly service")}</td>
+            <td class="num">${r.amount==null?"—":Number(r.amount).toFixed(2)}</td></tr>`).join("") || `<tr><td colspan="5" class="meta">No QuickBooks invoices in mail yet</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+    <h2>Active accounts</h2>
+    <div class="card scroll">
+      <table class="compact">
+        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Client for</th></tr></thead>
+        <tbody>${activeRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
+      </table>
+    </div>
+    <h2 class="toggle" id="cancel-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="cancel-fold">
+      <span class="chev">▸</span>
+      <span>Cancelled</span>
+      <span class="meta">${c.cancelled_lines??0}${c.never_installed?` · ${c.never_installed} never installed`:""}</span>
+    </h2>
+    <div id="cancel-fold" class="fold hidden">
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Client for</th></tr></thead>
+          <tbody>${cancelledLineRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+    <h2 class="toggle" id="invoice-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="invoice-fold">
+      <span class="chev">▸</span>
+      <span>Openserve invoices</span>
+      <span class="meta">${c.invoices??0}</span>
+    </h2>
+    <div id="invoice-fold" class="fold${((cov.missing&&cov.missing.missing)||[]).length?"":" hidden"}">
+      <div class="card"><div class="meta">${esc(cov.gap||"Openserve invoice copies are imported from kevin@ mail.")}</div>
+        <div class="meta">Folder: ${esc(cov.folder||"/root/gowifi-upp/openserve-mail")} · ${esc(cov.unique_files??0)} unique · ${esc(cov.duplicate_sends??0)} repeat sends collapsed</div>
+        <div class="meta">Statement accounts: ${esc((cov.statement_accounts||[]).join(", ")||"—")}</div>
+        <div class="meta">Bank proof of payment: ${esc(cov.pop_status||"awaiting upload")}</div></div>
+      ${(() => {
+        const ue = data.upp_emails||{};
+        const users = (ue.users||[]).map(u=>`
+          <tr>
+            <td>${esc(u.email||"—")}</td>
+            <td>${esc(u.status||"—")}${u.primary?" · primary":""}</td>
+          </tr>`).join("");
+        const stale = /go-wifi\.co\.za/i.test([ue.email_address,ue.bundle_transaction_email,(ue.users||[]).map(u=>u.email).join(" ")].join(" "));
+        return `<div class="card scroll">
+          <div class="k">Openserve UPP emails</div>
+          <div class="meta ${stale?"bad":"ok"}">Profile ${esc(ue.email_address||"—")} · statements/bundles ${esc(ue.bundle_transaction_email||"—")}</div>
+          <div class="meta">Lead / support / sales stay on ${esc(ue.lead_response_email||"kevinweaving@icloud.com")}</div>
+          <table class="compact">
+            <thead><tr><th>UPP user</th><th>Status</th></tr></thead>
+            <tbody>${users || `<tr><td colspan="2" class="meta">No UPP users</td></tr>`}</tbody>
+          </table>
+        </div>`;
+      })()}
+      ${(() => {
+        const fw = data.mail_forwards||{};
+        const rows = (fw.aliases||[]).map(r=>`
+          <tr>
+            <td>${esc(r.source)}</td>
+            <td>${esc(r.got||r.want||"—")}</td>
+            <td class="${r.forwarded?"ok":"bad"}">${r.forwarded?"fw → gowifi":"not fw yet"}</td>
+          </tr>`).join("");
+        return `<div class="card scroll">
+          <div class="k">go-wifi.co.za → gowifi.co.za</div>
+          <div class="meta">${esc(fw.note||"")}</div>
+          <div class="meta ${fw.mx_on_box?"":"bad"}">${esc(fw.dns_note||"")} · public MX: ${esc((fw.mx_go_wifi||[]).join(" · ")||"none")}</div>
+          <table class="compact">
+            <thead><tr><th>Old address</th><th>Forwards to</th><th></th></tr></thead>
+            <tbody>${rows || `<tr><td colspan="3" class="meta">No alias map</td></tr>`}</tbody>
+          </table>
+        </div>`;
+      })()}
+      ${(() => {
+        const miss = (cov.missing&&cov.missing.missing)||[];
+        const fams = (cov.missing&&cov.missing.families)||[];
+        if (!miss.length && !fams.length) return "";
+        const famRows = fams.map(f=>`
+          <tr>
+            <td>${esc(f.label||f.family)}<div class="meta">${esc(f.account||"")}</div></td>
+            <td>${esc((f.have||[]).join(" · ")||"none")}</td>
+            <td class="${(f.missing||[]).length?"bad":"ok"}">${esc((f.missing||[]).join(" · ")||"none")}</td>
+          </tr>`).join("");
+        return `<div class="card scroll">
+          <div class="k">Missing invoice months</div>
+          <div class="meta">First fibre ${esc((cov.missing&&cov.missing.from)||"2024-09")} → last complete month ${esc((cov.missing&&cov.missing.to)||"—")}. Openserve resends the same file; copies live in one folder.</div>
+          <table class="compact">
+            <thead><tr><th>Account</th><th>Have</th><th>Missing</th></tr></thead>
+            <tbody>${famRows}</tbody>
+          </table>
+        </div>`;
+      })()}
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Openserve account</th><th>Product</th><th>Invoices</th><th>Period</th><th>Charged</th></tr></thead>
+          <tbody>${accountRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Line</th><th>Invoices</th><th>Period</th><th>Charged</th></tr></thead>
+          <tbody>${chargeRows || `<tr><td colspan="4" class="meta">None</td></tr>`}</tbody>
+        </table>
+      </div>
+      <div class="card scroll">
+        <table class="compact">
+          <thead><tr><th>Invoice</th><th>Date</th><th>Product</th><th>Lines</th><th>Total</th></tr></thead>
+          <tbody>${invoiceRows || `<tr><td colspan="5" class="meta">No Openserve invoice CSVs in mail yet</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+    <h2>Suspended</h2>
+    <div class="card scroll">
+      <table class="compact">
+        <thead><tr><th>Client</th><th>Line</th><th>Status</th><th>Mb</th><th>Suspended for</th></tr></thead>
+        <tbody>${suspendedRows || `<tr><td colspan="5" class="meta">None</td></tr>`}</tbody>
+      </table>
+    </div>
+  `;
+  const toggle = $("#cancel-toggle");
+  const fold = $("#cancel-fold");
+  const setOpen = (open) => {
+    fold.classList.toggle("hidden", !open);
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toggle.querySelector(".chev").textContent = open ? "▾" : "▸";
+  };
+  toggle.addEventListener("click", () => setOpen(fold.classList.contains("hidden")));
+  toggle.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setOpen(fold.classList.contains("hidden")); }
+  });
+  const invToggle = $("#invoice-toggle");
+  const invFold = $("#invoice-fold");
+  const booksToggle = $("#books-toggle");
+  const booksFold = $("#books-fold");
+  if (booksToggle && booksFold) {
+    const setBooks = (open) => {
+      booksFold.classList.toggle("hidden", !open);
+      booksToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      booksToggle.querySelector(".chev").textContent = open ? "▾" : "▸";
+    };
+    booksToggle.addEventListener("click", () => setBooks(booksFold.classList.contains("hidden")));
+    booksToggle.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setBooks(booksFold.classList.contains("hidden")); }
+    });
+  }
+  if (invToggle && invFold) {
+    const setInv = (open) => {
+      invFold.classList.toggle("hidden", !open);
+      invToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      invToggle.querySelector(".chev").textContent = open ? "▾" : "▸";
+    };
+    if (!invFold.classList.contains("hidden")) setInv(true);
+    invToggle.addEventListener("click", () => setInv(invFold.classList.contains("hidden")));
+    invToggle.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setInv(invFold.classList.contains("hidden")); }
+    });
+  }
+  const qEl = $("#q");
+  if (qEl) {
+    const filter = () => {
+      const q = (qEl.value||"").trim().toLowerCase();
+      document.querySelectorAll("table.compact tbody tr").forEach(tr => {
+        tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? "" : "none";
+      });
+    };
+    qEl.addEventListener("input", filter);
+  }
+  const fetchBtn = document.getElementById("fnb-fetch");
+  if (fetchBtn) {
+    fetchBtn.addEventListener("click", () => {
+      fetchBtn.disabled = true;
+      fetchBtn.textContent = "Fetching…";
+      fetch("/legal/fnb-pull", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {"Content-Type": "application/json"},
+        body: "{}"
+      }).then(r => r.json()).then(d => {
+        if (!d.ok) throw new Error(d.error || d.note || "FNB pull failed");
+        return fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"});
+      }).then(r => { if (!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+        .then(render)
+        .catch(err => {
+          fetchBtn.disabled = false;
+          fetchBtn.textContent = err.message || "Fetch failed";
+        });
+    });
+  }
+}
+fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
+  .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+  .then(render)
+  .catch(e=>{ $("#app").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>
