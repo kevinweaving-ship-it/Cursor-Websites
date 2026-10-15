@@ -23,7 +23,7 @@ try:
         app,
         get_db_connection=get_db_connection,
         return_db_connection=return_db_connection,
-        is_super_admin=_session_role_is_super_admin,
+        is_super_admin=_session_can_edit_tsl,
         table_exists=table_exists,
         column_exists=column_exists,
     )
@@ -31,7 +31,7 @@ except Exception as _tsl_exc:
     print(f"[tsl] routes not registered: {_tsl_exc}", flush=True)
 '''
 
-ADMIN_JS = '<script src="/js/mac-tsl-admin.js?v=20261014y" defer></script>'
+ADMIN_JS = '<script src="/js/mac-tsl-admin.js?v=20261015a" defer></script>'
 CARDS_JS = '<script src="/js/mac-tsl-live-cards.js?v=20261012p" defer></script>'
 
 

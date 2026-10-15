@@ -32,7 +32,16 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261014y", JS)
+        self.assertIn("20261015a", JS)
+        self.assertIn("openFlightRemovePop", JS)
+        self.assertIn("Clear this flight", JS)
+        self.assertIn("Remove later flights", JS)
+        self.assertIn("Remove this pair", JS)
+        self.assertIn("Reset Flights 1", JS)
+        self.assertIn("var HOLD_MS = 550", JS)
+        self.assertIn('action: action, flight:', JS)
+        self.assertIn("applyFlightActionLocal", JS)
+        self.assertIn("watchSaEdit", JS)
         self.assertIn("tsl-section-shut", JS)
         self.assertIn("tsl-section-head", JS)
         self.assertIn("#fde8e8", JS)
@@ -237,7 +246,9 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261014y", API)
+        self.assertIn("mac-tsl-admin.js?v=20261015a", API)
+        self.assertIn("is_super_admin=_session_can_edit_tsl", API)
+        self.assertIn("def _session_can_edit_tsl", API)
 
     def test_event_logo_uses_event_logo_folder(self):
         self.assertIn('/artwork/Event Logo/TSL-Team-Sailing.png', API)

@@ -1481,6 +1481,42 @@ def empty_flight_sheet() -> dict:
     return {"boats_per_team": {"1": 3, "2": 3}, "1": _flight_lines(), "2": _flight_lines()}
 
 
+def _pair_start(n: int) -> int:
+    fl = int(n)
+    return fl - 1 if fl % 2 == 0 else fl
+
+
+def apply_flight_sheet_action(sheet, *, action: str, flight: int = 1) -> dict:
+    """Clear one flight, drop later flights, or reset to empty Flights 1 & 2."""
+    act = str(action or "").strip().lower()
+    data = _norm_flight_sheet(sheet)
+    if act == "reset":
+        return empty_flight_sheet()
+    try:
+        n = int(flight)
+    except (TypeError, ValueError):
+        raise ValueError("Flight must be 1 to " + str(MAX_FLIGHTS))
+    if n < 1 or n > MAX_FLIGHTS:
+        raise ValueError("Flight must be 1 to " + str(MAX_FLIGHTS))
+    fl = str(n)
+    if act == "clear":
+        _ensure_flight(data, fl)
+        data[fl] = _flight_lines()
+        data.setdefault("boats_per_team", {})[fl] = 3
+        return data
+    if act == "remove":
+        start = 3 if n <= 2 else max(3, _pair_start(n))
+        bpt = data.setdefault("boats_per_team", {})
+        for i in range(start, MAX_FLIGHTS + 1):
+            data.pop(str(i), None)
+            if isinstance(bpt, dict):
+                bpt.pop(str(i), None)
+        _ensure_flight(data, "1")
+        _ensure_flight(data, "2")
+        return data
+    raise ValueError("Unknown flight action")
+
+
 def _as_flight_no(key) -> Optional[str]:
     try:
         n = int(key)
@@ -1790,6 +1826,31 @@ def save_flight_line(
     return sheet
 
 
+def save_flight_sheet_action(
+    cur,
+    regatta_id: str,
+    *,
+    action: str,
+    flight: int = 1,
+    actor: str = "super_admin",
+) -> dict:
+    ensure_schema(cur)
+    sheet = apply_flight_sheet_action(
+        load_settings(cur, regatta_id).get("flight_sheet"),
+        action=action,
+        flight=flight,
+    )
+    _write_flight_sheet(cur, regatta_id, sheet)
+    _audit(
+        cur,
+        regatta_id,
+        "flight_sheet",
+        actor=actor,
+        payload={"action": str(action or "").strip().lower(), "flight": int(flight or 1)},
+    )
+    return sheet
+
+
 def save_flight_bow_colour(cur, regatta_id: str, flight: int, bow: int, colour: str, *, actor: str = "super_admin") -> dict:
     sheet = save_flight_line(cur, regatta_id, flight=flight, bow=bow, colour=colour, actor=actor)
     return _colours_from_sheet(sheet)
@@ -2021,7 +2082,7 @@ def register_tsl_routes(
 
     def _sa(request) -> None:
         if not is_super_admin(request):
-            raise _HTTP(status_code=403, detail="super_admin only")
+            raise _HTTP(status_code=403, detail="admin only")
 
     def _actor(request) -> str:
         try:
@@ -2206,18 +2267,28 @@ def register_tsl_routes(
         conn = get_db_connection()
         cur = _cur(conn)
         try:
-            sheet = save_flight_line(
-                cur,
-                rid,
-                flight=int(payload.get("flight") or 1),
-                bow=int(payload.get("bow") or 0),
-                colour=payload["colour"] if "colour" in payload else None,
-                team_id=payload["team_id"] if "team_id" in payload else None,
-                rank=payload["rank"] if "rank" in payload else None,
-                boat_no=payload["boat_no"] if "boat_no" in payload else None,
-                boats_per_team=payload["boats_per_team"] if "boats_per_team" in payload else None,
-                actor=_actor(request),
-            )
+            action = str(payload.get("action") or "").strip().lower()
+            if action:
+                sheet = save_flight_sheet_action(
+                    cur,
+                    rid,
+                    action=action,
+                    flight=int(payload.get("flight") or 1),
+                    actor=_actor(request),
+                )
+            else:
+                sheet = save_flight_line(
+                    cur,
+                    rid,
+                    flight=int(payload.get("flight") or 1),
+                    bow=int(payload.get("bow") or 0),
+                    colour=payload["colour"] if "colour" in payload else None,
+                    team_id=payload["team_id"] if "team_id" in payload else None,
+                    rank=payload["rank"] if "rank" in payload else None,
+                    boat_no=payload["boat_no"] if "boat_no" in payload else None,
+                    boats_per_team=payload["boats_per_team"] if "boats_per_team" in payload else None,
+                    actor=_actor(request),
+                )
             conn.commit()
             return {
                 "ok": True,

@@ -5,7 +5,9 @@ import unittest
 
 from sailingsa.backend.tsl_team_racing import (
     MAC_SEEDED_SAS,
+    apply_flight_sheet_action,
     boat_points,
+    empty_flight_sheet,
     is_tsl_regatta,
     match_does_not_use_current_roster,
     rank_standings,
@@ -233,6 +235,45 @@ class TestHistoricalRoster(unittest.TestCase):
             {"pairing_no": 3, "helm_sas_id": "13517", "crew_sas_id": "22974"},
         ]
         self.assertFalse(match_does_not_use_current_roster(same, roster))
+
+
+class TestFlightSheetActions(unittest.TestCase):
+    def _filled(self, n=3):
+        sheet = empty_flight_sheet()
+        for fl in ("1", "2", "3", "4"):
+            sheet[fl] = {
+                str(b): {"colour": "Blue", "team_id": n, "rank": b, "boat_no": 1}
+                for b in range(1, 7)
+            }
+            sheet.setdefault("boats_per_team", {})[fl] = 3
+        return sheet
+
+    def test_clear_wipes_one_flight(self):
+        out = apply_flight_sheet_action(self._filled(), action="clear", flight=1)
+        self.assertEqual(out["1"]["1"]["team_id"], None)
+        self.assertEqual(out["2"]["1"]["team_id"], 3)
+        self.assertIn("3", out)
+
+    def test_remove_later_keeps_first_pair(self):
+        out = apply_flight_sheet_action(self._filled(), action="remove", flight=1)
+        self.assertIn("1", out)
+        self.assertIn("2", out)
+        self.assertNotIn("3", out)
+        self.assertNotIn("4", out)
+        self.assertEqual(out["1"]["1"]["team_id"], 3)
+
+    def test_remove_pair_drops_from_that_pair(self):
+        out = apply_flight_sheet_action(self._filled(), action="remove", flight=3)
+        self.assertIn("1", out)
+        self.assertIn("2", out)
+        self.assertNotIn("3", out)
+        self.assertNotIn("4", out)
+
+    def test_reset_empty_one_and_two_only(self):
+        out = apply_flight_sheet_action(self._filled(), action="reset")
+        self.assertEqual(sorted(k for k in out if k.isdigit()), ["1", "2"])
+        self.assertIsNone(out["1"]["1"]["team_id"])
+        self.assertIsNone(out["2"]["6"]["rank"])
 
 
 if __name__ == "__main__":

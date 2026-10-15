@@ -12479,6 +12479,20 @@ def _session_role_is_super_admin(request: Request) -> bool:
     return s in ("super_admin", "superadmin")
 
 
+def _session_role_is_admin(request: Request) -> bool:
+    """True if session maps to club/admin (tolerates DB spacing/casing)."""
+    r = _get_session_role(request)
+    if not r:
+        return False
+    s = str(r).strip().lower().replace(" ", "_").replace("-", "_")
+    return s in ("admin", "club_admin", "clubadmin")
+
+
+def _session_can_edit_tsl(request: Request) -> bool:
+    """Super Admin or club admin may edit the TSL Event URL."""
+    return _session_role_is_super_admin(request) or _session_role_is_admin(request)
+
+
 def _require_super_admin(request: Request) -> None:
     """Raise 403 unless the session is super admin (inline result PATCH, etc.)."""
     if not _session_role_is_super_admin(request):
@@ -26431,7 +26445,10 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         host_club_text = _format_regatta_host_display(host_club_abbrev, host_club_fullname, host_club_name or "")
         host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
         use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
-        is_sa = _session_role_is_super_admin(request)
+        is_mac_tsl_page = str(regatta_id) == MAC_TSL_WC_2026_REGATTA_SLUG
+        is_sa = _session_role_is_super_admin(request) or (
+            is_mac_tsl_page and _session_role_is_admin(request)
+        )
         back_link = f'<a href="/regatta/{html_module.escape(regatta_id)}" class="back-to-home">← Back to full regatta</a>'
         if is_sa:
             back_block = (
@@ -26714,7 +26731,10 @@ def serve_regatta_standalone(slug: str, request: Request):
             if host_club_slug and host_club_text
             else esc_host
         )
-        is_sa = _session_role_is_super_admin(request)
+        is_mac_tsl = str(regatta_id) == MAC_TSL_WC_2026_REGATTA_SLUG
+        is_sa = _session_role_is_super_admin(request) or (
+            is_mac_tsl and _session_role_is_admin(request)
+        )
         is_wc = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
         back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
         if is_sa:
@@ -26858,10 +26878,9 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
-        is_mac_tsl = str(regatta_id) == MAC_TSL_WC_2026_REGATTA_SLUG
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261012p" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261014y" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261015a" defer></script>'
             if is_mac_tsl
             else ""
         )
@@ -27207,7 +27226,7 @@ try:
         app,
         get_db_connection=get_db_connection,
         return_db_connection=return_db_connection,
-        is_super_admin=_session_role_is_super_admin,
+        is_super_admin=_session_can_edit_tsl,
         table_exists=table_exists,
         column_exists=column_exists,
     )
