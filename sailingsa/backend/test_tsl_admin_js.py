@@ -291,6 +291,9 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn('_tsl_no_eis = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"', patch)
         self.assertIn("2026-09-13-zvyc-cape-classic", patch)
         self.assertIn("mac-tsl-live-cards.js?v=20261012p", patch)
+        self.assertIn("def _session_can_edit_tsl", patch)
+        self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
+        self.assertIn("mac-tsl-admin.js?v=20261015a", patch)
         media = (ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_media.py").read_text(
             encoding="utf-8"
         )

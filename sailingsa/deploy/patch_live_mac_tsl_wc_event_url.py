@@ -511,56 +511,38 @@ def main() -> int:
     if "mac-tsl-admin.js?v=20261014y" in text:
         text = text.replace("mac-tsl-admin.js?v=20261014y", "mac-tsl-admin.js?v=20261015a")
         print("pin admin 20261015a")
-    if "def _session_can_edit_tsl" not in text and "def _session_role_is_super_admin" in text:
-        text = text.replace(
-            '''def _session_role_is_super_admin(request: Request) -> bool:
-    """True if session maps to super admin (tolerates DB spacing/casing)."""
-    r = _get_session_role(request)
-    if not r:
-        return False
-    s = str(r).strip().lower().replace(" ", "_").replace("-", "_")
-    return s in ("super_admin", "superadmin")
-''',
-            '''def _session_role_is_super_admin(request: Request) -> bool:
-    """True if session maps to super admin (tolerates DB spacing/casing)."""
-    r = _get_session_role(request)
-    if not r:
-        return False
-    s = str(r).strip().lower().replace(" ", "_").replace("-", "_")
-    return s in ("super_admin", "superadmin")
-
-
-def _session_role_is_admin(request: Request) -> bool:
-    """True if session maps to club/admin (tolerates DB spacing/casing)."""
-    r = _get_session_role(request)
-    if not r:
-        return False
-    s = str(r).strip().lower().replace(" ", "_").replace("-", "_")
-    return s in ("admin", "club_admin", "clubadmin")
-
-
-def _session_can_edit_tsl(request: Request) -> bool:
-    """Super Admin or club admin may edit the TSL Event URL."""
-    return _session_role_is_super_admin(request) or _session_role_is_admin(request)
-''',
+    tsl_edit_fn = (
+        "def _session_can_edit_tsl(request: Request) -> bool:\n"
+        '    """Super Admin or club admin may edit the TSL Event URL."""\n'
+        "    return _session_role_is_super_admin(request) or _session_role_is_admin(request)\n\n\n"
+    )
+    if "def _session_can_edit_tsl" not in text:
+        crew_anchor = "def _session_can_toggle_event_crew(request: Request) -> bool:"
+        admin_anchor = (
+            "def _session_role_is_admin(request: Request) -> bool:\n"
+            "    r = _get_session_role(request)\n"
         )
-        print("inject TSL admin helpers")
+        if crew_anchor in text:
+            text = text.replace(crew_anchor, tsl_edit_fn + crew_anchor, 1)
+            print("inject _session_can_edit_tsl before crew toggle")
+        elif admin_anchor in text:
+            text = text.replace(admin_anchor, tsl_edit_fn + admin_anchor, 1)
+            print("inject _session_can_edit_tsl before admin helper")
+        else:
+            print("WARN: could not inject _session_can_edit_tsl")
     if "is_super_admin=_session_role_is_super_admin," in text:
         text = text.replace(
             "is_super_admin=_session_role_is_super_admin,",
             "is_super_admin=_session_can_edit_tsl,",
         )
         print("TSL routes allow club admin")
-    live_sa = "        is_sa = _session_role_is_super_admin(request)\n        is_wc = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG"
-    want_sa = (
-        "        is_mac_tsl = str(regatta_id) == MAC_TSL_WC_2026_REGATTA_SLUG\n"
-        "        is_sa = _session_role_is_super_admin(request) or (\n"
-        "            is_mac_tsl and _session_role_is_admin(request)\n"
-        "        )\n"
-        "        is_wc = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG"
+    mac_boost = (
+        '        if str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing" and _session_role_is_admin(request):\n'
+        "            is_sa = True\n"
     )
-    if live_sa in text and want_sa not in text:
-        text = text.replace(live_sa, want_sa, 1)
+    sa_assign = "        is_sa = _session_role_is_super_admin(request)\n"
+    if mac_boost not in text and sa_assign in text:
+        text = text.replace(sa_assign, sa_assign + mac_boost)
         print("MAC club admin gets Event URL toolbar")
     if cards_tag in text and admin_tag not in text:
         text = text.replace(cards_tag, cards_tag + admin_tag)
