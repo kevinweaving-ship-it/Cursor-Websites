@@ -274,6 +274,7 @@ function paintGauges(gauges, stale) {
       ? [g.operator, g.signal, g.ip].filter(Boolean)
       : [
           g.kind === "fibre" ? "fibre" : "",
+          g.role === "backup" ? "backup" : "",
           g.ip,
           g.latency_ms != null ? (Number(g.latency_ms) + " ms") : ""
         ].filter(Boolean);

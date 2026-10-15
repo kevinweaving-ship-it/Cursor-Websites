@@ -59,9 +59,12 @@ h2 {
 .name { font-weight:700; font-size:16px; color:var(--acc); }
 .meta { color:var(--muted); font-size:13px; margin-top:4px; }
 .k { font-size:11px; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); }
+.field { display:flex; flex-direction:column; gap:2px; min-width:0; width:100%; }
 .v { margin-top:2px; }
+.name.small { font-size:14px; }
 .v.ok { color:var(--ok); font-weight:700; }
 .v.bad { color:var(--bad); font-weight:700; }
+.v.warn { color:var(--warn); font-weight:700; }
 .row { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
 .grid3 { display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; margin-top:10px; }
 .share {
@@ -99,8 +102,8 @@ table.dev td.hot { color:var(--acc); font-weight:700; }
 <header class="app">
   <div class="bar">
     <div>
-      <h1>UISP 1.x</h1>
-      <div class="sub">Console traffic · IPs it serves on 192.168.1.x</div>
+      <h1>UISP traffic</h1>
+      <div class="sub">Console 1.x · NC Lightstruck 12.x backup</div>
     </div>
     <nav class="nav">
       <a href="/dash/#/">Home</a>
@@ -108,7 +111,7 @@ table.dev td.hot { color:var(--acc); font-weight:700; }
       <a href="/dash/accounts.html">Accounts</a>
     </nav>
   </div>
-  <input class="search" id="q" type="search" placeholder="Search IP, name, role, site" autocomplete="off">
+  <input class="search" id="q" type="search" placeholder="Search IP, name, hardware, site" autocomplete="off">
 </header>
 <main>
   <div class="banner" id="banner">Loading UISP console…</div>
@@ -116,10 +119,32 @@ table.dev td.hot { color:var(--acc); font-weight:700; }
   <h2>IPs on 192.168.1.x</h2>
   <div class="counts" id="counts"></div>
   <div id="list"></div>
+  <div class="banner" id="nc-banner">NC Lightstruck Fibre · backup</div>
+  <div id="nc-card"></div>
+  <h2>IPs on 192.168.12.x</h2>
+  <div class="counts" id="nc-counts"></div>
+  <div id="nc-list"></div>
 </main>
 <script>
 const POLL_MS = 2000;
 const LAN_PREFIX = "192.168.1.";
+const NC12_PREFIX = "192.168.12.";
+const NC12_INVENTORY = [
+  {ip:"192.168.12.2", hardware:"MikroTik", name:"", note:"model unknown"},
+  {ip:"192.168.12.13", hardware:"Ubiquiti NanoBeam 5AC", name:""},
+  {ip:"192.168.12.39", hardware:"Ubiquiti LiteBeam 5AC", name:""},
+  {ip:"192.168.12.41", hardware:"Cambium", name:"Phillipa_MP", note:"model unknown"},
+  {ip:"192.168.12.56", hardware:"UniFi Dream Machine Pro", name:"1 Dream Machine Pro Hermanus", role:"udm"},
+  {ip:"192.168.12.66", hardware:"Cambium", name:"Phillipa_MP", note:"model unknown"},
+  {ip:"192.168.12.68", hardware:"", name:"", note:"web timeout"},
+  {ip:"192.168.12.101", hardware:"Cambium", name:"Mntp - Firestation", note:"model unknown"},
+  {ip:"192.168.12.102", hardware:"Cambium", name:"Firestation-mntp", note:"model unknown"},
+  {ip:"192.168.12.103", hardware:"Cambium", name:"Firestation_Lookout", note:"model unknown"},
+  {ip:"192.168.12.104", hardware:"Cambium", name:"Lookout to Firestation", note:"model unknown"},
+  {ip:"192.168.12.105", hardware:"Ubiquiti GigaBeam LR", name:"GigaBeam Walter Huis"},
+  {ip:"192.168.12.106", hardware:"Ubiquiti GigaBeam LR", name:"GigaBeam Lookout"},
+  {ip:"192.168.12.200", hardware:"TP-Link", name:"", note:"router · model unknown", role:"router"}
+];
 const $ = (s, el=document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({
   "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
@@ -130,6 +155,7 @@ function ov(d){ return (d && d.overview) || {}; }
 function plainIp(cidr){ return String(cidr || "").split("/")[0].trim(); }
 function primaryIp(d){ return plainIp(d && d.ipAddress); }
 function is1x(ip){ return !!ip && ip.startsWith(LAN_PREFIX); }
+function is12x(ip){ return !!ip && ip.startsWith(NC12_PREFIX); }
 function isConsole(d){
   const id = ident(d);
   const name = String(id.name || "").toLowerCase();
@@ -224,16 +250,59 @@ function asList(payload){
   if (payload && Array.isArray(payload.devices)) return payload.devices;
   return [];
 }
+function merge12x(devices){
+  const live = {};
+  devices.filter(d => is12x(primaryIp(d))).forEach(d => { live[primaryIp(d)] = servedRow(d); });
+  const seen = new Set();
+  const rows = NC12_INVENTORY.map(inv => {
+    seen.add(inv.ip);
+    const hit = live[inv.ip];
+    return {
+      ip: inv.ip,
+      name: (hit && hit.name) || inv.name || "",
+      hardware: (hit && hit.model) || inv.hardware || "",
+      role: (hit && hit.role) || inv.role || "",
+      status: (hit && hit.status) || "",
+      site: (hit && hit.site) || "",
+      rx: hit ? hit.rx : null,
+      tx: hit ? hit.tx : null,
+      live: !!hit,
+      note: inv.note || ""
+    };
+  });
+  Object.keys(live).forEach(ip => {
+    if (seen.has(ip)) return;
+    const hit = live[ip];
+    rows.push({
+      ip, name: hit.name || "", hardware: hit.model || "", role: hit.role || "",
+      status: hit.status || "", site: hit.site || "", rx: hit.rx, tx: hit.tx, live: true, note: ""
+    });
+  });
+  rows.sort((a,b) => ((b.rx||0)+(b.tx||0)) - ((a.rx||0)+(a.tx||0)) || a.ip.localeCompare(b.ip, undefined, {numeric:true}));
+  return rows;
+}
 function build(payload){
   const devices = asList(payload);
   const consoleDev = devices.find(isConsole) || null;
   const served = devices.filter(d => !isConsole(d) && is1x(primaryIp(d))).map(servedRow);
   served.sort((a,b) => (b.rx + b.tx) - (a.rx + a.tx) || a.ip.localeCompare(b.ip, undefined, {numeric:true}));
-  return { console: consoleDev ? consoleView(consoleDev) : null, served, count: served.length };
+  const served12 = merge12x(devices);
+  return {
+    console: consoleDev ? consoleView(consoleDev) : null,
+    served, count: served.length,
+    nc12: {
+      name: "NC Lightstruck Fibre", isp: "RSA Web", speed: "1 Gigabit",
+      role: "backup", wan: "WAN3", udm_ip: "192.168.12.56",
+      router_ip: "192.168.12.200", lan: "192.168.12.0/24"
+    },
+    served_12x: served12,
+    count_12x: served12.length
+  };
 }
 
 function fmtRate(bps){
-  const n = Number(bps || 0);
+  if (bps == null || bps === "") return "—";
+  const n = Number(bps);
   if (!Number.isFinite(n) || n <= 0) return "0";
   if (n >= 1e6) return (n / 1e6).toFixed(2) + " M";
   if (n >= 1e3) return (n / 1e3).toFixed(1) + " k";
@@ -325,24 +394,69 @@ function paint(){
   counts.textContent = q
     ? `${rows.length} of ${LAST.count} on 192.168.1.x`
     : `${LAST.count} IPs the console serves on 192.168.1.x · live max iface rx / tx`;
-  if (!rows.length){
-    list.innerHTML = `<div class="empty">No 1.x devices${q?" match":""}.</div>`;
-    return;
-  }
-  list.innerHTML = `<div class="card table-wrap"><table class="dev">
+  list.innerHTML = rows.length
+    ? `<div class="card table-wrap"><table class="dev">
     <thead><tr>
       <th>IP</th><th>Name</th><th>Role</th>
       <th class="num">Down</th><th class="num">Up</th>
     </tr></thead>
     <tbody>${rows.map(r => `<tr>
       <td>${esc(r.ip)}</td>
-      <td><div class="name" style="font-size:14px">${esc(r.name)}</div>
+      <td><div class="name small">${esc(r.name || "Unknown")}</div>
         <div class="meta">${esc(r.model)}${r.site?" · "+esc(r.site):""}</div></td>
       <td class="${statusCls(r.status)}">${esc(r.role || "—")}</td>
       <td class="num ${rateClass(r.rx)}">${esc(fmtRate(r.rx))}</td>
       <td class="num ${rateClass(r.tx)}">${esc(fmtRate(r.tx))}</td>
     </tr>`).join("")}</tbody>
-  </table></div>`;
+  </table></div>`
+    : `<div class="empty">No 1.x devices${q?" match":""}.</div>`;
+
+  const nc = LAST.nc12 || {};
+  const ncBanner = $("#nc-banner");
+  const ncCard = $("#nc-card");
+  const ncCounts = $("#nc-counts");
+  const ncList = $("#nc-list");
+  ncBanner.className = "banner";
+  ncBanner.innerHTML = `<strong>${esc(nc.name || "NC Lightstruck Fibre")}</strong> · ${esc(nc.isp || "RSA Web")} · ${esc(nc.speed || "1 Gigabit")} · ${esc(nc.wan || "WAN3")} · backup`;
+  ncCard.innerHTML = `<div class="card">
+    <div class="row">
+      <div>
+        <div class="name">${esc(nc.name || "NC Lightstruck Fibre")}</div>
+        <div class="meta">UDM Pro Hermanus WAN3 · backup · not the UISP console LAN</div>
+      </div>
+      <div class="v warn">backup</div>
+    </div>
+    <div class="grid3">
+      ${field("Serves 12.x", esc(nc.lan || "192.168.12.0/24"))}
+      ${field("UDM", esc(nc.udm_ip || "192.168.12.56"))}
+      ${field("TP-Link", esc(nc.router_ip || "192.168.12.200"))}
+    </div>
+    <div class="meta">Cambium / MikroTik / TP-Link are inventory. Live rx/tx only where UISP has the radio.</div>
+  </div>`;
+  const rows12 = (LAST.served_12x || []).filter(r => {
+    if (!q) return true;
+    return [r.ip, r.name, r.hardware, r.role, r.site, r.note].join(" ").toLowerCase().includes(q);
+  });
+  const liveN = (LAST.served_12x || []).filter(r => r.live).length;
+  ncCounts.textContent = q
+    ? `${rows12.length} of ${LAST.count_12x || 0} on 192.168.12.x`
+    : `${LAST.count_12x || 0} IPs on NC Lightstruck 12.x · ${liveN} live in UISP`;
+  ncList.innerHTML = rows12.length
+    ? `<div class="card table-wrap"><table class="dev">
+    <thead><tr>
+      <th>IP</th><th>Hardware</th><th>Name</th>
+      <th class="num">Down</th><th class="num">Up</th>
+    </tr></thead>
+    <tbody>${rows12.map(r => `<tr>
+      <td>${esc(r.ip)}</td>
+      <td>${esc(r.hardware || "Unknown")}${r.note?`<div class="meta">${esc(r.note)}</div>`:""}</td>
+      <td><div class="name small">${esc(r.name || "Unknown")}</div>
+        <div class="meta">${r.live?"UISP live":"inventory"}${r.site?" · "+esc(r.site):""}</div></td>
+      <td class="num ${rateClass(r.rx)}">${esc(fmtRate(r.rx))}</td>
+      <td class="num ${rateClass(r.tx)}">${esc(fmtRate(r.tx))}</td>
+    </tr>`).join("")}</tbody>
+  </table></div>`
+    : `<div class="empty">No 12.x devices${q?" match":""}.</div>`;
 }
 
 async function load(){

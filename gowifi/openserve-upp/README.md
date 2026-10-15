@@ -162,9 +162,10 @@ installed** — `dateImplemented` on a cancel is not an install date.
 
 Public `https://gowifi.co.za/` is still the coming-soon poster. UniFi audit
 dash: **https://gowifi.co.za/dash/unifi.html** (same htpasswd). Click a host
-for its child URL. Dream Machine shows live WAN gauges (two fibres + backup
-LTE): status, provisioned capacity from the UniFi name, used live from that
-console. Tick what landing may show — ticks stay on this browser. UISP radios
+for its child URL. Dream Machine shows live WAN gauges (two fibres + WAN3
+NC Lightstruck 1G backup on 192.168.12.x): status, provisioned capacity from
+the UniFi name, used live from that console. Tick what landing may show —
+ticks stay on this browser. UISP radios
 stay on `/dash/`.
 
 Deep dive (official APIs, auth, share allow-list, build order):

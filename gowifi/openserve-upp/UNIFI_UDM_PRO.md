@@ -271,8 +271,10 @@ gauges from Integration names + classic `wan1`/`wan2`/`wan3` rates:
 - fibre `1> Web Connect 500/250 Mbps` — capacity from the name, live use from
   `rx_bytes-r` / `tx_bytes-r` (bytes/sec × 8)
 - fibre `2> Office Connect 300/150 Mbps` — same
-- backup `LTE Failover WAN` — status + live Mbps only. No Mbps in the name,
-  so do **not** invent a capacity ring.
+- backup `NC-Lightstruck` (UDM WAN3, RSA Web 1 Gigabit, `192.168.12.56`) —
+  fibre backup. Capacity 1000/1000. The 12.x radios sit on that LAN.
+  If Integration still names WAN3 `LTE Failover WAN`, keep the old LTE
+  gauge instead — do **not** invent a capacity ring for LTE.
 
 ISP metrics `download_kbps` / `upload_kbps` are speed-test capacity, not live
 use. Do not use them for the “used live” needle. Share ticks stay browser-only.

@@ -209,10 +209,33 @@ def _connector(key: str, host_id: str) -> dict:
 
 
 def _parse_cap(name: str) -> tuple[int | None, int | None]:
-    match = re.search(r"(\d+)\s*/\s*(\d+)\s*Mbps", name or "", re.I)
-    if not match:
-        return None, None
-    return int(match.group(1)), int(match.group(2))
+    text = name or ""
+    match = re.search(r"(\d+)\s*/\s*(\d+)\s*Mbps", text, re.I)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    if re.search(r"\b1\s*(?:gigabit|gbps|gbit)\b", text, re.I) or re.search(
+        r"\b1000\s*/\s*1000\b", text
+    ):
+        return 1000, 1000
+    return None, None
+
+
+def _wan_slot(label: str) -> str | None:
+    text = (label or "").strip()
+    low = text.lower()
+    if not text:
+        return None
+    if "lte" in low:
+        return "lte"
+    if "lightstruck" in low or "rsaweb" in low or "rsa web" in low:
+        return "wan3"
+    if text.startswith("1>") or "web connect" in low or "500/250" in low:
+        return "wan"
+    if text.startswith("2>") or "office connect" in low or "300/150" in low:
+        return "wan2"
+    if text.startswith("3>") or re.search(r"\bwan\s*3\b", low):
+        return "wan3"
+    return None
 
 
 def _bps_from_bytes_r(value) -> float | None:
@@ -269,18 +292,15 @@ def _wan_gauges(key: str, host_id: str) -> list[dict]:
             wans = _classic(key, host_id, f"/integration/v1/sites/{site_id}/wans")
             for row in wans.get("data") or []:
                 label = (row.get("name") or "").strip()
-                low = label.lower()
-                if "lte" in low:
-                    names["lte"] = label
-                elif label.startswith("1>") or "web connect" in low or "500/250" in low:
-                    names["wan"] = label
-                elif label.startswith("2>") or "office connect" in low or "300/150" in low:
-                    names["wan2"] = label
+                slot = _wan_slot(label)
+                if slot:
+                    names[slot] = label
     except Exception:
         names = {}
     names.setdefault("wan", "WAN")
     names.setdefault("wan2", "WAN2")
-    names.setdefault("lte", "LTE Failover WAN")
+    if "wan3" not in names:
+        names.setdefault("lte", "LTE Failover WAN")
 
     gw = {}
     health_wan = {}
@@ -309,16 +329,30 @@ def _wan_gauges(key: str, host_id: str) -> list[dict]:
         if model.startswith("ULTE") or "LTE" in name:
             lte_dev = dev
             break
+    wan3_label = names.get("wan3") or ""
+    wan3_fibre = bool(wan3_label) and "lte" not in wan3_label.lower()
+    if wan3_fibre:
+        wan3_spec = ("wan3", "WAN3", "wan3", wan3_label, "fibre")
+    else:
+        wan3_spec = (
+            "lte",
+            "WAN_LTE_FAILOVER",
+            "wan3",
+            names.get("lte") or names.get("wan3") or "LTE Failover WAN",
+            "lte",
+        )
     specs = [
         ("wan", "WAN", "wan1", names["wan"], "fibre"),
         ("wan2", "WAN2", "wan2", names["wan2"], "fibre"),
-        ("lte", "WAN_LTE_FAILOVER", "wan3", names["lte"], "lte"),
+        wan3_spec,
     ]
     gauges = []
     for key_id, status_key, block_key, label, kind in specs:
         block = gw.get(block_key) if isinstance(gw.get(block_key), dict) else {}
         rates = _iface_rates(block)
         cap_down, cap_up = _parse_cap(label)
+        if key_id == "wan3" and kind == "fibre" and cap_down is None:
+            cap_down = cap_up = 1000
         raw_status = (status_map.get(status_key) or "").strip()
         if not raw_status:
             raw_status = "online" if block.get("up") or block.get("alive") else ("offline" if block else "")
@@ -357,6 +391,7 @@ def _wan_gauges(key: str, host_id: str) -> list[dict]:
                 "signal": signal or None,
                 "failover_active": failover_active,
                 "up": bool(block.get("up")) if block else raw_status == "online",
+                "role": "backup" if key_id == "wan3" and kind == "fibre" else None,
             }
         )
     return gauges
@@ -385,10 +420,17 @@ def _wan_live(key: str, host_id: str) -> list[dict]:
         if model.startswith("ULTE") or "LTE" in name:
             lte_dev = dev
             break
+    wan3_block = gw.get("wan3") if isinstance(gw.get("wan3"), dict) else {}
+    wan3_ip = str(wan3_block.get("ip") or "")
+    wan3_fibre = wan3_ip.startswith("192.168.12.")
+    if wan3_fibre:
+        wan3_live = ("wan3", "WAN3", "wan3", "fibre")
+    else:
+        wan3_live = ("lte", "WAN_LTE_FAILOVER", "wan3", "lte")
     specs = [
         ("wan", "WAN", "wan1", "fibre"),
         ("wan2", "WAN2", "wan2", "fibre"),
-        ("lte", "WAN_LTE_FAILOVER", "wan3", "lte"),
+        wan3_live,
     ]
     gauges = []
     for key_id, status_key, block_key, kind in specs:
@@ -425,6 +467,7 @@ def _wan_live(key: str, host_id: str) -> list[dict]:
                 "signal": signal or None,
                 "failover_active": failover_active,
                 "up": bool(block.get("up")) if block else raw_status == "online",
+                "role": "backup" if key_id == "wan3" and kind == "fibre" else None,
             }
         )
     return gauges
@@ -684,6 +727,12 @@ def self_test() -> int:
         failed += 1
     elif _parse_cap("LTE Failover WAN") != (None, None):
         print("FAIL parse-cap-lte")
+        failed += 1
+    elif _parse_cap("NC-Lightstruck 1 Gigabit") != (1000, 1000):
+        print("FAIL parse-cap-lightstruck")
+        failed += 1
+    elif _wan_slot("NC-Lightstruck") != "wan3" or _wan_slot("LTE Failover WAN") != "lte":
+        print("FAIL wan-slot-lightstruck")
         failed += 1
     elif _pct(13.2, 500) != 2.6:
         print("FAIL pct")

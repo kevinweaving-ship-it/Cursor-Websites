@@ -265,7 +265,7 @@ def _ensure_uisp_1x(text: str) -> str:
                 '    <a class="card tap" href="/dash/unifi.html"',
                 '    <a class="card tap" href="/dash/uisp-1x.html" style="display:block;margin-bottom:10px">\n'
                 '      <div class="row"><span class="name">UISP 1.x</span><span class="pill ok">console</span></div>\n'
-                '      <div class="meta">VK console · IPs it serves on 192.168.1.x · live rx/tx</div>\n'
+                '      <div class="meta">VK 1.x console · NC Lightstruck 12.x backup</div>\n'
                 "    </a>\n"
                 '    <a class="card tap" href="/dash/unifi.html"',
                 1,
@@ -275,7 +275,7 @@ def _ensure_uisp_1x(text: str) -> str:
                 '    <a class="card tap" href="/dash/invoices.html"',
                 '    <a class="card tap" href="/dash/uisp-1x.html" style="display:block;margin-bottom:10px">\n'
                 '      <div class="row"><span class="name">UISP 1.x</span><span class="pill ok">console</span></div>\n'
-                '      <div class="meta">VK console · IPs it serves on 192.168.1.x · live rx/tx</div>\n'
+                '      <div class="meta">VK 1.x console · NC Lightstruck 12.x backup</div>\n'
                 "    </a>\n"
                 '    <a class="card tap" href="/dash/invoices.html"',
                 1,

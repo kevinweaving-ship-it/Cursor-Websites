@@ -13,6 +13,26 @@ from typing import Any
 CONSOLE_LAN = "192.168.1.1"
 CONSOLE_LAN_CIDR = "192.168.1.1/24"
 LAN_PREFIX = "192.168.1."
+NC12_PREFIX = "192.168.12."
+NC12_LAN = "192.168.12.0/24"
+NC12_UDM = "192.168.12.56"
+NC12_TP = "192.168.12.200"
+NC12_INVENTORY = [
+    {"ip": "192.168.12.2", "hardware": "MikroTik", "name": "", "note": "model unknown"},
+    {"ip": "192.168.12.13", "hardware": "Ubiquiti NanoBeam 5AC", "name": ""},
+    {"ip": "192.168.12.39", "hardware": "Ubiquiti LiteBeam 5AC", "name": ""},
+    {"ip": "192.168.12.41", "hardware": "Cambium", "name": "Phillipa_MP", "note": "model unknown"},
+    {"ip": "192.168.12.56", "hardware": "UniFi Dream Machine Pro", "name": "1 Dream Machine Pro Hermanus", "role": "udm"},
+    {"ip": "192.168.12.66", "hardware": "Cambium", "name": "Phillipa_MP", "note": "model unknown"},
+    {"ip": "192.168.12.68", "hardware": "", "name": "", "note": "web timeout"},
+    {"ip": "192.168.12.101", "hardware": "Cambium", "name": "Mntp - Firestation", "note": "model unknown"},
+    {"ip": "192.168.12.102", "hardware": "Cambium", "name": "Firestation-mntp", "note": "model unknown"},
+    {"ip": "192.168.12.103", "hardware": "Cambium", "name": "Firestation_Lookout", "note": "model unknown"},
+    {"ip": "192.168.12.104", "hardware": "Cambium", "name": "Lookout to Firestation", "note": "model unknown"},
+    {"ip": "192.168.12.105", "hardware": "Ubiquiti GigaBeam LR", "name": "GigaBeam Walter Huis"},
+    {"ip": "192.168.12.106", "hardware": "Ubiquiti GigaBeam LR", "name": "GigaBeam Lookout"},
+    {"ip": "192.168.12.200", "hardware": "TP-Link", "name": "", "note": "router · model unknown", "role": "router"},
+]
 
 
 def devices_list(payload: Any) -> list[dict]:
@@ -55,6 +75,23 @@ def primary_ip(device: dict) -> str:
 
 def is_1x(ip: str) -> bool:
     return bool(ip) and ip.startswith(LAN_PREFIX)
+
+
+def is_12x(ip: str) -> bool:
+    return bool(ip) and ip.startswith(NC12_PREFIX)
+
+
+def nc12_view() -> dict:
+    return {
+        "name": "NC Lightstruck Fibre",
+        "isp": "RSA Web",
+        "speed": "1 Gigabit",
+        "role": "backup",
+        "wan": "WAN3",
+        "udm_ip": NC12_UDM,
+        "router_ip": NC12_TP,
+        "lan": NC12_LAN,
+    }
 
 
 def is_console(device: dict) -> bool:
@@ -181,6 +218,63 @@ def served_row(device: dict) -> dict:
     }
 
 
+def _ip_sort(ip: str) -> tuple:
+    parts = []
+    for bit in str(ip or "").split("."):
+        try:
+            parts.append(int(bit))
+        except ValueError:
+            parts.append(0)
+    return tuple(parts)
+
+
+def merge_12x(devices: list[dict]) -> list[dict]:
+    live = {
+        primary_ip(d): served_row(d)
+        for d in devices
+        if is_12x(primary_ip(d))
+    }
+    rows: list[dict] = []
+    seen: set[str] = set()
+    for inv in NC12_INVENTORY:
+        ip = inv["ip"]
+        seen.add(ip)
+        live_row = live.get(ip)
+        rows.append(
+            {
+                "ip": ip,
+                "name": (live_row or {}).get("name") or inv.get("name") or "",
+                "hardware": (live_row or {}).get("model") or inv.get("hardware") or "",
+                "role": (live_row or {}).get("role") or inv.get("role") or "",
+                "status": (live_row or {}).get("status") or "",
+                "site": (live_row or {}).get("site") or "",
+                "rx": live_row["rx"] if live_row else None,
+                "tx": live_row["tx"] if live_row else None,
+                "live": bool(live_row),
+                "note": inv.get("note") or "",
+            }
+        )
+    for ip, live_row in live.items():
+        if ip in seen:
+            continue
+        rows.append(
+            {
+                "ip": ip,
+                "name": live_row.get("name") or "",
+                "hardware": live_row.get("model") or "",
+                "role": live_row.get("role") or "",
+                "status": live_row.get("status") or "",
+                "site": live_row.get("site") or "",
+                "rx": live_row.get("rx"),
+                "tx": live_row.get("tx"),
+                "live": True,
+                "note": "",
+            }
+        )
+    rows.sort(key=lambda r: (-(float(r["rx"] or 0) + float(r["tx"] or 0)), _ip_sort(r["ip"])))
+    return rows
+
+
 def build(payload: Any) -> dict:
     devices = devices_list(payload)
     console = next((d for d in devices if is_console(d)), None)
@@ -190,10 +284,14 @@ def build(payload: Any) -> dict:
         if not is_console(d) and is_1x(primary_ip(d))
     ]
     rows.sort(key=lambda r: (-(r["rx"] + r["tx"]), r["ip"]))
+    served_12x = merge_12x(devices)
     return {
         "console": console_view(console) if console else None,
         "served": rows,
         "count": len(rows),
+        "nc12": nc12_view(),
+        "served_12x": served_12x,
+        "count_12x": len(served_12x),
     }
 
 
@@ -281,6 +379,28 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK skip-non-1x")
+    if out["nc12"]["role"] != "backup" or out["nc12"]["udm_ip"] != NC12_UDM:
+        print("FAIL nc12-backup-udm", out["nc12"])
+        failed += 1
+    elif out["nc12"]["router_ip"] != NC12_TP:
+        print("FAIL nc12-tp-router")
+        failed += 1
+    else:
+        print("OK nc12-backup-wan3")
+    ips12 = [r["ip"] for r in out["served_12x"]]
+    walter = next((r for r in out["served_12x"] if r["ip"] == "192.168.12.105"), None)
+    udm = next((r for r in out["served_12x"] if r["ip"] == NC12_UDM), None)
+    if "192.168.12.105" not in ips12 or not walter or walter["rx"] != 100:
+        print("FAIL 12x-live-merge", walter)
+        failed += 1
+    elif not udm or udm["live"] or udm["name"] != "1 Dream Machine Pro Hermanus":
+        print("FAIL 12x-udm-inventory", udm)
+        failed += 1
+    elif out["count_12x"] < len(NC12_INVENTORY):
+        print("FAIL 12x-inventory-short", out["count_12x"])
+        failed += 1
+    else:
+        print("OK 12x-inventory-plus-live")
     return failed
 
 
