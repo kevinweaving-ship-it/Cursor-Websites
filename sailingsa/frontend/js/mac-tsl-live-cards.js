@@ -1,5 +1,5 @@
 /**
- * MAC TSL WC Event URL cards — wind (Wind2Speed station 3) + HMYC-style 5-clip media.
+ * MAC TSL WC Event URL cards — wind (Wind2Speed station 3) + HMYC Dart/Midmar media.
  * Media brand = MAC logo (same slot as HMYC logo on Dart/Midmar). Clips from MAC Media WhatsApp.
  * Live cam: not rendered until a MAC feed is supplied (data-mac-cam="later").
  * Only /regatta/2026-10-17-mac-tsl-wc-team-sailing. Gold wx chrome (Cape Classic slot).
@@ -14,7 +14,7 @@
   var WX_ID = "ssa-regatta-slot-card";
   var MEDIA_ID = "mmLiptonReels";
   var CSS_ID = "mac-tsl-live-cards-css";
-  var JS_VER = "20261012p";
+  var JS_VER = "20261015c";
   var NOR_SRC = "/js/mac-tsl-nor.html?v=" + JS_VER;
   var MAC_LOGO = "/img/mac-event-reels.jpg";
   var WX_API = "/api/wind2speed/mac";
@@ -71,6 +71,16 @@
       ".mac-tsl-live-cards .mm-lipton-reels-brand{flex:0 0 auto!important;background:#fff!important;padding:2px!important;box-sizing:border-box!important;overflow:hidden!important;position:relative!important;}",
       ".mac-tsl-live-cards .mm-lipton-reels-brand img{display:block!important;position:absolute!important;left:2px!important;right:2px!important;top:50%!important;width:calc(100% - 4px)!important;height:auto!important;max-width:calc(100% - 4px)!important;transform:translateY(-50%)!important;object-fit:contain!important;object-position:center;background:#fff!important;}",
       ".mac-tsl-live-cards .mm-lipton-reels-rail-wrap{display:block!important;flex:1 1 auto!important;min-width:0!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-compact .mm-lipton-reels-clip-chrome{display:none!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-thumb,.mac-tsl-live-cards .mm-lipton-reels-tile{overflow:hidden!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-thumb{border:2px solid #001f3f!important;border-radius:8px!important;container-type:normal!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-thumb img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-when{position:absolute;left:3px;right:3px;bottom:3px;z-index:5;display:flex;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px;padding:2px 5px;border-radius:3px;background:rgba(0,16,24,.74);color:#fff;pointer-events:none;box-sizing:border-box;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-when-day,.mac-tsl-live-cards .mm-lipton-reels-when-time,.mac-tsl-live-cards .mm-lipton-reels-when-meet{font:700 8px/1.15 Arial,Helvetica,sans-serif;white-space:nowrap;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-thumb .mm-lipton-reels-play{position:absolute!important;left:50%!important;top:42%!important;width:22px!important;height:22px!important;margin:0!important;transform:translate(-50%,-50%)!important;border-width:2px!important;z-index:1!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-thumb .mm-lipton-reels-play:after{border-width:5px 0 5px 8px!important;}",
+      ".mac-tsl-live-cards .mm-lipton-reels-tile[aria-label=\"View photo\"] .mm-lipton-reels-play{display:none!important;}",
+      "@media (max-width:599px) and (orientation:portrait){.mac-tsl-live-cards .mm-lipton-reels-when{left:2px;right:2px;bottom:2px;gap:2px;padding:0 2px;flex-wrap:nowrap;overflow:hidden;}.mac-tsl-live-cards .mm-lipton-reels-when-day,.mac-tsl-live-cards .mm-lipton-reels-when-time,.mac-tsl-live-cards .mm-lipton-reels-when-meet{font:700 6px/1.05 Arial,Helvetica,sans-serif;}.mac-tsl-live-cards .mm-lipton-reels-thumb .mm-lipton-reels-play{width:16px!important;height:16px!important;border-width:1.5px!important;}.mac-tsl-live-cards .mm-lipton-reels-thumb .mm-lipton-reels-play:after{border-width:3px 0 3px 5px!important;}}",
       "@media print{.mac-tsl-live-cards{display:none!important;}}",
       "#macTslNorDialog.card{max-width:44rem;width:calc(100% - 24px);max-height:90vh;overflow:auto;padding:0.5rem 0.75rem;border:2px solid #001f3f;border-radius:8px;box-shadow:0 4px 12px rgba(0,31,63,.12);}",
       "#macTslNorDialog::backdrop{background:rgba(0,31,63,.45);}",
@@ -420,7 +430,7 @@
     }
 
     loadCss("/css/mm-lipton-reels.css?v=" + JS_VER);
-    loadScript("/js/mm-lipton-reels-card.js?v=mactslmedia4").then(function () {
+    loadScript("/js/mm-lipton-reels-card.js?v=mactslmedia5").then(function () {
       if (typeof window.mmLiptonReelsInit === "function") window.mmLiptonReelsInit();
     });
 

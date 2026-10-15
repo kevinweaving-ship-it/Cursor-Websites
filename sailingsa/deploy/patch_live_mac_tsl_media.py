@@ -14,6 +14,7 @@ from pathlib import Path
 
 SLUG = "2026-10-17-mac-tsl-wc-team-sailing"
 REELS = Path("/var/www/sailingsa/js/mm-lipton-reels-card.js")
+REELS_CSS = Path("/var/www/sailingsa/css/mm-lipton-reels.css")
 INGEST = Path("/opt/arial-whatsapp-poc/event_whatsapp_ingest.py")
 ARCHIVE = Path("/opt/arial-whatsapp-poc/event_group_archive.js")
 POC = Path("/opt/arial-whatsapp-poc/poc.js")
@@ -33,6 +34,188 @@ def apply_one(text: str, anchor: str, insert: str, name: str) -> str:
         raise SystemExit(f"ERROR: anchor for {name} is not unique ({text.count(anchor)})")
     print(f"patch {name}")
     return text.replace(anchor, insert, 1)
+
+
+MAC_FIT_HELPERS = """  function isMobilePortrait() {
+    return window.matchMedia('(max-width: 599px) and (orientation: portrait)').matches;
+  }
+
+  function isMobileLandscape() {
+    return window.matchMedia('(orientation: landscape) and (max-height: 540px)').matches;
+  }
+
+  function macMediaFitCount() {
+    if (isMobilePortrait()) return 1;
+    if (isMobileLandscape()) return 4;
+    if (window.matchMedia('(min-width: 1024px)').matches) return 5;
+    return 4;
+  }
+"""
+
+MAC_FIT_HELPERS_OLD = """  function isMobilePortrait() {
+    return window.matchMedia('(max-width: 599px) and (orientation: portrait)').matches;
+  }
+"""
+
+MAC_PLACEHOLDER_PAD5 = """    if (isMidmar() || isDamBottle() || isMacTsl()) {
+      var n = 5 - Math.max((videos || []).length, 0);
+      return n > 0 ? n : 0;
+    }
+"""
+
+MAC_PLACEHOLDER_VIEWPORT = """    if (isMacTsl()) {
+      var n = macMediaFitCount() - Math.max((videos || []).length, 0);
+      return n > 0 ? n : 0;
+    }
+    if (isMidmar() || isDamBottle()) {
+      var n = 5 - Math.max((videos || []).length, 0);
+      return n > 0 ? n : 0;
+    }
+"""
+
+MAC_NFIT_FORCE5 = "    if (isDamBottle() || isMacTsl()) nFit = 5;\n"
+MAC_NFIT_VIEWPORT = (
+    "    if (isDamBottle()) nFit = 5;\n"
+    "    if (isMacTsl()) nFit = macMediaFitCount();\n"
+)
+
+MAC_WHEN_OLD = "    if (!isMidmar() && !isDartNats()) return '';"
+MAC_WHEN_NEW = "    if (!isMidmar() && !isDartNats() && !isMacTsl()) return '';"
+MAC_WHEN_FN_OLD = "  function thumbWhenHtml(v) {\n    if (!isMidmar() && !isDartNats()) return '';"
+MAC_WHEN_FN_NEW = (
+    "  function thumbWhenHtml(v) {\n    if (!isMidmar() && !isDartNats() && !isMacTsl()) return '';"
+)
+
+MAC_TAG_OLD = "    var tag = isDartNats() ? dartDayTag(v) : midmarDayTag(v);"
+MAC_TAG_NEW = (
+    "    var tag = isDartNats() ? dartDayTag(v) : "
+    "(isMacTsl() ? macDayTag(v) : midmarDayTag(v));"
+)
+
+MAC_DAYLABEL_OLD = '    if (isDartNats()) dayLabel = String(p.day || "").replace(/\\s+\\d{2}$/, "");'
+MAC_DAYLABEL_NEW = (
+    '    if (isDartNats() || isMacTsl()) '
+    'dayLabel = String(p.day || "").replace(/\\s+\\d{2}$/, "");'
+)
+
+MAC_MEET_FIRST_OLD = "      (isDartNats() && tag ? '<span class=\"mm-lipton-reels-when-meet\">' + esc(tag) + '</span>' : '') +"
+MAC_MEET_FIRST_NEW = "      ((isDartNats() || isMacTsl()) && tag ? '<span class=\"mm-lipton-reels-when-meet\">' + esc(tag) + '</span>' : '') +"
+
+MAC_MEET_LAST_OLD = "      (!isDartNats() && tag ? '<span class=\"mm-lipton-reels-when-meet\">' + esc(tag) + '</span>' : '') +"
+MAC_MEET_LAST_NEW = "      (!isDartNats() && !isMacTsl() && tag ? '<span class=\"mm-lipton-reels-when-meet\">' + esc(tag) + '</span>' : '') +"
+
+MAC_EMPTY_OLD = "    } else if (!isDamBottle()) {"
+MAC_EMPTY_NEW = "    } else if (!isDamBottle() && !isMacTsl()) {"
+
+MAC_COUNTKEY_OLD = (
+    "      videoKey(videos) + ':' + extra + ':' + liveN + ':' + "
+    "(isMobilePortrait() ? 'mp' : 'w');"
+)
+MAC_COUNTKEY_NEW = (
+    "      videoKey(videos) + ':' + extra + ':' + liveN + ':' + "
+    "(isMacTsl() ? ('mac' + macMediaFitCount()) : (isMobilePortrait() ? 'mp' : 'w'));"
+)
+
+MAC_CHROME_OLD = """      isSnapshotCam(v) || isMidmar()
+        ? ''
+        : latestChromeHtml(chromeSource(v, videos), isZvycCam(v) ? 'mm-lipton-reels-clip-chrome--zvyc' : '');"""
+MAC_CHROME_NEW = """      isSnapshotCam(v) || isMidmar() || isMacTsl()
+        ? ''
+        : latestChromeHtml(chromeSource(v, videos), isZvycCam(v) ? 'mm-lipton-reels-clip-chrome--zvyc' : '');"""
+
+MAC_DAY_TAG = """
+  function macDayTag(v) {
+    if (!isMacTsl() || !v) return '';
+    var iso = String(v.started_at || '');
+    var m = iso.match(/^(\\d{4}-\\d{2}-\\d{2})/);
+    if (!m) {
+      var stamp = String(v.stamp || v.fb_sub || '');
+      var sm = stamp.match(/^([A-Za-z]{3})\\s+(\\d{1,2})\\s+([A-Za-z]{3})(?:\\s+(\\d{2,4}))?/);
+      if (sm) {
+        var mon = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'}[sm[3]] || '10';
+        var yr = sm[4] ? (sm[4].length === 2 ? '20' + sm[4] : sm[4]) : '2026';
+        var dd = sm[2].length === 1 ? '0' + sm[2] : sm[2];
+        m = [null, yr + '-' + mon + '-' + dd];
+      }
+    }
+    if (!m) return '';
+    var start = Date.parse('2026-10-17T00:00:00+02:00');
+    var day = Date.parse(m[1] + 'T12:00:00+02:00');
+    if (!start || !day) return '';
+    var n = Math.floor((day - start) / 86400000 + 0.05) + 1;
+    return n >= 1 && n <= 10 ? 'Day ' + n : '';
+  }
+"""
+
+MAC_CSS_MARK = "/* mac-tsl-media-slots: match Dart/Midmar card chrome */"
+MAC_CSS_BLOCK = """
+/* mac-tsl-media-slots: match Dart/Midmar card chrome */
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .section-title{display:none}
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-thumb{border:2px solid #001f3f!important;border-radius:8px!important;container-type:normal!important;overflow:hidden!important}
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-compact .mm-lipton-reels-clip-chrome{display:none!important}
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-when{position:absolute;left:3px;right:3px;bottom:3px;z-index:5;display:flex;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px;padding:2px 5px;border-radius:3px;background:rgba(0,16,24,.74);color:#fff;pointer-events:none;box-sizing:border-box}
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-when-day,
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-when-time,
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-when-meet{font:700 8px/1.15 Arial,Helvetica,sans-serif;white-space:nowrap}
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-thumb .mm-lipton-reels-play{
+  position:absolute!important;left:50%!important;top:42%!important;width:22px!important;height:22px!important;margin:0!important;transform:translate(-50%,-50%)!important;border-width:2px!important;z-index:1!important
+}
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-thumb .mm-lipton-reels-play:after{border-width:5px 0 5px 8px!important}
+.mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-tile[aria-label="View photo"] .mm-lipton-reels-play{display:none!important}
+@media (max-width: 599px) and (orientation: portrait) {
+  .mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-when{left:2px;right:2px;bottom:2px;gap:2px;padding:0 2px;flex-wrap:nowrap;overflow:hidden}
+  .mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-when-day,
+  .mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-when-time,
+  .mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-when-meet{font:700 6px/1.05 Arial,Helvetica,sans-serif}
+  .mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-thumb .mm-lipton-reels-play{width:16px!important;height:16px!important;border-width:1.5px!important}
+  .mm-lipton-reels[data-regatta-id="2026-10-17-mac-tsl-wc-team-sailing"] .mm-lipton-reels-thumb .mm-lipton-reels-play:after{border-width:3px 0 3px 5px!important}
+}
+"""
+
+
+def _swap(text: str, old: str, new: str, name: str) -> str:
+    if new in text:
+        print(f"skip {name}: already present")
+        return text
+    if old not in text:
+        print(f"skip {name}: anchor missing")
+        return text
+    if text.count(old) != 1:
+        raise SystemExit(f"ERROR: {name} count={text.count(old)}")
+    print(f"patch {name}")
+    return text.replace(old, new, 1)
+
+
+def patch_reels_slot_counts(text: str) -> str:
+    """MP logo+1, ML logo+4, PC logo+5 (>=1024) else 4. Dart/Midmar card chrome."""
+    text = _swap(text, MAC_FIT_HELPERS_OLD, MAC_FIT_HELPERS, "reels-mac-fit-helpers")
+    if "function macDayTag" not in text:
+        text = _swap(
+            text,
+            MAC_WHEN_FN_OLD,
+            MAC_DAY_TAG + "\n" + MAC_WHEN_FN_NEW,
+            "reels-mac-day-tag",
+        )
+    else:
+        text = _swap(text, MAC_WHEN_OLD, MAC_WHEN_NEW, "reels-mac-when-gate")
+    text = _swap(text, MAC_PLACEHOLDER_PAD5, MAC_PLACEHOLDER_VIEWPORT, "reels-mac-placeholder-viewport")
+    text = _swap(text, MAC_NFIT_FORCE5, MAC_NFIT_VIEWPORT, "reels-mac-nfit-viewport")
+    text = _swap(text, MAC_TAG_OLD, MAC_TAG_NEW, "reels-mac-when-tag")
+    text = _swap(text, MAC_DAYLABEL_OLD, MAC_DAYLABEL_NEW, "reels-mac-when-day")
+    text = _swap(text, MAC_MEET_FIRST_OLD, MAC_MEET_FIRST_NEW, "reels-mac-meet-first")
+    text = _swap(text, MAC_MEET_LAST_OLD, MAC_MEET_LAST_NEW, "reels-mac-meet-last")
+    text = _swap(text, MAC_EMPTY_OLD, MAC_EMPTY_NEW, "reels-mac-empty-pad")
+    text = _swap(text, MAC_COUNTKEY_OLD, MAC_COUNTKEY_NEW, "reels-mac-countkey")
+    text = _swap(text, MAC_CHROME_OLD, MAC_CHROME_NEW, "reels-mac-skip-chrome")
+    return text
+
+
+def patch_reels_css(text: str) -> str:
+    if MAC_CSS_MARK in text:
+        print("skip reels-css-mac-slots: already present")
+        return text
+    print("patch reels-css-mac-slots")
+    return text.rstrip() + "\n" + MAC_CSS_BLOCK
 
 
 def patch_reels(text: str) -> str:
@@ -63,7 +246,7 @@ def patch_reels(text: str) -> str:
 """,
         "reels-isMacTsl",
     )
-    text = apply_one(
+    text = _swap(
         text,
         """    if (isMidmar() || isDamBottle()) {
       var n = 5 - Math.max((videos || []).length, 0);
@@ -77,6 +260,7 @@ def patch_reels(text: str) -> str:
 """,
         "reels-placeholder",
     )
+    text = patch_reels_slot_counts(text)
     text = apply_one(
         text,
         """    var url = (isMidmar() || isDamBottle())
@@ -107,13 +291,14 @@ def patch_reels(text: str) -> str:
 """,
         "reels-poll-ms",
     )
-    text = apply_one(
+    text = _swap(
         text,
         """    if (isDamBottle()) nFit = 5;
 """,
-        """    if (isDamBottle() || isMacTsl()) nFit = 5;
+        """    if (isDamBottle()) nFit = 5;
+    if (isMacTsl()) nFit = macMediaFitCount();
 """,
-        "reels-nfit",
+        "reels-nfit-fresh",
     )
     text = apply_one(
         text,
@@ -426,6 +611,12 @@ def main() -> int:
     if new_reels != reels:
         REELS.write_text(new_reels, encoding="utf-8")
         print(f"Wrote {REELS}")
+    if REELS_CSS.is_file():
+        css = REELS_CSS.read_text(encoding="utf-8")
+        new_css = patch_reels_css(css)
+        if new_css != css:
+            REELS_CSS.write_text(new_css, encoding="utf-8")
+            print(f"Wrote {REELS_CSS}")
     ingest = INGEST.read_text(encoding="utf-8")
     new_ingest = patch_ingest(ingest)
     if new_ingest != ingest:
@@ -449,10 +640,14 @@ def main() -> int:
             print(f"Wrote {POC}")
     if API.is_file():
         api = API.read_text(encoding="utf-8")
-        new_api = api.replace(
-            "/js/mac-tsl-live-cards.js?v=20261012a",
-            "/js/mac-tsl-live-cards.js?v=20261012b",
-        )
+        new_api = api
+        for old_pin, new_pin in (
+            ("mac-tsl-live-cards.js?v=20261012p", "mac-tsl-live-cards.js?v=20261015c"),
+            ("mac-tsl-live-cards.js?v=20261012a", "mac-tsl-live-cards.js?v=20261015c"),
+            ("mac-tsl-live-cards.js?v=20261012b", "mac-tsl-live-cards.js?v=20261015c"),
+        ):
+            if old_pin in new_api:
+                new_api = new_api.replace(old_pin, new_pin)
         if new_api != api:
             print("patch api script ver")
             API.write_text(new_api, encoding="utf-8")

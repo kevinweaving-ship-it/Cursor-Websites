@@ -276,16 +276,19 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertNotIn("fillMacLogoTile", cards)
         self.assertNotIn("MAC_ART_W", cards)
         self.assertNotIn("2014 / 780", cards)
-        self.assertIn("mm-lipton-reels-card.js?v=mactslmedia4", cards)
+        self.assertIn("mm-lipton-reels-card.js?v=mactslmedia5", cards)
         self.assertIn("calc(100% - 4px)", cards)
         self.assertIn("mm-lipton-reels--compact", cards)
         self.assertIn("mm-lipton-reels-rail-wrap", cards)
         self.assertIn("/img/mac-event-reels.jpg", cards)
         self.assertIn("background:#fff!important", cards)
-        self.assertIn("20261012p", cards)
+        self.assertIn("20261015c", cards)
         self.assertIn("#eventInfoStrip", cards)
         self.assertIn("hideEventInfoStrip", cards)
         self.assertIn("regatta-entry.js", cards)
+        self.assertIn("mm-lipton-reels-when", cards)
+        self.assertIn("top:42%", cards)
+        self.assertIn("View photo", cards)
 
     def test_live_patch_skips_eis_for_tsl_only(self):
         patch = (ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_wc_event_url.py").read_text(
@@ -295,7 +298,7 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("EIS_CALL_INSERT", patch)
         self.assertIn('_tsl_no_eis = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"', patch)
         self.assertIn("2026-09-13-zvyc-cape-classic", patch)
-        self.assertIn("mac-tsl-live-cards.js?v=20261012p", patch)
+        self.assertIn("mac-tsl-live-cards.js?v=20261015c", patch)
         self.assertIn("def _session_can_edit_tsl", patch)
         self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
         self.assertIn("mac-tsl-admin.js?v=20261015b", patch)
@@ -303,6 +306,58 @@ class TestTslLiveCardsStd(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("keep HMYC brand width", media)
+        self.assertIn("macMediaFitCount", media)
+        self.assertIn("MP logo+1, ML logo+4, PC logo+5", media)
+        self.assertIn("mac-tsl-media-slots", media)
+
+    def test_media_slot_patch_is_idempotent_on_snippet(self):
+        import importlib.util
+
+        path = ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_media.py"
+        spec = importlib.util.spec_from_file_location("mac_tsl_media_patch", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        snippet = """
+  function dartDayTag(v) {
+    return '';
+  }
+  function thumbWhenHtml(v) {
+    if (!isMidmar() && !isDartNats()) return '';
+    var tag = isDartNats() ? dartDayTag(v) : midmarDayTag(v);
+    if (isDartNats()) dayLabel = String(p.day || "").replace(/\\s+\\d{2}$/, "");
+      (isDartNats() && tag ? '<span class="mm-lipton-reels-when-meet">' + esc(tag) + '</span>' : '') +
+      (!isDartNats() && tag ? '<span class="mm-lipton-reels-when-meet">' + esc(tag) + '</span>' : '') +
+      '</div>'
+  }
+  function isMobilePortrait() {
+    return window.matchMedia('(max-width: 599px) and (orientation: portrait)').matches;
+  }
+  function placeholderCount(videos) {
+    if (isMidmar() || isDamBottle() || isMacTsl()) {
+      var n = 5 - Math.max((videos || []).length, 0);
+      return n > 0 ? n : 0;
+    }
+  }
+  function compactTilesHtml(videos) {
+    } else if (!isDamBottle()) {
+      parts.push(emptyReelSlotHtml());
+    }
+  }
+    if (isDamBottle() || isMacTsl()) nFit = 5;
+      videoKey(videos) + ':' + extra + ':' + liveN + ':' + (isMobilePortrait() ? 'mp' : 'w');
+      isSnapshotCam(v) || isMidmar()
+        ? ''
+        : latestChromeHtml(chromeSource(v, videos), isZvycCam(v) ? 'mm-lipton-reels-clip-chrome--zvyc' : '');
+"""
+        once = mod.patch_reels_slot_counts(snippet)
+        twice = mod.patch_reels_slot_counts(once)
+        self.assertEqual(once, twice)
+        self.assertIn("function macMediaFitCount", once)
+        self.assertIn("if (isMacTsl()) nFit = macMediaFitCount();", once)
+        self.assertNotIn("if (isDamBottle() || isMacTsl()) nFit = 5;", once)
+        css = mod.patch_reels_css("/* base */\n")
+        self.assertIn("mac-tsl-media-slots", css)
+        self.assertEqual(css, mod.patch_reels_css(css))
 
 
 if __name__ == "__main__":
