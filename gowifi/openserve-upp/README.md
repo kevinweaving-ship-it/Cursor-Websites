@@ -75,6 +75,12 @@ python3 /root/gowifi-upp/audit_export.py
 
 **https://gowifi.co.za/dash/clients.html** — simple cards + search.
 
+Murray DH (B110042155) is the only Cudy pilot: the existing card shows Openserve
+fibre status and the confirmed WR3000 (`WR3000250613575`) from `/dash/api/cudy`,
+each with its own timestamp. Credentials stay in `/root/secrets/cudy.env` (mode
+600). Cloud/API failure is not treated as the router being offline. WR1300 is
+not mapped. No Cudy page, no traffic gauges.
+
 One card per client, with a search bar: name, address, contact, start date, year/month,
 B number if fibre, package, balance / due (7-day grace). Status LED: green active,
 red Openserve issue, orange if we suspend. VK Pop incoming fibre is not a client.

@@ -304,6 +304,54 @@ function headBal(c){
   if (c.suspension_notice || c.bounced) return `Bounced · Due ${money(c.due)}`;
   return c.balance_label || "—";
 }
+function murrayPilotBand(c){
+  const fibre = c.fibre_status || {};
+  const cpe = c.cpe || {};
+  if (!fibre.source && cpe.serial !== "WR3000250613575") return "";
+  const fibreLabel = [fibre.access_status, fibre.partner_status].filter(Boolean).join(" · ")
+    || fibre.line_status || "—";
+  const fibreAt = whenClock(fibre.as_at) || "—";
+  return `<div class="band murray-pilot" data-cpe-sn="${esc(cpe.serial||"")}">
+    ${field("Openserve fibre", `${esc(fibreLabel)} <span class="meta">as at ${esc(fibreAt)}</span>`)}
+    ${field("Cudy WR3000", `<span class="cpe-live">Checking Cudy…</span>`)}
+  </div>`;
+}
+function bindCudyLive(root){
+  const el = root.querySelector(".murray-pilot .cpe-live");
+  if (!el) return;
+  fetch("/dash/api/cudy", {credentials:"same-origin", cache:"no-store"})
+    .then(r => r.json().then(pack => ({ok: r.ok, pack})))
+    .then(({pack}) => {
+      const asAt = whenClock(pack.as_at) || "—";
+      const stamp = `<span class="meta">as at ${esc(asAt)}</span>`;
+      const klass = pack.error_class || "";
+      const device = pack.device || {};
+      if (klass === "device_offline") {
+        el.innerHTML = `Offline ${stamp}`;
+        return;
+      }
+      if (klass === "cloud_unreachable") {
+        el.innerHTML = `Cudy cloud unreachable ${stamp}`;
+        return;
+      }
+      if (klass === "cloud_auth_locked") {
+        el.innerHTML = `Cudy cloud locked ${stamp}`;
+        return;
+      }
+      if (klass === "cloud_auth_failed") {
+        el.innerHTML = `Cudy cloud login failed ${stamp}`;
+        return;
+      }
+      if (device.status === "online" || klass === "device_online_partial") {
+        const bits = [klass === "device_online_partial" ? "Online · partial" : "Online"];
+        if (device.firmware) bits.push(device.firmware);
+        el.innerHTML = `${esc(bits.join(" · "))} ${stamp}`;
+        return;
+      }
+      el.innerHTML = `${esc(pack.error || "Cudy status unavailable")} ${stamp}`;
+    })
+    .catch(() => { el.textContent = "Cudy cloud unreachable"; });
+}
 function card(c){
   const id = "d-"+Math.random().toString(36).slice(2,8);
   const bno = c.access==="offset" ? "None · not a client" : (c.b_number || (c.access==="fibre" ? "—" : "Wireless"));
@@ -343,6 +391,7 @@ function card(c){
         ${field("Charge", esc(money(c.charge)))}
         ${field("Margin", c.margin==null ? "—" : `${esc(money(c.margin))}${c.margin_pct!=null?` <span class="meta">${esc(c.margin_pct)}%</span>`:""}`, {cls: c.os_loss ? "due bad" : ""})}
       </div>` : ""}
+      ${murrayPilotBand(c)}
       ${stmtTable(c, id)}
       ${c.suspension_notice?`<div class="band"><div class="alert">Suspension notice · D/O bounced</div></div>`:""}
     </div>
@@ -586,6 +635,7 @@ function paint(pack){
   bindToggles($("#grid"));
   bindFnbFetch($("#grid"), pack);
   bindFnbApply($("#grid"), pack);
+  bindCudyLive($("#grid"));
   const wrap = $("#cancelled-wrap");
   if (!cancelled.length) { wrap.classList.add("hidden"); return; }
   wrap.classList.remove("hidden");

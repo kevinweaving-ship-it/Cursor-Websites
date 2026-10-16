@@ -36,6 +36,7 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$SRC/upp_emails.py" "$SRC/upp_set_password.py" \
   "$SRC/qb_oauth.py" "$SRC/qb_api.py" "$SRC/fnb_api.py" "$SRC/fnb_statement.py" \
   "$SRC/unifi_api.py" "$SRC/nginx-unifi.conf" "$SRC/gowifi-unifi-api.service" \
+  "$SRC/cudy_api.py" "$SRC/nginx-cudy.conf" "$SRC/gowifi-cudy-api.service" \
   "$SRC/nginx-fnb.conf" "$SRC/gowifi-fnb-api.service" \
   "$SRC/install-on-box.sh" "$SRC/company.py" "$SRC/invoice_canned.py" "$SRC/recon.py" \
   "$BOX:/root/gowifi-upp/"
@@ -49,6 +50,17 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$BOX:/root/gowifi-upp/dash/"
 "${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp/data"
 "${SCP[@]}" -r "$SRC/data/." "$BOX:/root/gowifi-upp/data/"
+
+if [ -n "${CUDY_EMAIL:-}" ] && [ -n "${CUDY_PASSWORD:-}" ]; then
+  umask 077
+  CUDY_TMP=$(mktemp)
+  printf '%s\n' "CUDY_EMAIL=${CUDY_EMAIL}" "CUDY_PASSWORD=${CUDY_PASSWORD}" > "$CUDY_TMP"
+  chmod 600 "$CUDY_TMP"
+  "${SSH[@]}" "$BOX" "mkdir -p /root/secrets"
+  "${SCP[@]}" "$CUDY_TMP" "$BOX:/root/secrets/cudy.env"
+  "${SSH[@]}" "$BOX" "chmod 600 /root/secrets/cudy.env"
+  shred -u "$CUDY_TMP" 2>/dev/null || rm -f "$CUDY_TMP"
+fi
 
 echo "install + refresh accounts.json"
 "${SSH[@]}" "$BOX" "bash /root/gowifi-upp/install-on-box.sh && python3 /root/gowifi-upp/audit_export.py"

@@ -156,7 +156,39 @@ def _invoice_profile(conn: sqlite3.Connection | None, name: str) -> dict:
     return {"address": address, "first_invoice": first.isoformat() if first else None}
 
 
+MURRAY_KEY = "murray dh"
+MURRAY_B = "B110042155"
+MURRAY_CUDY = {
+    "vendor": "cudy",
+    "model": "WR3000",
+    "serial": "WR3000250613575",
+    "mac": "80:AF:CA:93:CB:E5",
+    "devid": "2040182040-10B5801818111B11",
+    "live": "/dash/api/cudy",
+}
+
+
+def _is_murray_pilot(name: str | None, b_number: str | None) -> bool:
+    return canon_key(name) == MURRAY_KEY or (b_number or "").strip() == MURRAY_B
+
+
+def _attach_murray_pilot(card: dict, line: dict | None) -> None:
+    """Openserve fibre + confirmed WR3000 only. Never WR1300. Other cards unchanged."""
+    if not _is_murray_pilot(card.get("name"), card.get("b_number")):
+        return
+    card["fibre_status"] = {
+        "source": "openserve_upp",
+        "access_status": (line or {}).get("access_status"),
+        "partner_status": (line or {}).get("partner_status"),
+        "line_status": (line or {}).get("line_status"),
+        "as_at": (line or {}).get("fibre_fetched_at"),
+    }
+    card["cpe"] = dict(MURRAY_CUDY)
+
+
 def _haystack(card: dict) -> str:
+    fibre = card.get("fibre_status") or {}
+    cpe = card.get("cpe") or {}
     bits = [
         card.get("name"),
         card.get("address"),
@@ -170,6 +202,10 @@ def _haystack(card: dict) -> str:
         "loss" if card.get("os_loss") else None,
         card.get("os_cost_label"),
         "cancelled" if card.get("cancelled") else None,
+        fibre.get("access_status"),
+        cpe.get("vendor"),
+        cpe.get("model"),
+        cpe.get("serial"),
     ]
     return " ".join(str(b) for b in bits if b).lower()
 
@@ -512,6 +548,7 @@ def cards_for_export(
             card["dot_label"] = "Cancelled"
             card["pay"] = acc.get("pay")
         card.update(grace)
+        _attach_murray_pilot(card, line)
         _apply_os_margin(
             card,
             os_map,
@@ -593,6 +630,7 @@ def cards_for_export(
             except Exception:
                 pass
         _apply_os_margin(card, os_map, None)
+        _attach_murray_pilot(card, line)
         card["search"] = _haystack(card)
         if gone:
             cancelled.append(card)
@@ -855,6 +893,52 @@ def self_test() -> int:
     else:
         print("OK client-cards")
         print("OK cancelled-own-list")
+    murray = {
+        "service_number": "B110042155",
+        "customer": "Jakobie Murray",
+        "line_status": "active",
+        "access_status": "Active",
+        "partner_status": "IspActive",
+        "fibre_fetched_at": "2026-10-04 12:00:00",
+        "address": "71 SIXTH ST VOELKLIP",
+        "activated": "2025-06-01",
+        "product": "Webstream",
+        "speed": "50/25",
+    }
+    pack_m = cards_for_export(None, [pop, hpp, murray], today)
+    by_m = {c["name"]: c for c in pack_m["cards"]}
+    mu = by_m.get("Murray DH") or {}
+    hpp_m = by_m.get("HPP Control Room") or {}
+    cpe = mu.get("cpe") or {}
+    fibre = mu.get("fibre_status") or {}
+    extra_cpe = [c["name"] for c in pack_m["cards"] if c.get("cpe") and c["name"] != "Murray DH"]
+    extra_fibre = [c["name"] for c in pack_m["cards"] if c.get("fibre_status") and c["name"] != "Murray DH"]
+    if mu.get("b_number") != "B110042155":
+        print("FAIL murray-b", mu)
+        failed += 1
+    elif cpe.get("serial") != "WR3000250613575" or cpe.get("model") != "WR3000":
+        print("FAIL murray-wr3000", cpe)
+        failed += 1
+    elif "WR1300" in str(cpe) or "WR1300251209892" in str(mu):
+        print("FAIL murray-no-wr1300", cpe)
+        failed += 1
+    elif fibre.get("access_status") != "Active" or fibre.get("as_at") != "2026-10-04 12:00:00":
+        print("FAIL murray-fibre-stamp", fibre)
+        failed += 1
+    elif fibre.get("source") != "openserve_upp" or fibre.get("as_at") == cpe.get("as_at"):
+        print("FAIL murray-separate-sources", fibre, cpe)
+        failed += 1
+    elif extra_cpe or extra_fibre:
+        print("FAIL pilot-murray-only", extra_cpe, extra_fibre)
+        failed += 1
+    elif hpp_m.get("cpe") or hpp_m.get("fibre_status"):
+        print("FAIL hpp-unchanged", hpp_m)
+        failed += 1
+    elif "wr3000" not in (mu.get("search") or ""):
+        print("FAIL murray-search", mu.get("search"))
+        failed += 1
+    else:
+        print("OK murray-pilot-only")
     conn = sqlite3.connect(":memory:")
     from invoice_import import ingest_csv_text
 
