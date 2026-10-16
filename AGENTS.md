@@ -2,11 +2,36 @@
 
 This project uses **split tasks** to avoid agent resource limits and crashes.
 
-## SSH / deploy / live — MUST use readme
+## SSH / deploy / live — how work actually runs
 
-**`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. Use it for any live-server work. **Never** say "SSH is blocked", "can't SSH", or "run from your machine" — when asked to deploy or fix live, give the exact commands from the readme (deploy code, sync 385, etc.).
+**`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. **`sailingsa/deploy/PROD_RULES.md`** is the live edit protocol (read-only check, snapshot, then change).
 
-**Production:** All fixes (sailor URLs, regatta links, 385 data, no broken URLs) must be deployed to **live** via the SSH readme — deploy code (push-to-cloud-expect.exp) and sync 385 (sync-385-local-to-live.sh). Local-only changes do not affect https://sailingsa.co.za.
+Cloud or Mac is fine. Do the task in the session the user opened. SSH to the live box is normal work. Use the commands in the readme (`~/.ssh/sailingsa_live_key`, `root@102.218.215.253`). If a deploy or fix was asked for, run it. Local-only edits do not change https://sailingsa.co.za.
+
+**Production host:** `102.218.215.253` (`sailingsa.co.za`). Other boxes (Gowifi, Aerial, Zabbix, or any host not in `SSH_LIVE.md`) are in scope only when the user names that box in the same message.
+
+### Standard live work — do it when asked
+
+- SSH read and status: `systemctl status`, `journalctl`, `nginx -t`, `ls`, `curl`, read-only `psql` on `sailors_master`.
+- Documented deploys: `bash sailingsa/deploy/deploy-with-key.sh` (or `push-to-cloud-expect.exp`), `deploy_api.sh` / `deploy_api_verified.sh`, `sync-385-local-to-live.sh`.
+- Restart `sailingsa-api` after an api deploy, or when status shows the service is down. Confirm `active`.
+- `pre-change-backup.sh` before other frontend or `api.py` edits, then the snapshot / `chattr` cycle in `PROD_RULES.md` when editing live `api.py`.
+- Nginx reload only for the location blocks already documented in `SSH_LIVE.md`.
+
+### Stop and wait — user must authorize in that same message
+
+Ask, then stop, when the action can take down a box or a public service, or can replace live data. The user must authorize that action in the same message (for example “authorize rollback” or “yes, restore the backup”). A general “fix live” or “look at the box” is not that authorization.
+
+Wait for that authorization before:
+
+- Restore, rollback, or copy a backup over live files (`fix-live-rollback-api.exp` and any baseline restore).
+- `stop`, `disable`, or `mask` of `sailingsa-api`, nginx, or PostgreSQL. Reboot.
+- `DROP`, `TRUNCATE`, or a mass `DELETE` / `UPDATE` on production tables. Schema changes that drop columns or tables.
+- Nginx or firewall changes outside the documented location blocks. SSH keys, `sshd_config`, users, passwords.
+- Package upgrades, disk cleanup, or anything else that reboots or fills the box.
+- Service changes on a named extra box (Gowifi, Aerial, Zabbix). Read-only SSH and a report on a box the user named are standard. Changing that box is not.
+
+If a task mixes both, do the standard part and leave the high-impact part unrun until the user authorizes it.
 
 ## Avoid frontend drift / wrong-layer fixes
 
