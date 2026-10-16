@@ -7,9 +7,9 @@ Test / audit copies of the live SailingSA keypads, on the GoWifi / Aerialnet box
 | https://sailingsa.co.za/arial/ | https://aerialnet.co.za/hansekop/ |
 | https://sailingsa.co.za/voelklip/ | https://aerialnet.co.za/voelklip/ |
 
-Cams stay on the Sailing box (`sailingsa.co.za:8443` / `:8444`). WhatsApp stays on Sailing until the GoWifi number is linked here.
+Hansekop Olarm + Tuya (meter/lights) run on the GoWifi box (`:8003`, `tuya-sharing` `:8007`). Public `/api/arial/` and `/api/voelklip/` proxy to those local APIs. Mail-in-a-Box rewrites `local.conf` and drops the include — `aerialnet-nginx-include.timer` puts it back.
 
-Olarm + Tuya env files are on the GoWifi box (`/etc/aerialnet-olarm.env`, `/etc/aerialnet-tuya.env`; never commit them). Localhost APIs are proven: `127.0.0.1:8003` and `:8004` `/api/arial/status` return `olarmConfigured: true`. Public `/api/arial/` and `/api/voelklip/` still proxy to Sailing — do not flip nginx until asked.
+Sailing `/arial/` still serves the old keypad API; its Tuya sharing worker is stopped, so the SSA breaker is stale. Voëlklip home cams stay on Sailing (`sailingsa.co.za:8443` / `:8444`) until hikpoc is copied.
 
 The Aerialnet landing header has **User Login**, which opens the Hansekop keypad (`/hansekop/`).
 

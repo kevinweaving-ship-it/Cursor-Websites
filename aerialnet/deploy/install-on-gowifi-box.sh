@@ -104,9 +104,14 @@ if not changed:
     print("nginx include already present or no aerialnet server found — check $NGINX_SNIP")
 PY
 
+install -m 755 "$ROOT/deploy/keep-aerialnet-nginx-include.sh" /usr/local/sbin/keep-aerialnet-nginx-include.sh
+install -m 644 "$ROOT/deploy/aerialnet-nginx-include.service" /etc/systemd/system/aerialnet-nginx-include.service
+install -m 644 "$ROOT/deploy/aerialnet-nginx-include.timer" /etc/systemd/system/aerialnet-nginx-include.timer
+
 nginx -t
 systemctl daemon-reload
 systemctl enable --now aerialnet-hansekop-api aerialnet-voelklip-api
+systemctl enable --now aerialnet-nginx-include.timer
 systemctl reload nginx
 
 echo "---- status ----"
