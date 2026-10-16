@@ -22,7 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ENV_PATH = Path(os.environ.get("CUDY_ENV", "/root/secrets/cudy.env"))
-LISTEN = os.environ.get("CUDY_API_LISTEN", "127.0.0.1:8802")
+LISTEN = os.environ.get("CUDY_API_LISTEN", "127.0.0.1:8803")
 BASE = "https://i18n-wapi.cudycloud.com/web"
 PASS_PREFIX = "cudwifi7[o4$"
 LIST_TTL_S = 60.0

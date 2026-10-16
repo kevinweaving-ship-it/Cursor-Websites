@@ -49,7 +49,9 @@ echo "copy $SRC -> $BOX:/root/gowifi-upp"
   "$SRC/dash/invoices.html" "$SRC/dash/unifi.html" \
   "$BOX:/root/gowifi-upp/dash/"
 "${SSH[@]}" "$BOX" "mkdir -p /root/gowifi-upp/data"
-"${SCP[@]}" -r "$SRC/data/." "$BOX:/root/gowifi-upp/data/"
+if [ -d "$SRC/data" ]; then
+  "${SCP[@]}" -r "$SRC/data/." "$BOX:/root/gowifi-upp/data/"
+fi
 
 if [ -n "${CUDY_EMAIL:-}" ] && [ -n "${CUDY_PASSWORD:-}" ]; then
   umask 077
