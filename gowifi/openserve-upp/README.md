@@ -123,6 +123,10 @@ GoWiFi books are three feeds, not a full ledger package:
 3. **FNB** — One table that owns its running balance. Fetch from QuickBooks bank or FNB Online into the same `bank_tx` / `fnb_tx`. Same-day client credits are one EFT (not QB apply splits). The table rolls forward from the last FNB posted line and checksums that tip against FNB Online or QuickBooks FNB. Income is FNB EFT + Netcash D/O; expenses are FNB only; Netcash only pays FNB after fees. Default Fetch is QuickBooks while waiting for Enterprise. No cron.
 4. **Openserve invoices** already on the box — fibre cost to match against FNB debits
 
+**Final shared flow (not fully wired yet):** QB invoices + FNB-via-QB EFTs + Netcash paid/unpaid → local balances and arrears. QBO Invoice.Balance is a reconciliation check, not the card due. Do not treat QBO Payments as cash.
+
+**Temporary — Whale Rock Lodge only (16 Oct 2026).** The live card uses QBO invoices and QBO outstanding until that client is on the shared flow. EFT until the first November Netcash D/O. Do **not** copy this exception to other clients.
+
 ### Packages (April 2026)
 
 `packages.py` stores the **current Openserve wholesale + GoWiFi retail table**.
