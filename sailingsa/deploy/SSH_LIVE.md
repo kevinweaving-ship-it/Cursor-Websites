@@ -7,6 +7,10 @@ No silent overwrites.
 No baseline restores.  
 Confirm path before change.
 
+**Where this runs:** Cloud or Mac. SSH to this box is standard work. Follow this file. Do not refuse the task because the session is Cloud.
+
+**Authorize first** when the action can take down this box or https://sailingsa.co.za, or can replace live data: backup restore / rollback, `stop` or `disable` of `sailingsa-api`, nginx, or PostgreSQL, reboot, `DROP` / `TRUNCATE` / mass `DELETE` or `UPDATE`, schema drops, firewall or SSH-key changes, package upgrades, disk cleanup, nginx edits outside the location blocks in this file. The user must authorize that action in the same message. Read-only checks, documented deploys, the 385 sync, and `sailingsa-api` restart after a deploy do not need a second ask. Full split: **`AGENTS.md`** section “SSH / deploy / live”.
+
 ---
 
 **Server:** `102.218.215.253`  
