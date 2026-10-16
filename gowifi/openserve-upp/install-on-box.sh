@@ -9,7 +9,7 @@ if [ "$SRC" != "$DEST" ]; then
     "$SRC/status_events.py" "$SRC/invoice_import.py" \
     "$SRC/site_lines.py" "$SRC/client_stories.py" "$SRC/books.py" \
     "$SRC/qb_import.py" "$SRC/qb_oauth.py" "$SRC/qb_api.py" \
-    "$SRC/netcash.py" "$SRC/fnb_api.py" "$SRC/fnb_statement.py" "$SRC/unifi_api.py" "$SRC/ledger.py" "$SRC/billing.py" "$SRC/packages.py" "$SRC/invoice_canned.py" "$SRC/company.py" \
+    "$SRC/netcash.py" "$SRC/fnb_api.py" "$SRC/fnb_statement.py" "$SRC/unifi_api.py" "$SRC/cudy_api.py" "$SRC/ledger.py" "$SRC/billing.py" "$SRC/packages.py" "$SRC/invoice_canned.py" "$SRC/company.py" \
     "$SRC/compliance.py" "$SRC/clients.py" \
     "$SRC/customers.py" "$SRC/invoice_list.py" "$SRC/statements.py" "$SRC/recon.py" \
     "$SRC/checksum_accounts_mail.py" "$SRC/mail_forwards.py" \
@@ -26,7 +26,7 @@ chmod 755 "$DEST/sync.py" "$DEST/checksum_accounts_mail.py" \
   "$DEST/audit_export.py" "$DEST/status_events.py" "$DEST/invoice_import.py" \
   "$DEST/site_lines.py" "$DEST/client_stories.py" "$DEST/books.py" \
   "$DEST/qb_import.py" "$DEST/qb_oauth.py" "$DEST/qb_api.py" \
-  "$DEST/netcash.py" "$DEST/fnb_api.py" "$DEST/fnb_statement.py" "$DEST/unifi_api.py" "$DEST/ledger.py" "$DEST/billing.py" "$DEST/packages.py" "$DEST/invoice_canned.py" "$DEST/company.py" \
+  "$DEST/netcash.py" "$DEST/fnb_api.py" "$DEST/fnb_statement.py" "$DEST/unifi_api.py" "$DEST/cudy_api.py" "$DEST/ledger.py" "$DEST/billing.py" "$DEST/packages.py" "$DEST/invoice_canned.py" "$DEST/company.py" \
   "$DEST/compliance.py" "$DEST/clients.py" \
   "$DEST/customers.py" "$DEST/invoice_list.py" "$DEST/statements.py" "$DEST/recon.py" \
   "$DEST/mail_forwards.py" "$DEST/ensure_go_wifi_mail.sh" \
@@ -89,6 +89,14 @@ if [ ! -f /root/secrets/fnb.env ]; then
     'FNB_ACCOUNT_NUMBER=62860060278' \
     > /root/secrets/fnb.env
   chmod 600 /root/secrets/fnb.env
+fi
+if [ ! -f /root/secrets/cudy.env ]; then
+  mkdir -p /root/secrets
+  printf '%s\n' \
+    'CUDY_EMAIL=' \
+    'CUDY_PASSWORD=' \
+    > /root/secrets/cudy.env
+  chmod 600 /root/secrets/cudy.env
 fi
 if [ ! -f /root/secrets/qbo.env ]; then
   printf '%s\n' \
@@ -157,6 +165,18 @@ if [ -f "$SRC/gowifi-unifi-api.service" ]; then
   systemctl daemon-reload
   systemctl enable --now gowifi-unifi-api.service || true
   systemctl restart gowifi-unifi-api.service || true
+fi
+if [ -f "$SRC/nginx-cudy.conf" ] && [ -f "$WWWCONF" ]; then
+  if ! grep -q 'location = /dash/api/cudy' "$WWWCONF"; then
+    cat "$SRC/nginx-cudy.conf" >> "$WWWCONF"
+    nginx -t && systemctl reload nginx || true
+  fi
+fi
+if [ -f "$SRC/gowifi-cudy-api.service" ]; then
+  cp -a "$SRC/gowifi-cudy-api.service" /etc/systemd/system/gowifi-cudy-api.service
+  systemctl daemon-reload
+  systemctl enable --now gowifi-cudy-api.service || true
+  systemctl restart gowifi-cudy-api.service || true
 fi
 # every 15 minutes; no-op until /root/secrets/upp.token has a JWT
 CRON_LINE='*/15 * * * * UPP_DB=/root/gowifi-upp/upp.db /usr/bin/python3 /root/gowifi-upp/sync.py >> /var/log/gowifi-upp-sync.log 2>&1'
