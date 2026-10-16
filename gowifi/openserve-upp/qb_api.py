@@ -2,14 +2,15 @@
 """QuickBooks Online invoices, payments, and credits for GoWiFi.
 
 Accounting rules:
-- Reconcile payments per transaction. Match bank to QBO only by namespaced
-  QBO id, or by a unique same-day / same-amount / same-customer hit.
-  A bank row for a customer never suppresses their other QBO payments or credits.
-- Mark void/deleted only from verified QBO evidence (TxnStatus or CDC status
-  of deleted/void/voided). Absence from an incremental or incomplete response
-  is not evidence and must not void a stored row.
+- Reconcile payments per transaction. A confirmed bank/QBO match needs a
+  namespaced qbo_id or another explicit shared reference (raw QBO Id,
+  LinkedTxn). Same customer/day/amount is a candidate list only.
+  A bank row never suppresses unmatched QBO payments or credits.
+- Mark void/deleted only from verified QBO payloads: CDC status=Deleted, or
+  a voided invoice (PrivateNote Voided and TotalAmt 0). Absence from an
+  incremental or incomplete response is not evidence. Balance 0 alone is paid.
 - Namespace ids as qbo:{realm}:{entity}:{id}.
-- Advance the sync watermark only after a successful committed batch.
+- Write data changes and the watermark in one transaction; commit once.
 
 Fixture tests live in self_test(). Default CLI is self-test so an accidental
 run does not write a production database. Live pull is explicit: qb_api.py pull
@@ -40,21 +41,29 @@ ENTITY_CREDIT = "creditmemo"
 VERIFIED_VOID = frozenset({"deleted", "void", "voided"})
 SOURCE = "quickbooks-api"
 
-_SCHEMA = """
+# Production already has customer_* tables. File 1 only adds qbo_id / sync state.
+_SYNC_STATE = """
+CREATE TABLE IF NOT EXISTS qb_sync_state (
+    realm TEXT NOT NULL,
+    entity TEXT NOT NULL,
+    watermark TEXT,
+    updated_at TEXT,
+    PRIMARY KEY (realm, entity)
+);
+"""
+# In-memory tests only. Not a production migration.
+_FIXTURE_TABLES = """
 CREATE TABLE IF NOT EXISTS customer_invoices (
     invoice_number INTEGER PRIMARY KEY,
     invoice_date TEXT,
     due_date TEXT,
-    service_number TEXT,
     customer TEXT,
     bill_to TEXT,
     address TEXT,
-    period TEXT,
     description TEXT,
     qty REAL,
     rate REAL,
     amount REAL,
-    vat REAL,
     balance_due REAL,
     terms TEXT,
     status TEXT,
@@ -73,13 +82,6 @@ CREATE TABLE IF NOT EXISTS customer_payments (
     method TEXT,
     qbo_id TEXT,
     status TEXT
-);
-CREATE TABLE IF NOT EXISTS qb_sync_state (
-    realm TEXT NOT NULL,
-    entity TEXT NOT NULL,
-    watermark TEXT,
-    updated_at TEXT,
-    PRIMARY KEY (realm, entity)
 );
 """
 
@@ -117,12 +119,20 @@ def _money(value: Any) -> float:
 
 
 def void_evidence(entity: dict | None) -> bool:
-    """True only when QBO itself marks the object deleted or void."""
+    """True only for documented QBO void/delete payloads.
+
+    Deleted: CDC returns the object with status=Deleted (not a normal query).
+    Voided invoice: Intuit keeps the row, injects PrivateNote "Voided", and
+    zeros TotalAmt / line amounts. Balance 0 alone is a paid invoice.
+    Invoice has no TxnStatus field in the v3 query entity.
+    """
     if not isinstance(entity, dict):
         return False
-    for key in ("status", "Status", "TxnStatus"):
-        if str(entity.get(key) or "").strip().lower() in VERIFIED_VOID:
-            return True
+    if str(entity.get("status") or entity.get("Status") or "").strip().lower() == "deleted":
+        return True
+    note = str(entity.get("PrivateNote") or "").strip()
+    if note.lower() == "voided" and _money(entity.get("TotalAmt")) <= 0.004:
+        return True
     return False
 
 
@@ -135,25 +145,19 @@ def entity_updated_at(entity: dict | None) -> str | None:
 
 
 def ensure_qbo_schema(conn: sqlite3.Connection) -> None:
-    conn.executescript(_SCHEMA)
-    inv_cols = {r[1] for r in conn.execute("PRAGMA table_info(customer_invoices)")}
-    if "qbo_id" not in inv_cols:
-        conn.execute("ALTER TABLE customer_invoices ADD COLUMN qbo_id TEXT")
-    pay_cols = {r[1] for r in conn.execute("PRAGMA table_info(customer_payments)")}
-    if "qbo_id" not in pay_cols:
-        conn.execute("ALTER TABLE customer_payments ADD COLUMN qbo_id TEXT")
-    if "status" not in pay_cols:
-        conn.execute("ALTER TABLE customer_payments ADD COLUMN status TEXT")
-    if "method" not in pay_cols:
-        conn.execute("ALTER TABLE customer_payments ADD COLUMN method TEXT")
-    conn.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_invoices_qbo_id "
-        "ON customer_invoices(qbo_id) WHERE qbo_id IS NOT NULL AND qbo_id != ''"
-    )
-    conn.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_payments_qbo_id "
-        "ON customer_payments(qbo_id) WHERE qbo_id IS NOT NULL AND qbo_id != ''"
-    )
+    """Add qbo_id and qb_sync_state onto existing books tables. No new books schema."""
+    conn.executescript(_SYNC_STATE)
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "customer_invoices" in tables:
+        inv_cols = {r[1] for r in conn.execute("PRAGMA table_info(customer_invoices)")}
+        if "qbo_id" not in inv_cols:
+            conn.execute("ALTER TABLE customer_invoices ADD COLUMN qbo_id TEXT")
+    if "customer_payments" in tables:
+        pay_cols = {r[1] for r in conn.execute("PRAGMA table_info(customer_payments)")}
+        if "qbo_id" not in pay_cols:
+            conn.execute("ALTER TABLE customer_payments ADD COLUMN qbo_id TEXT")
+        if "status" not in pay_cols:
+            conn.execute("ALTER TABLE customer_payments ADD COLUMN status TEXT")
 
 
 def get_watermark(conn: sqlite3.Connection, realm: str, entity: str) -> str | None:
@@ -178,23 +182,69 @@ def _write_watermarks(conn: sqlite3.Connection, realm: str, marks: dict[str, str
         )
 
 
-def match_bank_to_qbo(bank: dict, qbo_rows: list[dict]) -> dict | None:
-    """Explicit per-transaction match. Never suppress a customer's other QBO rows.
+def _live_qbo_rows(qbo_rows: list[dict]) -> list[dict]:
+    return [r for r in qbo_rows if (r.get("status") or "").lower() not in VERIFIED_VOID]
 
-    Prefer a namespaced qbo_id on the bank line. Otherwise require exactly one
-    QBO row with the same day, absolute amount, and customer key. Zero or many
-    hits is not a match.
+
+def _row_raw_id(row: dict) -> str:
+    parsed = parse_qbo_ref(row.get("qbo_id"))
+    if parsed:
+        return parsed[2]
+    return str(row.get("Id") or "").strip()
+
+
+def _linked_txn_ids(blob: dict | None) -> set[str]:
+    linked = blob.get("LinkedTxn") if isinstance(blob, dict) else None
+    if not isinstance(linked, list):
+        return set()
+    ids = {str(item.get("TxnId") or "").strip() for item in linked if isinstance(item, dict)}
+    ids.discard("")
+    return ids
+
+
+def match_bank_to_qbo(bank: dict, qbo_rows: list[dict]) -> dict | None:
+    """Confirmed match only via an explicit shared reference or link.
+
+    Same customer/day/amount is not confirmation — use bank_qbo_candidates.
+    A bank row never suppresses unmatched QBO payments or credits.
     """
-    live = [r for r in qbo_rows if (r.get("status") or "").lower() not in VERIFIED_VOID]
-    ref = bank.get("qbo_id") or bank.get("qbo_ref")
-    if ref:
-        hits = [r for r in live if r.get("qbo_id") == ref]
+    live = _live_qbo_rows(qbo_rows)
+    refs = []
+    for key in ("qbo_id", "qbo_ref", "qbo_payment_id"):
+        val = str(bank.get(key) or "").strip()
+        if val:
+            refs.append(val)
+    if refs:
+        hits = [r for r in live if r.get("qbo_id") in refs]
         return hits[0] if len(hits) == 1 else None
+    raw_id = str(bank.get("Id") or bank.get("qbo_raw_id") or "").strip()
+    if raw_id:
+        hits = [r for r in live if _row_raw_id(r) == raw_id]
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) > 1:
+            return None
+    linked = _linked_txn_ids(bank)
+    if linked:
+        hits = [r for r in live if _row_raw_id(r) in linked]
+        if len(hits) == 1:
+            return hits[0]
+    bank_id = str(bank.get("Id") or "").strip()
+    if bank_id:
+        hits = [r for r in live if bank_id in _linked_txn_ids(r)]
+        if len(hits) == 1:
+            return hits[0]
+    return None
+
+
+def bank_qbo_candidates(bank: dict, qbo_rows: list[dict]) -> list[dict]:
+    """Same customer/day/amount — candidates only, not a confirmed match."""
+    live = _live_qbo_rows(qbo_rows)
     day = (bank.get("paid_on") or "")[:10]
     amt = round(abs(_money(bank.get("amount"))), 2)
     key = _name_key(bank.get("customer"))
     if not day or not key:
-        return None
+        return []
     hits = []
     for row in live:
         if (row.get("paid_on") or "")[:10] != day:
@@ -204,7 +254,7 @@ def match_bank_to_qbo(bank: dict, qbo_rows: list[dict]) -> dict | None:
         if _name_key(row.get("customer")) != key:
             continue
         hits.append(row)
-    return hits[0] if len(hits) == 1 else None
+    return hits
 
 
 def _hosts() -> list[tuple[str, str]]:
@@ -496,16 +546,29 @@ def mark_void(conn: sqlite3.Connection, qbo_id: str, entity: str) -> bool:
 
 def apply_entity(conn: sqlite3.Connection, realm: str, entity: str, raw: dict) -> str:
     ref = qbo_ref(realm, entity, raw.get("Id"))
-    if void_evidence(raw):
+    deleted = str(raw.get("status") or raw.get("Status") or "").strip().lower() == "deleted"
+    # CDC Deleted has no DocNumber/lines — mark an existing row. Voided invoices
+    # stay in the regular query (PrivateNote Voided, TotalAmt 0) and upsert.
+    if deleted:
         if not ref:
             return "skipped"
         return "voided" if mark_void(conn, ref, entity) else "void-miss"
     if entity == ENTITY_INVOICE:
         row = invoice_row(raw, realm)
-        return upsert_invoice(conn, row) if row else "skipped"
+        if not row:
+            return "skipped"
+        action = upsert_invoice(conn, row)
+        if action != "skipped" and row.get("status") == "void":
+            return "voided"
+        return action
     if entity in {ENTITY_PAYMENT, ENTITY_CREDIT}:
         row = payment_row(raw, realm, entity)
-        return upsert_payment(conn, row) if row else "skipped"
+        if not row:
+            return "skipped"
+        action = upsert_payment(conn, row)
+        if action != "skipped" and row.get("status") == "void":
+            return "voided"
+        return action
     return "skipped"
 
 
@@ -516,9 +579,7 @@ def apply_batch(
     *,
     on_progress: Callable[[int, tuple[str, dict]], None] | None = None,
 ) -> dict[str, int]:
-    """Apply one batch, commit, then write watermarks. Failure rolls back data
-    and leaves watermarks unchanged.
-    """
+    """Apply one batch. Data and watermarks commit together. Failure rolls both back."""
     ensure_qbo_schema(conn)
     before = {
         entity: get_watermark(conn, realm, entity)
@@ -538,18 +599,12 @@ def apply_batch(
             stamp = entity_updated_at(raw)
             if stamp and (stamp > (marks.get(entity) or "")):
                 marks[entity] = stamp
+        if marks:
+            _write_watermarks(conn, realm, marks)
         conn.commit()
     except Exception:
         conn.rollback()
         raise
-    try:
-        if marks:
-            _write_watermarks(conn, realm, marks)
-            conn.commit()
-    except Exception:
-        conn.rollback()
-        # Data batch already committed; retry is idempotent. Watermark stays.
-        return {**counts, "ok": 0, "watermark_advanced": 0}
     advanced = 0
     for entity, stamp in marks.items():
         if stamp and stamp != (before.get(entity) or ""):
@@ -776,6 +831,7 @@ def pull(conn: sqlite3.Connection) -> dict[str, int]:
 def _mem() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
+    conn.executescript(_FIXTURE_TABLES)
     ensure_qbo_schema(conn)
     return conn
 
@@ -830,7 +886,33 @@ def self_test() -> int:
     inv_ref = qbo_ref(realm, ENTITY_INVOICE, "2139")
     pay_ref = qbo_ref(realm, ENTITY_PAYMENT, "2139")
     check("namespace-entity", inv_ref != pay_ref and parse_qbo_ref(inv_ref) == (realm, ENTITY_INVOICE, "2139"))
-    check("void-evidence-only", void_evidence({"status": "Deleted"}) and not void_evidence({"Id": "2139", "Balance": 0}))
+    # CDC delete: {"status":"Deleted","domain":"QBO","Id":"...","MetaData":{LastUpdatedTime}}
+    cdc_deleted = {
+        "status": "Deleted",
+        "domain": "QBO",
+        "Id": "2139",
+        "MetaData": {"LastUpdatedTime": "2026-10-16T11:00:00-07:00"},
+    }
+    voided_invoice = {
+        "Id": "2139",
+        "DocNumber": "3131",
+        "PrivateNote": "Voided",
+        "TotalAmt": 0,
+        "Balance": 0,
+        "CustomerRef": {"name": "Whale Rock Lodge"},
+        "Line": [
+            {
+                "DetailType": "SalesItemLineDetail",
+                "Amount": 0,
+                "SalesItemLineDetail": {"Qty": 0, "UnitPrice": 0},
+            }
+        ],
+    }
+    paid_invoice = {"Id": "2139", "DocNumber": "3131", "TotalAmt": 3213.4, "Balance": 0}
+    check("void-cdc-deleted", void_evidence(cdc_deleted))
+    check("void-privatenote-zero-total", void_evidence(voided_invoice))
+    check("paid-balance-zero-not-void", not void_evidence(paid_invoice) and invoice_status(paid_invoice) == "paid")
+    check("txnstatus-not-void-signal", not void_evidence({"Id": "2139", "TxnStatus": "Voided", "TotalAmt": 100}))
     check("missing-is-not-void", not void_evidence({}) and not void_evidence(None))
 
     parsed = invoice_row(_whale_invoice(), realm)
@@ -959,12 +1041,57 @@ def self_test() -> int:
     apply_batch(
         conn,
         realm,
-        [(ENTITY_INVOICE, {"Id": "2139", "status": "Deleted", "MetaData": {"LastUpdatedTime": "2026-10-16T11:00:00-07:00"}})],
+        [(ENTITY_INVOICE, cdc_deleted)],
     )
     check(
-        "void-from-qbo-status",
+        "void-from-cdc-deleted",
         conn.execute("SELECT status FROM customer_invoices WHERE qbo_id=?", (inv_ref,)).fetchone()[0] == "void",
     )
+    voided_fresh = {
+        "Id": "3001",
+        "DocNumber": "4001",
+        "TxnDate": "2026-10-01",
+        "DueDate": "2026-10-01",
+        "TotalAmt": 0,
+        "Balance": 0,
+        "PrivateNote": "Voided",
+        "CustomerRef": {"name": "Whale Rock Lodge"},
+        "Line": [
+            {
+                "DetailType": "SalesItemLineDetail",
+                "Amount": 0,
+                "SalesItemLineDetail": {"Qty": 0, "UnitPrice": 0},
+            }
+        ],
+        "MetaData": {"LastUpdatedTime": "2026-10-16T12:00:00-07:00"},
+    }
+    apply_batch(conn, realm, [(ENTITY_INVOICE, voided_fresh)])
+    void_row = conn.execute(
+        "SELECT status, amount FROM customer_invoices WHERE qbo_id=?",
+        (qbo_ref(realm, ENTITY_INVOICE, "3001"),),
+    ).fetchone()
+    check("void-from-privatenote", void_row is not None and void_row["status"] == "void" and _money(void_row["amount"]) == 0)
+    apply_batch(
+        conn,
+        realm,
+        [
+            (
+                ENTITY_INVOICE,
+                _whale_invoice(
+                    Id="3002",
+                    DocNumber="4002",
+                    TotalAmt=3213.4,
+                    Balance=0,
+                    MetaData={"LastUpdatedTime": "2026-10-16T12:05:00-07:00"},
+                ),
+            )
+        ],
+    )
+    paid_row = conn.execute(
+        "SELECT status FROM customer_invoices WHERE qbo_id=?",
+        (qbo_ref(realm, ENTITY_INVOICE, "3002"),),
+    ).fetchone()
+    check("paid-balance-stored-not-void", paid_row is not None and paid_row["status"] == "paid")
     apply_batch(
         conn,
         realm,
@@ -988,7 +1115,7 @@ def self_test() -> int:
     check("missing-id-not-void", kept is not None and (kept["status"] or "open") != "void")
     check(
         "unknown-delete-no-row",
-        apply_entity(conn, realm, ENTITY_INVOICE, {"Id": "no-such", "status": "Deleted"}) == "void-miss",
+        apply_entity(conn, realm, ENTITY_INVOICE, {"status": "Deleted", "domain": "QBO", "Id": "no-such"}) == "void-miss",
     )
 
     pages = [
@@ -1100,11 +1227,35 @@ def self_test() -> int:
         {"qbo_id": qbo_ref(realm, ENTITY_PAYMENT, "9003"), "paid_on": "2026-10-10", "customer": "Whale Rock Lodge", "amount": -500.0, "status": "open"},
     ]
     check("match-explicit-id", match_bank_to_qbo(bank_whale_id, [may_pay, whale_pay]) == whale_pay)
-    check("match-unique-day-amount-customer", match_bank_to_qbo(bank_may, [may_pay, whale_pay]) == may_pay)
-    check("match-ambiguous-no-guess", match_bank_to_qbo({"paid_on": "2026-10-10", "amount": 500, "customer": "Whale Rock Lodge"}, twin) is None)
+    check("day-amount-not-confirmed", match_bank_to_qbo(bank_may, [may_pay, whale_pay]) is None)
+    check("day-amount-candidates", bank_qbo_candidates(bank_may, [may_pay, whale_pay]) == [may_pay])
+    check(
+        "match-ambiguous-no-guess",
+        match_bank_to_qbo({"paid_on": "2026-10-10", "amount": 500, "customer": "Whale Rock Lodge"}, twin) is None
+        and len(bank_qbo_candidates({"paid_on": "2026-10-10", "amount": 500, "customer": "Whale Rock Lodge"}, twin)) == 2,
+    )
+    check(
+        "match-shared-raw-id",
+        match_bank_to_qbo({"Id": "9001", "paid_on": "2026-10-10", "amount": 500, "customer": "Whale Rock Lodge"}, [may_pay, whale_pay])
+        == whale_pay,
+    )
+    check(
+        "match-linkedtxn",
+        match_bank_to_qbo(
+            {
+                "paid_on": "2026-10-10",
+                "amount": 500,
+                "customer": "Whale Rock Lodge",
+                "LinkedTxn": [{"TxnId": "9001", "TxnType": "Payment"}],
+            },
+            [may_pay, whale_pay],
+        )
+        == whale_pay,
+    )
     check(
         "bank-does-not-suppress-other-qbo",
-        match_bank_to_qbo(bank_may, [may_pay, whale_pay]) == may_pay and whale_pay not in [match_bank_to_qbo(bank_may, [may_pay, whale_pay])],
+        match_bank_to_qbo(bank_may, [may_pay, whale_pay]) is None
+        and whale_pay not in bank_qbo_candidates(bank_may, [may_pay, whale_pay]),
     )
 
     conn.close()
