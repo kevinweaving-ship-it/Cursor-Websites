@@ -8,6 +8,9 @@ WWW="${AERIALNET_WWW:-/home/user-data/www/aerialnet.co.za}"
 API_DIR="${AERIALNET_API_DIR:-/opt/aerialnet-arial}"
 DATA_DIR="${AERIALNET_DATA_DIR:-/var/www/aerialnet/data}"
 NGINX_SNIP="/etc/nginx/snippets/aerialnet-arial.conf"
+NGINX_MIAB="${AERIALNET_NGINX_MIAB:-/home/user-data/www/aerialnet.co.za.conf}"
+MIAB_MGMT="${MAILINABOX_MGMT:-/home/vmpeppyo/mailinabox/management}"
+MIAB_PY="${MAILINABOX_PY:-/usr/local/lib/mailinabox/env/bin/python}"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "run as root on box.gowifi.co.za"
@@ -63,55 +66,26 @@ else
 fi
 
 install -m 644 "$ROOT/deploy/nginx-aerialnet-keypads.conf" "$NGINX_SNIP"
-# Inject include into the aerialnet.co.za TLS server if missing.
-python3 - "$NGINX_SNIP" <<'PY'
-import pathlib, sys
-snip = sys.argv[1]
-include = f"    include {snip};\n"
-candidates = [
-    pathlib.Path("/etc/nginx/conf.d/local.conf"),
-    *pathlib.Path("/etc/nginx/sites-enabled").glob("*"),
-    *pathlib.Path("/etc/nginx/conf.d").glob("*.conf"),
-]
-changed = False
-for path in candidates:
-    if not path.is_file():
-        continue
-    text = path.read_text(encoding="utf-8")
-    if snip in text:
-        continue
-    if "server_name" not in text or "aerialnet.co.za" not in text:
-        continue
-    lines = text.splitlines(True)
-    out = []
-    injected = False
-    in_ssl_server = False
-    for i, line in enumerate(lines):
-        out.append(line)
-        if line.lstrip().startswith("server {") or line.strip() == "server {":
-            in_ssl_server = False
-        if "listen" in line and "443" in line:
-            in_ssl_server = True
-        if in_ssl_server and "server_name" in line and "aerialnet.co.za" in line and not injected:
-            # insert after this server_name line
-            out.append(include)
-            injected = True
-            changed = True
-    if injected:
-        path.write_text("".join(out), encoding="utf-8")
-        print(f"injected include into {path}")
-if not changed:
-    print("nginx include already present or no aerialnet server found — check $NGINX_SNIP")
-PY
+install -m 644 "$ROOT/deploy/nginx-aerialnet-keypads.conf" "$NGINX_MIAB"
+chown user-data:root "$NGINX_MIAB" 2>/dev/null || true
 
-install -m 755 "$ROOT/deploy/keep-aerialnet-nginx-include.sh" /usr/local/sbin/keep-aerialnet-nginx-include.sh
-install -m 644 "$ROOT/deploy/aerialnet-nginx-include.service" /etc/systemd/system/aerialnet-nginx-include.service
-install -m 644 "$ROOT/deploy/aerialnet-nginx-include.timer" /etc/systemd/system/aerialnet-nginx-include.timer
+# Let Mail-in-a-Box regenerate local.conf so it includes www/aerialnet.co.za.conf
+# itself. Do not patch local.conf — MIAB owns that file.
+if [ -d "$MIAB_MGMT" ] && [ -x "$MIAB_PY" ]; then
+  "$MIAB_PY" - "$MIAB_MGMT" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from utils import load_environment
+from web_update import do_web_update
+print(do_web_update(load_environment()))
+PY
+fi
+
+systemctl disable --now aerialnet-nginx-include.timer 2>/dev/null || true
 
 nginx -t
 systemctl daemon-reload
 systemctl enable --now aerialnet-hansekop-api aerialnet-voelklip-api
-systemctl enable --now aerialnet-nginx-include.timer
 systemctl reload nginx
 
 echo "---- status ----"
