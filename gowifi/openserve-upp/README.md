@@ -75,11 +75,20 @@ python3 /root/gowifi-upp/audit_export.py
 
 **https://gowifi.co.za/dash/clients.html** — simple cards + search.
 
-Murray DH (B110042155) is the only Cudy pilot: the existing card shows Openserve
-fibre status and the confirmed WR3000 (`WR3000250613575`) from `/dash/api/cudy`,
-each with its own timestamp. Credentials stay in `/root/secrets/cudy.env` (mode
-600). Cloud/API failure is not treated as the router being offline. WR1300 is
-not mapped. No Cudy page, no traffic gauges.
+Murray DH (B110042155) is the only Cudy pilot: the existing card’s Fibre/Cudy
+band is two icons (Openserve fibre + WR3000 `WR3000250613575`). Each has its
+own status dot and Johannesburg `Updated HH:mm · … ago` from the last
+successful source fetch. Fibre popup is Openserve administrative status only
+(Active is never a green live-line). Cudy popup is System plus client
+count/list from `/dash/api/cudy`. Mesh, WAN rates, client rates and signal
+are omitted until verified. Credentials stay in `/root/secrets/cudy.env`
+(mode 600). Cloud/API failure is not treated as the router being offline.
+WR1300 is not mapped. No Cudy page, no traffic gauges, no setup controls.
+
+Later investigation (do not fix in the Murray Cudy work): Whale Rock Lodge
+(`B110065107`) invoice/balance regression. Live `accounts.json` as at
+2026-10-16T09:31:47+00:00: `balance_label` "—", `due`/`billed` null, `paid` 0,
+empty ledger, package still `Webstream · 1000/500`. Record only.
 
 One card per client, with a search bar: name, address, contact, start date, year/month,
 B number if fibre, package, balance / due (7-day grace). Status LED: green active,

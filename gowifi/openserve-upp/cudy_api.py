@@ -27,6 +27,7 @@ BASE = "https://i18n-wapi.cudycloud.com/web"
 PASS_PREFIX = "cudwifi7[o4$"
 LIST_TTL_S = 60.0
 INFO_TTL_S = 300.0
+CLIENT_TTL_S = 60.0
 SESSION_TTL_S = 25 * 60.0
 
 PILOT_SN = "WR3000250613575"
@@ -54,6 +55,15 @@ _LOCK = threading.Lock()
 _SESSION: dict = {"ok": False, "opener": None, "ts": 0.0}
 _LIST_CACHE: dict = {}
 _INFO_CACHE: dict[str, dict] = {}
+_CLIENT_CACHE: dict[str, dict] = {}
+_LAST_OK: dict = {}
+
+
+def _as_at(when: datetime | None = None) -> str:
+    now = when or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _load_env(path: Path | None = None) -> dict[str, str]:
@@ -73,13 +83,6 @@ def _load_env(path: Path | None = None) -> dict[str, str]:
     if os.environ.get("CUDY_PASSWORD"):
         data["CUDY_PASSWORD"] = os.environ["CUDY_PASSWORD"]
     return data
-
-
-def _as_at(when: datetime | None = None) -> str:
-    now = when or datetime.now(timezone.utc)
-    if now.tzinfo is None:
-        now = now.replace(tzinfo=timezone.utc)
-    return now.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def password_hash(password: str) -> str:
@@ -157,16 +160,44 @@ def _pack(
     out = {
         "ok": ok,
         "live": live,
-        "as_at": as_at or _as_at(),
         "pilot": {"serial": PILOT_SN, "model": PILOT_MODEL},
         "cached": cached,
     }
+    if as_at:
+        out["as_at"] = as_at
+    elif live and ok:
+        out["as_at"] = _as_at()
     if error_class:
         out["error_class"] = error_class
     if error:
         out["error"] = error[:200]
     if device:
         out["device"] = device
+    return out
+
+
+def _public_client(row: dict | None) -> dict | None:
+    if not isinstance(row, dict):
+        return None
+    mac = fmt_mac(row.get("macaddr") or row.get("mac"))
+    if not mac:
+        return None
+    out: dict = {"mac": mac}
+    hostname = (row.get("hostname") or "").strip()
+    if hostname:
+        out["hostname"] = hostname
+    ip = (row.get("ipaddr") or "").strip()
+    if ip:
+        out["ip"] = ip
+    ssid = (row.get("ssid") or "").strip()
+    if ssid:
+        out["ssid"] = ssid
+    online = row.get("online")
+    if online not in (None, ""):
+        try:
+            out["online_s"] = int(online)
+        except (TypeError, ValueError):
+            pass
     return out
 
 
@@ -379,9 +410,20 @@ def _list_devices(env: dict[str, str]) -> dict:
         if hit and now - ts < LIST_TTL_S:
             out = dict(hit)
             out["cached"] = True
+            out["live"] = False
+            stamp = hit.get("fetched_at") or hit.get("as_at")
+            if stamp:
+                out["as_at"] = stamp
+                out["fetched_at"] = stamp
             return out
     pack = _call(env, "v1/device/list", {"page": 0, "protype": "router"})
     if not pack.get("ok"):
+        with _LOCK:
+            last = _LIST_CACHE.get("pack") or {}
+        stamp = last.get("fetched_at") or last.get("as_at") or pack.get("as_at")
+        if stamp:
+            pack = dict(pack)
+            pack["as_at"] = stamp
         return pack
     data = pack.get("body") or {}
     payload = data.get("data") if isinstance(data.get("data"), dict) else data
@@ -390,10 +432,24 @@ def _list_devices(env: dict[str, str]) -> dict:
         devices = payload.get("list")
     if not isinstance(devices, list):
         devices = []
-    out = {"ok": True, "live": True, "devices": devices, "cached": False}
+    fetched_at = _as_at()
+    out = {
+        "ok": True,
+        "live": True,
+        "devices": devices,
+        "cached": False,
+        "fetched_at": fetched_at,
+        "as_at": fetched_at,
+    }
     with _LOCK:
         _LIST_CACHE["ts"] = time.time()
-        _LIST_CACHE["pack"] = {"ok": True, "live": True, "devices": devices}
+        _LIST_CACHE["pack"] = {
+            "ok": True,
+            "live": True,
+            "devices": devices,
+            "fetched_at": fetched_at,
+            "as_at": fetched_at,
+        }
     return out
 
 
@@ -415,6 +471,34 @@ def _system_info(env: dict[str, str], devid: str) -> dict:
     return {"ok": True, "info": info, "cached": False}
 
 
+def _client_list(env: dict[str, str], devid: str) -> dict:
+    if not devid:
+        return {"ok": False, "error_class": "device_online_partial", "error": "no devid"}
+    now = time.time()
+    with _LOCK:
+        hit = _CLIENT_CACHE.get(devid)
+        if hit and now - float(hit.get("ts") or 0) < CLIENT_TTL_S and hit.get("items") is not None:
+            return {
+                "ok": True,
+                "items": hit["items"],
+                "cached": True,
+                "as_at": hit.get("as_at"),
+            }
+    pack = _call(env, "v1/device/ac/client/list", {"devid": devid, "page": 0})
+    if not pack.get("ok"):
+        return pack
+    data = pack.get("body") or {}
+    payload = data.get("data") if isinstance(data.get("data"), dict) else {}
+    raw = payload.get("devlist") if isinstance(payload, dict) else None
+    if not isinstance(raw, list):
+        raw = []
+    items = [c for c in (_public_client(row) for row in raw) if c]
+    fetched = _as_at()
+    with _LOCK:
+        _CLIENT_CACHE[devid] = {"ts": time.time(), "items": items, "as_at": fetched}
+    return {"ok": True, "items": items, "cached": False, "as_at": fetched}
+
+
 def device_status(want_sn: str | None = None) -> dict:
     sn = (want_sn or PILOT_SN).strip() or PILOT_SN
     if is_forbidden_sn(sn) or not is_pilot_sn(sn):
@@ -433,52 +517,77 @@ def device_status(want_sn: str | None = None) -> dict:
             error="no CUDY_EMAIL / CUDY_PASSWORD in /root/secrets/cudy.env",
         )
     listed = _list_devices(env)
+    with _LOCK:
+        last = dict(_LAST_OK.get("pack") or {})
+    fetched = listed.get("fetched_at") or listed.get("as_at") or last.get("as_at")
+    is_live = bool(listed.get("live")) and not listed.get("cached")
     if not listed.get("ok"):
         return _pack(
             ok=False,
-            live=bool(listed.get("live")),
+            live=False,
             error_class=listed.get("error_class") or "cloud_unreachable",
             error=listed.get("error") or "Cudy list failed",
-            cached=bool(listed.get("cached")),
+            device=last.get("device"),
+            as_at=fetched,
+            cached=bool(listed.get("cached") or last),
         )
     row = pick_pilot(listed.get("devices") or [])
     if not row:
         return _pack(
             ok=False,
-            live=True,
+            live=False if listed.get("cached") else True,
             error_class="device_missing",
             error="WR3000 not in Cudy cloud list",
+            as_at=fetched,
             cached=bool(listed.get("cached")),
         )
     status = conn_status(row)
     if status == "offline":
-        return _pack(
+        pack = _pack(
             ok=True,
-            live=True,
+            live=is_live,
             error_class="device_offline",
             error="router offline",
             device=_public_device(row),
+            as_at=fetched,
             cached=bool(listed.get("cached")),
         )
-    info_pack = _system_info(env, (row.get("devid") or "").strip())
+        with _LOCK:
+            _LAST_OK["pack"] = dict(pack)
+        return pack
+    devid = (row.get("devid") or "").strip()
+    info_pack = _system_info(env, devid)
+    clients_pack = _client_list(env, devid)
+    device = _public_device(row, info_pack.get("info") if info_pack.get("ok") else None)
+    cached = bool(listed.get("cached") or info_pack.get("cached") or clients_pack.get("cached"))
     if info_pack.get("ok"):
-        return _pack(
+        pack = _pack(
             ok=True,
-            live=True,
-            device=_public_device(row, info_pack.get("info")),
-            cached=bool(listed.get("cached") or info_pack.get("cached")),
+            live=is_live,
+            device=device,
+            as_at=fetched,
+            cached=cached,
         )
-    klass = info_pack.get("error_class") or "device_online_partial"
-    if klass == "device_offline":
-        klass = "device_online_partial"
-    return _pack(
-        ok=True,
-        live=True,
-        error_class=klass,
-        error=info_pack.get("error") or "system info unavailable",
-        device=_public_device(row),
-        cached=bool(listed.get("cached")),
-    )
+    else:
+        klass = info_pack.get("error_class") or "device_online_partial"
+        if klass == "device_offline":
+            klass = "device_online_partial"
+        pack = _pack(
+            ok=True,
+            live=is_live,
+            error_class=klass,
+            error=info_pack.get("error") or "system info unavailable",
+            device=device,
+            as_at=fetched,
+            cached=cached,
+        )
+    if clients_pack.get("ok"):
+        items = clients_pack.get("items") or []
+        pack["clients"] = items
+        pack["client_count"] = len(items)
+    with _LOCK:
+        _LAST_OK["pack"] = dict(pack)
+    return pack
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -592,6 +701,34 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK online-info")
+    raw_client = {
+        "hostname": "Galaxy-A35-5G",
+        "ipaddr": "192.168.10.99",
+        "macaddr": "223A7D373BFE",
+        "ssid": "Murray_2GEXT",
+        "rssi": 34,
+        "upspeed": 2976,
+        "downspeed": 151814,
+        "online": 94792,
+        "channel": 0,
+        "bw": "ht20",
+        "internet": True,
+    }
+    pub_client = _public_client(raw_client)
+    if not pub_client or pub_client.get("hostname") != "Galaxy-A35-5G" or pub_client.get("ip") != "192.168.10.99":
+        print("FAIL public-client", pub_client)
+        failed += 1
+    elif pub_client.get("mac") != "22:3A:7D:37:3B:FE" or pub_client.get("ssid") != "Murray_2GEXT":
+        print("FAIL public-client-ids", pub_client)
+        failed += 1
+    elif pub_client.get("online_s") != 94792:
+        print("FAIL public-client-online", pub_client)
+        failed += 1
+    elif any(k in pub_client for k in ("rssi", "upspeed", "downspeed", "channel", "bw", "internet")):
+        print("FAIL public-client-omits-unverified", pub_client)
+        failed += 1
+    else:
+        print("OK public-client")
     refused = device_status(FORBIDDEN_SN)
     if refused.get("error_class") != "not_pilot" or refused.get("ok"):
         print("FAIL refuse-wr1300", refused)
@@ -623,11 +760,45 @@ def self_test() -> int:
     else:
         print("OK empty-env-not-live")
     stamped = _as_at(datetime(2026, 10, 16, 8, 50, 0, tzinfo=timezone.utc))
-    if stamped != "2026-10-16 08:50:00":
+    if stamped != "2026-10-16T08:50:00Z":
         print("FAIL as-at", stamped)
         failed += 1
     else:
         print("OK as-at")
+    fail_pack = _pack(ok=False, live=False, error_class="cloud_unreachable", error="x")
+    if fail_pack.get("as_at") or fail_pack.get("live"):
+        print("FAIL pack-fail-no-now", fail_pack)
+        failed += 1
+    else:
+        print("OK pack-fail-no-now")
+    ok_pack = _pack(ok=True, live=True, as_at="2026-10-16T09:24:00Z")
+    if ok_pack.get("as_at") != "2026-10-16T09:24:00Z" or not ok_pack.get("live"):
+        print("FAIL pack-keeps-fetch", ok_pack)
+        failed += 1
+    else:
+        print("OK pack-keeps-fetch")
+    with _LOCK:
+        _LIST_CACHE.clear()
+        _LIST_CACHE["ts"] = time.time()
+        _LIST_CACHE["pack"] = {
+            "ok": True,
+            "live": True,
+            "devices": [{"sn": PILOT_SN}],
+            "fetched_at": "2026-10-16T09:24:00Z",
+            "as_at": "2026-10-16T09:24:00Z",
+        }
+    cached_list = _list_devices({})
+    if (
+        cached_list.get("live")
+        or not cached_list.get("cached")
+        or cached_list.get("as_at") != "2026-10-16T09:24:00Z"
+    ):
+        print("FAIL cache-not-live", cached_list)
+        failed += 1
+    else:
+        print("OK cache-not-live")
+    with _LOCK:
+        _LIST_CACHE.clear()
     blob = Path(__file__).read_text()
     if "CUDY_PASSWORD=" in blob and "os.environ" not in blob.split("CUDY_PASSWORD=", 1)[1][:40]:
         print("FAIL secrets-in-source")

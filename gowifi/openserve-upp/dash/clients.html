@@ -81,6 +81,45 @@ main {
 .dot.issue { background:var(--bad); }
 .dot.suspended { background:var(--warn); }
 .dot.cancelled { background:#8b9bb4; }
+.band.murray-pilot {
+  display:flex; flex-direction:row; flex-wrap:wrap; gap:12px 20px;
+  align-items:flex-start;
+}
+.murray-icon {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  min-width:88px; padding:4px 6px; border:0; border-radius:10px;
+  background:transparent; color:inherit; font:inherit; cursor:pointer;
+}
+.murray-icon[aria-expanded="true"] { background:#e8eef6; }
+.murray-icon-wrap {
+  position:relative; width:40px; height:40px;
+  display:flex; align-items:center; justify-content:center;
+}
+.murray-icon-wrap svg { width:32px; height:32px; color:var(--acc); }
+.murray-icon-wrap .dot { position:absolute; right:-2px; bottom:-2px; }
+.murray-icon .k { text-align:center; }
+.murray-icon .murray-ago {
+  color:var(--muted); font-size:12px; font-weight:400; text-align:center;
+  max-width:11em; line-height:1.3;
+}
+.murray-pop {
+  flex:1 1 100%; width:100%;
+  border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+  background:#fff;
+}
+.murray-pop .murray-client {
+  display:block; width:100%; margin:0 0 6px; padding:8px 0; border:0;
+  border-bottom:1px solid var(--line); background:transparent;
+  color:inherit; font:inherit; text-align:left; cursor:pointer;
+}
+.murray-pop .murray-client:last-child { margin-bottom:0; border-bottom:0; }
+.murray-pop .murray-client[aria-expanded="true"] { font-weight:700; }
+.murray-clients-wrap { margin-top:8px; padding-top:8px; border-top:1px solid var(--line); }
+.murray-clients-toggle {
+  display:block; width:100%; margin:0 0 8px; padding:8px 0; border:0;
+  background:transparent; color:var(--acc); font:inherit; font-size:13px;
+  font-weight:700; text-align:left; cursor:pointer;
+}
 .due { font-weight:700; }
 .due.ok { color:var(--ok); }
 .due.warn { color:var(--warn); }
@@ -204,6 +243,7 @@ main {
   }
   .band.two { grid-template-columns:1fr 1fr; }
   .band.stmt-band { display:block; }
+  .band.murray-pilot { display:flex; flex-direction:row; flex-wrap:wrap; grid-template-columns:none; }
   .field { width:auto; }
 }
 </style>
@@ -304,53 +344,242 @@ function headBal(c){
   if (c.suspension_notice || c.bounced) return `Bounced · Due ${money(c.due)}`;
   return c.balance_label || "—";
 }
+const JHB = "Africa/Johannesburg";
+const CUDY_STALE_MS = 120000;
+const FIBRE_STALE_MS = 20 * 60 * 1000;
+const CUDY_POLL_MS = 60000;
+const FIBRE_ICON = `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 16h7l4-9 3 18 3-9h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ROUTER_ICON = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="15" width="24" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="20" r="1.4" fill="currentColor"/><circle cx="15" cy="20" r="1.4" fill="currentColor"/><path d="M11 15V8m6 7V6m6 9V9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+function parseUtcMs(v){
+  if (!v) return NaN;
+  const s = String(v).trim();
+  if (!s) return NaN;
+  const zoned = /[zZ]|[+-]\d{2}:?\d{2}$/.test(s);
+  const iso = zoned ? s : s.replace(" ", "T") + "Z";
+  return Date.parse(iso);
+}
+function updatedAgo(v, now){
+  const ms = parseUtcMs(v);
+  if (!Number.isFinite(ms)) return "";
+  const hhmm = new Intl.DateTimeFormat("en-GB", {
+    timeZone: JHB, hour:"2-digit", minute:"2-digit", hour12:false
+  }).format(new Date(ms));
+  const sec = Math.max(0, Math.round(((now || Date.now()) - ms) / 1000));
+  if (sec < 60) return `Updated ${hhmm} · ${sec === 1 ? "1 second ago" : sec + " seconds ago"}`;
+  const min = Math.round(sec / 60);
+  return `Updated ${hhmm} · ${min === 1 ? "1 minute ago" : min + " minutes ago"}`;
+}
+function isStale(v, limit, now){
+  const ms = parseUtcMs(v);
+  if (!Number.isFinite(ms)) return true;
+  return ((now || Date.now()) - ms) > limit;
+}
+function fmtDur(raw){
+  const s = Math.max(0, Number(raw) || 0);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d) return d + (d === 1 ? " day" : " days") + (h ? " " + h + (h === 1 ? " hour" : " hours") : "");
+  if (h) return h + (h === 1 ? " hour" : " hours") + (m ? " " + m + (m === 1 ? " minute" : " minutes") : "");
+  if (m) return m + (m === 1 ? " minute" : " minutes");
+  return s + (s === 1 ? " second" : " seconds");
+}
+function fibreAdminLabel(fibre){
+  const access = (fibre.access_status || "").trim();
+  if (/^active$/i.test(access)) return "Admin Active";
+  return access || fibre.line_status || "—";
+}
+function fibreDotCls(fibre, now){
+  const blob = `${fibre.access_status||""} ${fibre.partner_status||""} ${fibre.line_status||""}`.toLowerCase();
+  const down = /fault|suspend|cancel|inactive|down|disconnected/.test(blob);
+  if (down && !isStale(fibre.as_at, FIBRE_STALE_MS, now)) return "issue";
+  return "suspended";
+}
+function cudyDotCls(pack, now){
+  if (!pack) return "suspended";
+  const klass = pack.error_class || "";
+  if (["cloud_unreachable","cloud_auth_failed","cloud_auth_locked","device_missing"].includes(klass)) return "suspended";
+  if (isStale(pack.as_at, CUDY_STALE_MS, now)) return "suspended";
+  if (klass === "device_offline" || (pack.device||{}).status === "offline") return "issue";
+  if ((pack.device||{}).status === "online" || klass === "device_online_partial") return "active";
+  return "suspended";
+}
+function cudyLabel(pack){
+  if (!pack) return "Unavailable";
+  const klass = pack.error_class || "";
+  if (klass === "device_offline" || (pack.device||{}).status === "offline") return "Offline";
+  if ((pack.device||{}).status === "online" || klass === "device_online_partial") return "Online";
+  return "Unavailable";
+}
+function murrayIcon(kind, label, at, dot, icon){
+  const stamp = updatedAgo(at);
+  return `<button type="button" class="murray-icon ${kind}" aria-expanded="false" aria-controls="murray-pop">
+    <span class="murray-icon-wrap">${icon}<span class="dot ${esc(dot)}"></span></span>
+    <span class="k">${esc(label)}</span>
+    <span class="murray-ago" data-at="${esc(at||"")}">${stamp ? esc(stamp) : ""}</span>
+  </button>`;
+}
 function murrayPilotBand(c){
   const fibre = c.fibre_status || {};
   const cpe = c.cpe || {};
   if (!fibre.source && cpe.serial !== "WR3000250613575") return "";
-  const fibreLabel = [fibre.access_status, fibre.partner_status].filter(Boolean).join(" · ")
-    || fibre.line_status || "—";
-  const fibreAt = whenClock(fibre.as_at) || "—";
-  return `<div class="band murray-pilot" data-cpe-sn="${esc(cpe.serial||"")}">
-    ${field("Openserve fibre", `${esc(fibreLabel)} <span class="meta">as at ${esc(fibreAt)}</span>`)}
-    ${field("Cudy WR3000", `<span class="cpe-live">Checking Cudy…</span>`)}
+  const now = Date.now();
+  return `<div class="band murray-pilot" data-cpe-sn="${esc(cpe.serial||"")}" data-bno="${esc(c.b_number||"")}" data-pkg="${esc(c.package||"")}" data-fibre-at="${esc(fibre.as_at||"")}" data-access="${esc(fibre.access_status||"")}" data-partner="${esc(fibre.partner_status||"")}" data-line="${esc(fibre.line_status||"")}">
+    ${murrayIcon("fibre", "Fibre", fibre.as_at, fibreDotCls(fibre, now), FIBRE_ICON)}
+    ${murrayIcon("cudy", "WR3000", "", "suspended", ROUTER_ICON)}
+    <div class="murray-pop hidden" id="murray-pop"></div>
   </div>`;
 }
-function bindCudyLive(root){
-  const el = root.querySelector(".murray-pilot .cpe-live");
-  if (!el) return;
-  fetch("/dash/api/cudy", {credentials:"same-origin", cache:"no-store"})
-    .then(r => r.json().then(pack => ({ok: r.ok, pack})))
-    .then(({pack}) => {
-      const asAt = whenClock(pack.as_at) || "—";
-      const stamp = `<span class="meta">as at ${esc(asAt)}</span>`;
-      const klass = pack.error_class || "";
-      const device = pack.device || {};
-      if (klass === "device_offline") {
-        el.innerHTML = `Offline ${stamp}`;
-        return;
-      }
-      if (klass === "cloud_unreachable") {
-        el.innerHTML = `Cudy cloud unreachable ${stamp}`;
-        return;
-      }
-      if (klass === "cloud_auth_locked") {
-        el.innerHTML = `Cudy cloud locked ${stamp}`;
-        return;
-      }
-      if (klass === "cloud_auth_failed") {
-        el.innerHTML = `Cudy cloud login failed ${stamp}`;
-        return;
-      }
-      if (device.status === "online" || klass === "device_online_partial") {
-        const bits = [klass === "device_online_partial" ? "Online · partial" : "Online"];
-        if (device.firmware) bits.push(device.firmware);
-        el.innerHTML = `${esc(bits.join(" · "))} ${stamp}`;
-        return;
-      }
-      el.innerHTML = `${esc(pack.error || "Cudy status unavailable")} ${stamp}`;
-    })
-    .catch(() => { el.textContent = "Cudy cloud unreachable"; });
+function fibrePopHtml(fibre, bno, pkg){
+  const bits = [];
+  bits.push(field("Status", esc(fibreAdminLabel(fibre))));
+  const extra = [fibre.partner_status, fibre.line_status].filter(Boolean).join(" · ");
+  if (extra) bits.push(field("Openserve", esc(extra)));
+  if (bno) bits.push(field("B no", esc(bno)));
+  if (pkg) bits.push(field("Package", esc(pkg)));
+  const stamp = updatedAgo(fibre.as_at);
+  if (stamp) bits.push(field("Updated", `<span class="murray-ago" data-at="${esc(fibre.as_at||"")}">${esc(stamp)}</span>`));
+  bits.push(`<div class="meta">Administrative status</div>`);
+  return bits.join("");
+}
+function systemPopHtml(pack){
+  const d = (pack && pack.device) || {};
+  const bits = [field("Status", esc(cudyLabel(pack)))];
+  const stamp = pack && pack.as_at ? updatedAgo(pack.as_at) : "";
+  if (stamp) bits.push(field("Updated", `<span class="murray-ago" data-at="${esc(pack.as_at)}">${esc(stamp)}</span>`));
+  if (d.nickname) bits.push(field("Name", esc(d.nickname)));
+  if (d.model) bits.push(field("Model", esc(d.model)));
+  if (d.serial) bits.push(field("Serial", esc(d.serial)));
+  if (d.mac) bits.push(field("MAC", esc(d.mac)));
+  if (d.firmware) bits.push(field("Firmware", esc(d.firmware)));
+  if (d.uptime_s != null) bits.push(field("Uptime", esc(fmtDur(d.uptime_s))));
+  if (d.memory_pct != null) bits.push(field("Memory", esc(d.memory_pct + "%")));
+  return bits.join("");
+}
+function clientsPopHtml(pack, openMac){
+  if (!pack || !Array.isArray(pack.clients)) return "";
+  const n = pack.client_count != null ? pack.client_count : pack.clients.length;
+  const rows = pack.clients.map(cl => {
+    const mac = cl.mac || "";
+    const title = cl.hostname || mac || "Client";
+    const open = openMac && mac === openMac;
+    const detail = [
+      cl.ip ? field("IP", esc(cl.ip)) : "",
+      cl.mac ? field("MAC", esc(cl.mac)) : "",
+      cl.ssid ? field("SSID", esc(cl.ssid)) : "",
+      cl.online_s != null ? field("Online", esc(fmtDur(cl.online_s))) : "",
+    ].filter(Boolean).join("");
+    return `<button type="button" class="murray-client" data-mac="${esc(mac)}" aria-expanded="${open?"true":"false"}">${esc(title)}</button>${open && detail ? `<div class="murray-client-detail">${detail}</div>` : ""}`;
+  }).join("");
+  return `<button type="button" class="murray-clients-toggle" aria-expanded="true">Clients ${esc(String(n))}</button><div class="murray-clients">${rows || `<div class="meta">None</div>`}</div>`;
+}
+let murrayCtl = null;
+function bindMurrayPilot(root, pack){
+  if (murrayCtl) { murrayCtl(); murrayCtl = null; }
+  const band = root.querySelector(".murray-pilot");
+  if (!band) return;
+  const fibreBtn = band.querySelector(".murray-icon.fibre");
+  const cudyBtn = band.querySelector(".murray-icon.cudy");
+  const pop = band.querySelector(".murray-pop");
+  const mine = (pack.cards || []).concat(pack.cancelled || []).find(c =>
+    (c.fibre_status || {}).source || (c.cpe || {}).serial === "WR3000250613575"
+  ) || {};
+  let fibre = Object.assign({
+    access_status: band.getAttribute("data-access") || "",
+    partner_status: band.getAttribute("data-partner") || "",
+    line_status: band.getAttribute("data-line") || "",
+    as_at: band.getAttribute("data-fibre-at") || "",
+  }, mine.fibre_status || {});
+  let cudy = null;
+  let open = "";
+  let openMac = "";
+  let clientsOpen = true;
+  let cudyTimer = null;
+  let agoTimer = null;
+  let visible = false;
+  const setDot = (btn, cls) => {
+    const dot = btn && btn.querySelector(".dot");
+    if (dot) dot.className = "dot " + cls;
+  };
+  const setAgo = (el, at) => {
+    if (!el) return;
+    el.setAttribute("data-at", at || "");
+    el.textContent = at ? updatedAgo(at) : "";
+  };
+  const paintIcons = () => {
+    const now = Date.now();
+    setDot(fibreBtn, fibreDotCls(fibre, now));
+    setAgo(fibreBtn && fibreBtn.querySelector(".murray-ago"), fibre.as_at);
+    setDot(cudyBtn, cudyDotCls(cudy, now));
+    setAgo(cudyBtn && cudyBtn.querySelector(".murray-ago"), cudy && cudy.as_at);
+  };
+  const paintPop = () => {
+    if (!pop) return;
+    if (!open) { pop.classList.add("hidden"); pop.innerHTML = ""; return; }
+    pop.classList.remove("hidden");
+    if (open === "fibre") {
+      pop.innerHTML = fibrePopHtml(fibre, band.getAttribute("data-bno") || mine.b_number || "", band.getAttribute("data-pkg") || mine.package || "");
+    } else {
+      const sys = systemPopHtml(cudy);
+      const clients = clientsOpen ? clientsPopHtml(cudy, openMac) : `<button type="button" class="murray-clients-toggle" aria-expanded="false">Clients${cudy && cudy.client_count != null ? " " + esc(String(cudy.client_count)) : ""}</button>`;
+      pop.innerHTML = sys + (cudy && Array.isArray(cudy.clients) ? `<div class="murray-clients-wrap">${clients}</div>` : "");
+    }
+    if (fibreBtn) fibreBtn.setAttribute("aria-expanded", open === "fibre" ? "true" : "false");
+    if (cudyBtn) cudyBtn.setAttribute("aria-expanded", open === "cudy" ? "true" : "false");
+  };
+  const refresh = () => { paintIcons(); paintPop(); };
+  const pullCudy = () => {
+    fetch("/dash/api/cudy", {credentials:"same-origin", cache:"no-store"})
+      .then(r => r.json())
+      .then(p => { cudy = p; refresh(); })
+      .catch(() => {
+        const lastAt = cudy && cudy.as_at;
+        cudy = { error_class: "cloud_unreachable", as_at: lastAt || "", live: false, device: cudy && cudy.device, clients: cudy && cudy.clients, client_count: cudy && cudy.client_count };
+        refresh();
+      });
+  };
+  const toggle = which => {
+    open = open === which ? "" : which;
+    refresh();
+  };
+  if (fibreBtn) fibreBtn.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); toggle("fibre"); });
+  if (cudyBtn) cudyBtn.addEventListener("click", ev => { ev.preventDefault(); ev.stopPropagation(); toggle("cudy"); });
+  if (pop) pop.addEventListener("click", ev => {
+    ev.stopPropagation();
+    const clientsBtn = ev.target.closest(".murray-clients-toggle");
+    if (clientsBtn) { clientsOpen = !clientsOpen; if (!clientsOpen) openMac = ""; paintPop(); return; }
+    const row = ev.target.closest(".murray-client");
+    if (row) {
+      const mac = row.getAttribute("data-mac") || "";
+      openMac = openMac === mac ? "" : mac;
+      paintPop();
+    }
+  });
+  const start = () => {
+    if (visible) return;
+    visible = true;
+    pullCudy();
+    cudyTimer = setInterval(pullCudy, CUDY_POLL_MS);
+    agoTimer = setInterval(() => {
+      band.querySelectorAll(".murray-ago").forEach(el => {
+        const at = el.getAttribute("data-at");
+        if (at) el.textContent = updatedAgo(at);
+      });
+      paintIcons();
+    }, 1000);
+  };
+  const stop = () => {
+    visible = false;
+    if (cudyTimer) clearInterval(cudyTimer);
+    if (agoTimer) clearInterval(agoTimer);
+    cudyTimer = agoTimer = null;
+  };
+  const io = new IntersectionObserver(entries => {
+    if (entries.some(e => e.isIntersecting)) start();
+    else stop();
+  }, {threshold: 0});
+  io.observe(band);
+  murrayCtl = () => { stop(); io.disconnect(); };
 }
 function card(c){
   const id = "d-"+Math.random().toString(36).slice(2,8);
@@ -635,7 +864,7 @@ function paint(pack){
   bindToggles($("#grid"));
   bindFnbFetch($("#grid"), pack);
   bindFnbApply($("#grid"), pack);
-  bindCudyLive($("#grid"));
+  bindMurrayPilot($("#grid"), pack);
   const wrap = $("#cancelled-wrap");
   if (!cancelled.length) { wrap.classList.add("hidden"); return; }
   wrap.classList.remove("hidden");
