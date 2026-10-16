@@ -390,6 +390,8 @@ def whale_invoice_row(inv: dict) -> dict | None:
     row["amount"] = _money(inv.get("TotalAmt"))
     row["source"] = "quickbooks-api"
     row["customer"] = WHALE_NAME
+    desc = str(row.get("description") or "").split("\n")[0].strip()
+    row["description"] = desc or None
     return row
 
 
@@ -557,7 +559,11 @@ def whale_rock_account(conn: sqlite3.Connection, today: date | None = None) -> d
                 "kind": "invoice",
                 "ref": str(inv["invoice_number"]),
                 "what": f"Invoice {inv['invoice_number']}"
-                + (f" · {inv['description']}" if inv.get("description") else ""),
+                + (
+                    f" · {str(inv.get('description') or '').splitlines()[0].strip()}"
+                    if str(inv.get("description") or "").splitlines()
+                    else ""
+                ),
                 "amount": amt,
                 "open": open_amt,
                 "balance": running,
