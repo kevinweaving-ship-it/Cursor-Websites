@@ -1,0 +1,11 @@
+[Unit]
+Description=Keep Aerialnet keypad API nginx include present
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+AccuracySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

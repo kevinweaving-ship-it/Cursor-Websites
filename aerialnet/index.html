@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Aerial Networks</title>
+  <meta name="description" content="High-site access, mast space and equipment hosting for your network.">
+  <meta name="theme-color" content="#041630">
+  <link rel="canonical" href="https://aerialnet.co.za/">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="icon" href="artwork/aerial-networks-logo-mark.png" type="image/png">
+  <link rel="apple-touch-icon" href="artwork/aerial-networks-logo-mark.png">
+  <link rel="preload" as="image" href="footage/hero-poster.jpg?v=2">
+  <style>
+    :root {
+      --navy: #041630;
+      --orange: #f96e05;
+      --ink: #102033;
+      --muted: #3c5164;
+      --paper: #f4f7fb;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      color: var(--ink);
+      background: var(--paper);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    a { color: inherit; }
+    .site-banner {
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 76px;
+      padding: calc(10px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) 10px calc(20px + env(safe-area-inset-left));
+    }
+    .site-banner img {
+      display: block;
+      width: min(280px, 58vw);
+      height: auto;
+    }
+    .user-login {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 8px 14px;
+      background: var(--orange);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      border: 0;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    .user-login:focus-visible {
+      outline: 3px solid var(--navy);
+      outline-offset: 3px;
+    }
+    body.keypad-open { overflow: hidden; }
+    .keypad-modal[hidden] { display: none; }
+    .keypad-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: rgba(4, 22, 48, 0.62);
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    .keypad-modal-panel {
+      display: flex;
+      flex-direction: column;
+      width: min(920px, 100%);
+      background: #edf1f6;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+    }
+    .keypad-modal-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 48px;
+      padding: 8px 12px;
+      background: var(--navy);
+      color: #fff;
+    }
+    .keypad-modal-bar h2 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0;
+      color: #fff;
+    }
+    .keypad-modal-close {
+      min-width: 40px;
+      min-height: 40px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #fff;
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .keypad-modal-close:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 2px;
+    }
+    .keypad-modal-panel iframe {
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 0;
+      height: calc(100dvh - 48px);
+      border: 0;
+      background: #edf1f6;
+    }
+    .hero {
+      position: relative;
+      height: min(58vh, 620px);
+      min-height: 220px;
+      color: #fff;
+      background: var(--navy) url("footage/hero-poster.jpg?v=2") center top / cover no-repeat;
+      overflow: hidden;
+    }
+    .hero-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      background: transparent;
+    }
+    .hero-still .hero-video { display: none; }
+    .pitch {
+      background: var(--navy);
+      color: #fff;
+      padding: 16px 20px 14px;
+    }
+    .pitch-inner { width: min(40rem, 100%); }
+    h1 {
+      margin: 0 0 6px;
+      color: #fff;
+      font-size: clamp(1.25rem, 2.6vw, 2rem);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+    }
+    .lead {
+      margin: 0 0 12px;
+      color: #fff;
+      font-size: clamp(0.92rem, 1.6vw, 1.05rem);
+    }
+    .enquire {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 12px 18px;
+      background: var(--orange);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 8px;
+    }
+    .enquire:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 3px;
+    }
+    @media (max-width: 700px) {
+      .pitch { padding: 12px 16px 12px; }
+      h1 { font-size: 1.2rem; }
+      .lead { font-size: 0.9rem; margin-bottom: 8px; }
+      .enquire { min-height: 40px; padding: 8px 14px; }
+      .user-login { min-height: 36px; padding: 6px 12px; font-size: 0.9rem; }
+      .keypad-modal-panel { width: 100%; }
+    }
+    @media (max-height: 520px) {
+      .site-banner { min-height: 48px; padding-top: 6px; padding-bottom: 6px; }
+      .site-banner img { width: min(190px, 42vw); }
+      .user-login { min-height: 32px; padding: 5px 10px; font-size: 0.82rem; }
+      .hero { height: 48vh; min-height: 132px; }
+      .pitch { padding: 8px 14px 8px; }
+      h1 { font-size: 1.05rem; margin-bottom: 2px; }
+      .lead { font-size: 0.8rem; margin-bottom: 6px; }
+      .enquire { min-height: 34px; padding: 6px 12px; font-size: 0.88rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-video { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-banner">
+    <img src="artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks">
+    <a class="user-login" id="user-login" href="/hansekop/">User Login</a>
+  </header>
+  <div class="keypad-modal" id="keypad-modal" hidden>
+    <div class="keypad-modal-panel" role="dialog" aria-modal="true" aria-labelledby="keypad-modal-title">
+      <div class="keypad-modal-bar">
+        <h2 id="keypad-modal-title">Hansekop Keypad</h2>
+        <button type="button" class="keypad-modal-close" id="keypad-modal-close" aria-label="Close">&times;</button>
+      </div>
+      <iframe id="keypad-frame" title="Hansekop Keypad" src="about:blank"></iframe>
+    </div>
+  </div>
+  <section class="hero" id="hero" aria-label="Aerial Networks">
+    <video id="hero-video" class="hero-video" poster="footage/hero-poster.jpg?v=2" muted playsinline loop preload="none"></video>
+  </section>
+  <section class="pitch" aria-labelledby="pitch-title">
+    <div class="pitch-inner">
+      <h1 id="pitch-title">High-site infrastructure. Space to connect.</h1>
+      <p class="lead">High-site access, mast space and equipment hosting for your network.</p>
+      <a class="enquire" href="mailto:support@aerialnet.co.za">Enquire about space</a>
+    </div>
+  </section>
+  <script>
+    (function () {
+      var video = document.getElementById("hero-video");
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var save = navigator.connection && navigator.connection.saveData;
+      var held = false;
+      function playHero() {
+        held = false;
+        var pending = video.play();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+      function pauseHero() {
+        held = true;
+        video.pause();
+      }
+      window.aerialHero = { play: playHero, pause: pauseHero };
+      var login = document.getElementById("user-login");
+      var modal = document.getElementById("keypad-modal");
+      var frame = document.getElementById("keypad-frame");
+      var closeBtn = document.getElementById("keypad-modal-close");
+      function openKeypad(ev) {
+        if (ev) ev.preventDefault();
+        if (!modal || !frame) {
+          window.location.href = "/hansekop/";
+          return;
+        }
+        if (!frame.getAttribute("src") || frame.getAttribute("src") === "about:blank") {
+          frame.src = "/hansekop/";
+        }
+        modal.hidden = false;
+        document.body.classList.add("keypad-open");
+        pauseHero();
+        if (closeBtn) closeBtn.focus();
+      }
+      function closeKeypad() {
+        if (!modal) return;
+        modal.hidden = true;
+        document.body.classList.remove("keypad-open");
+        if (login) login.focus();
+        if (!reduce && !save) playHero();
+      }
+      if (login) login.addEventListener("click", openKeypad);
+      if (closeBtn) closeBtn.addEventListener("click", closeKeypad);
+      if (modal) {
+        modal.addEventListener("click", function (ev) {
+          if (ev.target === modal) closeKeypad();
+        });
+      }
+      document.addEventListener("keydown", function (ev) {
+        if (ev.key === "Escape" && modal && !modal.hidden) closeKeypad();
+      });
+      if (reduce || save) {
+        document.documentElement.classList.add("hero-still");
+        return;
+      }
+      var mobile = window.matchMedia("(max-width: 700px)").matches;
+      video.src = mobile ? "footage/hero-720.mp4?v=2" : "footage/hero-1080.mp4?v=2";
+      video.muted = true;
+      video.playsInline = true;
+      video.loop = true;
+      playHero();
+      video.addEventListener("error", function () {
+        document.documentElement.classList.add("hero-still");
+      });
+      if ("IntersectionObserver" in window) {
+        var watch = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) video.pause();
+            else if (!held) {
+              var again = video.play();
+              if (again && again.catch) again.catch(function () {});
+            }
+          });
+        }, { threshold: 0.2 });
+        watch.observe(document.getElementById("hero"));
+      }
+    })();
+  </script>
+</body>
+</html>
