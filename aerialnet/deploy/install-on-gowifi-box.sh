@@ -31,7 +31,12 @@ if [ -f "$ROOT/api/registry.json" ]; then
   cp -a "$ROOT/api/registry.json" "$DATA_DIR/registry.json"
 fi
 chown -R www-data:www-data "$WWW/hansekop" "$WWW/voelklip" "$WWW/arial" "$DATA_DIR"
-chmod 750 "$DATA_DIR"
+chmod 770 "$DATA_DIR"
+# Watcher runs as wapoc and must append the keypad WhatsApp tab log.
+usermod -aG www-data wapoc 2>/dev/null || true
+touch "$DATA_DIR/whatsapp_log.jsonl"
+chown wapoc:www-data "$DATA_DIR/whatsapp_log.jsonl" 2>/dev/null || chown www-data:www-data "$DATA_DIR/whatsapp_log.jsonl"
+chmod 660 "$DATA_DIR/whatsapp_log.jsonl"
 
 if [ ! -x "$API_DIR/venv/bin/python" ]; then
   apt-get update -qq

@@ -7,7 +7,7 @@ Test / audit copies of the live SailingSA keypads, on the GoWifi / Aerialnet box
 | https://sailingsa.co.za/arial/ | https://aerialnet.co.za/hansekop/ |
 | https://sailingsa.co.za/voelklip/ | https://aerialnet.co.za/voelklip/ |
 
-Hansekop Olarm + Tuya run on the GoWifi box (`:8003`, `tuya-sharing` `:8007`). Keypad nginx lives in Mail-in-a-Box’s extra file `/home/user-data/www/aerialnet.co.za.conf` (same pattern as `gowifi.co.za.conf`). When mail regenerates `local.conf` it includes that file — do not patch `local.conf`. Alarm WhatsApp (Baileys) also runs on this box; Sailing must not keep the same number logged in.
+Hansekop Olarm + Tuya run on the GoWifi box (`:8003`, `tuya-sharing` `:8007`). Keypad nginx lives in Mail-in-a-Box’s extra file `/home/user-data/www/aerialnet.co.za.conf` (same pattern as `gowifi.co.za.conf`). Mail owns `local.conf` and may rewrite it; it **includes** the extra file, so keypad APIs survive a mail rebuild. Do not patch `local.conf`. Alarm WhatsApp (Baileys) also runs on this box; Sailing must not keep the same number logged in. The keypad WhatsApp tab reads `/var/www/aerialnet/data/whatsapp_log.jsonl` (wapoc must be able to write that file).
 
 Sailing `/arial/` still serves the old keypad API; its Tuya sharing worker is stopped, so the SSA breaker is stale. Voëlklip home cams stay on Sailing (`sailingsa.co.za:8443` / `:8444`) until hikpoc is copied.
 
