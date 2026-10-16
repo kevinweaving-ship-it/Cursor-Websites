@@ -7,10 +7,13 @@ import os
 import re
 import sqlite3
 import ssl
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
+
+from datetime import date
 
 from qb_import import _upsert_invoice, ensure_history_tables
 from qb_oauth import TOKEN_PATH, access_token, load_tokens, save_tokens
@@ -19,6 +22,9 @@ DB = os.environ.get("UPP_DB", "/root/gowifi-upp/upp.db")
 API_PROD = "https://quickbooks.api.intuit.com/v3/company"
 API_SANDBOX = "https://sandbox-quickbooks.api.intuit.com/v3/company"
 PAGE = 1000
+WHALE_CUSTOMER_ID = "55"
+WHALE_NAME = "Whale Rock Lodge"
+WHALE_DO_START = date(2026, 11, 1)
 
 
 def _hosts() -> list[tuple[str, str]]:
@@ -337,6 +343,276 @@ def pull_fnb_bank(conn: sqlite3.Connection | None = None, days: int = 90) -> dic
     return pack
 
 
+def _money(value: Any) -> float:
+    try:
+        return round(float(value or 0), 2)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def is_whale_rock(name: str | None) -> bool:
+    """Exact Whale Rock Lodge card. Does not match hermanus whalec / May."""
+    key = " ".join(re.findall(r"[a-z0-9]+", (name or "").lower()))
+    return key == "whale rock lodge" or key.startswith("whale rock lodge ")
+
+
+def _is_whale_invoice(inv: dict) -> bool:
+    ref = inv.get("CustomerRef") if isinstance(inv.get("CustomerRef"), dict) else {}
+    if str(ref.get("value") or "").strip() == WHALE_CUSTOMER_ID:
+        return True
+    return is_whale_rock(ref.get("name"))
+
+
+def _whale_void(inv: dict) -> bool:
+    if str(inv.get("status") or inv.get("Status") or "").strip().lower() == "deleted":
+        return True
+    note = str(inv.get("PrivateNote") or "").strip()
+    return note.lower() == "voided" and _money(inv.get("TotalAmt")) <= 0.004
+
+
+def whale_invoice_row(inv: dict) -> dict | None:
+    """Live QBO invoice for Whale Rock. Not the historical PDF placeholder."""
+    if not _is_whale_invoice(inv):
+        return None
+    row = invoice_row(inv)
+    if not row:
+        return None
+    if _whale_void(inv):
+        row["status"] = "void"
+        row["amount"] = _money(inv.get("TotalAmt"))
+        row["balance_due"] = 0.0
+    elif _money(inv.get("Balance")) <= 0.004:
+        row["status"] = "paid"
+        row["balance_due"] = 0.0
+    else:
+        row["status"] = "open"
+        row["balance_due"] = _money(inv.get("Balance"))
+    row["amount"] = _money(inv.get("TotalAmt"))
+    row["source"] = "quickbooks-api"
+    row["customer"] = WHALE_NAME
+    return row
+
+
+def _upsert_whale_invoice(conn: sqlite3.Connection, row: dict) -> None:
+    """Same invoice number as the PDF — API wins. Not a new handmade row."""
+    conn.execute(
+        """INSERT INTO customer_invoices
+           (invoice_number, invoice_date, due_date, customer, bill_to, address,
+            description, qty, rate, amount, balance_due, terms, status, source, filename)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(invoice_number) DO UPDATE SET
+             invoice_date=excluded.invoice_date,
+             due_date=excluded.due_date,
+             customer=excluded.customer,
+             bill_to=excluded.bill_to,
+             description=COALESCE(excluded.description, customer_invoices.description),
+             amount=excluded.amount,
+             balance_due=excluded.balance_due,
+             status=excluded.status,
+             source='quickbooks-api',
+             filename=excluded.filename""",
+        (
+            row["invoice_number"],
+            row.get("invoice_date"),
+            row.get("due_date"),
+            WHALE_NAME,
+            WHALE_NAME,
+            row.get("address"),
+            row.get("description"),
+            row.get("qty") if row.get("qty") is not None else 1,
+            row.get("rate") if row.get("rate") is not None else row.get("amount"),
+            row.get("amount"),
+            row.get("balance_due"),
+            row.get("terms") or "Due on receipt",
+            row.get("status") or "open",
+            "quickbooks-api",
+            row.get("filename"),
+        ),
+    )
+
+
+def refresh_whale_rock(conn: sqlite3.Connection | None = None) -> dict:
+    """Pull only Whale Rock Lodge invoices. Does not write QBO Payments as cash."""
+    from qb_import import ensure_history_tables as _ensure
+
+    own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB), timeout=60)
+    _ensure(own)
+    token, realm = access_token()
+    invoices = _query(realm, token, "Invoice")
+    saved = 0
+    skipped = 0
+    for inv in invoices:
+        row = whale_invoice_row(inv)
+        if not row:
+            continue
+        if row.get("status") == "void":
+            _upsert_whale_invoice(own, row)
+            skipped += 1
+            continue
+        _upsert_whale_invoice(own, row)
+        saved += 1
+    own.commit()
+    if conn is None:
+        own.close()
+    return {
+        "ok": True,
+        "customer": WHALE_NAME,
+        "invoices_saved": saved,
+        "voided": skipped,
+        "invoices_read": len(invoices),
+    }
+
+
+def _whale_netcash(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
+    paid: list[dict] = []
+    unpaid: list[dict] = []
+    try:
+        from recon import client_receipts, client_unpaid
+    except Exception:
+        return paid, unpaid
+    for rec in client_receipts(conn):
+        if not is_whale_rock(rec.get("customer")):
+            continue
+        if (rec.get("method") or "") != "do" and "netcash" not in (rec.get("source") or ""):
+            continue
+        day = (rec.get("paid_on") or "")[:10]
+        if day < WHALE_DO_START.isoformat():
+            continue
+        paid.append(rec)
+    for rec in client_unpaid(conn):
+        if not is_whale_rock(rec.get("customer")):
+            continue
+        day = (rec.get("action_date") or "")[:10]
+        if day < WHALE_DO_START.isoformat():
+            continue
+        unpaid.append(rec)
+    return paid, unpaid
+
+
+def whale_rock_account(conn: sqlite3.Connection, today: date | None = None) -> dict:
+    """QB invoices + live QB outstanding. EFT until the first November D/O."""
+    today = today or date.today()
+    invoices = []
+    try:
+        rows = conn.execute(
+            """SELECT invoice_number, invoice_date, due_date, amount, balance_due,
+                      status, source, description
+               FROM customer_invoices WHERE customer=? ORDER BY invoice_date, invoice_number""",
+            (WHALE_NAME,),
+        )
+    except sqlite3.OperationalError:
+        rows = []
+    for rec in rows:
+        src = (rec[6] or "").lower()
+        status = (rec[5] or "").lower()
+        if src != "quickbooks-api":
+            continue
+        if status in {"void", "deleted", "voided", "historical"}:
+            continue
+        invoices.append(
+            {
+                "invoice_number": rec[0],
+                "invoice_date": rec[1],
+                "due_date": rec[2],
+                "amount": _money(rec[3]),
+                "balance_due": _money(rec[4]),
+                "status": rec[5],
+                "description": rec[7],
+            }
+        )
+    nc_paid, nc_unpaid = _whale_netcash(conn)
+    first_do = bool(nc_paid or nc_unpaid)
+    pay = "D/O" if first_do else "EFT"
+    nc_paid_months = {(r.get("paid_on") or "")[:7] for r in nc_paid}
+    nc_unpaid_months = {(r.get("action_date") or "")[:7] for r in nc_unpaid}
+    ledger = []
+    billed = 0.0
+    due = 0.0
+    bounced = False
+    for inv in invoices:
+        amt = inv["amount"]
+        billed = round(billed + amt, 2)
+        month = (inv.get("invoice_date") or "")[:7]
+        collect_month = month
+        try:
+            day = date.fromisoformat(str(inv.get("invoice_date") or "")[:10])
+            nxt = date(day.year + (1 if day.month == 12 else 0), 1 if day.month == 12 else day.month + 1, 1)
+            collect_month = nxt.isoformat()[:7]
+        except ValueError:
+            collect_month = month
+        # First bill stays on QB outstanding (EFT). Later monthlies can be Netcash.
+        first_bill = (inv.get("invoice_date") or "") < WHALE_DO_START.isoformat()
+        if not first_bill and first_do and collect_month in nc_paid_months:
+            open_amt = 0.0
+        elif not first_bill and first_do and collect_month in nc_unpaid_months:
+            open_amt = amt
+            bounced = True
+        else:
+            open_amt = inv["balance_due"]
+        due = round(due + open_amt, 2)
+        running = due
+        ledger.append(
+            {
+                "date": inv.get("invoice_date"),
+                "kind": "invoice",
+                "ref": str(inv["invoice_number"]),
+                "what": f"Invoice {inv['invoice_number']}"
+                + (f" · {inv['description']}" if inv.get("description") else ""),
+                "amount": amt,
+                "open": open_amt,
+                "balance": running,
+                "show": True,
+            }
+        )
+        if not first_bill and first_do and collect_month in nc_paid_months:
+            rec = next((r for r in nc_paid if (r.get("paid_on") or "")[:7] == collect_month), None)
+            ledger.append(
+                {
+                    "date": (rec or {}).get("paid_on"),
+                    "kind": "payment",
+                    "ref": str(inv["invoice_number"]),
+                    "what": f"D/O paid · Invoice {inv['invoice_number']}",
+                    "amount": -amt,
+                    "open": 0.0,
+                    "balance": running,
+                    "show": True,
+                }
+            )
+        elif not first_bill and first_do and collect_month in nc_unpaid_months:
+            rec = next((r for r in nc_unpaid if (r.get("action_date") or "")[:7] == collect_month), None)
+            ledger.append(
+                {
+                    "date": (rec or {}).get("action_date"),
+                    "kind": "unpaid",
+                    "ref": str(inv["invoice_number"]),
+                    "what": f"D/O unpaid · Invoice {inv['invoice_number']}",
+                    "amount": 0.0,
+                    "open": open_amt,
+                    "balance": running,
+                    "show": True,
+                    "tone": "overdue",
+                }
+            )
+    paid = round(max(0.0, billed - due), 2)
+    paid_up = due <= 0.004 and not bounced
+    ledger.reverse()
+    return {
+        "name": WHALE_NAME,
+        "billed": billed if invoices else None,
+        "paid": paid,
+        "due": due if invoices else None,
+        "nil": paid_up,
+        "status": "bounced" if bounced else ("paid-up" if paid_up else "owes"),
+        "pay": pay,
+        "method": "debit-order" if first_do else "eft",
+        "bounced": bounced,
+        "ledger": ledger,
+        "ageing": {},
+        "earlier_paid": 0,
+        "last_invoice_date": invoices[-1]["invoice_date"] if invoices else None,
+    }
+
+
 def pull(conn: sqlite3.Connection) -> dict[str, int]:
     ensure_history_tables(conn)
     token, realm = access_token()
@@ -378,6 +654,114 @@ def pull(conn: sqlite3.Connection) -> dict[str, int]:
     }
 
 
+def _whale_sample(**over: Any) -> dict:
+    row = {
+        "Id": "2139",
+        "DocNumber": "3131",
+        "TxnDate": "2026-10-07",
+        "DueDate": "2026-10-07",
+        "TotalAmt": 3213.4,
+        "Balance": 3213.4,
+        "CustomerRef": {"value": "55", "name": "Whale Rock Lodge"},
+        "Line": [
+            {
+                "DetailType": "SalesItemLineDetail",
+                "Description": "Fibre & Wifi Installation",
+                "Amount": 399.0,
+                "SalesItemLineDetail": {"Qty": 1, "UnitPrice": 399},
+            }
+        ],
+    }
+    row.update(over)
+    return row
+
+
+def whale_self_test() -> int:
+    failed = 0
+
+    def check(name: str, ok: bool, detail: Any = None) -> None:
+        nonlocal failed
+        if ok:
+            print("OK", name)
+        else:
+            failed += 1
+            print("FAIL", name, detail if detail is not None else "")
+
+    check("whale-name", is_whale_rock("Whale Rock Lodge") and not is_whale_rock("Phillipus May"))
+    check("not-hermanus-whalec", not is_whale_rock("hermanus whalec") and not is_whale_rock("ABSA BANK 3110 hermanus whalec"))
+    parsed = whale_invoice_row(_whale_sample())
+    check(
+        "whale-3213",
+        parsed is not None
+        and parsed["amount"] == 3213.4
+        and parsed["balance_due"] == 3213.4
+        and parsed["status"] == "open"
+        and parsed["source"] == "quickbooks-api"
+        and parsed["amount"] != 1759,
+        parsed,
+    )
+    check("paid-balance-zero", whale_invoice_row(_whale_sample(Balance=0))["status"] == "paid")
+    check(
+        "void-privatenote",
+        whale_invoice_row(_whale_sample(PrivateNote="Voided", TotalAmt=0, Balance=0))["status"] == "void",
+    )
+    check("may-invoice-skipped", whale_invoice_row(_whale_sample(CustomerRef={"value": "9", "name": "Phillipus May"})) is None)
+
+    from qb_import import ensure_history_tables
+
+    conn = sqlite3.connect(":memory:")
+    ensure_history_tables(conn)
+    conn.execute(
+        """INSERT INTO customer_invoices
+           (invoice_number, invoice_date, customer, amount, balance_due, status, source)
+           VALUES (3131,'2026-10-07','Whale Rock Lodge',1759,3463,'historical','quickbooks')"""
+    )
+    hist = whale_rock_account(conn)
+    check("pdf-placeholder-hidden", hist.get("billed") in {None, 0} and not (hist.get("ledger") or []))
+    _upsert_whale_invoice(conn, parsed)
+    live = whale_rock_account(conn, date(2026, 10, 16))
+    check(
+        "api-overwrites-pdf",
+        abs((live.get("billed") or 0) - 3213.4) < 0.02
+        and abs((live.get("due") or 0) - 3213.4) < 0.02
+        and live.get("pay") == "EFT"
+        and live.get("status") == "owes",
+        live,
+    )
+    check("not-1759-or-3463", live.get("billed") != 1759 and live.get("due") != 3463)
+    _upsert_whale_invoice(conn, whale_invoice_row(_whale_sample(Balance=0)))
+    cleared = whale_rock_account(conn)
+    check("paid-up-when-qb-zero", cleared.get("nil") is True and (cleared.get("due") or 0) <= 0.004)
+    _upsert_whale_invoice(conn, whale_invoice_row(_whale_sample(Balance=3213.4)))
+    conn.execute(
+        """INSERT INTO customer_invoices
+           (invoice_number, invoice_date, customer, amount, balance_due, status, source)
+           VALUES (3200,'2026-11-17','Whale Rock Lodge',1759,1759,'open','quickbooks-api')"""
+    )
+    from recon import SCHEMA as NC_SCHEMA
+    from recon import ensure as nc_ensure
+
+    nc_ensure(conn)
+    conn.executescript(NC_SCHEMA)
+    conn.execute(
+        """INSERT INTO netcash_tx
+           (paid_on, alloc_to, alloc_key, amount, alloc_kind, result, source, batch_id)
+           VALUES ('2026-12-01','Whale Rock Lodge','whale rock lodge',1759,'client_paid','paid','netcash-items','20261201')"""
+    )
+    after_do = whale_rock_account(conn, date(2026, 12, 2))
+    check("nov-do-label", after_do.get("pay") == "D/O", after_do)
+    check(
+        "nov-do-not-double",
+        abs((after_do.get("due") or 0) - 3213.4) < 0.02
+        and abs((after_do.get("billed") or 0) - 4972.4) < 0.02,
+        after_do,
+    )
+    conn.close()
+    return failed
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in {"self-test", "whale-test"}:
+        raise SystemExit(1 if whale_self_test() else 0)
     db = sqlite3.connect(DB)
     print(json.dumps(pull(db), indent=2))

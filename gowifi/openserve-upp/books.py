@@ -463,6 +463,12 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
     from qb_import import history_for_export, ingest_qb_mail
 
     ingest_qb_mail(conn)
+    try:
+        from qb_api import refresh_whale_rock
+
+        refresh_whale_rock(conn)
+    except Exception:
+        pass
     from billing import run_cycle
 
     billing = run_cycle(conn)
