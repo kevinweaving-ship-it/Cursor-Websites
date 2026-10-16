@@ -351,7 +351,7 @@ def _money(value: Any) -> float:
 
 
 def is_whale_rock(name: str | None) -> bool:
-    """Exact Whale Rock Lodge card. Does not match hermanus whalec / May."""
+    """Temporary Whale Rock Lodge-only gate. Do not reuse for other clients."""
     key = " ".join(re.findall(r"[a-z0-9]+", (name or "").lower()))
     return key == "whale rock lodge" or key.startswith("whale rock lodge ")
 
@@ -434,7 +434,10 @@ def _upsert_whale_invoice(conn: sqlite3.Connection, row: dict) -> None:
 
 
 def refresh_whale_rock(conn: sqlite3.Connection | None = None) -> dict:
-    """Pull only Whale Rock Lodge invoices. Does not write QBO Payments as cash."""
+    """Temporary: pull only Whale Rock invoices. Shared flow still uses FNB+Netcash cash.
+
+    Do not write QBO Payments as cash. Do not call this for other clients.
+    """
     from qb_import import ensure_history_tables as _ensure
 
     own = conn or sqlite3.connect(os.environ.get("UPP_DB", DB), timeout=60)
@@ -492,7 +495,12 @@ def _whale_netcash(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
 
 
 def whale_rock_account(conn: sqlite3.Connection, today: date | None = None) -> dict:
-    """QB invoices + live QB outstanding. EFT until the first November D/O."""
+    """Temporary Whale Rock card: QBO invoices + QBO Balance as due.
+
+    Final shared flow is QB invoices + FNB-via-QB EFTs + Netcash outcomes;
+    QBO Balance is then only a check. EFT until the first November D/O.
+    Do not extend this to other clients.
+    """
     today = today or date.today()
     invoices = []
     try:

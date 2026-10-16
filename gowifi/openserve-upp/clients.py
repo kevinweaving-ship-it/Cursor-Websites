@@ -577,6 +577,8 @@ def cards_for_export(
                 from qb_api import is_whale_rock, whale_rock_account
                 from statements import account_as_at
 
+                # Temporary Whale Rock only. Do not extend; shared flow is
+                # QB invoices + FNB-via-QB + Netcash → local due.
                 if is_whale_rock(line.get("customer")):
                     st = whale_rock_account(conn, today)
                 else:

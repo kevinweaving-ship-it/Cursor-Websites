@@ -464,6 +464,7 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
 
     ingest_qb_mail(conn)
     try:
+        # Temporary Whale Rock invoice refresh only. Not the shared cash flow.
         from qb_api import refresh_whale_rock
 
         refresh_whale_rock(conn)
