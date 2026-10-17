@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017k";
+  var JS_VER = "20261017l";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -922,7 +922,7 @@
   function goldRaceNos() {
     var nos = [];
     var fl;
-    var max = maxOpenFlight();
+    var max = highestUsedFlight();
     for (fl = 1; fl <= max; fl += 1) nos.push(fl);
     nos.reverse();
     return nos;
