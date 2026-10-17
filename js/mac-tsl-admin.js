@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017g";
+  var JS_VER = "20261017h";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -165,13 +165,6 @@
       "#macTslGoldSheet .tsl-gold-left tbody tr:last-child td:first-child{border-bottom-left-radius:8px}",
       "#macTslGoldSheet .tsl-gold-right tbody tr:last-child td:last-child{border-bottom-right-radius:8px}",
       "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}}",
-      "#macTslProvResults{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:auto;-webkit-overflow-scrolling:touch;margin-top:20px;margin-bottom:20px;max-width:100%;padding:8px}",
-      "#macTslProvResults .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
-      "#macTslProvResults .table-wrapper{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}",
-      "#macTslProvResults .fleet-results-table{min-width:max-content}",
-      "#macTslProvResults .sailed-line{margin:8px 0 0}",
-      "@media (max-width:768px){#macTslProvResults{margin-top:12px;margin-bottom:12px}}",
-      "@media (max-width:480px){#macTslProvResults{margin-top:12px;margin-bottom:12px;padding:4px}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
       "#macTslGoldSheet .fleet-results-table{min-width:max-content}",
       "#macTslGoldPrint{display:none}",
@@ -835,8 +828,26 @@
     return n;
   }
 
+  function goldStatusNote() {
+    return "Provisional: seven races entered. Race 2 awaits clarification. Races 3 and 4 show position sums of 14 for the losing team; the source prints 15.";
+  }
+
   function goldTeamsNote() {
     return "Note: Only 3 teams were full teams. The rest were chop and change. 15 Royal Cape members made 2 teams, A and B.";
+  }
+
+  function ensureSailedNote(host, after, id, text) {
+    if (!host) return after;
+    var note = host.querySelector("#" + id);
+    if (!note) {
+      note = document.createElement("div");
+      note.id = id;
+      note.className = "sailed-line";
+      if (after && after.parentNode === host) host.insertBefore(note, after.nextSibling);
+      else host.appendChild(note);
+    }
+    note.textContent = text;
+    return note;
   }
 
   function tidyFleetHeader() {
@@ -847,14 +858,8 @@
       ", Scoring System: TSL";
     var host = line.parentNode;
     if (!host) return;
-    var note = host.querySelector("#macTslGoldNote");
-    if (!note) {
-      note = document.createElement("div");
-      note.id = "macTslGoldNote";
-      note.className = "sailed-line";
-      host.insertBefore(note, line.nextSibling);
-    }
-    note.textContent = goldTeamsNote();
+    var status = ensureSailedNote(host, line, "macTslGoldNote", goldStatusNote());
+    ensureSailedNote(host, status, "macTslGoldTeamsNote", goldTeamsNote());
   }
 
   function headerLabel(th) {
@@ -863,7 +868,12 @@
   function goldRaceRows() {
     var rows = [];
     (state.teams || []).forEach(function (t) {
-      rows.push({ code: clubCode(t), logo: t.club_logo || "" });
+      rows.push({
+        code: clubCode(t),
+        logo: t.club_logo || "",
+        name: teamFullName(t) || clubCode(t),
+        team_id: t.team_id
+      });
     });
     if (rows.length) return rows;
     var table = resultsTable();
@@ -1008,7 +1018,7 @@
     var anyDone = raceNos.some(function (n) { return flightDone(n); });
     var lastWin = lastFlightWinnerId();
     var built = goldRaceRows().map(function (row) {
-      var team = teamByCode(row.code);
+      var team = (row.team_id != null && row.team_id !== "") ? teamById(row.team_id) : teamByCode(row.code);
       var total = 0;
       var scored = 0;
       var races = [];
@@ -1081,7 +1091,7 @@
       var trClass = medal ? ' class="' + medal + '"' : "";
       body += "<tr" + trClass + ">" +
         '<td class="rank-col">' + (item.rank ? String(item.rank) : "") + "</td>" +
-        '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) + esc(item.row.code) + "</span></td>" +
+        '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) + esc(item.row.name || item.row.code) + "</span></td>" +
         '<td class="total-col">' + (item.scored ? String(item.total) : "") + "</td>" +
         goldRaceCells(item) +
         "</tr>";
@@ -1137,86 +1147,27 @@
     }
   }
 
-  function provResultsHtml() {
-    var dash = "—";
-    var teams = [
-      { club: "GLYC", logo: "/api/club-logo/GLYC", team: "Eden District", races: { 3: "W (7)", 5: "L (11)", 7: "W (10)" }, wins: "2" },
-      { club: "MAC", logo: "/api/club-logo/MAC", team: "MAC", races: { 1: "W (10)", 4: "L (15)", 7: "L (11)" }, wins: "1" },
-      { club: "USYC", logo: "/api/club-logo/USYC", team: "MATIES", races: { 3: "L (15)", 6: "W (9)", 8: "L (15)" }, wins: "1" },
-      { club: "RCYC", logo: "/api/club-logo/RCYCA", team: "RCYC A", races: { 2: "W (8)", 4: "W (7)", 8: "W (6)" }, wins: "3" },
-      { club: "RCYC", logo: "/api/club-logo/RCYCA", team: "RCYC B", races: { 1: "L (11)", 5: "W (10)" }, wins: "1" },
-      { club: "UCT", logo: "/api/club-logo/UCT", team: "UCT", races: { 2: "L (13)", 6: "L (12)" }, wins: "0" }
-    ];
-    teams.sort(function (a, b) {
-      return String(a.team).localeCompare(String(b.team));
-    });
-    var heads = '<th class="club-col">Club</th><th>Team</th>';
-    var r;
-    for (r = 1; r <= 15; r += 1) heads += '<th class="race-col">R' + r + "</th>";
-    heads += '<th class="total-col">Total wins</th>';
-    var body = "";
-    teams.forEach(function (t) {
-      var cells = '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(t.logo, t.club) + esc(t.club) + "</span></td>";
-      cells += "<td>" + esc(t.team) + "</td>";
-      for (r = 1; r <= 15; r += 1) {
-        var v = t.races[r] || dash;
-        cells += '<td class="race-col' + (t.races[r] ? " score-counts" : "") + '">' + esc(v) + "</td>";
-      }
-      cells += '<td class="total-col">' + esc(t.wins) + "</td>";
-      body += "<tr>" + cells + "</tr>";
-    });
-    return (
-      '<div id="macTslProvResults">' +
-        '<div class="fleet-title-row">Provisional TSL results — Saturday 17 October 2026</div>' +
-        '<div class="table-wrapper"><table class="fleet-results-table rs-compact-row-logos">' +
-          "<thead><tr>" + heads + "</tr></thead><tbody>" + body + "</tbody>" +
-        "</table></div>" +
-        '<div class="sailed-line">Provisional overnight results — Saturday 17 October 2026. W = win; L = loss; brackets show team points for that match. Lower points wins each match. Total wins counts completed matches only. Races 9–15 remain unscored.</div>' +
-      "</div>"
-    );
-  }
-
-  function insertProvResults() {
-    var sec = firstFleet();
-    if (!sec) return;
-    var html = provResultsHtml();
-    var existing = document.getElementById("macTslProvResults");
-    if (existing) {
-      existing.outerHTML = html;
-      return;
-    }
-    var box = document.createElement("div");
-    box.innerHTML = html;
-    var node = box.firstChild;
-    var gold = document.getElementById("macTslGoldSheet");
-    if (gold) gold.parentNode.insertBefore(node, gold);
-    else {
-      var hdr = sec.querySelector(".class-header");
-      if (hdr) hdr.parentNode.insertBefore(node, hdr.nextSibling);
-      else sec.insertBefore(node, sec.firstChild);
-    }
+  function removeProvResults() {
+    var el = document.getElementById("macTslProvResults");
+    if (el && el.parentNode) el.parentNode.removeChild(el);
   }
 
   function insertGoldRaceTable() {
     var sec = firstFleet();
     if (!sec) return;
+    removeProvResults();
     var html = goldRaceTableHtml();
     var existing = document.getElementById("macTslGoldSheet");
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-    var prov = document.getElementById("macTslProvResults");
-    if (prov) {
-      prov.insertAdjacentHTML("afterend", html);
-    } else {
-      var hdr = sec.querySelector(".class-header");
-      var orig = null;
-      Array.prototype.forEach.call(sec.children, function (el) {
-        if (orig) return;
-        if (el.classList && el.classList.contains("table-wrapper") && el.id !== "macTslGoldSheet") orig = el;
-      });
-      if (orig) orig.insertAdjacentHTML("beforebegin", html);
-      else if (hdr) hdr.insertAdjacentHTML("afterend", html);
-      else sec.insertAdjacentHTML("beforeend", html);
-    }
+    var hdr = sec.querySelector(".class-header");
+    var orig = null;
+    Array.prototype.forEach.call(sec.children, function (el) {
+      if (orig) return;
+      if (el.classList && el.classList.contains("table-wrapper") && el.id !== "macTslGoldSheet") orig = el;
+    });
+    if (orig) orig.insertAdjacentHTML("beforebegin", html);
+    else if (hdr) hdr.insertAdjacentHTML("afterend", html);
+    else sec.insertAdjacentHTML("beforeend", html);
     requestAnimationFrame(syncGoldRowHeights);
     bindPrintButton();
   }
@@ -3936,7 +3887,7 @@
     tidyFleetHeader();
     injectMButtons();
     applyStandingsTable();
-    insertProvResults();
+    removeProvResults();
     insertGoldRaceTable();
     insertFlightsCard();
     insertTeamsCard();
@@ -3974,7 +3925,7 @@
     if (!onThisEvent()) return;
     injectCss();
     ensureRoots();
-    insertProvResults();
+    removeProvResults();
     bindPrintButton();
     loadState().catch(function () { renderAll(); });
     var tog = document.getElementById("regattaSaEditToggle");
