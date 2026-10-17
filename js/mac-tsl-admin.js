@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017e";
+  var JS_VER = "20261017f";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -1189,19 +1189,20 @@
     if (!sec) return;
     var html = goldRaceTableHtml();
     var existing = document.getElementById("macTslGoldSheet");
-    if (existing) {
-      existing.outerHTML = html;
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    var prov = document.getElementById("macTslProvResults");
+    if (prov) {
+      prov.insertAdjacentHTML("afterend", html);
     } else {
-      var box = document.createElement("div");
-      box.innerHTML = html;
-      var node = box.firstChild;
-      var oldWrap = sec.querySelector(".table-wrapper");
-      if (oldWrap) oldWrap.parentNode.insertBefore(node, oldWrap);
-      else {
-        var hdr = sec.querySelector(".class-header");
-        if (hdr) hdr.parentNode.insertBefore(node, hdr.nextSibling);
-        else sec.appendChild(node);
-      }
+      var hdr = sec.querySelector(".class-header");
+      var orig = null;
+      Array.prototype.forEach.call(sec.children, function (el) {
+        if (orig) return;
+        if (el.classList && el.classList.contains("table-wrapper") && el.id !== "macTslGoldSheet") orig = el;
+      });
+      if (orig) orig.insertAdjacentHTML("beforebegin", html);
+      else if (hdr) hdr.insertAdjacentHTML("afterend", html);
+      else sec.insertAdjacentHTML("beforeend", html);
     }
     requestAnimationFrame(syncGoldRowHeights);
     bindPrintButton();
