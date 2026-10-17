@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017a";
+  var JS_VER = "20261017b";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -1166,6 +1166,51 @@
     if (existingPrint) existingPrint.outerHTML = printHtml;
     else if (gold) gold.insertAdjacentHTML("afterend", printHtml);
     requestAnimationFrame(syncGoldRowHeights);
+    bindPrintButton();
+  }
+
+  function goldPrintDocCss() {
+    var css = "";
+    Array.prototype.forEach.call(document.querySelectorAll("style"), function (s) {
+      css += s.textContent || "";
+    });
+    return css +
+      "#macTslGoldPrint{display:block!important;overflow:visible;border:2px solid #1a2750;border-radius:10px;background:#fff;margin-top:12px;max-width:100%}" +
+      ".action-buttons,.back-to-home,.regatta-sa-mode-wrap,.regatta-wc-icons-row,.site-header,.site-footer{display:none!important}" +
+      "body{background:#fff;margin:12px}";
+  }
+
+  function printGoldSheet() {
+    var page = document.querySelector(".regatta-page[data-mac-tsl=\"1\"]");
+    var header = page && page.querySelector(".header");
+    var classHead = firstFleet() && firstFleet().querySelector(".class-header");
+    var w = window.open("", "_blank");
+    if (!w) {
+      window.print();
+      return;
+    }
+    w.document.open();
+    w.document.write(
+      "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+      "<title>Results</title><style>" + goldPrintDocCss() + "</style></head><body>" +
+      '<div class="regatta-page" data-mac-tsl="1">' +
+      (header ? header.outerHTML : "") +
+      (classHead ? classHead.outerHTML : "") +
+      goldPrintTableHtml() +
+      "</div></body></html>"
+    );
+    w.document.close();
+    w.focus();
+    setTimeout(function () {
+      try { w.print(); } catch (err) {}
+    }, 250);
+  }
+
+  function bindPrintButton() {
+    document.querySelectorAll(".regatta-page[data-mac-tsl=\"1\"] .action-buttons .action-button").forEach(function (btn) {
+      if ((btn.textContent || "").replace(/\s+/g, " ").trim() !== "Print") return;
+      btn.onclick = printGoldSheet;
+    });
   }
 
   function sexLetter(s) {
@@ -3847,6 +3892,7 @@
     renderMatches();
     syncSheetType();
     requestAnimationFrame(function () { fitTeamCardTables(); });
+    bindPrintButton();
   }
 
   function loadState() {
@@ -3875,6 +3921,7 @@
     if (!onThisEvent()) return;
     injectCss();
     ensureRoots();
+    bindPrintButton();
     loadState().catch(function () { renderAll(); });
     var tog = document.getElementById("regattaSaEditToggle");
     if (tog && !tog._tslBound) {
