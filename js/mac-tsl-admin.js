@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017m";
+  var JS_VER = "20261017n";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -831,38 +831,27 @@
     return n;
   }
 
-  function goldStatusNote() {
-    return "Provisional: eight races entered. Races 3 and 4 show position sums of 14 for the losing team; the source prints 15.";
-  }
-
-  function goldTeamsNote() {
-    return "Note: Only 3 teams were full teams. The rest were chop and change. 15 Royal Cape members made 2 teams, A and B.";
-  }
-
-  function ensureSailedNote(host, after, id, text) {
-    if (!host) return after;
-    var note = host.querySelector("#" + id);
-    if (!note) {
-      note = document.createElement("div");
-      note.id = id;
-      note.className = "sailed-line";
-      if (after && after.parentNode === host) host.insertBefore(note, after.nextSibling);
-      else host.appendChild(note);
-    }
-    note.textContent = text;
-    return note;
+  function goldSailedLine() {
+    var sailed = flightsSailedCount();
+    var discards = 0;
+    var entries = (state.teams || []).length;
+    return "Sailed: " + sailed +
+      ", Discards: " + discards +
+      ", To count: " + (sailed - discards) +
+      ", Entries: " + entries +
+      ", Scoring system: Team Racing";
   }
 
   function tidyFleetHeader() {
-    var line = firstFleet() && firstFleet().querySelector(".sailed-line");
-    if (!line) return;
-    line.textContent = "Flights: " + flightsSailedCount() +
-      ", Entries (Teams): " + (state.teams || []).length +
-      ", Scoring System: TSL";
-    var host = line.parentNode;
+    var host = firstFleet();
     if (!host) return;
-    var status = ensureSailedNote(host, line, "macTslGoldNote", goldStatusNote());
-    ensureSailedNote(host, status, "macTslGoldTeamsNote", goldTeamsNote());
+    ["macTslGoldNote", "macTslGoldTeamsNote"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    var line = host.querySelector(".class-header-main-col .sailed-line") || host.querySelector(".sailed-line");
+    if (!line) return;
+    line.textContent = goldSailedLine();
   }
 
   function headerLabel(th) {

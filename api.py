@@ -24561,9 +24561,6 @@ def _render_result_sheet_fleet(
     is_mac_tsl = str(regatta_id or "").strip() == MAC_TSL_WC_2026_REGATTA_SLUG
     if is_mac_tsl:
         show_boat = True
-        sailed_line = (
-            f"Flights: {races_sailed}, Entries (Teams): {entries}, Scoring System: TSL"
-        )
 
     thead = ""
     if _pref_on("rank"):
@@ -26880,7 +26877,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261015c" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261017m" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261017n" defer></script>'
             if is_mac_tsl
             else ""
         )
