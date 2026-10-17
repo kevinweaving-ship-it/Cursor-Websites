@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify lipton-dev-series-scores.json matches Lipton 2026 overall results PDF."""
+"""Verify lipton-dev-series-scores.json matches Lipton 2026 overall after 10 races PDF."""
 
 from __future__ import annotations
 
@@ -60,6 +60,12 @@ def main() -> int:
     if expected_sha and matrix_sha != expected_sha:
         errors.append(f"matrix_sha256 mismatch: got {matrix_sha}, expected {expected_sha}")
 
+    dsq_r6 = sorted(
+        b for b, row in data.get("boats", {}).items() if row.get("codes", {}).get("6") == "DSQ"
+    )
+    if dsq_r6 != ["KYC", "LDYC", "RNYC"]:
+        errors.append(f"R6 DSQ boats {dsq_r6!r} != ['KYC', 'LDYC', 'RNYC']")
+
     for boat, exp in PDF_TOTALS.items():
         pts = data["boats"].get(boat, {}).get("points", {})
         total = sum(float(pts[str(i)]) for i in range(1, 11))
@@ -93,6 +99,7 @@ def main() -> int:
 
     print("OK", SERIES_PATH)
     print("  matrix_sha256", matrix_sha)
+    print("  R6 DSQ", dsq_r6)
     print("  boats", len(data["boats"]), "races 10 entries", data.get("entries"))
     return 0
 
