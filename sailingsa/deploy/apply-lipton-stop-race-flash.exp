@@ -1,0 +1,16 @@
+#!/usr/bin/expect -f
+# Stop Lipton URL flashing / race-mode overlay. From project root:
+#   expect sailingsa/deploy/apply-lipton-stop-race-flash.exp
+set timeout 120
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn bash -c "scp -o StrictHostKeyChecking=no sailingsa/deploy/patch_lipton_stop_race_flash.py ${user}@${server}:/tmp/patch_lipton_stop_race_flash.py && ssh -o StrictHostKeyChecking=no ${user}@${server} \"python3 /tmp/patch_lipton_stop_race_flash.py all && systemctl restart sailingsa-api && sleep 2 && systemctl is-active sailingsa-api\""
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    -re "password" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
