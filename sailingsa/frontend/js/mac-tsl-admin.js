@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017f";
+  var JS_VER = "20261017g";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -168,6 +168,7 @@
       "#macTslProvResults{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:auto;-webkit-overflow-scrolling:touch;margin-top:20px;margin-bottom:20px;max-width:100%;padding:8px}",
       "#macTslProvResults .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
       "#macTslProvResults .table-wrapper{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}",
+      "#macTslProvResults .fleet-results-table{min-width:max-content}",
       "#macTslProvResults .sailed-line{margin:8px 0 0}",
       "@media (max-width:768px){#macTslProvResults{margin-top:12px;margin-bottom:12px}}",
       "@media (max-width:480px){#macTslProvResults{margin-top:12px;margin-bottom:12px;padding:4px}}",
@@ -1137,28 +1138,40 @@
   }
 
   function provResultsHtml() {
-    var rows = [
-      ["1", "MAC", "RCYC B", "MAC", "10", "11"],
-      ["2", "UCT", "RCYC A", "RCYC A", "8", "13"],
-      ["3", "SU", "Eden", "Eden", "7", "15"],
-      ["4", "RCYC A", "MAC", "RCYC A", "7", "15"],
-      ["5", "RCYC B", "Eden", "RCYC B", "10", "11"],
-      ["6", "UCT", "SU", "SU", "9", "12"],
-      ["7", "Eden", "MAC", "Eden", "10", "11"],
-      ["8", "RCYC A", "SU", "RCYC A", "6", "15"]
+    var dash = "—";
+    var teams = [
+      { club: "GLYC", logo: "/api/club-logo/GLYC", team: "Eden District", races: { 3: "W (7)", 5: "L (11)", 7: "W (10)" }, wins: "2" },
+      { club: "MAC", logo: "/api/club-logo/MAC", team: "MAC", races: { 1: "W (10)", 4: "L (15)", 7: "L (11)" }, wins: "1" },
+      { club: "USYC", logo: "/api/club-logo/USYC", team: "MATIES", races: { 3: "L (15)", 6: "W (9)", 8: "L (15)" }, wins: "1" },
+      { club: "RCYC", logo: "/api/club-logo/RCYCA", team: "RCYC A", races: { 2: "W (8)", 4: "W (7)", 8: "W (6)" }, wins: "3" },
+      { club: "RCYC", logo: "/api/club-logo/RCYCA", team: "RCYC B", races: { 1: "L (11)", 5: "W (10)" }, wins: "1" },
+      { club: "UCT", logo: "/api/club-logo/UCT", team: "UCT", races: { 2: "L (13)", 6: "L (12)" }, wins: "0" }
     ];
+    teams.sort(function (a, b) {
+      return String(a.team).localeCompare(String(b.team));
+    });
+    var heads = '<th class="club-col">Club</th><th>Team</th>';
+    var r;
+    for (r = 1; r <= 15; r += 1) heads += '<th class="race-col">R' + r + "</th>";
+    heads += '<th class="total-col">Total wins</th>';
     var body = "";
-    rows.forEach(function (r) {
-      body += "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td><td>" + r[2] + "</td><td>" + r[3] + "</td><td>" + r[4] + "</td><td>" + r[5] + "</td></tr>";
+    teams.forEach(function (t) {
+      var cells = '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(t.logo, t.club) + esc(t.club) + "</span></td>";
+      cells += "<td>" + esc(t.team) + "</td>";
+      for (r = 1; r <= 15; r += 1) {
+        var v = t.races[r] || dash;
+        cells += '<td class="race-col' + (t.races[r] ? " score-counts" : "") + '">' + esc(v) + "</td>";
+      }
+      cells += '<td class="total-col">' + esc(t.wins) + "</td>";
+      body += "<tr>" + cells + "</tr>";
     });
     return (
       '<div id="macTslProvResults">' +
         '<div class="fleet-title-row">Provisional TSL results — Saturday 17 October 2026</div>' +
-        '<div class="table-wrapper"><table class="fleet-results-table">' +
-          "<thead><tr><th>Race</th><th>Blue team</th><th>Green team</th><th>Winner</th><th>Winning score</th><th>Losing score</th></tr></thead>" +
-          "<tbody>" + body + "</tbody>" +
+        '<div class="table-wrapper"><table class="fleet-results-table rs-compact-row-logos">' +
+          "<thead><tr>" + heads + "</tr></thead><tbody>" + body + "</tbody>" +
         "</table></div>" +
-        '<div class="sailed-line">Provisional overnight results. Races 9–15 are unscored on the supplied sheet.</div>' +
+        '<div class="sailed-line">Provisional overnight results — Saturday 17 October 2026. W = win; L = loss; brackets show team points for that match. Lower points wins each match. Total wins counts completed matches only. Races 9–15 remain unscored.</div>' +
       "</div>"
     );
   }
