@@ -785,6 +785,51 @@ def _col_exists(cur, table: str, column: str) -> bool:
     return cur.fetchone() is not None
 
 
+def stamp_tsl_provisional(cur, regatta_id: str) -> None:
+    """Gold header: Results are Provisional as at <snapshot>. Never overwrite Final."""
+    rid = str(regatta_id or "").strip()
+    if rid not in TSL_REGATTA_IDS:
+        return
+    cur.execute(
+        "SELECT result_status FROM public.regattas WHERE regatta_id = %s",
+        (rid,),
+    )
+    row = cur.fetchone() or {}
+    current = ""
+    if isinstance(row, dict):
+        current = str(row.get("result_status") or "").strip()
+    elif row:
+        current = str(row[0] or "").strip()
+    if current.lower() == "final":
+        return
+    cur.execute(
+        """
+        UPDATE public.regattas
+           SET result_status = 'Provisional',
+               as_at_time = NOW()
+         WHERE regatta_id = %s
+           AND lower(btrim(COALESCE(result_status, ''))) <> 'final'
+        """,
+        (rid,),
+    )
+    if not _col_exists(cur, "results", "result_status"):
+        return
+    sets = ["result_status = 'Provisional'"]
+    if _col_exists(cur, "results", "as_at_time"):
+        sets.append(
+            "as_at_time = to_char(NOW() AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI:SS')"
+        )
+    cur.execute(
+        f"""
+        UPDATE public.results
+           SET {", ".join(sets)}
+         WHERE regatta_id = %s
+           AND lower(btrim(COALESCE(result_status, ''))) <> 'final'
+        """,
+        (rid,),
+    )
+
+
 def _sync_result_row(cur, team: dict, boats: list[dict]) -> int:
     """One public.results row per team. Reuse existing row. No duplicates."""
     rid = team["regatta_id"]
@@ -847,14 +892,19 @@ def _sync_result_row(cur, team: dict, boats: list[dict]) -> int:
     if result_id:
         sets = ", ".join(f"{k} = %s" for k in cols)
         cur.execute(f"UPDATE results SET {sets} WHERE result_id = %s", list(cols.values()) + [int(result_id)])
+        stamp_tsl_provisional(cur, rid)
         return int(result_id)
 
     if "race_scores" in _existing_result_cols(cur):
         cols["race_scores"] = _json_payload({})
+    if _col_exists(cur, "results", "result_status"):
+        cols["result_status"] = "Provisional"
     names = ", ".join(cols)
     placeholders = ", ".join(["%s"] * len(cols))
     cur.execute(f"INSERT INTO results ({names}) VALUES ({placeholders}) RETURNING result_id", list(cols.values()))
-    return int(cur.fetchone()["result_id"])
+    new_id = int(cur.fetchone()["result_id"])
+    stamp_tsl_provisional(cur, rid)
+    return new_id
 
 
 def _existing_result_cols(cur) -> set[str]:
@@ -898,6 +948,7 @@ def _write_standings_to_results(cur, regatta_id: str, standings: list[dict], mat
             args.append(row.get("wins") or 0)
         args.append(int(result_id))
         cur.execute(f"UPDATE results SET {', '.join(sets)} WHERE result_id = %s", args)
+    stamp_tsl_provisional(cur, regatta_id)
 
 
 def _audit(cur, regatta_id: str, action: str, *, match_id=None, team_id=None, reason=None, actor=None, payload=None):
@@ -1822,6 +1873,7 @@ def save_flight_line(
             cell["rank"] = r
         sheet[fl][bow_s] = cell
     _write_flight_sheet(cur, regatta_id, sheet)
+    stamp_tsl_provisional(cur, regatta_id)
     _audit(cur, regatta_id, "flight_sheet", actor=actor, payload={"flight": fl, "bow": bow})
     return sheet
 
@@ -1841,6 +1893,7 @@ def save_flight_sheet_action(
         flight=flight,
     )
     _write_flight_sheet(cur, regatta_id, sheet)
+    stamp_tsl_provisional(cur, regatta_id)
     _audit(
         cur,
         regatta_id,

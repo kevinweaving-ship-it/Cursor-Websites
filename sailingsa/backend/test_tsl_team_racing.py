@@ -14,6 +14,7 @@ from sailingsa.backend.tsl_team_racing import (
     require_championship_teams,
     sailor_allowed_for_club,
     score_match,
+    stamp_tsl_provisional,
     validate_roster_boats,
 )
 
@@ -274,6 +275,45 @@ class TestFlightSheetActions(unittest.TestCase):
         self.assertEqual(sorted(k for k in out if k.isdigit()), ["1", "2"])
         self.assertIsNone(out["1"]["1"]["team_id"])
         self.assertIsNone(out["2"]["6"]["rank"])
+
+
+class _FakeCur:
+    def __init__(self, status=""):
+        self.status = status
+        self.sql = []
+        self._last = ""
+
+    def execute(self, sql, args=None):
+        self.sql.append(" ".join(str(sql).split()))
+        self._last = self.sql[-1]
+        self.args = args
+
+    def fetchone(self):
+        if "information_schema.columns" in self._last:
+            return {"column_name": "result_status"}
+        return {"result_status": self.status}
+
+
+class TestStampTslProvisional(unittest.TestCase):
+    def test_sets_provisional_when_blank(self):
+        cur = _FakeCur("")
+        stamp_tsl_provisional(cur, "2026-10-17-mac-tsl-wc-team-sailing")
+        joined = "\n".join(cur.sql)
+        self.assertIn("result_status = 'Provisional'", joined)
+        self.assertIn("as_at_time = NOW()", joined)
+        self.assertIn("UPDATE public.results", joined)
+
+    def test_does_not_overwrite_final(self):
+        cur = _FakeCur("Final")
+        stamp_tsl_provisional(cur, "2026-10-17-mac-tsl-wc-team-sailing")
+        joined = "\n".join(cur.sql)
+        self.assertNotIn("UPDATE public.regattas", joined)
+        self.assertNotIn("UPDATE public.results", joined)
+
+    def test_ignores_other_regattas(self):
+        cur = _FakeCur("")
+        stamp_tsl_provisional(cur, "2026-09-19-hmyc-midmar-cup")
+        self.assertEqual(cur.sql, [])
 
 
 if __name__ == "__main__":
