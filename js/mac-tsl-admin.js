@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017d";
+  var JS_VER = "20261017e";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -165,6 +165,12 @@
       "#macTslGoldSheet .tsl-gold-left tbody tr:last-child td:first-child{border-bottom-left-radius:8px}",
       "#macTslGoldSheet .tsl-gold-right tbody tr:last-child td:last-child{border-bottom-right-radius:8px}",
       "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}}",
+      "#macTslProvResults{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:auto;-webkit-overflow-scrolling:touch;margin-top:20px;margin-bottom:20px;max-width:100%;padding:8px}",
+      "#macTslProvResults .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
+      "#macTslProvResults .table-wrapper{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}",
+      "#macTslProvResults .sailed-line{margin:8px 0 0}",
+      "@media (max-width:768px){#macTslProvResults{margin-top:12px;margin-bottom:12px}}",
+      "@media (max-width:480px){#macTslProvResults{margin-top:12px;margin-bottom:12px;padding:4px}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
       "#macTslGoldSheet .fleet-results-table{min-width:max-content}",
       "#macTslGoldPrint{display:none}",
@@ -1127,6 +1133,54 @@
       var h = Math.max(a[i].getBoundingClientRect().height, b[i].getBoundingClientRect().height);
       a[i].style.height = h + "px";
       b[i].style.height = h + "px";
+    }
+  }
+
+  function provResultsHtml() {
+    var rows = [
+      ["1", "MAC", "RCYC B", "MAC", "10", "11"],
+      ["2", "UCT", "RCYC A", "RCYC A", "8", "13"],
+      ["3", "SU", "Eden", "Eden", "7", "15"],
+      ["4", "RCYC A", "MAC", "RCYC A", "7", "15"],
+      ["5", "RCYC B", "Eden", "RCYC B", "10", "11"],
+      ["6", "UCT", "SU", "SU", "9", "12"],
+      ["7", "Eden", "MAC", "Eden", "10", "11"],
+      ["8", "RCYC A", "SU", "RCYC A", "6", "15"]
+    ];
+    var body = "";
+    rows.forEach(function (r) {
+      body += "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td><td>" + r[2] + "</td><td>" + r[3] + "</td><td>" + r[4] + "</td><td>" + r[5] + "</td></tr>";
+    });
+    return (
+      '<div id="macTslProvResults">' +
+        '<div class="fleet-title-row">Provisional TSL results — Saturday 17 October 2026</div>' +
+        '<div class="table-wrapper"><table class="fleet-results-table">' +
+          "<thead><tr><th>Race</th><th>Blue team</th><th>Green team</th><th>Winner</th><th>Winning score</th><th>Losing score</th></tr></thead>" +
+          "<tbody>" + body + "</tbody>" +
+        "</table></div>" +
+        '<div class="sailed-line">Provisional overnight results. Races 9–15 are unscored on the supplied sheet.</div>' +
+      "</div>"
+    );
+  }
+
+  function insertProvResults() {
+    var sec = firstFleet();
+    if (!sec) return;
+    var html = provResultsHtml();
+    var existing = document.getElementById("macTslProvResults");
+    if (existing) {
+      existing.outerHTML = html;
+      return;
+    }
+    var box = document.createElement("div");
+    box.innerHTML = html;
+    var node = box.firstChild;
+    var gold = document.getElementById("macTslGoldSheet");
+    if (gold) gold.parentNode.insertBefore(node, gold);
+    else {
+      var hdr = sec.querySelector(".class-header");
+      if (hdr) hdr.parentNode.insertBefore(node, hdr.nextSibling);
+      else sec.insertBefore(node, sec.firstChild);
     }
   }
 
@@ -3868,6 +3922,7 @@
     tidyFleetHeader();
     injectMButtons();
     applyStandingsTable();
+    insertProvResults();
     insertGoldRaceTable();
     insertFlightsCard();
     insertTeamsCard();
@@ -3905,6 +3960,7 @@
     if (!onThisEvent()) return;
     injectCss();
     ensureRoots();
+    insertProvResults();
     bindPrintButton();
     loadState().catch(function () { renderAll(); });
     var tog = document.getElementById("regattaSaEditToggle");
