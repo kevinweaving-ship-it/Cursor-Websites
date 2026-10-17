@@ -1,67 +1,130 @@
 #!/bin/bash
-# Deploy tracking-dev2 to live: frontend (zip) + api.py + sailingsa/backend bootstrap module.
-# Run from project root on Mac. Requires ~/.ssh/sailingsa_live_key.
-# See docs/TRACKING_DEV2.md and sailingsa/deploy/SSH_LIVE.md
+# Deploy tracking-dev2 / Lipton-dev assets ONLY.
+#
+# PERMANENT RULE: never affect good URLs we are not working on.
+# NEVER unzip full frontend. NEVER overwrite index.html, blank.html, or api.py by default.
+#
+# Run from project root. Requires ~/.ssh/sailingsa_live_key or SSHPASS.
 set -euo pipefail
 
 SERVER="102.218.215.253"
 WEB_ROOT="/var/www/sailingsa"
-API_ROOT="/var/www/sailingsa/api"
 KEY="${SAILINGSA_SSH_KEY:-$HOME/.ssh/sailingsa_live_key}"
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+FE="$PROJECT_ROOT/sailingsa/frontend"
 
-if [ ! -f "$KEY" ]; then
-  echo "ERROR: SSH key not found: $KEY"
-  echo "See sailingsa/deploy/SSH_LIVE.md for one-time key setup."
+SSH_OPTS=(-o StrictHostKeyChecking=no)
+SCP=(scp "${SSH_OPTS[@]}")
+SSH=(ssh "${SSH_OPTS[@]}")
+
+if [ -f "$KEY" ]; then
+  SCP+=(-i "$KEY")
+  SSH+=(-i "$KEY")
+elif [ -n "${SSHPASS:-}" ]; then
+  SCP=(sshpass -e scp "${SSH_OPTS[@]}")
+  SSH=(sshpass -e ssh "${SSH_OPTS[@]}")
+else
+  echo "ERROR: Need ~/.ssh/sailingsa_live_key or SSHPASS"
   exit 1
 fi
 
-if [ ! -f "$PROJECT_ROOT/api.py" ]; then
-  echo "ERROR: Run from repo root (api.py missing)."
+# Allowlist only — add files here when new *dev* assets are required.
+# Do NOT add index.html, blank.html, js/api.js, css/main.css, or anything shared with public URLs.
+ALLOWLIST=(
+  tracking-dev2.html
+  css/tracking-dev2.css
+  css/lipton-dev.css
+  js/tracking-dev2-playback.js
+  js/tracking-dev2-sailfish.js
+  js/lipton-dev-playback.js
+  js/lipton-dev-races.json
+  js/lipton-dev-series-scores.json
+  js/lipton-dev-event-logo.png
+  js/lipton-dev-replay.json
+  js/lipton-dev-replay-r1.json
+  js/lipton-dev-replay-r2.json
+  js/lipton-dev-replay-r3.json
+  js/lipton-dev-replay-r5.json
+  js/lipton-dev-replay-r6.json
+  js/lipton-dev-replay-r7.json
+  js/lipton-dev-replay-r8.json
+  js/lipton-dev-replay-r9.json
+  js/lipton-dev-replay-r10.json
+  js/lipton-dev-trail.json
+  js/lipton-dev-trail-r1.json
+  js/lipton-dev-trail-r2.json
+  js/lipton-dev-trail-r3.json
+  js/lipton-dev-trail-r5.json
+  js/lipton-dev-trail-r6.json
+  js/lipton-dev-trail-r7.json
+  js/lipton-dev-trail-r8.json
+  js/lipton-dev-trail-r9.json
+  js/lipton-dev-trail-r10.json
+)
+
+echo "=== PROTECTED DEV DEPLOY (allowlist only) ==="
+echo "Will NOT touch: index.html, blank.html, js/api.js, api.py (unless SAILINGSA_ALLOW_API_DEPLOY=1)"
+echo ""
+
+MISSING=0
+for rel in "${ALLOWLIST[@]}"; do
+  if [ ! -f "$FE/$rel" ]; then
+    echo "MISSING locally: $rel"
+    MISSING=1
+  fi
+done
+if [ "$MISSING" -ne 0 ]; then
+  echo "ERROR: allowlist files missing locally — abort"
   exit 1
 fi
 
-echo "=== 1) Frontend zip (tracking-dev2.html, js, css, lipton-dev replay JSON) ==="
-cd "$PROJECT_ROOT/sailingsa/frontend"
-rm -f ../../sailingsa-frontend.zip
-zip -r ../../sailingsa-frontend.zip . \
-  -x "*.DS_Store" -x "__MACOSX" -x "*.BU_*" -x "*.bu_*" -x "*.bak" -x "*.md" \
-  -x "data/hub_hero.json"
-cd "$PROJECT_ROOT"
+# Upload allowlisted files only
+"${SSH[@]}" "root@${SERVER}" "mkdir -p ${WEB_ROOT}/js ${WEB_ROOT}/css"
+for rel in "${ALLOWLIST[@]}"; do
+  echo "  scp $rel"
+  "${SCP[@]}" "$FE/$rel" "root@${SERVER}:${WEB_ROOT}/$rel"
+done
 
-echo "=== 2) Upload zip + extract ==="
-scp -i "$KEY" -o StrictHostKeyChecking=no sailingsa-frontend.zip "root@${SERVER}:/tmp/"
-ssh -i "$KEY" -o StrictHostKeyChecking=no "root@${SERVER}" "
-  cd ${WEB_ROOT} &&
-  unzip -o /tmp/sailingsa-frontend.zip &&
-  rm -f /tmp/sailingsa-frontend.zip &&
-  chown -R www-data:www-data ${WEB_ROOT} 2>/dev/null || true
-"
+"${SSH[@]}" "root@${SERVER}" "chown -R www-data:www-data ${WEB_ROOT}/tracking-dev2.html ${WEB_ROOT}/js/tracking-dev2* ${WEB_ROOT}/js/lipton-dev* ${WEB_ROOT}/css/tracking-dev2.css ${WEB_ROOT}/css/lipton-dev.css 2>/dev/null || true"
 
-echo "=== 3) Bootstrap module (sailingsa/backend) ==="
-ssh -i "$KEY" -o StrictHostKeyChecking=no "root@${SERVER}" \
-  "mkdir -p ${WEB_ROOT}/sailingsa/backend"
-scp -i "$KEY" -o StrictHostKeyChecking=no \
-  "$PROJECT_ROOT/sailingsa/__init__.py" \
-  "root@${SERVER}:${WEB_ROOT}/sailingsa/__init__.py"
-scp -i "$KEY" -o StrictHostKeyChecking=no \
-  "$PROJECT_ROOT/sailingsa/backend/__init__.py" \
-  "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/__init__.py"
-scp -i "$KEY" -o StrictHostKeyChecking=no \
-  "$PROJECT_ROOT/sailingsa/backend/tracking_dev2_sailfish.py" \
-  "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/tracking_dev2_sailfish.py"
+# Optional Sailfish bootstrap module (dev API helper only — not full api.py)
+if [ -f "$PROJECT_ROOT/sailingsa/backend/tracking_dev2_sailfish.py" ]; then
+  echo "=== bootstrap module (tracking_dev2_sailfish.py only) ==="
+  "${SSH[@]}" "root@${SERVER}" "mkdir -p ${WEB_ROOT}/sailingsa/backend"
+  "${SCP[@]}" "$PROJECT_ROOT/sailingsa/__init__.py" "root@${SERVER}:${WEB_ROOT}/sailingsa/__init__.py" 2>/dev/null || true
+  "${SCP[@]}" "$PROJECT_ROOT/sailingsa/backend/__init__.py" "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/__init__.py" 2>/dev/null || true
+  "${SCP[@]}" "$PROJECT_ROOT/sailingsa/backend/tracking_dev2_sailfish.py" \
+    "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/tracking_dev2_sailfish.py"
+fi
 
-echo "=== 4) api.py (verified deploy) ==="
-scp -i "$KEY" -o StrictHostKeyChecking=no \
-  "$PROJECT_ROOT/api.py" "root@${SERVER}:/root/incoming/api.py"
-ssh -i "$KEY" -o StrictHostKeyChecking=no "root@${SERVER}" \
-  "/root/deploy_api_verified.sh"
-
-echo "=== 5) Verify tracking-dev2 ==="
-curl -sf "https://sailingsa.co.za/api/tracking-dev2/replay2/getRaceDatas?race=1" | python3 -c \
-  "import json,sys; d=json.load(sys.stdin); assert d.get('success') and d.get('teamList'), d; print('getRaceDatas OK', len(d.get('teamList',[])), 'teams')"
-curl -sfI "https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev2?race=1" | head -3
+# api.py: OFF by default — deploying a thin-branch api.py gutted public sailor/club/regatta URLs (Sep 2026).
+if [ "${SAILINGSA_ALLOW_API_DEPLOY:-}" = "1" ]; then
+  echo "=== WARNING: SAILINGSA_ALLOW_API_DEPLOY=1 — deploying api.py ==="
+  LIVE_SIZE=$("${SSH[@]}" "root@${SERVER}" "wc -c < ${WEB_ROOT}/api/api.py" | tr -d '[:space:]')
+  NEW_SIZE=$(wc -c < "$PROJECT_ROOT/api.py" | tr -d '[:space:]')
+  echo "  live api.py=$LIVE_SIZE bytes  local=$NEW_SIZE bytes"
+  # Reject if local is < 80% of live (guards against thin-branch wipe)
+  if [ -n "$LIVE_SIZE" ] && [ "$LIVE_SIZE" -gt 0 ]; then
+    MIN=$(( LIVE_SIZE * 80 / 100 ))
+    if [ "$NEW_SIZE" -lt "$MIN" ]; then
+      echo "ERROR: local api.py is much smaller than live ($NEW_SIZE < $MIN). Aborting — this is how URLs got gutted."
+      exit 1
+    fi
+  fi
+  "${SCP[@]}" "$PROJECT_ROOT/api.py" "root@${SERVER}:/root/incoming/api.py"
+  "${SSH[@]}" "root@${SERVER}" "/root/deploy_api_verified.sh"
+else
+  echo "=== api.py skipped (set SAILINGSA_ALLOW_API_DEPLOY=1 only after explicit user approval) ==="
+fi
 
 echo ""
-echo "Deploy complete. Open:"
-echo "  https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev2?race=1"
+echo "=== Verify public URLs untouched (sizes) ==="
+"${SSH[@]}" "root@${SERVER}" "wc -c ${WEB_ROOT}/index.html ${WEB_ROOT}/blank.html ${WEB_ROOT}/api/api.py"
+
+echo ""
+echo "=== Verify dev page ==="
+curl -sfI "https://sailingsa.co.za/regatta/2026-08-29-lipton-challenge-cup-dev2?race=1" | head -3 || true
+curl -sfI "https://sailingsa.co.za/tracking-dev2.html" | head -3 || true
+
+echo ""
+echo "Dev-only deploy complete. Public index/blank/api.py not overwritten by this script (unless API override)."

@@ -15,6 +15,8 @@ Confirm path before change.
 
 **Blank hub UI:** Use **`https://sailingsa.co.za/blank.html`** as the canonical URL for hub work and verification. Nginx may also serve the same `blank.html` at **`/`**; see **`sailingsa/deploy/nginx-root-blank-hub.conf`** and the optional split there if root must show a different file.
 
+**URL protection:** Lipton / tracking-dev deploys must **not** overwrite public hub or `api.py`. Use **`deploy-tracking-dev2-live.sh`** (allowlist only). Full restore reference: `/root/backup_20260828_081731.tar.gz` (28 Aug). See **`docs/URL_PROTECTION.md`**.
+
 ---
 
 ## SSH key setup (one-time; then no password needed)
