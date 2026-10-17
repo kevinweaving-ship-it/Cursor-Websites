@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017i";
+  var JS_VER = "20261017j";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -1043,6 +1043,7 @@
       };
     });
     if (anyDone) {
+      built = built.filter(function (item) { return !!item.scored; });
       built.sort(function (a, b) {
         if (a.scored !== b.scored) return b.scored - a.scored;
         if (a.scored && b.scored && a.total !== b.total) return a.total - b.total;
