@@ -63,6 +63,8 @@ Hundermark’s older invoices (through mid-2026) are R299. Pay the open invoice�
 
 Whale Rock Lodge is paid up. Her next invoice is 17 November. She stays EFT until a Netcash batch line exists for her. The 2 November batch of 15 does not include her. Do not add her to it from this note. `WHALE_DO_START` in `qb_api.py` is 1 November 2026 and means “first debit order from November”, not “she is already on the 2 November file”.
 
+The standing list changes the day someone joins or cancels. The next 17th and the next debit-order load use the list after that change. A batch Netcash has already authorised is left as it was loaded.
+
 ## What 17 October 2026 closed
 
 Debit-order collections for years had been booked only as the lump transfer into FNB. Client invoices in QuickBooks stayed open. The client page already showed those collections as paid.
@@ -166,11 +168,35 @@ After the new lines are applied, each customer’s QuickBooks balance must still
 
 Where a debit order is unpaid, look for a later EFT that is not already linked. Apply that unused EFT. Leave the invoice open when the EFT is already fully applied somewhere else. Cupido’s May, August, and September unpaids are the pattern: the September and October EFTs were real, and they were already fully used.
 
+## During the month — a client joins or leaves
+
+Do this the day it happens. It is not held for the 17th.
+
+### New client — create the first invoice
+
+1. Create the QuickBooks customer when they are not already there: name, email, phone, address.
+2. Create the first invoice, dated the start date. Use the package they are on, income account 69. The amount is the opening month, pro-rata when the start is part of a month. Leave it unpaid.
+3. An install or equipment amount is its own invoice, and only when there is a real charge. A free Openserve first install has no install invoice. That charge is not loaded on the monthly debit order.
+4. The first invoice is paid by EFT to account 78, unless a named Netcash batch with their account ref has already collected it.
+5. Add them to the standing list at the ongoing monthly amount and the method, debit order or EFT. The following 17th bills them with everyone else.
+6. They go on a debit-order file only when the next batch is loaded, and only with a batch id and account ref. A batch already authorised stays as Netcash has it.
+7. The client page and the QuickBooks balance both equal that first invoice.
+
+A client who is added and then cancels in that same opening month is billed the first invoice only.
+
+### Cancel
+
+1. When the final month of service is not already invoiced, create one invoice dated that day. Same item and amount as the last monthly bill. The description ends with “cancellation month”. Leave it unpaid. Email it only when asked. Van Eeden invoice 3136 (7 Oct 2026, R439) is the pattern.
+2. Take them off the standing list. The next 17th does not bill them.
+3. Take them off the next debit-order load. A batch already at Netcash still runs: a paid result is applied, an unpaid result stays open.
+4. Open invoices stay until an EFT or a debit order pays them. The balance remains the amount still owing.
+5. The client page and the QuickBooks balance stay equal, including the cancellation invoice.
+
 ## Every month — invoices on the 17th
 
-This is the short run. One invoice per name in the standing list, except the names under “Leave off”.
+This is the short run. One invoice per name still on the standing list.
 
-1. Read the standing table above. Skip anyone who has ceased, is at R0, or is Wessels.
+1. Start from the standing list after anyone added or cancelled since the last 17th. Skip anyone who has ceased, is at R0, or is Wessels. A name with no invoice yet is a new client: create the first invoice above, and bill the 17th as well only when that first invoice was for an earlier month.
 2. In QuickBooks, copy that client’s latest real invoice: same customer, same item, same description, amount from the standing table. Date it the 17th. Due date the 17th. Income account 69.
 3. Annette Bing HH is R439. Hundermark’s new month is R329. De Gruchy is R1,219.
 4. Skip the client if QuickBooks already has an invoice for them dated that 17th.
@@ -224,6 +250,8 @@ Annette’s invoice 3140 stays at R439 because the page is R439. Van Eeden’s i
 | When | Do |
 |---|---|
 | Each day | FNB register from QuickBooks. Apply new EFTs and expenses. |
+| The day a client is added | First invoice, then add them to the standing list. |
+| The day a client cancels | Cancellation-month invoice when that month is not already billed, then take them off the list. |
 | 2 Nov 2026, late afternoon | First Netcash pull of the batch set for that day. |
 | 3 Nov 2026 | Second pull if 2 Nov was not processed. |
 | 4 Nov 2026 | Third pull. Alert if a line still has no processed result. |
