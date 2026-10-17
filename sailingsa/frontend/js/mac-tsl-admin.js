@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017b";
+  var JS_VER = "20261017c";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -825,12 +825,26 @@
     return n;
   }
 
+  function goldTeamsNote() {
+    return "Note: Only 3 teams were full teams. The rest were chop and change. 15 Royal Cape members made 2 teams, A and B.";
+  }
+
   function tidyFleetHeader() {
-    var line = fleetSection() && fleetSection().querySelector(".sailed-line");
+    var line = firstFleet() && firstFleet().querySelector(".sailed-line");
     if (!line) return;
     line.textContent = "Flights: " + flightsSailedCount() +
       ", Entries (Teams): " + (state.teams || []).length +
       ", Scoring System: TSL";
+    var host = line.parentNode;
+    if (!host) return;
+    var note = host.querySelector("#macTslGoldNote");
+    if (!note) {
+      note = document.createElement("div");
+      note.id = "macTslGoldNote";
+      note.className = "sailed-line";
+      host.insertBefore(note, line.nextSibling);
+    }
+    note.textContent = goldTeamsNote();
   }
 
   function headerLabel(th) {
