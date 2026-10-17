@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017h";
+  var JS_VER = "20261017i";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -148,13 +148,15 @@
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
       ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet){display:none}",
-      "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:auto;-webkit-overflow-scrolling:touch;margin-top:20px;margin-bottom:20px;max-width:100%}",
+      "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:hidden;-webkit-overflow-scrolling:touch;margin-top:20px;margin-bottom:20px;max-width:100%}",
       "#macTslGoldSheet .tsl-gold-wrap{display:flex;width:100%;max-width:100%;align-items:stretch;min-width:0;box-sizing:border-box}",
-      "#macTslGoldSheet .tsl-gold-left{flex:0 0 auto;overflow:hidden;min-width:0}",
+      "#macTslGoldSheet .tsl-gold-left{flex:0 1 auto;max-width:62%;overflow:hidden;min-width:0}",
       "#macTslGoldSheet .tsl-gold-right{flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}",
-      "#macTslGoldSheet .fleet-results-table{border:none;border-radius:0;min-width:0;width:100%;margin:0}",
-      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content;width:100%}",
-      "#macTslGoldSheet .tsl-gold-right .race-col{min-width:2.4em}",
+      "#macTslGoldSheet .fleet-results-table{border:none;border-radius:0;min-width:0;width:auto;margin:0}",
+      "#macTslGoldSheet .tsl-gold-left .fleet-results-table{width:100%;min-width:0}",
+      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content;width:auto}",
+      "#macTslGoldSheet .tsl-gold-left .club-col{max-width:9em;overflow:hidden;text-overflow:ellipsis}",
+      "#macTslGoldSheet .tsl-gold-right .race-col{min-width:2.4em;text-align:center}",
       "#macTslGoldSheet thead tr:first-child th{border-top:none}",
       "#macTslGoldSheet tbody tr:last-child td{border-bottom:none}",
       "#macTslGoldSheet .tsl-gold-left th:first-child,#macTslGoldSheet .tsl-gold-left td:first-child{border-left:none}",
@@ -164,9 +166,10 @@
       "#macTslGoldSheet .tsl-gold-right thead tr:first-child th:last-child{border-top-right-radius:8px}",
       "#macTslGoldSheet .tsl-gold-left tbody tr:last-child td:first-child{border-bottom-left-radius:8px}",
       "#macTslGoldSheet .tsl-gold-right tbody tr:last-child td:last-child{border-bottom-right-radius:8px}",
-      "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}}",
+      "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}#macTslGoldSheet .tsl-gold-left{max-width:58%}#macTslGoldSheet .tsl-gold-left .club-col{max-width:7.2em}}",
+      "@media (max-width:480px){#macTslGoldSheet .tsl-gold-left{max-width:54%}#macTslGoldSheet .tsl-gold-left .club-col{max-width:6.4em}#macTslGoldSheet .tsl-gold-right .race-col{min-width:2.1em}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
-      "#macTslGoldSheet .fleet-results-table{min-width:max-content}",
+      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content}",
       "#macTslGoldPrint{display:none}",
       "#macTslGoldPrint .fleet-results-table{border:none;border-radius:0;width:100%;margin:0}",
       "#macTslGoldSheet th:first-child,#macTslGoldSheet td:first-child{border-left:none}",
@@ -1046,13 +1049,9 @@
         if (a.wonLast !== b.wonLast) return a.wonLast ? -1 : 1;
         return 0;
       });
-      var maxFlights = 0;
-      built.forEach(function (item) {
-        if (item.scored > maxFlights) maxFlights = item.scored;
-      });
       var place = 0;
       built.forEach(function (item) {
-        item.rank = (item.scored && item.scored === maxFlights) ? (place += 1) : "";
+        item.rank = item.scored ? (place += 1) : "";
       });
     }
     return { raceNos: raceNos, built: built, anyDone: anyDone };
@@ -1108,8 +1107,44 @@
     );
   }
 
+  function goldClubCell(item) {
+    return '<span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) +
+      esc(item.row.name || item.row.code) + "</span>";
+  }
+
+  function goldSplitTableHtml() {
+    var model = goldBuilt();
+    var leftHeads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
+    var rightHeads = goldRaceHeads(model.raceNos);
+    var leftBody = "";
+    var rightBody = "";
+    model.built.forEach(function (item) {
+      var medal = goldItemMedal(model.anyDone, item);
+      var trClass = medal ? ' class="' + medal + '"' : "";
+      leftBody += "<tr" + trClass + ">" +
+        '<td class="rank-col">' + (item.rank ? String(item.rank) : "") + "</td>" +
+        '<td class="club-col">' + goldClubCell(item) + "</td>" +
+        '<td class="total-col">' + (item.scored ? String(item.total) : "") + "</td></tr>";
+      rightBody += "<tr" + trClass + ">" + goldRaceCells(item) + "</tr>";
+    });
+    if (!leftBody) {
+      leftBody = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td></tr>';
+      rightBody = '<tr><td class="race-col"></td></tr>';
+    }
+    return (
+      '<div class="table-wrapper" id="macTslGoldSheet">' +
+        '<div class="tsl-gold-wrap">' +
+          '<div class="tsl-gold-left"><table class="fleet-results-table rs-compact-row-logos" id="tslGoldLeft">' +
+            "<thead><tr>" + leftHeads + "</tr></thead><tbody>" + leftBody + "</tbody></table></div>" +
+          '<div class="tsl-gold-right"><table class="fleet-results-table rs-compact-row-logos" id="tslGoldTable">' +
+            "<thead><tr>" + rightHeads + "</tr></thead><tbody>" + rightBody + "</tbody></table></div>" +
+        "</div>" +
+      "</div>"
+    );
+  }
+
   function goldRaceTableHtml() {
-    return goldCombinedTableHtml("macTslGoldSheet", "tslGoldTable");
+    return goldSplitTableHtml();
   }
 
   function goldPrintTableHtml() {
@@ -1147,6 +1182,17 @@
     }
   }
 
+  function scrollGoldToLatest() {
+    var right = document.querySelector("#macTslGoldSheet .tsl-gold-right");
+    if (!right) return;
+    right.scrollLeft = right.scrollWidth;
+  }
+
+  function layoutGoldSheet() {
+    syncGoldRowHeights();
+    scrollGoldToLatest();
+  }
+
   function removeProvResults() {
     var el = document.getElementById("macTslProvResults");
     if (el && el.parentNode) el.parentNode.removeChild(el);
@@ -1168,7 +1214,10 @@
     if (orig) orig.insertAdjacentHTML("beforebegin", html);
     else if (hdr) hdr.insertAdjacentHTML("afterend", html);
     else sec.insertAdjacentHTML("beforeend", html);
-    requestAnimationFrame(syncGoldRowHeights);
+    requestAnimationFrame(function () {
+      layoutGoldSheet();
+      requestAnimationFrame(layoutGoldSheet);
+    });
     bindPrintButton();
   }
 
@@ -3939,8 +3988,11 @@
         clearTimeout(fitTeamCardTables._t);
         fitTeamCardTables._t = setTimeout(function () {
           fitTeamCardTables();
-          syncGoldRowHeights();
+          layoutGoldSheet();
         }, 50);
+      });
+      window.addEventListener("orientationchange", function () {
+        requestAnimationFrame(layoutGoldSheet);
       });
       window._tslFitBound = true;
     }
