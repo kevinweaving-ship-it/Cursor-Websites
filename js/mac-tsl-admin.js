@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017j";
+  var JS_VER = "20261017k";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -832,7 +832,7 @@
   }
 
   function goldStatusNote() {
-    return "Provisional: seven races entered. Race 2 awaits clarification. Races 3 and 4 show position sums of 14 for the losing team; the source prints 15.";
+    return "Provisional: eight races entered. Races 3 and 4 show position sums of 14 for the losing team; the source prints 15.";
   }
 
   function goldTeamsNote() {
@@ -924,6 +924,7 @@
     var fl;
     var max = maxOpenFlight();
     for (fl = 1; fl <= max; fl += 1) nos.push(fl);
+    nos.reverse();
     return nos;
   }
 
@@ -1045,8 +1046,7 @@
     if (anyDone) {
       built = built.filter(function (item) { return !!item.scored; });
       built.sort(function (a, b) {
-        if (a.scored !== b.scored) return b.scored - a.scored;
-        if (a.scored && b.scored && a.total !== b.total) return a.total - b.total;
+        if (a.total !== b.total) return a.total - b.total;
         if (a.wonLast !== b.wonLast) return a.wonLast ? -1 : 1;
         return 0;
       });
@@ -1186,7 +1186,7 @@
   function scrollGoldToLatest() {
     var right = document.querySelector("#macTslGoldSheet .tsl-gold-right");
     if (!right) return;
-    right.scrollLeft = right.scrollWidth;
+    right.scrollLeft = 0;
   }
 
   function layoutGoldSheet() {

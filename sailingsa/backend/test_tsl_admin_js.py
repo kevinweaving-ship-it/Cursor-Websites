@@ -32,7 +32,9 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261017j", JS)
+        self.assertIn("20261017k", JS)
+        self.assertIn("nos.reverse()", JS)
+        self.assertIn("a.total - b.total", JS)
         self.assertIn("built.filter(function (item) { return !!item.scored; })", JS)
         self.assertIn("goldSplitTableHtml", JS)
         self.assertIn("scrollGoldToLatest", JS)
@@ -43,8 +45,8 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn(">Total wins</th>", JS)
         self.assertIn("removeProvResults", JS)
         self.assertIn("goldStatusNote", JS)
-        self.assertIn("seven races entered", JS)
-        self.assertIn("Race 2 awaits clarification", JS)
+        self.assertIn("eight races entered", JS)
+        self.assertNotIn("Race 2 awaits clarification", JS)
         self.assertIn("position sums of 14", JS)
         self.assertNotIn("Blue team", JS)
         self.assertIn("goldTeamsNote", JS)
@@ -136,7 +138,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertIn("Colour, team and sailors first", JS)
         self.assertIn("inp.blur()", JS)
         self.assertIn("teamFlightScore", JS)
-        self.assertIn("b.scored - a.scored", JS)
+        self.assertNotIn("b.scored - a.scored", JS)
         self.assertIn("item.scored ? (place += 1)", JS)
         self.assertIn("flightDone", JS)
         self.assertIn("insertGoldRaceTable", JS)
@@ -277,7 +279,7 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261017j", API)
+        self.assertIn("mac-tsl-admin.js?v=20261017k", API)
         self.assertIn("is_super_admin=_session_can_edit_tsl", API)
         self.assertIn("def _session_can_edit_tsl", API)
 
@@ -327,7 +329,7 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("mac-tsl-live-cards.js?v=20261015c", patch)
         self.assertIn("def _session_can_edit_tsl", patch)
         self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
-        self.assertIn("mac-tsl-admin.js?v=20261017j", patch)
+        self.assertIn("mac-tsl-admin.js?v=20261017k", patch)
         media = (ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_media.py").read_text(
             encoding="utf-8"
         )
