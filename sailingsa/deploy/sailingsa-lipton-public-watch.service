@@ -1,0 +1,12 @@
+[Unit]
+Description=Lipton 2026 public URL live-board watchdog
+After=network.target nginx.service sailingsa-api.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/bin/bash -c 'while true; do for f in /root/lw-g22.py /root/lw-g21.py /root/lw-g20.py /root/lw-g19.py /root/lw-g18.py /root/lw-g17.py /root/lw-g14d.py /root/lw-g14c.py /root/lw-g14.py /root/lw-g13b.py /root/lw-gold13.py /root/lw-gold7.py /root/lw-gold6.py /root/lw-gold5.py /usr/local/lib/lipton_public_not_dev_watch.py /usr/local/sbin/lipton_public_not_dev_watch.py; do sz=$(wc -c < "$f" 2>/dev/null || echo 0); if [ "$sz" -gt 500 ] && grep -q LIPTON_WATCH_DEBOUNCE_V1 "$f" 2>/dev/null; then /usr/bin/python3 "$f" --loop; break; fi; done; sleep 1; done'
+
+[Install]
+WantedBy=multi-user.target

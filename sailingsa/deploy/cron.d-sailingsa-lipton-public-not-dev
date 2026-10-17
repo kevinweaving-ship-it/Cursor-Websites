@@ -1,0 +1,6 @@
+# Lipton 2026: undo public-slug playback hijack (nginx + api.py).
+# Script no-ops except 27-29 Aug 2026. Does not run overnight restore.
+# Skips API restart if a real race is underway.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* * * * * root /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 20; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1; sleep 20; /usr/local/lib/lipton_public_watch_guard.sh >/dev/null 2>&1
