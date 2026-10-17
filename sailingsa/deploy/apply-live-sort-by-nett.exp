@@ -1,0 +1,17 @@
+#!/usr/bin/expect -f
+# Apply sheet-Nett rank sort on LIVE api.py only (lowest Nett = 1st).
+# From project root: expect sailingsa/deploy/apply-live-sort-by-nett.exp
+set timeout 120
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set py_file "sailingsa/deploy/patch_live_sort_rows_by_sheet_nett.py"
+
+spawn bash -c "scp -o StrictHostKeyChecking=no $py_file ${user}@${server}:/tmp/patch_live_sort_rows_by_sheet_nett.py && ssh -o StrictHostKeyChecking=no ${user}@${server} \"python3 /tmp/patch_live_sort_rows_by_sheet_nett.py /var/www/sailingsa/api/api.py && systemctl restart sailingsa-api && sleep 2 && systemctl is-active sailingsa-api\""
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    -re "password" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
