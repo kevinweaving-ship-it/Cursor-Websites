@@ -1,0 +1,26 @@
+#!/usr/bin/expect -f
+# Create vakaros_snapshots and insert the current Lipton Vakaros document.
+set timeout 180
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+set repo_root [file normalize "$script_dir/../.."]
+
+spawn scp -o StrictHostKeyChecking=no \
+  $repo_root/sailingsa/scripts/lipton_vakaros.py \
+  ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp timeout"; exit 1 }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "DB_URL=postgresql://sailors_user:SailSA_Pg_Beta2026@localhost:5432/sailors_master python3 /tmp/lipton_vakaros.py --save && psql postgresql://sailors_user:SailSA_Pg_Beta2026@localhost:5432/sailors_master -c \"SELECT snapshot_id, fetched_at, event_id, fleet, sequence_number, pg_column_size(payload) AS payload_bytes, pg_column_size(payload_raw) AS raw_bytes, summary->>'last_finished_race' AS last_rn, summary->>'next_race_number' AS next_rn, summary->'days' AS days FROM vakaros_snapshots ORDER BY snapshot_id DESC LIMIT 3;\""
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    timeout { puts "ERROR: ssh timeout"; exit 1 }
+    eof { }
+}
+wait
