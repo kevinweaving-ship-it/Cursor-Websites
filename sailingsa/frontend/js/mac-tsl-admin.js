@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017c";
+  var JS_VER = "20261017d";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -148,7 +148,7 @@
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
       ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet){display:none}",
-      "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:hidden;margin-top:20px;margin-bottom:20px;max-width:100%}",
+      "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:auto;-webkit-overflow-scrolling:touch;margin-top:20px;margin-bottom:20px;max-width:100%}",
       "#macTslGoldSheet .tsl-gold-wrap{display:flex;width:100%;max-width:100%;align-items:stretch;min-width:0;box-sizing:border-box}",
       "#macTslGoldSheet .tsl-gold-left{flex:0 0 auto;overflow:hidden;min-width:0}",
       "#macTslGoldSheet .tsl-gold-right{flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}",
@@ -166,9 +166,12 @@
       "#macTslGoldSheet .tsl-gold-right tbody tr:last-child td:last-child{border-bottom-right-radius:8px}",
       "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
+      "#macTslGoldSheet .fleet-results-table{min-width:max-content}",
       "#macTslGoldPrint{display:none}",
       "#macTslGoldPrint .fleet-results-table{border:none;border-radius:0;width:100%;margin:0}",
-      "@media print{.mac-tsl-live-cards,#macTslFlightsCard,#macTslTeamsCard,#macTslMatches,#macTslSchedule,#macTslAdmin,#macTslGoldSheet,#tslNamePop,.action-buttons{display:none!important}#macTslGoldPrint{display:block!important;overflow:visible;border:2px solid #1a2750;border-radius:10px;background:#fff;margin-top:20px;margin-bottom:20px;max-width:100%}#macTslGoldPrint thead tr:first-child th{border-top:none}#macTslGoldPrint tbody tr:last-child td{border-bottom:none}#macTslGoldPrint th:first-child,#macTslGoldPrint td:first-child{border-left:none}#macTslGoldPrint th:last-child,#macTslGoldPrint td:last-child{border-right:none}}",
+      "#macTslGoldSheet th:first-child,#macTslGoldSheet td:first-child{border-left:none}",
+      "#macTslGoldSheet th:last-child,#macTslGoldSheet td:last-child{border-right:none}",
+      "@media print{.mac-tsl-live-cards,#macTslFlightsCard,#macTslTeamsCard,#macTslMatches,#macTslSchedule,#macTslAdmin,#tslNamePop,.action-buttons{display:none!important}#macTslGoldSheet{display:block!important;overflow:visible}}",
       "#macTslFlightsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin:0 0 8px;position:relative;overflow:hidden}",
       "#macTslFlightsCard .fleet-title-row,#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
       "#macTslFlightsCard .tsl-section-head,#macTslTeamsCard .tsl-section-head{display:block;width:100%;text-align:center;font-weight:bold;border:none;background:none;color:#1a2750;font:inherit;cursor:pointer}",
@@ -1061,43 +1064,7 @@
     return raceHeads || '<th class="race-col">F1</th>';
   }
 
-  function goldRaceTableHtml() {
-    var model = goldBuilt();
-    var leftHeads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
-    var raceHeads = goldRaceHeads(model.raceNos);
-    var leftBody = "";
-    var raceBody = "";
-    model.built.forEach(function (item) {
-      var medal = goldItemMedal(model.anyDone, item);
-      var trClass = medal ? ' class="' + medal + '"' : "";
-      leftBody += "<tr" + trClass + ">" +
-        '<td class="rank-col">' + (item.rank ? String(item.rank) : "") + "</td>" +
-        '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) + esc(item.row.code) + "</span></td>" +
-        '<td class="total-col">' + (item.scored ? String(item.total) : "") + "</td>" +
-        "</tr>";
-      raceBody += "<tr" + trClass + ">" + goldRaceCells(item) + "</tr>";
-    });
-    if (!leftBody) {
-      leftBody = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td></tr>';
-      raceBody = '<tr><td class="race-col"></td></tr>';
-    }
-    return (
-      '<div class="table-wrapper" id="macTslGoldSheet">' +
-        '<div class="tsl-gold-wrap">' +
-          '<div class="tsl-gold-left"><table class="fleet-results-table rs-compact-row-logos" id="tslGoldTable">' +
-            "<thead><tr>" + leftHeads + "</tr></thead><tbody>" + leftBody + "</tbody>" +
-          "</table></div>" +
-          '<div class="tsl-gold-right">' +
-            '<table class="fleet-results-table">' +
-              "<thead><tr>" + raceHeads + "</tr></thead><tbody>" + raceBody + "</tbody>" +
-            "</table>" +
-          "</div>" +
-        "</div>" +
-      "</div>"
-    );
-  }
-
-  function goldPrintTableHtml() {
+  function goldCombinedTableHtml(wrapId, tableId, extraClass) {
     var model = goldBuilt();
     var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>' +
       goldRaceHeads(model.raceNos);
@@ -1116,12 +1083,20 @@
       body = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td><td class="race-col"></td></tr>';
     }
     return (
-      '<div class="table-wrapper tsl-print-only" id="macTslGoldPrint">' +
-        '<table class="fleet-results-table rs-compact-row-logos" id="tslGoldPrintTable">' +
+      '<div class="table-wrapper' + (extraClass ? " " + extraClass : "") + '" id="' + wrapId + '">' +
+        '<table class="fleet-results-table rs-compact-row-logos" id="' + tableId + '">' +
           "<thead><tr>" + heads + "</tr></thead><tbody>" + body + "</tbody>" +
         "</table>" +
       "</div>"
     );
+  }
+
+  function goldRaceTableHtml() {
+    return goldCombinedTableHtml("macTslGoldSheet", "tslGoldTable");
+  }
+
+  function goldPrintTableHtml() {
+    return goldCombinedTableHtml("macTslGoldPrint", "tslGoldPrintTable", "tsl-print-only");
   }
 
   function goldTableRows(table) {
@@ -1174,11 +1149,6 @@
         else sec.appendChild(node);
       }
     }
-    var gold = document.getElementById("macTslGoldSheet");
-    var printHtml = goldPrintTableHtml();
-    var existingPrint = document.getElementById("macTslGoldPrint");
-    if (existingPrint) existingPrint.outerHTML = printHtml;
-    else if (gold) gold.insertAdjacentHTML("afterend", printHtml);
     requestAnimationFrame(syncGoldRowHeights);
     bindPrintButton();
   }
