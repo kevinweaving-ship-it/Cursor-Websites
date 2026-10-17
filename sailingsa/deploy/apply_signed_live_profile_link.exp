@@ -1,0 +1,12 @@
+#!/usr/bin/expect -f
+set timeout 90
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/patch_signed_live_profile_link.py /workspace/sailingsa/deploy/_remote_test_signed_profile_link.py root@102.218.215.253:/tmp/
+expect {
+  -re "(?i)password:" { send "TimAdd#072082\r"; exp_continue }
+  eof
+}
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 bash -lc {python3 /tmp/patch_signed_live_profile_link.py; /var/www/sailingsa/api/venv/bin/python -m py_compile /var/www/sailingsa/api/api.py; systemctl restart sailingsa-api; sleep 3; systemctl is-active sailingsa-api; /var/www/sailingsa/api/venv/bin/python /tmp/_remote_test_signed_profile_link.py}
+expect {
+  -re "(?i)password:" { send "TimAdd#072082\r"; exp_continue }
+  eof
+}
