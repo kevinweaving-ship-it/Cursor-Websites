@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017l";
+  var JS_VER = "20261017m";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -154,9 +154,9 @@
       "#macTslGoldSheet .tsl-gold-right{flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}",
       "#macTslGoldSheet .fleet-results-table{border:none;border-radius:0;min-width:0;width:auto;margin:0}",
       "#macTslGoldSheet .tsl-gold-left .fleet-results-table{width:100%;min-width:0}",
-      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content;width:auto}",
+      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content;width:max-content;table-layout:auto}",
       "#macTslGoldSheet .tsl-gold-left .club-col{max-width:9em;overflow:hidden;text-overflow:ellipsis}",
-      "#macTslGoldSheet .tsl-gold-right .race-col{min-width:2.4em;text-align:center}",
+      "#macTslGoldSheet .tsl-gold-right .race-col{width:2.6em;min-width:2.6em;max-width:3em;text-align:center;padding-left:4px;padding-right:4px}",
       "#macTslGoldSheet thead tr:first-child th{border-top:none}",
       "#macTslGoldSheet tbody tr:last-child td{border-bottom:none}",
       "#macTslGoldSheet .tsl-gold-left th:first-child,#macTslGoldSheet .tsl-gold-left td:first-child{border-left:none}",
@@ -169,7 +169,7 @@
       "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}#macTslGoldSheet .tsl-gold-left{max-width:58%}#macTslGoldSheet .tsl-gold-left .club-col{max-width:7.2em}}",
       "@media (max-width:480px){#macTslGoldSheet .tsl-gold-left{max-width:54%}#macTslGoldSheet .tsl-gold-left .club-col{max-width:6.4em}#macTslGoldSheet .tsl-gold-right .race-col{min-width:2.1em}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
-      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content}",
+      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content;width:max-content}",
       "#macTslGoldPrint{display:none}",
       "#macTslGoldPrint .fleet-results-table{border:none;border-radius:0;width:100%;margin:0}",
       "#macTslGoldSheet th:first-child,#macTslGoldSheet td:first-child{border-left:none}",
