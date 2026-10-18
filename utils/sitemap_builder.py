@@ -198,7 +198,7 @@ def _max_lastmod(entries: list[tuple[str, str]], *, today: str | None = None) ->
 
 
 def _fetch_regattas(cur, today: str) -> list[tuple[str, str]]:
-    """Real regatta_id values from regattas that already have raced results. No invented IDs."""
+    """Public /regatta URLs that already have result rows. raced=false still has a 200 page."""
     cur.execute(
         """
         SELECT
@@ -216,7 +216,6 @@ def _fetch_regattas(cur, today: str) -> list[tuple[str, str]]:
               SELECT 1
               FROM results r
               WHERE r.regatta_id = regattas.regatta_id
-                AND r.raced IS TRUE
           )
         """
     )
@@ -447,21 +446,38 @@ def _xml_unchanged(path: str, new_xml: str) -> bool:
         return False
 
 
+def _index_lastmod_on_disk(index_path: str, child_filename: str) -> str:
+    """Existing sitemap-index lastmod for this child, if any."""
+    try:
+        text = open(index_path, encoding="utf-8").read()
+    except OSError:
+        return ""
+    needle = f"/{child_filename}</loc>"
+    i = text.find(needle)
+    if i < 0:
+        return ""
+    m = re.search(r"<lastmod>(\d{4}-\d{2}-\d{2})</lastmod>", text[i : i + 240])
+    return m.group(1) if m else ""
+
+
 def _sitemap_file_lastmod(
     path: str,
     new_xml: str,
     entries: list[tuple[str, str]],
     today: str,
 ) -> str:
-    """Index lastmod: today if this child urlset changed, else max URL lastmod.
+    """Index lastmod: today if this child urlset changed, else keep previous index date.
 
-    Google uses sitemap-index lastmod to decide whether to re-download the
-    child file. Max entity date alone hides newly added URLs whose own
-    lastmod is older than the previous newest row.
+    Do not fall back to max entity date — that reverts Google's recrawl signal
+    on the next identical cron run.
     """
     entity_max = _max_lastmod(entries, today=today)
     if _xml_unchanged(path, new_xml):
-        return entity_max
+        prev = _index_lastmod_on_disk(
+            os.path.join(os.path.dirname(path), SITEMAP_INDEX_FILENAME),
+            os.path.basename(path),
+        )
+        return prev or entity_max
     return today
 
 
