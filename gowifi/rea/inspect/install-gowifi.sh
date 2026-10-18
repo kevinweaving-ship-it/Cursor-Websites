@@ -15,6 +15,8 @@ PREFIX=/opt/rea/inspect
 install -d -m 755 -o rea -g rea "$PREFIX" "$PREFIX/bin" "$PREFIX/etc" "$PREFIX/audit" "$PREFIX/state" "$PREFIX/repo"
 install -m 755 -o rea -g rea "$SRC_DIR/inspect_agent.py" "$PREFIX/bin/inspect-agent"
 install -m 755 -o rea -g rea "$SRC_DIR/rea_inspect.py" "$PREFIX/bin/rea-inspect"
+install -m 755 -o rea -g rea "$SRC_DIR/audit_mcp_server.py" "$PREFIX/bin/audit-mcp"
+install -m 755 -o rea -g rea "$SRC_DIR/mcp_mux.py" "$PREFIX/bin/mcp-mux"
 install -m 644 -o rea -g rea "$SRC_DIR/etc/inspect.gowifi.json" "$PREFIX/etc/inspect.json"
 install -m 644 -o rea -g rea "$SRC_DIR/CATALOG.md" "$PREFIX/CATALOG.md"
 install -m 644 -o rea -g rea "$SRC_DIR/README.md" "$PREFIX/README.md"
@@ -78,6 +80,34 @@ UNIT
 
 systemctl daemon-reload
 systemctl enable --now rea-inspect-discover.timer
+
+PROFILE=/opt/openai-tunnel/profiles/rea-box.yaml
+if [ -f "$PROFILE" ]; then
+  cp -a "$PROFILE" "$PROFILE.bak-pre-audit-$(date +%Y%m%d%H%M%S)"
+  python3 - <<'PY'
+from pathlib import Path
+p = Path("/opt/openai-tunnel/profiles/rea-box.yaml")
+text = p.read_text(encoding="utf-8")
+old = '''mcp:
+  commands:
+    - channel: main
+      command: "/opt/rea/bin/rea mcp"
+'''
+new = '''mcp:
+  commands:
+    - channel: main
+      command: "/opt/rea/inspect/bin/mcp-mux"
+    - channel: audit
+      command: "/opt/rea/inspect/bin/audit-mcp"
+'''
+if "/opt/rea/inspect/bin/mcp-mux" not in text:
+    if old not in text:
+        raise SystemExit("unexpected tunnel profile mcp block; not modifying")
+    p.write_text(text.replace(old, new, 1), encoding="utf-8")
+print("TUNNEL_PROFILE_OK")
+PY
+  systemctl restart openai-rea-tunnel.service
+fi
 
 echo "GOWIFI_INSPECT_INSTALLED"
 echo "PUBKEY=$(tr -d '\n' < /opt/rea/.ssh/id_rea_sailingsa.pub)"

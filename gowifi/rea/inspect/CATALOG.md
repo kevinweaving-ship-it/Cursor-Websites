@@ -1,67 +1,36 @@
-# REA inspect catalog (ChatGPT / MCP)
+# REA / ChatGPT audit catalog
 
-Use the existing REA 6.4.0 MCP tools. Do not add another MCP server.
+ChatGPT should call the dedicated `audit_*` MCP tools. Do **not** use
+`capture_process_scenario` for production audits (OpenAI safety checks treat
+that generic process launcher as high-risk).
 
-## Browser / rendered pages / HTTP
+## Dedicated read-only tools
 
-`capture_browser_scenario` with:
+All advertise `readOnlyHint: true`, `destructiveHint: false`, `openWorldHint: false`.
 
-```json
-{
-  "browser": {
-    "mode": "launch",
-    "executable_path": "/opt/chromium/chrome",
-    "headless": true
-  },
-  "start_url": { "url": "https://sailingsa.co.za/", "query": [] },
-  "actions": [
-    { "step_id": "settle", "action": "wait_for_timeout", "duration_ms": 2000 }
-  ],
-  "capture": { "at_end": ["url", "dom"], "events": ["console", "page-errors", "network"] }
-}
-```
+| Tool | Purpose |
+| --- | --- |
+| `audit_discover` | New/changed allowlisted files (`gowifi`, `sailingsa`, `both`) |
+| `audit_read_file` | Read one allowlisted source/config file |
+| `audit_search_source` | Find files by glob under an allowlisted root |
+| `audit_database_schema` | information_schema (SailingSA `sailors_master`) |
+| `audit_select_query` | One SELECT/WITH/EXPLAIN/SHOW query |
+| `audit_nginx` | Allowlisted nginx site configs |
+| `audit_logs` | `nginx-error`, `nginx-access`, `sailingsa-api` |
+| `audit_deployment` | Live revision metadata |
+| `audit_compare` | Live SailingSA files vs repo snapshot |
 
-Chromium is pinned at `/opt/chromium/chrome` (Playwright 1.58.2 / revision 1208).
-`REA_BROWSER_EXECUTABLE` is set on the existing `openai-rea-tunnel` unit.
+Existing REA tools remain available (170). Browser work still uses
+`capture_browser_scenario` with `executable_path: /opt/chromium/chrome`.
 
-Existing SEO crawler (no JS): `/opt/rea/seo/bin/siteone-crawler` via
-`capture_process_scenario` only if a bounded read-only crawl is required.
+## ChatGPT discovery
 
-## Live source, config, logs, SQL
-
-`capture_process_scenario`:
-
-- `executable`: `/opt/rea/inspect/bin/rea-inspect`
-- `arguments`: `[target, op, ...]`
-- `working_directory`: `/opt/rea/inspect`
-- `target`: `gowifi` | `sailingsa` | `both`
-
-Examples:
-
-```text
-sailingsa schema
-sailingsa sql SELECT count(*) FROM sailors
-sailingsa get /var/www/sailingsa/api/api.py
-sailingsa list /var/www/sailingsa/templates
-sailingsa find /var/www/sailingsa *.py
-sailingsa logs sailingsa-api
-sailingsa nginx
-sailingsa revision
-sailingsa compare
-gowifi list /opt/aerialnet-arial
-gowifi get /opt/aerialnet-arial/arial_app.py
-both discover
-```
-
-Static catalog file (this document): `inspect_artifact` on `/opt/rea/inspect/CATALOG.md`.
-
-Local GoWifi trees are also readable directly with `inspect_artifact` /
-`analyze_javascript_application` under the allowlisted paths.
+The custom MCP plugin talks to tunnel channel `main` only. Extra tunnel
+channels are not merged into ChatGPT’s tool list. After these tools are added,
+refresh or republish the ChatGPT custom MCP / connector so it rediscovers
+tools. Start a new chat after refresh.
 
 ## Security
 
-- Read-only. SQL allows `SELECT` / `WITH` / `EXPLAIN` / `SHOW` only.
-- Secrets in file/log text are redacted.
-- SailingSA SSH is key-only, `restrict` + ForceCommand to the inspect agent.
-- Production services, REA package files, Cursor `mcp.json`, and the tunnel
-  command are unchanged.
+Same inspect agents, SSH ForceCommand, SELECT-only PostgreSQL, redaction, and
+audit logs. No arbitrary shell. No production writes.

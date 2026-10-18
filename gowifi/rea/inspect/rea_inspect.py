@@ -81,7 +81,18 @@ def help_payload() -> dict[str, Any]:
         "ok": True,
         "usage": "rea-inspect <gowifi|sailingsa|both> <op> [args]",
         "mcp": {
-            "tool": "capture_process_scenario",
+            "tools": [
+                "audit_discover",
+                "audit_read_file",
+                "audit_search_source",
+                "audit_database_schema",
+                "audit_select_query",
+                "audit_nginx",
+                "audit_logs",
+                "audit_deployment",
+                "audit_compare",
+            ],
+            "avoid": "capture_process_scenario",
             "executable": "/opt/rea/inspect/bin/rea-inspect",
             "examples": [
                 ["sailingsa", "schema"],

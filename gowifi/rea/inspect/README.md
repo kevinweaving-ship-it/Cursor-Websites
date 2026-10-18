@@ -7,19 +7,20 @@ GoWifi to inspect live code and data on **both** production boxes.
 
 ```text
 ChatGPT
-  └── OpenAI Secure MCP Tunnel (unchanged command: /opt/rea/bin/rea mcp)
-        └── REA 6.4.0 on box.gowifi.co.za (user rea)
-              ├── capture_browser_scenario → /opt/chromium/chrome
-              ├── inspect_artifact / analyze_* → local allowlisted trees
-              └── capture_process_scenario → /opt/rea/inspect/bin/rea-inspect
-                    ├── gowifi  → local inspect-agent
-                    └── sailingsa → ssh rea-ro@102.218.215.253
-                                    ForceCommand /opt/rea-ro/bin/inspect-agent
-                                    (read-only files, logs, SELECT SQL)
+  └── OpenAI Secure MCP Tunnel (same tunnel id; main channel only)
+        └── /opt/rea/inspect/bin/mcp-mux
+              ├── REA 6.4.0 (`/opt/rea/bin/rea mcp`) — all 170 tools
+              └── /opt/rea/inspect/bin/audit-mcp — audit_* read-only tools
+                    └── /opt/rea/inspect/bin/rea-inspect
+                          ├── gowifi  → local inspect-agent
+                          └── sailingsa → ssh rea-ro@102.218.215.253
+                                          ForceCommand inspect-agent
 ```
 
-No second REA install. No public REA port. No change to
-`/opt/rea/.cursor/mcp.json`.
+ChatGPT does not merge extra tunnel channels into its tool list, so the
+dedicated audit server is multiplexed onto `main` (and also bound as channel
+`audit` for tunnel routing). `/opt/rea/.cursor/mcp.json` is unchanged.
+The `rea-agents` package is not modified.
 
 ## What was missing
 
@@ -58,9 +59,11 @@ REA_INSPECT_PUBKEY='ssh-ed25519 AAAA...' bash gowifi/rea/inspect/install-sailing
 ## Verify
 
 ```bash
-sudo -u rea -H /opt/rea/bin/rea mcp doctor --json   # 170/170
-sudo -u rea -H /opt/chromium/chrome --version
+sudo -u rea -H /opt/rea/bin/rea mcp doctor --json   # 170/170 still
+# Mux on main must advertise 170 REA tools plus 9 audit_* tools.
 sudo -u rea -H /opt/rea/inspect/bin/rea-inspect sailingsa schema
-sudo -u rea -H /opt/rea/inspect/bin/rea-inspect sailingsa sql 'SELECT current_user'
-sudo -u rea -H /opt/rea/inspect/bin/rea-inspect gowifi list /opt/aerialnet-arial
+sudo -u rea -H /opt/rea/inspect/bin/audit-mcp   # stdio MCP; use a JSON-RPC initialize/tools/list probe
 ```
+
+ChatGPT: refresh/republish the custom MCP connector, then start a new chat
+and call `audit_*` (not `capture_process_scenario`).
