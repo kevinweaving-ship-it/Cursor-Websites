@@ -74,8 +74,11 @@ def verify_post(post: dict, event: dict) -> dict:
     slug = (event.get("id") or event.get("regatta_id") or "").lower()
     title = (event.get("title") or event.get("event_name") or "").lower()
     club = (event.get("club") or "").lower()
+    club_name = (event.get("club_name") or "").lower()
+    host_fb = (event.get("host_club_facebook") or "").lower()
     classes = [c.lower() for c in event.get("class_slugs") or class_slugs_from_event(title, slug, event.get("class_name") or "")]
     names = [n.lower() for n in event.get("result_names") or []]
+    post_url = (post.get("url") or post.get("source_url") or "").lower()
     reasons = []
     score = 0
 
@@ -100,6 +103,13 @@ def verify_post(post: dict, event: dict) -> dict:
     if club and re.search(r"(^|[^a-z])" + re.escape(club) + r"([^a-z]|$)", text):
         score += 2
         reasons.append("host_club")
+    if club_name and len(club_name) > 4 and club_name in text:
+        score += 2
+        reasons.append("host_club_name")
+    host_path = urllib.parse.urlparse(host_fb).path.strip("/").lower() if host_fb else ""
+    if host_path and host_path in post_url:
+        score += 4
+        reasons.append("host_club_page")
 
     name_hits = [n for n in names if n in text]
     if name_hits:
@@ -126,7 +136,8 @@ def verify_post(post: dict, event: dict) -> dict:
         "event_url" in reasons
         or "event_slug" in reasons
         or "results_name" in "".join(reasons)
-        or ("class:" in "".join(reasons) and ("host_club" in reasons or "event_title:" in "".join(reasons)))
+        or "host_club_page" in reasons
+        or ("class:" in "".join(reasons) and ("host_club" in reasons or "host_club_name" in reasons or "event_title:" in "".join(reasons)))
     )
     return {
         "url": post.get("url") or post.get("source_url"),
@@ -197,7 +208,9 @@ def search_source_posts(source_url: str, event: dict) -> list[dict]:
 def collect_and_verify(event: dict, rows: list[dict] | None = None) -> dict:
     """High-level helper used by the publisher and CLI."""
     from social_collect import (
+        club_config,
         club_config_links,
+        known_club_posts,
         directory_links,
         og_metadata,
         platform_for,
@@ -211,16 +224,21 @@ def collect_and_verify(event: dict, rows: list[dict] | None = None) -> dict:
     class_slugs = event.get("class_slugs") or class_slugs_from_event(title, slug, event.get("class_name") or "")
     names = event.get("result_names") or result_names(rows or [])
     event_url = event.get("event_url") or ("https://sailingsa.co.za/regatta/" + slug if slug else "")
+    cfg = club_config(club)
+    host_posts = known_club_posts(club, event)
     event_ctx = {
         "id": slug,
         "regatta_id": slug,
         "title": title,
         "event_name": title,
         "club": club,
+        "club_name": event.get("club_name") or cfg.get("name") or club,
         "class_name": event.get("class_name") or "",
         "class_slugs": class_slugs,
         "result_names": names,
         "event_url": event_url,
+        "host_club_facebook": cfg.get("facebook") or "",
+        "host_source_urls": [x["url"] for x in club_config_links(club) if x.get("url")],
     }
 
     pages = []
@@ -241,8 +259,10 @@ def collect_and_verify(event: dict, rows: list[dict] | None = None) -> dict:
         _add_link(links, item.get("url"), item.get("platform"), item.get("provenance") or "")
         if links:
             links[-1]["locality"] = item.get("locality") or "local"
+    for item in host_posts:
+        _add_link(links, item.get("url"), item.get("platform"), item.get("provenance") or "host_club_post")
 
-    candidates = []
+    candidates = list(host_posts)
     for link in links:
         url = link.get("url") or ""
         if not url:

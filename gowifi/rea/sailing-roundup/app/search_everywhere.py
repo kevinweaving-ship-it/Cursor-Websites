@@ -182,6 +182,13 @@ def search_everywhere(event: dict) -> dict:
         add(web_hits(f"site:{host} {q}", limit=6), lane)
     add(socialcrawl_everywhere(q), "socialcrawl_everywhere")
 
+    # Host-club Facebook / website is the primary media source (Dart Nationals → HMYC, etc.).
+    for source in event.get("host_source_urls") or []:
+        parsed = urllib.parse.urlparse(source)
+        host = (parsed.netloc + parsed.path).rstrip("/")
+        if host:
+            add(web_hits(f"site:{host} {q}", limit=8), "host_club_page")
+
     # Sailor-name queries catch club posts that omit the event title.
     for name in (event.get("result_names") or [])[:4]:
         add(web_hits(f'"{name}" {event.get("club") or ""} sailing South Africa 2026', limit=5), "results_names")

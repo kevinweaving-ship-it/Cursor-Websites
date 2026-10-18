@@ -176,6 +176,22 @@ def lead_sentence(title: str, rows: list[dict]) -> str:
 def attach_media(article: dict, pack: dict):
     sources = list(article.get("sources") or [])
     social = list(article.get("social_sources") or [])
+    source_info = list(article.get("source_info") or [])
+    for link in pack.get("links") or []:
+        url = link.get("url")
+        if not url or link.get("locality") == "not_local":
+            continue
+        if url not in sources:
+            sources.append(url)
+        if link.get("role") == "host_club_media" or link.get("provenance") in ("club_sources.json", "host_club_post"):
+            info = {
+                "role": link.get("role") or "host_club",
+                "url": url,
+                "platform": link.get("platform"),
+                "label": article.get("club") or "",
+            }
+            if not any(x.get("url") == url for x in source_info):
+                source_info.append(info)
     for post in pack.get("verified_posts") or pack.get("posts") or []:
         url = post.get("url")
         if url and url not in sources:
@@ -212,6 +228,7 @@ def attach_media(article: dict, pack: dict):
             sources.append(url)
     article["sources"] = sources
     article["social_sources"] = social
+    article["source_info"] = source_info
     if not article.get("hero_image"):
         for block in article["blocks"]:
             if block.get("type") == "image" and block.get("url"):

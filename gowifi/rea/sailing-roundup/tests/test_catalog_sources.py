@@ -8,8 +8,9 @@ sys.path.insert(0, str(ROOT / "app"))
 
 from catalog_sources import classify_locality, source_links_from_config
 from entity_match import DEFAULT_SPONSORS, build_index, match_text
-from event_social_verify import class_config_links
+from event_social_verify import class_config_links, verify_post
 from facebook_cross_share import match_cross_shares, parse_shared_post, resolve_facebook_url
+from social_collect import club_config, known_club_posts
 
 
 class Locality(unittest.TestCase):
@@ -115,6 +116,39 @@ class ClassConfig(unittest.TestCase):
         cfg = {"facebook": "https://www.facebook.com/420nationalssouthafrica/", "website": "https://example.co.za"}
         links = source_links_from_config(cfg, "t")
         self.assertEqual(len(links), 2)
+
+
+class HostClubDart(unittest.TestCase):
+    def test_hmyc_seeded_dart_share(self):
+        cfg = club_config("HMYC")
+        self.assertEqual(cfg.get("facebook"), "https://www.facebook.com/henleymidmaryachtclub")
+        posts = known_club_posts("HMYC", {"title": "Dart 18 Nationals", "id": "2026-09-24-hmyc-dart-18-nationals"})
+        urls = " ".join(p.get("share_url") or p.get("url") or "" for p in posts)
+        self.assertIn("1PGpY1pGh1", urls)
+
+    def test_hmyc_dart_results_post_verifies(self):
+        event = {
+            "id": "2026-09-24-hmyc-dart-18-nationals",
+            "title": "Dart 18 Nationals incorporating the KZN provincials",
+            "club": "HMYC",
+            "club_name": "Henley Midmar Yacht Club",
+            "class_slugs": ["dart-18"],
+            "host_club_facebook": "https://www.facebook.com/henleymidmaryachtclub",
+            "event_url": "https://sailingsa.co.za/regatta/2026-09-24-hmyc-dart-18-nationals",
+        }
+        post = {
+            "url": "https://www.facebook.com/henleymidmaryachtclub/posts/-dart-18-nationals-final-results-what-a-day-on-the-water-congratulations-to-all-/1633819895206118",
+            "title": "HMYC - Henley Midmar Yacht Club",
+            "description": "DART 18 NATIONALS – Final results! What a day on the water!",
+        }
+        check = verify_post(post, event)
+        self.assertTrue(check["verified"], check)
+        self.assertIn("host_club_page", check["reasons"])
+
+    def test_resolve_hmyc_dart_share(self):
+        resolved = resolve_facebook_url("https://www.facebook.com/share/p/1PGpY1pGh1/?mibextid=wwXIfr")
+        self.assertIn("henleymidmaryachtclub", (resolved.get("canonical_url") or "").lower())
+        self.assertIn("dart", (resolved.get("canonical_url") or "").lower() + (resolved.get("description") or "").lower())
 
 
 if __name__ == "__main__":

@@ -9,9 +9,41 @@
     },
     "HMYC": {
       "name": "Henley Midmar Yacht Club",
+      "code": "HMYC",
+      "slug": "hmyc",
+      "sailingsa_url": "https://sailingsa.co.za/club/hmyc",
       "website": "https://www.hmyc.org.za/",
       "facebook": "https://www.facebook.com/henleymidmaryachtclub",
-      "instagram": "https://www.instagram.com/henleymidmaryc"
+      "instagram": "https://www.instagram.com/henleymidmaryc",
+      "urls": [
+        {
+          "platform": "website",
+          "url": "https://www.hmyc.org.za/",
+          "locality": "local",
+          "provenance": "https://sailingsa.co.za/club/hmyc"
+        },
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/henleymidmaryachtclub",
+          "locality": "local",
+          "provenance": "https://sailingsa.co.za/club/hmyc"
+        },
+        {
+          "platform": "instagram",
+          "url": "https://www.instagram.com/henleymidmaryc",
+          "locality": "local",
+          "provenance": "https://sailingsa.co.za/club/hmyc"
+        }
+      ],
+      "posts": [
+        {
+          "share_url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+          "url": "https://www.facebook.com/share/p/1PGpY1pGh1/?mibextid=wwXIfr",
+          "event_hint": "dart-18-nationals",
+          "role": "host_club_media",
+          "label": "HMYC Dart 18 Nationals final results"
+        }
+      ]
     },
     "AYC": {
       "name": "Aeolians Yacht Club",

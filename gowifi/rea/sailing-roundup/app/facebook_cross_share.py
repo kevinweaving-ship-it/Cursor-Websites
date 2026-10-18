@@ -9,6 +9,7 @@ Does not log in or bypass Facebook walls. Uses public redirects + Open Graph.
 """
 from __future__ import annotations
 
+import html as html_module
 import re
 import urllib.error
 import urllib.parse
@@ -28,6 +29,7 @@ MOBILE = {
 SHARE_RE = re.compile(r"facebook\.com/share/(?P<kind>[pvg])/(?P<id>[A-Za-z0-9]+)", re.I)
 GROUP_RE = re.compile(r"facebook\.com/groups/(?P<id>\d+)", re.I)
 PAGE_RE = re.compile(r"facebook\.com/(?P<slug>[A-Za-z0-9.]+)/?(?:$|[?#])", re.I)
+POST_PAGE_RE = re.compile(r"facebook\.com/(?P<slug>[A-Za-z0-9.]+)/posts/", re.I)
 SHARED_RE = re.compile(
     r"(?P<dst>.+?)\s+shared\s+(?:a\s+post\s+from\s+|(?P<src>.+?)(?:'s|’s)\s+post)",
     re.I,
@@ -80,6 +82,7 @@ def resolve_facebook_url(url: str) -> dict:
         "share_url": original if "/share/" in original else "",
         "kind": "unknown",
         "page_id": "",
+        "page_url": "",
         "title": "",
         "description": "",
         "status": "unresolved",
@@ -141,8 +144,13 @@ def resolve_facebook_url(url: str) -> dict:
         out["title"] = _clean_title(title.group(1))
     desc = OG_DESC.search(html)
     if desc:
-        out["description"] = desc.group(1).strip()
-    if out["title"] or out["page_id"]:
+        out["description"] = html_module.unescape(desc.group(1).strip())
+    page = POST_PAGE_RE.search(out.get("canonical_url") or "") or PAGE_RE.search(out.get("canonical_url") or "")
+    if page and page.group("slug") not in {"share", "groups", "watch", "reel", "login", "posts"}:
+        out["page_url"] = f"https://www.facebook.com/{page.group('slug')}/"
+        if "/posts/" in (out.get("canonical_url") or "") or (out.get("share_url") or "").find("/share/p/") >= 0:
+            out["kind"] = "facebook_post"
+    if out["title"] or out["page_id"] or out.get("page_url"):
         out["status"] = "ok"
     elif out["status"] == "unresolved" and out["canonical_url"] != original:
         out["status"] = "redirect"

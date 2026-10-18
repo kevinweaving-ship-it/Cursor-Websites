@@ -197,6 +197,24 @@ def render(issue):
                     + chr(34)
                     + ">Watch video at source</a></p>"
                 )
+        info = a.get("source_info") or []
+        if info:
+            body.append("<h3>Source info</h3><ul>")
+            for item in info:
+                url = item.get("url") or ""
+                label = item.get("label") or item.get("role") or url
+                body.append(
+                    "<li>"
+                    + html.escape((item.get("role") or "source").replace("_", " "))
+                    + ": <a href="
+                    + chr(34)
+                    + html.escape(url, quote=True)
+                    + chr(34)
+                    + ">"
+                    + html.escape(label)
+                    + "</a></li>"
+                )
+            body.append("</ul>")
         social = a.get("social_sources") or []
         if social:
             body.append("<h3>Social and media sources</h3><ul>")

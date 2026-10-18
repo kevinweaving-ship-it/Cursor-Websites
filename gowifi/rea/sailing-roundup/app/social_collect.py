@@ -106,19 +106,25 @@ def directory_links(kind: str, slug: str) -> list:
     return out
 
 
-def club_config_links(club: str) -> list:
+def club_config(club: str) -> dict:
     path = ROOT / "app" / "club_sources.json"
     if not path.exists() or not club:
-        return []
-    from catalog_sources import source_links_from_config
-
+        return {}
     clubs = json.loads(path.read_text()).get("clubs") or {}
     cfg = clubs.get(club.upper()) or clubs.get(club) or clubs.get(club.lower())
-    if not cfg:
-        for rec in clubs.values():
-            if (rec.get("slug") or "").lower() == club.lower() or (rec.get("code") or "").upper() == club.upper():
-                cfg = rec
-                break
+    if cfg:
+        return cfg
+    key = club.lower()
+    for rec in clubs.values():
+        if (rec.get("slug") or "").lower() == key or (rec.get("code") or "").upper() == club.upper():
+            return rec
+    return {}
+
+
+def club_config_links(club: str) -> list:
+    from catalog_sources import source_links_from_config
+
+    cfg = club_config(club)
     if not cfg:
         return []
     out = []
@@ -126,6 +132,53 @@ def club_config_links(club: str) -> list:
         _add_link(out, item.get("url"), item.get("platform"), item.get("provenance") or "club_sources.json")
         if out:
             out[-1]["locality"] = item.get("locality") or "local"
+    return out
+
+
+def known_club_posts(club: str, event: dict | None = None) -> list[dict]:
+    """Resolve seeded host-club share/p posts (HMYC Dart Nationals and similar)."""
+    from facebook_cross_share import resolve_facebook_url
+
+    cfg = club_config(club)
+    hint = " ".join(
+        (
+            (event or {}).get("title") or "",
+            (event or {}).get("id") or "",
+            (event or {}).get("class_name") or "",
+        )
+    ).lower()
+    out = []
+    for post in cfg.get("posts") or []:
+        event_hint = (post.get("event_hint") or "").lower()
+        if event_hint and hint and event_hint.split("-")[0] not in hint and event_hint not in hint:
+            # Keep the post when we cannot tell; only skip obvious mismatches.
+            if any(token in hint for token in ("420", "505", "dabchick", "optimist")) and "dart" in event_hint:
+                continue
+        url = post.get("url") or post.get("share_url") or ""
+        if not url:
+            continue
+        resolved = resolve_facebook_url(url) if "facebook.com/share/" in url else {
+            "canonical_url": url,
+            "title": post.get("label") or "",
+            "description": "",
+            "page_url": cfg.get("facebook") or "",
+            "share_url": post.get("share_url") or "",
+            "status": "seed",
+        }
+        item = {
+            "url": resolved.get("canonical_url") or url,
+            "share_url": resolved.get("share_url") or post.get("share_url") or url,
+            "title": resolved.get("title") or post.get("label") or cfg.get("name") or "",
+            "description": resolved.get("description") or "",
+            "platform": "facebook",
+            "provenance": "host_club_post",
+            "role": post.get("role") or "host_club_media",
+            "page_url": resolved.get("page_url") or cfg.get("facebook"),
+            "locality": "local",
+        }
+        out.append(item)
+        if item["share_url"] and item["share_url"] != item["url"]:
+            out.append({**item, "url": item["share_url"]})
     return out
 
 
@@ -270,10 +323,17 @@ def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end,
     class_slugs = class_slugs_from_event(
         event.get("title") or "", event.get("id") or "", klass or event.get("class_canonical") or ""
     )
+    cfg = club_config(club)
+    host_posts = known_club_posts(club, event)
     for item in club_config_links(club) + class_source_links(class_slugs) + registry_links(club, klass):
         _add_link(links, item.get("url"), item.get("platform"), item.get("provenance") or "")
         if links:
             links[-1]["locality"] = item.get("locality") or "local"
+    for item in host_posts:
+        _add_link(links, item.get("url"), item.get("platform"), item.get("provenance") or "host_club_post")
+        if links:
+            links[-1]["locality"] = "local"
+            links[-1]["role"] = item.get("role") or "host_club_media"
 
     mentions = collect_for_sailors(sa_ids, start, end, terms)
     for item in mentions.get("matched") or []:
@@ -329,16 +389,28 @@ def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end,
         "https://sailingsa.co.za/regatta/" + (event.get("id") or event.get("regatta_id") or "")
     )
     names = event.get("result_names") or result_names(rows or [])
+    host_source_urls = [x["url"] for x in club_config_links(club) if x.get("url")]
     event_ctx = {
         **event,
         "event_url": event_url,
         "class_slugs": class_slugs,
         "result_names": names,
         "club": club,
+        "club_name": event.get("club_name") or cfg.get("name") or club,
+        "host_club_facebook": cfg.get("facebook") or "",
+        "host_source_urls": host_source_urls,
     }
     everywhere = search_everywhere(event_ctx)
     verified = []
     rejected = []
+    for item in host_posts:
+        check = verify_post(item, event_ctx)
+        item["verification"] = check
+        posts.append(item)
+        if check["verified"]:
+            verified.append(item)
+        else:
+            rejected.append(check)
     for hit in everywhere.get("hits") or []:
         check = verify_post(hit, event_ctx)
         hit["verification"] = check
