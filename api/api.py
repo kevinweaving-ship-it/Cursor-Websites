@@ -1644,7 +1644,7 @@ def _directory_sailors():
 
 
 def _directory_regattas():
-    """Return [(event_name, slug), ...] for regattas. Sorted by event_name."""
+    """Return [(event_name, regatta_id), ...] using sitemap canonical IDs. Never name-slugs that 301."""
     out = []
     try:
         if not table_exists("regattas"):
@@ -1653,18 +1653,16 @@ def _directory_regattas():
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
             cur.execute("""
-                SELECT event_name FROM regattas
-                WHERE event_name IS NOT NULL AND TRIM(event_name) != ''
+                SELECT regatta_id, event_name FROM regattas
+                WHERE regatta_id IS NOT NULL AND BTRIM(regatta_id::text) <> ''
+                  AND event_name IS NOT NULL AND TRIM(event_name) != ''
                 ORDER BY event_name
             """)
             for r in cur.fetchall() or []:
                 name = (r.get("event_name") or "").strip()
-                if not name:
-                    continue
-                slug = re.sub(r"[^\w\s\-]", "", name).strip().lower()
-                slug = re.sub(r"\s+", "-", slug).strip("-")
-                if slug:
-                    out.append((name, slug))
+                rid = str(r.get("regatta_id") or "").strip()
+                if name and rid:
+                    out.append((name, rid))
         finally:
             cur.close()
             return_db_connection(conn)
@@ -1801,7 +1799,7 @@ def _directory_sailors_page():
 
 @app.get("/regattas", response_class=HTMLResponse)
 def _directory_regattas_page():
-    """Directory: all regattas. Links to /regatta/{slug}."""
+    """Directory: all regattas. Links to canonical /regatta/{regatta_id} (same IDs as sitemap)."""
     items = _directory_regattas()
     return HTMLResponse(_directory_page_html("/regattas", items, "regatta", "Regattas"))
 
