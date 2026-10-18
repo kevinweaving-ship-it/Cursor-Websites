@@ -42,8 +42,8 @@ NOR team list for this final: EDEN, OVERBERG, ZVYC, RCYC Training Centre, Stelle
 | --- | --- |
 | 3v3 this district all year? | **Yes.** |
 | Any 2v2 in this series? | **No.** |
-| Scoring | **Positional** (1+2+3…). Team score = sum of three boat places. **Lowest team score wins.** NOR example: 1+4+6 = 11 loses to 2+3+5 = 10. |
-| Tie-break | **Not possible** (as answered). |
+| Scoring | **Positional race** (1+2+3…). Team race score = sum of three boat places. **Lowest team score wins that race** (RRS D3.4). Overall round-robin order is **race wins** (D4.3), not accumulated points. Live gold table: `docs/TSL_WC_SCORING_D4.md`. |
+| Tie-break | RRS D4.4. Officials’ 15-race sheet left Eden and RCYC B as **unresolved joint second**; do not claim D4.4 established that joint place. |
 | Competition format | Asked as round-robin + final. **Not answered here.** NOR: 8 teams → 28 round-robin races; if unfinished, two flights then knock-out for winners and runners-up. |
 
 Do not use Appendix A. Do not store W/L unless a later NOR says so. Race cells hold the team’s place-total for that race.

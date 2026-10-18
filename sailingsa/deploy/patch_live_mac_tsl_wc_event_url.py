@@ -164,7 +164,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261015c" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261017o" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261018a" defer></script>'
             if is_mac_tsl
             else ""
         )
@@ -397,7 +397,7 @@ def main() -> int:
         f'return "{TSL_CLASS_LOGO}"',
         f'return "{TSL_LOGO}"',
     )
-    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261017o" defer></script>'
+    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261018a" defer></script>'
     cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261015c" defer></script>'
     if "mac-tsl-admin.js?v=20261012a" in text:
         text = text.replace("mac-tsl-admin.js?v=20261012a", "mac-tsl-admin.js?v=20261013g")
@@ -554,11 +554,14 @@ def main() -> int:
         text = text.replace("mac-tsl-admin.js?v=20261017l", "mac-tsl-admin.js?v=20261017n")
         print("pin admin 20261017n")
     if "mac-tsl-admin.js?v=20261017m" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261017m", "mac-tsl-admin.js?v=20261017o")
-        print("pin admin 20261017o")
+        text = text.replace("mac-tsl-admin.js?v=20261017m", "mac-tsl-admin.js?v=20261018a")
+        print("pin admin 20261018a")
     if "mac-tsl-admin.js?v=20261017n" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261017n", "mac-tsl-admin.js?v=20261017o")
-        print("pin admin 20261017o")
+        text = text.replace("mac-tsl-admin.js?v=20261017n", "mac-tsl-admin.js?v=20261018a")
+        print("pin admin 20261018a")
+    if "mac-tsl-admin.js?v=20261017o" in text:
+        text = text.replace("mac-tsl-admin.js?v=20261017o", "mac-tsl-admin.js?v=20261018a")
+        print("pin admin 20261018a")
     tsl_edit_fn = (
         "def _session_can_edit_tsl(request: Request) -> bool:\n"
         '    """Super Admin or club admin may edit the TSL Event URL."""\n'

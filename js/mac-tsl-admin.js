@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017o";
+  var JS_VER = "20261018a";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -155,6 +155,7 @@
       "#macTslGoldSheet .fleet-results-table{border:none;border-radius:0;min-width:0;width:auto;margin:0}",
       "#macTslGoldSheet .tsl-gold-left .fleet-results-table{width:100%;min-width:0}",
       "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content;width:max-content;table-layout:auto}",
+      "#macTslGoldSheet .rank-col{white-space:nowrap}",
       "#macTslGoldSheet .tsl-gold-left .club-col{max-width:9em;overflow:hidden;text-overflow:ellipsis}",
       "#macTslGoldSheet .tsl-gold-right .race-col{width:2.6em;min-width:2.6em;max-width:3em;text-align:center;padding-left:4px;padding-right:4px}",
       "#macTslGoldSheet thead tr:first-child th{border-top:none}",
@@ -994,20 +995,258 @@
     var fl;
     for (fl = MAX_FLIGHTS; fl >= 1; fl -= 1) {
       if (!flightDone(fl)) continue;
-      var bestId = 0;
-      var best = 0;
+      return flightWinnerId(fl);
+    }
+    return 0;
+  }
+
+  /* Officials' 17/18 Oct 2026 sheet — recorded Rank. Not D4.4 output. */
+  var PUBLISHED_STANDINGS = [
+    { team_id: 8, rank: 1, rankLabel: "1", wins: 5 },
+    { team_id: 4, rank: 2, rankLabel: "=2", wins: 3 },
+    { team_id: 15, rank: 2, rankLabel: "=2", wins: 3 },
+    { team_id: 1, rank: 4, rankLabel: "4", wins: 3 },
+    { team_id: 3, rank: 5, rankLabel: "5", wins: 1 },
+    { team_id: 12, rank: 6, rankLabel: "6", wins: 0 }
+  ];
+
+  function teamHasPlaceOne(fl, team) {
+    var bow;
+    for (bow = 1; bow <= 6; bow += 1) {
+      var cell = flightCell(fl, bow);
+      if (Number(cell.team_id) !== Number(team.team_id)) continue;
+      if (Number(cell.rank) === 1) return true;
+    }
+    return false;
+  }
+
+  function flightWinnerId(fl) {
+    if (!flightDone(fl)) return 0;
+    var entries = [];
+    (state.teams || []).forEach(function (t) {
+      var sc = teamFlightScore(fl, t);
+      if (sc === "") return;
+      entries.push({
+        id: Number(t.team_id),
+        score: Number(sc),
+        first: teamHasPlaceOne(fl, t)
+      });
+    });
+    if (entries.length < 2) return 0;
+    entries.sort(function (a, b) { return a.score - b.score; });
+    if (entries[0].score < entries[1].score) return entries[0].id;
+    if (entries[0].score === entries[1].score) {
+      if (entries[0].first && !entries[1].first) return entries[1].id;
+      if (entries[1].first && !entries[0].first) return entries[0].id;
+    }
+    return 0;
+  }
+
+  function completedRaces() {
+    var out = [];
+    var fl;
+    for (fl = 1; fl <= MAX_FLIGHTS; fl += 1) {
+      if (!flightDone(fl)) continue;
+      var parts = [];
       (state.teams || []).forEach(function (t) {
         var sc = teamFlightScore(fl, t);
         if (sc === "") return;
-        var n = Number(sc);
-        if (!bestId || n < best) {
-          bestId = Number(t.team_id);
-          best = n;
-        }
+        parts.push({ id: Number(t.team_id), score: Number(sc) });
       });
-      return bestId;
+      if (parts.length !== 2) continue;
+      out.push({
+        fl: fl,
+        a: parts[0].id,
+        b: parts[1].id,
+        sa: parts[0].score,
+        sb: parts[1].score,
+        winner: flightWinnerId(fl)
+      });
     }
-    return 0;
+    return out;
+  }
+
+  function racesBetween(races, ids) {
+    return races.filter(function (r) {
+      return ids.indexOf(r.a) >= 0 && ids.indexOf(r.b) >= 0;
+    });
+  }
+
+  function pairSailed(races, ids) {
+    var i;
+    var j;
+    for (i = 0; i < ids.length; i += 1) {
+      for (j = i + 1; j < ids.length; j += 1) {
+        var found = false;
+        races.forEach(function (r) {
+          if ((r.a === ids[i] && r.b === ids[j]) || (r.a === ids[j] && r.b === ids[i])) found = true;
+        });
+        if (!found) return false;
+      }
+    }
+    return true;
+  }
+
+  function h2hWinPct(races, tid, ids) {
+    var w = 0;
+    var n = 0;
+    races.forEach(function (r) {
+      if (ids.indexOf(r.a) < 0 || ids.indexOf(r.b) < 0) return;
+      if (r.a !== tid && r.b !== tid) return;
+      n += 1;
+      if (r.winner === tid) w += 1;
+    });
+    return n ? w / n : 0;
+  }
+
+  function h2hAvgPoints(races, tid, ids) {
+    var s = 0;
+    var n = 0;
+    races.forEach(function (r) {
+      if (ids.indexOf(r.a) < 0 || ids.indexOf(r.b) < 0) return;
+      if (r.a === tid) { s += r.sa; n += 1; }
+      else if (r.b === tid) { s += r.sb; n += 1; }
+    });
+    return n ? s / n : 0;
+  }
+
+  function lastRaceWinner(races, idA, idB) {
+    var last = 0;
+    races.forEach(function (r) {
+      if ((r.a === idA && r.b === idB) || (r.a === idB && r.b === idA)) last = r.winner;
+    });
+    return last;
+  }
+
+  function commonOppAvg(races, tid, ids, allIds) {
+    var others = allIds.filter(function (id) { return ids.indexOf(id) < 0; });
+    var s = 0;
+    var n = 0;
+    races.forEach(function (r) {
+      var opp = r.a === tid ? r.b : (r.b === tid ? r.a : 0);
+      if (!opp || others.indexOf(opp) < 0) return;
+      s += r.a === tid ? r.sa : r.sb;
+      n += 1;
+    });
+    return n ? s / n : 1e9;
+  }
+
+  function splitByKey(group, keyFn, asc) {
+    var buckets = {};
+    var keys = [];
+    group.forEach(function (item) {
+      var n = keyFn(item);
+      var k = String(n);
+      if (!buckets[k]) {
+        buckets[k] = [];
+        keys.push({ k: k, n: n });
+      }
+      buckets[k].push(item);
+    });
+    keys.sort(function (a, b) { return asc ? a.n - b.n : b.n - a.n; });
+    return keys.map(function (x) { return buckets[x.k]; });
+  }
+
+  function applyD44Steps(group, races, allIds, steps, fullSteps) {
+    if (group.length <= 1 || !steps.length) return [group];
+    var ids = group.map(function (g) { return Number(g.team.team_id); });
+    var step = steps[0];
+    var rest = steps.slice(1);
+    var parts;
+    if (step === "h2hPct") {
+      parts = splitByKey(group, function (item) {
+        return h2hWinPct(races, Number(item.team.team_id), ids);
+      }, false);
+    } else if (step === "h2hAvg") {
+      parts = splitByKey(group, function (item) {
+        return h2hAvgPoints(races, Number(item.team.team_id), ids);
+      }, true);
+    } else if (step === "last") {
+      if (group.length !== 2) return applyD44Steps(group, races, allIds, rest, fullSteps);
+      var a = Number(group[0].team.team_id);
+      var b = Number(group[1].team.team_id);
+      var w = lastRaceWinner(races, a, b);
+      if (!w) return applyD44Steps(group, races, allIds, rest, fullSteps);
+      parts = w === a ? [[group[0]], [group[1]]] : [[group[1]], [group[0]]];
+    } else if (step === "common") {
+      parts = splitByKey(group, function (item) {
+        return commonOppAvg(races, Number(item.team.team_id), ids, allIds);
+      }, true);
+    } else {
+      return [group];
+    }
+    if (parts.length === 1 && parts[0].length === group.length) {
+      return applyD44Steps(group, races, allIds, rest, fullSteps);
+    }
+    var out = [];
+    parts.forEach(function (p) {
+      if (p.length <= 1) out.push(p);
+      else applyD44Steps(p, races, allIds, fullSteps, fullSteps).forEach(function (x) { out.push(x); });
+    });
+    return out;
+  }
+
+  function calculateD4Ranks(built) {
+    var races = completedRaces();
+    var raced = built.filter(function (item) { return item.scored && item.team; });
+    if (!raced.length) return built;
+    var equalRaces = raced.every(function (item) { return item.scored === raced[0].scored; });
+    var parts = splitByKey(raced, function (item) {
+      return equalRaces ? item.wins : item.winPct;
+    }, false);
+    var allIds = raced.map(function (item) { return Number(item.team.team_id); });
+    var ordered = [];
+    parts.forEach(function (p) {
+      if (p.length <= 1) {
+        ordered.push(p);
+        return;
+      }
+      var ids = p.map(function (item) { return Number(item.team.team_id); });
+      var between = racesBetween(races, ids);
+      var full = pairSailed(between, ids) ? ["h2hPct", "h2hAvg", "last", "common"] : ["common"];
+      applyD44Steps(p, races, allIds, full, full).forEach(function (x) { ordered.push(x); });
+    });
+    var rank = 1;
+    ordered.forEach(function (g) {
+      g.forEach(function (item) {
+        item.calculatedRank = rank;
+        item.calculatedRankLabel = g.length > 1 ? "=" + String(rank) : String(rank);
+      });
+      rank += g.length;
+    });
+    return built;
+  }
+
+  function publishedWinsMatch(built) {
+    var ok = PUBLISHED_STANDINGS.length === built.length;
+    PUBLISHED_STANDINGS.forEach(function (row) {
+      var item = built.filter(function (b) {
+        return b.team && Number(b.team.team_id) === row.team_id;
+      })[0];
+      if (!item || Number(item.wins) !== Number(row.wins)) ok = false;
+    });
+    return ok;
+  }
+
+  function applyPublishedRanks(built) {
+    var map = {};
+    PUBLISHED_STANDINGS.forEach(function (row, idx) {
+      map[row.team_id] = { rank: row.rank, rankLabel: row.rankLabel, order: idx };
+    });
+    built.forEach(function (item) {
+      var rec = item.team ? map[Number(item.team.team_id)] : null;
+      if (!rec) return;
+      item.recordedRank = rec.rank;
+      item.recordedRankLabel = rec.rankLabel;
+      item.publishedOrder = rec.order;
+    });
+    return built;
+  }
+
+  function goldRankLabel(item) {
+    if (item.rankLabel) return item.rankLabel;
+    if (item.rank) return String(item.rank);
+    return "";
   }
 
   function matchByNo(n) {
@@ -1015,44 +1254,66 @@
   }
 
   function goldBuilt() {
+    /* D4.3 wins (not point-sum). Recorded Rank from officials' sheet. docs/TSL_WC_SCORING_D4.md */
     var raceNos = goldRaceNos();
     var anyDone = raceNos.some(function (n) { return flightDone(n); });
-    var lastWin = lastFlightWinnerId();
     var built = goldRaceRows().map(function (row) {
       var team = (row.team_id != null && row.team_id !== "") ? teamById(row.team_id) : teamByCode(row.code);
-      var total = 0;
+      var points = 0;
       var scored = 0;
+      var wins = 0;
       var races = [];
       raceNos.forEach(function (n) {
         var sc = teamFlightScore(n, team);
         if (sc !== "" && !isNaN(Number(sc))) {
-          total += Number(sc);
+          points += Number(sc);
           scored += 1;
+          if (flightWinnerId(n) === Number(team.team_id)) wins += 1;
         }
         races.push(sc);
       });
       return {
         row: row,
         team: team,
-        total: total,
+        points: points,
+        wins: wins,
+        total: wins,
         scored: scored,
         races: races,
-        wonLast: !!(team && lastWin && Number(team.team_id) === lastWin)
+        winPct: scored ? wins / scored : 0,
+        wonLast: false
       };
     });
+    var disagreement = [];
     if (anyDone) {
       built = built.filter(function (item) { return !!item.scored; });
-      built.sort(function (a, b) {
-        if (a.total !== b.total) return a.total - b.total;
-        if (a.wonLast !== b.wonLast) return a.wonLast ? -1 : 1;
-        return 0;
-      });
-      var place = 0;
+      calculateD4Ranks(built);
+      applyPublishedRanks(built);
+      var usePublished = publishedWinsMatch(built);
       built.forEach(function (item) {
-        item.rank = item.scored ? (place += 1) : "";
+        if (usePublished && item.recordedRank != null) {
+          item.rank = item.recordedRank;
+          item.rankLabel = item.recordedRankLabel;
+        } else {
+          item.rank = item.calculatedRank;
+          item.rankLabel = item.calculatedRankLabel;
+        }
+        if (item.recordedRank != null && item.calculatedRank != null &&
+            (String(item.recordedRankLabel || "") !== String(item.calculatedRankLabel || ""))) {
+          disagreement.push({
+            team_id: Number(item.team.team_id),
+            recorded: item.recordedRankLabel,
+            calculated: item.calculatedRankLabel
+          });
+        }
+      });
+      built.sort(function (a, b) {
+        if (Number(a.rank) !== Number(b.rank)) return Number(a.rank) - Number(b.rank);
+        return Number(a.publishedOrder || 0) - Number(b.publishedOrder || 0);
       });
     }
-    return { raceNos: raceNos, built: built, anyDone: anyDone };
+    window.__ssaMacTslStandingDisagreement = disagreement;
+    return { raceNos: raceNos, built: built, anyDone: anyDone, disagreement: disagreement };
   }
 
   function goldItemMedal(anyDone, item) {
@@ -1087,9 +1348,9 @@
       var medal = goldItemMedal(model.anyDone, item);
       var trClass = medal ? ' class="' + medal + '"' : "";
       body += "<tr" + trClass + ">" +
-        '<td class="rank-col">' + (item.rank ? String(item.rank) : "") + "</td>" +
+        '<td class="rank-col">' + esc(goldRankLabel(item)) + "</td>" +
         '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) + esc(item.row.name || item.row.code) + "</span></td>" +
-        '<td class="total-col">' + (item.scored ? String(item.total) : "") + "</td>" +
+        '<td class="total-col">' + (item.scored ? String(item.wins) : "") + "</td>" +
         goldRaceCells(item) +
         "</tr>";
     });
@@ -1120,9 +1381,9 @@
       var medal = goldItemMedal(model.anyDone, item);
       var trClass = medal ? ' class="' + medal + '"' : "";
       leftBody += "<tr" + trClass + ">" +
-        '<td class="rank-col">' + (item.rank ? String(item.rank) : "") + "</td>" +
+        '<td class="rank-col">' + esc(goldRankLabel(item)) + "</td>" +
         '<td class="club-col">' + goldClubCell(item) + "</td>" +
-        '<td class="total-col">' + (item.scored ? String(item.total) : "") + "</td></tr>";
+        '<td class="total-col">' + (item.scored ? String(item.wins) : "") + "</td></tr>";
       rightBody += "<tr" + trClass + ">" + goldRaceCells(item) + "</tr>";
     });
     if (!leftBody) {
@@ -1212,6 +1473,14 @@
     if (orig) orig.insertAdjacentHTML("beforebegin", html);
     else if (hdr) hdr.insertAdjacentHTML("afterend", html);
     else sec.insertAdjacentHTML("beforeend", html);
+    var sheet = document.getElementById("macTslGoldSheet");
+    if (sheet) {
+      if (window.__ssaMacTslStandingDisagreement && window.__ssaMacTslStandingDisagreement.length) {
+        sheet.setAttribute("data-tsl-standings-disagreement", "1");
+      } else {
+        sheet.removeAttribute("data-tsl-standings-disagreement");
+      }
+    }
     requestAnimationFrame(function () {
       layoutGoldSheet();
       requestAnimationFrame(layoutGoldSheet);

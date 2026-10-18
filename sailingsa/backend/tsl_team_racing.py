@@ -3,15 +3,17 @@
 Slug-gated. Does not replace fleet racing, Appendix A, Dart 18, or Midmar Cup.
 Teams/clubs/sailors reuse existing permanent IDs. No invented SAS IDs.
 
-Match scoring (RRS Appendix D3, 3v3 positional):
+Match scoring (RRS 2025–2028 Appendix D3, 3v3 positional):
   each boat scores her finishing place; DNS/DNF/DSQ/OCS/RET/NSC/DNE = 6;
-  team total = sum of three boats + official team penalty; lowest total wins.
-  Equal totals stay incomplete unless an official override names a winner.
+  team total = sum of three boats + official team-flight score_adjust; lowest total
+  wins (D3.4). If totals are equal, the team that does not have first place wins.
 
-Series ranking (RRS D4.2 round-robin):
-  wins, then wins among tied teams, then points among tied teams (lower better),
-  then the last race between two remaining teams, then average points vs common
-  opponents. Remaining ties share a rank.
+Series ranking (RRS D4.3 / D4.4 round-robin):
+  race wins, highest first; win percentage if unequal races sailed (D4.3).
+  Accumulated race points are never the primary overall ranking criterion.
+  Ties: D4.4 (stage results only). Remaining unresolved calculated ties share a
+  rank. This Event URL’s published gold Rank is the officials’ recorded sheet
+  (docs/TSL_WC_SCORING_D4.md), kept separate from calculated D4.4.
 """
 from __future__ import annotations
 
