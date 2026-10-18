@@ -1,0 +1,26 @@
+{
+  "classes": {
+    "420": {
+      "name": "420",
+      "facebook": "https://www.facebook.com/Int420Class/",
+      "website": "https://linktr.ee/int420class"
+    },
+    "505": {
+      "name": "505",
+      "facebook": "https://www.facebook.com/int505",
+      "website": "https://int505.org/"
+    },
+    "dart-18": {
+      "name": "Dart 18",
+      "website": "https://dart18class.com/"
+    },
+    "dart": {
+      "name": "Dart 18",
+      "website": "https://dart18class.com/"
+    },
+    "dabchick": {
+      "name": "Dabchick",
+      "website": "https://www.sailing.org.za/what-we-do/sasclasses"
+    }
+  }
+}

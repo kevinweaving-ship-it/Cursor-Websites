@@ -100,8 +100,11 @@ See **[docs/TOOL_RESEARCH.md](docs/TOOL_RESEARCH.md)** for the web deep-dive. In
 | Official links | club/class pages | no | Facebook / Instagram / websites |
 | Page metadata | Open Graph | no | Title, caption, image |
 | Public extractors | gallery-dl, yt-dlp | no | FB / IG / YouTube public URLs |
+| Everywhere search | Google News + Bing `site:` Facebook / Instagram / TikTok / YouTube / X / Reddit | no | `search_everywhere.py` |
 | Cross-network search | SocialCrawl `/v1/search/everywhere` | `SOCIALCRAWL_API_KEY` | One query, 60+ platforms |
 | Platform scrapers | Apify official actors | `APIFY_TOKEN` | FB posts, IG posts, YouTube, FB events |
+
+A post is attached only after `event_social_verify.verify_post` matches the **event URL**, **class + host club**, or **results names**. A Dart 18 club post will not attach to the 420 Nationals article.
 
 No login walls are bypassed. Unlicensed photos are linked, not republished.
 

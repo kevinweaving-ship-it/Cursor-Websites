@@ -17,6 +17,8 @@ from publish_weekend import (
     weekend_bounds,
     weekend_feature,
 )
+from event_social_verify import class_slugs_from_event, verify_post
+from search_everywhere import event_query
 from sailor_mentions import filter_for_event, parse_day
 
 
@@ -73,6 +75,32 @@ class PublishHelpers(unittest.TestCase):
         feature = weekend_feature("2026-09-28", monday, picked, [])
         self.assertEqual(feature["type"], "feature")
         self.assertIn("26 September", feature["deck"])
+
+    def test_verify_everywhere_against_event_and_results(self):
+        event = {
+            "id": "2026-09-25-tsc-420-nationals",
+            "title": "420 Nationals",
+            "club": "TSC",
+            "class_slugs": ["420"],
+            "result_names": ["Dale Rae", "Joshua Keytel"],
+            "event_url": "https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals",
+        }
+        self.assertEqual(class_slugs_from_event("420 Nationals", "2026-09-25-tsc-420-nationals"), ["420"])
+        self.assertIn("420", event_query(event))
+        ok = verify_post(
+            {
+                "url": "https://www.facebook.com/Int420Class/posts/1",
+                "title": "420 Nationals at TSC — Dale Rae leads",
+                "description": "Results on https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals",
+            },
+            event,
+        )
+        self.assertTrue(ok["verified"], ok)
+        dart = verify_post(
+            {"url": "https://www.facebook.com/hmyc/posts/2", "title": "Dart 18 Nationals Day 2 at HMYC", "description": ""},
+            event,
+        )
+        self.assertFalse(dart["verified"], dart)
 
 
 if __name__ == "__main__":

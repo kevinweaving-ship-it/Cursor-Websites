@@ -38,11 +38,10 @@ For each weekend event the publisher:
 
 1. Reads `/api/regatta/{slug}` (results, club, class, helm/crew SAS IDs)
 2. Pulls Media-tab mentions for those sailors
-3. Reads club/class directory social links from SailingSA
-4. Adds known club Facebook / Instagram / websites
-5. Scrapes Open Graph metadata from discovered URLs
-6. Runs REA-installed **gallery-dl** (Facebook / Instagram / YouTube extractors) and **yt-dlp** search
-7. Calls Athena / SocialCrawl only if `APIFY_TOKEN` or `SOCIALCRAWL_API_KEY` is set
+3. Searches **everywhere**: Google News, Bing web, Facebook, Instagram, TikTok, YouTube, X, Reddit
+4. Also reads host-club and class pages (for example `/club/tsc` and `/class/420`)
+5. Keeps a post only if it verifies against that event URL and/or published results names
+6. Runs gallery-dl / yt-dlp; SocialCrawl / Apify run when those keys exist
 
 No login walls are bypassed. Unlicensed photos are linked, not republished.
 

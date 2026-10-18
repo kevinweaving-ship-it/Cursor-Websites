@@ -234,9 +234,11 @@ def try_aggregators(issue: str, query: str, urls: list[str]) -> list:
         return [{"status": "error", "error": str(exc)[:160]}]
 
 
-def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end) -> dict:
-    """Return social posts, image candidates, and source URLs for one event."""
+def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end, rows=None) -> dict:
+    """Search everywhere, then keep posts that verify against this event URL and results."""
+    from event_social_verify import class_slugs_from_event, result_names, verify_post
     from sailor_mentions import collect_for_sailors
+    from search_everywhere import search_everywhere
 
     club = (event.get("club") or event.get("host_club_code") or "").strip()
     klass = (event.get("class_name") or event.get("class_canonical") or "").strip()
@@ -305,15 +307,49 @@ def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end)
             }
         )
 
+    event_url = event.get("event_url") or (
+        "https://sailingsa.co.za/regatta/" + (event.get("id") or event.get("regatta_id") or "")
+    )
+    class_slugs = class_slugs_from_event(
+        event.get("title") or "", event.get("id") or "", klass or event.get("class_canonical") or ""
+    )
+    names = event.get("result_names") or result_names(rows or [])
+    event_ctx = {
+        **event,
+        "event_url": event_url,
+        "class_slugs": class_slugs,
+        "result_names": names,
+        "club": club,
+    }
+    everywhere = search_everywhere(event_ctx)
+    verified = []
+    rejected = []
+    for hit in everywhere.get("hits") or []:
+        check = verify_post(hit, event_ctx)
+        hit["verification"] = check
+        if check["verified"]:
+            verified.append(hit)
+            _add_link(links, hit.get("url"), platform_for(hit.get("url") or ""), hit.get("lane") or "everywhere")
+            if not any(p.get("url") == hit.get("url") for p in posts):
+                posts.append(hit)
+        else:
+            rejected.append(check)
+
     aggregators = try_aggregators(issue, query, social_urls)
     return {
         "event_id": event.get("id") or event.get("regatta_id"),
+        "event_url": event_url,
+        "class_pages": ["https://sailingsa.co.za/class/" + c for c in class_slugs],
+        "club_page": ("https://sailingsa.co.za/club/" + club_slug) if club_slug else None,
         "links": links,
         "directory": directory,
         "sailor_mentions": mentions,
-        "posts": posts,
+        "posts": [p for p in posts if (p.get("verification") or {}).get("verified", p.get("lane") is None)],
         "images": images[:24],
         "gallery_dl": gallery,
         "videos": videos,
         "aggregators": aggregators,
+        "everywhere": {"query": everywhere.get("query"), "counts": everywhere.get("counts"), "total": everywhere.get("total")},
+        "verified_posts": verified,
+        "rejected_count": len(rejected),
     }

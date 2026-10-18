@@ -176,7 +176,7 @@ def lead_sentence(title: str, rows: list[dict]) -> str:
 def attach_media(article: dict, pack: dict):
     sources = list(article.get("sources") or [])
     social = list(article.get("social_sources") or [])
-    for post in pack.get("posts") or []:
+    for post in pack.get("verified_posts") or pack.get("posts") or []:
         url = post.get("url")
         if url and url not in sources:
             sources.append(url)
@@ -276,11 +276,16 @@ def article_from_regatta(issue: str, slug: str, rows: list[dict]) -> dict | None
             "class_name": klass,
             "host_club_slug": first.get("host_club_slug") or "",
             "class_canonical": first.get("class_canonical") or "",
+            "event_url": url,
+            "result_names": [r for r in (
+                [row.get("helm_name") for row in rows[:8]] + [row.get("crew_name") for row in rows[:8]]
+            ) if r],
         },
         sailor_ids(rows),
         terms,
         start,
         end,
+        rows=rows,
     )
     attach_media(article, pack)
     dest = ROOT / "issues" / issue / "sources"
