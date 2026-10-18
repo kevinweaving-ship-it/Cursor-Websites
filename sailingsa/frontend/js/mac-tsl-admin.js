@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261018c";
+  var JS_VER = "20261018d";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -119,6 +119,7 @@
       "#macTslAdmin{display:none}",
       "#macTslSchedule{display:none!important}",
       "#macTslMatches{display:none}",
+      ".regatta-page[data-mac-tsl=\"1\"]:not(.regatta-page--super-admin-edit) #macTslFlightsCard,.regatta-page[data-mac-tsl=\"1\"]:not(.regatta-page--super-admin-edit) #macTslTeamsCard,.regatta-page[data-mac-tsl=\"1\"]:not(.regatta-page--super-admin-edit) #macTslAdmin,.regatta-page[data-mac-tsl=\"1\"]:not(.regatta-page--super-admin-edit) #macTslMatches,.regatta-page[data-mac-tsl=\"1\"]:not(.regatta-page--super-admin-edit) #macTslSchedule,.regatta-page[data-mac-tsl=\"1\"]:not(.regatta-page--super-admin-edit) #tslNamePop,.regatta-page[data-mac-tsl=\"1\"]:not(.regatta-page--super-admin-edit) .action-buttons{display:none!important}",
       ".regatta-page--super-admin-edit #macTslMatches{display:block}",
       "#macTslAdmin .tsl-edit{display:none}",
       ".regatta-page--super-admin-edit #macTslAdmin .tsl-edit{display:block}",

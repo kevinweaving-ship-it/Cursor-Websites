@@ -32,7 +32,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261018c", JS)
+        self.assertIn("20261018d", JS)
         self.assertIn("flightScoreAdjust", JS)
         self.assertIn("score_adjust", JS)
         self.assertIn("nos.reverse()", JS)
@@ -50,6 +50,9 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertIn('total-col">Total</th>', JS)
         self.assertIn("goldPointsCell", JS)
         self.assertIn("item.points", JS)
+        self.assertIn(":not(.regatta-page--super-admin-edit) #macTslFlightsCard", JS)
+        self.assertIn(":not(.regatta-page--super-admin-edit) #macTslTeamsCard", JS)
+        self.assertIn(":not(.regatta-page--super-admin-edit) .action-buttons", JS)
         self.assertNotIn("medal-bronze", JS)
         self.assertIn("var max = highestUsedFlight();", JS)
         self.assertIn("built.filter(function (item) { return !!item.scored; })", JS)
@@ -303,7 +306,7 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261018c", API)
+        self.assertIn("mac-tsl-admin.js?v=20261018d", API)
         self.assertIn("is_super_admin=_session_can_edit_tsl", API)
         self.assertIn("def _session_can_edit_tsl", API)
 
@@ -355,7 +358,7 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("mac-tsl-live-cards.js?v=20261015c", patch)
         self.assertIn("def _session_can_edit_tsl", patch)
         self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
-        self.assertIn("mac-tsl-admin.js?v=20261018c", patch)
+        self.assertIn("mac-tsl-admin.js?v=20261018d", patch)
         media = (ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_media.py").read_text(
             encoding="utf-8"
         )

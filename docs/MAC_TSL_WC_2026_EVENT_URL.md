@@ -142,7 +142,7 @@ https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing
 - **Match entry** card is below the overall results table: Team A / Team B dropdowns (registered teams only), Blue/Green colours, three boats each with bow / sail / helm / crew / place / penalty. Helm and crew lists are that team’s master roster only.
 - **Save match once** scores Appendix D3 (lowest total wins), then rewrites the existing results table cells to W / L / — and recalculates standings. Official override requires a reason and is audited.
 - **Status line:** first scored race → `Results are Provisional as at DD Month YYYY at HH:MM` from the sheet clock. Final when the OA says so.
-- **Public:** never edits scores. Empty match columns stay hidden until M1 exists.
+- **Public:** never edits scores. Public Event URL shows only event header, weather, media, fleet header, and the gold results table. Flights, Teams, match entry, schedule, and Print/action buttons stay hidden unless Super Admin edit is on.
 - **MP:** Rank | Club | Colour | M1… | Wins. **ML:** same table, extra columns (team / sailors / losses / win %) — no second table.
 
 **Sailor replace / New Team / add sailors:** `docs/TSL_SAILOR_SEARCH_POPUP.md` — landing `/api/search`, body-fixed `.card`, hit row `name | club logo | SAS ID`. New Team card stays last; club search then team name then 1–6 sailors with M/F and Helm/Crew.
