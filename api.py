@@ -2867,12 +2867,9 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
     source_url = (r.get("source_url") or "").strip() or ""
     image_url = (r.get("image_url") or "").strip() or ""
     map_link = ""  # No map link on card
-    if is_upcoming:
-        details_url = source_url if source_url else ""
-    else:
-        reg_id = (r.get("regatta_id") or "").strip() if has_regatta_id else ""
-        details_url = ("/regatta/" + reg_id) if reg_id else (source_url or "")
-    has_regatta_link = not is_upcoming and bool(details_url and details_url.startswith("/regatta/"))
+    reg_id = (r.get("regatta_id") or "").strip() if has_regatta_id else ""
+    details_url = ("/regatta/" + reg_id) if reg_id else (source_url or "")
+    has_regatta_link = bool(details_url and details_url.startswith("/regatta/"))
     # Real results detection: green tick only when this regatta has rows in results table
     if is_upcoming:
         result_yes = False
@@ -2890,7 +2887,7 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
     if location and raw_name and location.strip().lower() == raw_name.lstrip(">").strip().lower():
         location = ""
     display_title = event_name
-    if has_regatta_link:
+    if has_regatta_link and not is_upcoming:
         reg_id = (r.get("regatta_id") or "").strip()
         year = None
         if reg_id and "-" in reg_id:
@@ -3731,7 +3728,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
   function renderCard(e, panelId, index1, totalN){
     var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
     var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
+    var titleHtml = (e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
       ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
       : esc(titleText);
     var hostLabel = 'Host: ';
@@ -4083,7 +4080,7 @@ def _events_dashboard_fragment(
   function renderCard(e, panelId, index1, totalN){
     var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
     var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
+    var titleHtml = (e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
       ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
       : esc(titleText);
     var hostLabel = 'Host: ';
@@ -4423,7 +4420,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
   function renderCard(e, panelId, index1, totalN){
     var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
     var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
+    var titleHtml = (e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
       ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
       : esc(titleText);
     var hostLabel = 'Host: ';
@@ -22398,7 +22395,7 @@ def _seo_discovery_pairs_fetch():
                     SELECT regatta_id, event_name FROM regattas
                     WHERE event_name IS NOT NULL AND TRIM(event_name) != ''
                     ORDER BY COALESCE(end_date, start_date) DESC NULLS LAST
-                    LIMIT 5
+                    LIMIT 40
                 """)
                 for r in cur.fetchall() or []:
                     rid = str(r.get("regatta_id") or "").strip()
@@ -23218,7 +23215,7 @@ def _get_regatta_full_page_data(regatta_id: str):
             host_club_province = (row.get("host_club_province") or "").strip() or None
             start_date = row.get("start_date")
             end_date = row.get("end_date")
-            result_status = (row.get("result_status") or "").strip() or "Final"
+            result_status = (row.get("result_status") or "").strip()
             as_at_time = row.get("as_at_time")
             print(f"REGATTA_DATA: step=after_regatta_meta time={time.time() - t0:.3f}", flush=True)
             # Status-line timestamp: prefer results table (per Result rule), fallback to regattas.as_at_time
@@ -24298,6 +24295,12 @@ _RESULT_SHEET_CSS = (
     ".wc-sa-ac-list li:hover,.wc-sa-ac-list li.wc-sa-ac-li-active{background:#e0e7ff}"
     ".wc-sa-ac-list .wc-sa-ac-li-sub{font-size:11px;font-weight:500;color:#64748b}"
     ".regatta-page--super-admin-edit .wc-sa-ac-wrap .wc-result-field-input{min-width:5rem}"
+    ".card{background:#ffffff;border:2px solid #1a2750;border-radius:10px;padding:0.5rem 0.85rem;margin:16px 0}"
+    ".card .section-title{margin:0 0 0.4rem 0;padding-bottom:0.35rem;border-bottom:2px solid #1a2750;"
+    "font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.02em;color:#1a2750}"
+    ".card p{margin:0.35rem 0 0;font-size:0.9rem;line-height:1.5;color:#1a2750}"
+    ".card a{color:#1a2750;font-weight:600;text-decoration:underline}"
+    ".card a:hover{color:#e65100}"
 )
 
 
@@ -26139,7 +26142,7 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             host_club_province = (row.get("host_club_province") or "").strip() or None
             start_date = row.get("start_date")
             end_date = row.get("end_date")
-            result_status = (row.get("result_status") or "").strip() or "Final"
+            result_status = (row.get("result_status") or "").strip()
             as_at_time = row.get("as_at_time")
             cur.execute("""
                 SELECT as_at_time FROM results
@@ -26611,8 +26614,16 @@ def serve_regatta_standalone(slug: str, request: Request):
         canonical_url = f"{base_url}/regatta/{regatta_id}"
         display_name = (ev_name or event_name or "").strip()
         escaped_title = html_module.escape(display_name)
-        status_word = (result_status or "Final").strip() or "Final"
-        status_line_text = _format_regatta_status_line(status_word, as_at_time)
+        has_result_rows = any(isinstance(f, dict) and (f.get("rows") or []) for f in (fleets or []))
+        if has_result_rows:
+            status_word = (result_status or "Final").strip() or "Final"
+            status_line_text = _format_regatta_status_line(status_word, as_at_time)
+        else:
+            status_word = (result_status or "").strip()
+            if status_word.casefold() in ("", "final", "unknown", "event_page"):
+                status_line_text = "Upcoming Event"
+            else:
+                status_line_text = _format_regatta_status_line(status_word, as_at_time)
         host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
         host_club_text = _format_regatta_host_display(
             host_club_abbrev, host_club_fullname, (host_club_legacy or host_club_name or "")
@@ -26623,6 +26634,32 @@ def serve_regatta_standalone(slug: str, request: Request):
             if host_club_slug and host_club_text
             else esc_host
         )
+        upcoming_html = ""
+        _pass_b_title = ""
+        try:
+            from sailingsa.backend.event_page_seo import build_regatta_pass_b
+
+            _pass_b = build_regatta_pass_b(
+                display_name=display_name,
+                canonical_url=canonical_url,
+                base_url=base_url,
+                start_date=start_d,
+                end_date=end_d,
+                result_status=result_status,
+                as_at_time=as_at_time,
+                fleets=fleets,
+                host_club=host_club_text or "",
+                host_club_href=f"/club/{host_club_slug}" if host_club_slug else "",
+                province=host_club_province or "",
+                extra_urls=[],
+                news_items=list((globals().get("LATEST_NEWS_CACHE") or {}).get("items") or []),
+            )
+            if _pass_b.get("status_visible"):
+                status_line_text = _pass_b["status_visible"]
+            upcoming_html = _pass_b.get("upcoming_html") or ""
+            _pass_b_title = (_pass_b.get("title") or "").strip()
+        except Exception as _up_err:
+            print(f"[upcoming event body] {_up_err}", flush=True)
         is_sa = _session_role_is_super_admin(request)
         is_wc = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
         back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
@@ -26758,7 +26795,7 @@ def serve_regatta_standalone(slug: str, request: Request):
                 "})();</script>"
             )
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-        body_html = header_html + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
+        body_html = header_html + upcoming_html + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script = (
@@ -26767,9 +26804,10 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        _doc_title = html_module.escape(_pass_b_title) if _pass_b_title else f"{escaped_title} | SailingSA"
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
-            f"{escaped_title} | SailingSA</title>"
+            f"{_doc_title}</title>"
             f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
             "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
