@@ -86,7 +86,8 @@ One existing gold table (`#macTslGoldSheet`). No second table. Surrounding Event
 | --- | --- | --- |
 | Rank | 1–6 from lowest point-sum | Published: 1, =2, =2, 4, 5, 6 |
 | Club | Club | **Club/Team** (label only) |
-| Total | sum of flight points | **Wins** (5 / 3 / 3 / 3 / 1 / 0) |
+| Wins | (was Total = point-sum) | race wins 5 / 3 / 3 / 3 / 1 / 0 |
+| Total | — | sum of recorded flight scores including F3/F4 `score_adjust`: A 34, Eden 50, B 50, MAC 51, UCT 65, MATIES 67 |
 | F15…F1 | team race points | **unchanged** team race points |
 
 DOM classes stay the standard Event URL set: `table-wrapper`, `fleet-results-table`, `rs-compact-row-logos`, `rank-col`, `club-col`, `total-col` (Wins uses this class), `race-col`, `rs-club-with-logo`, `medal-gold` / `medal-silver`. No new font, colour, or row-height rules.
@@ -115,7 +116,7 @@ No roster edits. No invented penalties. `score_adjust` and all 15 flight grids s
 
 ## Mobile ≤480px impact
 
-Portrait uses the existing split: locked left Rank | Club/Team | Wins; remaining width is `.tsl-gold-right` with `overflow-x: auto` and `-webkit-overflow-scrolling: touch`. Columns are already newest-first (`goldRaceNos` reverses, F15 at the left of the flight pane). Swipe left reveals older flights.
+Portrait uses the existing split: locked left Rank | Club/Team | Wins; remaining width is `.tsl-gold-right` with `overflow-x: auto` and `-webkit-overflow-scrolling: touch`. **Total** is the first right-pane column (between Wins and F15) so the locked 480px pane is not widened. Columns are already newest-first (`goldRaceNos` reverses, F15 after Total). Swipe left reveals older flights. One extra ~3em column means one fewer F-column in view; scroll is unchanged.
 
 At 480px: left `max-width: 54%`, club-col `max-width: 6.4em` (ellipsis on long names), race-col `min-width: 2.1em`.
 

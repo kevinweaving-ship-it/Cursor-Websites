@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261018b";
+  var JS_VER = "20261018c";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -155,7 +155,7 @@
       "#macTslGoldSheet .fleet-results-table{border:none;border-radius:0;min-width:0;width:auto;margin:0}",
       "#macTslGoldSheet .tsl-gold-left .fleet-results-table{width:100%;min-width:0}",
       "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content;width:max-content;table-layout:auto}",
-      "#macTslGoldSheet .rank-col,#macTslGoldSheet .tsl-gold-left thead th{white-space:nowrap}",
+      "#macTslGoldSheet .rank-col,#macTslGoldSheet .tsl-gold-left thead th,#macTslGoldSheet .total-col{white-space:nowrap}",
       "#macTslGoldSheet .tsl-gold-left .club-col{max-width:9em;overflow:hidden;text-overflow:ellipsis}",
       "#macTslGoldSheet .tsl-gold-right .race-col{width:2.6em;min-width:2.6em;max-width:3em;text-align:center;padding-left:4px;padding-right:4px}",
       "#macTslGoldSheet thead tr:first-child th{border-top:none}",
@@ -1254,7 +1254,7 @@
   }
 
   function goldBuilt() {
-    /* D4.3 wins (not point-sum). Recorded Rank from officials' sheet. Gold labels Rank | Club/Team | Wins. docs/TSL_WC_SCORING_D4.md */
+    /* D4.3 wins (not point-sum). Total = sum of recorded flight scores including score_adjust. Rank | Club/Team | Wins | Total | F15…F1. docs/TSL_WC_SCORING_D4.md */
     var raceNos = goldRaceNos();
     var anyDone = raceNos.some(function (n) { return flightDone(n); });
     var built = goldRaceRows().map(function (row) {
@@ -1338,9 +1338,14 @@
     return raceHeads || '<th class="race-col">F1</th>';
   }
 
+  function goldPointsCell(item) {
+    return '<td class="total-col">' + (item.scored ? String(item.points) : "") + "</td>";
+  }
+
   function goldCombinedTableHtml(wrapId, tableId, extraClass) {
     var model = goldBuilt();
     var heads = '<th class="rank-col">Rank</th><th class="club-col">Club/Team</th><th class="total-col">Wins</th>' +
+      '<th class="total-col">Total</th>' +
       goldRaceHeads(model.raceNos);
     var body = "";
     model.built.forEach(function (item) {
@@ -1350,11 +1355,12 @@
         '<td class="rank-col">' + esc(goldRankLabel(item)) + "</td>" +
         '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) + esc(item.row.name || item.row.code) + "</span></td>" +
         '<td class="total-col">' + (item.scored ? String(item.wins) : "") + "</td>" +
+        goldPointsCell(item) +
         goldRaceCells(item) +
         "</tr>";
     });
     if (!body) {
-      body = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td><td class="race-col"></td></tr>';
+      body = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td><td class="total-col"></td><td class="race-col"></td></tr>';
     }
     return (
       '<div class="table-wrapper' + (extraClass ? " " + extraClass : "") + '" id="' + wrapId + '">' +
@@ -1373,7 +1379,7 @@
   function goldSplitTableHtml() {
     var model = goldBuilt();
     var leftHeads = '<th class="rank-col">Rank</th><th class="club-col">Club/Team</th><th class="total-col">Wins</th>';
-    var rightHeads = goldRaceHeads(model.raceNos);
+    var rightHeads = '<th class="total-col">Total</th>' + goldRaceHeads(model.raceNos);
     var leftBody = "";
     var rightBody = "";
     model.built.forEach(function (item) {
@@ -1383,11 +1389,11 @@
         '<td class="rank-col">' + esc(goldRankLabel(item)) + "</td>" +
         '<td class="club-col">' + goldClubCell(item) + "</td>" +
         '<td class="total-col">' + (item.scored ? String(item.wins) : "") + "</td></tr>";
-      rightBody += "<tr" + trClass + ">" + goldRaceCells(item) + "</tr>";
+      rightBody += "<tr" + trClass + ">" + goldPointsCell(item) + goldRaceCells(item) + "</tr>";
     });
     if (!leftBody) {
       leftBody = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td></tr>';
-      rightBody = '<tr><td class="race-col"></td></tr>';
+      rightBody = '<tr><td class="total-col"></td><td class="race-col"></td></tr>';
     }
     return (
       '<div class="table-wrapper" id="macTslGoldSheet">' +
