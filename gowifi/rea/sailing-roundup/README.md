@@ -53,6 +53,8 @@ python3 app/catalog_sources.py
 
 Local 420 class Facebook group (user share link `facebook.com/share/g/1Jh51CDMew/`): **420 Class RSA** → `https://www.facebook.com/groups/120115671476306/` → `https://sailingsa.co.za/class/420`.
 
+Host-club pages are the media source for that club’s events. Dart 18 Nationals uses **HMYC** (`https://sailingsa.co.za/club/hmyc`, Facebook `henleymidmaryachtclub`). Share posts such as `facebook.com/share/p/1PGpY1pGh1/` (Dart 18 Nationals final results) are resolved and auto-attached to the weekend-roundup `source_info` / `social_sources` list. Other HMYC posts about the same event are found by searching that club page.
+
 No login walls are bypassed. Unlicensed photos are linked, not republished.
 
 ## Automation
