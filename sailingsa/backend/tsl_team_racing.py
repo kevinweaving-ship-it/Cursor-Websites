@@ -1537,6 +1537,16 @@ def _pair_start(n: int) -> int:
     return fl - 1 if fl % 2 == 0 else fl
 
 
+def _drop_score_adjust(sheet: dict, flights) -> None:
+    adj = sheet.get("score_adjust")
+    if not isinstance(adj, dict):
+        return
+    for fl in flights:
+        adj.pop(str(fl), None)
+    if not adj:
+        sheet.pop("score_adjust", None)
+
+
 def apply_flight_sheet_action(sheet, *, action: str, flight: int = 1) -> dict:
     """Clear one flight, drop later flights, or reset to empty Flights 1 & 2."""
     act = str(action or "").strip().lower()
@@ -1554,14 +1564,18 @@ def apply_flight_sheet_action(sheet, *, action: str, flight: int = 1) -> dict:
         _ensure_flight(data, fl)
         data[fl] = _flight_lines()
         data.setdefault("boats_per_team", {})[fl] = 3
+        _drop_score_adjust(data, [fl])
         return data
     if act == "remove":
         start = 3 if n <= 2 else max(3, _pair_start(n))
         bpt = data.setdefault("boats_per_team", {})
+        dropped = []
         for i in range(start, MAX_FLIGHTS + 1):
             data.pop(str(i), None)
             if isinstance(bpt, dict):
                 bpt.pop(str(i), None)
+            dropped.append(str(i))
+        _drop_score_adjust(data, dropped)
         _ensure_flight(data, "1")
         _ensure_flight(data, "2")
         return data
@@ -1697,6 +1711,48 @@ def _norm_flight_sheet(raw, colours_legacy=None) -> dict:
                 cell = dict(cell)
                 cell["colour"] = legacy.get(str(bow)) or legacy.get(bow)
             out[fl][str(bow)] = _cell(cell)
+    adj = _norm_score_adjust(data)
+    if adj:
+        out["score_adjust"] = adj
+    return out
+
+
+def _norm_score_adjust(raw) -> dict:
+    """Keep audited team-flight point deltas; do not invent codes or boat ranks."""
+    data = raw if isinstance(raw, dict) else {}
+    src = data.get("score_adjust") or {}
+    if not isinstance(src, dict):
+        return {}
+    out = {}
+    for fl_key, teams in src.items():
+        fl = _as_flight_no(fl_key)
+        if not fl or not isinstance(teams, dict):
+            continue
+        bucket = {}
+        for tid_key, adj in teams.items():
+            try:
+                tid = int(tid_key)
+            except (TypeError, ValueError):
+                continue
+            if tid <= 0:
+                continue
+            reason = ""
+            if isinstance(adj, dict):
+                try:
+                    delta = int(adj.get("delta"))
+                except (TypeError, ValueError):
+                    continue
+                reason = str(adj.get("reason") or "").strip()
+            else:
+                try:
+                    delta = int(adj)
+                except (TypeError, ValueError):
+                    continue
+            if delta == 0:
+                continue
+            bucket[str(tid)] = {"delta": delta, "reason": reason}
+        if bucket:
+            out[fl] = bucket
     return out
 
 

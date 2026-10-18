@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261017n";
+  var JS_VER = "20261017o";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -963,6 +963,14 @@
     return need >= 2 && have === need;
   }
 
+  function flightScoreAdjust(fl, team) {
+    if (!team) return 0;
+    var block = ((flightSheet().score_adjust || {})[String(fl)] || {})[String(team.team_id)];
+    if (block == null || block === "") return 0;
+    var n = Number(typeof block === "object" ? block.delta : block);
+    return isNaN(n) ? 0 : n;
+  }
+
   function teamFlightScore(fl, team) {
     if (!team) return "";
     var sum = 0;
@@ -979,7 +987,7 @@
       }
     }
     if (!need || have !== need) return "";
-    return String(sum);
+    return String(sum + flightScoreAdjust(fl, team));
   }
 
   function lastFlightWinnerId() {
@@ -3030,6 +3038,7 @@
       sheet[String(n)] = lines;
       if (!sheet.boats_per_team) sheet.boats_per_team = {};
       sheet.boats_per_team[String(n)] = 3;
+      if (sheet.score_adjust) delete sheet.score_adjust[String(n)];
     } else if (act === "remove") {
       var start = n <= 2 ? 3 : pairStart(n);
       if (start < 3) start = 3;
@@ -3037,6 +3046,7 @@
       for (i = start; i <= MAX_FLIGHTS; i += 1) {
         delete sheet[String(i)];
         if (sheet.boats_per_team) delete sheet.boats_per_team[String(i)];
+        if (sheet.score_adjust) delete sheet.score_adjust[String(i)];
       }
     }
     if (!state.settings) state.settings = {};

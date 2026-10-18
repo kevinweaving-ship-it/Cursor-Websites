@@ -16,6 +16,7 @@ from sailingsa.backend.tsl_team_racing import (
     score_match,
     stamp_tsl_provisional,
     validate_roster_boats,
+    _norm_flight_sheet,
 )
 
 
@@ -275,6 +276,22 @@ class TestFlightSheetActions(unittest.TestCase):
         self.assertEqual(sorted(k for k in out if k.isdigit()), ["1", "2"])
         self.assertIsNone(out["1"]["1"]["team_id"])
         self.assertIsNone(out["2"]["6"]["rank"])
+
+    def test_score_adjust_survives_norm_and_drops_on_clear(self):
+        sheet = self._filled()
+        sheet["score_adjust"] = {
+            "3": {"3": {"delta": 1, "reason": "Officials' scoresheet"}},
+            "4": {"1": {"delta": 1, "reason": "Officials' scoresheet"}},
+        }
+        kept = _norm_flight_sheet(sheet)
+        self.assertEqual(kept["3"]["2"]["rank"], 2)
+        self.assertEqual(kept["score_adjust"]["3"]["3"]["delta"], 1)
+        self.assertEqual(kept["score_adjust"]["3"]["3"]["reason"], "Officials' scoresheet")
+        cleared = apply_flight_sheet_action(kept, action="clear", flight=3)
+        self.assertNotIn("3", cleared.get("score_adjust") or {})
+        self.assertEqual(cleared["score_adjust"]["4"]["1"]["delta"], 1)
+        removed = apply_flight_sheet_action(kept, action="remove", flight=3)
+        self.assertNotIn("score_adjust", removed)
 
 
 class _FakeCur:
