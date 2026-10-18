@@ -198,31 +198,31 @@ def _max_lastmod(entries: list[tuple[str, str]], *, today: str | None = None) ->
 
 
 def _fetch_regattas(cur, today: str) -> list[tuple[str, str]]:
-    """Public /regatta URLs that already have result rows. raced=false still has a 200 page."""
+    """Every created public /regatta/{id}. Live and upcoming included; raced/results not required."""
     cur.execute(
         """
         SELECT
             regatta_id,
-            CASE
-                WHEN COALESCE(end_date, start_date) IS NOT NULL
-                 AND COALESCE(end_date, start_date) <= CURRENT_DATE
-                THEN COALESCE(end_date, start_date)
-                ELSE DATE '2000-01-01'
-            END AS lastmod
+            (
+                SELECT MAX(d)
+                FROM (VALUES
+                    ((as_at_time AT TIME ZONE 'Africa/Johannesburg')::date),
+                    ((updated_at AT TIME ZONE 'Africa/Johannesburg')::date),
+                    ((created_at AT TIME ZONE 'Africa/Johannesburg')::date),
+                    (end_date),
+                    (start_date)
+                ) AS dates(d)
+                WHERE d IS NOT NULL AND d <= CURRENT_DATE
+            ) AS lastmod
         FROM regattas
         WHERE regatta_id IS NOT NULL
           AND BTRIM(regatta_id::text) <> ''
-          AND EXISTS (
-              SELECT 1
-              FROM results r
-              WHERE r.regatta_id = regattas.regatta_id
-          )
         """
     )
     out = []
     for r in cur.fetchall() or []:
         regatta_id = (str(r.get("regatta_id") or "")).strip()
-        if not regatta_id:
+        if not regatta_id or _is_reserved_public_slug(regatta_id):
             continue
         out.append((regatta_id, _date_iso(r.get("lastmod"), today=today)))
     return out
@@ -578,7 +578,7 @@ def build_sitemap(
     reg_entries: list[tuple[str, str]] = []
     for regatta_id, lastmod in sorted(regattas, key=lambda x: x[1], reverse=True):
         path = f"/regatta/{regatta_id}"
-        if path in seen_paths:
+        if path in seen_paths or _is_reserved_public_slug(regatta_id):
             continue
         seen_paths.add(path)
         reg_entries.append((path, lastmod))

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.sitemap_builder import (  # noqa: E402
     _build_urlset_xml,
+    _fetch_regattas,
     _is_reserved_public_slug,
     _sitemap_file_lastmod,
     _xml_unchanged,
@@ -62,6 +63,15 @@ class SitemapIndexLastmodTests(unittest.TestCase):
             self.assertTrue(_is_reserved_public_slug(slug), slug)
         self.assertFalse(_is_reserved_public_slug("aydin-ohara"))
         self.assertFalse(_is_reserved_public_slug("hyc"))
+
+    def test_fetch_regattas_includes_created_urls_without_results(self):
+        import inspect
+
+        src = inspect.getsource(_fetch_regattas)
+        self.assertNotIn("raced IS TRUE", src)
+        self.assertNotIn("FROM results", src)
+        self.assertIn("created_at", src)
+        self.assertIn("as_at_time", src)
 
 
 if __name__ == "__main__":
