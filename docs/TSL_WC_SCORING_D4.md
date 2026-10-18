@@ -55,7 +55,7 @@ Officials’ scoresheet after 15 races (Score = wins, Position as printed). Join
 
 Wins sum to 15. Each team sailed 5 races (equal, so D4.3 uses wins, not win %).
 
-Gold table **Rank** and row order use this recorded list. **Total** shows wins. **F15…F1** cells keep the numeric team points (including F3/F4 audited 15s).
+Gold table **Rank** and row order use this recorded list. **Wins** replaces the old accumulated-points Total. **F15…F1** cells keep the numeric team points (including F3/F4 audited 15s).
 
 ---
 
@@ -80,34 +80,57 @@ Among the three 3-win teams (Eden, RCYC B, MAC) each beat one of the others (cyc
 
 ## UI change (original gold table only)
 
-| Column | Before (error) | After |
+One existing gold table (`#macTslGoldSheet`). No second table. Surrounding Event URL (header, wind, media, flights/teams cards, master nav) stays as-is.
+
+| Column | Before (error) | After (final) |
 | --- | --- | --- |
 | Rank | 1–6 from lowest point-sum | Published: 1, =2, =2, 4, 5, 6 |
-| Club | unchanged | unchanged |
-| Total | sum of flight points (e.g. 34) | race wins (5 / 3 / 3 / 3 / 1 / 0) |
+| Club | Club | **Club/Team** (label only) |
+| Total | sum of flight points | **Wins** (5 / 3 / 3 / 3 / 1 / 0) |
 | F15…F1 | team race points | **unchanged** team race points |
 
-No second table. No roster edits. No invented penalties or DNS codes. `score_adjust` and all 15 flight place grids stay as stored.
+DOM classes stay the standard Event URL set: `table-wrapper`, `fleet-results-table`, `rs-compact-row-logos`, `rank-col`, `club-col`, `total-col` (Wins uses this class), `race-col`, `rs-club-with-logo`, `medal-gold` / `medal-silver`. No new font, colour, or row-height rules.
 
-Medals: rank 1 gold, both =2 silver, no bronze (no published 3rd).
+Podium: RCYC A `medal-gold`; Eden and RCYC B both `medal-silver` (`rank === 2`). **No** `medal-bronze` row (published order has no 3rd). Medal colours remain `css/regatta.css` (`#D4AF37` / `#D7D7D7`).
+
+Status: `regattas.result_status = 'Final'` and `as_at_time` via the existing stamp path. Header reads `Results are Final as at DD Month YYYY at HH:MM`. `stamp_tsl_provisional` already refuses to overwrite Final.
+
+No roster edits. No invented penalties. `score_adjust` and all 15 flight grids stay stored.
+
+---
+
+## DOM / CSS / JS validation (before execution)
+
+| Surface | Keep | Change |
+| --- | --- | --- |
+| `css/regatta.css` th/td 8px, 1px `#1d294d` borders, system-ui, `#1a2750` | yes | none |
+| `#macTslGoldSheet` 2px wrapper (already matches `.header` / `.class-header`) | yes | none |
+| Split pane `.tsl-gold-left` + `.tsl-gold-right` overflow-x | yes | left headers nowrap so `Club/Team` and `Wins` do not wrap |
+| `goldBuilt()` wins + published ranks | yes | header labels only |
+| `goldItemMedal` | gold 1, silver 2 | never bronze |
+| Flight note table `Team \| B1… \| Total \| W/L` | yes | not the gold table |
+| Master header / nav / wind / media | yes | none |
 
 ---
 
 ## Mobile ≤480px impact
 
-Existing gold split: left Rank | Club | Total (max-width 54%), right F-columns `min-width: 2.1em`, horizontal scroll. No extra column, no second table, no header note.
+Portrait uses the existing split: locked left Rank | Club/Team | Wins; remaining width is `.tsl-gold-right` with `overflow-x: auto` and `-webkit-overflow-scrolling: touch`. Columns are already newest-first (`goldRaceNos` reverses, F15 at the left of the flight pane). Swipe left reveals older flights.
 
-- Total values become one digit (0–5) instead of two-digit point sums — slightly more room in the locked left pane.  
-- Rank `=2` is two characters; `white-space: nowrap` on `.rank-col` so it does not wrap.  
-- Flight cells, 15 columns, and right-pane scroll are unchanged.  
-- Row-height sync is unchanged.
+At 480px: left `max-width: 54%`, club-col `max-width: 6.4em` (ellipsis on long names), race-col `min-width: 2.1em`.
 
-No 480px layout rewrite required.
+- `Club/Team` is longer than `Club`; left thead `white-space: nowrap` so the label stays one line. Rank + Club/Team + Wins still fit in ~180px of ~259px.  
+- `Wins` is a single digit — narrower than the old two-digit point Total, which offsets the longer Club/Team header.  
+- Flight cells, 15 columns, row-height sync, fonts, and medal fill are unchanged.  
+- No extra column, no second table, no fleet-header note.
+
+No 480px layout rewrite. Do not hide Rank / Club/Team / Wins. Do not stack the split pane.
 
 ---
 
 ## Code
 
-- `goldBuilt()` in `js/mac-tsl-admin.js` and `sailingsa/frontend/js/mac-tsl-admin.js`  
-- Pin `mac-tsl-admin.js?v=20261018a`  
-- Tests: `sailingsa/backend/test_tsl_admin_js.py`
+- `goldBuilt()` / gold headers in `js/mac-tsl-admin.js` and `sailingsa/frontend/js/mac-tsl-admin.js`  
+- Pin `mac-tsl-admin.js?v=20261018b`  
+- `stamp_tsl_final` in `sailingsa/backend/tsl_team_racing.py`  
+- Tests: `sailingsa/backend/test_tsl_admin_js.py`, `sailingsa/backend/test_tsl_team_racing.py`

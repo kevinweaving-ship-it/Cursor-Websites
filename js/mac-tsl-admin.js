@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261018a";
+  var JS_VER = "20261018b";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -155,7 +155,7 @@
       "#macTslGoldSheet .fleet-results-table{border:none;border-radius:0;min-width:0;width:auto;margin:0}",
       "#macTslGoldSheet .tsl-gold-left .fleet-results-table{width:100%;min-width:0}",
       "#macTslGoldSheet .tsl-gold-right .fleet-results-table{min-width:max-content;width:max-content;table-layout:auto}",
-      "#macTslGoldSheet .rank-col{white-space:nowrap}",
+      "#macTslGoldSheet .rank-col,#macTslGoldSheet .tsl-gold-left thead th{white-space:nowrap}",
       "#macTslGoldSheet .tsl-gold-left .club-col{max-width:9em;overflow:hidden;text-overflow:ellipsis}",
       "#macTslGoldSheet .tsl-gold-right .race-col{width:2.6em;min-width:2.6em;max-width:3em;text-align:center;padding-left:4px;padding-right:4px}",
       "#macTslGoldSheet thead tr:first-child th{border-top:none}",
@@ -1254,7 +1254,7 @@
   }
 
   function goldBuilt() {
-    /* D4.3 wins (not point-sum). Recorded Rank from officials' sheet. docs/TSL_WC_SCORING_D4.md */
+    /* D4.3 wins (not point-sum). Recorded Rank from officials' sheet. Gold labels Rank | Club/Team | Wins. docs/TSL_WC_SCORING_D4.md */
     var raceNos = goldRaceNos();
     var anyDone = raceNos.some(function (n) { return flightDone(n); });
     var built = goldRaceRows().map(function (row) {
@@ -1317,9 +1317,8 @@
   }
 
   function goldItemMedal(anyDone, item) {
-    if (anyDone && item.rank === 1) return "medal-gold";
-    if (anyDone && item.rank === 2) return "medal-silver";
-    if (anyDone && item.rank === 3) return "medal-bronze";
+    if (anyDone && Number(item.rank) === 1) return "medal-gold";
+    if (anyDone && Number(item.rank) === 2) return "medal-silver";
     return "";
   }
 
@@ -1341,7 +1340,7 @@
 
   function goldCombinedTableHtml(wrapId, tableId, extraClass) {
     var model = goldBuilt();
-    var heads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>' +
+    var heads = '<th class="rank-col">Rank</th><th class="club-col">Club/Team</th><th class="total-col">Wins</th>' +
       goldRaceHeads(model.raceNos);
     var body = "";
     model.built.forEach(function (item) {
@@ -1373,7 +1372,7 @@
 
   function goldSplitTableHtml() {
     var model = goldBuilt();
-    var leftHeads = '<th class="rank-col">Rank</th><th class="club-col">Club</th><th class="total-col">Total</th>';
+    var leftHeads = '<th class="rank-col">Rank</th><th class="club-col">Club/Team</th><th class="total-col">Wins</th>';
     var rightHeads = goldRaceHeads(model.raceNos);
     var leftBody = "";
     var rightBody = "";

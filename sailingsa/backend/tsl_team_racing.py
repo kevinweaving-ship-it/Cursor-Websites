@@ -832,6 +832,37 @@ def stamp_tsl_provisional(cur, regatta_id: str) -> None:
     )
 
 
+def stamp_tsl_final(cur, regatta_id: str) -> None:
+    """Gold header: Results are Final as at <snapshot>. Existing status mechanism."""
+    rid = str(regatta_id or "").strip()
+    if rid not in TSL_REGATTA_IDS:
+        return
+    cur.execute(
+        """
+        UPDATE public.regattas
+           SET result_status = 'Final',
+               as_at_time = NOW()
+         WHERE regatta_id = %s
+        """,
+        (rid,),
+    )
+    if not _col_exists(cur, "results", "result_status"):
+        return
+    sets = ["result_status = 'Final'"]
+    if _col_exists(cur, "results", "as_at_time"):
+        sets.append(
+            "as_at_time = to_char(NOW() AT TIME ZONE 'Africa/Johannesburg', 'YYYY-MM-DD HH24:MI:SS')"
+        )
+    cur.execute(
+        f"""
+        UPDATE public.results
+           SET {", ".join(sets)}
+         WHERE regatta_id = %s
+        """,
+        (rid,),
+    )
+
+
 def _sync_result_row(cur, team: dict, boats: list[dict]) -> int:
     """One public.results row per team. Reuse existing row. No duplicates."""
     rid = team["regatta_id"]

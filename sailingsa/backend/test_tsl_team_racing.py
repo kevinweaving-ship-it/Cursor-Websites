@@ -15,6 +15,7 @@ from sailingsa.backend.tsl_team_racing import (
     require_championship_teams,
     sailor_allowed_for_club,
     score_match,
+    stamp_tsl_final,
     stamp_tsl_provisional,
     validate_roster_boats,
     _norm_flight_sheet,
@@ -356,6 +357,21 @@ class TestStampTslProvisional(unittest.TestCase):
     def test_ignores_other_regattas(self):
         cur = _FakeCur("")
         stamp_tsl_provisional(cur, "2026-09-19-hmyc-midmar-cup")
+        self.assertEqual(cur.sql, [])
+
+
+class TestStampTslFinal(unittest.TestCase):
+    def test_sets_final(self):
+        cur = _FakeCur("Provisional")
+        stamp_tsl_final(cur, "2026-10-17-mac-tsl-wc-team-sailing")
+        joined = "\n".join(cur.sql)
+        self.assertIn("result_status = 'Final'", joined)
+        self.assertIn("as_at_time = NOW()", joined)
+        self.assertIn("UPDATE public.results", joined)
+
+    def test_ignores_other_regattas(self):
+        cur = _FakeCur("Provisional")
+        stamp_tsl_final(cur, "2026-09-19-hmyc-midmar-cup")
         self.assertEqual(cur.sql, [])
 
 
