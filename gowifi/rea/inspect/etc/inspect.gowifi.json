@@ -1,0 +1,40 @@
+{
+  "host_id": "gowifi",
+  "audit_log": "/opt/rea/inspect/audit/inspect.jsonl",
+  "max_get_bytes": 1500000,
+  "max_sql_rows": 200,
+  "allow_paths": [
+    "/opt/rea/inspect",
+    "/opt/rea/work",
+    "/opt/rea/seo/reports",
+    "/opt/rea/seo/conf",
+    "/opt/aerialnet-arial",
+    "/opt/dolibarr",
+    "/home/user-data/www",
+    "/etc/nginx"
+  ],
+  "allow_logs": [
+    "/var/log/nginx"
+  ],
+  "discover_roots": [
+    "/opt/aerialnet-arial",
+    "/home/user-data/www",
+    "/etc/nginx"
+  ],
+  "revision_roots": [
+    "/opt/aerialnet-arial",
+    "/home/user-data/www/aerialnet.co.za",
+    "/etc/nginx"
+  ],
+  "nginx_files": [
+    "/home/user-data/www/gowifi.co.za.conf",
+    "/home/user-data/www/aerialnet.co.za.conf"
+  ],
+  "logs": {
+    "nginx-error": { "kind": "file", "path": "/var/log/nginx/error.log" },
+    "nginx-access": { "kind": "file", "path": "/var/log/nginx/access.log" }
+  },
+  "db": {
+    "kind": null
+  }
+}
