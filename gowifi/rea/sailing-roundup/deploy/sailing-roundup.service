@@ -1,0 +1,18 @@
+[Unit]
+Description=Publish Sailing Weekend Roundup (landing HTML + PDF)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=rea
+Group=rea
+WorkingDirectory=/opt/rea/work/sailing-roundup
+Environment=HOME=/opt/rea
+Environment=PATH=/opt/rea/work/sailing-roundup/.venv/bin:/usr/bin:/bin
+ExecStart=/opt/rea/work/sailing-roundup/.venv/bin/python3 /opt/rea/work/sailing-roundup/app/publish_weekend.py --due --backfill 4
+StandardOutput=append:/opt/rea/work/sailing-roundup/data/publish.log
+StandardError=append:/opt/rea/work/sailing-roundup/data/publish.log
+
+[Install]
+WantedBy=multi-user.target

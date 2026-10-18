@@ -1,0 +1,22 @@
+{
+  "clubs": {
+    "TSC": {
+      "name": "Theewater Sports Club",
+      "website": "https://www.theewater.co.za/",
+      "gallery": "https://www.theewater.co.za/news/gallery/",
+      "facebook": "https://www.facebook.com/theewatersportsclub/",
+      "instagram": "https://www.instagram.com/theewater.sports.club/"
+    },
+    "HMYC": {
+      "name": "Henley Midmar Yacht Club",
+      "website": "https://www.hmyc.org.za/",
+      "facebook": "https://www.facebook.com/henleymidmaryachtclub",
+      "instagram": "https://www.instagram.com/henleymidmaryc"
+    },
+    "AYC": {
+      "name": "Aeolians Yacht Club",
+      "website": "https://aeolians.co.za/",
+      "facebook": "https://www.facebook.com/AeoliansClub/"
+    }
+  }
+}
