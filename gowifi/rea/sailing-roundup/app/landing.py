@@ -7,7 +7,7 @@ import json
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PUBLIC_BASE = "https://box.gowifi.co.za/sailing-roundup"
+PUBLIC_BASE = "https://sailingsa.co.za/sailing-roundup"
 
 
 def _issues() -> list[dict]:
@@ -79,7 +79,7 @@ def write_public_index() -> dict:
         "article{border-bottom:1px solid #ddd;padding:18px 0}a{color:#16385a}</style></head>"
         "<body><main class='wrap'><header><strong>INDEPENDENT PUBLICATION</strong>"
         "<h1>Weekend Sailing Roundup</h1>"
-        "<p>Monday landing page and PDF edition. SailingSA is a read-only results source.</p>"
+        "<p>Monday landing page and PDF edition. Built independently; published at sailingsa.co.za/sailing-roundup.</p>"
         "</header>" + "".join(cards) + "</main></body></html>"
     )
     (public / "index.html").write_text(page)

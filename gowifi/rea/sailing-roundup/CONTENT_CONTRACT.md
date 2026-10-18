@@ -1,9 +1,9 @@
 # Independent Sailing Roundup — news feed contract v1
 
-Output: `GET /sailing-roundup/issues/YYYY-MM-DD/issue.json` on the REA box
-(`https://box.gowifi.co.za/sailing-roundup/`). SailingSA is a read-only input
-source and optional feed consumer; its codebase, services, database and CSS
-remain untouched.
+Output: `GET https://sailingsa.co.za/sailing-roundup/issues/YYYY-MM-DD/issue.json`.
+The edition is generated independently (GoWifi REA box) and published as static
+files under `/var/www/sailingsa/sailing-roundup/`. SailingSA remains a read-only
+results source; this path does not change the SailingSA SPA, header, or database.
 
 The lead article is type `feature` and is written from the public `events`
 table rows whose dates overlap Saturday–Sunday (reference: 26–27 Sep 2026).

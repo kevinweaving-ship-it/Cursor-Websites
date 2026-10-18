@@ -15,7 +15,9 @@ Each Monday it builds:
 - Issue JSON: `public/issues/YYYY-MM-DD/issue.json`
 - Archive: `public/index.html`, `public/latest/`, `public/feed.json`
 
-Live URL (REA box default vhost only): https://box.gowifi.co.za/sailing-roundup/
+Live URL: https://sailingsa.co.za/sailing-roundup/
+
+Reference weekend 26–27 Sep 2026: https://sailingsa.co.za/sailing-roundup/issues/2026-09-28/
 
 ## Sailor media tool
 

@@ -88,7 +88,9 @@ Code: `app/events_weekend.py`
 | `public/index.html` | Archive landing |
 | `public/feed.json` | Card feed for a future consumer |
 
-Live URL (REA box only, not gowifi.co.za): https://box.gowifi.co.za/sailing-roundup/
+Live URL: https://sailingsa.co.za/sailing-roundup/
+
+Reference weekend (26–27 Sep 2026): https://sailingsa.co.za/sailing-roundup/issues/2026-09-28/
 
 ## Sailor Media tab tool
 

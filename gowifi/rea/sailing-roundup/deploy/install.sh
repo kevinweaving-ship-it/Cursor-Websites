@@ -28,10 +28,14 @@ fi
 sudo -u rea -H "$DEST/.venv/bin/pip" install -q -r "$DEST/requirements.txt"
 sudo -u rea -H "$DEST/.venv/bin/pip" install -q gallery-dl yt-dlp || true
 
-# Publication landing on the REA box default vhost only (not gowifi.co.za).
+# Local copy on the REA box www tree (real files — nginx cannot follow /opt/rea).
+# Canonical public URL is https://sailingsa.co.za/sailing-roundup/ after publish-to-sailingsa.sh
 WWW=/home/user-data/www/default/sailing-roundup
 rm -rf "$WWW"
-ln -sfn "$DEST/public" "$WWW"
+mkdir -p "$WWW"
+if [ -d "$DEST/public" ]; then
+  tar -C "$DEST/public" -cf - . | tar -C "$WWW" -xf -
+fi
 
 install -m 644 "$SRC_DIR/deploy/sailing-roundup.service" /etc/systemd/system/sailing-roundup.service
 install -m 644 "$SRC_DIR/deploy/sailing-roundup.timer" /etc/systemd/system/sailing-roundup.timer
