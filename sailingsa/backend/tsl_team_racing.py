@@ -1832,6 +1832,53 @@ def _write_flight_sheet(cur, regatta_id: str, sheet: dict) -> None:
     )
 
 
+# Officials' TSL scoresheet 17/18 Oct 2026, races 12–15.
+# ranks = finishing places for bows 1–3 Blue, 4–6 Green. Boat places as printed.
+OFFICIAL_FLIGHTS_12_15 = {
+    "12": {"blue": 8, "green": 15, "ranks": [1, 4, 2, 3, 6, 5]},  # RCYC A 7 v RCYC B 14
+    "13": {"blue": 1, "green": 12, "ranks": [1, 4, 3, 6, 2, 5]},  # MAC 8 v UCT 13
+    "14": {"blue": 3, "green": 15, "ranks": [3, 5, 6, 2, 4, 1]},  # SU 14 v RCYC B 7
+    "15": {"blue": 4, "green": 8, "ranks": [4, 5, 6, 3, 1, 2]},  # Eden 15 v RCYC A 6
+}
+
+
+def apply_official_flights_12_15(sheet) -> dict:
+    """Overwrite flights 12–15 from the officials' place grid. Leave 1–11 and score_adjust."""
+    data = _norm_flight_sheet(sheet)
+    for fl, spec in OFFICIAL_FLIGHTS_12_15.items():
+        _ensure_flight(data, fl)
+        data["boats_per_team"][fl] = 3
+        blue = int(spec["blue"])
+        green = int(spec["green"])
+        ranks = list(spec["ranks"])
+        for bow in range(1, 7):
+            is_blue = bow <= 3
+            data[fl][str(bow)] = _cell(
+                {
+                    "colour": "Blue" if is_blue else "Green",
+                    "team_id": blue if is_blue else green,
+                    "rank": ranks[bow - 1],
+                    "boat_no": bow if is_blue else bow - 3,
+                }
+            )
+    return data
+
+
+def save_official_flights_12_15(cur, regatta_id: str, *, actor: str = "super_admin") -> dict:
+    ensure_schema(cur)
+    sheet = apply_official_flights_12_15(load_settings(cur, regatta_id).get("flight_sheet"))
+    _write_flight_sheet(cur, regatta_id, sheet)
+    stamp_tsl_provisional(cur, regatta_id)
+    _audit(
+        cur,
+        regatta_id,
+        "flight_sheet",
+        actor=actor,
+        payload={"action": "official_flights_12_15", "flights": [12, 13, 14, 15]},
+    )
+    return sheet
+
+
 def save_flight_line(
     cur,
     regatta_id: str,

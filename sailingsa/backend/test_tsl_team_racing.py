@@ -6,6 +6,7 @@ import unittest
 from sailingsa.backend.tsl_team_racing import (
     MAC_SEEDED_SAS,
     apply_flight_sheet_action,
+    apply_official_flights_12_15,
     boat_points,
     empty_flight_sheet,
     is_tsl_regatta,
@@ -292,6 +293,31 @@ class TestFlightSheetActions(unittest.TestCase):
         self.assertEqual(cleared["score_adjust"]["4"]["1"]["delta"], 1)
         removed = apply_flight_sheet_action(kept, action="remove", flight=3)
         self.assertNotIn("score_adjust", removed)
+
+    def test_official_flights_12_15_from_scoresheet(self):
+        sheet = self._filled()
+        sheet["score_adjust"] = {
+            "3": {"3": {"delta": 1, "reason": "Officials' scoresheet"}},
+            "4": {"1": {"delta": 1, "reason": "Officials' scoresheet"}},
+        }
+        out = apply_official_flights_12_15(sheet)
+        self.assertEqual(out["1"]["1"]["team_id"], 3)
+        self.assertEqual(out["score_adjust"]["3"]["3"]["delta"], 1)
+        want = {
+            "12": ([8, 15], [1, 4, 2, 3, 6, 5], (7, 14)),
+            "13": ([1, 12], [1, 4, 3, 6, 2, 5], (8, 13)),
+            "14": ([3, 15], [3, 5, 6, 2, 4, 1], (14, 7)),
+            "15": ([4, 8], [4, 5, 6, 3, 1, 2], (15, 6)),
+        }
+        for fl, (teams, ranks, scores) in want.items():
+            blue = [out[fl][str(b)] for b in (1, 2, 3)]
+            green = [out[fl][str(b)] for b in (4, 5, 6)]
+            self.assertEqual([c["team_id"] for c in blue], [teams[0]] * 3)
+            self.assertEqual([c["team_id"] for c in green], [teams[1]] * 3)
+            self.assertEqual([c["rank"] for c in blue + green], ranks)
+            self.assertEqual(sum(c["rank"] for c in blue), scores[0])
+            self.assertEqual(sum(c["rank"] for c in green), scores[1])
+            self.assertEqual(out["boats_per_team"][fl], 3)
 
 
 class _FakeCur:
