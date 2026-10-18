@@ -12,7 +12,9 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
-UA = {"User-Agent": "Mozilla/5.0 (compatible; SailingRoundupResearch/1.0)"}
+UA = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
 
 # Public indexes we can query without platform login.
 EVERYWHERE = (
@@ -34,27 +36,55 @@ def _get(url: str, timeout: int = 18) -> str:
 
 
 def event_query(event: dict) -> str:
+    club = event.get("club") or ""
+    club_name = event.get("club_name") or club
     parts = [
         event.get("title") or event.get("event_name") or "",
-        event.get("club") or "",
-        " ".join(event.get("class_slugs") or []),
+        club_name,
         "sailing",
         "2026",
     ]
     return " ".join(p for p in parts if p).strip()
 
 
-def bing_hits(query: str, limit: int = 8) -> list[dict]:
-    url = "https://www.bing.com/search?q=" + urllib.parse.quote(query)
+def _decode_ddg(href: str) -> str:
+    raw = urllib.parse.unquote(href.replace("&amp;", "&"))
+    match = re.search(r"uddg=([^&]+)", raw)
+    if match:
+        return urllib.parse.unquote(match.group(1))
+    if raw.startswith("http"):
+        return raw
+    return ""
+
+
+def web_hits(query: str, limit: int = 8) -> list[dict]:
+    """DuckDuckGo HTML is the public web index; Bing is a fallback."""
+    url = "https://html.duckduckgo.com/html/?q=" + urllib.parse.quote(query)
     try:
         html = _get(url)
     except Exception as exc:
-        return [{"engine": "bing", "query": query, "error": str(exc)[:160]}]
+        return [{"engine": "ddg", "query": query, "error": str(exc)[:160]}]
     out = []
-    for href, title in re.findall(r'<h2[^>]*>\s*<a href="(https?://[^"]+)"[^>]*>(.*?)</a>', html, re.I | re.S):
+    for href, title in re.findall(
+        r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', html, re.I | re.S
+    ):
+        link = _decode_ddg(href)
         text = re.sub(r"\s+", " ", re.sub("<[^>]+>", "", title)).strip()
-        if href.startswith("http") and text and not any(x.get("url") == href for x in out):
-            out.append({"url": href, "title": text, "description": "", "engine": "bing", "query": query})
+        if link.startswith("http") and text and not any(x.get("url") == link for x in out):
+            out.append({"url": link, "title": text, "description": "", "engine": "ddg", "query": query})
+        if len(out) >= limit:
+            break
+    if out:
+        return out
+    # fallback: Bing cites often show the real host even when hrefs are redirects
+    try:
+        html = _get("https://www.bing.com/search?q=" + urllib.parse.quote(query))
+    except Exception as exc:
+        return [{"engine": "bing", "query": query, "error": str(exc)[:160]}]
+    for cite in re.findall(r"<cite[^>]*>(.*?)</cite>", html, re.I | re.S):
+        host = re.sub("<[^>]+>", "", cite).replace(" › ", "/").strip()
+        if host.startswith("http"):
+            out.append({"url": host, "title": host, "description": "", "engine": "bing", "query": query})
         if len(out) >= limit:
             break
     return out
@@ -144,17 +174,17 @@ def search_everywhere(event: dict) -> dict:
             hits.append(item)
             lanes[lane]["count"] += 1
 
-    add(bing_hits(q), "google_web_via_bing")
-    add(google_news(q), "google_news")
+    add(web_hits(q), "web")
+    add(google_news(q + " SailingSA"), "google_news")
     for lane, host in EVERYWHERE:
         if not host:
             continue
-        add(bing_hits(f"site:{host} {q}", limit=6), lane)
+        add(web_hits(f"site:{host} {q}", limit=6), lane)
     add(socialcrawl_everywhere(q), "socialcrawl_everywhere")
 
     # Sailor-name queries catch club posts that omit the event title.
     for name in (event.get("result_names") or [])[:4]:
-        add(bing_hits(f'"{name}" {event.get("club") or ""} sailing 2026', limit=5), "results_names")
+        add(web_hits(f'"{name}" {event.get("club") or ""} sailing South Africa 2026', limit=5), "results_names")
 
     return {
         "query": q,

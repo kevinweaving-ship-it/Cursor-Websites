@@ -38,10 +38,20 @@ For each weekend event the publisher:
 
 1. Reads `/api/regatta/{slug}` (results, club, class, helm/crew SAS IDs)
 2. Pulls Media-tab mentions for those sailors
-3. Searches **everywhere**: Google News, Bing web, Facebook, Instagram, TikTok, YouTube, X, Reddit
-4. Also reads host-club and class pages (for example `/club/tsc` and `/class/420`)
-5. Keeps a post only if it verifies against that event URL and/or published results names
-6. Runs gallery-dl / yt-dlp; SocialCrawl / Apify run when those keys exist
+3. Searches **everywhere**: Google News, DuckDuckGo web, Facebook, Instagram, TikTok, YouTube, X, Reddit
+4. Reads the club/class URL directory (`club_sources.json` / `class_sources.json`) — same website + social list clubs already publish on `/club/{slug}`
+5. Classes are **South African only**. International class association URLs may be stored but are labelled `not_local`
+6. Facebook share links and cross-shared posts are resolved and matched back to the SailingSA `/club/`, `/class/`, `/sailor/`, or sponsor URL
+7. Keeps a post only if it verifies against that event URL and/or published results names
+8. Runs gallery-dl / yt-dlp; SocialCrawl / Apify run when those keys exist
+
+Rebuild the directory (read-only against SailingSA):
+
+```bash
+python3 app/catalog_sources.py
+```
+
+Local 420 class Facebook group (user share link `facebook.com/share/g/1Jh51CDMew/`): **420 Class RSA** → `https://www.facebook.com/groups/120115671476306/` → `https://sailingsa.co.za/class/420`.
 
 No login walls are bypassed. Unlicensed photos are linked, not republished.
 

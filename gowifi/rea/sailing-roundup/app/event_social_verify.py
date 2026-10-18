@@ -117,6 +117,11 @@ def verify_post(post: dict, event: dict) -> dict:
         score -= 3
         reasons.append("other_class:" + ",".join(rival_hits[:2]))
 
+    junk = ("everythingfor420", "the420crew", "greenbeelife", "420.com/collections")
+    if any(j in text for j in junk):
+        score -= 8
+        reasons.append("offtopic_420")
+
     verified = score >= 5 and (
         "event_url" in reasons
         or "event_slug" in reasons
@@ -132,20 +137,23 @@ def verify_post(post: dict, event: dict) -> dict:
     }
 
 
-def class_config_links(slugs: list[str]) -> list[dict]:
+def class_config_links(slugs: list[str], local_only: bool = False) -> list[dict]:
     path = ROOT / "app" / "class_sources.json"
     if not path.exists():
         return []
+    from catalog_sources import source_links_from_config
+
     classes = json.loads(path.read_text()).get("classes") or {}
     out = []
     seen = set()
     for slug in slugs:
-        cfg = classes.get(slug) or {}
-        for key in ("website", "facebook", "instagram", "youtube"):
-            url = (cfg.get(key) or "").strip()
-            if url and url not in seen:
-                seen.add(url)
-                out.append({"url": url, "platform": key if key != "website" else "website", "provenance": "class_sources.json:" + slug})
+        cfg = classes.get(slug) or (classes.get("dart-18") if slug == "dart" else {}) or {}
+        for item in source_links_from_config(cfg, "class_sources.json:" + slug, local_only=local_only):
+            url = item.get("url")
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            out.append(item)
     return out
 
 
@@ -231,6 +239,8 @@ def collect_and_verify(event: dict, rows: list[dict] | None = None) -> dict:
                 _add_link(links, item["url"], item.get("platform"), item.get("provenance") or "")
     for item in club_config_links(club) + class_config_links(class_slugs):
         _add_link(links, item.get("url"), item.get("platform"), item.get("provenance") or "")
+        if links:
+            links[-1]["locality"] = item.get("locality") or "local"
 
     candidates = []
     for link in links:

@@ -2,25 +2,151 @@
   "classes": {
     "420": {
       "name": "420",
-      "facebook": "https://www.facebook.com/Int420Class/",
-      "website": "https://linktr.ee/int420class"
+      "slug": "420",
+      "sailingsa_url": "https://sailingsa.co.za/class/420",
+      "website": null,
+      "facebook": "https://www.facebook.com/groups/120115671476306/",
+      "facebook_group": "https://www.facebook.com/groups/120115671476306/",
+      "urls": [
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/groups/120115671476306/",
+          "locality": "local",
+          "label": "420 Class RSA",
+          "kind": "facebook_group",
+          "provenance": "user:https://www.facebook.com/share/g/1Jh51CDMew/",
+          "share_url": "https://www.facebook.com/share/g/1Jh51CDMew/"
+        },
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/420nationalssouthafrica/",
+          "locality": "local",
+          "label": "420 Nationals South Africa",
+          "kind": "facebook_page",
+          "provenance": "seed"
+        },
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/Int420Class/",
+          "locality": "not_local",
+          "label": "International 420 Class",
+          "kind": "facebook_page",
+          "provenance": "international"
+        },
+        {
+          "platform": "website",
+          "url": "https://linktr.ee/int420class",
+          "locality": "not_local",
+          "label": "International 420 Class",
+          "provenance": "international"
+        }
+      ],
+      "not_local_urls": [
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/Int420Class/",
+          "label": "International 420 Class"
+        },
+        {
+          "platform": "website",
+          "url": "https://linktr.ee/int420class",
+          "label": "International 420 Class"
+        }
+      ]
     },
     "505": {
       "name": "505",
-      "facebook": "https://www.facebook.com/int505",
-      "website": "https://int505.org/"
+      "slug": "505",
+      "sailingsa_url": "https://sailingsa.co.za/class/505",
+      "website": null,
+      "facebook": null,
+      "urls": [
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/int505",
+          "locality": "not_local",
+          "label": "International 505 Class",
+          "provenance": "international"
+        },
+        {
+          "platform": "website",
+          "url": "https://int505.org/",
+          "locality": "not_local",
+          "label": "International 505 Class",
+          "provenance": "international"
+        }
+      ],
+      "not_local_urls": [
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/int505",
+          "label": "International 505 Class"
+        },
+        {
+          "platform": "website",
+          "url": "https://int505.org/",
+          "label": "International 505 Class"
+        }
+      ]
     },
     "dart-18": {
       "name": "Dart 18",
-      "website": "https://dart18class.com/"
+      "slug": "dart-18",
+      "sailingsa_url": "https://sailingsa.co.za/class/dart-18",
+      "website": null,
+      "urls": [
+        {
+          "platform": "website",
+          "url": "https://dart18class.com/",
+          "locality": "not_local",
+          "label": "International Dart 18 Class",
+          "provenance": "international"
+        }
+      ],
+      "not_local_urls": [
+        {
+          "platform": "website",
+          "url": "https://dart18class.com/",
+          "label": "International Dart 18 Class"
+        }
+      ]
     },
     "dart": {
       "name": "Dart 18",
-      "website": "https://dart18class.com/"
+      "slug": "dart-18",
+      "sailingsa_url": "https://sailingsa.co.za/class/dart-18",
+      "website": null,
+      "urls": [
+        {
+          "platform": "website",
+          "url": "https://dart18class.com/",
+          "locality": "not_local",
+          "label": "International Dart 18 Class",
+          "provenance": "international"
+        }
+      ],
+      "not_local_urls": [
+        {
+          "platform": "website",
+          "url": "https://dart18class.com/",
+          "label": "International Dart 18 Class"
+        }
+      ]
     },
     "dabchick": {
       "name": "Dabchick",
-      "website": "https://www.sailing.org.za/what-we-do/sasclasses"
+      "slug": "dabchick",
+      "sailingsa_url": "https://sailingsa.co.za/class/dabchick",
+      "website": "https://www.revolutionise.com.au/dabchickca/",
+      "urls": [
+        {
+          "platform": "website",
+          "url": "https://www.revolutionise.com.au/dabchickca/",
+          "locality": "local",
+          "label": "Dabchick Class Website",
+          "provenance": "https://www.sailing.org.za/what-we-do/sasclasses"
+        }
+      ]
     }
   }
 }

@@ -16,8 +16,10 @@ install -d -m 755 -o rea -g rea "$DEST" "$DEST/app" "$DEST/data" "$DEST/issues" 
 # App code only. Never clobber generated issues or the venv.
 install -m 644 -o rea -g rea "$SRC_DIR"/app/*.py "$DEST/app/"
 install -m 644 -o rea -g rea "$SRC_DIR/app/club_sources.json" "$DEST/app/club_sources.json"
+install -m 644 -o rea -g rea "$SRC_DIR/app/class_sources.json" "$DEST/app/class_sources.json"
 install -m 644 -o rea -g rea "$SRC_DIR/requirements.txt" "$DEST/requirements.txt"
 install -m 644 -o rea -g rea "$SRC_DIR/README.md" "$DEST/README.md"
+install -m 644 -o rea -g rea "$SRC_DIR/PROJECT.md" "$DEST/PROJECT.md"
 install -m 644 -o rea -g rea "$SRC_DIR/CONTENT_CONTRACT.md" "$DEST/CONTENT_CONTRACT.md"
 
 if [ ! -x "$DEST/.venv/bin/python3" ]; then

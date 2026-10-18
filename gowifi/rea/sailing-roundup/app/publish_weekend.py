@@ -273,6 +273,7 @@ def article_from_regatta(issue: str, slug: str, rows: list[dict]) -> dict | None
             "id": slug,
             "title": title,
             "club": club,
+            "club_name": first.get("host_club_name") or club,
             "class_name": klass,
             "host_club_slug": first.get("host_club_slug") or "",
             "class_canonical": first.get("class_canonical") or "",

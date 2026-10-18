@@ -20,6 +20,22 @@ The 26–27 September 2026 weekend (Monday issue **2026-09-28**) is the referenc
 
 Meetings / courses (for example the multi-year DSO appointment row) are excluded.
 
+## Club / class URL directory
+
+Clubs already list website + Facebook + Instagram on `/club/{slug}`. The independent catalog scrapes those into `app/club_sources.json`.
+
+Classes are South African only. `app/catalog_sources.py` pulls SA class websites from sailing.org.za/sasclasses and SailingSA `/api/class/{slug}`. International class association pages (Int420Class, int505.org, dart18class.com) may be stored but every URL has `locality: local | not_local`.
+
+Facebook share links are resolved. The local 420 example:
+
+`https://www.facebook.com/share/g/1Jh51CDMew/` → **420 Class RSA** group `https://www.facebook.com/groups/120115671476306/` → `https://sailingsa.co.za/class/420`
+
+Cross-shared Facebook posts (`X shared Y's post`) are matched back to the SailingSA club, class, sailor, or sponsor URL and added to that entity's directory.
+
+```bash
+python3 app/catalog_sources.py
+```
+
 Rebuild that edition:
 
 ```bash
@@ -97,7 +113,7 @@ See **[docs/TOOL_RESEARCH.md](docs/TOOL_RESEARCH.md)** for the web deep-dive. In
 | Calendar | SailingSA `events` table | no | Which events ran this weekend |
 | Results | `/api/regatta/{slug}` | no | Leaderboard + SAS IDs |
 | Sailor media | public-mentions API | no | Tim / Josh / podium sailors |
-| Official links | club/class pages | no | Facebook / Instagram / websites |
+| Official links | club/class directory | no | Scraped from SailingSA club URLs; SA class pages + SAS class sites. International class URLs stored as `not_local`. Facebook share/cross-posts matched back to `/club/`, `/class/`, `/sailor/`, sponsor. |
 | Page metadata | Open Graph | no | Title, caption, image |
 | Public extractors | gallery-dl, yt-dlp | no | FB / IG / YouTube public URLs |
 | Everywhere search | Google News + Bing `site:` Facebook / Instagram / TikTok / YouTube / X / Reddit | no | `search_everywhere.py` |

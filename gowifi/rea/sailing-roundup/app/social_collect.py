@@ -110,13 +110,22 @@ def club_config_links(club: str) -> list:
     path = ROOT / "app" / "club_sources.json"
     if not path.exists() or not club:
         return []
+    from catalog_sources import source_links_from_config
+
     clubs = json.loads(path.read_text()).get("clubs") or {}
-    cfg = clubs.get(club.upper()) or clubs.get(club)
+    cfg = clubs.get(club.upper()) or clubs.get(club) or clubs.get(club.lower())
+    if not cfg:
+        for rec in clubs.values():
+            if (rec.get("slug") or "").lower() == club.lower() or (rec.get("code") or "").upper() == club.upper():
+                cfg = rec
+                break
     if not cfg:
         return []
     out = []
-    for key in ("website", "gallery", "facebook", "instagram", "youtube", "tiktok"):
-        _add_link(out, cfg.get(key), key if key != "website" else "website", "club_sources.json")
+    for item in source_links_from_config(cfg, "club_sources.json", local_only=False):
+        _add_link(out, item.get("url"), item.get("platform"), item.get("provenance") or "club_sources.json")
+        if out:
+            out[-1]["locality"] = item.get("locality") or "local"
     return out
 
 
@@ -254,8 +263,17 @@ def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end,
         for item in found:
             if item.get("url"):
                 _add_link(links, item["url"], item.get("platform"), item.get("provenance") or "")
-    for item in club_config_links(club) + registry_links(club, klass):
+    from event_social_verify import class_config_links as class_source_links
+    from facebook_cross_share import match_cross_shares
+    from entity_match import DEFAULT_SPONSORS, build_index
+
+    class_slugs = class_slugs_from_event(
+        event.get("title") or "", event.get("id") or "", klass or event.get("class_canonical") or ""
+    )
+    for item in club_config_links(club) + class_source_links(class_slugs) + registry_links(club, klass):
         _add_link(links, item.get("url"), item.get("platform"), item.get("provenance") or "")
+        if links:
+            links[-1]["locality"] = item.get("locality") or "local"
 
     mentions = collect_for_sailors(sa_ids, start, end, terms)
     for item in mentions.get("matched") or []:
@@ -310,9 +328,6 @@ def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end,
     event_url = event.get("event_url") or (
         "https://sailingsa.co.za/regatta/" + (event.get("id") or event.get("regatta_id") or "")
     )
-    class_slugs = class_slugs_from_event(
-        event.get("title") or "", event.get("id") or "", klass or event.get("class_canonical") or ""
-    )
     names = event.get("result_names") or result_names(rows or [])
     event_ctx = {
         **event,
@@ -335,6 +350,24 @@ def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end,
         else:
             rejected.append(check)
 
+    sailor_rows = []
+    for sid in sa_ids or []:
+        sailor_rows.append({"sa_id": sid, "name": ""})
+    for name in names:
+        sailor_rows.append({"name": name})
+    index = build_index(
+        clubs=[{"code": club, "name": event.get("club_name") or club, "slug": club_slug}],
+        classes=[{"name": klass, "slug": s} for s in class_slugs],
+        sailors=sailor_rows,
+        sponsors=DEFAULT_SPONSORS,
+    )
+    cross_shares = match_cross_shares(posts + verified, index)
+    for hit in cross_shares:
+        _add_link(links, hit.get("facebook_url"), "facebook", "facebook_cross_share")
+        if links:
+            links[-1]["sailingsa_url"] = hit.get("sailingsa_url")
+            links[-1]["locality"] = "local"
+
     aggregators = try_aggregators(issue, query, social_urls)
     return {
         "event_id": event.get("id") or event.get("regatta_id"),
@@ -352,4 +385,5 @@ def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end,
         "everywhere": {"query": everywhere.get("query"), "counts": everywhere.get("counts"), "total": everywhere.get("total")},
         "verified_posts": verified,
         "rejected_count": len(rejected),
+        "cross_shares": cross_shares,
     }
