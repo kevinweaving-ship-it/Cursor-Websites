@@ -2,6 +2,10 @@
 
 Standalone Monday publication. SailingSA is a **read-only** results and Media-tab source. This app never writes to SailingSA, nginx on gowifi.co.za, or the REA MCP tunnel.
 
+**Project docs:** [PROJECT.md](PROJECT.md) · **Tool deep-dive:** [docs/TOOL_RESEARCH.md](docs/TOOL_RESEARCH.md)
+
+Reference weekend: **26–27 September 2026** (issue Monday 2026-09-28). Driven from the public `events` table, not a homepage scrape.
+
 ## What it publishes
 
 Each Monday it builds:

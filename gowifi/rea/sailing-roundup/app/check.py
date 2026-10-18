@@ -18,7 +18,8 @@ def check(issue):
         assert a["id"] not in ids, "duplicate article"
         ids.add(a["id"])
         assert a.get("sources"), "article without sources"
-        assert any(b.get("type") == "results" for b in a.get("blocks") or []), "missing results"
+        if a.get("type") == "regatta_report":
+            assert any(b.get("type") == "results" for b in a.get("blocks") or []), "missing results"
         for b in a.get("blocks") or []:
             if b.get("type") == "image":
                 assert b.get("source_url"), "image without provenance"

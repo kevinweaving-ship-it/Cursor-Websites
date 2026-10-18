@@ -211,14 +211,15 @@ def try_aggregators(issue: str, query: str, urls: list[str]) -> list:
         results = []
         if os.getenv("APIFY_TOKEN") and urls:
             try:
-                r = social_aggregators.athena(urls[:8])
-                if r.get("status") == "ok":
-                    r["saved"] = social_aggregators.save("athena", r.get("items"), issue)
-                    r["count"] = len(r.get("items") or []) if isinstance(r.get("items"), list) else None
-                    r.pop("items", None)
-                results.append(r)
+                for r in social_aggregators.official_apify(urls[:8]):
+                    if r.get("status") == "ok":
+                        name = (r.get("actor") or "apify").replace("/", "-")
+                        r["saved"] = social_aggregators.save(name, r.get("items"), issue)
+                        r["count"] = len(r.get("items") or []) if isinstance(r.get("items"), list) else None
+                        r.pop("items", None)
+                    results.append(r)
             except Exception as exc:
-                results.append({"provider": "athena", "status": "error", "error": str(exc)[:160]})
+                results.append({"provider": "apify", "status": "error", "error": str(exc)[:160]})
         if os.getenv("SOCIALCRAWL_API_KEY"):
             try:
                 r = social_aggregators.socialcrawl(query)
@@ -262,7 +263,7 @@ def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end)
     images = []
     gallery = []
     social_urls = [x["url"] for x in links if x.get("platform") in SOCIAL_HOSTS.values()]
-    for url in social_urls[:12]:
+    for url in social_urls[:4]:
         meta = og_metadata(url)
         if meta:
             posts.append(meta)
@@ -276,7 +277,7 @@ def collect(issue: str, event: dict, sa_ids: list, terms: list[str], start, end)
                         "platform": meta.get("platform"),
                     }
                 )
-        g = gallery_dl(url)
+        g = gallery_dl(url, timeout=20)
         gallery.append({"url": url, "status": g.get("status"), "count": len(g.get("media_urls") or []), "error": g.get("error")})
         for media_url in g.get("media_urls") or []:
             images.append(

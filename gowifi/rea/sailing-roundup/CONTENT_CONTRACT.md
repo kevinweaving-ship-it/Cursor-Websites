@@ -5,7 +5,9 @@ Output: `GET /sailing-roundup/issues/YYYY-MM-DD/issue.json` on the REA box
 source and optional feed consumer; its codebase, services, database and CSS
 remain untouched.
 
-Each article: id (stable), type (feature|regatta_report|brief), headline, deck,
+The lead article is type `feature` and is written from the public `events`
+table rows whose dates overlap Saturday–Sunday (reference: 26–27 Sep 2026).
+Each following article: id (stable), type (feature|regatta_report|brief), headline, deck,
 byline, published_at, event_id, hero_image (nullable), blocks (ordered),
 sources (URLs), social_sources (optional).
 

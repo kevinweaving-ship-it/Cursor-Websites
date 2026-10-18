@@ -1,0 +1,113 @@
+# Weekend Sailing Roundup — project
+
+Independent Monday publication that turns the **SailingSA `events` table** into a weekend news article, landing page, and PDF, then attaches public social/media for each event.
+
+SailingSA is read-only. This app does not write to the SailingSA database, frontend, cron, or nginx.
+
+## Why this exists
+
+The 26–27 September 2026 weekend (Monday issue **2026-09-28**) is the reference test:
+
+| Event (events table) | Dates | `regatta_id` | Results |
+| --- | --- | --- | --- |
+| 420 Nationals | 26–27 Sep | `2026-09-25-tsc-420-nationals` | 16 entries, 8 races |
+| Dart 18 Nationals + KZN provincials | 24–27 Sep | `2026-09-24-hmyc-dart-18-nationals` | 8 races |
+| Gauteng Regionals (Dabchick) | 24–26 Sep | `2026-09-24-ayc-dabchick-gauteng-regionals` | 17 entries, 12 races |
+| 505 Nationals | 24–27 Sep | `2026-09-24-ayc-505-nationals` | 7 entries, 12 races |
+| DF95 WC Regional Champs | 25–27 Sep | none | listed, no slug |
+| J22 Nationals | 24–27 Sep | none | listed, no slug |
+| FBYC Spring Regatta | 24–27 Sep | none | listed, no slug |
+
+Meetings / courses (for example the multi-year DSO appointment row) are excluded.
+
+Rebuild that edition:
+
+```bash
+python3 app/publish_weekend.py --test-weekend
+```
+
+## Pipeline
+
+```text
+public.events  --GET /api/events-->  Saturday–Sunday overlap
+        |                                  |
+        v                                  v
+  weekend feature article          slugged events
+                                           |
+                                           v
+                         GET /api/regatta/{slug}  (results, SAS IDs)
+                                           |
+           +-------------------------------+------------------+
+           |                               |                  |
+ sailor Media tab              club/class social         web / social
+ /api/member/{id}/public-mentions   directory + OG     gallery-dl / yt-dlp
+           |                               |           (+ Apify / SocialCrawl if keyed)
+           +-------------------------------+------------------+
+                                           |
+                                           v
+                    issue.json  →  landing HTML  →  edition.pdf
+                    public/index.html   public/latest/   public/feed.json
+```
+
+Monday 06:00 Africa/Johannesburg (`sailing-roundup.timer`) runs `--due` (current Monday plus three missing weeks).
+
+## Events-table rule
+
+An event belongs to the issue dated Monday *M* when its `[start_date, end_date]` overlaps **Saturday–Sunday** before *M*.
+
+For Monday 28 Sep 2026 that window is **26–27 Sep**. Nationals that started on Thursday 24 Sep still count if they were still racing on Saturday.
+
+Source: `GET https://sailingsa.co.za/api/events`  
+Code: `app/events_weekend.py`
+
+## Outputs
+
+| File | Role |
+| --- | --- |
+| `issues/YYYY-MM-DD/issue.json` | Editorial JSON (feature + per-event reports) |
+| `issues/YYYY-MM-DD/sources/events-weekend.json` | Events-table snapshot |
+| `issues/YYYY-MM-DD/sources/{slug}-social.json` | Social/media evidence |
+| `public/issues/YYYY-MM-DD/index.html` | Landing page |
+| `public/issues/YYYY-MM-DD/edition.pdf` | Print edition |
+| `public/index.html` | Archive landing |
+| `public/feed.json` | Card feed for a future consumer |
+
+Live URL (REA box only, not gowifi.co.za): https://box.gowifi.co.za/sailing-roundup/
+
+## Sailor Media tab tool
+
+Already live. Used read-only.
+
+- `GET /api/member/{sa_id}/public-mentions`
+- Reference: Timothy Weaving **21172** (media_score 8, 22 items — Facebook / Instagram / optimist.org.za)
+- Reference: Joshua Keytel **13522** (media_score 8, 9 items — Facebook / Instagram)
+
+```bash
+python3 app/sailor_mentions.py --check-reference
+```
+
+The write job documented as `jobs/sailor_media_fetch.py` is **not in this repo or on live**. The roundup does not invent that job; it consumes the public Media-tab API.
+
+## Social tools REA mapped
+
+See **[docs/TOOL_RESEARCH.md](docs/TOOL_RESEARCH.md)** for the web deep-dive. In short:
+
+| Layer | Tool | Needs key? | Used for |
+| --- | --- | --- | --- |
+| Calendar | SailingSA `events` table | no | Which events ran this weekend |
+| Results | `/api/regatta/{slug}` | no | Leaderboard + SAS IDs |
+| Sailor media | public-mentions API | no | Tim / Josh / podium sailors |
+| Official links | club/class pages | no | Facebook / Instagram / websites |
+| Page metadata | Open Graph | no | Title, caption, image |
+| Public extractors | gallery-dl, yt-dlp | no | FB / IG / YouTube public URLs |
+| Cross-network search | SocialCrawl `/v1/search/everywhere` | `SOCIALCRAWL_API_KEY` | One query, 60+ platforms |
+| Platform scrapers | Apify official actors | `APIFY_TOKEN` | FB posts, IG posts, YouTube, FB events |
+
+No login walls are bypassed. Unlicensed photos are linked, not republished.
+
+## What this is not
+
+- Not a SailingSA frontend change
+- Not the landing-page “Sailing Magazine” scrape of sailing.co.za
+- Not licensed photo reuse
+- Not a second MCP tunnel or REA reinstall

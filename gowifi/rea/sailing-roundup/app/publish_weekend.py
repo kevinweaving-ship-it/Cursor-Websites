@@ -13,6 +13,7 @@ import urllib.request
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
+from events_weekend import saturday_sunday, slugs_for_weekend, weekend_events
 from sailor_mentions import parse_day
 
 UA = {"User-Agent": "SailingRoundupResearch/1.0"}
@@ -90,37 +91,26 @@ def scrape_slugs(html: str) -> set[str]:
 
 
 def discover_slugs(monday: dt.date) -> list[str]:
-    thu, sun = weekend_bounds(monday)
-    slugs: set[str] = set()
+    """Primary source is the public events table. HTML slugs are a fallback."""
+    slugs = slugs_for_weekend(monday)
+    if slugs:
+        return slugs
+    sat, sun = saturday_sunday(monday)
+    found: set[str] = set()
     for url in EVENTS_PAGES:
         try:
-            slugs |= scrape_slugs(fetch_text(url))
+            found |= scrape_slugs(fetch_text(url))
         except Exception:
             continue
-    chosen = set()
-    for slug in slugs:
+    chosen = []
+    for slug in sorted(found):
         try:
             day = dt.date.fromisoformat(slug[:10])
         except ValueError:
             continue
-        if thu - dt.timedelta(days=2) <= day <= sun:
-            chosen.add(slug)
-    try:
-        events = fetch_json("https://sailingsa.co.za/api/events")
-    except Exception:
-        events = []
-    for ev in events if isinstance(events, list) else []:
-        name = ev.get("event_name") or ""
-        if skip_event_name(name):
-            continue
-        start = parse_day(ev.get("start_date"))
-        end = parse_day(ev.get("end_date")) or start
-        if not start or start > sun or end < thu:
-            continue
-        rid = str(ev.get("regatta_id") or "").strip()
-        if re.match(r"\d{4}-\d{2}-\d{2}-[a-z0-9-]+$", rid):
-            chosen.add(rid)
-    return sorted(s for s in chosen if not skip_event_name(s))
+        if sat - dt.timedelta(days=2) <= day <= sun and not skip_event_name(slug):
+            chosen.append(slug)
+    return chosen
 
 
 def fetch_regatta(slug: str) -> list[dict]:
@@ -323,6 +313,44 @@ def enrich_existing(issue: str, article: dict) -> dict:
     return article
 
 
+def weekend_feature(issue: str, monday: dt.date, events: list[dict], articles: list[dict]) -> dict:
+    sat, sun = saturday_sunday(monday)
+    scored = [e for e in events if e.get("has_results")]
+    lead = (
+        f"{len(scored)} of {len(events)} weekend events published results for "
+        f"{sat.strftime('%-d %B')}–{sun.strftime('%-d %B %Y')}."
+    )
+    if not events:
+        lead = f"No racing events were listed on the SailingSA events table for {sat.isoformat()}–{sun.isoformat()}."
+    bits = [lead]
+    for ev in events:
+        line = ev["event_name"]
+        if ev.get("regatta_id"):
+            line += f" ({ev['regatta_id']})"
+        if ev.get("races_sailed"):
+            line += f" — {ev['races_sailed']} races"
+        if ev.get("entries"):
+            line += f", {ev['entries']} entries"
+        bits.append(line + ".")
+    for article in articles:
+        if article.get("deck"):
+            bits.append(article["deck"])
+    blocks = [{"type": "paragraph", "text": text} for text in bits]
+    return {
+        "id": "weekend-" + issue,
+        "type": "feature",
+        "headline": "Weekend sailing roundup",
+        "deck": lead,
+        "byline": "Weekend Sailing Roundup",
+        "published_at": issue,
+        "event_id": "weekend-" + issue,
+        "hero_image": None,
+        "blocks": blocks,
+        "sources": ["https://sailingsa.co.za/api/events"],
+        "review_status": "draft",
+    }
+
+
 def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -> dict:
     if isinstance(monday, str):
         monday = dt.date.fromisoformat(monday)
@@ -342,7 +370,8 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -
         render(issue)
         write_public_index()
         return {"issue": issue, "action": "enriched", "articles": len(data.get("articles") or [])}
-    slugs = discover_slugs(monday)
+    table_events = weekend_events(monday)
+    slugs = [e["regatta_id"] for e in table_events if e.get("regatta_id")] or discover_slugs(monday)
     articles = []
     for slug in slugs:
         try:
@@ -360,13 +389,17 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -
             logs.append({"event": slug, "status": "error", "error": str(exc)[:180]})
     dest.parent.mkdir(parents=True, exist_ok=True)
     (dest.parent / "sources").mkdir(parents=True, exist_ok=True)
+    (dest.parent / "sources" / "events-weekend.json").write_text(
+        json.dumps({"monday": issue, "events": table_events}, indent=2, ensure_ascii=False)
+    )
+    feature = weekend_feature(issue, monday, table_events, articles)
     data = {
         "schema_version": "1.0",
         "issue_id": issue,
         "title": "Weekend Sailing Roundup",
         "edition_date": issue,
         "status": "draft",
-        "articles": articles,
+        "articles": [feature] + articles,
     }
     dest.write_text(json.dumps(data, indent=2, ensure_ascii=False))
     (dest.parent / "sources" / "build-log.json").write_text(json.dumps(logs, indent=2))
@@ -391,7 +424,11 @@ def main():
     p.add_argument("--backfill", type=int, default=4)
     p.add_argument("--rebuild", action="store_true")
     p.add_argument("--due", action="store_true", help="Publish last Monday plus missing backfill weeks")
+    p.add_argument("--test-weekend", action="store_true", help="Rebuild the 26–27 Sep 2026 reference weekend")
     args = p.parse_args()
+    if args.test_weekend:
+        print(json.dumps(publish("2026-09-28", rebuild=True), indent=2))
+        return
     if args.due or not args.monday:
         print(json.dumps(publish_due(backfill=args.backfill, rebuild=args.rebuild), indent=2))
     else:
