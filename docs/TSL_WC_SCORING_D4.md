@@ -114,24 +114,40 @@ No roster edits. No invented penalties. `score_adjust` and all 15 flight grids s
 
 ---
 
+## Gold split layout fix (413px clip)
+
+Live: `.tsl-gold-left` was **413px** with `overflow:hidden` while the left table’s content width was **431px**. Cause: `flex: 0 1 auto` plus `max-width: 62%` (58% / 54% on smaller breakpoints) shrinks the pane; the table is `width: 100%` of that squeezed pane and the last column / join border is clipped. A second white strip comes from `.race-col{max-width:3em}` plus the right table `width: max-content`, so flight columns cannot fill leftover width.
+
+**Smallest correction (CSS + Total column placement only):**
+
+- Left pane `flex: 0 0 auto; max-width: none; overflow: visible`. Left table `width: max-content` so Rank | Club/Team | Wins | **Total** size to content and are never clipped. Club names still ellipsis via existing `.club-col` max-width.
+- Move **Total** from the scroll pane onto the locked left table (user: keep Rank | Club/Team | Wins | Total visible).
+- Right pane `flex: 1 1 0; min-width: 0; overflow-x: auto`. Right table `width: 100%; min-width: max-content`. Drop `race-col` **max-width**. Keep `min-width: 2.6em` (no scale/squeeze). Extra width is shared by F columns; if 15× min-width exceeds the pane, swipe left (F15 is already first).
+- Join: keep right first-cell `border-left: none` so the left last-cell right border is the shared gridline. Outer 2px `#macTslGoldSheet` border unchanged. `syncGoldRowHeights` unchanged.
+- Gold sheet `width: 100%` of the fleet block; page padding (16px / 12px at ≤768) is the equal left/right inset. No extra white strip.
+
+MP ≤480px: same rules; fewer F columns in view; no 54% left cap (that was the clip). ML: F columns grow to fill.
+
+Do not change scores, ranks, logos, fonts, medals, or cards above/below.
+
+---
+
 ## Mobile ≤480px impact
 
-Portrait uses the existing split: locked left Rank | Club/Team | Wins; remaining width is `.tsl-gold-right` with `overflow-x: auto` and `-webkit-overflow-scrolling: touch`. **Total** is the first right-pane column (between Wins and F15) so the locked 480px pane is not widened. Columns are already newest-first (`goldRaceNos` reverses, F15 after Total). Swipe left reveals older flights. One extra ~3em column means one fewer F-column in view; scroll is unchanged.
+Portrait uses the existing split: locked left Rank | Club/Team | Wins | **Total**; remaining width is `.tsl-gold-right` with `overflow-x: auto` and `-webkit-overflow-scrolling: touch`. Columns are newest-first (`goldRaceNos` reverses, F15 after Total). Swipe left reveals older flights. No 54%/58%/62% left cap (that clipped the 431px table inside 413px). Club names ellipsis at `club-col` max-width 6.4em. Race columns keep `min-width: 2.6em` (no 2.1em squeeze).
 
-At 480px: left `max-width: 54%`, club-col `max-width: 6.4em` (ellipsis on long names), race-col `min-width: 2.1em`.
+- `Club/Team` is longer than `Club`; left thead `white-space: nowrap` so the label stays one line.
+- `Wins` is a single digit; **Total** is two digits — both stay on the locked pane.
+- Flight cells, 15 columns, row-height sync, fonts, and medal fill are unchanged.
+- No second table, no fleet-header note.
 
-- `Club/Team` is longer than `Club`; left thead `white-space: nowrap` so the label stays one line. Rank + Club/Team + Wins still fit in ~180px of ~259px.  
-- `Wins` is a single digit — narrower than the old two-digit point Total, which offsets the longer Club/Team header.  
-- Flight cells, 15 columns, row-height sync, fonts, and medal fill are unchanged.  
-- No extra column, no second table, no fleet-header note.
-
-No 480px layout rewrite. Do not hide Rank / Club/Team / Wins. Do not stack the split pane.
+No 480px layout rewrite. Do not hide Rank / Club/Team / Wins / Total. Do not stack the split pane.
 
 ---
 
 ## Code
 
 - `goldBuilt()` / gold headers in `js/mac-tsl-admin.js` and `sailingsa/frontend/js/mac-tsl-admin.js`  
-- Pin `mac-tsl-admin.js?v=20261018b`  
+- Pin `mac-tsl-admin.js?v=20261018e`  
 - `stamp_tsl_final` in `sailingsa/backend/tsl_team_racing.py`  
 - Tests: `sailingsa/backend/test_tsl_admin_js.py`, `sailingsa/backend/test_tsl_team_racing.py`
