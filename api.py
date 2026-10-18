@@ -9548,8 +9548,12 @@ def _regatta_standalone(request: Request, slug: str):
 
 @app.get("/club/{slug}")
 @app.head("/club/{slug}")
-def _club_standalone(slug: str):
+def _club_standalone(slug: str, request: Request = None):
     """Every club slug (after 301 to canonical) is served by serve_club_page — one matching pipeline for all clubs."""
+    if slug != slug.lower():
+        query = request.url.query if request is not None else ""
+        qs = ("?" + query) if query else ""
+        return RedirectResponse(url=f"/club/{slug.lower()}{qs}", status_code=301)
     return serve_club_page(slug)
 
 
