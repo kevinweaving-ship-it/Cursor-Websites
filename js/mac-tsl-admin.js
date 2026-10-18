@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261018e";
+  var JS_VER = "20261018f";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -115,6 +115,16 @@
     }
     s.textContent = [
       ".regatta-page[data-mac-tsl=\"1\"]{overflow-x:hidden}",
+      ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .header{grid-template-columns:minmax(0,1fr) minmax(0,2.4fr) minmax(0,1fr);align-items:center;justify-items:stretch}",
+      ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-col,.regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-club-logo-col{width:100%;max-width:100%;min-width:0;height:52px;overflow:hidden;align-self:center}",
+      ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-col{justify-content:flex-start}",
+      ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-club-logo-col{justify-content:flex-end}",
+      ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-link{width:100%;height:100%;max-width:100%}",
+      ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-col .regatta-header-logo-link{justify-content:flex-start}",
+      ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-club-logo-col .regatta-header-logo-link{justify-content:flex-end}",
+      ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-main-col{justify-self:center;align-self:center;text-align:center;width:100%;min-width:0}",
+      ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-img{height:52px!important;max-height:52px!important;width:auto!important;max-width:100%!important;object-fit:contain!important}",
+      "@media (max-width:480px){.regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-col,.regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-club-logo-col{height:44px}.regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-img{height:44px!important;max-height:44px!important}}",
       ".regatta-page[data-mac-tsl=\"1\"] .table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}",
       "#macTslAdmin{display:none}",
       "#macTslSchedule{display:none!important}",
