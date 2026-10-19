@@ -40,9 +40,14 @@ SailingSA live destination already exists at /opt/sailing-roundup and /var/www/s
 The user-requested audit URL is:
 https://sailingsa.co.za/sailing-roundup/issues/2026-09-28/
 
-These fixes have NOT been installed at that URL from this session. The available rea-ro production account is read-only; root BatchMode SSH fails and the documented sailingsa_live_key is absent. Automatic approval review rejected a credential-document inspection that might expose password material. No credentials were printed and no read-only restriction was bypassed.
+Installed 19 October 2026 into `/opt/rea/work/sailing-roundup` from this
+commit (existing issues/public/data/.venv preserved; pre-install tarball
+`/opt/rea/work/sailing-roundup-backup-20261019-111926.tgz`).
 
-An authorized deployment must first snapshot the existing roundup app and published issue, then install only changed roundup files/requirements, preserve cached sources and the source registry, run safe_publish.py --test-weekend, publish only this issue, and compare the live HTML/JSON/PDF hashes with the validated build. Do not deploy api.py, global frontend files, nginx or other editions.
+Published only `2026-09-28` then verified
+https://sailingsa.co.za/sailing-roundup/issues/2026-09-28/ against the
+rebuilt HTML/JSON/PDF/image hashes. Schedule then switched to the current
+Monday (`ROUNDUP_MODE=due`). See `docs/UNATTENDED_MONDAY_PUBLISH.md`.
 
 ## Limitations
 This is an independently implemented evidence workflow, not proprietary vendor code or access to licensed feeds. Caption caching can preserve an earlier successful public retrieval when a later fetch truncates it. Discovery remains dependent on public availability; inaccessible private posts are not treated as evidence.

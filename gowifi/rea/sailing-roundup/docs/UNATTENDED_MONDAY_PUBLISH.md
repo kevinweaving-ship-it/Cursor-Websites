@@ -47,5 +47,54 @@ Production `data/roundup.env` must be `ROUNDUP_MODE=due`.
 
 ## Manual involvement
 
-None for the weekly cycle. Failures mail `root` and leave the last good edition
-in place. Re-run: `systemctl start sailing-roundup.service` on GoWifi.
+None for the weekly cycle. Failures mail `kevin@aerialnet.co.za` (root@box
+bounces on this host) and leave the last good edition in place. Re-run:
+`systemctl start sailing-roundup.service` on GoWifi.
+
+## Proved cycle — 19 October 2026 SAST
+
+Backup first: `/opt/rea/work/sailing-roundup-backup-20261019-111926.tgz`
+(sha256 `f472cf7370d7f6dd5e6608f019eaa3cc3ae5d0be66860dd39c598a3fec71b1e7`).
+Installed REA commit `fb9b551069a209dfcae9b6b8134afdce26db66bb` into the
+existing project; issues/public/data/.venv kept.
+
+Authenticated publish: `rea` key `/opt/rea/.ssh/id_rea_publish` →
+`root@102.218.215.253`. SailingSA `sailing-roundup.timer` is **masked**.
+
+### Reference issue 2026-09-28
+
+`run-monday.sh` with `ROUNDUP_MODE=test-weekend` at 11:25:10 SAST:
+generate ok (4 reports, 1 unique photograph) → issue-scoped publish →
+`https://sailingsa.co.za/sailing-roundup/issues/2026-09-28/` HTTP 200.
+
+Live hashes match GoWifi rebuild:
+
+| file | sha256 prefix |
+| --- | --- |
+| index.html | `627bbb478f9002e6` |
+| issue.json | `0c017dcbab828949` |
+| edition.pdf | `0f5d624badf3cc23` |
+| media/2026-09-25-tsc-420-nationals.jpg | `c90991a59e878c66` |
+
+Content checks on that URL: Timothy Weaving and Hayden Miller are the
+under-17 champions (NovaNews caption + body cite [2]); helm/crew cells are
+people, not school names; four podium tables of three rows; JPEG photograph
+is unique and is the U17 pair with the 420 trophy; no Wikimedia.
+
+### Production Monday 2026-10-19
+
+`ROUNDUP_MODE=due` (current Monday in Africa/Johannesburg). Same script at
+11:29:29 SAST rebuilt `2026-10-19`, published only that issue, verified
+`https://sailingsa.co.za/sailing-roundup/issues/2026-10-19/` (HTML/JSON/PDF
+200; hashes `128507b6c5859f4c` / `c6f4dd75f9302076` / `cba87686000a14c0`).
+09-28 hashes unchanged. 10-05 and 10-12 left in place.
+
+### Controls
+
+- Timer next: Mon 2026-10-26 06:00 SAST (`Africa/Johannesburg`).
+- Overlap: second `run-monday.sh` while lock held printed `skip` and exited 0.
+- Retry: three attempts, 90s apart (generate / publish / verify).
+- Last good: local `backups/` + `data/last-success.json`; remote
+  `.last-good/issues/`.
+- Alert path: sendmail to `kevin@aerialnet.co.za` stored in INBOX
+  (`status=sent`, msgid `20261019093317.A002610D2EB`).
