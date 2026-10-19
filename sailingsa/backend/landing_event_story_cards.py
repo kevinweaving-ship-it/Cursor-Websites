@@ -395,11 +395,27 @@ def class_logo_src(name: str) -> str:
     return _CLASS_LOGO.get(key, "")
 
 
+def _is_year_token(value: str) -> bool:
+    return bool(re.fullmatch(r"(?:19|20)\d{2}", str(value or "").strip()))
+
+
 def infer_classes(name: str, classes: list[str]) -> list[str]:
-    if classes:
-        return list(classes)
-    m = re.match(r"^(\d{2,4}(?:er)?)\b", (name or "").strip(), re.I)
-    return [m.group(1)] if m else []
+    cleaned = []
+    for c in classes or []:
+        s = str(c or "").strip()
+        if not s or s.lower() in {"fleet", "event"} or _is_year_token(s):
+            continue
+        cleaned.append(s)
+    if cleaned:
+        return cleaned
+    n = re.sub(r"^\d{4}-\d{2}-\d{2}\s+", "", str(name or "").strip())
+    m = re.match(r"^(\d{2,4}(?:er)?)\b", n, re.I)
+    if not m:
+        return []
+    token = m.group(1)
+    if _is_year_token(token):
+        return []
+    return [token]
 
 
 def _class_anchor(name: str) -> str:
@@ -674,7 +690,9 @@ def render_card_html(card: dict, *, slot: int) -> str:
     host_href = card.get("host_href") or ""
     host_logo = card.get("host_logo") or (f"/api/club-logo/{host_code}" if host_code else "")
     class_name = (card.get("classes") or [""])[0] if card.get("classes") else ""
-    class_logo = card.get("class_logo") or class_logo_src(class_name)
+    if _is_year_token(class_name):
+        class_name = ""
+    class_logo = (card.get("class_logo") or class_logo_src(class_name)) if class_name else ""
     class_href = _class_href(class_name) if class_name else url
     if state == "live" and count and not count.startswith("LIVE"):
         count = f"LIVE · {count}"
@@ -984,12 +1002,15 @@ LANDING_CARD_CSS = """
     max-width: 260px;
 }
 .temp-landing-hero-image .sa-home-regatta-actions,
-.temp-landing-secondary-image .sa-home-regatta-actions {
+.temp-landing-secondary-image .sa-home-regatta-actions,
+#landing-event-hero-2 .sa-home-regatta-actions {
     grid-area: actions;
     display: flex;
     gap: 8px;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: stretch;
+    min-width: 126px;
+    width: 100%;
 }
 .temp-landing-hero-image .sa-home-regatta-single-class,
 .temp-landing-secondary-image .sa-home-regatta-single-class {
@@ -1012,7 +1033,8 @@ LANDING_CARD_CSS = """
     padding: 0;
 }
 .temp-landing-hero-image .sa-home-regatta-btn,
-.temp-landing-secondary-image .sa-home-regatta-btn {
+.temp-landing-secondary-image .sa-home-regatta-btn,
+#landing-event-hero-2 .sa-home-regatta-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1027,6 +1049,9 @@ LANDING_CARD_CSS = """
     text-decoration: none;
     white-space: nowrap;
     min-width: 126px;
+    flex: 1 1 auto;
+    width: 100%;
+    box-sizing: border-box;
 }
 .temp-landing-hero-image .sa-home-regatta-btn--upcoming,
 .temp-landing-secondary-image .sa-home-regatta-btn--upcoming,

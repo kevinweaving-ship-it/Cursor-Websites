@@ -10,6 +10,7 @@ from landing_event_story_cards import (
     build_story_html,
     countdown_label,
     history_sentence,
+    infer_classes,
     is_major_upcoming_event,
     is_midmar_cup_event,
     render_card_html,
@@ -182,6 +183,7 @@ class SelectHeroTests(unittest.TestCase):
             {
                 "name": "Ullman Sails Women's Series — Day 2",
                 "url": "/regatta/2026-10-24-ullman-sails-womens-series-day-2",
+                "classes": ["2026"],
                 "logo": slot,
                 "countdown": "5 DAYS TO GO",
                 "state": "upcoming",
@@ -198,6 +200,12 @@ class SelectHeroTests(unittest.TestCase):
         self.assertIn("5 DAYS TO GO", html)
         self.assertIn("Upcoming event", html)
         self.assertIn("sa-home-regatta-btn--upcoming", html)
+        self.assertNotIn("sa-home-regatta-chip-text", html)
+        self.assertNotIn(">2026<", html)
+        self.assertEqual(infer_classes("2026-10-24 Ullman Sails Women's Series — Day 2", []), [])
+        self.assertEqual(infer_classes("420 Nationals", []), ["420"])
+        self.assertIn("width: 100%", LANDING_CARD_CSS)
+        self.assertIn("flex: 1 1 auto", LANDING_CARD_CSS)
 
 
 class StoryLinkTests(unittest.TestCase):
