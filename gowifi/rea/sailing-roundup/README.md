@@ -57,7 +57,12 @@ Local 420 class Facebook group (user share link `facebook.com/share/g/1Jh51CDMew
 
 Host-club pages are the media source for that club’s events. Dart 18 Nationals uses **HMYC** (`https://sailingsa.co.za/club/hmyc`, Facebook `henleymidmaryachtclub`). Share posts such as `facebook.com/share/p/1PGpY1pGh1/` (Dart 18 Nationals final results) are resolved and auto-attached to the weekend-roundup `source_info` / `social_sources` list. Other HMYC posts about the same event are found by searching that club page.
 
-No login walls are bypassed. Unlicensed photos are linked, not republished.
+Each event is then **clustered and rewritten** (`app/event_rewrite.py`) the way
+Monok / Perigon / Event Registry do it: unique headline, original article,
+one credited photo, leaderboard only. The landing page and PDF use a newspaper
+masthead; each story gets a different layout.
+
+No login walls are bypassed. Photos are downloaded locally and credited.
 
 ## Automation
 

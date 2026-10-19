@@ -13,6 +13,12 @@ import urllib.request
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
+from event_rewrite import (
+    facts_from_rows,
+    layout_for,
+    rewrite_event,
+    rewrite_weekend_feature,
+)
 from events_weekend import saturday_sunday, slugs_for_weekend, weekend_events
 from sailor_mentions import parse_day
 
@@ -138,149 +144,19 @@ def sailor_ids(rows: list[dict], limit: int = 8) -> list[str]:
     return ids[:limit]
 
 
-def results_table(rows: list[dict]) -> tuple[list[str], list[list[str]]]:
-    ranked = [r for r in rows if r.get("rank") not in (None, "")]
-    ranked.sort(key=lambda r: int(r["rank"]) if str(r.get("rank")).isdigit() else 999)
-    use = ranked or rows
-    cols = ["Rank", "Class", "Sail No", "Club", "Helm", "Crew", "Nett"]
-    table = []
-    for row in use[:80]:
-        table.append(
-            [
-                "" if row.get("rank") in (None, "") else str(row.get("rank")),
-                str(row.get("class_name") or row.get("class_canonical") or ""),
-                str(row.get("sail_number") or ""),
-                str(row.get("club_abbrev") or row.get("club_raw") or ""),
-                str(row.get("helm_name") or ""),
-                str(row.get("crew_name") or ""),
-                "" if row.get("nett_points_raw") in (None, "") else str(row.get("nett_points_raw")),
-            ]
-        )
-    return cols, table
-
-
-def lead_sentence(title: str, rows: list[dict]) -> str:
-    ranked = [r for r in rows if r.get("rank") not in (None, "")]
-    ranked.sort(key=lambda r: int(r["rank"]) if str(r.get("rank")).isdigit() else 999)
-    if not ranked:
-        return f"Published entries are listed for {title}."
-    top = ranked[0]
-    names = [n for n in (top.get("helm_name"), top.get("crew_name")) if n]
-    who = " and ".join(names) if names else "The leader"
-    nett = top.get("nett_points_raw")
-    if nett not in (None, ""):
-        return f"{who} leads the published {title} standings on {nett} nett points."
-    return f"{who} tops the published {title} standings."
-
-
-def attach_media(article: dict, pack: dict):
-    sources = list(article.get("sources") or [])
-    social = list(article.get("social_sources") or [])
-    source_info = list(article.get("source_info") or [])
-    for link in pack.get("links") or []:
-        url = link.get("url")
-        if not url or link.get("locality") == "not_local":
-            continue
-        if url not in sources:
-            sources.append(url)
-        if link.get("role") == "host_club_media" or link.get("provenance") in ("club_sources.json", "host_club_post"):
-            info = {
-                "role": link.get("role") or "host_club",
-                "url": url,
-                "platform": link.get("platform"),
-                "label": article.get("club") or "",
-            }
-            if not any(x.get("url") == url for x in source_info):
-                source_info.append(info)
-    for post in pack.get("verified_posts") or pack.get("posts") or []:
-        url = post.get("url")
-        if url and url not in sources:
-            sources.append(url)
-        if post and not any(x.get("url") == url for x in social):
-            social.append(post)
-        desc = (post.get("description") or post.get("title") or "").strip()
-        if desc and not any(b.get("source_url") == url for b in article["blocks"]):
-            article["blocks"].insert(
-                0,
-                {
-                    "type": "paragraph",
-                    "text": "From a public social update: " + desc[:400],
-                    "source_url": url,
-                },
-            )
-        if post.get("image") and not any(
-            b.get("type") == "image" and b.get("source_url") == url for b in article["blocks"]
-        ):
-            article["blocks"].append(
-                {
-                    "type": "image",
-                    "url": post["image"],
-                    "alt": post.get("title") or "",
-                    "caption": post.get("title") or "",
-                    "credit": post.get("platform") or "",
-                    "source_url": url,
-                    "rights_status": "external_link_only",
-                }
-            )
-    for mention in pack.get("sailor_mentions", {}).get("matched") or []:
-        url = mention.get("url")
-        if url and url not in sources:
-            sources.append(url)
-    article["sources"] = sources
-    article["social_sources"] = social
-    article["source_info"] = source_info
-    if not article.get("hero_image"):
-        for block in article["blocks"]:
-            if block.get("type") == "image" and block.get("url"):
-                article["hero_image"] = {
-                    "url": block["url"],
-                    "source_url": block.get("source_url"),
-                    "rights_status": block.get("rights_status"),
-                }
-                break
-
-
-def article_from_regatta(issue: str, slug: str, rows: list[dict]) -> dict | None:
+def article_from_regatta(issue: str, slug: str, rows: list[dict], layout: str = "classic") -> dict | None:
     if not rows:
         return None
     first = rows[0]
     title = (first.get("event_name") or slug).strip()
     if skip_event_name(title):
         return None
-    club = first.get("host_club_code") or first.get("host_club_name") or ""
-    klass = first.get("class_name") or first.get("class_canonical") or ""
+    facts = facts_from_rows(slug, rows)
+    club = facts["club"]
+    klass = facts["class_name"]
     start = parse_day(first.get("start_date")) or dt.date.fromisoformat(slug[:10])
     end = parse_day(first.get("end_date")) or start
-    cols, table = results_table(rows)
-    lead = lead_sentence(title, rows)
-    url = "https://sailingsa.co.za/regatta/" + slug
-    article = {
-        "id": slug,
-        "type": "regatta_report",
-        "headline": title,
-        "deck": lead,
-        "byline": "Weekend Sailing Roundup",
-        "published_at": issue,
-        "event_id": slug,
-        "hero_image": None,
-        "blocks": [
-            {"type": "paragraph", "text": lead},
-            {
-                "type": "results",
-                "source_event_url": url,
-                "columns": cols,
-                "rows": table,
-                "as_of": issue,
-            },
-        ],
-        "sources": [url],
-        "review_status": "draft",
-        "club": club,
-        "class_name": klass,
-        "host_club_slug": first.get("host_club_slug") or "",
-        "start_date": start.isoformat(),
-        "end_date": end.isoformat(),
-    }
+    url = facts["url"]
     from social_collect import collect as collect_social
 
     terms = event_terms(title, club, klass, slug)
@@ -290,9 +166,9 @@ def article_from_regatta(issue: str, slug: str, rows: list[dict]) -> dict | None
             "id": slug,
             "title": title,
             "club": club,
-            "club_name": first.get("host_club_name") or club,
+            "club_name": facts["club_name"],
             "class_name": klass,
-            "host_club_slug": first.get("host_club_slug") or "",
+            "host_club_slug": facts.get("host_club_slug") or "",
             "class_canonical": first.get("class_canonical") or "",
             "event_url": url,
             "result_names": [r for r in (
@@ -305,7 +181,7 @@ def article_from_regatta(issue: str, slug: str, rows: list[dict]) -> dict | None
         end,
         rows=rows,
     )
-    attach_media(article, pack)
+    article = rewrite_event(issue, facts, pack=pack, layout=layout)
     dest = ROOT / "issues" / issue / "sources"
     dest.mkdir(parents=True, exist_ok=True)
     (dest / f"{slug}-social.json").write_text(json.dumps(pack, indent=2, ensure_ascii=False))
@@ -320,58 +196,17 @@ def enrich_existing(issue: str, article: dict) -> dict:
         rows = fetch_regatta(slug)
     except Exception:
         rows = []
+    if article.get("review_status") == "edited":
+        return article
     if rows:
-        built = article_from_regatta(issue, slug, rows)
+        built = article_from_regatta(issue, slug, rows, layout=article.get("layout") or "classic")
         if built:
-            # Keep previously edited copy if it already has extra sources; merge social.
-            existing_sources = article.get("sources") or []
-            built["sources"] = list(dict.fromkeys(existing_sources + (built.get("sources") or [])))
-            if article.get("blocks"):
-                seen = {(b.get("type"), b.get("source_url"), b.get("text")) for b in built["blocks"]}
-                for block in article["blocks"]:
-                    key = (block.get("type"), block.get("source_url"), block.get("text"))
-                    if key not in seen:
-                        built["blocks"].append(block)
             return built
     return article
 
 
 def weekend_feature(issue: str, monday: dt.date, events: list[dict], articles: list[dict]) -> dict:
-    sat, sun = saturday_sunday(monday)
-    scored = [e for e in events if e.get("has_results")]
-    lead = (
-        f"{len(scored)} of {len(events)} weekend events published results for "
-        f"{sat.strftime('%-d %B')}–{sun.strftime('%-d %B %Y')}."
-    )
-    if not events:
-        lead = f"No racing events were listed on the SailingSA events table for {sat.isoformat()}–{sun.isoformat()}."
-    bits = [lead]
-    for ev in events:
-        line = ev["event_name"]
-        if ev.get("regatta_id"):
-            line += f" ({ev['regatta_id']})"
-        if ev.get("races_sailed"):
-            line += f" — {ev['races_sailed']} races"
-        if ev.get("entries"):
-            line += f", {ev['entries']} entries"
-        bits.append(line + ".")
-    for article in articles:
-        if article.get("deck"):
-            bits.append(article["deck"])
-    blocks = [{"type": "paragraph", "text": text} for text in bits]
-    return {
-        "id": "weekend-" + issue,
-        "type": "feature",
-        "headline": "Weekend sailing roundup",
-        "deck": lead,
-        "byline": "Weekend Sailing Roundup",
-        "published_at": issue,
-        "event_id": "weekend-" + issue,
-        "hero_image": None,
-        "blocks": blocks,
-        "sources": ["https://sailingsa.co.za/api/events"],
-        "review_status": "draft",
-    }
+    return rewrite_weekend_feature(issue, monday, events, articles)
 
 
 def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -> dict:
@@ -402,7 +237,7 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -
             if not rows:
                 logs.append({"event": slug, "status": "skipped_no_api_rows"})
                 continue
-            article = article_from_regatta(issue, slug, rows)
+            article = article_from_regatta(issue, slug, rows, layout=layout_for(len(articles), "regatta_report"))
             if not article:
                 logs.append({"event": slug, "status": "skipped"})
                 continue

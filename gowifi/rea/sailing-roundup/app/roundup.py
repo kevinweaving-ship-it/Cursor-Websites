@@ -126,141 +126,210 @@ def create(issue, urls):
     return data, log
 
 
+LAYOUTS = ("lead", "photo-led", "split", "classic", "compact")
+
+
 def _image_block(block):
-    rights = block.get("rights_status")
-    source = block.get("source_url") or block.get("url") or ""
-    if rights in ("external_link_only", "source_attributed") or not block.get("url"):
-        label = html.escape(block.get("caption") or "View original photograph or post at source")
-        return (
-            "<p><a href="
-            + chr(34)
-            + html.escape(source, quote=True)
-            + chr(34)
-            + ">"
-            + label
-            + "</a></p>"
-        )
+    url = block.get("url") or ""
+    if not url:
+        return ""
+    caption = block.get("caption") or ""
+    credit = block.get("credit") or ""
+    if credit and credit.lower() not in caption.lower():
+        caption = (caption + " Photo: " + credit).strip()
     return (
         "<figure><img src="
         + chr(34)
-        + html.escape(block.get("url", ""), quote=True)
+        + html.escape(url, quote=True)
         + chr(34)
         + " alt="
         + chr(34)
-        + html.escape(block.get("alt") or "", quote=True)
+        + html.escape(block.get("alt") or caption or "", quote=True)
         + chr(34)
         + "><figcaption>"
-        + html.escape(block.get("caption") or "")
+        + html.escape(caption)
         + "</figcaption></figure>"
     )
 
 
+def _results_block(block):
+    cols = block.get("columns") or []
+    rows = block.get("rows") or []
+    html_rows = [
+        "<div class='board'><table><thead><tr>"
+        + "".join("<th>" + html.escape(c) + "</th>" for c in cols)
+        + "</tr></thead><tbody>"
+    ]
+    for row in rows:
+        html_rows.append("<tr>" + "".join("<td>" + html.escape(str(c)) + "</td>" for c in row) + "</tr>")
+    html_rows.append("</tbody></table></div>")
+    return "".join(html_rows)
+
+
+def _story_parts(article):
+    image = ""
+    paras = []
+    board = []
+    for block in article.get("blocks") or []:
+        kind = block.get("type")
+        if kind == "image" and not image:
+            image = _image_block(block)
+        elif kind == "paragraph":
+            paras.append("<p>" + html.escape(block.get("text") or "") + "</p>")
+        elif kind == "heading":
+            board.append("<h3 class='board-label'>" + html.escape(block.get("text") or "Leaderboard") + "</h3>")
+        elif kind == "results":
+            board.append(_results_block(block))
+    if paras:
+        paras[0] = paras[0].replace("<p>", "<p class='lede'>", 1)
+    return image, paras, board
+
+
+def _layout_name(index, article):
+    chosen = article.get("layout")
+    if chosen in LAYOUTS:
+        return chosen
+    if article.get("type") == "feature":
+        return "lead"
+    return LAYOUTS[(index % 4) + 1]
+
+
+def _render_story(index, article):
+    layout = _layout_name(index, article)
+    image, paras, board = _story_parts(article)
+    kicker = html.escape(article.get("kicker") or (article.get("class_name") or "Weekend").upper())
+    headline = html.escape(article.get("headline") or "")
+    deck = html.escape(article.get("deck") or "")
+    byline = html.escape(article.get("byline") or "Weekend Sailing Roundup")
+    dateline = html.escape(article.get("published_at") or "")
+    head = (
+        "<p class='kicker'>" + kicker + "</p>"
+        "<h2>" + headline + "</h2>"
+        + (("<p class='deck'>" + deck + "</p>") if deck else "")
+        + "<p class='byline'>By " + byline + "  ·  " + dateline + "</p>"
+    )
+    copy = "".join(paras)
+    standings = "".join(board)
+    if layout == "lead":
+        inner = "<div class='banner'>" + head + "</div><div class='lead-grid'>" + (image or "") + "<div class='copy cols-3'>" + copy + "</div></div>"
+    elif layout == "photo-led":
+        inner = (image or "") + head + "<div class='copy cols-2'>" + copy + "</div>" + standings
+    elif layout == "split":
+        inner = head + "<div class='split'><div class='split-photo'>" + (image or "") + "</div><div class='copy'>" + copy + "</div></div>" + standings
+    elif layout == "compact":
+        inner = "<div class='compact-head'>" + head + "</div><div class='compact-row'>" + (image or "") + "<div class='copy'>" + copy + "</div></div>" + standings
+    else:
+        mid = copy
+        if image and paras:
+            mid = paras[0] + image + "".join(paras[1:])
+        elif image:
+            mid = image + copy
+        inner = head + "<div class='copy cols-2'>" + mid + "</div>" + standings
+    return "<article class='story story-" + layout + "'>" + inner + "</article>"
+
+
+def newspaper_css():
+    return """
+@import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Oswald:wght@500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap");
+:root{--ink:#111;--rule:#111;--muted:#444;--paper:#f6f1e4;--card:#fffdf6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 'Source Serif 4',Georgia,serif}
+.paper{max-width:1180px;margin:0 auto;padding:18px 22px 48px;background:var(--card);box-shadow:0 0 0 1px #d7cbb0}
+.masthead{text-align:center;border-top:4px solid var(--rule);border-bottom:1px solid var(--rule);padding:10px 0 8px}
+.masthead .flag{font:600 11px/1 Oswald,sans-serif;letter-spacing:.28em;text-transform:uppercase}
+.masthead h1{font:700 54px/0.92 'Libre Baskerville',Georgia,serif;margin:6px 0 4px;letter-spacing:-1px}
+.folio{display:flex;justify-content:space-between;border-top:3px double var(--rule);border-bottom:1px solid var(--rule);font:600 11px/1 Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:6px 2px;margin-bottom:18px}
+.edition-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 26px;align-items:start}
+.story{break-inside:avoid;page-break-inside:avoid;border-bottom:1px solid #cfc3a6;padding-bottom:16px}
+.story-lead{grid-column:1/-1;border-bottom:3px double var(--rule);padding-bottom:20px;margin-bottom:4px}
+.kicker{font:600 11px/1 Oswald,sans-serif;letter-spacing:.16em;margin:0 0 4px;color:#6a1d1d}
+h2{font:700 28px/1.12 'Libre Baskerville',Georgia,serif;margin:0 0 6px}
+.story-lead h2{font-size:clamp(34px,5vw,52px);text-align:center}
+.story-photo-led h2{font-size:34px}
+.story-split h2{font-size:26px}
+.story-classic h2{font-size:24px;font-style:italic}
+.story-compact h2{font-size:21px;font-family:Oswald,sans-serif;letter-spacing:.02em;text-transform:uppercase}
+.deck{margin:0 0 6px;color:var(--muted);font:italic 16px/1.35 'Libre Baskerville',Georgia,serif}
+.byline{margin:0 0 10px;font:600 10px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#333}
+.banner{text-align:center}
+.lead-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:start}
+.copy p{margin:0 0 9px}
+.copy .lede:first-letter{font:700 46px/0.72 'Libre Baskerville',Georgia,serif;float:left;padding:4px 6px 0 0}
+.cols-2{column-count:2;column-gap:18px}
+.cols-3{column-count:3;column-gap:16px}
+.split{display:grid;grid-template-columns:42% 1fr;gap:14px;align-items:start}
+.compact-row{display:grid;grid-template-columns:34% 1fr;gap:12px;align-items:start}
+figure{margin:0 0 10px}
+figure img{width:100%;height:auto;display:block;filter:grayscale(12%);border:1px solid #111}
+.story-photo-led figure img{max-height:420px;object-fit:cover}
+.story-classic figure{float:right;width:46%;margin:4px 0 8px 12px}
+figcaption{font:11px/1.3 'Source Serif 4',serif;color:#555;padding-top:4px}
+.board-label{font:600 11px/1 Oswald,sans-serif;letter-spacing:.14em;text-transform:uppercase;margin:12px 0 4px;border-top:2px solid #111;padding-top:6px}
+.board{overflow:hidden;border:1px solid #111}
+.board table{border-collapse:collapse;width:100%;font:12px/1.25 Oswald,sans-serif;letter-spacing:.02em}
+.board th,.board td{border-bottom:1px solid #ddd;padding:4px 6px;text-align:left}
+.board th{background:#111;color:#fff;font-weight:600}
+.board tr:nth-child(odd) td{background:#f3efe3}
+.board tr:first-child td{font-weight:700}
+@media (max-width:860px){
+  .edition-grid,.lead-grid,.split,.compact-row{grid-template-columns:1fr}
+  .cols-2,.cols-3{column-count:1}
+  .story-classic figure{float:none;width:100%;margin:0 0 10px}
+  .masthead h1{font-size:34px}
+}
+@page{size:A3;margin:10mm}
+@media print{
+  body{background:#fff;font-size:11.5px}
+  .paper{box-shadow:none;max-width:none;padding:0}
+  .story{break-inside:avoid}
+  .story-lead{break-after:avoid}
+  figure img{filter:none}
+  .board{break-inside:avoid}
+}
+"""
+
+
 def render(issue):
-    data = json.loads((ROOT / "issues" / issue / "issue.json").read_text())
+    src = ROOT / "issues" / issue / "issue.json"
+    if not src.exists():
+        src = ROOT / "public" / "issues" / issue / "issue.json"
+    data = json.loads(src.read_text())
     out = ROOT / "public" / "issues" / issue
     out.mkdir(parents=True, exist_ok=True)
     (out / "issue.json").write_text(json.dumps(data, indent=2, ensure_ascii=False))
-    chunks = []
-    for a in data.get("articles") or []:
-        body = [
-            "<article><h2>"
-            + html.escape(a.get("headline") or "")
-            + "</h2><p class='deck'>"
-            + html.escape(a.get("deck") or "")
-            + "</p>"
-        ]
-        for block in a.get("blocks") or []:
-            kind = block.get("type")
-            if kind == "paragraph":
-                body.append("<p>" + html.escape(block.get("text") or "") + "</p>")
-            elif kind == "results":
-                cols = block.get("columns") or []
-                rows = block.get("rows") or []
-                body.append(
-                    "<div class='table-scroll'><table><thead><tr>"
-                    + "".join("<th>" + html.escape(c) + "</th>" for c in cols)
-                    + "</tr></thead><tbody>"
-                )
-                for row in rows:
-                    body.append("<tr>" + "".join("<td>" + html.escape(str(c)) + "</td>" for c in row) + "</tr>")
-                body.append("</tbody></table></div>")
-            elif kind == "heading":
-                body.append("<h3>" + html.escape(block.get("text") or "") + "</h3>")
-            elif kind == "image":
-                body.append(_image_block(block))
-            elif kind == "video":
-                url = block.get("source_url") or block.get("url") or ""
-                body.append(
-                    "<p><a href="
-                    + chr(34)
-                    + html.escape(url, quote=True)
-                    + chr(34)
-                    + ">Watch video at source</a></p>"
-                )
-        info = a.get("source_info") or []
-        if info:
-            body.append("<h3>Source info</h3><ul>")
-            for item in info:
-                url = item.get("url") or ""
-                label = item.get("label") or item.get("role") or url
-                body.append(
-                    "<li>"
-                    + html.escape((item.get("role") or "source").replace("_", " "))
-                    + ": <a href="
-                    + chr(34)
-                    + html.escape(url, quote=True)
-                    + chr(34)
-                    + ">"
-                    + html.escape(label)
-                    + "</a></li>"
-                )
-            body.append("</ul>")
-        social = a.get("social_sources") or []
-        if social:
-            body.append("<h3>Social and media sources</h3><ul>")
-            for post in social:
-                url = post.get("url") or ""
-                title = post.get("title") or post.get("headline") or url
-                body.append(
-                    "<li><a href="
-                    + chr(34)
-                    + html.escape(url, quote=True)
-                    + chr(34)
-                    + ">"
-                    + html.escape(title)
-                    + "</a></li>"
-                )
-            body.append("</ul>")
-        body.append("</article>")
-        chunks.append("".join(body))
-    if not chunks:
-        chunks.append("<article><p>No scored weekend events were published for this edition.</p></article>")
-    css = (
-        '@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Libre+Baskerville:wght@400;700&display=swap");'
-        "body{margin:0;color:#162338;background:#fff;font:16px/1.7 'DM Sans',sans-serif}"
-        ".wrap{max-width:1080px;margin:auto;padding:36px 24px}"
-        "h1,h2{font-family:'Libre Baskerville',Georgia,serif;line-height:1.25}"
-        "h1{font-size:clamp(32px,5vw,60px)}h2{font-size:clamp(23px,3vw,35px)}"
-        "header{border-bottom:4px solid #16385a;padding-bottom:22px}"
-        "article{margin:42px 0;border-bottom:1px solid #ddd;padding-bottom:32px}"
-        ".deck{color:#607080}img{max-width:100%;height:auto}.table-scroll{overflow-x:auto}"
-        "table{border-collapse:collapse;width:100%;font-size:13px}td,th{border:1px solid #ddd;padding:7px}"
-        "th{background:#eaf0f5;text-align:left}@media print{article{break-inside:avoid}body{font-size:12px}}"
-    )
+    media_src = ROOT / "issues" / issue / "media"
+    if media_src.exists():
+        dest_media = out / "media"
+        dest_media.mkdir(parents=True, exist_ok=True)
+        for img in media_src.iterdir():
+            if img.is_file():
+                (dest_media / img.name).write_bytes(img.read_bytes())
+    stories = []
+    for i, article in enumerate(data.get("articles") or []):
+        stories.append(_render_story(i, article))
+    if not stories:
+        stories.append("<article class='story'><p>No scored weekend events were published for this edition.</p></article>")
+    try:
+        day = dt.date.fromisoformat(issue)
+        folio_date = day.strftime("%A %d %B %Y").upper()
+    except ValueError:
+        folio_date = issue
     page = (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         "<title>Weekend Sailing Roundup "
         + issue
         + "</title><style>"
-        + css
-        + "</style></head><body><main class='wrap'><header><strong>WEEKEND SAILING ROUNDUP</strong><h1>"
-        + html.escape(data.get("title") or "Weekend Sailing Roundup")
-        + "</h1><p>"
-        + issue
-        + "</p></header>"
-        + "".join(chunks)
-        + "</main></body></html>"
+        + newspaper_css()
+        + "</style></head><body><main class='paper'><header class='masthead'>"
+        "<div class='flag'>Independent Monday Edition</div><h1>The Weekend Sailing Roundup</h1>"
+        "</header><div class='folio'><span>Vol. 1  ·  No. "
+        + html.escape(issue)
+        + "</span><span>"
+        + html.escape(folio_date)
+        + "</span><span>South Africa</span></div><section class='edition-grid'>"
+        + "".join(stories)
+        + "</section></main></body></html>"
     )
     (out / "index.html").write_text(page)
     browser = "/opt/chromium/chrome"
@@ -275,9 +344,11 @@ def render(issue):
                     "--disable-dev-shm-usage",
                     "--no-pdf-header-footer",
                     "--print-to-pdf=" + str(out / "edition.pdf"),
+                    "--paper-width=11.69",
+                    "--paper-height=16.54",
                     (out / "index.html").resolve().as_uri(),
                 ],
-                timeout=40,
+                timeout=50,
                 capture_output=True,
             )
             if p.returncode:

@@ -74,7 +74,9 @@ class PublishHelpers(unittest.TestCase):
         self.assertTrue(overlaps(dt.date(2026, 9, 24), dt.date(2026, 9, 27), dt.date(2026, 9, 26), dt.date(2026, 9, 27)))
         feature = weekend_feature("2026-09-28", monday, picked, [])
         self.assertEqual(feature["type"], "feature")
-        self.assertIn("26 September", feature["deck"])
+        self.assertEqual(feature["layout"], "lead")
+        self.assertIn("26–27 September 2026", feature["deck"])
+        self.assertNotEqual(feature["headline"], "Weekend sailing roundup")
 
     def test_verify_everywhere_against_event_and_results(self):
         event = {

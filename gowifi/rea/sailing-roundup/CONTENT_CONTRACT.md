@@ -7,9 +7,12 @@ results source; this path does not change the SailingSA SPA, header, or database
 
 The lead article is type `feature` and is written from the public `events`
 table rows whose dates overlap Saturday–Sunday (reference: 26–27 Sep 2026).
-Each following article: id (stable), type (feature|regatta_report|brief), headline, deck,
-byline, published_at, event_id, hero_image (nullable), blocks (ordered),
-sources (URLs), social_sources (optional).
+Each following article is a **rewritten** regatta report: unique headline,
+original copy clustered from public coverage, one featured image, and a
+compact leaderboard only. Fields: id (stable), type (feature|regatta_report|brief),
+headline, deck, byline, kicker, layout (lead|photo-led|split|classic|compact),
+published_at, event_id, hero_image (nullable), blocks (ordered), sources (URLs).
+The public HTML/PDF must not dump `source_info` or social caption lists.
 
 Block types: paragraph, heading, image, quote, results, video.
 Image block: url, alt, caption, credit, source_url, rights_status.

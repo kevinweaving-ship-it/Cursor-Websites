@@ -26,15 +26,6 @@ def run(issue):
             collected.append({"event_id": article.get("id"), "source": meta})
             if not any(x.get("url") == url for x in article["social_sources"]):
                 article["social_sources"].append(meta)
-            if meta.get("description") and not any(b.get("source_url") == url for b in article.get("blocks") or []):
-                article.setdefault("blocks", []).insert(
-                    0,
-                    {
-                        "type": "paragraph",
-                        "text": "From the event social-media update: " + meta["description"][:500],
-                        "source_url": url,
-                    },
-                )
     out = ROOT / "issues" / issue / "sources" / "social-weekend.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"issue": issue, "social_posts": collected}, indent=2))

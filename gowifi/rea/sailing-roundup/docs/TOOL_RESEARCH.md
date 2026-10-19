@@ -17,6 +17,29 @@ Newsrooms and sports platforms already automate this shape:
 
 Our calendar is `public.events`. Our Monday issue is the recap.
 
+## News cluster → unique article (what REA was supposed to copy)
+
+The product is not “paste a caption under a results table”. It is the same
+pipeline used by **Monok**, **Perigon Stories**, and **Event Registry / NewsAPI.ai**:
+
+1. **Scrape** every public item about the same weekend event (news, club pages, OG posts).
+2. **Cluster** those items into one story (one real-world happening).
+3. **Rewrite** a unique headline + original article (facts from results + colour from the cluster, never a paste).
+4. **Featured image** — download one photo locally and credit it.
+5. **Box score** — a compact leaderboard only, not the full race sheet and not a source dump.
+
+| Service | Contract we copied | Endpoint / payload |
+| --- | --- | --- |
+| [Monok](https://monok.news/docs/) | Keyword feed → clustered stories → unique `title` / `shortTitle` / HTML article + `thumbnail` / `thumbImageData` | `GET /api/v1/clusters`, push article JSON to `/monok` |
+| [Perigon Stories](https://perigon.io/docs/api/data-model) | Many articles → one story with generated `name`, `summary`, `imageUrl` | `GET /v1/stories/all?q=` then articles by `clusterId` |
+| [Event Registry / NewsAPI.ai](https://newsapi.ai/) | Event = all articles about one happening; title + summary + images | `POST /event/getEvents` then `/event/getEvent` |
+| [News 2 Post](https://adabeat.com/case/news-2-post-built-with-elixir-phoenix-and-openai/) | Fetch article bodies → rewrite unique post + image → CMS | Same shape, optional LLM |
+
+Our free implementation is `app/event_rewrite.py`. Paid keys (`MONOK_API_KEY`,
+`PERIGON_API_KEY`, `NEWSAPI_AI_KEY`) are optional add-ons. Each event then
+renders as a **different newspaper layout** (`lead`, `photo-led`, `split`,
+`classic`, `compact`) so the PDF does not look like one repeated template.
+
 ## Recap / article generators
 
 | Service | What it does | Useful part for us |
