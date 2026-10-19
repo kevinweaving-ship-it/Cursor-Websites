@@ -171,6 +171,8 @@ def article_from_regatta(issue: str, slug: str, rows: list[dict], layout: str = 
             "host_club_slug": facts.get("host_club_slug") or "",
             "class_canonical": first.get("class_canonical") or "",
             "event_url": url,
+            "start": facts["start"],
+            "end": facts["end"],
             "result_names": [r for r in (
                 [row.get("helm_name") for row in rows[:8]] + [row.get("crew_name") for row in rows[:8]]
             ) if r],
