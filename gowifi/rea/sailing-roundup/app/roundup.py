@@ -211,7 +211,7 @@ def _render_story(index, article):
     copy = "".join(paras)
     standings = "".join(board)
     if layout == "lead":
-        inner = "<div class='banner'>" + head + "</div><div class='lead-grid'>" + (image or "") + "<div class='copy cols-3'>" + copy + "</div></div>"
+        inner = "<div class='banner'>" + head + "</div><div class='copy'>" + copy + "</div>"
     elif layout == "photo-led":
         inner = (image or "") + head + "<div class='copy cols-2'>" + copy + "</div>" + standings
     elif layout == "split":

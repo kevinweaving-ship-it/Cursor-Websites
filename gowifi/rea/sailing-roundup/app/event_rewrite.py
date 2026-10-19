@@ -609,6 +609,10 @@ def _bad_image_url(url: str) -> bool:
             "placeholder",
             "default-user",
             "ytimg.com/vi",
+            "youtube.com/img",
+            "yt_1200",
+            "sailingsa.co.za/static",
+            "sailingsa.co.za/assets",
         )
     )
 
@@ -728,15 +732,6 @@ def download_image(image: dict, issue: str, slug: str) -> dict | None:
     dest_dir.mkdir(parents=True, exist_ok=True)
     source_dir = ROOT / "issues" / issue / "media"
     source_dir.mkdir(parents=True, exist_ok=True)
-    for alt in dest_dir.glob(f"{slug}*"):
-        if alt.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"} and alt.stat().st_size > 12000:
-            if "reel" in alt.name.lower() or "logo" in alt.name.lower():
-                continue
-            rel = "media/" + alt.name
-            out = dict(image)
-            out["url"] = rel
-            out["local_path"] = str(alt)
-            return out
     if "dart" in slug:
         named = dest_dir / "dart18-nationals-day2-hmyc.jpg"
         if named.exists() and named.stat().st_size > 12000:
