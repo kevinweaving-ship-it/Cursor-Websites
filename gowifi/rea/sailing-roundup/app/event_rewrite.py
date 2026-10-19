@@ -26,8 +26,20 @@ UA = {
     "User-Agent": "Mozilla/5.0 (compatible; SailingRoundupResearch/1.0; +https://sailingsa.co.za/sailing-roundup)"
 }
 FB_UA = {"User-Agent": "facebookexternalhit/1.1"}
-LEADERBOARD_LIMIT = 10
+LEADERBOARD_LIMIT = 3
 LEADERBOARD_COLS = ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"]
+CLASS_PHOTO_QUERY = {
+    "420": "International 420 class dinghy sailing",
+    "505": "505 dinghy sailing trapeze",
+    "Dart 18": "Dart 18 catamaran sailing",
+    "Dabchick": "Dabchick class dinghy sailing",
+}
+WRONG_CLASS = {
+    "420": ("505", "dart 18", "dabchick", "hobie", "optimist"),
+    "505": ("420", "dart 18", "dabchick", "hobie", "optimist"),
+    "Dart 18": ("420", "505", "dabchick", "hobie", "optimist"),
+    "Dabchick": ("420", "505", "dart", "hobie", "505er"),
+}
 SEED_URLS = {
     "2026-09-25-tsc-420-nationals": [
         "https://novanews.co.za/school/hermanus-high-schools-sailors-crowned-national-champions/",
@@ -54,6 +66,26 @@ HOST_FALLBACK = {
     "HMYC": "Henley Midmar Yacht Club",
     "AYC": "Aeolians Yacht Club",
 }
+JUNK_CLUSTER = (
+    "dart.dev",
+    "dartpad.dev",
+    "dart.org",
+    "dartcontainer.com",
+    "wikipedia.org/wiki/dart",
+    "instagram.com/accounts/login",
+    "music.youtube",
+    "tiktok.com/@",
+    "tiktok.com/api",
+)
+PLACE_LINE = re.compile(
+    r"(?P<place>\d+)(?:st|nd|rd|th)\s*[–\-]\s*(?P<name>[A-Za-z][A-Za-z \-']+?)"
+    r"(?:\s*\((?P<club>[A-Z0-9]{2,8})\))?\s*[–\-]\s*Sail\s+(?P<sail>\S+)",
+    re.I,
+)
+SPECIAL_MENTION = re.compile(
+    r"special mention to ([A-Za-z][A-Za-z \-']+), finishing (\d+)(?:st|nd|rd|th)?",
+    re.I,
+)
 
 
 def _club_name(code: str, explicit: str = "") -> str:
@@ -183,18 +215,38 @@ def _agree(winner: str, plural: str, singular: str) -> str:
     return plural if (" and " in (winner or "") or "," in (winner or "")) else singular
 
 
+def event_finished(facts: dict, issue: str | None = None) -> bool:
+    """Monday magazine is written after racing. Live tense only if the issue date is still inside the event."""
+    if "finished" in facts:
+        return bool(facts["finished"])
+    try:
+        start = __import__("datetime").date.fromisoformat(str(facts.get("start") or "")[:10])
+        end = __import__("datetime").date.fromisoformat(str(facts.get("end") or "")[:10])
+    except ValueError:
+        return True
+    if not issue:
+        return True
+    try:
+        day = __import__("datetime").date.fromisoformat(str(issue)[:10])
+    except ValueError:
+        return True
+    return not (start <= day <= end)
+
+
 def unique_headline(facts: dict, cluster: dict | None = None) -> str:
     winner = facts["winner"]
     title = facts["title"]
     venue = facts["club_name"]
     short_venue = venue.replace(" Yacht Club", "").replace(" Sports Club", "").replace(" Club", "")
+    finished = event_finished(facts)
     if facts.get("tied_first") and facts.get("second"):
         return f"{winner} {_agree(winner, 'take', 'takes')} {title} after a points tie at {short_venue}"
     if facts.get("winner_wins") and facts["winner_wins"] >= max(3, int(facts.get("races") or 0) // 2):
         if facts["winner_wins"] >= int(facts.get("races") or 0) - 2 and (facts.get("races") or 0) >= 6:
             return f"{winner} {_agree(winner, 'sweep', 'sweeps')} {title} at {short_venue}"
         return f"{winner} {_agree(winner, 'dominate', 'dominates')} {title} at {short_venue}"
-    if (facts.get("status") or "").lower() == "provisional":
+    # Live "leads" only while the event is still racing. After it ends, they won.
+    if (facts.get("status") or "").lower() == "provisional" and not finished:
         fleet = f"{facts['entries']}-boat " if facts.get("entries") else ""
         return f"{winner} {_agree(winner, 'lead', 'leads')} {fleet}{title} at {short_venue}"
     return f"{winner} {_agree(winner, 'win', 'wins')} {title} at {short_venue}"
@@ -213,45 +265,115 @@ def _date_span(start: str, end: str) -> str:
     return f"{s.strftime('%-d %B')}–{e.strftime('%-d %B')}"
 
 
+def _cluster_text(item: dict) -> str:
+    return "\n".join(
+        x for x in (item.get("snippet"), item.get("description"), item.get("title")) if x
+    ).strip()
+
+
+def _keep_cluster_item(item: dict, facts: dict) -> bool:
+    url = (item.get("url") or "").lower()
+    blob = " ".join((item.get("title") or "", item.get("description") or "", item.get("snippet") or "", url)).lower()
+    if any(junk in url or junk in blob for junk in JUNK_CLUSTER):
+        return False
+    if "login" in url or "/photos" == url.rstrip("/").split("facebook.com")[-1]:
+        return False
+    if "1pgpy1pgh1" in url or item.get("engine") in ("facebook", "seed", "host_club_post"):
+        return True
+    if item.get("provenance") == "host_club_post" or item.get("role") == "host_club_media":
+        return True
+    klass = (facts.get("class_name") or "").lower()
+    names = [n.lower() for n in facts.get("names") or []]
+    club = (facts.get("club") or "").lower()
+    club_name = (facts.get("club_name") or "").lower()
+    if klass and klass.split()[0] in blob and (
+        any(n in blob for n in names[:8]) or club in blob or club_name.split()[0] in blob
+    ):
+        return True
+    if any(n in blob for n in names[:6]):
+        return True
+    return False
+
+
+def _host_source(cluster: dict | None) -> dict | None:
+    best = None
+    best_len = 0
+    for item in (cluster or {}).get("articles") or []:
+        text = _cluster_text(item)
+        score = len(text)
+        url = (item.get("url") or "") + " " + (item.get("share_url") or "")
+        if "1PGpY1pGh1" in url or "host_club" in (item.get("engine") or "") + (item.get("provenance") or ""):
+            score += 1000
+        if "facebook.com" in url.lower() and "henleymidmaryachtclub" in url.lower():
+            score += 500
+        if score > best_len:
+            best = dict(item, text=text)
+            best_len = score
+    return best if best and best_len >= 40 else None
+
+
 def _cluster_color(cluster: dict, facts: dict | None = None) -> list[str]:
-    """Turn clustered snippets into original colour, never pasted captions."""
-    blob = " ".join(
-        (item.get("title") or "") + " " + (item.get("description") or "") + " " + (item.get("snippet") or "")
-        for item in (cluster or {}).get("articles") or []
-    ).lower()
+    """Turn the host-club / news source into article copy. Use every fact in it."""
     notes = []
-    known = {n.lower(): n for n in (facts or {}).get("names") or []}
-    if re.search(r"\bu-?17\b|under[- ]17|youth champion", blob):
-        who = []
-        for item in (cluster or {}).get("articles") or []:
-            text = " ".join(
-                x for x in (item.get("title"), item.get("description"), item.get("snippet")) if x
+    source = _host_source(cluster)
+    text = (source or {}).get("text") or ""
+    if not text:
+        return notes
+    venue = (facts or {}).get("club_name") or "the host club"
+    quote = None
+    for line in text.splitlines():
+        line = re.sub(r"[⛵🏆🥇🥈🥉💙👏💪🌊🇿🇦]+", "", line).strip(" -–#")
+        if re.search(r"what a day on the water", line, re.I):
+            quote = re.sub(r"\s+", " ", line).strip(" !.")
+            break
+    places = [m.groupdict() for m in PLACE_LINE.finditer(text)]
+    special = SPECIAL_MENTION.search(text)
+    if quote:
+        notes.append(f"{venue} wrote from the venue: “{quote}.”")
+    overall = [p for p in places if int(p["place"]) <= 3]
+    if overall:
+        bits = []
+        for p in overall:
+            bit = f"{p['name'].strip()} ({p['club']})" if p.get("club") else p["name"].strip()
+            bits.append(f"{bit} on sail {p['sail']} in {p['place']}")
+        if bits:
+            notes.append(
+                "The club named the overall top three: "
+                + "; ".join(bits)
+                + "."
             )
-            found = re.findall(r"\b([A-Z][a-z]+ [A-Z][a-z]+)\b", text)
-            for name in found:
-                real = known.get(name.lower())
-                if real and real not in who:
-                    who.append(real)
-            if len(who) >= 2:
-                break
+    home = [p for p in places if int(p["place"]) > 3]
+    if home:
+        bits = [
+            f"{p['name'].strip()} {p['place']}th on sail {p['sail']}"
+            for p in home
+        ]
+        extra = ""
+        if special:
+            extra = f" A special mention went to {special.group(1).strip()} in {special.group(2)}th."
+        notes.append(
+            f"{venue} then listed their own boats: " + "; ".join(bits) + "." + extra
+        )
+    elif special:
+        notes.append(
+            f"The club gave a special mention to {special.group(1).strip()}, "
+            f"finishing {special.group(2)}th."
+        )
+    known = {n.lower(): n for n in (facts or {}).get("names") or []}
+    if re.search(r"\bu-?17\b|under[- ]17|youth champion", text, re.I):
+        who = []
+        for name in re.findall(r"\b([A-Z][a-z]+ [A-Z][a-z]+)\b", text):
+            real = known.get(name.lower()) or name
+            if real not in who:
+                who.append(real)
         if who:
             notes.append(
-                f"Separate youth classification at the same championship named {' and '.join(who[:2])} "
-                f"as the under-17 winners — a different title from the open leaderboard."
+                f"A separate under-17 title at the same championship named "
+                f"{' and '.join(who[:2])}."
             )
         else:
-            notes.append(
-                "A later report also recorded an under-17 title at the same championship, "
-                "separate from the open result."
-            )
-    if re.search(r"light.{0,20}wind|shifting wind|only one race", blob):
-        notes.append(
-            "The host club described a light, shifting day that produced only one race, "
-            "which matches a series decided by consistency rather than a string of bullets."
-        )
-    if re.search(r"39[- ]boat|39 boat", blob) and "39" not in " ".join(notes):
-        notes.append("The host club counted a 39-boat fleet at the venue.")
-    return notes[:2]
+            notes.append("A separate under-17 title was awarded at the same championship.")
+    return notes[:4]
 
 
 def _heats(scores) -> list[dict]:
@@ -269,7 +391,7 @@ def _heats(scores) -> list[dict]:
 
 
 def rewrite_paragraphs(facts: dict, cluster: dict | None = None) -> list[str]:
-    """Build a story from results shape + clustered reporting. No per-event hand copy."""
+    """Magazine recap from the results card plus every fact in the host source."""
     venue = facts["club_name"]
     dates = _date_span(facts["start"], facts["end"])
     status = (facts.get("status") or "published").lower()
@@ -280,119 +402,79 @@ def rewrite_paragraphs(facts: dict, cluster: dict | None = None) -> list[str]:
     late = heats[-4:] if len(heats) >= 4 else heats
     late_wins = sum(1 for h in late if h.get("win"))
     no_wins = heats and wins == 0
+    klass = facts.get("class_name") or "fleet"
     paras = []
+    extras = _cluster_color(cluster or {}, facts)
+    if extras:
+        paras.extend(extras[:2])
 
     if facts.get("tied_first") and facts.get("second"):
         paras.append(
-            f"{facts['winner']} stole the {facts['title']} at {venue} on countback after "
-            f"{facts['second']} matched them on {facts['winner_nett']} nett. "
-            f"The {entries or 'published'}-boat fleet sailed {races or 'a full'} races over {dates}."
+            f"On the SailingSA card {facts['winner']} take the {facts['title']} at {venue} "
+            f"on countback from {facts['second']}, both on {facts['winner_nett']} nett. "
+            f"{entries} {klass}s sailed {races} races from {dates}."
         )
     elif no_wins:
         paras.append(
-            f"{facts['winner']} leads the {facts['title']} at {venue} without a race win — "
-            f"a week of threes and fours, {facts['winner_nett']} nett from {races} races "
-            f"in a {entries}-boat fleet. The result is still {status}."
+            f"{facts['winner']} finished first in the {entries}-boat {klass} fleet at {venue} "
+            f"on {facts['winner_nett']} nett from {races} races, without a race win."
         )
     elif wins and races and wins >= races - 2:
         paras.append(
-            f"{facts['winner']} left nothing on the table at the {facts['title']}. "
-            f"{wins} race wins from {races} heats at {venue} produced {facts['winner_nett']} nett "
-            f"and a gap the rest of the {entries}-boat fleet could not close."
+            f"{facts['winner']} won {wins} of {races} races at {venue} for {facts['winner_nett']} nett "
+            f"in a {entries}-boat {klass} fleet, {dates}."
         )
     else:
-        verb = "leads" if status == "provisional" else "won"
         paras.append(
-            f"{facts['winner']} {verb} the {facts['title']} at {venue} over {dates}, "
-            f"{facts['winner_nett']} nett after {races} races among {entries} entries"
-            + (f", with {wins} bullets." if wins else ".")
+            f"{facts['winner']} won the {facts['title']} at {venue} on {dates}, "
+            f"{facts['winner_nett']} nett after {races} races among {entries} boats"
+            + (f", with {wins} firsts." if wins else ".")
         )
 
-    if heats:
-        opened = heats[0]
+    if heats and late_wins >= 3:
         closed = heats[-1]
-        if late_wins >= 3:
-            paras.append(
-                f"The series flipped late. {facts['winner']} took {late_wins} of the last "
-                f"{len(late)} races, including the closer ({closed['race']}). "
-                f"That is how a championship is taken after the halfway mark, not before it."
-            )
-        elif opened.get("win") and not (heats[1].get("win") if len(heats) > 1 else False):
-            paras.append(
-                f"They opened with a win in {opened['race']} and then sailed the rest of the "
-                f"week for the discard, not for the highlight reel."
-            )
-        elif no_wins:
-            worst = max(heats, key=lambda h: h["pts"] or 0)
-            paras.append(
-                f"The only hole in the card was {worst['race']} ({worst['raw']}). "
-                f"Everywhere else {facts['winner_helm'] or facts['winner']} kept the boat in the front pack "
-                f"while faster boats around them won heats and leaked points."
-            )
-        else:
-            paras.append(
-                f"The winning card mixed {wins} firsts with the discarded heat that every "
-                f"{facts.get('class_name') or 'fleet'} championship needs. "
-                f"{facts['winner_helm'] or facts['winner']} sailed for {facts.get('winner_club') or venue}."
-            )
+        paras.append(
+            f"They took {late_wins} of the last {len(late)} races, including {closed['race']}."
+        )
+    elif no_wins and heats:
+        worst = max(heats, key=lambda h: h["pts"] or 0)
+        paras.append(
+            f"The only hole in the card was {worst['race']} ({worst['raw']})."
+        )
 
     chase = []
     if facts.get("second"):
         if facts.get("tied_first"):
             chase.append(
-                f"{facts['second']} won {facts.get('second_wins') or 0} races and still finished second — "
-                f"same nett, worse countback."
+                f"{facts['second']} won {facts.get('second_wins') or 0} races and finished second on countback."
             )
         else:
             chase.append(
-                f"{facts['second']} chased on {facts['second_nett']}"
-                + (f" with {facts.get('second_wins')} race wins" if facts.get("second_wins") else "")
+                f"{facts['second']} finished second on {facts['second_nett']}"
+                + (
+                    f" with {facts.get('second_wins')} race "
+                    + ("win" if facts.get("second_wins") == 1 else "wins")
+                    if facts.get("second_wins")
+                    else ""
+                )
                 + "."
             )
     if facts.get("third"):
-        chase.append(f"{facts['third']} completed the podium on {facts['third_nett'] or 'the published score'}.")
+        chase.append(f"{facts['third']} finished third on {facts['third_nett'] or 'the published score'}.")
     if chase:
         paras.append(" ".join(chase))
 
-    extras = _cluster_color(cluster or {}, facts)
-    news = []
-    for item in (cluster or {}).get("articles") or []:
-        snippet = (item.get("snippet") or item.get("description") or "").strip()
-        if len(snippet) > 90 and "follow us" not in snippet.lower():
-            news.append(snippet)
-    if extras:
-        paras.extend(extras)
-    elif news:
-        bit = news[0]
-        if "u17" in bit.lower() or "under-17" in bit.lower() or "under 17" in bit.lower():
-            paras.append(
-                "Independent coverage after the prize-giving treated the youth title as its own story "
-                "inside the same fleet — not a substitute for the open result."
-            )
-        elif re.search(r"light|shift|one race", bit, re.I):
-            paras.append(
-                "The host club's own report of the weekend described a dying, shifting breeze "
-                "and a day that produced almost no racing. That is the weather that rewards "
-                "the sailor who never leaves the front row."
-            )
-        else:
-            paras.append(
-                f"Outside the scoreboard, public coverage of the event at {venue} "
-                f"focused on the same championship weekend rather than a different regatta."
-            )
+    if len(extras) > 2:
+        paras.extend(extras[2:])
 
-    paras.append(
-        f"{venue} hosted the {facts.get('class_name') or ''} championship over {dates}. "
-        + (
-            "The published leaderboard remains provisional."
-            if status == "provisional"
-            else "The published result is final."
-        )
-    )
+    if status == "provisional" and event_finished(facts):
+        paras.append("SailingSA still marks the scores provisional.")
+    elif status == "provisional":
+        paras.append("The published result remains provisional.")
     out = []
     for p in paras:
         p = re.sub(r"\s+", " ", p).strip()
-        if p and p not in out:
+        if p and p not in out and "weekend" not in p.lower():
             out.append(p)
     return out[:7]
 
@@ -415,6 +497,20 @@ def _http_get(url: str, headers: dict | None = None, timeout: int = 18) -> tuple
 def extract_article(url: str) -> dict | None:
     if not url or not url.startswith("http"):
         return None
+    if "facebook.com" in url:
+        try:
+            from facebook_cross_share import resolve_facebook_url
+
+            resolved = resolve_facebook_url(url)
+            return {
+                "url": resolved.get("canonical_url") or url,
+                "title": resolved.get("title") or "",
+                "description": resolved.get("description") or "",
+                "snippet": resolved.get("description") or "",
+                "image": resolved.get("image") or "",
+            }
+        except Exception:
+            pass
     try:
         from bs4 import BeautifulSoup
     except ImportError:
@@ -537,16 +633,19 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
         articles.append(
             {
                 "url": url,
+                "share_url": item.get("share_url") or "",
                 "title": item.get("title") or item.get("label") or "",
                 "description": item.get("description") or item.get("snippet") or "",
                 "snippet": item.get("snippet") or "",
                 "image": item.get("image") or item.get("image_url") or "",
-                "engine": item.get("engine") or item.get("lane") or item.get("platform") or "pack",
+                "engine": item.get("engine") or item.get("lane") or item.get("platform") or item.get("provenance") or "pack",
+                "provenance": item.get("provenance") or "",
+                "role": item.get("role") or "",
             }
         )
 
     for post in (pack or {}).get("verified_posts") or (pack or {}).get("posts") or []:
-        add(post)
+        add({**post, "engine": post.get("engine") or post.get("provenance") or "facebook"})
     for img in (pack or {}).get("images") or []:
         add(
             {
@@ -576,20 +675,23 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
             for item in _try_paid_clusters(q):
                 add(item)
         for article in list(articles):
-            if article.get("description") or article.get("image"):
+            if len(article.get("description") or "") > 200 and article.get("image"):
                 continue
             extracted = extract_article(article["url"])
             if not extracted:
                 continue
             article["title"] = article["title"] or extracted.get("title") or ""
-            article["description"] = extracted.get("description") or ""
-            article["snippet"] = extracted.get("snippet") or ""
-            article["image"] = extracted.get("image") or ""
+            if len(extracted.get("description") or "") > len(article.get("description") or ""):
+                article["description"] = extracted.get("description") or ""
+            if len(extracted.get("snippet") or "") > len(article.get("snippet") or ""):
+                article["snippet"] = extracted.get("snippet") or ""
+            article["image"] = article.get("image") or extracted.get("image") or ""
+    kept = [a for a in articles if _keep_cluster_item(a, facts)]
     return {
         "event_id": facts.get("slug"),
         "event_url": facts.get("url"),
-        "articles": articles,
-        "count": len(articles),
+        "articles": kept,
+        "count": len(kept),
     }
 
 
@@ -617,8 +719,17 @@ def _bad_image_url(url: str) -> bool:
     )
 
 
+def _wrong_class(blob: str, klass: str) -> bool:
+    blob = (blob or "").lower()
+    klass = (klass or "").strip()
+    for token in WRONG_CLASS.get(klass, ()):
+        if token in blob:
+            return True
+    return False
+
+
 def commons_class_photo(klass: str) -> dict | None:
-    q = (klass or "sailing dinghy").strip() + " dinghy sailing"
+    q = CLASS_PHOTO_QUERY.get((klass or "").strip()) or ((klass or "sailing dinghy").strip() + " sailing")
     url = "https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(
         {
             "action": "query",
@@ -639,15 +750,20 @@ def commons_class_photo(klass: str) -> dict | None:
     best = None
     for page in ((data.get("query") or {}).get("pages") or {}).values():
         info = (page.get("imageinfo") or [{}])[0]
-        link = info.get("url") or ""
+        link = (info.get("url") or "").split("?")[0]
         mime = (info.get("mime") or "").lower()
         width = int(info.get("width") or 0)
-        if not link.endswith((".jpg", ".jpeg")) or "svg" in mime or width < 600:
+        if not link.lower().endswith((".jpg", ".jpeg")) or "svg" in mime or width < 500:
             continue
-        if _bad_image_url(link) or "logo" in (page.get("title") or "").lower():
+        title = page.get("title") or ""
+        if _bad_image_url(link) or "logo" in title.lower() or _wrong_class(title + " " + link, klass):
             continue
+        if klass and klass.lower() not in (title + " " + link).lower() and klass.replace(" ", "") not in (title + link).lower():
+            # Dart 18 / 420 / 505 / Dabchick must appear in the file name or title
+            if klass.lower() not in {"dabchick"}:
+                continue
         best = {
-            "url": link.split("?")[0],
+            "url": link,
             "source_url": "https://commons.wikimedia.org/wiki/" + urllib.parse.quote(page.get("title") or ""),
             "title": page.get("title") or klass,
             "credit": "Wikimedia Commons",
@@ -655,6 +771,48 @@ def commons_class_photo(klass: str) -> dict | None:
         if width >= 1000:
             break
     return best
+
+
+CLASS_GALLERIES = {
+    "Dabchick": "https://www.revolutionise.com.au/dabchickca/",
+}
+CLASS_FILE_PHOTOS = {
+    "420": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/4/41/Regate_420.JPG",
+        "source_url": "https://commons.wikimedia.org/wiki/File:Regate_420.JPG",
+        "title": "420 dinghy",
+        "credit": "Wikimedia Commons",
+    },
+    "505": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/505er_001.jpg",
+        "source_url": "https://commons.wikimedia.org/wiki/File:505er_001.jpg",
+        "title": "505 dinghy",
+        "credit": "Wikimedia Commons",
+    },
+}
+
+
+def class_gallery_photo(klass: str) -> dict | None:
+    page = CLASS_GALLERIES.get((klass or "").strip())
+    if not page:
+        return None
+    try:
+        from bs4 import BeautifulSoup
+        raw, _ = _http_get(page, UA, timeout=20)
+        soup = BeautifulSoup(raw, "html.parser")
+    except Exception:
+        return None
+    for im in soup.select("img"):
+        src = im.get("src") or im.get("data-src") or ""
+        alt = (im.get("alt") or "").lower()
+        if "gallery" in src.lower() and src.lower().endswith((".jpg", ".jpeg")) and "logo" not in alt:
+            return {
+                "url": src,
+                "source_url": page,
+                "title": klass + " class",
+                "credit": "Dabchick Class Association" if klass == "Dabchick" else klass,
+            }
+    return None
 
 
 def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | None:
@@ -679,20 +837,23 @@ def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | N
                     "credit": pretty_credit(img.get("platform") or "", img.get("source_url") or img.get("image_url") or ""),
                 }
             )
+    klass = (facts.get("class_name") or "").strip()
     def score(item: dict) -> int:
         blob = " ".join((item.get("url") or "", item.get("source_url") or "", item.get("title") or "")).lower()
         n = 0
-        if "novanews" in blob:
+        if klass and klass.lower() in blob:
+            n += 60
+        if "novanews" in blob and klass == "420":
             n += 80
         if "wp-content/uploads" in (item.get("url") or ""):
-            n += 30
+            n += 20
         if "wikimedia" in blob or "upload.wikimedia" in (item.get("url") or ""):
-            n += 25
-        if any(k in blob for k in ("nationals", "regatta", "day 2", "day2")):
             n += 15
+        if any(k in blob for k in ("nationals", "regatta", "day 2", "day2")):
+            n += 10
         if "fbcdn" in (item.get("url") or "") and "t39.30808-1" in (item.get("url") or ""):
             n -= 40
-        if _bad_image_url(item.get("url") or ""):
+        if _bad_image_url(item.get("url") or "") or _wrong_class(blob, klass):
             n -= 100
         return n
 
@@ -771,6 +932,8 @@ def layout_for(index: int, article_type: str) -> str:
 
 
 def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: dict | None = None, layout: str = "classic") -> dict:
+    facts = dict(facts)
+    facts["finished"] = event_finished(facts, issue)
     cluster = cluster or cluster_coverage(facts, pack, fetch=True)
     paras = rewrite_paragraphs(facts, cluster)
     headline = unique_headline(facts, cluster)
@@ -781,8 +944,9 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         local = image
     if not local:
         local = _fallback_club_image(issue, facts)
+    klass = facts.get("class_name") or ""
     if not local:
-        file_photo = commons_class_photo(facts.get("class_name") or "sailing dinghy")
+        file_photo = commons_class_photo(klass) or class_gallery_photo(klass) or CLASS_FILE_PHOTOS.get(klass)
         local = download_image(file_photo, issue, facts["slug"]) if file_photo else None
     blocks = []
     if local:
@@ -800,7 +964,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         )
     for text in paras:
         blocks.append({"type": "paragraph", "text": text})
-    blocks.append({"type": "heading", "text": "Leaderboard"})
+    blocks.append({"type": "heading", "text": "1st, 2nd, 3rd"})
     blocks.append(
         {
             "type": "results",
@@ -819,7 +983,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         "type": "regatta_report",
         "headline": headline,
         "deck": deck_from_facts(facts),
-        "byline": "Weekend Sailing Roundup",
+        "byline": "SailingSA",
         "kicker": (facts.get("class_name") or "Regatta").upper() + "  ·  " + facts["club"],
         "published_at": issue,
         "event_id": facts["slug"],
@@ -893,39 +1057,38 @@ def rewrite_weekend_feature(issue: str, monday, events: list[dict], articles: li
     sat, sun = saturday_sunday(monday)
     scored = [e for e in events if e.get("has_results") or e.get("regatta_id")]
     window = f"{sat.strftime('%-d')}–{sun.strftime('%-d %B %Y')}"
+    venues = []
+    for article in articles:
+        club = (article.get("club") or "").strip()
+        name = {
+            "TSC": "Theewater",
+            "HMYC": "Midmar",
+            "AYC": "Aeolians",
+        }.get(club, article.get("class_name") or "")
+        if name and name not in venues:
+            venues.append(name)
     if not events:
         paras = [f"No racing events were listed on the SailingSA events table for {sat.isoformat()}–{sun.isoformat()}."]
-        headline = "A quiet weekend on the SailingSA calendar"
+        headline = "No titles on the SailingSA calendar"
     else:
-        headline = f"{len(scored) or len(events)} championships decided across a packed {window} weekend"
-        if len(events) == 1:
-            headline = f"One title decided on the {window} weekend"
+        where = ", ".join(venues[:3]) if venues else "South Africa"
+        headline = f"{len(scored) or len(articles) or len(events)} titles at {where}"
         bits = [
-            f"Four days of national and regional racing collapsed into Monday's scorelines. "
-            f"{len(scored)} of {len(events)} listed events published results for {window}."
+            f"{len(scored)} of {len(events)} listed events published results for {window} at {where}."
         ]
         for article in articles:
             if article.get("headline"):
                 bits.append(article["headline"] + ".")
-        if not articles:
-            for ev in events:
-                line = ev.get("event_name") or ""
-                if ev.get("races_sailed"):
-                    line += f", {ev['races_sailed']} races"
-                if ev.get("entries"):
-                    line += f", {ev['entries']} entries"
-                if line:
-                    bits.append(line + ".")
-        paras = bits[:6]
+        paras = [p for p in bits[:6] if "weekend" not in p.lower()]
     return {
-        "id": "weekend-" + issue,
+        "id": "sailing-" + issue,
         "type": "feature",
         "headline": headline,
-        "deck": f"Independent Monday edition · {window}",
-        "byline": "Weekend Sailing Roundup",
-        "kicker": "WEEKEND LEAD",
+        "deck": f"SailingSA · {window}",
+        "byline": "SailingSA",
+        "kicker": "SAILING",
         "published_at": issue,
-        "event_id": "weekend-" + issue,
+        "event_id": "sailing-" + issue,
         "layout": "lead",
         "hero_image": (articles[0].get("hero_image") if articles else None),
         "blocks": [{"type": "paragraph", "text": p} for p in paras],

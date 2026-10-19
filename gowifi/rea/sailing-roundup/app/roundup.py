@@ -200,7 +200,7 @@ def _render_story(index, article):
     kicker = html.escape(article.get("kicker") or (article.get("class_name") or "Weekend").upper())
     headline = html.escape(article.get("headline") or "")
     deck = html.escape(article.get("deck") or "")
-    byline = html.escape(article.get("byline") or "Weekend Sailing Roundup")
+    byline = html.escape(article.get("byline") or "SailingSA")
     dateline = html.escape(article.get("published_at") or "")
     head = (
         "<p class='kicker'>" + kicker + "</p>"
@@ -231,58 +231,61 @@ def _render_story(index, article):
 
 def newspaper_css():
     return """
-@import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Oswald:wght@500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap");
-:root{--ink:#111;--rule:#111;--muted:#444;--paper:#f6f1e4;--card:#fffdf6}
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap");
+:root{--ink:#1e293b;--navy:#001f3f;--muted:#334155;--paper:#f5f7fa;--card:#fff}
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font:18px/1.55 'Source Serif 4',Georgia,serif}
-.paper{max-width:920px;margin:0 auto;padding:28px 28px 72px;background:var(--card);box-shadow:0 0 0 1px #d7cbb0}
-.masthead{text-align:center;border-top:6px solid var(--rule);border-bottom:1px solid var(--rule);padding:14px 0 10px}
-.masthead .flag{font:600 12px/1 Oswald,sans-serif;letter-spacing:.28em;text-transform:uppercase}
-.masthead h1{font:700 48px/0.95 'Libre Baskerville',Georgia,serif;margin:8px 0 6px;letter-spacing:-1px}
-.folio{display:flex;justify-content:space-between;border-top:3px double var(--rule);border-bottom:1px solid var(--rule);font:600 12px/1 Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:8px 2px;margin-bottom:8px}
-.edition-grid{display:flex;flex-direction:column;gap:0}
-.story{break-inside:avoid;page-break-inside:avoid;border-top:4px solid #111;margin:36px 0 0;padding:28px 0 36px;background:#fff}
-.story-lead{border-top:none;border-bottom:3px double var(--rule);margin-top:12px;padding-top:8px}
-.kicker{font:600 13px/1 Oswald,sans-serif;letter-spacing:.16em;margin:0 0 8px;color:#6a1d1d}
-h2{font:700 34px/1.15 'Libre Baskerville',Georgia,serif;margin:0 0 10px}
-.story-lead h2{font-size:clamp(36px,5vw,50px)}
-.story-photo-led h2{font-size:38px}
-.story-split h2{font-size:34px}
-.story-classic h2{font-size:32px;font-style:italic}
-.story-compact h2{font-size:30px}
-.deck{margin:0 0 6px;color:var(--muted);font:italic 16px/1.35 'Libre Baskerville',Georgia,serif}
-.byline{margin:0 0 10px;font:600 10px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#333}
-.banner{text-align:center}
-.lead-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:start}
-.copy p{margin:0 0 9px}
-.copy .lede:first-letter{font:700 46px/0.72 'Libre Baskerville',Georgia,serif;float:left;padding:4px 6px 0 0}
-.cols-2{column-count:2;column-gap:18px}
-.cols-3{column-count:3;column-gap:16px}
-.split{display:grid;grid-template-columns:42% 1fr;gap:14px;align-items:start}
-.compact-row{display:grid;grid-template-columns:34% 1fr;gap:12px;align-items:start}
-figure{margin:0 0 10px}
-figure img{width:100%;height:auto;display:block;filter:grayscale(12%);border:1px solid #111}
-.story-photo-led figure img{max-height:420px;object-fit:cover}
-.story-classic figure{float:right;width:46%;margin:4px 0 8px 12px}
-figcaption{font:11px/1.3 'Source Serif 4',serif;color:#555;padding-top:4px}
-.board-label{font:600 11px/1 Oswald,sans-serif;letter-spacing:.14em;text-transform:uppercase;margin:12px 0 4px;border-top:2px solid #111;padding-top:6px}
-.board{overflow:hidden;border:1px solid #111}
-.board table{border-collapse:collapse;width:100%;font:12px/1.25 Oswald,sans-serif;letter-spacing:.02em}
-.board th,.board td{border-bottom:1px solid #ddd;padding:4px 6px;text-align:left}
-.board th{background:#111;color:#fff;font-weight:600}
-.board tr:nth-child(odd) td{background:#f3efe3}
+body{margin:0;background:var(--paper);color:var(--ink);font:18px/1.6 'Source Serif 4',Georgia,serif}
+.paper{max-width:860px;margin:0 auto;background:var(--card)}
+.masthead{display:flex;align-items:center;gap:16px;background:var(--navy);color:#fff;padding:14px 28px}
+.masthead a{display:flex;align-items:center}
+.ssa-logo{height:52px;width:auto;display:block}
+.masthead .flag{font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#fff;margin:0 0 4px}
+.masthead h1{font:700 34px/1 'Playfair Display',Georgia,serif;margin:0;letter-spacing:.02em;color:#fff}
+.folio{display:flex;justify-content:space-between;padding:10px 28px;border-bottom:1px solid #e0e0e0;font:12px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#64748b}
+.edition-grid{display:flex;flex-direction:column;gap:0;padding:0 28px 72px}
+.story{break-inside:avoid;page-break-inside:avoid;border-top:1px solid #e0e0e0;margin:36px 0 0;padding:28px 0 8px;background:#fff}
+.story-lead{border-top:none;margin-top:18px;padding-top:8px}
+.kicker{font:700 12px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.14em;margin:0 0 8px;color:#6B2C91}
+h2{font:700 32px/1.2 'Playfair Display',Georgia,serif;margin:0 0 10px;color:var(--navy)}
+.story-lead h2{font-size:clamp(32px,4.5vw,44px)}
+.story-photo-led h2{font-size:34px}
+.story-split h2{font-size:32px}
+.story-classic h2{font-size:30px}
+.story-compact h2{font-size:28px}
+.deck{margin:0 0 8px;color:var(--muted);font:italic 17px/1.4 'Playfair Display',Georgia,serif}
+.byline{margin:0 0 14px;font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
+.banner{text-align:left}
+.copy p{margin:0 0 12px}
+.copy .lede{font-size:19px}
+.cols-2{column-count:1}
+.cols-3{column-count:1}
+.split{display:grid;grid-template-columns:1fr;gap:16px}
+.compact-row{display:grid;grid-template-columns:1fr;gap:16px}
+figure{margin:0 0 14px}
+figure img{width:100%;height:auto;display:block}
+.story-photo-led figure img{max-height:480px;object-fit:cover}
+.story-classic figure{float:none;width:100%;margin:0 0 14px}
+figcaption{font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#64748b;padding-top:6px}
+.board-label{font:700 12px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.12em;text-transform:uppercase;margin:18px 0 8px;color:var(--navy)}
+.board{overflow:hidden;border:2px solid var(--navy);border-radius:8px}
+.board table{border-collapse:collapse;width:100%;font:14px/1.35 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.board th,.board td{border-bottom:1px solid #e0e0e0;padding:8px 10px;text-align:left}
+.board th{background:var(--navy);color:#fff;font-weight:600}
+.board tr:nth-child(odd) td{background:#f8fafc}
 .board tr:first-child td{font-weight:700}
 @media (max-width:860px){
-  .edition-grid{display:flex;flex-direction:column}
+  .edition-grid{display:flex;flex-direction:column;padding:0 16px 48px}
+  .masthead{padding:12px 16px}
   .lead-grid,.split,.compact-row{grid-template-columns:1fr}
   .cols-2,.cols-3{column-count:1}
   .story-classic figure{float:none;width:100%;margin:0 0 10px}
-  .masthead h1{font-size:34px}
+  .masthead h1{font-size:26px}
+  .ssa-logo{height:40px}
 }
-@page{size:A3;margin:10mm}
+@page{size:A3;margin:12mm}
 @media print{
-  body{background:#fff;font-size:11.5px}
-  .paper{box-shadow:none;max-width:none;padding:0}
+  body{background:#fff;font-size:12px}
+  .paper{box-shadow:none;max-width:none}
   .story{break-inside:avoid}
   .story-lead{break-after:avoid}
   figure img{filter:none}
@@ -319,15 +322,14 @@ def render(issue):
     page = (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>Weekend Sailing Roundup "
+        "<title>Sailing — "
         + issue
         + "</title><style>"
         + newspaper_css()
         + "</style></head><body><main class='paper'><header class='masthead'>"
-        "<div class='flag'>Independent Monday Edition</div><h1>The Weekend Sailing Roundup</h1>"
-        "</header><div class='folio'><span>Vol. 1  ·  No. "
-        + html.escape(issue)
-        + "</span><span>"
+        "<a href='https://sailingsa.co.za/'><img class='ssa-logo' src='https://sailingsa.co.za/assets/logos/sailingsa-logo.png' alt='SailingSA'></a>"
+        "<div><p class='flag'>SailingSA</p><h1>Sailing</h1></div>"
+        "</header><div class='folio'><span>"
         + html.escape(folio_date)
         + "</span><span>South Africa</span></div><section class='edition-grid'>"
         + "".join(stories)

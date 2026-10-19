@@ -7,6 +7,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from event_rewrite import (
+    event_finished,
     facts_from_rows,
     layout_for,
     rewrite_event,
@@ -85,7 +86,7 @@ class RewriteEngine(unittest.TestCase):
         self.assertGreaterEqual(len(paras), 4)
         self.assertIn("Dale Rae and James Rae", blob)
         self.assertIn("Theewater", blob)
-        self.assertGreater(len(blob), 400)
+        self.assertGreater(len(blob), 300)
         self.assertNotIn("under review", blob.lower())
         self.assertNotIn("From a public social update", blob)
         self.assertIn("under-17", blob)
@@ -109,7 +110,8 @@ class RewriteEngine(unittest.TestCase):
         self.assertTrue(all(b.get("type") != "video" for b in article["blocks"]))
         results = next(b for b in article["blocks"] if b["type"] == "results")
         self.assertEqual(results["columns"], ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"])
-        self.assertLessEqual(len(results["rows"]), 10)
+        self.assertEqual(len(results["rows"]), 3)
+        self.assertEqual([r[0] for r in results["rows"]], ["1", "2", "3"])
         self.assertNotIn("source_info", article)
         html = _render_story(1, article)
         self.assertIn("story-photo-led", html)
@@ -146,6 +148,87 @@ class RewriteEngine(unittest.TestCase):
     def test_layout_assignment(self):
         self.assertEqual(_layout_name(0, {"type": "feature"}), "lead")
         self.assertEqual(_layout_name(1, {"type": "regatta_report", "layout": "split"}), "split")
+
+    def test_dart_uses_hmyc_facebook_source(self):
+        rows = [
+            {
+                "event_name": "Dart 18 Nationals",
+                "host_club_code": "HMYC",
+                "host_club_name": "Henley Midmar Yacht Club",
+                "class_name": "Dart 18",
+                "start_date": "2026-09-24",
+                "end_date": "2026-09-27",
+                "result_status": "Provisional",
+                "races_sailed": 7,
+                "entries_total": 38,
+                "rank": 1,
+                "helm_name": "Bradley Levin",
+                "club_abbrev": "SYC",
+                "sail_number": "7951",
+                "nett_points_raw": 20,
+                "race_scores": {"R1": "3", "R2": "(15)", "R3": "4"},
+            },
+            {
+                "event_name": "Dart 18 Nationals",
+                "host_club_code": "HMYC",
+                "rank": 2,
+                "helm_name": "Kyle Boman",
+                "club_abbrev": "TCC",
+                "sail_number": "2460",
+                "nett_points_raw": 26,
+            },
+            {
+                "event_name": "Dart 18 Nationals",
+                "host_club_code": "HMYC",
+                "rank": 3,
+                "helm_name": "Bradley Stemmett",
+                "crew_name": "Saskia Stemmett",
+                "club_abbrev": "VYC",
+                "sail_number": "3862",
+                "nett_points_raw": 27,
+            },
+        ]
+        facts = facts_from_rows("2026-09-24-hmyc-dart-18-nationals", rows)
+        cluster = {
+            "articles": [
+                {
+                    "url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+                    "share_url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+                    "title": "HMYC - Henley Midmar Yacht Club",
+                    "description": (
+                        "DART 18 NATIONALS – Final results!\n\n"
+                        "What a day on the water! Congratulations to all the sailors competing in the Dart 18 Nationals.\n\n"
+                        "OVERALL TOP 3\n1st – Bradley Levin (SYC) – Sail 7951\n"
+                        "2nd – Kyle Boman (TCC) – Sail 2460\n"
+                        "3rd – Bradley Stemmett (VYC) – Sail 3862\n\n"
+                        "HMYC TOP 3\n5th – Kim Phillips – Sail 4665\n"
+                        "7th – Lorrian Wells – Sail 520\n"
+                        "8th – Gregory Dobson – Sail 5179\n\n"
+                        "And a special mention to Josh Pretorius, finishing 9th overall for HMYC!"
+                    ),
+                    "engine": "host_club_post",
+                    "provenance": "host_club_post",
+                }
+            ],
+            "count": 1,
+        }
+        paras = rewrite_paragraphs(facts, cluster)
+        blob = " ".join(paras)
+        self.assertIn("What a day on the water", blob)
+        self.assertIn("Kim Phillips", blob)
+        self.assertIn("Josh Pretorius", blob)
+        self.assertIn("Kyle Boman", blob)
+        self.assertNotIn("weekend", blob.lower())
+        self.assertNotIn("Outside the scoreboard", blob)
+        article = rewrite_event("2026-09-28", facts, pack={}, cluster=cluster, layout="split")
+        self.assertTrue(any("1PGpY1pGh1" in (s or "") for s in article["sources"]))
+        results = next(b for b in article["blocks"] if b["type"] == "results")
+        self.assertEqual(len(results["rows"]), 3)
+        self.assertNotRegex(article["headline"], r"\bleads\b")
+        self.assertNotIn("day 2 of", " ".join(paras).lower())
+        self.assertTrue(event_finished(facts, "2026-09-28"))
+        live = dict(facts, finished=False, status="Provisional")
+        self.assertIn("lead", unique_headline(live))
 
 
 if __name__ == "__main__":

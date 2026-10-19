@@ -10,6 +10,7 @@ Does not log in or bypass Facebook walls. Uses public redirects + Open Graph.
 from __future__ import annotations
 
 import html as html_module
+import json
 import re
 import urllib.error
 import urllib.parse
@@ -37,7 +38,22 @@ SHARED_RE = re.compile(
 OG_TITLE = re.compile(r'property=["\']og:title["\'][^>]*content=["\']([^"\']+)', re.I)
 OG_URL = re.compile(r'property=["\']og:url["\'][^>]*content=["\']([^"\']+)', re.I)
 OG_DESC = re.compile(r'property=["\']og:description["\'][^>]*content=["\']([^"\']+)', re.I)
+OG_IMAGE = re.compile(r'property=["\']og:image["\'][^>]*content=["\']([^"\']+)', re.I)
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
+FB_MESSAGE = re.compile(r'"message":\{"text":"((?:\\.|[^"\\]){20,})"')
+
+
+def facebook_message_from_html(html: str) -> str:
+    """Full post caption. og:description is truncated; the JSON message is not."""
+    best = ""
+    for raw in FB_MESSAGE.findall(html or ""):
+        try:
+            text = json.loads('"' + raw + '"')
+        except Exception:
+            continue
+        if isinstance(text, str) and len(text) > len(best):
+            best = text
+    return best.strip()
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -85,6 +101,7 @@ def resolve_facebook_url(url: str) -> dict:
         "page_url": "",
         "title": "",
         "description": "",
+        "image": "",
         "status": "unresolved",
     }
     share = SHARE_RE.search(original)
@@ -145,6 +162,12 @@ def resolve_facebook_url(url: str) -> dict:
     desc = OG_DESC.search(html)
     if desc:
         out["description"] = html_module.unescape(desc.group(1).strip())
+    message = facebook_message_from_html(html)
+    if len(message) > len(out.get("description") or ""):
+        out["description"] = message
+    image = OG_IMAGE.search(html)
+    if image:
+        out["image"] = html_module.unescape(image.group(1).strip())
     page = POST_PAGE_RE.search(out.get("canonical_url") or "") or PAGE_RE.search(out.get("canonical_url") or "")
     if page and page.group("slug") not in {"share", "groups", "watch", "reel", "login", "posts"}:
         out["page_url"] = f"https://www.facebook.com/{page.group('slug')}/"

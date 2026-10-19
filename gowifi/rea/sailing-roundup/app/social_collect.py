@@ -165,11 +165,16 @@ def known_club_posts(club: str, event: dict | None = None) -> list[dict]:
             "share_url": post.get("share_url") or "",
             "status": "seed",
         }
+        caption = resolved.get("description") or ""
+        stored = (post.get("description") or post.get("caption") or "").strip()
+        if len(stored) > len(caption):
+            caption = stored
         item = {
             "url": resolved.get("canonical_url") or url,
             "share_url": resolved.get("share_url") or post.get("share_url") or url,
             "title": resolved.get("title") or post.get("label") or cfg.get("name") or "",
-            "description": resolved.get("description") or "",
+            "description": caption,
+            "image": resolved.get("image") or "",
             "platform": "facebook",
             "provenance": "host_club_post",
             "role": post.get("role") or "host_club_media",
