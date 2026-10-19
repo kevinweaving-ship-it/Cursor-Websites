@@ -77,7 +77,53 @@ Same as 505 Nationals, except race count:
 - Penalty codes (DNC, DNS, DNF, …) = **entries + 1**.
 - SAS names/IDs win; unmatched helm/crew ID = `NULL` (keep sheet name). Apply SAS catalogue spelling when the ID matches.
 
-Ingest script pattern: `sailingsa/deploy/create_2026_pyc_kzn_mirror_regionals.py`.
+Ingest script pattern: `sailingsa/deploy/create_2026_pyc_kzn_mirror_regionals.py`.  
+Saved parse (this worked example): `sailingsa/deploy/parse_2026-10-17-pyc-kzn-mirror-regionals.json`.
+
+---
+
+## Next SAS Low Score pass — do this in order
+
+Do **only** public Event URL + Low Point results + print/PDF. Do not touch master header, landing upcoming work, sailor-profile arrows, or Super Admin chrome unless the user asks in the same request.
+
+**Stop and ask** if the sheet is unreadable, two SAS listings match, sailors are unmatched, or a combined Event Logo names a class not in the event.
+
+1. **Parse and save first. No slug. No INSERT.**
+   - Copy `sailingsa/deploy/create_2026_pyc_kzn_mirror_regionals.py` → `sailingsa/deploy/create_{year}_{club}_{event}.py`.
+   - Replace `ROWS` from the sheet (rank, sail, club, helm/crew, R1…RX with discards in parentheses).
+   - Write `sailingsa/deploy/parse_{regatta_id}.json` the same shape as the Mirror parse above.
+   - Run the script’s `checksum()` / penalty = entries+1 **before** any DB write. Abort on mismatch with the sheet total/nett.
+   - List unmatched helm/crew (`id = null`, keep sheet name) for the user.
+
+2. **Rule 1 — match `public.events` before the URL**
+   ```sql
+   SELECT source_event_id, event_name, start_date, end_date,
+          host_club_code, source_url, regatta_id, last_seen_at
+   FROM events
+   WHERE source = 'sas'
+     AND event_name ILIKE '%<class>%'
+     AND event_name ILIKE '%<regionals|nationals|…>%'
+   ORDER BY start_date;
+   ```
+   Pick the row whose **host + dates** match the sheet (last raced weekend), not the first name hit. Confirm `https://www.sailing.org.za/events/{source_event_id}`.
+   - Gold slug = that row’s `start_date` → `YYYY-MM-DD-{club-slug}`.
+   - Event name = that row’s `event_name` (SAS spelling).
+   - Set `events.regatta_id` on **that** `source_event_id` only. Unlink any stale listing for the same series.
+
+3. **Insert** using the copied script: `regattas` + one `regatta_blocks` per fleet + `results`.  
+   `result_status` + `as_at_time` = **17:05 on the date the user gives** (not now).  
+   Scoring system `Appendix A`. Class must be `is_race_class = TRUE`.
+
+4. **Page**
+   - Columns = 505 Nationals gold, race count from this sheet.
+   - Left logo = class=fleet (class named in the event). Combined Event Logo only if every class in the filename is in the event name/slug.
+   - Right = host club only. No MM / Facebook / extra cards.
+   - One fleet → parent URL + parent `results.pdf` only. 301 any `/class-*` or hyphen-tail child.
+   - Rebuild PDF from the **live** Event URL after Rule 1 is correct. Delete leftover PDFs; do not CSS-hide junk.
+
+5. **Live** via `sailingsa/deploy/SSH_LIVE.md`. Patch in place. **Never scp an older local `api.py` over live.**
+
+6. **Verify** the public Event URL: ranks, discards, nett, status line, logos, PDF. Then stop.
 
 ---
 
@@ -114,6 +160,8 @@ Deploy via **`sailingsa/deploy/SSH_LIVE.md`**. Patch live in place. **Never scp 
 
 ## Related docs (this pass owns Low Point Event URLs)
 
+- `sailingsa/deploy/parse_2026-10-17-pyc-kzn-mirror-regionals.json` — saved Low Point parse (worked example)
+- `sailingsa/deploy/create_2026_pyc_kzn_mirror_regionals.py` — ingest template for the next pass
 - `docs/RESULTS_PASSING_WORKFLOW.md` — sailor IDs then ranks; status line format
 - `docs/RESULTS_HTML_STATUS_LINE_RULE.md` — “Results are … as at …”
 - `docs/RESULTS_CHECKSUM_RULES.md` / `docs/ENTRY_COUNT_CHECKSUM_RULES.md`

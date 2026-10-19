@@ -4,6 +4,8 @@
 SAS Low Score Results Pass (LOCKED STD):
   docs/SAS_LOW_SCORE_RESULTS_PASS.md
   pinned chat: https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+  saved parse: sailingsa/deploy/parse_2026-10-17-pyc-kzn-mirror-regionals.json
+  Next pass: copy this file, replace ROWS, match public.events FIRST, then insert.
 
 Gold template: /regatta/2026-09-24-ayc-505-nationals
 Same columns; R1–R8 instead of R1–R12.

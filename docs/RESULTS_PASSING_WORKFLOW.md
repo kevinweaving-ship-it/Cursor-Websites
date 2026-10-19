@@ -5,6 +5,8 @@ Canonical: **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`**
 
 **Rule 1 (do not skip):** match parsed SAS Low Point results to `public.events` (name + host + the SAS dates that actually ran) **before** creating the Event URL. Gold slug = that row’s `start_date`. Daily scrape ingesting the row is not matching. Super Admin chrome / extra cards are not in this pass.
 
+**Next pass:** follow **Next SAS Low Score pass — do this in order** in the canonical doc. Saved parse: `sailingsa/deploy/parse_2026-10-17-pyc-kzn-mirror-regionals.json`. Template ingest: `sailingsa/deploy/create_2026_pyc_kzn_mirror_regionals.py`.
+
 ---
 
 ## Results Passing Workflow (Per User Spec)
