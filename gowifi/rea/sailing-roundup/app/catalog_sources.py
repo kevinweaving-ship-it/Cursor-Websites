@@ -90,6 +90,12 @@ LOCAL_HINTS = (
     "groups/120115671476306",
     "share/g/1jh51cdmew",
     "rsa505",
+    "groups/230542873685522",
+    "share/g/" + "1MHJNWcFSM".lower(),
+    "groups/310727125653436",
+    "share/g/" + "19VLSkGHBk".lower(),
+    "dart18 sa",
+    "rsa 505 group",
 )
 NOT_LOCAL_HINTS = (
     "int420",
@@ -159,6 +165,22 @@ CLASS_SEEDS = {
     "505": [
         {
             "platform": "facebook",
+            "url": "https://www.facebook.com/groups/230542873685522/",
+            "locality": "local",
+            "label": "RSA 505 group",
+            "kind": "facebook_group",
+            "provenance": "user:https://www.facebook.com/share/g/1MHJNWcFSM/",
+            "share_url": "https://www.facebook.com/share/g/1MHJNWcFSM/",
+        },
+        {
+            "platform": "website",
+            "url": "https://rsa505.org.za/",
+            "locality": "local",
+            "label": "RSA 505",
+            "provenance": "https://rsa505.org.za/",
+        },
+        {
+            "platform": "facebook",
             "url": "https://www.facebook.com/int505",
             "locality": "not_local",
             "label": "International 505 Class",
@@ -173,6 +195,15 @@ CLASS_SEEDS = {
         },
     ],
     "dart-18": [
+        {
+            "platform": "facebook",
+            "url": "https://www.facebook.com/groups/310727125653436/",
+            "locality": "local",
+            "label": "DART18 SA",
+            "kind": "facebook_group",
+            "provenance": "user:https://www.facebook.com/share/g/19VLSkGHBk/",
+            "share_url": "https://www.facebook.com/share/g/19VLSkGHBk/",
+        },
         {
             "platform": "website",
             "url": "https://dart18class.com/",

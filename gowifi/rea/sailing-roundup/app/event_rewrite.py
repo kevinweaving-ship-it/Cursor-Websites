@@ -46,6 +46,7 @@ SEED_URLS = {
     ],
     "2026-09-24-hmyc-dart-18-nationals": [
         "https://www.facebook.com/share/p/1PGpY1pGh1/",
+        "https://www.facebook.com/share/g/19VLSkGHBk/",
         "https://www.facebook.com/henleymidmaryachtclub",
         "https://www.hmyc.org.za/events/367984",
         "https://www.hmyc.org.za/",
@@ -53,6 +54,7 @@ SEED_URLS = {
     "2026-09-24-ayc-505-nationals": [
         "https://rsa505.org.za/index.php?option=com_content&view=article&id=338:505-nationals-2026-great-event-at-aeolians&catid=11&Itemid=101",
         "https://rsa505.org.za/",
+        "https://www.facebook.com/share/g/1MHJNWcFSM/",
         "https://www.facebook.com/AeoliansClub/",
         "https://aeolians.co.za/",
     ],
@@ -285,7 +287,15 @@ def _keep_cluster_item(item: dict, facts: dict) -> bool:
         return False
     if "login" in url or "/photos" == url.rstrip("/").split("facebook.com")[-1]:
         return False
-    if "1pgpy1pgh1" in url or item.get("engine") in ("facebook", "seed", "host_club_post", "source_media"):
+    if "1pgpy1pgh1" in url or item.get("engine") in (
+        "facebook",
+        "seed",
+        "host_club_post",
+        "source_media",
+        "class_catalog",
+        "club_catalog",
+        "discover",
+    ):
         return True
     if item.get("provenance") == "host_club_post" or item.get("role") == "host_club_media":
         return True
@@ -645,6 +655,40 @@ def _try_paid_clusters(query: str) -> list[dict]:
                 )
         except Exception:
             pass
+    perplexity = os.getenv("PERPLEXITY_API_KEY")
+    if perplexity:
+        try:
+            payload = json.dumps(
+                {
+                    "model": "sonar",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "Return only South African sailing sources for this event. No Wikipedia.",
+                        },
+                        {
+                            "role": "user",
+                            "content": "Primary club, class Facebook, and news URLs for: " + query,
+                        },
+                    ],
+                }
+            ).encode()
+            req = urllib.request.Request(
+                "https://api.perplexity.ai/chat/completions",
+                data=payload,
+                headers={**UA, "Authorization": "Bearer " + perplexity, "Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                data = json.loads(resp.read().decode("utf-8", "replace"))
+            citations = (((data.get("choices") or [{}])[0].get("message") or {}).get("citations")) or data.get("citations") or []
+            text = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+            urls = list(citations) + re.findall(r"https?://[^\s)>\]]+", text)
+            for link in urls:
+                if _wiki_url(link):
+                    continue
+                items.append({"url": link, "title": "", "description": text[:400], "engine": "perplexity"})
+        except Exception:
+            pass
     monok = os.getenv("MONOK_API_KEY")
     if monok:
         try:
@@ -706,21 +750,32 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
         add({"url": url, "engine": "seed"})
     if fetch:
         try:
-            from search_everywhere import event_query, google_news, web_hits
+            from search_everywhere import (
+                catalog_local_urls,
+                discovery_queries,
+                event_query,
+                google_news,
+                web_hits,
+            )
         except Exception:
             event_query = None
+            catalog_local_urls = None
+        ctx = {
+            "title": facts["title"],
+            "club": facts["club"],
+            "club_name": facts["club_name"],
+            "class_name": facts.get("class_name") or "",
+            "class_slugs": [((facts.get("class_name") or "").strip().lower().replace(" ", "-"))],
+        }
+        if catalog_local_urls:
+            for item in catalog_local_urls(ctx):
+                add({**item, "engine": item.get("engine") or "class_catalog"})
         if event_query:
-            q = event_query(
-                {
-                    "title": facts["title"],
-                    "club": facts["club"],
-                    "club_name": facts["club_name"],
-                }
-            )
-            for item in google_news(q, limit=6) + web_hits(q, limit=6):
-                add(item)
-            for item in _try_paid_clusters(q):
-                add(item)
+            for q in discovery_queries(ctx)[:6]:
+                for item in google_news(q, limit=4) + web_hits(q, limit=6):
+                    add(item)
+                for item in _try_paid_clusters(q):
+                    add(item)
         for article in list(articles):
             if len(article.get("description") or "") > 200 and article.get("image"):
                 continue
@@ -844,11 +899,14 @@ def facebook_source_images(url: str) -> list[dict]:
             }
         )
     html = ""
-    try:
-        raw, _ = _http_get(resolved.get("canonical_url") or url, FB_UA, timeout=20)
-        html = raw.decode("utf-8", "replace")
-    except Exception:
-        html = ""
+    for headers in (FB_UA, {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15", "Accept": "text/html"}):
+        try:
+            raw, _ = _http_get(resolved.get("canonical_url") or url, headers, timeout=20)
+            html = raw.decode("utf-8", "replace")
+            if "og:title" in html.lower() or "og:image" in html.lower():
+                break
+        except Exception:
+            continue
     seen = {item["url"] for item in out}
     for link in LOOKASIDE_RE.findall(html):
         if link in seen or _bad_image_url(link):
@@ -925,6 +983,10 @@ def _event_photo_score(item: dict, facts: dict) -> int:
         n += 30
     if "1pgpy1pgh1" in blob or "1633819895206118" in blob:
         n += 220
+    if "1MHJNWcFSM".lower() in blob or "230542873685522" in blob:
+        n += 140
+    if "19VLSkGHBk".lower() in blob or "310727125653436" in blob:
+        n += 140
     if "420nationalssouthafrica" in blob and klass == "420":
         n += 160
     if "id=338" in source or "505-nationals-2026" in blob:

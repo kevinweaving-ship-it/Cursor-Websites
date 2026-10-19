@@ -59,8 +59,18 @@
       "slug": "505",
       "sailingsa_url": "https://sailingsa.co.za/class/505",
       "website": "https://rsa505.org.za/",
-      "facebook": null,
+      "facebook": "https://www.facebook.com/groups/230542873685522/",
+      "facebook_group": "https://www.facebook.com/groups/230542873685522/",
       "urls": [
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/groups/230542873685522/",
+          "locality": "local",
+          "label": "RSA 505 group",
+          "kind": "facebook_group",
+          "provenance": "user:https://www.facebook.com/share/g/1MHJNWcFSM/",
+          "share_url": "https://www.facebook.com/share/g/1MHJNWcFSM/"
+        },
         {
           "platform": "website",
           "url": "https://rsa505.org.za/",
@@ -101,7 +111,18 @@
       "slug": "dart-18",
       "sailingsa_url": "https://sailingsa.co.za/class/dart-18",
       "website": null,
+      "facebook": "https://www.facebook.com/groups/310727125653436/",
+      "facebook_group": "https://www.facebook.com/groups/310727125653436/",
       "urls": [
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/groups/310727125653436/",
+          "locality": "local",
+          "label": "DART18 SA",
+          "kind": "facebook_group",
+          "provenance": "user:https://www.facebook.com/share/g/19VLSkGHBk/",
+          "share_url": "https://www.facebook.com/share/g/19VLSkGHBk/"
+        },
         {
           "platform": "website",
           "url": "https://dart18class.com/",
@@ -123,7 +144,18 @@
       "slug": "dart-18",
       "sailingsa_url": "https://sailingsa.co.za/class/dart-18",
       "website": null,
+      "facebook": "https://www.facebook.com/groups/310727125653436/",
+      "facebook_group": "https://www.facebook.com/groups/310727125653436/",
       "urls": [
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/groups/310727125653436/",
+          "locality": "local",
+          "label": "DART18 SA",
+          "kind": "facebook_group",
+          "provenance": "user:https://www.facebook.com/share/g/19VLSkGHBk/",
+          "share_url": "https://www.facebook.com/share/g/19VLSkGHBk/"
+        },
         {
           "platform": "website",
           "url": "https://dart18class.com/",

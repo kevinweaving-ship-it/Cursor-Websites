@@ -18,7 +18,7 @@ from publish_weekend import (
     weekend_feature,
 )
 from event_social_verify import class_slugs_from_event, verify_post
-from search_everywhere import event_query
+from search_everywhere import catalog_local_urls, discovery_queries, event_query
 from sailor_mentions import filter_for_event, parse_day
 
 
@@ -103,6 +103,18 @@ class PublishHelpers(unittest.TestCase):
             event,
         )
         self.assertFalse(dart["verified"], dart)
+
+    def test_discovery_looks_for_class_facebook(self):
+        qs = discovery_queries({"title": "505 Nationals", "class_name": "505", "club": "AYC", "club_name": "Aeolians Yacht Club"})
+        blob = " ".join(qs).lower()
+        self.assertIn("facebook group", blob)
+        self.assertIn("505", blob)
+        locals_505 = catalog_local_urls({"class_name": "505", "class_slugs": ["505"], "club": "AYC"})
+        urls = " ".join(x.get("url") or "" for x in locals_505)
+        self.assertIn("230542873685522", urls)
+        locals_dart = catalog_local_urls({"class_name": "Dart 18", "class_slugs": ["dart-18"], "club": "HMYC"})
+        dart_urls = " ".join(x.get("url") or "" for x in locals_dart)
+        self.assertIn("310727125653436", dart_urls)
 
 
 if __name__ == "__main__":

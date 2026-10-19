@@ -38,6 +38,10 @@ class Locality(unittest.TestCase):
         self.assertEqual(classify_locality("https://www.revolutionise.com.au/dabchickca/"), "local")
         self.assertEqual(classify_locality("https://www.hobiesa.co.za/"), "local")
         self.assertEqual(classify_locality("https://rsa505.org.za/"), "local")
+        self.assertEqual(classify_locality("https://www.facebook.com/share/g/1MHJNWcFSM/"), "local")
+        self.assertEqual(classify_locality("https://www.facebook.com/groups/230542873685522/"), "local")
+        self.assertEqual(classify_locality("https://www.facebook.com/share/g/19VLSkGHBk/"), "local")
+        self.assertEqual(classify_locality("https://www.facebook.com/groups/310727125653436/"), "local")
 
 
 class EntityMatch(unittest.TestCase):
@@ -112,6 +116,12 @@ class ClassConfig(unittest.TestCase):
         self.assertTrue(not_local)
         only_local = class_config_links(["420"], local_only=True)
         self.assertTrue(all(x.get("locality") != "not_local" for x in only_local))
+
+    def test_local_505_and_dart_groups_listed(self):
+        five = [x["url"] for x in class_config_links(["505"], local_only=True)]
+        dart = [x["url"] for x in class_config_links(["dart-18"], local_only=True)]
+        self.assertIn("https://www.facebook.com/groups/230542873685522/", five)
+        self.assertIn("https://www.facebook.com/groups/310727125653436/", dart)
 
     def test_legacy_keys_still_read(self):
         cfg = {"facebook": "https://www.facebook.com/420nationalssouthafrica/", "website": "https://example.co.za"}

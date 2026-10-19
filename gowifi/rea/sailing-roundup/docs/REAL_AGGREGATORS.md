@@ -9,8 +9,11 @@ Perplexity Discover / core search is the best working example of
 
 - **Aggregate:** when an event is flagged, scrape primary outlets
   (Reuters / BBC / Bloomberg *and* the local club or class page). For
-  sailing that means the host-club Facebook post, the class write-up,
-  and the local news piece — not Wikipedia.
+  sailing that means search for the host-club Facebook post, the local
+  class Facebook group, the class write-up, and the local news piece —
+  not Wikipedia, and not waiting for someone to paste every share link.
+  A human can find `share/g/…` groups in two seconds; discovery must
+  do the same query (`505 RSA facebook group`, `Dart 18 SA facebook`).
 - **Synthesize:** the model reads those bodies, drops repeated fluff,
   and writes one structured article from scratch.
 - **Accuracy:** every claim has an inline citation back to a scraped

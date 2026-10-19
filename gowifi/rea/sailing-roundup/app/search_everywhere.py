@@ -47,6 +47,58 @@ def event_query(event: dict) -> str:
     return " ".join(p for p in parts if p).strip()
 
 
+def discovery_queries(event: dict) -> list[str]:
+    """The searches Perplexity would fire: event + local class Facebook + club."""
+    title = (event.get("title") or event.get("event_name") or "").strip()
+    klass = (event.get("class_name") or "").strip()
+    club = (event.get("club_name") or event.get("club") or "").strip()
+    year = "2026"
+    queries = [event_query(event)]
+    if klass:
+        queries.extend(
+            [
+                f"{klass} RSA facebook group sailing",
+                f"{klass} South Africa facebook group",
+                f"site:facebook.com/groups {klass} SA sailing",
+                f"site:facebook.com {klass} {title} {year}",
+            ]
+        )
+    if title and club:
+        queries.append(f"{title} {club} facebook {year}")
+    seen = []
+    for q in queries:
+        q = " ".join(q.split())
+        if q and q not in seen:
+            seen.append(q)
+    return seen
+
+
+def catalog_local_urls(event: dict) -> list[dict]:
+    """Local class/club pages already in the directory — the first places to scrape."""
+    out = []
+    try:
+        from event_social_verify import class_config_links
+        from social_collect import club_config_links
+    except Exception:
+        return out
+    slugs = event.get("class_slugs") or []
+    klass = (event.get("class_name") or "").strip().lower().replace(" ", "-")
+    if klass and klass not in slugs:
+        slugs = list(slugs) + [klass]
+    for item in class_config_links(slugs, local_only=True):
+        if item.get("url"):
+            out.append({**item, "engine": "class_catalog", "locality": "local"})
+    club = event.get("club") or ""
+    if club:
+        try:
+            for item in club_config_links(club):
+                if item.get("url"):
+                    out.append({**item, "engine": "club_catalog", "locality": "local"})
+        except Exception:
+            pass
+    return out
+
+
 def _decode_ddg(href: str) -> str:
     raw = urllib.parse.unquote(href.replace("&amp;", "&"))
     match = re.search(r"uddg=([^&]+)", raw)
@@ -174,6 +226,10 @@ def search_everywhere(event: dict) -> dict:
             hits.append(item)
             lanes[lane]["count"] += 1
 
+    add(catalog_local_urls(event), "class_catalog")
+    for q2 in discovery_queries(event)[:6]:
+        add(web_hits(q2, limit=6), "discover")
+        add(google_news(q2, limit=4), "google_news")
     add(web_hits(q), "web")
     add(google_news(q + " SailingSA"), "google_news")
     for lane, host in EVERYWHERE:

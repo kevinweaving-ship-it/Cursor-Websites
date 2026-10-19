@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Resolve Facebook share links and match cross-posted pages to SailingSA URLs.
 
-Club/class/sailor/sponsor pages often share each other. A share URL such as
-https://www.facebook.com/share/g/1Jh51CDMew/ is stored as the local 420 Class RSA
-group and linked to https://sailingsa.co.za/class/420.
+Club/class/sailor/sponsor pages often share each other. Share URLs such as
+https://www.facebook.com/share/g/1Jh51CDMew/ (420 Class RSA),
+https://www.facebook.com/share/g/1MHJNWcFSM/ (RSA 505 group) and
+https://www.facebook.com/share/g/19VLSkGHBk/ (DART18 SA) are stored as the
+local class Facebook groups.
 
 Does not log in or bypass Facebook walls. Uses public redirects + Open Graph.
 """
@@ -89,6 +91,17 @@ def _clean_title(raw: str) -> str:
     return re.sub(r"\s*\|\s*Facebook\s*$", "", text, flags=re.I).strip()
 
 
+def _useful_fb_html(html: str) -> bool:
+    """Login walls are not a source. Keep going until Open Graph has a real title."""
+    if not html:
+        return False
+    title = OG_TITLE.search(html) or TITLE_RE.search(html)
+    name = _clean_title(title.group(1)) if title else ""
+    if name.lower() in ("", "facebook"):
+        return bool(OG_DESC.search(html) or OG_IMAGE.search(html))
+    return True
+
+
 def resolve_facebook_url(url: str) -> dict:
     """Turn a share/g or share/p link into a canonical public Facebook URL."""
     original = (url or "").strip()
@@ -127,21 +140,23 @@ def resolve_facebook_url(url: str) -> dict:
                     if loc:
                         _apply_location(out, loc, original)
                     if method == "GET":
-                        html = resp.read().decode("utf-8", "replace")
-                    if out.get("page_id") or html:
+                        chunk = resp.read().decode("utf-8", "replace")
+                        if _useful_fb_html(chunk) or not html:
+                            html = chunk
+                    if out.get("page_id") and _useful_fb_html(html):
                         break
             except urllib.error.HTTPError as exc:
                 loc = exc.headers.get("Location") if exc.headers else ""
                 if loc:
                     _apply_location(out, loc, original)
                     final = urllib.parse.urljoin(original, loc)
-                    if out.get("page_id"):
+                    if out.get("page_id") and _useful_fb_html(html):
                         break
                 if exc.code in (400, 405):
                     continue
             except (urllib.error.URLError, TimeoutError, OSError):
                 continue
-        if out.get("page_id"):
+        if out.get("page_id") and _useful_fb_html(html):
             break
 
     group = GROUP_RE.search(final) or GROUP_RE.search(html)
@@ -156,6 +171,7 @@ def resolve_facebook_url(url: str) -> dict:
         if group:
             out["kind"] = "facebook_group"
             out["page_id"] = group.group("id")
+            out["canonical_url"] = f"https://www.facebook.com/groups/{out['page_id']}/"
     title = OG_TITLE.search(html) or TITLE_RE.search(html)
     if title:
         out["title"] = _clean_title(title.group(1))
