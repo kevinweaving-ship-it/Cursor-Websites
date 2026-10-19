@@ -374,6 +374,23 @@
             width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important;
         }
         #sailor-search-results .ssa-dev1-inject .sa-approved-sailor-card { margin-top: 0; }
+        .search-row-container,
+        #sailor-search-results,
+        #sailor-search-results .ssa-dev1-inject {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        /* Outer frame only — same as upcoming + All Regattas cards. Do not change height. */
+        #sailor-search-results .ssa-dev1-inject .sa-approved-sailor-card,
+        #sailor-search-results .profile-card,
+        #sailor-search-results .profile-card.single-result {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            border: 2px solid #8aa2c6 !important;
+            border-radius: 6px !important;
+        }
         #sailor-search-results.guest-locked .sa-avatar-expand-btn { opacity: 0.45; animation: none; }
         #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn {
             animation: ssa-expand-pulse 2.8s ease-in-out infinite;
@@ -1064,6 +1081,9 @@
             border-radius: 6px;
             box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
             overflow: hidden;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
         .sa-approved-sailor-header {
             display: grid;
@@ -7619,7 +7639,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                     var expandedHtml = '<div class="sa-approved-sailor-expanded">' + rankSectionHtml + fullSectionHtml + '</div>';
                                     if (_abortLoggedInIfSearching()) return;
                                     sailorSearchResults.innerHTML = '' +
-                                        '<div id="chosen-sailor-before-profile" class="profile-card sailor-stats-before-profile sa-approved-sailor-card" style="cursor:default;max-width:100%;">' +
+                                        '<div id="chosen-sailor-before-profile" class="profile-card sailor-stats-before-profile sa-approved-sailor-card" style="cursor:default;width:100%;max-width:100%;box-sizing:border-box;">' +
                                             '<div class="sa-approved-sailor-header">' +
                                                 '<div class="sa-approved-sailor-avatar">' +
                                                     '<img src="' + escapeHtml(avatarPath) + '" alt="' + escapeHtml(nameD || 'Sailor') + '" loading="lazy"' + avatarStyleAttr + ' onerror="this.style.display=\'none\'; var fallback = this.nextElementSibling; if(fallback) fallback.style.display=\'flex\';">' +
@@ -7768,7 +7788,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             var panelActivity = isLoggedInUser ? '' : ('<div id="sailor-tab-panel-activity" class="sailor-profile-panel" role="tabpanel">' + (activitySectionHtml || '<div class="sailor-activity-timeline"><p class="sailor-activity-subtitle">No sailor activity yet.</p></div>') + '</div>');
                             // Header + bio above tabs (bio must stay visible — matches SSR placement)
                             if (_abortLoggedInIfSearching()) return;
-                            sailorSearchResults.innerHTML = '<div id="chosen-sailor-before-profile" class="profile-card sailor-stats-before-profile" style="cursor:default;max-width:100%;margin-top:1rem;">' + backBtn + header + (sailorBioHtml || '') + tabBar + panelProfile + panelRegattas + panelMedia + panelActivity + '</div>';
+                            sailorSearchResults.innerHTML = '<div id="chosen-sailor-before-profile" class="profile-card sailor-stats-before-profile" style="cursor:default;width:100%;max-width:100%;box-sizing:border-box;margin-top:1rem;">' + backBtn + header + (sailorBioHtml || '') + tabBar + panelProfile + panelRegattas + panelMedia + panelActivity + '</div>';
                             sailorSearchResults.style.display = 'block';
                             if (!isLoggedInUser) {
                                 // Back to results is now <a href="/"> so it always goes to homepage
@@ -8196,6 +8216,14 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             while (box.firstChild) slot.appendChild(box.firstChild);
                             runDev1Scripts(slot, codes);
                             wireClaimBanners(slot);
+                            var frame = slot.querySelector(".sa-approved-sailor-card") || slot.querySelector(".profile-card");
+                            if (frame) {
+                                frame.style.setProperty("border", "2px solid #8aa2c6", "important");
+                                frame.style.setProperty("border-radius", "6px", "important");
+                                frame.style.setProperty("width", "100%", "important");
+                                frame.style.setProperty("max-width", "100%", "important");
+                                frame.style.setProperty("box-sizing", "border-box", "important");
+                            }
                             if (guestLocked) {
                                 slot.addEventListener("click", function(ev) {
                                     var btn = ev.target && ev.target.closest ? ev.target.closest(".sa-avatar-expand-btn") : null;
