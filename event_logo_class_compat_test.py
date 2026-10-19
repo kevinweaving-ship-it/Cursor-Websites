@@ -16,8 +16,8 @@ from event_logo_class_compat import (  # noqa: E402
     named_event_logo_url,
 )
 
-MIRROR_ONLY_NAME = "KZN Mirror Regional Championships"
-MIRROR_ONLY_ID = "2026-05-16-pyc-kzn-mirror-regionals"
+MIRROR_ONLY_NAME = "KZN Mirror Regionals"
+MIRROR_ONLY_ID = "2026-10-17-pyc-kzn-mirror-regionals"
 MIRROR_ONLY_HAY = f"{MIRROR_ONLY_NAME.lower()} {MIRROR_ONLY_ID.replace('-', ' ')}"
 COMBINED_HAY = (
     "kzn mirror ilca regional championship 2023 10 22 "

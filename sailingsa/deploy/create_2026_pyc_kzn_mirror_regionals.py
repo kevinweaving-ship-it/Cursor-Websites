@@ -19,18 +19,24 @@ import sys
 import psycopg2
 import psycopg2.extras
 
-REGATTA_ID = "2026-05-16-pyc-kzn-mirror-regionals"
+# Gold slug = SAS events.start_date (source_event_id 382272, last weekend 17–18 Oct 2026).
+# Daily SAS scrape already stored 382272; do not link the stale May listing 344422.
+REGATTA_ID = "2026-10-17-pyc-kzn-mirror-regionals"
+OLD_MAY_REGATTA_ID = "2026-05-16-pyc-kzn-mirror-regionals"
 BLOCK_ID = f"{REGATTA_ID}:mirror"
-EVENT_NAME = "KZN Mirror Regional Championships"
-SAS_SOURCE_EVENT_ID = "344422"
+OLD_MAY_BLOCK_ID = f"{OLD_MAY_REGATTA_ID}:mirror"
+EVENT_NAME = "KZN Mirror Regionals"
+SAS_SOURCE_EVENT_ID = "382272"
+SAS_STALE_MAY_EVENT_ID = "344422"
 CLASS_NAME = "Mirror"  # class = fleet; header left = Mirror class logo (never KZN-Mirror-ILCA Event Logo)
 # Single fleet → parent Event URL only. Do not create /class-mirror or hyphen-tail child URLs.
 # No Marine Megastore / Facebook live-video card (that is Lipton + Cape Classic only).
 # Print/share PDF is parent results.pdf only — delete class-*.pdf leftovers; never keep replaced ILCA Event Logo.
 
-AS_AT = "2026-05-17 17:05:00+02"
-START = "2026-05-16"
-END = "2026-05-17"
+AS_AT = "2026-10-18 17:05:00+02"
+START = "2026-10-17"
+END = "2026-10-18"
+RESULTS_URL = f"https://sailingsa.co.za/regatta/{REGATTA_ID}"
 YEAR = 2026
 SAILED = 8
 DISCARDS = 1
@@ -251,6 +257,205 @@ ROWS = [
 ]
 
 
+def unlink_stale_may_and_link_oct(cur) -> None:
+    cur.execute(
+        """
+        UPDATE events
+        SET regatta_id = NULL, match_method = NULL, match_score = NULL
+        WHERE source = 'sas' AND source_event_id = %s AND regatta_id IS NOT DISTINCT FROM %s
+        """,
+        (SAS_STALE_MAY_EVENT_ID, OLD_MAY_REGATTA_ID),
+    )
+    cur.execute(
+        """
+        UPDATE events
+        SET regatta_id = NULL, match_method = NULL, match_score = NULL
+        WHERE source = 'sas' AND source_event_id = %s AND regatta_id IS NOT DISTINCT FROM %s
+        """,
+        (SAS_STALE_MAY_EVENT_ID, REGATTA_ID),
+    )
+    cur.execute(
+        """
+        UPDATE events
+        SET regatta_id = %s,
+            match_method = 'manual_ops_ingest',
+            match_score = 1,
+            results_url = %s,
+            series_key = COALESCE(NULLIF(TRIM(series_key), ''), 'mirror regionals'),
+            category = COALESCE(NULLIF(TRIM(category), ''), 'Regional Championships'),
+            edition_label = COALESCE(NULLIF(TRIM(edition_label), ''), 'Mirror Regionals')
+        WHERE source = 'sas' AND source_event_id = %s
+        """,
+        (REGATTA_ID, RESULTS_URL, SAS_SOURCE_EVENT_ID),
+    )
+    if cur.rowcount != 1:
+        raise SystemExit(f"events link 382272 rowcount={cur.rowcount} expected 1")
+
+
+def insert_block(cur, class_id, class_canonical) -> None:
+    cur.execute(
+        """
+        INSERT INTO regatta_blocks (
+            block_id, regatta_id, class_original, class_canonical, fleet_label,
+            races_sailed, discard_count, to_count, scoring_system, class_id
+        ) VALUES (
+            %s, %s, %s, %s, '',
+            %s, %s, %s, 'Appendix A', %s
+        )
+        """,
+        (BLOCK_ID, REGATTA_ID, CLASS_NAME, class_canonical, SAILED, DISCARDS, TO_COUNT, class_id),
+    )
+
+
+def insert_results(cur, clubs, class_id, class_canonical) -> None:
+    for row in ROWS:
+        total, nett = checksum(row["scores"])
+        club_id = clubs[row["club_abbrev"]][0]
+        helm = sas_display_name(cur, row["helm_id"], row["helm"])
+        crew = sas_display_name(cur, row["crew_id"], row["crew"])
+        cur.execute(
+            """
+            INSERT INTO results (
+                regatta_id, block_id, rank, rank_ordinal, pos, fleet_label,
+                class_original, class_canonical, class_id,
+                sail_number, club_raw, club_id,
+                helm_name, helm_sa_sailing_id, crew_name, crew_sa_sailing_id,
+                races_sailed, discard_count, race_scores,
+                total_points_raw, nett_points_raw,
+                raced, as_at_time, result_status,
+                row_validation_status, manually_parsed
+            ) VALUES (
+                %s, %s, %s, %s, %s, '',
+                %s, %s, %s,
+                %s, %s, %s,
+                %s, %s, %s, %s,
+                %s, %s, %s::jsonb,
+                %s, %s,
+                TRUE, %s, 'Final',
+                'validated', FALSE
+            )
+            """,
+            (
+                REGATTA_ID,
+                BLOCK_ID,
+                row["rank"],
+                row["ordinal"],
+                row["rank"],
+                CLASS_NAME,
+                class_canonical,
+                class_id,
+                row["sail"],
+                row["club_raw"],
+                club_id,
+                helm,
+                row["helm_id"],
+                crew,
+                row["crew_id"],
+                SAILED,
+                DISCARDS,
+                json.dumps(row["scores"]),
+                total,
+                nett,
+                AS_AT,
+            ),
+        )
+        print(f"rank {row['rank']} {helm} total={total:.1f} nett={nett:.1f} discard={total-nett:.1f}")
+
+
+def migrate_may_slug_to_october(cur) -> None:
+    cur.execute(
+        """
+        INSERT INTO regattas (
+            regatta_id, regatta_number, event_name, year, regatta_type,
+            host_club_id, host_club_code, host_club_name, province_code, province_name,
+            start_date, end_date, result_status, fleet_classes,
+            source_url, local_file_path, file_type, doc_hash, import_status, best_method,
+            name_check_local_vs_source, correct_url_source_match_name, relevant_data_to_columns,
+            raw_data_length, scoring_system, scoring_mode, source_platform,
+            result_type, class_layout,
+            blank_hub_news_badge_label, blank_hub_news_image_url, blank_hub_news_album_json,
+            blank_hub_news_show_hero, wc_header_left_icon_url, wc_header_right_icon_url,
+            event_rating_level, event_rating_type, event_scope, event_rating_status,
+            event_rating_rule_id, event_rating_evidence, event_rating_confidence,
+            event_rating_review_reason, event_rating_locked, event_rating_locked_at,
+            event_rating_locked_by, event_country, governing_authority, duplicate_status,
+            ranking_eligible, superseded_by_regatta_id, original_artifact_id,
+            primary_artifact_id, provenance_status, manually_parsed, origin, created_by_sas_id,
+            as_at_time, updated_at
+        )
+        SELECT
+            %s, regatta_number, %s, year, regatta_type,
+            host_club_id, host_club_code, host_club_name, province_code, province_name,
+            %s::date, %s::date, result_status, fleet_classes,
+            source_url, local_file_path, file_type, doc_hash, import_status, best_method,
+            name_check_local_vs_source, correct_url_source_match_name, relevant_data_to_columns,
+            raw_data_length, scoring_system, scoring_mode, source_platform,
+            result_type, class_layout,
+            blank_hub_news_badge_label, blank_hub_news_image_url, blank_hub_news_album_json,
+            blank_hub_news_show_hero, wc_header_left_icon_url, wc_header_right_icon_url,
+            event_rating_level, event_rating_type, event_scope, event_rating_status,
+            event_rating_rule_id, event_rating_evidence, event_rating_confidence,
+            event_rating_review_reason, event_rating_locked, event_rating_locked_at,
+            event_rating_locked_by, event_country, governing_authority, duplicate_status,
+            ranking_eligible, superseded_by_regatta_id, original_artifact_id,
+            primary_artifact_id, provenance_status, manually_parsed, origin, created_by_sas_id,
+            %s::timestamptz, NOW()
+        FROM regattas
+        WHERE regatta_id = %s
+        """,
+        (REGATTA_ID, EVENT_NAME, START, END, AS_AT, OLD_MAY_REGATTA_ID),
+    )
+    cur.execute(
+        """
+        INSERT INTO regatta_blocks (
+            block_id, regatta_id, class_original, class_canonical, fleet_label,
+            races_sailed, discard_count, to_count, scoring_system, block_label_raw,
+            class_id, entries_raced, race_column_labels, rating_system, entries_closed,
+            artifact_id
+        )
+        SELECT
+            %s, %s, class_original, class_canonical, fleet_label,
+            races_sailed, discard_count, to_count, scoring_system, block_label_raw,
+            class_id, entries_raced, race_column_labels, rating_system, entries_closed,
+            artifact_id
+        FROM regatta_blocks
+        WHERE block_id = %s
+        """,
+        (BLOCK_ID, REGATTA_ID, OLD_MAY_BLOCK_ID),
+    )
+    cur.execute(
+        """
+        UPDATE results
+        SET regatta_id = %s, block_id = %s, as_at_time = %s::timestamptz
+        WHERE regatta_id = %s
+        """,
+        (REGATTA_ID, BLOCK_ID, AS_AT, OLD_MAY_REGATTA_ID),
+    )
+    if cur.rowcount != ENTRIES:
+        raise SystemExit(f"results migrate rowcount={cur.rowcount} expected {ENTRIES}")
+    cur.execute(
+        """
+        UPDATE boat_identifiers
+        SET source_regatta_id = %s, valid_from = %s::date
+        WHERE source_regatta_id = %s
+        """,
+        (REGATTA_ID, START, OLD_MAY_REGATTA_ID),
+    )
+    # events.regatta_id has no ON DELETE SET NULL — unlink May SAS row before drop.
+    cur.execute(
+        """
+        UPDATE events
+        SET regatta_id = NULL, match_method = NULL, match_score = NULL
+        WHERE regatta_id = %s
+        """,
+        (OLD_MAY_REGATTA_ID,),
+    )
+    cur.execute("DELETE FROM regatta_blocks WHERE block_id = %s", (OLD_MAY_BLOCK_ID,))
+    cur.execute("DELETE FROM regattas WHERE regatta_id = %s", (OLD_MAY_REGATTA_ID,))
+    unlink_stale_may_and_link_oct(cur)
+    print(f"MIGRATED {OLD_MAY_REGATTA_ID} -> {REGATTA_ID} linked SAS {SAS_SOURCE_EVENT_ID}")
+
+
 def sas_display_name(cur, sa_id: int | None, fallback: str) -> str:
     if sa_id is None:
         return fallback
@@ -309,9 +514,37 @@ def main() -> int:
             raise SystemExit(f"club map incomplete: {clubs}")
         pyc_id, _, pyc_full = clubs["PYC"]
 
-        cur.execute("SELECT regatta_id FROM regattas WHERE regatta_id = %s", (REGATTA_ID,))
-        if cur.fetchone():
-            raise SystemExit(f"{REGATTA_ID} already exists")
+        cur.execute("SELECT 1 FROM regattas WHERE regatta_id = %s", (REGATTA_ID,))
+        has_oct = cur.fetchone() is not None
+        cur.execute("SELECT 1 FROM regattas WHERE regatta_id = %s", (OLD_MAY_REGATTA_ID,))
+        has_may = cur.fetchone() is not None
+
+        if has_oct:
+            cur.execute(
+                """
+                UPDATE regattas
+                SET event_name = %s, start_date = %s::date, end_date = %s::date,
+                    as_at_time = %s::timestamptz, updated_at = NOW()
+                WHERE regatta_id = %s
+                """,
+                (EVENT_NAME, START, END, AS_AT, REGATTA_ID),
+            )
+            cur.execute(
+                """
+                UPDATE results SET as_at_time = %s::timestamptz
+                WHERE regatta_id = %s
+                """,
+                (AS_AT, REGATTA_ID),
+            )
+            unlink_stale_may_and_link_oct(cur)
+            conn.commit()
+            print(f"OK already {REGATTA_ID} linked SAS {SAS_SOURCE_EVENT_ID}")
+            return 0
+
+        if has_may:
+            migrate_may_slug_to_october(cur)
+            conn.commit()
+            return 0
 
         cur.execute(
             """
@@ -327,84 +560,9 @@ def main() -> int:
             """,
             (REGATTA_ID, EVENT_NAME, YEAR, START, END, AS_AT, pyc_id, pyc_full),
         )
-
-        cur.execute(
-            """
-            INSERT INTO regatta_blocks (
-                block_id, regatta_id, class_original, class_canonical, fleet_label,
-                races_sailed, discard_count, to_count, scoring_system, class_id
-            ) VALUES (
-                %s, %s, %s, %s, '',
-                %s, %s, %s, 'Appendix A', %s
-            )
-            """,
-            (BLOCK_ID, REGATTA_ID, CLASS_NAME, class_canonical, SAILED, DISCARDS, TO_COUNT, class_id),
-        )
-
-        for row in ROWS:
-            total, nett = checksum(row["scores"])
-            club_id = clubs[row["club_abbrev"]][0]
-            helm = sas_display_name(cur, row["helm_id"], row["helm"])
-            crew = sas_display_name(cur, row["crew_id"], row["crew"])
-            cur.execute(
-                """
-                INSERT INTO results (
-                    regatta_id, block_id, rank, rank_ordinal, pos, fleet_label,
-                    class_original, class_canonical, class_id,
-                    sail_number, club_raw, club_id,
-                    helm_name, helm_sa_sailing_id, crew_name, crew_sa_sailing_id,
-                    races_sailed, discard_count, race_scores,
-                    total_points_raw, nett_points_raw,
-                    raced, as_at_time, result_status,
-                    row_validation_status, manually_parsed
-                ) VALUES (
-                    %s, %s, %s, %s, %s, '',
-                    %s, %s, %s,
-                    %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s, %s::jsonb,
-                    %s, %s,
-                    TRUE, %s, 'Final',
-                    'validated', FALSE
-                )
-                """,
-                (
-                    REGATTA_ID,
-                    BLOCK_ID,
-                    row["rank"],
-                    row["ordinal"],
-                    row["rank"],
-                    CLASS_NAME,
-                    class_canonical,
-                    class_id,
-                    row["sail"],
-                    row["club_raw"],
-                    club_id,
-                    helm,
-                    row["helm_id"],
-                    crew,
-                    row["crew_id"],
-                    SAILED,
-                    DISCARDS,
-                    json.dumps(row["scores"]),
-                    total,
-                    nett,
-                    AS_AT,
-                ),
-            )
-            print(f"rank {row['rank']} {helm} total={total:.1f} nett={nett:.1f} discard={total-nett:.1f}")
-
-        cur.execute(
-            """
-            UPDATE events
-            SET regatta_id = %s
-            WHERE source_event_id = %s AND (regatta_id IS NULL OR regatta_id = '')
-            """,
-            (REGATTA_ID, SAS_SOURCE_EVENT_ID),
-        )
-        if cur.rowcount != 1:
-            raise SystemExit(f"events link rowcount={cur.rowcount} expected 1")
-
+        insert_block(cur, class_id, class_canonical)
+        insert_results(cur, clubs, class_id, class_canonical)
+        unlink_stale_may_and_link_oct(cur)
         conn.commit()
         print(f"OK {REGATTA_ID} linked SAS {SAS_SOURCE_EVENT_ID}")
         return 0
