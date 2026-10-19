@@ -287,6 +287,14 @@ def _keep_cluster_item(item: dict, facts: dict) -> bool:
         return False
     if "login" in url or "/photos" == url.rstrip("/").split("facebook.com")[-1]:
         return False
+    try:
+        from search_everywhere import in_coverage_window
+
+        window = in_coverage_window(item, facts)
+    except Exception:
+        window = None
+    if window is False:
+        return False
     if "1pgpy1pgh1" in url or item.get("engine") in (
         "facebook",
         "seed",
@@ -294,7 +302,6 @@ def _keep_cluster_item(item: dict, facts: dict) -> bool:
         "source_media",
         "class_catalog",
         "club_catalog",
-        "discover",
     ):
         return True
     if item.get("provenance") == "host_club_post" or item.get("role") == "host_club_media":
@@ -565,6 +572,7 @@ def extract_article(url: str) -> dict | None:
                 "description": resolved.get("description") or "",
                 "snippet": resolved.get("description") or "",
                 "image": resolved.get("image") or "",
+                "published": resolved.get("published") or "",
             }
         except Exception:
             pass
@@ -585,6 +593,23 @@ def extract_article(url: str) -> dict | None:
     title = og("title") or (soup.title.get_text(" ", strip=True) if soup.title else "")
     desc = og("description")
     image = og("image")
+    published = ""
+    for attr, key in (
+        ("property", "article:published_time"),
+        ("name", "article:published_time"),
+        ("property", "og:updated_time"),
+        ("itemprop", "datePublished"),
+        ("name", "pubdate"),
+        ("name", "date"),
+    ):
+        tag = soup.find("meta", attrs={attr: key})
+        if tag and tag.get("content"):
+            published = tag.get("content").strip()
+            break
+    if not published:
+        stamp = soup.find("time")
+        if stamp:
+            published = (stamp.get("datetime") or stamp.get_text(" ", strip=True) or "").strip()
     paras = []
     for p in soup.select("article p, main p, .entry-content p, p"):
         text = re.sub(r"\s+", " ", p.get_text(" ", strip=True))
@@ -598,6 +623,7 @@ def extract_article(url: str) -> dict | None:
         "description": desc,
         "snippet": " ".join(paras)[:700],
         "image": image,
+        "published": published,
     }
 
 
@@ -732,6 +758,7 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
                 "engine": item.get("engine") or item.get("lane") or item.get("platform") or item.get("provenance") or "pack",
                 "provenance": item.get("provenance") or "",
                 "role": item.get("role") or "",
+                "published": item.get("published") or item.get("published_at") or item.get("pubDate") or "",
             }
         )
 
@@ -766,6 +793,8 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
             "club_name": facts["club_name"],
             "class_name": facts.get("class_name") or "",
             "class_slugs": [((facts.get("class_name") or "").strip().lower().replace(" ", "-"))],
+            "start": facts.get("start"),
+            "end": facts.get("end"),
         }
         if catalog_local_urls:
             for item in catalog_local_urls(ctx):
@@ -788,6 +817,7 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
             if len(extracted.get("snippet") or "") > len(article.get("snippet") or ""):
                 article["snippet"] = extracted.get("snippet") or ""
             article["image"] = article.get("image") or extracted.get("image") or ""
+            article["published"] = article.get("published") or extracted.get("published") or ""
             for extra in (extracted.get("images") or []) + harvest_source_images(article["url"]):
                 if extra.get("url") and extra["url"] != article.get("image"):
                     add(

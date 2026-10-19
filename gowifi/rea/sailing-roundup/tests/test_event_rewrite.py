@@ -16,6 +16,7 @@ from event_rewrite import (
     rewrite_paragraphs,
     unique_headline,
     _event_photo_score,
+    _keep_cluster_item,
     _wiki_url,
 )
 from roundup import _image_block, _layout_name, _render_story, newspaper_css
@@ -274,6 +275,25 @@ class RewriteEngine(unittest.TestCase):
             "title": "505",
         }
         self.assertLess(_event_photo_score(wiki, facts), 0)
+
+    def test_cluster_drops_coverage_outside_event_window(self):
+        facts = facts_from_rows("2026-09-25-tsc-420-nationals", sample_rows())
+        old = {
+            "url": "https://novanews.co.za/2024/03/01/old-420-story",
+            "title": "420 Nationals 2024 Dale Rae TSC",
+            "published": "2024-03-01",
+            "description": "Dale Rae won the 420 Nationals at TSC",
+            "engine": "google_news",
+        }
+        fresh = {
+            "url": "https://novanews.co.za/2026/09/30/hermanus-high-schools-sailors-crowned-national-champions/",
+            "title": "Hermanus High School's sailors crowned national champions",
+            "published": "2026-09-30",
+            "description": "Dale Rae and James Rae won the 420 Nationals at Theewater",
+            "engine": "google_news",
+        }
+        self.assertFalse(_keep_cluster_item(old, facts))
+        self.assertTrue(_keep_cluster_item(fresh, facts))
 
 
 if __name__ == "__main__":

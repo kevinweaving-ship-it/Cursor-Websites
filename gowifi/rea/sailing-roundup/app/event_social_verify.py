@@ -132,7 +132,20 @@ def verify_post(post: dict, event: dict) -> dict:
         score -= 8
         reasons.append("offtopic_420")
 
-    verified = score >= 5 and (
+    try:
+        from search_everywhere import in_coverage_window
+
+        window = in_coverage_window(post, event)
+    except Exception:
+        window = None
+    if window is True:
+        score += 2
+        reasons.append("in_event_window")
+    elif window is False:
+        score -= 8
+        reasons.append("outside_event_window")
+
+    verified = score >= 5 and window is not False and (
         "event_url" in reasons
         or "event_slug" in reasons
         or "results_name" in "".join(reasons)
@@ -239,6 +252,8 @@ def collect_and_verify(event: dict, rows: list[dict] | None = None) -> dict:
         "event_url": event_url,
         "host_club_facebook": cfg.get("facebook") or "",
         "host_source_urls": [x["url"] for x in club_config_links(club) if x.get("url")],
+        "start": event.get("start") or event.get("start_date") or "",
+        "end": event.get("end") or event.get("end_date") or "",
     }
 
     pages = []
@@ -338,6 +353,8 @@ def main():
             "host_club_slug": first.get("host_club_slug") or "",
             "class_name": first.get("class_name") or first.get("class_canonical") or "",
             "event_url": args.event_url,
+            "start": first.get("start_date") or "",
+            "end": first.get("end_date") or "",
         },
         rows,
     )

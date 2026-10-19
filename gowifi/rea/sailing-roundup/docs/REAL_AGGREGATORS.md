@@ -14,6 +14,10 @@ Perplexity Discover / core search is the best working example of
   not Wikipedia, and not waiting for someone to paste every share link.
   A human can find `share/g/…` groups in two seconds; discovery must
   do the same query (`505 RSA facebook group`, `Dart 18 SA facebook`).
+  Search is `{event_name} {venue} {dates}`; keep a hit only when it was
+  posted during the event or in the days immediately after
+  (`after:` / `before:` on Google, `pubDate` / `article:published_time`
+  on the page). A 2024 write-up is not coverage of the 2026 nationals.
 - **Synthesize:** the model reads those bodies, drops repeated fluff,
   and writes one structured article from scratch.
 - **Accuracy:** every claim has an inline citation back to a scraped

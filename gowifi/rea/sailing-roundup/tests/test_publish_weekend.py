@@ -18,7 +18,13 @@ from publish_weekend import (
     weekend_feature,
 )
 from event_social_verify import class_slugs_from_event, verify_post
-from search_everywhere import catalog_local_urls, discovery_queries, event_query
+from search_everywhere import (
+    catalog_local_urls,
+    coverage_window,
+    discovery_queries,
+    event_query,
+    in_coverage_window,
+)
 from sailor_mentions import filter_for_event, parse_day
 
 
@@ -115,6 +121,46 @@ class PublishHelpers(unittest.TestCase):
         locals_dart = catalog_local_urls({"class_name": "Dart 18", "class_slugs": ["dart-18"], "club": "HMYC"})
         dart_urls = " ".join(x.get("url") or "" for x in locals_dart)
         self.assertIn("310727125653436", dart_urls)
+
+    def test_search_uses_event_dates_and_rejects_old_posts(self):
+        event = {
+            "title": "420 Nationals",
+            "club_name": "Theewater Sports Club",
+            "class_name": "420",
+            "start": "2026-09-26",
+            "end": "2026-09-27",
+        }
+        query = event_query(event)
+        self.assertIn("September 2026", query)
+        blob = " ".join(discovery_queries(event))
+        self.assertIn("after:2026-09-24", blob)
+        self.assertIn("before:2026-10-12", blob)
+        lo, hi = coverage_window(event)
+        self.assertEqual(lo, dt.date(2026, 9, 24))
+        self.assertEqual(hi, dt.date(2026, 10, 11))
+        self.assertTrue(in_coverage_window({"published": "2026-09-30"}, event))
+        self.assertTrue(in_coverage_window({"url": "https://novanews.co.za/2026/09/28/hermanus-high/"}, event))
+        self.assertFalse(in_coverage_window({"published": "2024-03-01", "url": "https://old.example/420"}, event))
+        old = verify_post(
+            {
+                "url": "https://example.com/2024/03/01/420-nationals",
+                "title": "420 Nationals at TSC — Dale Rae leads",
+                "description": "https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals",
+                "published": "2024-03-01",
+            },
+            {
+                "id": "2026-09-25-tsc-420-nationals",
+                "title": "420 Nationals",
+                "club": "TSC",
+                "class_slugs": ["420"],
+                "result_names": ["Dale Rae"],
+                "event_url": "https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals",
+                "start": "2026-09-26",
+                "end": "2026-09-27",
+            },
+        )
+        self.assertFalse(old["verified"], old)
+        self.assertIn("outside_event_window", old["reasons"])
 
 
 if __name__ == "__main__":

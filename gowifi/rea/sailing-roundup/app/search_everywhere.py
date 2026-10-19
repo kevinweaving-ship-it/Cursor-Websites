@@ -5,6 +5,7 @@ Every hit is later verified against the event URL and results. No login bypass.
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 import re
@@ -35,36 +36,115 @@ def _get(url: str, timeout: int = 18) -> str:
         return resp.read().decode("utf-8", "replace")
 
 
+def parse_day(value) -> dt.date | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    iso = re.search(r"(20\d{2})[-/](\d{1,2})[-/](\d{1,2})", raw)
+    if iso:
+        try:
+            return dt.date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3)))
+        except ValueError:
+            pass
+    words = re.search(r"(\d{1,2}\s+[A-Za-z]{3,9}\s+20\d{2})", raw)
+    if words:
+        for fmt in ("%d %B %Y", "%d %b %Y"):
+            try:
+                return dt.datetime.strptime(words.group(1), fmt).date()
+            except ValueError:
+                continue
+    return None
+
+
+def coverage_window(event: dict, after_days: int = 14, before_days: int = 2) -> tuple[dt.date | None, dt.date | None]:
+    """Keep coverage from two days before the start through two weeks after the finish."""
+    start = parse_day(event.get("start") or event.get("start_date"))
+    end = parse_day(event.get("end") or event.get("end_date")) or start
+    if not start:
+        return None, None
+    return start - dt.timedelta(days=before_days), end + dt.timedelta(days=after_days)
+
+
+def date_span_words(event: dict) -> str:
+    start = parse_day(event.get("start") or event.get("start_date"))
+    end = parse_day(event.get("end") or event.get("end_date")) or start
+    if not start:
+        return ""
+    if start == end:
+        return start.strftime("%-d %B %Y")
+    if start.month == end.month:
+        return f"{start.day}–{end.day} {end.strftime('%B %Y')}"
+    return f"{start.strftime('%-d %B')}–{end.strftime('%-d %B %Y')}"
+
+
+def published_on(item: dict) -> dt.date | None:
+    for key in ("published", "published_at", "pubDate", "date", "created_at"):
+        day = parse_day(item.get(key))
+        if day:
+            return day
+    blob = " ".join(
+        str(item.get(k) or "")
+        for k in ("url", "source_url", "title", "description", "snippet")
+    )
+    match = re.search(r"(20\d{2})[-/](\d{2})[-/](\d{2})", blob)
+    if match:
+        try:
+            return dt.date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+        except ValueError:
+            return None
+    return None
+
+
+def in_coverage_window(item: dict, event: dict) -> bool | None:
+    """True = posted during/just after the event. False = too old/too late. None = date unknown."""
+    lo, hi = coverage_window(event)
+    day = published_on(item)
+    if not lo or not day:
+        return None
+    return lo <= day <= hi
+
+
 def event_query(event: dict) -> str:
     club = event.get("club") or ""
     club_name = event.get("club_name") or club
     parts = [
         event.get("title") or event.get("event_name") or "",
         club_name,
+        date_span_words(event),
         "sailing",
-        "2026",
     ]
     return " ".join(p for p in parts if p).strip()
 
 
+def google_after_before(event: dict) -> str:
+    lo, hi = coverage_window(event)
+    if not lo or not hi:
+        return ""
+    return f"after:{lo.isoformat()} before:{(hi + dt.timedelta(days=1)).isoformat()}"
+
+
 def discovery_queries(event: dict) -> list[str]:
-    """The searches Perplexity would fire: event + local class Facebook + club."""
+    """Search the event + dates. Google then yields articles posted in that window."""
     title = (event.get("title") or event.get("event_name") or "").strip()
     klass = (event.get("class_name") or "").strip()
     club = (event.get("club_name") or event.get("club") or "").strip()
-    year = "2026"
+    dates = date_span_words(event)
+    bounded = google_after_before(event)
     queries = [event_query(event)]
+    if title and dates:
+        queries.append(f"{title} {dates}")
+        if bounded:
+            queries.append(f"{title} {bounded}")
     if klass:
-        queries.extend(
-            [
-                f"{klass} RSA facebook group sailing",
-                f"{klass} South Africa facebook group",
-                f"site:facebook.com/groups {klass} SA sailing",
-                f"site:facebook.com {klass} {title} {year}",
-            ]
-        )
+        queries.append(f"{klass} RSA facebook group sailing")
+        queries.append(f"{klass} South Africa facebook group")
+        queries.append(f"site:facebook.com/groups {klass} SA sailing")
+    if klass and dates:
+        queries.append(f"{klass} {club} {dates} facebook")
+        if bounded:
+            queries.append(f"site:facebook.com {klass} {title} {bounded}")
     if title and club:
-        queries.append(f"{title} {club} facebook {year}")
+        queries.append(f"{title} {club} facebook {dates}")
     seen = []
     for q in queries:
         q = " ".join(q.split())
@@ -221,6 +301,10 @@ def search_everywhere(event: dict) -> dict:
             url = (item.get("url") or "").split("#")[0]
             if not url or url in seen:
                 continue
+            item["published"] = item.get("published") or (published_on(item).isoformat() if published_on(item) else "")
+            item["in_window"] = in_coverage_window(item, event)
+            if item["in_window"] is False and lane not in ("class_catalog", "club_catalog"):
+                continue
             seen.add(url)
             item["lane"] = lane
             hits.append(item)
@@ -247,10 +331,12 @@ def search_everywhere(event: dict) -> dict:
 
     # Sailor-name queries catch club posts that omit the event title.
     for name in (event.get("result_names") or [])[:4]:
-        add(web_hits(f'"{name}" {event.get("club") or ""} sailing South Africa 2026', limit=5), "results_names")
+        add(web_hits(f'"{name}" {event.get("club") or ""} sailing {date_span_words(event)}', limit=5), "results_names")
 
+    lo, hi = coverage_window(event)
     return {
         "query": q,
+        "window": {"from": lo.isoformat() if lo else None, "to": hi.isoformat() if hi else None},
         "lanes": lanes,
         "hits": hits,
         "counts": {k: v["count"] for k, v in lanes.items()},

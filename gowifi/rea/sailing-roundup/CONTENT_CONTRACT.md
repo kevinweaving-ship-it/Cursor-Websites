@@ -11,7 +11,8 @@ Each following article is a **rewritten** regatta report: unique headline,
 original copy clustered from the event's own sources with inline citations,
 photographs from those same sources (podium and on the water are both
 valid; more than one photo is allowed; never Wikimedia), and a compact
-leaderboard only. Fields: id (stable), type (feature|regatta_report|brief),
+leaderboard only. Discovery searches `{event} {dates}` on the web and
+keeps only posts published during the regatta or in the two weeks after. Fields: id (stable), type (feature|regatta_report|brief),
 headline, deck, byline, kicker, layout (lead|photo-led|split|classic|compact),
 published_at, event_id, hero_image (nullable), blocks (ordered), sources (URLs).
 The public HTML/PDF must not dump `source_info` or social caption lists.
