@@ -376,6 +376,7 @@ def render(issue):
         + issue
         + "</title><style>"
         + newspaper_css()
+        + "@media print{.story figure img{max-height:190mm;width:auto;max-width:100%;object-fit:contain}.story table{break-inside:avoid}}"
         + "</style></head><body><main class='paper'><header class='masthead'>"
         "<a href='https://sailingsa.co.za/'><img class='ssa-logo' src='https://sailingsa.co.za/assets/logos/sailingsa-logo.png' alt='SailingSA'></a>"
         "<div><p class='flag'>SailingSA</p><h1>Sailing</h1></div>"

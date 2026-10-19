@@ -1,8 +1,8 @@
 # Independent Sailing Weekend Roundup
 
-Standalone Monday publication. SailingSA is a **read-only** results and Media-tab source. This app never writes to SailingSA, nginx on gowifi.co.za, or the REA MCP tunnel.
+Standalone Monday publication. Generation stays on GoWifi. SailingSA is a **read-only** results and Media-tab source for clustering; the only write is issue-scoped static files under `/sailing-roundup/`. This app never changes the SailingSA SPA, API, nginx on gowifi.co.za, or the REA MCP tunnel.
 
-**Project docs:** [PROJECT.md](PROJECT.md) · **Real aggregators to copy:** [docs/REAL_AGGREGATORS.md](docs/REAL_AGGREGATORS.md) · **Older tool notes:** [docs/TOOL_RESEARCH.md](docs/TOOL_RESEARCH.md)
+**Project docs:** [PROJECT.md](PROJECT.md) · **Unattended Monday publish:** [docs/UNATTENDED_MONDAY_PUBLISH.md](docs/UNATTENDED_MONDAY_PUBLISH.md) · **Verified evidence:** [docs/VERIFIED_EVIDENCE_FIX.md](docs/VERIFIED_EVIDENCE_FIX.md) · **Real aggregators to copy:** [docs/REAL_AGGREGATORS.md](docs/REAL_AGGREGATORS.md)
 
 Reference weekend: **26–27 September 2026** (issue Monday 2026-09-28). Driven from the public `events` table, not a homepage scrape.
 

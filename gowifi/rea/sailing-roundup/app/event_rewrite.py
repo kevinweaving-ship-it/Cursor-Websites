@@ -200,6 +200,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "names": [n for r in ranked for n in ((r.get("helm_name") or "").strip(), (r.get("crew_name") or "").strip()) if n],
         "url": "https://sailingsa.co.za/regatta/" + slug,
         "leaderboard": leaderboard(ranked),
+        "ranked_rows": ranked,
     }
 
 
@@ -278,7 +279,7 @@ def unique_headline(facts: dict, cluster: dict | None = None) -> str:
     if facts.get("tied_first") and facts.get("second"):
         return f"{winner} {_agree(winner, 'take', 'takes')} {title} after a points tie at {short_venue}"
     if facts.get("winner_wins") and facts["winner_wins"] >= max(3, int(facts.get("races") or 0) // 2):
-        if facts["winner_wins"] >= int(facts.get("races") or 0) - 2 and (facts.get("races") or 0) >= 6:
+        if facts["winner_wins"] == int(facts.get("races") or 0) and (facts.get("races") or 0) >= 6:
             return f"{winner} {_agree(winner, 'sweep', 'sweeps')} {title} at {short_venue}"
         return f"{winner} {_agree(winner, 'dominate', 'dominates')} {title} at {short_venue}"
     # Live "leads" only while the event is still racing. After it ends, they won.
@@ -301,56 +302,14 @@ def _date_span(start: str, end: str) -> str:
     return f"{s.strftime('%-d %B')}–{e.strftime('%-d %B')}"
 
 
-def _cluster_text(item: dict) -> str:
-    return "\n".join(
-        x for x in (item.get("snippet"), item.get("description"), item.get("title")) if x
-    ).strip()
+def _cluster_text(item):
+    from evidence_pipeline import text_of
+    return text_of(item)
 
 
-def _keep_cluster_item(item: dict, facts: dict) -> bool:
-    url = (item.get("url") or "").lower()
-    blob = " ".join((item.get("title") or "", item.get("description") or "", item.get("snippet") or "", url)).lower()
-    if any(junk in url or junk in blob for junk in JUNK_CLUSTER):
-        return False
-    if "login" in url or "/photos" == url.rstrip("/").split("facebook.com")[-1]:
-        return False
-    slug = (facts.get("slug") or "").lower()
-    if "sailingsa.co.za/regatta/" in url:
-        return bool(slug and slug in url)
-    if slug and "sailingsa.co.za" in url and slug in url:
-        return True
-    if item.get("engine") == "sailingsa" and item.get("role") == "official_results":
-        return True
-    try:
-        from search_everywhere import in_coverage_window
-
-        window = in_coverage_window(item, facts)
-    except Exception:
-        window = None
-    if window is False:
-        return False
-    if "1pgpy1pgh1" in url or item.get("engine") in (
-        "facebook",
-        "seed",
-        "host_club_post",
-        "source_media",
-        "class_catalog",
-        "club_catalog",
-    ):
-        return True
-    if item.get("provenance") == "host_club_post" or item.get("role") == "host_club_media":
-        return True
-    klass = (facts.get("class_name") or "").lower()
-    names = [n.lower() for n in facts.get("names") or []]
-    club = (facts.get("club") or "").lower()
-    club_name = (facts.get("club_name") or "").lower()
-    if klass and klass.split()[0] in blob and (
-        any(n in blob for n in names[:8]) or club in blob or club_name.split()[0] in blob
-    ):
-        return True
-    if any(n in blob for n in names[:6]):
-        return True
-    return False
+def _keep_cluster_item(item, facts):
+    from evidence_pipeline import verify
+    return verify(item,facts)["accepted"]
 
 
 def _host_source(cluster: dict | None) -> dict | None:
@@ -405,71 +364,9 @@ def _source_for_url(index: list[dict], url: str) -> dict | None:
     return None
 
 
-def _cluster_color(cluster: dict, facts: dict | None = None, index: list[dict] | None = None) -> list[str]:
-    """Turn host-club / class / news copy into cited sentences. RAG: only facts in the source."""
-    notes = []
-    index = index if index is not None else citation_index(cluster, facts)
-    source = _host_source(cluster)
-    if not source:
-        for item in (cluster or {}).get("articles") or []:
-            if len(_cluster_text(item)) >= 40:
-                source = dict(item, text=_cluster_text(item))
-                break
-    text = (source or {}).get("text") or ""
-    if not text:
-        return notes
-    src = _source_for_url(index, (source or {}).get("url") or (source or {}).get("share_url") or "") or (
-        index[1] if len(index) > 1 else index[0] if index else {"n": 2}
-    )
-    mark = _cite(src.get("n") or 2)
-    venue = (facts or {}).get("club_name") or "the host club"
-    quote = None
-    for line in text.splitlines():
-        line = re.sub(r"[⛵🏆🥇🥈🥉💙👏💪🌊🇿🇦]+", "", line).strip(" -–#")
-        if re.search(r"what a day on the water", line, re.I):
-            quote = re.sub(r"\s+", " ", line).strip(" !.")
-            break
-    places = [m.groupdict() for m in PLACE_LINE.finditer(text)]
-    special = SPECIAL_MENTION.search(text)
-    if quote:
-        notes.append(f"{venue} wrote from the venue: “{quote}.” {mark}")
-    overall = [p for p in places if int(p["place"]) <= 3]
-    if overall:
-        bits = []
-        for p in overall:
-            bit = f"{p['name'].strip()} ({p['club']})" if p.get("club") else p["name"].strip()
-            bits.append(f"{bit} on sail {p['sail']} in {p['place']}")
-        if bits:
-            notes.append("The club named the overall top three: " + "; ".join(bits) + f". {mark}")
-    home = [p for p in places if int(p["place"]) > 3]
-    if home:
-        bits = [f"{p['name'].strip()} {p['place']}th on sail {p['sail']}" for p in home]
-        extra = ""
-        if special:
-            extra = f" A special mention went to {special.group(1).strip()} in {special.group(2)}th."
-        notes.append(f"{venue} then listed their own boats: " + "; ".join(bits) + "." + extra + f" {mark}")
-    elif special:
-        notes.append(
-            f"The club gave a special mention to {special.group(1).strip()}, "
-            f"finishing {special.group(2)}th. {mark}"
-        )
-    known = {n.lower(): n for n in (facts or {}).get("names") or []}
-    if re.search(r"\bu-?17\b|under[- ]17|youth champion", text, re.I):
-        who = []
-        for name in re.findall(r"\b([A-Z][a-z]+ [A-Z][a-z]+)\b", text):
-            real = known.get(name.lower()) or name
-            if real not in who:
-                who.append(real)
-        if who:
-            notes.append(
-                f"A separate under-17 title at the same championship named "
-                f"{' and '.join(who[:2])}. {mark}"
-            )
-        else:
-            notes.append(f"A separate under-17 title was awarded at the same championship. {mark}")
-    if re.search(r"tied on points|tie break|tiebreak|last race", text, re.I) and (facts or {}).get("tied_first"):
-        notes.append(f"The class report said the title was settled on the last race. {mark}")
-    return notes[:4]
+def _cluster_color(cluster, facts=None, index=None):
+    from evidence_pipeline import source_notes
+    return source_notes(cluster,facts or {},index or citation_index(cluster,facts))
 
 
 def _heats(scores) -> list[dict]:
@@ -486,95 +383,9 @@ def _heats(scores) -> list[dict]:
     return out
 
 
-def rewrite_paragraphs(facts: dict, cluster: dict | None = None, index: list[dict] | None = None) -> list[str]:
-    """RAG recap: results card + only facts that appear in the clustered sources."""
-    venue = facts["club_name"]
-    dates = _date_span(facts["start"], facts["end"])
-    status = (facts.get("status") or "published").lower()
-    races = facts.get("races") or 0
-    entries = facts.get("entries") or 0
-    wins = facts.get("winner_wins") or 0
-    heats = _heats(facts.get("winner_scores"))
-    late = heats[-4:] if len(heats) >= 4 else heats
-    late_wins = sum(1 for h in late if h.get("win"))
-    no_wins = heats and wins == 0
-    klass = facts.get("class_name") or "fleet"
-    index = index if index is not None else citation_index(cluster, facts)
-    results_mark = _cite(index[0]["n"]) if index else "[1]"
-    paras = []
-    extras = _cluster_color(cluster or {}, facts, index)
-    if extras:
-        paras.extend(extras[:2])
-
-    if facts.get("tied_first") and facts.get("second"):
-        paras.append(
-            f"On the SailingSA card {facts['winner']} take the {facts['title']} at {venue} "
-            f"on countback from {facts['second']}, both on {facts['winner_nett']} nett. "
-            f"{entries} {klass}s sailed {races} races from {dates}. {results_mark}"
-        )
-    elif no_wins:
-        paras.append(
-            f"{facts['winner']} finished first in the {entries}-boat {klass} fleet at {venue} "
-            f"on {facts['winner_nett']} nett from {races} races, without a race win. {results_mark}"
-        )
-    elif wins and races and wins >= races - 2:
-        paras.append(
-            f"{facts['winner']} won {wins} of {races} races at {venue} for {facts['winner_nett']} nett "
-            f"in a {entries}-boat {klass} fleet, {dates}. {results_mark}"
-        )
-    else:
-        paras.append(
-            f"{facts['winner']} won the {facts['title']} at {venue} on {dates}, "
-            f"{facts['winner_nett']} nett after {races} races among {entries} boats"
-            + (f", with {wins} firsts. {results_mark}" if wins else f". {results_mark}")
-        )
-
-    if heats and late_wins >= 3:
-        closed = heats[-1]
-        paras.append(
-            f"They took {late_wins} of the last {len(late)} races, including {closed['race']}. {results_mark}"
-        )
-    elif no_wins and heats:
-        worst = max(heats, key=lambda h: h["pts"] or 0)
-        paras.append(
-            f"The only hole in the card was {worst['race']} ({worst['raw']}). {results_mark}"
-        )
-
-    chase = []
-    if facts.get("second"):
-        if facts.get("tied_first"):
-            chase.append(
-                f"{facts['second']} won {facts.get('second_wins') or 0} races and finished second on countback."
-            )
-        else:
-            chase.append(
-                f"{facts['second']} finished second on {facts['second_nett']}"
-                + (
-                    f" with {facts.get('second_wins')} race "
-                    + ("win" if facts.get("second_wins") == 1 else "wins")
-                    if facts.get("second_wins")
-                    else ""
-                )
-                + "."
-            )
-    if facts.get("third"):
-        chase.append(f"{facts['third']} finished third on {facts['third_nett'] or 'the published score'}.")
-    if chase:
-        paras.append(" ".join(chase) + " " + results_mark)
-
-    if len(extras) > 2:
-        paras.extend(extras[2:])
-
-    if status == "provisional" and event_finished(facts):
-        paras.append(f"SailingSA still marks the scores provisional. {results_mark}")
-    elif status == "provisional":
-        paras.append(f"The published result remains provisional. {results_mark}")
-    out = []
-    for p in paras:
-        p = re.sub(r"\s+", " ", p).strip()
-        if p and p not in out and "weekend" not in p.lower():
-            out.append(p)
-    return out[:7]
+def rewrite_paragraphs(facts, cluster=None, index=None):
+    from evidence_pipeline import recap
+    return recap(facts,cluster or {},index or citation_index(cluster,facts))
 
 
 def deck_from_facts(facts: dict) -> str:
@@ -592,73 +403,9 @@ def _http_get(url: str, headers: dict | None = None, timeout: int = 18) -> tuple
         return resp.read(), resp.headers.get_content_type() or ""
 
 
-def extract_article(url: str) -> dict | None:
-    if not url or not url.startswith("http"):
-        return None
-    if "facebook.com" in url:
-        try:
-            from facebook_cross_share import resolve_facebook_url
-
-            resolved = resolve_facebook_url(url)
-            return {
-                "url": resolved.get("canonical_url") or url,
-                "title": resolved.get("title") or "",
-                "description": resolved.get("description") or "",
-                "snippet": resolved.get("description") or "",
-                "image": resolved.get("image") or "",
-                "published": resolved.get("published") or "",
-            }
-        except Exception:
-            pass
-    try:
-        from bs4 import BeautifulSoup
-    except ImportError:
-        return {"url": url, "title": "", "description": "", "image": ""}
-    try:
-        raw, _ = _http_get(url, FB_UA if "facebook.com" in url else UA)
-    except Exception:
-        return None
-    soup = BeautifulSoup(raw, "html.parser")
-
-    def og(key: str) -> str:
-        tag = soup.find("meta", attrs={"property": "og:" + key}) or soup.find("meta", attrs={"name": "og:" + key})
-        return (tag.get("content") or "").strip() if tag else ""
-
-    title = og("title") or (soup.title.get_text(" ", strip=True) if soup.title else "")
-    desc = og("description")
-    image = og("image")
-    published = ""
-    for attr, key in (
-        ("property", "article:published_time"),
-        ("name", "article:published_time"),
-        ("property", "og:updated_time"),
-        ("itemprop", "datePublished"),
-        ("name", "pubdate"),
-        ("name", "date"),
-    ):
-        tag = soup.find("meta", attrs={attr: key})
-        if tag and tag.get("content"):
-            published = tag.get("content").strip()
-            break
-    if not published:
-        stamp = soup.find("time")
-        if stamp:
-            published = (stamp.get("datetime") or stamp.get_text(" ", strip=True) or "").strip()
-    paras = []
-    for p in soup.select("article p, main p, .entry-content p, p"):
-        text = re.sub(r"\s+", " ", p.get_text(" ", strip=True))
-        if len(text) > 80:
-            paras.append(text)
-        if len(paras) >= 3:
-            break
-    return {
-        "url": url,
-        "title": re.sub(r"\s+", " ", title).strip(),
-        "description": desc,
-        "snippet": " ".join(paras)[:700],
-        "image": image,
-        "published": published,
-    }
+def extract_article(url):
+    from evidence_pipeline import extract
+    return extract(url)
 
 
 def _try_paid_clusters(query: str) -> list[dict]:
@@ -771,115 +518,41 @@ def _try_paid_clusters(query: str) -> list[dict]:
     return items
 
 
-def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) -> dict:
-    """Group every public item about this one event into a single story cluster."""
-    seen = set()
-    articles = []
-
-    def add(item: dict):
-        url = (item.get("url") or item.get("source_url") or "").split("#")[0]
-        if not url or url in seen:
-            return
-        seen.add(url)
-        articles.append(
-            {
-                "url": url,
-                "share_url": item.get("share_url") or "",
-                "title": item.get("title") or item.get("label") or "",
-                "description": item.get("description") or item.get("snippet") or "",
-                "snippet": item.get("snippet") or "",
-                "image": item.get("image") or item.get("image_url") or "",
-                "engine": item.get("engine") or item.get("lane") or item.get("platform") or item.get("provenance") or "pack",
-                "provenance": item.get("provenance") or "",
-                "role": item.get("role") or "",
-                "published": item.get("published") or item.get("published_at") or item.get("pubDate") or "",
-            }
-        )
-
+def cluster_coverage(facts, pack=None, fetch=True):
+    from evidence_pipeline import verified_cluster
+    candidates=[_official_results_card(facts)]
     for post in (pack or {}).get("verified_posts") or (pack or {}).get("posts") or []:
-        add({**post, "engine": post.get("engine") or post.get("provenance") or "facebook"})
-    for img in (pack or {}).get("images") or []:
-        add(
-            {
-                "url": img.get("source_url") or img.get("image_url"),
-                "title": img.get("source_title") or "",
-                "image": img.get("image_url"),
-                "engine": img.get("platform") or "image",
-            }
-        )
-    add(_official_results_card(facts))
-    for url in SEED_URLS.get(facts.get("slug") or "", []):
-        add({"url": url, "engine": "seed"})
+        candidates.append(dict(post))
+    # Previously retrieved source text is evidence, never a trusted identity label.
+    issue=str((pack or {}).get("issue") or "2026-09-28")
+    old=ROOT/"data"/("reference-"+issue+".json")
+    if not old.exists():old=ROOT/"issues"/issue/"issue.json"
+    if old.exists():
+        data=json.loads(old.read_text())
+        for article in data.get("articles",[]):
+            if article.get("event_id")!=facts["slug"]:continue
+            for cite in article.get("citations",[]):
+                candidates.append({"url":cite["url"],"title":cite.get("title",""),"body":cite.get("text",""),"engine":"cached_evidence"})
+    candidates += [{"url":u,"engine":"seed"} for u in SEED_URLS.get(facts["slug"],[])]
     if fetch:
-        try:
-            from search_everywhere import (
-                catalog_local_urls,
-                discovery_queries,
-                event_query,
-                google_news,
-                official_sailingsa_sources,
-                web_hits,
-            )
-        except Exception:
-            event_query = None
-            catalog_local_urls = None
-            official_sailingsa_sources = None
-        ctx = {
-            "id": facts.get("slug"),
-            "slug": facts.get("slug"),
-            "title": facts["title"],
-            "club": facts["club"],
-            "club_name": facts["club_name"],
-            "class_name": facts.get("class_name") or "",
-            "class_slugs": [((facts.get("class_name") or "").strip().lower().replace(" ", "-"))],
-            "host_club_slug": facts.get("host_club_slug") or "",
-            "start": facts.get("start"),
-            "end": facts.get("end"),
-            "event_url": facts.get("url"),
-        }
-        if official_sailingsa_sources:
-            for item in official_sailingsa_sources(ctx):
-                add(item)
-        if catalog_local_urls:
-            for item in catalog_local_urls(ctx):
-                add({**item, "engine": item.get("engine") or "class_catalog"})
-        if event_query:
-            for q in discovery_queries(ctx)[:10]:
-                for item in google_news(q, limit=4) + web_hits(q, limit=6):
-                    add(item)
-                for item in _try_paid_clusters(q):
-                    add(item)
-        for article in list(articles):
-            if len(article.get("description") or "") > 200 and article.get("image"):
-                continue
-            extracted = extract_article(article["url"])
-            if not extracted:
-                continue
-            article["title"] = article["title"] or extracted.get("title") or ""
-            if len(extracted.get("description") or "") > len(article.get("description") or ""):
-                article["description"] = extracted.get("description") or ""
-            if len(extracted.get("snippet") or "") > len(article.get("snippet") or ""):
-                article["snippet"] = extracted.get("snippet") or ""
-            article["image"] = article.get("image") or extracted.get("image") or ""
-            article["published"] = article.get("published") or extracted.get("published") or ""
-            for extra in (extracted.get("images") or []) + harvest_source_images(article["url"]):
-                if extra.get("url") and extra["url"] != article.get("image"):
-                    add(
-                        {
-                            "url": extra.get("source_url") or article["url"],
-                            "title": extra.get("title") or article.get("title") or "",
-                            "image": extra["url"],
-                            "engine": "source_media",
-                            "provenance": article.get("provenance") or article.get("engine") or "seed",
-                        }
-                    )
-    kept = [a for a in articles if _keep_cluster_item(a, facts) and not _wiki_url(a.get("url") or "") and not _wiki_url(a.get("image") or "")]
-    return {
-        "event_id": facts.get("slug"),
-        "event_url": facts.get("url"),
-        "articles": kept,
-        "count": len(kept),
-    }
+        from search_everywhere import discovery_queries,google_news,web_hits
+        import concurrent.futures
+        ctx=dict(facts,id=facts["slug"],event_url=facts["url"])
+        queries=discovery_queries(ctx)[:4]
+        def query(q):
+            return google_news(q,limit=4)+web_hits(q,limit=5)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            for hits in pool.map(query,queries):candidates.extend(hits)
+    seen=set();unique=[]
+    for item in candidates:
+        from evidence_pipeline import canonical
+        key=canonical(item.get("url") or item.get("source_url"))
+        if key and key not in seen:
+            seen.add(key);unique.append(item)
+    cluster=verified_cluster(facts,unique,fetch=fetch)
+    # The official record needs no network extraction and is always citation 1.
+    cluster["articles"].sort(key=lambda a:a["verification"]["reason"]!="official_results")
+    return cluster
 
 
 def _wiki_url(url: str) -> bool:
@@ -1198,11 +871,15 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
     """Prizegiving and on-the-water shots from this event's sources. Never wiki or logos."""
     candidates = []
     seen = set()
+    from evidence_pipeline import canonical, MEDIA_EXCLUSIONS
+    accepted_sources = {canonical(x.get("url")) for x in cluster.get("articles", [])}
 
     def add(item: dict):
         url = (item.get("url") or "").split("#")[0]
         source = item.get("source_url") or ""
-        if not url or url in seen or _wiki_url(url) or _bad_image_url(url):
+        if cluster.get("schema_version") == "verified-evidence-1" and canonical(source) not in accepted_sources:
+            return
+        if not url or url in seen or _wiki_url(url) or _bad_image_url(url) or canonical(url) in MEDIA_EXCLUSIONS:
             return
         if _facebook_page_chrome(source, url) and _event_photo_score(item, facts) < 40:
             return
@@ -1219,6 +896,10 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
                     "credit": _credit_from_url(item.get("url") or item["image"]),
                 }
             )
+    for document in (cluster or {}).get("articles") or []:
+        for attachment in document.get("images") or []:
+            add({"url":attachment["url"],"source_url":document.get("url") or "",
+                 "title":attachment.get("title") or facts["title"],"credit":_credit_from_url(document.get("url") or "")})
     for img in (pack or {}).get("images") or []:
         if img.get("image_url"):
             add(
@@ -1326,8 +1007,6 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
     headline = unique_headline(facts, cluster)
     cols, table = facts["leaderboard"]
     images = pick_images(facts, cluster, pack, limit=2)
-    if not images and fetched_cluster:
-        images = _seed_event_images(facts)
     locals = []
     seen_hash = set()
     for idx, image in enumerate(images):
@@ -1340,6 +1019,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         seen_hash.add(digest)
         locals.append(local)
     blocks = []
+    from evidence_pipeline import photo_caption
     for local in locals:
         credit = pretty_credit(local.get("credit") or "", local.get("source_url") or local.get("url") or "")
         blocks.append(
@@ -1347,7 +1027,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
                 "type": "image",
                 "url": local["url"],
                 "alt": local.get("title") or facts["title"],
-                "caption": f"{facts['title']} — {facts['club_name']}. Photo: {credit}.",
+                "caption": photo_caption(local,facts,cluster) + f" Photo: {credit}.",
                 "credit": credit,
                 "source_url": local.get("source_url") or facts["url"],
                 "rights_status": "source_attributed",
@@ -1418,49 +1098,6 @@ def _seed_event_images(facts: dict) -> list[dict]:
     return uniq[:2]
 
 
-def rewrite_weekend_feature(issue: str, monday, events: list[dict], articles: list[dict]) -> dict:
-    import datetime as dt
-
-    from events_weekend import saturday_sunday
-
-    sat, sun = saturday_sunday(monday)
-    scored = [e for e in events if e.get("has_results") or e.get("regatta_id")]
-    window = f"{sat.strftime('%-d')}–{sun.strftime('%-d %B %Y')}"
-    venues = []
-    for article in articles:
-        club = (article.get("club") or "").strip()
-        name = {
-            "TSC": "Theewater",
-            "HMYC": "Midmar",
-            "AYC": "Aeolians",
-        }.get(club, article.get("class_name") or "")
-        if name and name not in venues:
-            venues.append(name)
-    if not events:
-        paras = [f"No racing events were listed on the SailingSA events table for {sat.isoformat()}–{sun.isoformat()}."]
-        headline = "No titles on the SailingSA calendar"
-    else:
-        where = ", ".join(venues[:3]) if venues else "South Africa"
-        headline = f"{len(scored) or len(articles) or len(events)} titles at {where}"
-        bits = [
-            f"{len(scored)} of {len(events)} listed events published results for {window} at {where}."
-        ]
-        for article in articles:
-            if article.get("headline"):
-                bits.append(article["headline"] + ".")
-        paras = [p for p in bits[:6] if "weekend" not in p.lower()]
-    return {
-        "id": "sailing-" + issue,
-        "type": "feature",
-        "headline": headline,
-        "deck": f"SailingSA · {window}",
-        "byline": "SailingSA",
-        "kicker": "SAILING",
-        "published_at": issue,
-        "event_id": "sailing-" + issue,
-        "layout": "lead",
-        "hero_image": (articles[0].get("hero_image") if articles else None),
-        "blocks": [{"type": "paragraph", "text": p} for p in paras],
-        "sources": ["https://sailingsa.co.za/api/events"],
-        "review_status": "rewritten",
-    }
+def rewrite_weekend_feature(issue,monday,events,articles):
+    from evidence_pipeline import feature
+    return feature(issue,monday,events,articles)

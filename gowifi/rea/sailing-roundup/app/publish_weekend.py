@@ -64,7 +64,7 @@ def fetch_json(url: str, timeout: int = 30):
 
 
 def last_monday(today: dt.date | None = None) -> dt.date:
-    today = today or dt.date.today()
+    today = today or dt.datetime.now(__import__("zoneinfo").ZoneInfo("Africa/Johannesburg")).date()
     return today - dt.timedelta(days=today.weekday())
 
 
@@ -144,50 +144,17 @@ def sailor_ids(rows: list[dict], limit: int = 8) -> list[str]:
     return ids[:limit]
 
 
-def article_from_regatta(issue: str, slug: str, rows: list[dict], layout: str = "classic") -> dict | None:
-    if not rows:
-        return None
-    first = rows[0]
-    title = (first.get("event_name") or slug).strip()
-    if skip_event_name(title):
-        return None
-    facts = facts_from_rows(slug, rows)
-    club = facts["club"]
-    klass = facts["class_name"]
-    start = parse_day(first.get("start_date")) or dt.date.fromisoformat(slug[:10])
-    end = parse_day(first.get("end_date")) or start
-    url = facts["url"]
-    from social_collect import collect as collect_social
-
-    terms = event_terms(title, club, klass, slug)
-    pack = collect_social(
-        issue,
-        {
-            "id": slug,
-            "title": title,
-            "club": club,
-            "club_name": facts["club_name"],
-            "class_name": klass,
-            "host_club_slug": facts.get("host_club_slug") or "",
-            "class_canonical": first.get("class_canonical") or "",
-            "event_url": url,
-            "start": facts["start"],
-            "end": facts["end"],
-            "result_names": [r for r in (
-                [row.get("helm_name") for row in rows[:8]] + [row.get("crew_name") for row in rows[:8]]
-            ) if r],
-        },
-        sailor_ids(rows),
-        terms,
-        start,
-        end,
-        rows=rows,
-    )
-    article = rewrite_event(issue, facts, pack=pack, layout=layout)
-    dest = ROOT / "issues" / issue / "sources"
-    dest.mkdir(parents=True, exist_ok=True)
-    (dest / f"{slug}-social.json").write_text(json.dumps(pack, indent=2, ensure_ascii=False))
-    return article
+def article_from_regatta(issue, slug, rows, layout="classic"):
+    if not rows or skip_event_name(rows[0].get("event_name") or slug):return None
+    facts=facts_from_rows(slug,rows)
+    source_dir=ROOT/"issues"/issue/"sources"
+    source_dir.mkdir(parents=True,exist_ok=True)
+    (source_dir/(slug+"-results.json")).write_text(json.dumps(rows,indent=2,ensure_ascii=False))
+    pack={"issue":issue}
+    cached=source_dir/(slug+"-social.json")
+    if cached.exists():
+        pack.update(json.loads(cached.read_text()))
+    return rewrite_event(issue,facts,pack=pack,layout=layout)
 
 
 def enrich_existing(issue: str, article: dict) -> dict:
@@ -231,22 +198,26 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -
         write_public_index()
         return {"issue": issue, "action": "enriched", "articles": len(data.get("articles") or [])}
     table_events = weekend_events(monday)
-    slugs = [e["regatta_id"] for e in table_events if e.get("regatta_id")] or discover_slugs(monday)
+    slugs = sorted(set(e["regatta_id"] for e in table_events if e.get("regatta_id"))) or discover_slugs(monday)
     articles = []
-    for slug in slugs:
+    def build_event(pair):
+        index,slug=pair
         try:
-            rows = fetch_regatta(slug)
-            if not rows:
-                logs.append({"event": slug, "status": "skipped_no_api_rows"})
-                continue
-            article = article_from_regatta(issue, slug, rows, layout=layout_for(len(articles), "regatta_report"))
-            if not article:
-                logs.append({"event": slug, "status": "skipped"})
-                continue
-            articles.append(article)
-            logs.append({"event": slug, "status": "draft", "rows": len(rows)})
+            rows=fetch_regatta(slug)
+            if not rows:return None,{"event":slug,"status":"skipped_no_api_rows"}
+            article=article_from_regatta(issue,slug,rows,layout=layout_for(index,"regatta_report"))
+            if not article:return None,{"event":slug,"status":"skipped"}
+            return article,{"event":slug,"status":"draft","rows":len(rows)}
         except Exception as exc:
-            logs.append({"event": slug, "status": "error", "error": str(exc)[:180]})
+            return None,{"event":slug,"status":"error","error":str(exc)[:180]}
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        for article,log in pool.map(build_event,enumerate(slugs)):
+            if article:articles.append(article)
+            logs.append(log)
+    failed = [x for x in logs if x["status"] in ("error", "skipped_no_api_rows")]
+    if failed:
+        raise RuntimeError("Edition incomplete: " + json.dumps(failed))
     dest.parent.mkdir(parents=True, exist_ok=True)
     (dest.parent / "sources").mkdir(parents=True, exist_ok=True)
     (dest.parent / "sources" / "events-weekend.json").write_text(
@@ -258,6 +229,7 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -
         "issue_id": issue,
         "title": "Weekend Sailing Roundup",
         "edition_date": issue,
+        "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "status": "draft",
         "articles": [feature] + articles,
     }
