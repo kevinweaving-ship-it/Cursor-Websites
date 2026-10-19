@@ -23,7 +23,8 @@ REGATTA_ID = "2026-05-16-pyc-kzn-mirror-regionals"
 BLOCK_ID = f"{REGATTA_ID}:mirror"
 EVENT_NAME = "KZN Mirror Regional Championships"
 SAS_SOURCE_EVENT_ID = "344422"
-CLASS_NAME = "Mirror"
+CLASS_NAME = "Mirror"  # class = fleet; header left = Mirror class logo (never KZN-Mirror-ILCA Event Logo)
+
 AS_AT = "2026-05-17 17:05:00+02"
 START = "2026-05-16"
 END = "2026-05-17"

@@ -21998,8 +21998,25 @@ def _class_logo_url_from_fleet_name(name: str) -> Optional[str]:
     return file_map.get(key)
 
 
+try:
+    from event_logo_class_compat import (  # type: ignore
+        event_logo_src_compatible_with_event as _event_logo_src_compatible_with_event,
+        named_event_logo_url as _named_event_logo_url_compat,
+    )
+except ImportError:
+    _event_logo_src_compatible_with_event = None  # type: ignore
+    _named_event_logo_url_compat = None  # type: ignore
+
+
 def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
-    """Named recurring events: left header event logo (not generic Sailing SA)."""
+    """Named recurring events: left header event logo (not generic Sailing SA).
+
+    Class-in-name events are class = fleet: use that class logo. Never apply
+    combined Event Logos (Mirror+ILCA, etc.) unless every class in the artwork
+    filename is in the event name or slug.
+    """
+    if _named_event_logo_url_compat is not None:
+        return _named_event_logo_url_compat(regatta_id, event_name)
     rid = str(regatta_id or "").strip().lower()
     en = str(event_name or "").lower()
     if "lipton" in rid or "lipton" in en:
