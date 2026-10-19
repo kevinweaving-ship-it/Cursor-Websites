@@ -1,5 +1,9 @@
 # Event table and SAS events scrape
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
+**Rule 1:** daily scrape filling `events` is not an Event URL. After parsing SAS Low Point results, match the **SAS event that actually ran** (`source_event_id`, host, dates) and set `events.regatta_id`. Same series can have a stale listing and a later listing — do not attach results to the leftover dates.
+
 ## Purpose
 
 - **Event table**: Canonical list of events (past + upcoming) from [sailing.org.za/events/](https://www.sailing.org.za/events/), with links to our regattas (results) and to club pages.

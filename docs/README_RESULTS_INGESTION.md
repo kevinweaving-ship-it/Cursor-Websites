@@ -1,14 +1,18 @@
 # Results ingestion – class resolution and ingestion issues
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
+**Rule 1:** match parsed SAS results to `public.events` **before** choosing the Event URL. Gold slug = that row’s `start_date` (not the first same-series SAS listing, not ingest time). Daily scrape ≠ matching. If Rule 1 was already wrong on live, 301-migrate the slug.
+
 Manual parsed-results ingestion (scripts that insert into `results`, e.g. `add_regatta_385_420_fleet.py`) uses **strict class resolution**. No fuzzy matching, no auto-creation of classes, no guessing.
 
 ---
 
 ## 🔐 Canonical URL & Date Authority Rules (LOCKED)
 
-**Regatta URL slug and dates must reflect regatta start/end date — NOT parse/import date.**
+**Regatta URL slug and dates must reflect the matched SAS event — NOT parse/import date.**
 
-- **Source of truth:** `regattas.start_date` / `regattas.end_date`
+- **Source of truth for SAS Low Score Event URLs:** `public.events.start_date` / `end_date` on the SAS row that actually ran, then stored on `regattas.start_date` / `regattas.end_date`.
 - **Never use:** file upload timestamp, ingest timestamp, parse timestamp, `current_date`
 - **Sitemap `<lastmod>` for regatta-result URLs** must equal `regattas.end_date`. If `end_date` is NULL, fallback to `start_date`. Never use `updated_at` for regatta-result lastmod unless it is an upcoming event URL.
 - **Results ingestion must NOT modify** `regattas.start_date` or `regattas.end_date` unless explicitly corrected by admin. Parsing a file must not overwrite `start_date` or `end_date`.

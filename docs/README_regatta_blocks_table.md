@@ -1,5 +1,8 @@
 # REGATTA_BLOCKS Table - GPT Rules & Data Structure
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+Single fleet → one block; parent Event URL only.
+
 ## Purpose
 Stores fleet/class block information for each regatta with scoring parameters.
 

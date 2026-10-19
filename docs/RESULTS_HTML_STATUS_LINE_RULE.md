@@ -1,5 +1,7 @@
 # Results HTML "Results are" status line — read-back rule
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
 **Applies to:** All results reports/sheets (regatta results HTML, class results, podium, full regatta, standalone viewer).
 
 ## Canonical rule (do not change)
@@ -32,8 +34,9 @@
 
 ## Where it’s defined
 
+- **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — SAS Low Score Results Pass (Event URL + as-at on the matched event date).
 - **`docs/RESULTS_PASSING_WORKFLOW.md`** — Results status line (sentence and date/time format).
-- **`README.md`** — "Results Data Pass / HTML Header Data" (Line 3, Results Status Line).
+- **`docs/README.md`** — Results Data Pass / HTML Header Data.
 - **`docs/README_regattas_table.md`** — as_at_time and format in HTML.
 
 When editing any results HTML or the API that serves this line, follow this rule and do not introduce different wording or formats.

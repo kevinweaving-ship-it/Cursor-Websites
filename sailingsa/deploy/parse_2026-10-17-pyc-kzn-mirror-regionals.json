@@ -1,0 +1,136 @@
+{
+  "pass": "SAS Low Score Results Pass",
+  "std": "docs/SAS_LOW_SCORE_RESULTS_PASS.md",
+  "pinned_chat": "https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf",
+  "ingest_script": "sailingsa/deploy/create_2026_pyc_kzn_mirror_regionals.py",
+  "gold_event_url": "https://sailingsa.co.za/regatta/2026-10-17-pyc-kzn-mirror-regionals",
+  "layout_gold": "https://sailingsa.co.za/regatta/2026-09-24-ayc-505-nationals",
+  "event": {
+    "regatta_id": "2026-10-17-pyc-kzn-mirror-regionals",
+    "event_name": "KZN Mirror Regionals",
+    "sas_source_event_id": "382272",
+    "sas_stale_event_id_do_not_use": "344422",
+    "host_club_code": "PYC",
+    "class_equals_fleet": "Mirror",
+    "fleets": 1,
+    "start_date": "2026-10-17",
+    "end_date": "2026-10-18",
+    "result_status": "Final",
+    "as_at_time": "2026-10-18 17:05:00+02",
+    "sailed": 8,
+    "discards": 1,
+    "to_count": 7,
+    "entries": 8,
+    "penalty_points": 9.0,
+    "scoring_system": "Appendix A"
+  },
+  "spelling_from_sas_id": [
+    {"sheet": "Gusi Funke", "sas": "Gust Funke", "helm_id": 21715},
+    {"sheet": "John Alan Harding", "sas": "John-Alan Harding", "crew_id": 16401},
+    {"sheet": "Sabelo Mpingose", "sas": "Sabelo Mpungose", "crew_id": 21107}
+  ],
+  "unmatched_keep_sheet_name": [
+    {"role": "crew", "name": "Ila Gebuza", "id": null},
+    {"role": "helm", "name": "Nothando Phuling", "id": null},
+    {"role": "crew", "name": "Elethu Keke", "id": null},
+    {"role": "crew", "name": "Losikona Linda", "id": null}
+  ],
+  "rows": [
+    {
+      "rank": 1,
+      "sail": "60522",
+      "club": "HMYC",
+      "helm": "Mark Flack",
+      "helm_id": 11042,
+      "crew": "Ila Gebuza",
+      "crew_id": null,
+      "scores": {"R1": "1.0", "R2": "1.0", "R3": "1.0", "R4": "1.0", "R5": "1.0", "R6": "3.0", "R7": "(5.0)", "R8": "1.0"},
+      "total": 14.0,
+      "nett": 9.0
+    },
+    {
+      "rank": 2,
+      "sail": "70207",
+      "club": "PYC",
+      "helm": "Gust Funke",
+      "helm_id": 21715,
+      "crew": "Kai Funke",
+      "crew_id": 22836,
+      "scores": {"R1": "2.0", "R2": "3.0", "R3": "(9.0 DNS)", "R4": "2.0", "R5": "2.0", "R6": "2.0", "R7": "3.0", "R8": "3.0"},
+      "total": 26.0,
+      "nett": 17.0
+    },
+    {
+      "rank": 3,
+      "sail": "50637",
+      "club": "PYC",
+      "helm": "Jerome Vermaak",
+      "helm_id": 15495,
+      "crew": "John-Alan Harding",
+      "crew_id": 16401,
+      "scores": {"R1": "4.0", "R2": "2.0", "R3": "2.0", "R4": "(9.0 DNC)", "R5": "9.0 DNC", "R6": "5.0", "R7": "2.0", "R8": "2.0"},
+      "total": 35.0,
+      "nett": 26.0
+    },
+    {
+      "rank": 4,
+      "sail": "70410",
+      "club": "PYC",
+      "helm": "Colin Becker",
+      "helm_id": 9668,
+      "crew": "Cali Becker",
+      "crew_id": 29495,
+      "scores": {"R1": "(9.0 DNS)", "R2": "9.0 DNC", "R3": "9.0 DNC", "R4": "3.0", "R5": "3.0", "R6": "1.0", "R7": "1.0", "R8": "9.0 DNF"},
+      "total": 44.0,
+      "nett": 35.0
+    },
+    {
+      "rank": 5,
+      "sail": "66853",
+      "club": "PYC",
+      "helm": "Philasande Zungu",
+      "helm_id": 13991,
+      "crew": "Kwanele Ziqubu",
+      "crew_id": 28840,
+      "scores": {"R1": "(9.0 DNS)", "R2": "9.0 DNC", "R3": "9.0 DNC", "R4": "9.0 DNS", "R5": "5.0", "R6": "6.0", "R7": "4.0", "R8": "4.0"},
+      "total": 55.0,
+      "nett": 46.0
+    },
+    {
+      "rank": 6,
+      "sail": "50558",
+      "club": "PYC",
+      "helm": "Nothando Phuling",
+      "helm_id": null,
+      "crew": "Elethu Keke",
+      "crew_id": null,
+      "scores": {"R1": "(9.0 DNS)", "R2": "9.0 DNC", "R3": "9.0 DNC", "R4": "9.0 DNS", "R5": "4.0", "R6": "4.0", "R7": "6.0", "R8": "5.0"},
+      "total": 55.0,
+      "nett": 46.0
+    },
+    {
+      "rank": 7,
+      "sail": "70245",
+      "club": "PYC",
+      "helm": "Sakhile Mthombeni",
+      "helm_id": 15093,
+      "crew": "Sabelo Mpungose",
+      "crew_id": 21107,
+      "scores": {"R1": "3.0", "R2": "4.0", "R3": "(9.0 DNF)", "R4": "9.0 DNC", "R5": "9.0 DNC", "R6": "9.0 DNC", "R7": "9.0 DNC", "R8": "9.0 DNC"},
+      "total": 61.0,
+      "nett": 52.0
+    },
+    {
+      "rank": 8,
+      "sail": "50552",
+      "club": "PYC",
+      "helm": "Thembeka Dlamini",
+      "helm_id": 21853,
+      "crew": "Losikona Linda",
+      "crew_id": null,
+      "scores": {"R1": "(9.0 DNS)", "R2": "9.0 DNC", "R3": "9.0 DNC", "R4": "9.0 DNS", "R5": "6.0", "R6": "7.0", "R7": "7.0", "R8": "6.0"},
+      "total": 62.0,
+      "nett": 53.0
+    }
+  ]
+}

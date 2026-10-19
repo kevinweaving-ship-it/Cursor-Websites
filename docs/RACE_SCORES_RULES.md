@@ -1,5 +1,8 @@
 # RACE_SCORES RULES - COMPLETE SPECIFICATION
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+Low Point: parenthesised discard in Total; Nett = Total − discard; DNC/DNS/DNF = entries+1.
+
 ## Column: `race_scores` (JSONB, NOT NULL)
 
 **Data Type**: JSONB (PostgreSQL JSON Binary format)  
