@@ -24,6 +24,7 @@ from search_everywhere import (
     discovery_queries,
     event_query,
     in_coverage_window,
+    official_sailingsa_sources,
 )
 from sailor_mentions import filter_for_event, parse_day
 
@@ -161,6 +162,44 @@ class PublishHelpers(unittest.TestCase):
         )
         self.assertFalse(old["verified"], old)
         self.assertIn("outside_event_window", old["reasons"])
+
+    def test_sailingsa_is_official_source_in_search(self):
+        event = {
+            "id": "2026-09-25-tsc-420-nationals",
+            "slug": "2026-09-25-tsc-420-nationals",
+            "title": "420 Nationals",
+            "club": "TSC",
+            "club_name": "Theewater Sports Club",
+            "class_name": "420",
+            "host_club_slug": "tsc",
+            "start": "2026-09-26",
+            "end": "2026-09-27",
+        }
+        blob = " ".join(discovery_queries(event))
+        self.assertIn("420 Nationals 2026", blob)
+        self.assertIn("420 Nationals September 2026", blob)
+        self.assertIn("site:sailingsa.co.za", blob)
+        self.assertIn("SailingSA", blob)
+        urls = [item["url"] for item in official_sailingsa_sources(event)]
+        self.assertIn("https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals", urls)
+        self.assertIn("https://sailingsa.co.za/club/tsc", urls)
+        self.assertIn("https://sailingsa.co.za/class/420", urls)
+        self.assertTrue(
+            in_coverage_window(
+                {"url": "https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals"},
+                event,
+            )
+        )
+        official = verify_post(
+            {
+                "url": "https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals",
+                "title": "420 Nationals — SailingSA results",
+                "description": "Official SAS-sanctioned 420 Nationals results",
+            },
+            event,
+        )
+        self.assertTrue(official["verified"], official)
+        self.assertIn("sailingsa_official", official["reasons"])
 
 
 if __name__ == "__main__":

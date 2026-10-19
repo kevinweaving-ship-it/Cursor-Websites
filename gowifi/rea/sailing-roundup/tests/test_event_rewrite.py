@@ -7,6 +7,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from event_rewrite import (
+    citation_index,
+    cluster_coverage,
     event_finished,
     facts_from_rows,
     layout_for,
@@ -294,6 +296,28 @@ class RewriteEngine(unittest.TestCase):
         }
         self.assertFalse(_keep_cluster_item(old, facts))
         self.assertTrue(_keep_cluster_item(fresh, facts))
+
+    def test_cluster_always_keeps_sailingsa_results(self):
+        facts = facts_from_rows("2026-09-25-tsc-420-nationals", sample_rows())
+        official = {
+            "url": "https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals",
+            "title": "420 Nationals — SailingSA results",
+            "engine": "sailingsa",
+            "role": "official_results",
+        }
+        other = {
+            "url": "https://sailingsa.co.za/regatta/2026-09-24-hmyc-dart-18-nationals",
+            "title": "Dart 18 Nationals — SailingSA results",
+            "engine": "sailingsa",
+            "role": "official_results",
+        }
+        self.assertTrue(_keep_cluster_item(official, facts))
+        self.assertFalse(_keep_cluster_item(other, facts))
+        cluster = cluster_coverage(facts, pack=None, fetch=False)
+        urls = [item["url"] for item in cluster["articles"]]
+        self.assertIn(facts["url"], urls)
+        cites = citation_index(cluster, facts)
+        self.assertEqual(cites[0]["url"], facts["url"])
 
 
 if __name__ == "__main__":

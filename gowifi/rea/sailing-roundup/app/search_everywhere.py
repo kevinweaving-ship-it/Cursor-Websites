@@ -97,11 +97,88 @@ def published_on(item: dict) -> dt.date | None:
 
 def in_coverage_window(item: dict, event: dict) -> bool | None:
     """True = posted during/just after the event. False = too old/too late. None = date unknown."""
+    if is_official_sailingsa(item, event):
+        return True
     lo, hi = coverage_window(event)
     day = published_on(item)
     if not lo or not day:
         return None
     return lo <= day <= hi
+
+
+def event_year_month(event: dict) -> tuple[str, str]:
+    start = parse_day(
+        event.get("start")
+        or event.get("start_date")
+        or event.get("id")
+        or event.get("slug")
+        or event.get("regatta_id")
+        or ""
+    )
+    if not start:
+        return "", ""
+    return str(start.year), start.strftime("%B %Y")
+
+
+def event_slug(event: dict) -> str:
+    slug = (event.get("slug") or event.get("id") or event.get("regatta_id") or "").strip()
+    if slug:
+        return slug
+    url = event.get("event_url") or event.get("url") or ""
+    if "/regatta/" in url:
+        return url.rstrip("/").split("/")[-1]
+    return ""
+
+
+def official_sailingsa_sources(event: dict) -> list[dict]:
+    """The SAS-sanctioned card already on SailingSA by Monday. Direct access, not a scrape."""
+    slug = event_slug(event)
+    title = (event.get("title") or event.get("event_name") or slug).strip()
+    club = (event.get("club") or "").strip()
+    club_name = (event.get("club_name") or club).strip()
+    club_slug = (event.get("host_club_slug") or club).strip().lower()
+    klass = (event.get("class_name") or "").strip()
+    class_slug = klass.lower().replace(" ", "-")
+    end = event.get("end") or event.get("end_date") or ""
+    out = []
+    if slug:
+        out.append(
+            {
+                "url": "https://sailingsa.co.za/regatta/" + slug,
+                "title": f"{title} — SailingSA results",
+                "description": f"Official SAS-sanctioned {title} results on SailingSA.",
+                "engine": "sailingsa",
+                "role": "official_results",
+                "published": end,
+            }
+        )
+    if club_slug:
+        out.append(
+            {
+                "url": "https://sailingsa.co.za/club/" + club_slug,
+                "title": f"{club_name} — SailingSA club",
+                "description": f"Host club record for {title}.",
+                "engine": "sailingsa",
+                "role": "official_club",
+            }
+        )
+    if class_slug:
+        out.append(
+            {
+                "url": "https://sailingsa.co.za/class/" + class_slug,
+                "title": f"{klass} — SailingSA class",
+                "description": f"Class record for {title}.",
+                "engine": "sailingsa",
+                "role": "official_class",
+            }
+        )
+    return out
+
+
+def is_official_sailingsa(item: dict, event: dict) -> bool:
+    url = (item.get("url") or item.get("source_url") or "").lower()
+    slug = event_slug(event).lower()
+    return bool(slug and "sailingsa.co.za" in url and slug in url)
 
 
 def event_query(event: dict) -> str:
@@ -124,13 +201,21 @@ def google_after_before(event: dict) -> str:
 
 
 def discovery_queries(event: dict) -> list[str]:
-    """Search the event + dates. Google then yields articles posted in that window."""
+    """Search the event + year/month. Google should surface SailingSA, then everyone else."""
     title = (event.get("title") or event.get("event_name") or "").strip()
     klass = (event.get("class_name") or "").strip()
     club = (event.get("club_name") or event.get("club") or "").strip()
     dates = date_span_words(event)
     bounded = google_after_before(event)
+    year, month = event_year_month(event)
     queries = [event_query(event)]
+    if title and year:
+        queries.append(f"{title} {year}")
+        queries.append(f"{title} {year} SailingSA")
+        queries.append(f"{title} {year} site:sailingsa.co.za")
+    if title and month:
+        queries.append(f"{title} {month}")
+        queries.append(f"{title} {month} SailingSA")
     if title and dates:
         queries.append(f"{title} {dates}")
         if bounded:
@@ -303,15 +388,24 @@ def search_everywhere(event: dict) -> dict:
                 continue
             item["published"] = item.get("published") or (published_on(item).isoformat() if published_on(item) else "")
             item["in_window"] = in_coverage_window(item, event)
-            if item["in_window"] is False and lane not in ("class_catalog", "club_catalog"):
+            if item["in_window"] is False and lane not in ("class_catalog", "club_catalog", "sailingsa"):
                 continue
             seen.add(url)
             item["lane"] = lane
             hits.append(item)
             lanes[lane]["count"] += 1
 
+    add(official_sailingsa_sources(event), "sailingsa")
     add(catalog_local_urls(event), "class_catalog")
-    for q2 in discovery_queries(event)[:6]:
+    year, month = event_year_month(event)
+    title = (event.get("title") or event.get("event_name") or "").strip()
+    if title and year:
+        add(web_hits(f"{title} {year} site:sailingsa.co.za", limit=8), "sailingsa")
+        add(web_hits(f"{title} {year} SailingSA", limit=6), "sailingsa")
+        add(google_news(f"{title} {year} SailingSA", limit=4), "sailingsa")
+    if title and month:
+        add(web_hits(f"{title} {month} site:sailingsa.co.za", limit=6), "sailingsa")
+    for q2 in discovery_queries(event)[:10]:
         add(web_hits(q2, limit=6), "discover")
         add(google_news(q2, limit=4), "google_news")
     add(web_hits(q), "web")

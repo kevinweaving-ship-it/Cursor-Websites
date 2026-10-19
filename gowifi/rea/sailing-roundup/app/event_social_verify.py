@@ -82,6 +82,9 @@ def verify_post(post: dict, event: dict) -> dict:
     reasons = []
     score = 0
 
+    if slug and "sailingsa.co.za" in post_url and slug in post_url:
+        score += 8
+        reasons.append("sailingsa_official")
     if event_url and event_url in text:
         score += 6
         reasons.append("event_url")
@@ -146,6 +149,8 @@ def verify_post(post: dict, event: dict) -> dict:
         reasons.append("outside_event_window")
 
     verified = score >= 5 and window is not False and (
+        "sailingsa_official" in reasons
+        or
         "event_url" in reasons
         or "event_slug" in reasons
         or "results_name" in "".join(reasons)
@@ -277,7 +282,9 @@ def collect_and_verify(event: dict, rows: list[dict] | None = None) -> dict:
     for item in host_posts:
         _add_link(links, item.get("url"), item.get("platform"), item.get("provenance") or "host_club_post")
 
-    candidates = list(host_posts)
+    from search_everywhere import official_sailingsa_sources
+
+    candidates = list(official_sailingsa_sources(event_ctx)) + list(host_posts)
     for link in links:
         url = link.get("url") or ""
         if not url:

@@ -14,10 +14,15 @@ Perplexity Discover / core search is the best working example of
   not Wikipedia, and not waiting for someone to paste every share link.
   A human can find `share/g/…` groups in two seconds; discovery must
   do the same query (`505 RSA facebook group`, `Dart 18 SA facebook`).
-  Search is `{event_name} {venue} {dates}`; keep a hit only when it was
-  posted during the event or in the days immediately after
-  (`after:` / `before:` on Google, `pubDate` / `article:published_time`
-  on the page). A 2024 write-up is not coverage of the 2026 nationals.
+  Search is `{event_name} {year}` and `{event_name} {month} {year}` at
+  the bare minimum — that is the query that should return SailingSA,
+  because the event is SAS-sanctioned and the results card is already
+  live on sailingsa.co.za when the Monday edition is written. REA has
+  direct access to that card and injects it as source [1]; Google hits
+  on the same `/regatta/{slug}` page are corroboration, not discovery
+  of our own data. Then collate club, class, Facebook, and local news
+  around it. Keep a hit only when it was posted during the event or in
+  the days immediately after. A 2024 write-up is not this nationals.
 - **Synthesize:** the model reads those bodies, drops repeated fluff,
   and writes one structured article from scratch.
 - **Accuracy:** every claim has an inline citation back to a scraped

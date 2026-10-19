@@ -202,6 +202,32 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
     }
 
 
+def _official_results_card(facts: dict) -> dict:
+    """SailingSA results are already live by the Monday publisher. Always source [1]."""
+    bits = [
+        f"Official SAS-sanctioned {facts.get('title') or 'event'} at {facts.get('club_name') or facts.get('club') or 'the host club'}.",
+    ]
+    if facts.get("winner"):
+        bits.append(f"1st {facts['winner']}.")
+    if facts.get("second"):
+        bits.append(f"2nd {facts['second']}.")
+    if facts.get("third"):
+        bits.append(f"3rd {facts['third']}.")
+    if facts.get("entries") or facts.get("races"):
+        bits.append(f"{facts.get('entries') or 0} entries, {facts.get('races') or 0} races.")
+    if facts.get("status"):
+        bits.append(f"Results are {facts['status']}.")
+    return {
+        "url": facts.get("url") or "",
+        "title": f"{facts.get('title') or 'Event'} — SailingSA results",
+        "description": " ".join(bits),
+        "snippet": " ".join(bits),
+        "engine": "sailingsa",
+        "role": "official_results",
+        "published": facts.get("end") or "",
+    }
+
+
 def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[str], list[list[str]]]:
     table = []
     for row in rows[:limit]:
@@ -287,6 +313,13 @@ def _keep_cluster_item(item: dict, facts: dict) -> bool:
         return False
     if "login" in url or "/photos" == url.rstrip("/").split("facebook.com")[-1]:
         return False
+    slug = (facts.get("slug") or "").lower()
+    if "sailingsa.co.za/regatta/" in url:
+        return bool(slug and slug in url)
+    if slug and "sailingsa.co.za" in url and slug in url:
+        return True
+    if item.get("engine") == "sailingsa" and item.get("role") == "official_results":
+        return True
     try:
         from search_everywhere import in_coverage_window
 
@@ -773,6 +806,7 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
                 "engine": img.get("platform") or "image",
             }
         )
+    add(_official_results_card(facts))
     for url in SEED_URLS.get(facts.get("slug") or "", []):
         add({"url": url, "engine": "seed"})
     if fetch:
@@ -782,25 +816,34 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
                 discovery_queries,
                 event_query,
                 google_news,
+                official_sailingsa_sources,
                 web_hits,
             )
         except Exception:
             event_query = None
             catalog_local_urls = None
+            official_sailingsa_sources = None
         ctx = {
+            "id": facts.get("slug"),
+            "slug": facts.get("slug"),
             "title": facts["title"],
             "club": facts["club"],
             "club_name": facts["club_name"],
             "class_name": facts.get("class_name") or "",
             "class_slugs": [((facts.get("class_name") or "").strip().lower().replace(" ", "-"))],
+            "host_club_slug": facts.get("host_club_slug") or "",
             "start": facts.get("start"),
             "end": facts.get("end"),
+            "event_url": facts.get("url"),
         }
+        if official_sailingsa_sources:
+            for item in official_sailingsa_sources(ctx):
+                add(item)
         if catalog_local_urls:
             for item in catalog_local_urls(ctx):
                 add({**item, "engine": item.get("engine") or "class_catalog"})
         if event_query:
-            for q in discovery_queries(ctx)[:6]:
+            for q in discovery_queries(ctx)[:10]:
                 for item in google_news(q, limit=4) + web_hits(q, limit=6):
                     add(item)
                 for item in _try_paid_clusters(q):
