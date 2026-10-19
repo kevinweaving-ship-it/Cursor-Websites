@@ -108,7 +108,10 @@ The write job documented as `jobs/sailor_media_fetch.py` is **not in this repo o
 
 ## Social tools REA mapped
 
-See **[docs/TOOL_RESEARCH.md](docs/TOOL_RESEARCH.md)** for the web deep-dive. In short:
+See **[docs/REAL_AGGREGATORS.md](docs/REAL_AGGREGATORS.md)** for the systems that
+actually cluster coverage or write a recap from a box score.
+`event_rewrite.py` is not those systems. Older ingest notes:
+**[docs/TOOL_RESEARCH.md](docs/TOOL_RESEARCH.md)**. In short:
 
 | Layer | Tool | Needs key? | Used for |
 | --- | --- | --- | --- |

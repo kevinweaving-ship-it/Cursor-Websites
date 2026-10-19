@@ -2,7 +2,7 @@
 
 Standalone Monday publication. SailingSA is a **read-only** results and Media-tab source. This app never writes to SailingSA, nginx on gowifi.co.za, or the REA MCP tunnel.
 
-**Project docs:** [PROJECT.md](PROJECT.md) · **Tool deep-dive:** [docs/TOOL_RESEARCH.md](docs/TOOL_RESEARCH.md)
+**Project docs:** [PROJECT.md](PROJECT.md) · **Real aggregators to copy:** [docs/REAL_AGGREGATORS.md](docs/REAL_AGGREGATORS.md) · **Older tool notes:** [docs/TOOL_RESEARCH.md](docs/TOOL_RESEARCH.md)
 
 Reference weekend: **26–27 September 2026** (issue Monday 2026-09-28). Driven from the public `events` table, not a homepage scrape.
 
@@ -57,10 +57,11 @@ Local 420 class Facebook group (user share link `facebook.com/share/g/1Jh51CDMew
 
 Host-club pages are the media source for that club’s events. Dart 18 Nationals uses **HMYC** (`https://sailingsa.co.za/club/hmyc`, Facebook `henleymidmaryachtclub`). Share posts such as `facebook.com/share/p/1PGpY1pGh1/` (Dart 18 Nationals final results) are resolved and auto-attached to the weekend-roundup `source_info` / `social_sources` list. Other HMYC posts about the same event are found by searching that club page.
 
-Each event is then **clustered and rewritten** (`app/event_rewrite.py`) the way
-Monok / Perigon / Event Registry do it: unique headline, original article,
-one credited photo, leaderboard only. The landing page and PDF use a newspaper
-masthead; each story gets a different layout.
+Article generation is **not** those products yet. `app/event_rewrite.py` is a
+results mad-lib plus an unverified search dump. The systems to reverse-engineer
+(NewsCatcher / Perigon / Event Registry / Monok for clustering; Sportradar /
+United Robots / Stats Perform for the recap) are listed in
+`docs/REAL_AGGREGATORS.md`.
 
 No login walls are bypassed. Photos are downloaded locally and credited.
 
