@@ -166,23 +166,59 @@ def _results_block(block):
     return "".join(html_rows)
 
 
+def _cited_paragraph(text: str) -> str:
+    escaped = html.escape(text or "")
+    escaped = re.sub(
+        r"\[(\d+)\]",
+        r'<sup class="cite"><a href="#src-\1">\1</a></sup>',
+        escaped,
+    )
+    return escaped
+
+
+def _photo_set(images: list[str]) -> str:
+    if not images:
+        return ""
+    cls = "photo-set pair" if len(images) > 1 else "photo-set"
+    return "<div class='" + cls + "'>" + "".join(images) + "</div>"
+
+
+def _sources_block(article) -> str:
+    cites = article.get("citations") or []
+    urls = [c.get("url") for c in cites if c.get("url")] or [u for u in (article.get("sources") or []) if u]
+    if not urls:
+        return ""
+    items = []
+    for i, url in enumerate(urls, 1):
+        items.append(
+            "<li id='src-"
+            + str(i)
+            + "'><a href='"
+            + html.escape(url, quote=True)
+            + "'>"
+            + html.escape(url)
+            + "</a></li>"
+        )
+    return "<ol class='sources'>" + "".join(items) + "</ol>"
+
+
 def _story_parts(article):
-    image = ""
+    images = []
     paras = []
     board = []
     for block in article.get("blocks") or []:
         kind = block.get("type")
-        if kind == "image" and not image:
-            image = _image_block(block)
+        if kind == "image":
+            images.append(_image_block(block))
         elif kind == "paragraph":
-            paras.append("<p>" + html.escape(block.get("text") or "") + "</p>")
+            paras.append("<p>" + _cited_paragraph(block.get("text") or "") + "</p>")
         elif kind == "heading":
             board.append("<h3 class='board-label'>" + html.escape(block.get("text") or "Leaderboard") + "</h3>")
         elif kind == "results":
             board.append(_results_block(block))
     if paras:
         paras[0] = paras[0].replace("<p>", "<p class='lede'>", 1)
-    return image, paras, board
+    return images, paras, board
 
 
 def _layout_name(index, article):
@@ -196,7 +232,10 @@ def _layout_name(index, article):
 
 def _render_story(index, article):
     layout = _layout_name(index, article)
-    image, paras, board = _story_parts(article)
+    images, paras, board = _story_parts(article)
+    photos = _photo_set(images)
+    hero = images[0] if images else ""
+    rest = _photo_set(images[1:]) if len(images) > 1 else ""
     kicker = html.escape(article.get("kicker") or (article.get("class_name") or "Weekend").upper())
     headline = html.escape(article.get("headline") or "")
     deck = html.escape(article.get("deck") or "")
@@ -210,21 +249,22 @@ def _render_story(index, article):
     )
     copy = "".join(paras)
     standings = "".join(board)
+    notes = _sources_block(article)
     if layout == "lead":
         inner = "<div class='banner'>" + head + "</div><div class='copy'>" + copy + "</div>"
     elif layout == "photo-led":
-        inner = (image or "") + head + "<div class='copy cols-2'>" + copy + "</div>" + standings
+        inner = (hero or "") + head + "<div class='copy cols-2'>" + copy + "</div>" + rest + standings + notes
     elif layout == "split":
-        inner = head + "<div class='split'><div class='split-photo'>" + (image or "") + "</div><div class='copy'>" + copy + "</div></div>" + standings
+        inner = head + "<div class='split'><div class='split-photo'>" + photos + "</div><div class='copy'>" + copy + "</div></div>" + standings + notes
     elif layout == "compact":
-        inner = "<div class='compact-head'>" + head + "</div><div class='compact-row'>" + (image or "") + "<div class='copy'>" + copy + "</div></div>" + standings
+        inner = "<div class='compact-head'>" + head + "</div><div class='compact-row'>" + photos + "<div class='copy'>" + copy + "</div></div>" + standings + notes
     else:
         mid = copy
-        if image and paras:
-            mid = paras[0] + image + "".join(paras[1:])
-        elif image:
-            mid = image + copy
-        inner = head + "<div class='copy cols-2'>" + mid + "</div>" + standings
+        if hero and paras:
+            mid = paras[0] + hero + rest + "".join(paras[1:])
+        elif photos:
+            mid = photos + copy
+        inner = head + "<div class='copy cols-2'>" + mid + "</div>" + standings + notes
     aid = html.escape(article.get("id") or article.get("event_id") or "")
     return "<article class='story story-" + layout + "' id='" + aid + "'>" + inner + "</article>"
 
@@ -263,9 +303,15 @@ h2{font:700 32px/1.2 'Playfair Display',Georgia,serif;margin:0 0 10px;color:var(
 .compact-row{display:grid;grid-template-columns:1fr;gap:16px}
 figure{margin:0 0 14px}
 figure img{width:100%;height:auto;display:block}
+.photo-set{display:grid;grid-template-columns:1fr;gap:12px;margin:0 0 14px}
+.photo-set.pair{grid-template-columns:1fr}
 .story-photo-led figure img{max-height:480px;object-fit:cover}
 .story-classic figure{float:none;width:100%;margin:0 0 14px}
 figcaption{font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#64748b;padding-top:6px}
+.cite{font-size:11px;line-height:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.cite a{color:#6B2C91;text-decoration:none}
+.sources{margin:18px 0 0;padding-left:18px;font:12px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#64748b}
+.sources a{color:#334155}
 .board-label{font:700 12px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.12em;text-transform:uppercase;margin:18px 0 8px;color:var(--navy)}
 .board{overflow:hidden;border:2px solid var(--navy);border-radius:8px}
 .board table{border-collapse:collapse;width:100%;font:14px/1.35 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -273,11 +319,15 @@ figcaption{font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .board th{background:var(--navy);color:#fff;font-weight:600}
 .board tr:nth-child(odd) td{background:#f8fafc}
 .board tr:first-child td{font-weight:700}
+@media (min-width:700px){
+  .photo-set.pair{grid-template-columns:1fr 1fr}
+}
 @media (max-width:860px){
   .edition-grid{display:flex;flex-direction:column;padding:0 16px 48px}
   .masthead{padding:12px 16px}
   .lead-grid,.split,.compact-row{grid-template-columns:1fr}
   .cols-2,.cols-3{column-count:1}
+  .photo-set.pair{grid-template-columns:1fr}
   .story-classic figure{float:none;width:100%;margin:0 0 10px}
   .masthead h1{font-size:26px}
   .ssa-logo{height:40px}

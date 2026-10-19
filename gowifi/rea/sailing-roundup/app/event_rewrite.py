@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Cluster same-event coverage and rewrite one unique newspaper article.
+"""Cluster same-event coverage and rewrite one unique magazine article.
 
-Reverse-engineered from the commercial pipeline used by Monok, Perigon Stories,
-and Event Registry / NewsAPI.ai:
+Reverse-engineered from Perplexity Discover / RAG news synthesis, plus
+Ground News clustering, Artifact de-baited headlines, Monok stored articles,
+and Sportradar/United Robots box-score recaps:
 
-  scrape many URLs → cluster items about ONE real-world event → emit
-  a unique headline, a rewritten article (not a paste), one featured image,
-  then a compact box-score / leaderboard.
+  scrape the event's own primary sources (club, class, host Facebook, local
+  news) → keep only items about THIS event → write one article locked to
+  those texts and the results card (RAG: no fact that is not in a source) →
+  inline citations → photographs from those same sources (podium and on the
+  water are both valid; more than one photo is allowed) → 1st/2nd/3rd.
 
-Paid APIs (MONOK_API_KEY, PERIGON_API_KEY, NEWSAPI_AI_KEY) are optional.
-The free path uses SailingSA results + Google News / web / club-class OG.
-No login-wall bypass. Images are stored locally and credited.
+Wikimedia / Wikipedia is never a source. A 1954 stock boat is not a source.
+Paid APIs are optional. No login-wall bypass.
 """
 from __future__ import annotations
 
@@ -28,12 +30,6 @@ UA = {
 FB_UA = {"User-Agent": "facebookexternalhit/1.1"}
 LEADERBOARD_LIMIT = 3
 LEADERBOARD_COLS = ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"]
-CLASS_PHOTO_QUERY = {
-    "420": "International 420 class dinghy sailing",
-    "505": "505 dinghy sailing trapeze",
-    "Dart 18": "Dart 18 catamaran sailing",
-    "Dabchick": "Dabchick class dinghy sailing",
-}
 WRONG_CLASS = {
     "420": ("505", "dart 18", "dabchick", "hobie", "optimist"),
     "505": ("420", "dart 18", "dabchick", "hobie", "optimist"),
@@ -42,22 +38,30 @@ WRONG_CLASS = {
 }
 SEED_URLS = {
     "2026-09-25-tsc-420-nationals": [
-        "https://novanews.co.za/school/hermanus-high-schools-sailors-crowned-national-champions/",
         "https://www.facebook.com/420nationalssouthafrica/",
+        "https://novanews.co.za/school/hermanus-high-schools-sailors-crowned-national-champions/",
         "https://www.facebook.com/theewatersportsclub/",
+        "https://www.facebook.com/share/g/1Jh51CDMew/",
+        "https://www.theewater.co.za/",
     ],
     "2026-09-24-hmyc-dart-18-nationals": [
         "https://www.facebook.com/share/p/1PGpY1pGh1/",
         "https://www.facebook.com/henleymidmaryachtclub",
+        "https://www.hmyc.org.za/events/367984",
         "https://www.hmyc.org.za/",
     ],
     "2026-09-24-ayc-505-nationals": [
+        "https://rsa505.org.za/index.php?option=com_content&view=article&id=338:505-nationals-2026-great-event-at-aeolians&catid=11&Itemid=101",
+        "https://rsa505.org.za/",
         "https://www.facebook.com/AeoliansClub/",
         "https://aeolians.co.za/",
     ],
     "2026-09-24-ayc-dabchick-gauteng-regionals": [
-        "https://www.facebook.com/AeoliansClub/",
+        "https://www.revolutionise.com.au/dabchickca/events/358939",
         "https://www.revolutionise.com.au/dabchickca/",
+        "https://www.revolutionise.com.au/dabchickca/gallery",
+        "https://www.facebook.com/dabchicksailingrsa",
+        "https://www.facebook.com/AeoliansClub/",
     ],
 }
 LAYOUTS = ("photo-led", "split", "classic", "compact")
@@ -71,7 +75,10 @@ JUNK_CLUSTER = (
     "dartpad.dev",
     "dart.org",
     "dartcontainer.com",
-    "wikipedia.org/wiki/dart",
+    "wikipedia.org",
+    "wikimedia.org",
+    "upload.wikimedia",
+    "commons.wikimedia",
     "instagram.com/accounts/login",
     "music.youtube",
     "tiktok.com/@",
@@ -278,7 +285,7 @@ def _keep_cluster_item(item: dict, facts: dict) -> bool:
         return False
     if "login" in url or "/photos" == url.rstrip("/").split("facebook.com")[-1]:
         return False
-    if "1pgpy1pgh1" in url or item.get("engine") in ("facebook", "seed", "host_club_post"):
+    if "1pgpy1pgh1" in url or item.get("engine") in ("facebook", "seed", "host_club_post", "source_media"):
         return True
     if item.get("provenance") == "host_club_post" or item.get("role") == "host_club_media":
         return True
@@ -312,13 +319,58 @@ def _host_source(cluster: dict | None) -> dict | None:
     return best if best and best_len >= 40 else None
 
 
-def _cluster_color(cluster: dict, facts: dict | None = None) -> list[str]:
-    """Turn the host-club / news source into article copy. Use every fact in it."""
+def citation_index(cluster: dict | None, facts: dict | None = None) -> list[dict]:
+    """Numbered primary sources. [1] is always the SailingSA results card."""
+    out = []
+    seen = set()
+
+    def add(url: str, title: str = "", text: str = ""):
+        url = (url or "").split("#")[0].strip()
+        if not url or url in seen or _wiki_url(url):
+            return
+        seen.add(url)
+        out.append({"n": len(out) + 1, "url": url, "title": title or url, "text": text or ""})
+
+    if facts:
+        add(facts.get("url") or "", facts.get("title") or "SailingSA results")
+    for item in (cluster or {}).get("articles") or []:
+        add(
+            item.get("url") or item.get("share_url") or item.get("source_url") or "",
+            item.get("title") or "",
+            _cluster_text(item),
+        )
+    return out
+
+
+def _cite(n: int) -> str:
+    return f"[{int(n)}]"
+
+
+def _source_for_url(index: list[dict], url: str) -> dict | None:
+    url = (url or "").split("#")[0]
+    for item in index:
+        if item["url"] == url or url and url in item["url"]:
+            return item
+    return None
+
+
+def _cluster_color(cluster: dict, facts: dict | None = None, index: list[dict] | None = None) -> list[str]:
+    """Turn host-club / class / news copy into cited sentences. RAG: only facts in the source."""
     notes = []
+    index = index if index is not None else citation_index(cluster, facts)
     source = _host_source(cluster)
+    if not source:
+        for item in (cluster or {}).get("articles") or []:
+            if len(_cluster_text(item)) >= 40:
+                source = dict(item, text=_cluster_text(item))
+                break
     text = (source or {}).get("text") or ""
     if not text:
         return notes
+    src = _source_for_url(index, (source or {}).get("url") or (source or {}).get("share_url") or "") or (
+        index[1] if len(index) > 1 else index[0] if index else {"n": 2}
+    )
+    mark = _cite(src.get("n") or 2)
     venue = (facts or {}).get("club_name") or "the host club"
     quote = None
     for line in text.splitlines():
@@ -329,7 +381,7 @@ def _cluster_color(cluster: dict, facts: dict | None = None) -> list[str]:
     places = [m.groupdict() for m in PLACE_LINE.finditer(text)]
     special = SPECIAL_MENTION.search(text)
     if quote:
-        notes.append(f"{venue} wrote from the venue: “{quote}.”")
+        notes.append(f"{venue} wrote from the venue: “{quote}.” {mark}")
     overall = [p for p in places if int(p["place"]) <= 3]
     if overall:
         bits = []
@@ -337,27 +389,18 @@ def _cluster_color(cluster: dict, facts: dict | None = None) -> list[str]:
             bit = f"{p['name'].strip()} ({p['club']})" if p.get("club") else p["name"].strip()
             bits.append(f"{bit} on sail {p['sail']} in {p['place']}")
         if bits:
-            notes.append(
-                "The club named the overall top three: "
-                + "; ".join(bits)
-                + "."
-            )
+            notes.append("The club named the overall top three: " + "; ".join(bits) + f". {mark}")
     home = [p for p in places if int(p["place"]) > 3]
     if home:
-        bits = [
-            f"{p['name'].strip()} {p['place']}th on sail {p['sail']}"
-            for p in home
-        ]
+        bits = [f"{p['name'].strip()} {p['place']}th on sail {p['sail']}" for p in home]
         extra = ""
         if special:
             extra = f" A special mention went to {special.group(1).strip()} in {special.group(2)}th."
-        notes.append(
-            f"{venue} then listed their own boats: " + "; ".join(bits) + "." + extra
-        )
+        notes.append(f"{venue} then listed their own boats: " + "; ".join(bits) + "." + extra + f" {mark}")
     elif special:
         notes.append(
             f"The club gave a special mention to {special.group(1).strip()}, "
-            f"finishing {special.group(2)}th."
+            f"finishing {special.group(2)}th. {mark}"
         )
     known = {n.lower(): n for n in (facts or {}).get("names") or []}
     if re.search(r"\bu-?17\b|under[- ]17|youth champion", text, re.I):
@@ -369,10 +412,12 @@ def _cluster_color(cluster: dict, facts: dict | None = None) -> list[str]:
         if who:
             notes.append(
                 f"A separate under-17 title at the same championship named "
-                f"{' and '.join(who[:2])}."
+                f"{' and '.join(who[:2])}. {mark}"
             )
         else:
-            notes.append("A separate under-17 title was awarded at the same championship.")
+            notes.append(f"A separate under-17 title was awarded at the same championship. {mark}")
+    if re.search(r"tied on points|tie break|tiebreak|last race", text, re.I) and (facts or {}).get("tied_first"):
+        notes.append(f"The class report said the title was settled on the last race. {mark}")
     return notes[:4]
 
 
@@ -390,8 +435,8 @@ def _heats(scores) -> list[dict]:
     return out
 
 
-def rewrite_paragraphs(facts: dict, cluster: dict | None = None) -> list[str]:
-    """Magazine recap from the results card plus every fact in the host source."""
+def rewrite_paragraphs(facts: dict, cluster: dict | None = None, index: list[dict] | None = None) -> list[str]:
+    """RAG recap: results card + only facts that appear in the clustered sources."""
     venue = facts["club_name"]
     dates = _date_span(facts["start"], facts["end"])
     status = (facts.get("status") or "published").lower()
@@ -403,8 +448,10 @@ def rewrite_paragraphs(facts: dict, cluster: dict | None = None) -> list[str]:
     late_wins = sum(1 for h in late if h.get("win"))
     no_wins = heats and wins == 0
     klass = facts.get("class_name") or "fleet"
+    index = index if index is not None else citation_index(cluster, facts)
+    results_mark = _cite(index[0]["n"]) if index else "[1]"
     paras = []
-    extras = _cluster_color(cluster or {}, facts)
+    extras = _cluster_color(cluster or {}, facts, index)
     if extras:
         paras.extend(extras[:2])
 
@@ -412,34 +459,34 @@ def rewrite_paragraphs(facts: dict, cluster: dict | None = None) -> list[str]:
         paras.append(
             f"On the SailingSA card {facts['winner']} take the {facts['title']} at {venue} "
             f"on countback from {facts['second']}, both on {facts['winner_nett']} nett. "
-            f"{entries} {klass}s sailed {races} races from {dates}."
+            f"{entries} {klass}s sailed {races} races from {dates}. {results_mark}"
         )
     elif no_wins:
         paras.append(
             f"{facts['winner']} finished first in the {entries}-boat {klass} fleet at {venue} "
-            f"on {facts['winner_nett']} nett from {races} races, without a race win."
+            f"on {facts['winner_nett']} nett from {races} races, without a race win. {results_mark}"
         )
     elif wins and races and wins >= races - 2:
         paras.append(
             f"{facts['winner']} won {wins} of {races} races at {venue} for {facts['winner_nett']} nett "
-            f"in a {entries}-boat {klass} fleet, {dates}."
+            f"in a {entries}-boat {klass} fleet, {dates}. {results_mark}"
         )
     else:
         paras.append(
             f"{facts['winner']} won the {facts['title']} at {venue} on {dates}, "
             f"{facts['winner_nett']} nett after {races} races among {entries} boats"
-            + (f", with {wins} firsts." if wins else ".")
+            + (f", with {wins} firsts. {results_mark}" if wins else f". {results_mark}")
         )
 
     if heats and late_wins >= 3:
         closed = heats[-1]
         paras.append(
-            f"They took {late_wins} of the last {len(late)} races, including {closed['race']}."
+            f"They took {late_wins} of the last {len(late)} races, including {closed['race']}. {results_mark}"
         )
     elif no_wins and heats:
         worst = max(heats, key=lambda h: h["pts"] or 0)
         paras.append(
-            f"The only hole in the card was {worst['race']} ({worst['raw']})."
+            f"The only hole in the card was {worst['race']} ({worst['raw']}). {results_mark}"
         )
 
     chase = []
@@ -462,15 +509,15 @@ def rewrite_paragraphs(facts: dict, cluster: dict | None = None) -> list[str]:
     if facts.get("third"):
         chase.append(f"{facts['third']} finished third on {facts['third_nett'] or 'the published score'}.")
     if chase:
-        paras.append(" ".join(chase))
+        paras.append(" ".join(chase) + " " + results_mark)
 
     if len(extras) > 2:
         paras.extend(extras[2:])
 
     if status == "provisional" and event_finished(facts):
-        paras.append("SailingSA still marks the scores provisional.")
+        paras.append(f"SailingSA still marks the scores provisional. {results_mark}")
     elif status == "provisional":
-        paras.append("The published result remains provisional.")
+        paras.append(f"The published result remains provisional. {results_mark}")
     out = []
     for p in paras:
         p = re.sub(r"\s+", " ", p).strip()
@@ -686,7 +733,18 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
             if len(extracted.get("snippet") or "") > len(article.get("snippet") or ""):
                 article["snippet"] = extracted.get("snippet") or ""
             article["image"] = article.get("image") or extracted.get("image") or ""
-    kept = [a for a in articles if _keep_cluster_item(a, facts)]
+            for extra in (extracted.get("images") or []) + harvest_source_images(article["url"]):
+                if extra.get("url") and extra["url"] != article.get("image"):
+                    add(
+                        {
+                            "url": extra.get("source_url") or article["url"],
+                            "title": extra.get("title") or article.get("title") or "",
+                            "image": extra["url"],
+                            "engine": "source_media",
+                            "provenance": article.get("provenance") or article.get("engine") or "seed",
+                        }
+                    )
+    kept = [a for a in articles if _keep_cluster_item(a, facts) and not _wiki_url(a.get("url") or "") and not _wiki_url(a.get("image") or "")]
     return {
         "event_id": facts.get("slug"),
         "event_url": facts.get("url"),
@@ -695,14 +753,33 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
     }
 
 
+def _wiki_url(url: str) -> bool:
+    low = (url or "").lower()
+    return any(token in low for token in ("wikipedia.org", "wikimedia.org", "upload.wikimedia", "commons.wikimedia"))
+
+
+def _page_avatar_media(url: str) -> bool:
+    match = re.search(r"media_id=(\d+)", url or "")
+    if not match:
+        return False
+    mid = match.group(1)
+    return mid.startswith("1000") and len(mid) == 15
+
+
 def _bad_image_url(url: str) -> bool:
     low = (url or "").lower()
+    if _wiki_url(low):
+        return True
+    if _page_avatar_media(low):
+        return True
     return any(
         token in low
         for token in (
             "logo",
+            "flogo",
             "reel",
             "badge",
+            "burgee",
             ".svg",
             "icon",
             "avatar",
@@ -710,6 +787,7 @@ def _bad_image_url(url: str) -> bool:
             "sprite",
             "placeholder",
             "default-user",
+            "favicon",
             "ytimg.com/vi",
             "youtube.com/img",
             "yt_1200",
@@ -723,113 +801,188 @@ def _wrong_class(blob: str, klass: str) -> bool:
     blob = (blob or "").lower()
     klass = (klass or "").strip()
     for token in WRONG_CLASS.get(klass, ()):
-        if token in blob:
+        if re.search(r"(?<![a-z0-9])" + re.escape(token) + r"(?![a-z0-9])", blob):
             return True
     return False
 
 
-def commons_class_photo(klass: str) -> dict | None:
-    q = CLASS_PHOTO_QUERY.get((klass or "").strip()) or ((klass or "sailing dinghy").strip() + " sailing")
-    url = "https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(
-        {
-            "action": "query",
-            "generator": "search",
-            "gsrsearch": q,
-            "gsrnamespace": 6,
-            "gsrlimit": 8,
-            "prop": "imageinfo",
-            "iiprop": "url|size|mime",
-            "format": "json",
-        }
-    )
-    try:
-        raw, _ = _http_get(url, UA, timeout=18)
-        data = json.loads(raw.decode("utf-8", "replace"))
-    except Exception:
-        return None
-    best = None
-    for page in ((data.get("query") or {}).get("pages") or {}).values():
-        info = (page.get("imageinfo") or [{}])[0]
-        link = (info.get("url") or "").split("?")[0]
-        mime = (info.get("mime") or "").lower()
-        width = int(info.get("width") or 0)
-        if not link.lower().endswith((".jpg", ".jpeg")) or "svg" in mime or width < 500:
-            continue
-        title = page.get("title") or ""
-        if _bad_image_url(link) or "logo" in title.lower() or _wrong_class(title + " " + link, klass):
-            continue
-        if klass and klass.lower() not in (title + " " + link).lower() and klass.replace(" ", "") not in (title + link).lower():
-            # Dart 18 / 420 / 505 / Dabchick must appear in the file name or title
-            if klass.lower() not in {"dabchick"}:
-                continue
-        best = {
-            "url": link,
-            "source_url": "https://commons.wikimedia.org/wiki/" + urllib.parse.quote(page.get("title") or ""),
-            "title": page.get("title") or klass,
-            "credit": "Wikimedia Commons",
-        }
-        if width >= 1000:
-            break
-    return best
-
-
+LOOKASIDE_RE = re.compile(r"https://lookaside\.fbsbx\.com/lookaside/crawler/media/\?media_id=\d+")
 CLASS_GALLERIES = {
     "Dabchick": "https://www.revolutionise.com.au/dabchickca/",
+    "505": "https://rsa505.org.za/",
+    "420": "https://www.facebook.com/420nationalssouthafrica/",
+    "Dart 18": "https://www.facebook.com/henleymidmaryachtclub",
 }
-CLASS_FILE_PHOTOS = {
-    "420": {
-        "url": "https://upload.wikimedia.org/wikipedia/commons/4/41/Regate_420.JPG",
-        "source_url": "https://commons.wikimedia.org/wiki/File:Regate_420.JPG",
-        "title": "420 dinghy",
-        "credit": "Wikimedia Commons",
-    },
-    "505": {
-        "url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/505er_001.jpg",
-        "source_url": "https://commons.wikimedia.org/wiki/File:505er_001.jpg",
-        "title": "505 dinghy",
-        "credit": "Wikimedia Commons",
-    },
-}
+
+
+def harvest_source_images(url: str) -> list[dict]:
+    """Pull photographs from the event's own page. Never wiki."""
+    if not url or not url.startswith("http") or _wiki_url(url):
+        return []
+    if "facebook.com" in url:
+        return facebook_source_images(url)
+    return website_source_images(url)
+
+
+def facebook_source_images(url: str) -> list[dict]:
+    try:
+        from facebook_cross_share import resolve_facebook_url
+
+        resolved = resolve_facebook_url(url)
+    except Exception:
+        resolved = {"canonical_url": url, "title": "", "image": ""}
+    out = []
+    source = resolved.get("canonical_url") or url
+    credit = _credit_from_url(source)
+    if resolved.get("image") and not _bad_image_url(resolved["image"]):
+        out.append(
+            {
+                "url": resolved["image"],
+                "source_url": source,
+                "title": resolved.get("title") or "",
+                "credit": credit,
+            }
+        )
+    html = ""
+    try:
+        raw, _ = _http_get(resolved.get("canonical_url") or url, FB_UA, timeout=20)
+        html = raw.decode("utf-8", "replace")
+    except Exception:
+        html = ""
+    seen = {item["url"] for item in out}
+    for link in LOOKASIDE_RE.findall(html):
+        if link in seen or _bad_image_url(link):
+            continue
+        seen.add(link)
+        out.append({"url": link, "source_url": source, "title": resolved.get("title") or "", "credit": credit})
+        if len(out) >= 12:
+            break
+    return out
+
+
+def website_source_images(url: str) -> list[dict]:
+    try:
+        from bs4 import BeautifulSoup
+
+        raw, _ = _http_get(url, UA, timeout=20)
+        soup = BeautifulSoup(raw, "html.parser")
+    except Exception:
+        return None if False else []
+    credit = _credit_from_url(url)
+    title = ""
+    if soup.title:
+        title = soup.title.get_text(" ", strip=True)
+    found = []
+    for tag in soup.select('meta[property="og:image"], meta[name="twitter:image"], article img, main img, .gallery img, img'):
+        src = tag.get("content") or tag.get("src") or tag.get("data-src") or ""
+        if not src:
+            continue
+        link = urllib.parse.urljoin(url, src)
+        if _bad_image_url(link) or _wiki_url(link):
+            continue
+        if not re.search(r"\.(jpe?g|png|webp)(\?|$)", link, re.I):
+            continue
+        alt = (tag.get("alt") or title or "").strip()
+        found.append({"url": link, "source_url": url, "title": alt, "credit": credit})
+    # Class homepages often lead with a team lineup; keep later gallery shots.
+    gallery = [item for item in found if "gallery" in (item.get("url") or "").lower()]
+    if len(gallery) >= 3:
+        skip = gallery[0]["url"]
+        found = [item for item in found if item["url"] != skip]
+    uniq = []
+    seen = set()
+    for item in found:
+        if item["url"] in seen:
+            continue
+        seen.add(item["url"])
+        uniq.append(item)
+    return uniq[:16]
 
 
 def class_gallery_photo(klass: str) -> dict | None:
     page = CLASS_GALLERIES.get((klass or "").strip())
     if not page:
         return None
-    try:
-        from bs4 import BeautifulSoup
-        raw, _ = _http_get(page, UA, timeout=20)
-        soup = BeautifulSoup(raw, "html.parser")
-    except Exception:
-        return None
-    for im in soup.select("img"):
-        src = im.get("src") or im.get("data-src") or ""
-        alt = (im.get("alt") or "").lower()
-        if "gallery" in src.lower() and src.lower().endswith((".jpg", ".jpeg")) and "logo" not in alt:
-            return {
-                "url": src,
-                "source_url": page,
-                "title": klass + " class",
-                "credit": "Dabchick Class Association" if klass == "Dabchick" else klass,
-            }
+    images = harvest_source_images(page)
+    for item in images:
+        if not _bad_image_url(item.get("url") or ""):
+            return item
     return None
 
 
-def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | None:
+def _event_photo_score(item: dict, facts: dict) -> int:
+    """Score only photographs that belong to this event. Wiki and stock boats lose."""
+    klass = (facts.get("class_name") or "").strip()
+    blob = " ".join((item.get("url") or "", item.get("source_url") or "", item.get("title") or "")).lower()
+    photo = (item.get("url") or "").lower()
+    source = (item.get("source_url") or "").lower()
+    n = 0
+    if _wiki_url(blob) or _wiki_url(photo) or _wiki_url(source):
+        return -10000
+    if _bad_image_url(photo) or _wrong_class(blob, klass):
+        return -100
+    if klass and klass.lower() in blob:
+        n += 30
+    if "1pgpy1pgh1" in blob or "1633819895206118" in blob:
+        n += 220
+    if "420nationalssouthafrica" in blob and klass == "420":
+        n += 160
+    if "id=338" in source or "505-nationals-2026" in blob:
+        n += 180
+    if "rsa505.org.za" in blob and klass == "505":
+        n += 80
+    if "20261013" in photo:
+        n += 60
+    if "dabchickca/events/358939" in blob and klass == "Dabchick":
+        n += 180
+    if "novanews" in blob and "hermanus-high-schools-sailors" in blob:
+        n += 90
+    if "hmyc.org.za/events/367984" in blob:
+        n += 80
+    if any(k in blob for k in ("prize", "trophy", "podium", "final result")):
+        n += 50
+    if "lookaside.fbsbx.com" in photo or "scontent" in photo:
+        n += 70
+    if "cdn.revolutionise.com.au/events/" in photo:
+        n += 40
+    if "wp-content/uploads/2026/09" in photo:
+        n += 40
+    if photo.endswith(".jpg") or photo.endswith(".jpeg") or "lookaside" in photo:
+        n += 15
+    path = urllib.parse.urlparse(source).path.strip("/")
+    host = urllib.parse.urlparse(source).netloc.lower()
+    if path in ("", "home") and "facebook.com" not in host and "rsa505.org.za" not in host:
+        n -= 80
+    if "enter now" in blob:
+        n -= 10
+    return n
+
+
+def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int = 3) -> list[dict]:
+    """Prizegiving and on-the-water shots from this event's sources. Never wiki."""
     candidates = []
+    seen = set()
+
+    def add(item: dict):
+        url = (item.get("url") or "").split("#")[0]
+        if not url or url in seen or _wiki_url(url) or _bad_image_url(url):
+            return
+        seen.add(url)
+        candidates.append(item)
+
     for item in (cluster or {}).get("articles") or []:
-        if item.get("image") and not _bad_image_url(item["image"]):
-            candidates.append(
+        if item.get("image"):
+            add(
                 {
                     "url": item["image"],
-                    "source_url": item.get("url") or "",
+                    "source_url": item.get("url") or item.get("share_url") or "",
                     "title": item.get("title") or facts["title"],
                     "credit": _credit_from_url(item.get("url") or item["image"]),
                 }
             )
     for img in (pack or {}).get("images") or []:
-        if img.get("image_url") and not _bad_image_url(img["image_url"]):
-            candidates.append(
+        if img.get("image_url"):
+            add(
                 {
                     "url": img["image_url"],
                     "source_url": img.get("source_url") or "",
@@ -837,46 +990,36 @@ def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | N
                     "credit": pretty_credit(img.get("platform") or "", img.get("source_url") or img.get("image_url") or ""),
                 }
             )
-    klass = (facts.get("class_name") or "").strip()
-    def score(item: dict) -> int:
-        blob = " ".join((item.get("url") or "", item.get("source_url") or "", item.get("title") or "")).lower()
-        n = 0
-        if klass and klass.lower() in blob:
-            n += 60
-        if "novanews" in blob and klass == "420":
-            n += 80
-        if "wp-content/uploads" in (item.get("url") or ""):
-            n += 20
-        if "wikimedia" in blob or "upload.wikimedia" in (item.get("url") or ""):
-            n += 15
-        if any(k in blob for k in ("nationals", "regatta", "day 2", "day2")):
-            n += 10
-        if "fbcdn" in (item.get("url") or "") and "t39.30808-1" in (item.get("url") or ""):
-            n -= 40
-        if _bad_image_url(item.get("url") or "") or _wrong_class(blob, klass):
-            n -= 100
-        return n
+    ranked = [item for item in candidates if _event_photo_score(item, facts) >= 40]
+    ranked.sort(key=lambda item: _event_photo_score(item, facts), reverse=True)
+    return ranked[:limit]
 
-    candidates.sort(key=score, reverse=True)
-    if candidates and score(candidates[0]) >= 0:
-        return candidates[0]
-    return commons_class_photo(facts.get("class_name") or "sailing")
+
+def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | None:
+    chosen = pick_images(facts, cluster, pack, limit=1)
+    return chosen[0] if chosen else None
 
 
 def pretty_credit(raw: str, url: str = "") -> str:
     blob = f"{raw or ''} {url or ''}".lower()
     if "novanews" in blob:
         return "NovaNews"
-    if "youtube" in blob or "youtu.be" in blob:
-        return "YouTube"
-    if "facebook" in blob or "fbcdn" in blob:
-        return "Facebook / host club"
-    if "hmyc" in blob:
+    if "420nationalssouthafrica" in blob:
+        return "420 Sailing South Africa"
+    if "rsa505" in blob:
+        return "RSA 505"
+    if "dabchick" in blob or "revolutionise.com.au/dabchickca" in blob:
+        return "Dabchick Class Association"
+    if "henleymidmar" in blob or "hmyc" in blob:
         return "Henley Midmar Yacht Club"
-    if "aeolians" in blob:
-        return "Aeolians Yacht Club"
     if "theewater" in blob:
         return "Theewater Sports Club"
+    if "aeolians" in blob:
+        return "Aeolians Yacht Club"
+    if "youtube" in blob or "youtu.be" in blob:
+        return "YouTube"
+    if "facebook" in blob or "fbcdn" in blob or "lookaside.fbsbx" in blob:
+        return "Facebook / host club"
     host = urllib.parse.urlparse(url or raw or "").netloc.lower().removeprefix("www.")
     return host or (raw or "source").strip()
 
@@ -885,36 +1028,36 @@ def _credit_from_url(url: str) -> str:
     return pretty_credit("", url)
 
 
-def download_image(image: dict, issue: str, slug: str) -> dict | None:
+def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict | None:
     url = (image or {}).get("url") or ""
-    if not url:
+    if not url or _wiki_url(url):
         return None
     dest_dir = ROOT / "public" / "issues" / issue / "media"
     dest_dir.mkdir(parents=True, exist_ok=True)
     source_dir = ROOT / "issues" / issue / "media"
     source_dir.mkdir(parents=True, exist_ok=True)
-    if "dart" in slug:
-        named = dest_dir / "dart18-nationals-day2-hmyc.jpg"
-        if named.exists() and named.stat().st_size > 12000:
-            out = dict(image)
-            out["url"] = "media/" + named.name
-            out["local_path"] = str(named)
-            return out
     ext = ".jpg"
     path = urllib.parse.urlparse(url).path.lower()
     for cand in (".png", ".webp", ".jpeg", ".jpg"):
         if path.endswith(cand):
             ext = ".jpg" if cand == ".jpeg" else cand
             break
-    filename = slug + ext
+    if "lookaside.fbsbx" in url or "fbcdn" in url:
+        ext = ".jpg"
+    suffix = "" if index == 0 else f"-{index + 1}"
+    filename = slug + suffix + ext
     dest = dest_dir / filename
-    headers = dict(FB_UA if "fbcdn" in url or "facebook.com" in url else UA)
+    headers = dict(
+        FB_UA
+        if any(token in url for token in ("fbcdn", "facebook.com", "lookaside.fbsbx"))
+        else UA
+    )
     headers["Accept"] = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
     try:
         raw, ctype = _http_get(url, headers, timeout=25)
     except Exception:
         return None
-    if len(raw) < 12000 or (ctype and not ctype.startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
+    if len(raw) < 8000 or (ctype and not ctype.startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
         return None
     dest.write_bytes(raw)
     (source_dir / filename).write_bytes(raw)
@@ -934,22 +1077,24 @@ def layout_for(index: int, article_type: str) -> str:
 def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: dict | None = None, layout: str = "classic") -> dict:
     facts = dict(facts)
     facts["finished"] = event_finished(facts, issue)
+    fetched_cluster = cluster is None
     cluster = cluster or cluster_coverage(facts, pack, fetch=True)
-    paras = rewrite_paragraphs(facts, cluster)
+    cites = citation_index(cluster, facts)
+    paras = rewrite_paragraphs(facts, cluster, cites)
     headline = unique_headline(facts, cluster)
     cols, table = facts["leaderboard"]
-    image = pick_image(facts, cluster, pack)
-    local = download_image(image, issue, facts["slug"]) if image else None
-    if not local and image:
-        local = image
-    if not local:
-        local = _fallback_club_image(issue, facts)
-    klass = facts.get("class_name") or ""
-    if not local:
-        file_photo = commons_class_photo(klass) or class_gallery_photo(klass) or CLASS_FILE_PHOTOS.get(klass)
-        local = download_image(file_photo, issue, facts["slug"]) if file_photo else None
+    images = pick_images(facts, cluster, pack, limit=3)
+    if not images and fetched_cluster:
+        images = _seed_event_images(facts)
+    locals = []
+    for idx, image in enumerate(images):
+        local = download_image(image, issue, facts["slug"], index=idx)
+        if not local and image and not _wiki_url(image.get("url") or ""):
+            local = image
+        if local:
+            locals.append(local)
     blocks = []
-    if local:
+    for local in locals:
         credit = pretty_credit(local.get("credit") or "", local.get("source_url") or local.get("url") or "")
         blocks.append(
             {
@@ -974,10 +1119,11 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
             "as_of": issue,
         }
     )
-    sources = [facts["url"]]
+    sources = [item["url"] for item in cites]
     for item in cluster.get("articles") or []:
-        if item.get("url") and item["url"] not in sources:
+        if item.get("url") and item["url"] not in sources and not _wiki_url(item["url"]):
             sources.append(item["url"])
+    hero = locals[0] if locals else None
     article = {
         "id": facts["slug"],
         "type": "regatta_report",
@@ -988,9 +1134,10 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         "published_at": issue,
         "event_id": facts["slug"],
         "layout": layout,
-        "hero_image": {"url": local["url"], "source_url": local.get("source_url"), "rights_status": "source_attributed"} if local else None,
+        "hero_image": {"url": hero["url"], "source_url": hero.get("source_url"), "rights_status": "source_attributed"} if hero else None,
         "blocks": blocks,
         "sources": sources,
+        "citations": cites,
         "review_status": "rewritten",
         "club": facts["club"],
         "class_name": facts["class_name"],
@@ -1005,48 +1152,24 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
     return article
 
 
-def _fallback_club_image(issue: str, facts: dict) -> dict | None:
-    pages = []
-    slug = (facts.get("host_club_slug") or facts.get("club") or "").lower()
-    path = ROOT / "app" / "club_sources.json"
-    if path.exists() and facts.get("club"):
-        clubs = json.loads(path.read_text()).get("clubs") or {}
-        rec = clubs.get(facts["club"].upper()) or {}
-        for key in ("facebook", "website", "instagram"):
-            if rec.get(key):
-                pages.append(rec[key])
-    if slug:
-        pages.append("https://sailingsa.co.za/club/" + slug)
-    for url in pages:
-        extracted = extract_article(url)
-        if extracted and extracted.get("image"):
-            local = download_image(
-                {
-                    "url": extracted["image"],
-                    "source_url": url,
-                    "title": facts["title"],
-                    "credit": _credit_from_url(url),
-                },
-                issue,
-                facts["slug"],
-            )
-            if local:
-                return local
-    media = ROOT / "public" / "issues" / issue / "media"
-    if media.exists():
-        keys = [facts["slug"]]
-        if "dart" in facts["slug"]:
-            keys.append("dart")
-        for named in sorted(media.glob("*.jpg")):
-            if named.stat().st_size > 4000 and any(k in named.name for k in keys):
-                return {
-                    "url": "media/" + named.name,
-                    "source_url": facts["url"],
-                    "title": facts["title"],
-                    "credit": facts["club_name"],
-                    "local_path": str(named),
-                }
-    return None
+def _seed_event_images(facts: dict) -> list[dict]:
+    """Last resort: scrape this event's seed URLs. Never wiki or a club homepage stock shot."""
+    found = []
+    for url in SEED_URLS.get(facts.get("slug") or "", []):
+        if _wiki_url(url):
+            continue
+        for item in harvest_source_images(url):
+            if _event_photo_score(item, facts) >= 40:
+                found.append(item)
+    found.sort(key=lambda item: _event_photo_score(item, facts), reverse=True)
+    uniq = []
+    seen = set()
+    for item in found:
+        if item["url"] in seen:
+            continue
+        seen.add(item["url"])
+        uniq.append(item)
+    return uniq[:3]
 
 
 def rewrite_weekend_feature(issue: str, monday, events: list[dict], articles: list[dict]) -> dict:

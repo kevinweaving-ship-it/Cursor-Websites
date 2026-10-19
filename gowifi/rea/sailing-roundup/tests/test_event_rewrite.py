@@ -10,9 +10,13 @@ from event_rewrite import (
     event_finished,
     facts_from_rows,
     layout_for,
+    pick_image,
+    pick_images,
     rewrite_event,
     rewrite_paragraphs,
     unique_headline,
+    _event_photo_score,
+    _wiki_url,
 )
 from roundup import _image_block, _layout_name, _render_story, newspaper_css
 
@@ -229,6 +233,47 @@ class RewriteEngine(unittest.TestCase):
         self.assertTrue(event_finished(facts, "2026-09-28"))
         live = dict(facts, finished=False, status="Provisional")
         self.assertIn("lead", unique_headline(live))
+        self.assertTrue(any("[1]" in p or "[2]" in p for p in paras))
+
+    def test_event_photos_not_wiki_and_more_than_one(self):
+        facts = facts_from_rows("2026-09-24-hmyc-dart-18-nationals", sample_rows())
+        facts["class_name"] = "Dart 18"
+        facts["slug"] = "2026-09-24-hmyc-dart-18-nationals"
+        cluster = {
+            "articles": [
+                {
+                    "url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+                    "title": "Dart 18 Nationals final results",
+                    "image": "https://scontent.xx.fbcdn.net/prizegiving.jpg",
+                },
+                {
+                    "url": "https://www.facebook.com/henleymidmaryachtclub",
+                    "title": "Dart 18 Nationals on the water",
+                    "image": "https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=1632007242054050",
+                },
+                {
+                    "url": "https://commons.wikimedia.org/wiki/File:Old_boat.jpg",
+                    "title": "Random 1954 dinghy",
+                    "image": "https://upload.wikimedia.org/wikipedia/commons/4/41/Regate_420.JPG",
+                },
+            ]
+        }
+        photos = pick_images(facts, cluster)
+        self.assertGreaterEqual(len(photos), 2)
+        self.assertTrue(all(not _wiki_url(p["url"]) and not _wiki_url(p["source_url"]) for p in photos))
+        self.assertIsNone(pick_image(facts, {"articles": [cluster["articles"][2]]}))
+        prize = {
+            "url": "https://scontent.xx.fbcdn.net/prizegiving.jpg",
+            "source_url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+            "title": "1st Bradley Levin prizegiving",
+        }
+        self.assertGreaterEqual(_event_photo_score(prize, facts), 40)
+        wiki = {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/505er_001.jpg",
+            "source_url": "https://commons.wikimedia.org/wiki/File:505er_001.jpg",
+            "title": "505",
+        }
+        self.assertLess(_event_photo_score(wiki, facts), 0)
 
 
 if __name__ == "__main__":

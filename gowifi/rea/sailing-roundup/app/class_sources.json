@@ -58,9 +58,16 @@
       "name": "505",
       "slug": "505",
       "sailingsa_url": "https://sailingsa.co.za/class/505",
-      "website": null,
+      "website": "https://rsa505.org.za/",
       "facebook": null,
       "urls": [
+        {
+          "platform": "website",
+          "url": "https://rsa505.org.za/",
+          "locality": "local",
+          "label": "RSA 505",
+          "provenance": "https://rsa505.org.za/"
+        },
         {
           "platform": "facebook",
           "url": "https://www.facebook.com/int505",
@@ -138,6 +145,7 @@
       "slug": "dabchick",
       "sailingsa_url": "https://sailingsa.co.za/class/dabchick",
       "website": "https://www.revolutionise.com.au/dabchickca/",
+      "facebook": "https://www.facebook.com/dabchicksailingrsa",
       "urls": [
         {
           "platform": "website",
@@ -145,6 +153,13 @@
           "locality": "local",
           "label": "Dabchick Class Website",
           "provenance": "https://www.sailing.org.za/what-we-do/sasclasses"
+        },
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/dabchicksailingrsa",
+          "locality": "local",
+          "label": "Dabchick Sailing RSA",
+          "provenance": "https://www.revolutionise.com.au/dabchickca/"
         }
       ]
     }

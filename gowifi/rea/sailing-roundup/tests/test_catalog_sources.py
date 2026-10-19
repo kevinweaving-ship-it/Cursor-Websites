@@ -37,6 +37,7 @@ class Locality(unittest.TestCase):
     def test_sa_class_sites_are_local(self):
         self.assertEqual(classify_locality("https://www.revolutionise.com.au/dabchickca/"), "local")
         self.assertEqual(classify_locality("https://www.hobiesa.co.za/"), "local")
+        self.assertEqual(classify_locality("https://rsa505.org.za/"), "local")
 
 
 class EntityMatch(unittest.TestCase):

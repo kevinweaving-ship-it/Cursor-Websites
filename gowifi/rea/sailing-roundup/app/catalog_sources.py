@@ -89,6 +89,7 @@ LOCAL_HINTS = (
     "420nationalssouthafrica",
     "groups/120115671476306",
     "share/g/1jh51cdmew",
+    "rsa505",
 )
 NOT_LOCAL_HINTS = (
     "int420",

@@ -2,6 +2,34 @@
 
 Researched 19 October 2026 from public docs. No paid keys were used.
 
+## The model to copy: Perplexity Discover (RAG news)
+
+Perplexity Discover / core search is the best working example of
+“many sources → one article” for a real event.
+
+- **Aggregate:** when an event is flagged, scrape primary outlets
+  (Reuters / BBC / Bloomberg *and* the local club or class page). For
+  sailing that means the host-club Facebook post, the class write-up,
+  and the local news piece — not Wikipedia.
+- **Synthesize:** the model reads those bodies, drops repeated fluff,
+  and writes one structured article from scratch.
+- **Accuracy:** every claim has an inline citation back to a scraped
+  source. Retrieval-Augmented Generation (RAG) locks the writer to the
+  cage of those 10–20 texts. If a fact is not in a source, it is not
+  written.
+- **Photographs:** come from a member of that cluster. Prizegiving of
+  1st / 2nd / 3rd and boats on the water are both valid. More than one
+  photo is allowed. A Wikimedia file of a 1954 dinghy is not a source.
+
+Same family, used for the same contract:
+
+| Platform | What to copy |
+| --- | --- |
+| [Rize](https://rizenews.com) | Morning digest: cluster same-topic stories, write 1–2 paragraphs. |
+| [Ground News](https://ground.news/about/) | Cluster dozens of articles for one event, one unified summary. |
+| Artifact | De-bait the headline; rewrite long reports into a clear timeline. |
+| LetMeKnow.News | AI clustering so the reader is not shown the same story twice. |
+
 `app/event_rewrite.py` is **not** one of these systems. It keyword-dumps
 Google News / Bing hits into a list named `cluster`, then fills five mad-lib
 paragraphs from the results table. The 2026-09-28 Dart cluster contains
