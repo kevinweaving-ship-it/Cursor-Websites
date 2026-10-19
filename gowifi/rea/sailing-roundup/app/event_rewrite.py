@@ -16,6 +16,7 @@ Paid APIs are optional. No login-wall bypass.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import pathlib
@@ -894,11 +895,34 @@ def _page_avatar_media(url: str) -> bool:
     return mid.startswith("1000") and len(mid) == 15
 
 
+def _facebook_page_chrome(url: str, image: str = "") -> bool:
+    """Facebook page/profile OG images are logos. Posts and group albums can be photographs."""
+    img = (image or "").lower()
+    if "lookaside.fbsbx.com" in img or "/t39.30808-6/" in img:
+        return False
+    low = (url or "").lower()
+    if "facebook.com" not in low:
+        return False
+    if any(
+        token in low
+        for token in ("/posts/", "/share/p/", "/share/g/", "/groups/", "/permalink", "/photo.php", "/photo/")
+    ):
+        return False
+    path = urllib.parse.urlparse(low).path.strip("/")
+    if path.endswith("/photos") or "/photos/" in low:
+        return True
+    return bool(path)
+
+
 def _bad_image_url(url: str) -> bool:
     low = (url or "").lower()
     if _wiki_url(low):
         return True
     if _page_avatar_media(low):
+        return True
+    if "/t39.30808-1/" in low:
+        return True
+    if "sailingsa.co.za/api/og" in low:
         return True
     return any(
         token in low
@@ -908,6 +932,11 @@ def _bad_image_url(url: str) -> bool:
             "reel",
             "badge",
             "burgee",
+            "flag",
+            "banner",
+            "enternow",
+            "enter-now",
+            "enter_now",
             ".svg",
             "icon",
             "avatar",
@@ -923,6 +952,76 @@ def _bad_image_url(url: str) -> bool:
             "sailingsa.co.za/assets",
         )
     )
+
+
+def _image_size(raw: bytes) -> tuple[int, int] | None:
+    if raw[:2] == b"\xff\xd8":
+        i = 2
+        while i < len(raw) - 8:
+            if raw[i] != 0xFF:
+                i += 1
+                continue
+            marker = raw[i + 1]
+            if marker in (0xC0, 0xC1, 0xC2):
+                h = int.from_bytes(raw[i + 5 : i + 7], "big")
+                w = int.from_bytes(raw[i + 7 : i + 9], "big")
+                return w, h
+            if marker == 0xD8:
+                i += 2
+                continue
+            if i + 4 > len(raw):
+                break
+            seglen = int.from_bytes(raw[i + 2 : i + 4], "big")
+            i += 2 + seglen
+        return None
+    if raw[:8] == b"\x89PNG\r\n\x1a\n" and len(raw) >= 24:
+        w = int.from_bytes(raw[16:20], "big")
+        h = int.from_bytes(raw[20:24], "big")
+        return w, h
+    return None
+
+
+def _flat_block_ratio(raw: bytes) -> float:
+    try:
+        from io import BytesIO
+
+        from PIL import Image
+    except ImportError:
+        return 0.0
+    try:
+        im = Image.open(BytesIO(raw)).convert("RGB")
+    except Exception:
+        return 0.0
+    block = 16
+    w, h = im.size
+    flats = total = 0
+    for y in range(0, h - block + 1, block):
+        for x in range(0, w - block + 1, block):
+            crop = im.crop((x, y, x + block, y + block))
+            total += 1
+            if len(set(crop.getdata())) <= 6:
+                flats += 1
+    return flats / total if total else 0.0
+
+
+def _is_event_photograph(raw: bytes) -> bool:
+    """Keep prizegiving and on-water shots. Drop flags, logos, and 'enter now' posters."""
+    if not raw or len(raw) < 12000:
+        return False
+    size = _image_size(raw)
+    if not size:
+        return False
+    w, h = size
+    if min(w, h) < 320:
+        return False
+    aspect = w / h if h else 0
+    if aspect < 0.62 or aspect > 1.85:
+        return False
+    if 0.92 <= aspect <= 1.08 and min(w, h) >= 600:
+        return False
+    if _flat_block_ratio(raw) >= 0.55:
+        return False
+    return True
 
 
 def _wrong_class(blob: str, klass: str) -> bool:
@@ -1052,6 +1151,8 @@ def _event_photo_score(item: dict, facts: dict) -> int:
         return -10000
     if _bad_image_url(photo) or _wrong_class(blob, klass):
         return -100
+    if _facebook_page_chrome(source, photo) and "facebook.com" in source:
+        return -80
     if klass and klass.lower() in blob:
         n += 30
     if "1pgpy1pgh1" in blob or "1633819895206118" in blob:
@@ -1093,14 +1194,17 @@ def _event_photo_score(item: dict, facts: dict) -> int:
     return n
 
 
-def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int = 3) -> list[dict]:
-    """Prizegiving and on-the-water shots from this event's sources. Never wiki."""
+def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int = 2) -> list[dict]:
+    """Prizegiving and on-the-water shots from this event's sources. Never wiki or logos."""
     candidates = []
     seen = set()
 
     def add(item: dict):
         url = (item.get("url") or "").split("#")[0]
+        source = item.get("source_url") or ""
         if not url or url in seen or _wiki_url(url) or _bad_image_url(url):
+            return
+        if _facebook_page_chrome(source, url) and _event_photo_score(item, facts) < 40:
             return
         seen.add(url)
         candidates.append(item)
@@ -1194,12 +1298,15 @@ def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict |
         return None
     if len(raw) < 8000 or (ctype and not ctype.startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
         return None
+    if not _is_event_photograph(raw):
+        return None
     dest.write_bytes(raw)
     (source_dir / filename).write_bytes(raw)
     out = dict(image)
     out["url"] = "media/" + filename
     out["local_path"] = str(dest)
     out["bytes"] = len(raw)
+    out["digest"] = hashlib.md5(raw).hexdigest()
     return out
 
 
@@ -1218,16 +1325,20 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
     paras = rewrite_paragraphs(facts, cluster, cites)
     headline = unique_headline(facts, cluster)
     cols, table = facts["leaderboard"]
-    images = pick_images(facts, cluster, pack, limit=3)
+    images = pick_images(facts, cluster, pack, limit=2)
     if not images and fetched_cluster:
         images = _seed_event_images(facts)
     locals = []
+    seen_hash = set()
     for idx, image in enumerate(images):
         local = download_image(image, issue, facts["slug"], index=idx)
-        if not local and image and not _wiki_url(image.get("url") or ""):
-            local = image
-        if local:
-            locals.append(local)
+        if not local:
+            continue
+        digest = local.get("digest") or local.get("url")
+        if digest in seen_hash:
+            continue
+        seen_hash.add(digest)
+        locals.append(local)
     blocks = []
     for local in locals:
         credit = pretty_credit(local.get("credit") or "", local.get("source_url") or local.get("url") or "")
@@ -1304,7 +1415,7 @@ def _seed_event_images(facts: dict) -> list[dict]:
             continue
         seen.add(item["url"])
         uniq.append(item)
-    return uniq[:3]
+    return uniq[:2]
 
 
 def rewrite_weekend_feature(issue: str, monday, events: list[dict], articles: list[dict]) -> dict:

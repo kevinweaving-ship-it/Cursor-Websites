@@ -18,6 +18,8 @@ from event_rewrite import (
     rewrite_paragraphs,
     unique_headline,
     _event_photo_score,
+    _facebook_page_chrome,
+    _is_event_photograph,
     _keep_cluster_item,
     _wiki_url,
 )
@@ -113,7 +115,6 @@ class RewriteEngine(unittest.TestCase):
         article = rewrite_event("2026-09-28", facts, pack={}, cluster=cluster, layout="photo-led")
         kinds = [b["type"] for b in article["blocks"]]
         self.assertEqual(kinds.count("results"), 1)
-        self.assertIn("image", kinds)
         self.assertTrue(all(b.get("type") != "video" for b in article["blocks"]))
         results = next(b for b in article["blocks"] if b["type"] == "results")
         self.assertEqual(results["columns"], ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"])
@@ -277,6 +278,42 @@ class RewriteEngine(unittest.TestCase):
             "title": "505",
         }
         self.assertLess(_event_photo_score(wiki, facts), 0)
+        self.assertTrue(_facebook_page_chrome("https://www.facebook.com/int505"))
+        self.assertTrue(_facebook_page_chrome("https://www.facebook.com/420nationalssouthafrica/"))
+        self.assertFalse(_facebook_page_chrome("https://www.facebook.com/share/p/1PGpY1pGh1/"))
+        logo = {
+            "url": "https://scontent.xx.fbcdn.net/v/t39.30808-1/logo.jpg",
+            "source_url": "https://www.facebook.com/420nationalssouthafrica/",
+            "title": "420 class logo",
+        }
+        self.assertLess(_event_photo_score(logo, facts), 0)
+        dups = pick_images(
+            facts,
+            {
+                "articles": [
+                    cluster["articles"][0],
+                    {
+                        "url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+                        "title": "same prizegiving",
+                        "image": "https://scontent.xx.fbcdn.net/prizegiving.jpg",
+                    },
+                ]
+            },
+        )
+        self.assertEqual(len(dups), 1)
+
+    def test_reject_logo_flag_and_poster_bytes(self):
+        from pathlib import Path
+
+        photos = Path("/tmp/roundup-photos")
+        if not (photos / "2026-09-24-hmyc-dart-18-nationals.jpg").exists():
+            self.skipTest("live photo fixtures not downloaded")
+        self.assertTrue(_is_event_photograph((photos / "2026-09-24-hmyc-dart-18-nationals.jpg").read_bytes()))
+        self.assertTrue(_is_event_photograph((photos / "2026-09-24-ayc-505-nationals.jpg").read_bytes()))
+        self.assertTrue(_is_event_photograph((photos / "2026-09-25-tsc-420-nationals-3.jpg").read_bytes()))
+        self.assertFalse(_is_event_photograph((photos / "2026-09-24-ayc-dabchick-gauteng-regionals.png").read_bytes()))
+        self.assertFalse(_is_event_photograph((photos / "2026-09-24-ayc-505-nationals-3.jpg").read_bytes()))
+        self.assertFalse(_is_event_photograph((photos / "2026-09-25-tsc-420-nationals.jpg").read_bytes()))
 
     def test_cluster_drops_coverage_outside_event_window(self):
         facts = facts_from_rows("2026-09-25-tsc-420-nationals", sample_rows())
