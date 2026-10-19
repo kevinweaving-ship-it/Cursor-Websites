@@ -747,7 +747,7 @@ def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Opt
     total_podiums = gold + silver + bronze
     medal_rate = round(100 * total_podiums / total_races, 0) if total_races > 0 else 0
     html = (
-        f'<div class="sa-approved-sailor-card" role="listitem" data-sas-id="{esc(sid)}" style="cursor:pointer;margin:0;width:100%;max-width:100%;box-sizing:border-box;border-radius:6px;border:2px solid #8aa2c6;padding:12px;background:#fff;">'
+        f'<div class="sa-approved-sailor-card" role="listitem" data-sas-id="{esc(sid)}" style="cursor:pointer;margin:0;border-radius:6px;border:2px solid #8aa2c6;padding:12px;background:#fff;">'
         f'<div style="display:flex;gap:12px;align-items:flex-start;">'
         f'<div style="width:64px;height:64px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem;color:#001f3f;flex-shrink:0;">{esc(first_name[:1] + last_name[:1]) if first_name and last_name else "?"}</div>'
         f'<div style="flex:1;min-width:0;">'
