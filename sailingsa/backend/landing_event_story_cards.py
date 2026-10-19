@@ -815,10 +815,6 @@ def render_card_html(card: dict, *, slot: int) -> str:
         f'{cta_html}'
         f"</div></div>"
         f"{story_html}"
-        f'<span class="landing-event-card-open" aria-hidden="true">'
-        f'<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" '
-        f'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
-        f'<path d="M6 3.5 11 8 6 12.5"></path></svg></span>'
         f'<a class="landing-event-card-hit" href="{_esc(url)}" tabindex="-1" aria-hidden="true"></a>'
         f"</article>"
     )
@@ -1234,13 +1230,7 @@ LANDING_CARD_CSS = """
     z-index: 0;
 }
 .landing-event-card-open {
-    position: absolute;
-    right: 8px;
-    bottom: 6px;
-    z-index: 2;
-    pointer-events: none;
-    color: #3d5a8a;
-    line-height: 0;
+    display: none !important;
 }
 .landing-event-last-head,
 .landing-event-last-podium,

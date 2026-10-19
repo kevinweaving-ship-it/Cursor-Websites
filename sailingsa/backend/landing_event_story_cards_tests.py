@@ -281,7 +281,7 @@ class AdditiveStoryTests(unittest.TestCase):
         self.assertNotIn("Hunter 19s are currently entered", html)
         self.assertNotIn("FULL RESULTS", html)
         self.assertNotIn("this weekend", html)
-        self.assertIn("landing-event-card-open", html)
+        self.assertNotIn("landing-event-card-open", html)
 
     def test_midmar_uses_named_entries_not_fake_history(self):
         card = {
@@ -340,8 +340,8 @@ class AdditiveStoryTests(unittest.TestCase):
         self.assertNotIn("Results on record", story)
         self.assertNotIn("Defending winner", story)
         self.assertIn('style="width:78px;height:58px', html)
-        self.assertIn("landing-event-card-open", html)
-        self.assertIn("color: #3d5a8a", LANDING_CARD_CSS)
+        self.assertNotIn("landing-event-card-open", html)
+        self.assertIn(".landing-event-card-open", LANDING_CARD_CSS)
         self.assertNotIn("width:100%", html)
         self.assertEqual(resolve_podium_hrefs(None, card["podium"]), card["podium"])
 

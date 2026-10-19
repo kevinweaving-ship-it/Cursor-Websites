@@ -382,14 +382,15 @@
             border: 2px solid #8aa2c6 !important;
             border-radius: 6px !important;
         }
-        #sailor-search-results.guest-locked .sa-avatar-expand-btn { opacity: 0.45; animation: none; }
+        #sailor-search-results.guest-locked .sa-avatar-expand-btn { opacity: 0.45; animation: none !important; }
         #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn {
-            animation: ssa-expand-pulse 2.8s ease-in-out infinite;
+            animation: ssa-expand-pulse 4.2s ease-in-out infinite !important;
         }
         @keyframes ssa-expand-pulse {
             0%, 100% { opacity: 1; filter: brightness(1); }
-            50% { opacity: 0.4; filter: brightness(1.35); }
+            50% { opacity: 0.2; filter: brightness(1.5); }
         }
+        .landing-event-card-open { display: none !important; }
         .sailor-search-results[role="list"] { list-style: none; }
         .sailor-search-results .profile-card { margin-bottom: 0.875rem; }
         .sailor-profile-placeholder { background: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 8px; }
@@ -7653,6 +7654,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                             expandedHtml +
                                         '</div>';
                                     sailorSearchResults.style.display = 'block';
+                                    if (isLoggedInUser) sailorSearchResults.classList.remove('guest-locked');
                                     var root = sailorSearchResults.querySelector('.sa-approved-sailor-card');
                                     if (!root) return;
                                     root.style.setProperty('border', '2px solid #8aa2c6', 'important');
