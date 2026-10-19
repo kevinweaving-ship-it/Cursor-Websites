@@ -368,26 +368,33 @@
         .sailor-search-results { margin-top: 0.5rem; display: flex; flex-direction: column; padding-bottom: 2.5rem; }
         /* Search results inject real /dev-1 cards */
         #sailor-search-results .ssa-dev1-inject { margin: 0 0 8px 0; max-width: 100%; }
-        #sailor-search-results .ssa-dev1-inject main,
-        #sailor-search-results .ssa-dev1-inject .main-column,
-        #sailor-search-results .ssa-dev1-inject .container {
-            width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important;
-        }
-        #sailor-search-results .ssa-dev1-inject .sa-approved-sailor-card { margin-top: 0; }
+        /* Force sailor profile + search cards to the same width as upcoming/regatta cards. Height untouched. */
         .search-row-container,
         #sailor-search-results,
-        #sailor-search-results .ssa-dev1-inject {
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
+        #sailor-search-results .ssa-dev1-inject,
+        #sailor-search-results .ssa-dev1-inject main,
+        #sailor-search-results .ssa-dev1-inject .main-content,
+        #sailor-search-results .ssa-dev1-inject .main-column,
+        #sailor-search-results .ssa-dev1-inject .container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            box-sizing: border-box !important;
         }
-        /* Outer frame only — same as upcoming + All Regattas cards. Do not change height. */
+        #sailor-search-results .ssa-dev1-inject .sa-approved-sailor-card { margin-top: 0; }
+        #chosen-sailor-before-profile,
         #sailor-search-results .ssa-dev1-inject .sa-approved-sailor-card,
         #sailor-search-results .profile-card,
         #sailor-search-results .profile-card.single-result {
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            box-sizing: border-box !important;
             border: 2px solid #8aa2c6 !important;
             border-radius: 6px !important;
         }
@@ -1081,9 +1088,9 @@
             border-radius: 6px;
             box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
             overflow: hidden;
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
         }
         .sa-approved-sailor-header {
             display: grid;
@@ -7667,6 +7674,14 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                     sailorSearchResults.style.display = 'block';
                                     var root = sailorSearchResults.querySelector('.sa-approved-sailor-card');
                                     if (!root) return;
+                                    root.style.setProperty('width', '100%', 'important');
+                                    root.style.setProperty('max-width', '100%', 'important');
+                                    root.style.setProperty('margin-left', '0', 'important');
+                                    root.style.setProperty('margin-right', '0', 'important');
+                                    root.style.setProperty('box-sizing', 'border-box', 'important');
+                                    root.style.setProperty('border', '2px solid #8aa2c6', 'important');
+                                    root.style.setProperty('border-radius', '6px', 'important');
+                                    root.style.setProperty('display', 'block', 'important');
                                     root.querySelectorAll('[data-profile-class]').forEach(function(btn) {
                                         btn.addEventListener('click', function(ev) {
                                             var href = btn.getAttribute('data-profile-class-href') || '';
@@ -8213,16 +8228,35 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                 if (sc.parentNode) sc.parentNode.removeChild(sc);
                             });
                             slot.innerHTML = "";
-                            while (box.firstChild) slot.appendChild(box.firstChild);
+                            var frame = box.querySelector("#chosen-sailor-before-profile") || box.querySelector(".sa-approved-sailor-card") || box.querySelector(".profile-card");
+                            box.querySelectorAll("style").forEach(function(st) {
+                                slot.appendChild(st);
+                            });
+                            if (frame) slot.appendChild(frame);
+                            else {
+                                while (box.firstChild) slot.appendChild(box.firstChild);
+                            }
+                            slot.querySelectorAll("main, .main-column, .container").forEach(function(el) {
+                                el.style.setProperty("padding-left", "0", "important");
+                                el.style.setProperty("padding-right", "0", "important");
+                                el.style.setProperty("margin-left", "0", "important");
+                                el.style.setProperty("margin-right", "0", "important");
+                                el.style.setProperty("width", "100%", "important");
+                                el.style.setProperty("max-width", "100%", "important");
+                                el.style.setProperty("box-sizing", "border-box", "important");
+                            });
                             runDev1Scripts(slot, codes);
                             wireClaimBanners(slot);
-                            var frame = slot.querySelector(".sa-approved-sailor-card") || slot.querySelector(".profile-card");
+                            frame = slot.querySelector(".sa-approved-sailor-card") || slot.querySelector(".profile-card");
                             if (frame) {
                                 frame.style.setProperty("border", "2px solid #8aa2c6", "important");
                                 frame.style.setProperty("border-radius", "6px", "important");
                                 frame.style.setProperty("width", "100%", "important");
                                 frame.style.setProperty("max-width", "100%", "important");
+                                frame.style.setProperty("margin-left", "0", "important");
+                                frame.style.setProperty("margin-right", "0", "important");
                                 frame.style.setProperty("box-sizing", "border-box", "important");
+                                frame.style.setProperty("display", "block", "important");
                             }
                             if (guestLocked) {
                                 slot.addEventListener("click", function(ev) {
