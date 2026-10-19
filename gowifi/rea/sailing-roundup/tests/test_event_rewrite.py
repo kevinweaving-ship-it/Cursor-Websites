@@ -66,6 +66,9 @@ class RewriteEngine(unittest.TestCase):
         headline = unique_headline(facts)
         self.assertNotEqual(headline, "420 Nationals")
         self.assertIn("Dale Rae", headline)
+        self.assertIn("sweep", headline)
+        solo = dict(facts, winner="Dylan Hall", winner_wins=12, races=12, tied_first=False, status="Final")
+        self.assertIn("sweeps", unique_headline(solo))
         cluster = {
             "articles": [
                 {

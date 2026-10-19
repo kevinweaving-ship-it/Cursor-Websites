@@ -124,6 +124,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
     title = (first.get("event_name") or slug).strip()
     if title.lower().startswith("2026 "):
         title = title[5:]
+    title = re.sub(r"\s+incorporating\b.*$", "", title, flags=re.I).strip()
     start = str(first.get("start_date") or slug[:10])[:10]
     end = str(first.get("end_date") or start)[:10]
     winner_nett = winner.get("nett_points_raw")
@@ -151,6 +152,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "third": _names(third) if third else "",
         "third_nett": "" if third.get("nett_points_raw") in (None, "") else str(third.get("nett_points_raw")).replace(".0", ""),
         "tied_first": str(winner_nett) == str(second_nett) and winner_nett not in (None, ""),
+        "names": [n for r in ranked for n in ((r.get("helm_name") or "").strip(), (r.get("crew_name") or "").strip()) if n],
         "url": "https://sailingsa.co.za/regatta/" + slug,
         "leaderboard": leaderboard(ranked),
     }
@@ -174,21 +176,25 @@ def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[
     return list(LEADERBOARD_COLS), table
 
 
+def _agree(winner: str, plural: str, singular: str) -> str:
+    return plural if (" and " in (winner or "") or "," in (winner or "")) else singular
+
+
 def unique_headline(facts: dict, cluster: dict | None = None) -> str:
     winner = facts["winner"]
     title = facts["title"]
     venue = facts["club_name"]
     short_venue = venue.replace(" Yacht Club", "").replace(" Sports Club", "").replace(" Club", "")
     if facts.get("tied_first") and facts.get("second"):
-        return f"{winner} take {title} after a points tie at {short_venue}"
+        return f"{winner} {_agree(winner, 'take', 'takes')} {title} after a points tie at {short_venue}"
     if facts.get("winner_wins") and facts["winner_wins"] >= max(3, int(facts.get("races") or 0) // 2):
         if facts["winner_wins"] >= int(facts.get("races") or 0) - 2 and (facts.get("races") or 0) >= 6:
-            return f"{winner} sweep {title} at {short_venue}"
-        return f"{winner} dominate {title} at {short_venue}"
+            return f"{winner} {_agree(winner, 'sweep', 'sweeps')} {title} at {short_venue}"
+        return f"{winner} {_agree(winner, 'dominate', 'dominates')} {title} at {short_venue}"
     if (facts.get("status") or "").lower() == "provisional":
         fleet = f"{facts['entries']}-boat " if facts.get("entries") else ""
-        return f"{winner} lead {fleet}{title} at {short_venue}"
-    return f"{winner} win {title} at {short_venue}"
+        return f"{winner} {_agree(winner, 'lead', 'leads')} {fleet}{title} at {short_venue}"
+    return f"{winner} {_agree(winner, 'win', 'wins')} {title} at {short_venue}"
 
 
 def _date_span(start: str, end: str) -> str:
@@ -204,13 +210,14 @@ def _date_span(start: str, end: str) -> str:
     return f"{s.strftime('%-d %B')}–{e.strftime('%-d %B')}"
 
 
-def _cluster_color(cluster: dict) -> list[str]:
+def _cluster_color(cluster: dict, facts: dict | None = None) -> list[str]:
     """Turn clustered snippets into original colour, never pasted captions."""
     blob = " ".join(
         (item.get("title") or "") + " " + (item.get("description") or "") + " " + (item.get("snippet") or "")
         for item in (cluster or {}).get("articles") or []
     ).lower()
     notes = []
+    known = {n.lower(): n for n in (facts or {}).get("names") or []}
     if re.search(r"\bu-?17\b|under[- ]17|youth champion", blob):
         who = []
         for item in (cluster or {}).get("articles") or []:
@@ -219,8 +226,9 @@ def _cluster_color(cluster: dict) -> list[str]:
             )
             found = re.findall(r"\b([A-Z][a-z]+ [A-Z][a-z]+)\b", text)
             for name in found:
-                if name not in who and "national" not in name.lower():
-                    who.append(name)
+                real = known.get(name.lower())
+                if real and real not in who:
+                    who.append(real)
             if len(who) >= 2:
                 break
         if who:
@@ -287,7 +295,7 @@ def rewrite_paragraphs(facts: dict, cluster: dict | None = None) -> list[str]:
             f"The winning entry sailed for {facts['winner_club']}. " + podium
         ).strip()
 
-    extras = _cluster_color(cluster or {})
+    extras = _cluster_color(cluster or {}, facts)
     context = extras[0] if extras else (
         f"{venue} hosted the {facts.get('class_name') or 'class'} championship over {dates}."
     )
@@ -511,25 +519,46 @@ def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | N
                     "url": img["image_url"],
                     "source_url": img.get("source_url") or "",
                     "title": img.get("source_title") or facts["title"],
-                    "credit": img.get("platform") or _credit_from_url(img.get("source_url") or ""),
+                    "credit": pretty_credit(img.get("platform") or "", img.get("source_url") or img.get("image_url") or ""),
                 }
             )
+    def score(item: dict) -> int:
+        blob = " ".join((item.get("url") or "", item.get("source_url") or "", item.get("title") or "")).lower()
+        n = 0
+        if "novanews" in blob:
+            n += 80
+        if "wp-content/uploads" in (item.get("url") or ""):
+            n += 30
+        if any(k in blob for k in ("nationals", "regatta", "day 2", "day2")):
+            n += 15
+        if "fbcdn" in (item.get("url") or "") and "t39.30808-1" in (item.get("url") or ""):
+            n -= 20
+        return n
+
+    candidates.sort(key=score, reverse=True)
     return candidates[0] if candidates else None
 
 
-def _credit_from_url(url: str) -> str:
-    host = urllib.parse.urlparse(url or "").netloc.lower().removeprefix("www.")
-    if "novanews" in host:
+def pretty_credit(raw: str, url: str = "") -> str:
+    blob = f"{raw or ''} {url or ''}".lower()
+    if "novanews" in blob:
         return "NovaNews"
-    if "facebook.com" in host or "fbcdn.net" in host:
+    if "youtube" in blob or "youtu.be" in blob:
+        return "YouTube"
+    if "facebook" in blob or "fbcdn" in blob:
         return "Facebook / host club"
-    if "hmyc" in host:
+    if "hmyc" in blob:
         return "Henley Midmar Yacht Club"
-    if "aeolians" in host:
+    if "aeolians" in blob:
         return "Aeolians Yacht Club"
-    if "theewater" in host:
+    if "theewater" in blob:
         return "Theewater Sports Club"
-    return host or "source"
+    host = urllib.parse.urlparse(url or raw or "").netloc.lower().removeprefix("www.")
+    return host or (raw or "source").strip()
+
+
+def _credit_from_url(url: str) -> str:
+    return pretty_credit("", url)
 
 
 def download_image(image: dict, issue: str, slug: str) -> dict | None:
@@ -600,7 +629,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         local = _fallback_club_image(issue, facts)
     blocks = []
     if local:
-        credit = local.get("credit") or "source"
+        credit = pretty_credit(local.get("credit") or "", local.get("source_url") or local.get("url") or "")
         blocks.append(
             {
                 "type": "image",
