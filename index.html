@@ -386,10 +386,10 @@
         #sailor-search-results.guest-locked .sa-avatar-expand-btn svg {
             opacity: 0.45; animation: none !important;
         }
-        #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn,
-        #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn svg,
-        #landing-dev1-home .sa-avatar-expand-btn,
-        #landing-dev1-home .sa-avatar-expand-btn svg {
+        #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn.ssa-expand-pulse-on,
+        #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn.ssa-expand-pulse-on svg,
+        #landing-dev1-home .sa-avatar-expand-btn.ssa-expand-pulse-on,
+        #landing-dev1-home .sa-avatar-expand-btn.ssa-expand-pulse-on svg {
             animation: ssa-expand-pulse 4.2s ease-in-out infinite !important;
         }
         @keyframes ssa-expand-pulse {
@@ -8219,16 +8219,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                 frame.style.setProperty("border", "2px solid #8aa2c6", "important");
                                 frame.style.setProperty("border-radius", "6px", "important");
                             }
-                            slot.querySelectorAll(".sa-avatar-expand-btn").forEach(function(btn) {
-                                if (guestLocked) {
-                                    btn.style.setProperty("animation", "none", "important");
-                                    return;
-                                }
-                                btn.setAttribute("data-ssa-pulse", "1");
-                                btn.style.setProperty("animation", "ssa-expand-pulse 4.2s ease-in-out infinite", "important");
-                                var svg = btn.querySelector("svg");
-                                if (svg) svg.style.setProperty("animation", "ssa-expand-pulse 4.2s ease-in-out infinite", "important");
-                            });
+                            if (typeof window.__ssaPulseSailorExpand === "function") window.__ssaPulseSailorExpand(slot);
                             if (guestLocked) {
                                 slot.addEventListener("click", function(ev) {
                                     var btn = ev.target && ev.target.closest ? ev.target.closest(".sa-avatar-expand-btn") : null;
@@ -8627,21 +8618,49 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 });
                 window.showSailorStatsInResults = showSailorStatsInResultsFn;
                 (function pulseLoggedInExpandArrows() {
-                    function apply(root) {
+                    function cardHasResultsOrEvents(root) {
+                        if (!root || !root.querySelector) return false;
+                        if (root.querySelector("#dev1-next-event-slot, .ne-card, [data-ne-json]")) return true;
+                        if (root.querySelector(".dev1-er-row")) return true;
+                        var digits = root.querySelector(".sa-ssl-rank-digits, .sa-ssa-rank-digits, .rank-num");
+                        if (digits && /\d/.test(String(digits.textContent || "").replace(/\s+/g, ""))) return true;
+                        return false;
+                    }
+                    function pulseExpandIfActive(root) {
                         if (!root || !root.querySelectorAll) return;
+                        var locked = false;
+                        try {
+                            var host = document.getElementById("sailor-search-results");
+                            locked = !!(host && host.classList.contains("guest-locked") && host.contains(root));
+                        } catch (_) {}
+                        var on = !locked && cardHasResultsOrEvents(root);
                         root.querySelectorAll(".sa-avatar-expand-btn").forEach(function(btn) {
-                            if (btn.getAttribute("data-ssa-pulse") === "1") return;
-                            var locked = false;
-                            try {
-                                var host = document.getElementById("sailor-search-results");
-                                locked = !!(host && host.classList.contains("guest-locked") && host.contains(btn));
-                            } catch (_) {}
-                            if (locked) return;
-                            btn.setAttribute("data-ssa-pulse", "1");
-                            btn.style.setProperty("animation", "ssa-expand-pulse 4.2s ease-in-out infinite", "important");
+                            btn.removeAttribute("data-ssa-pulse");
                             var svg = btn.querySelector("svg");
-                            if (svg) svg.style.setProperty("animation", "ssa-expand-pulse 4.2s ease-in-out infinite", "important");
+                            if (on) {
+                                btn.classList.add("ssa-expand-pulse-on");
+                                btn.style.removeProperty("animation");
+                                if (svg) svg.style.removeProperty("animation");
+                            } else {
+                                btn.classList.remove("ssa-expand-pulse-on");
+                                btn.style.setProperty("animation", "none", "important");
+                                if (svg) svg.style.setProperty("animation", "none", "important");
+                            }
                         });
+                    }
+                    window.__ssaPulseSailorExpand = pulseExpandIfActive;
+                    function apply(root) {
+                        if (!root) return;
+                        if (root.id === "landing-dev1-home") {
+                            pulseExpandIfActive(root);
+                            return;
+                        }
+                        var cards = root.querySelectorAll ? root.querySelectorAll(".ssa-dev1-inject") : [];
+                        if (cards && cards.length) {
+                            cards.forEach(pulseExpandIfActive);
+                            return;
+                        }
+                        pulseExpandIfActive(root);
                     }
                     function watch(id) {
                         function start() {
