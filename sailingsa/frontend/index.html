@@ -11320,10 +11320,10 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 window.__saRegattaEventLogoCache = window.__saRegattaEventLogoCache || {};
                 if (!forceRefresh && window.__saRegattaEventLogoCache[rid]) return window.__saRegattaEventLogoCache[rid];
                 try {
-                    var k = 'sa:regattaLogo:event:v4:' + rid;
+                    var k = 'sa:regattaLogo:event:v6:' + rid;
                     if (forceRefresh) localStorage.removeItem(k);
                     var cached = forceRefresh ? '' : localStorage.getItem(k);
-                    if (cached && cached.trim()) {
+                    if (cached && isLandingEventSlotLogo(cached)) {
                         window.__saRegattaEventLogoCache[rid] = Promise.resolve(cached.trim());
                         return window.__saRegattaEventLogoCache[rid];
                     }
@@ -11336,8 +11336,11 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var img = doc.querySelector('.regatta-header-logo-col img.regatta-header-left-logo-img, .regatta-header-logo-col img.regatta-header-logo-img');
                             var src = img ? (img.getAttribute('src') || '').trim() : '';
-                            if (src) { try { localStorage.setItem('sa:regattaLogo:event:v4:' + rid, src); } catch (_) {} }
-                            return src || null;
+                            if (src && isLandingEventSlotLogo(src)) {
+                                try { localStorage.setItem('sa:regattaLogo:event:v6:' + rid, src); } catch (_) {}
+                                return src;
+                            }
+                            return null;
                         } catch (_) {
                             return null;
                         }
@@ -11368,6 +11371,33 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
             }
             function isEventLogoArtworkPath(path) {
                 return normalizeArtworkPath(path).indexOf('/artwork/event logo/') !== -1;
+            }
+            function isClassLogoArtworkPath(path) {
+                return normalizeArtworkPath(path).indexOf('/artwork/class logo/') !== -1;
+            }
+            function isDefaultSailingsaLogo(path) {
+                var n = normalizeArtworkPath(path);
+                return n.indexOf('sailingsa-logo') !== -1 || n.indexOf('/assets/logos/sailingsa') !== -1;
+            }
+            // Big card slot: named Event Logo, else sole class=fleet logo. Never SA default / club.
+            function isLandingEventSlotLogo(path) {
+                var s = String(path || '').trim();
+                if (!s || isDefaultSailingsaLogo(s)) return false;
+                return isEventLogoArtworkPath(s) || isClassLogoArtworkPath(s);
+            }
+            function preferredEventSlotLogo(r) {
+                var ev = String((r && r.event_logo_url) || '').trim();
+                if (ev && isLandingEventSlotLogo(ev)) return ev;
+                var logo = String((r && r.logo_url) || '').trim();
+                if (logo && isEventLogoArtworkPath(logo)) return logo;
+                var kids = (r && (r._children || r.children)) || [];
+                var nKids = Array.isArray(kids) ? kids.length : 0;
+                var soleLogo = String((r && r.sole_class_logo_url) || '').trim();
+                var soleName = String((r && r.sole_class_name) || '').trim();
+                var soleFleet = nKids <= 1 || !!soleLogo || !!soleName;
+                if (logo && isClassLogoArtworkPath(logo) && soleFleet) return logo;
+                if (soleLogo && isLandingEventSlotLogo(soleLogo)) return soleLogo;
+                return '';
             }
             function classNameFromLogoFilename(path) {
                 var base = String(path || '').split('/').pop() || '';
@@ -11442,7 +11472,9 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     'rs tera sport': '/artwork/Class Logo/RS-Tera-Sport-Class-Logo.png',
                     'df95': '/artwork/Class Logo/DF95-Class-Logo.png',
                     'j22': '/artwork/Class Logo/J22-Class-Logo.png',
-                    'hunter 19': '/artwork/Class Logo/Hunter-19-Class-Logo.png'
+                    'hunter 19': '/artwork/Class Logo/Hunter-19-Class-Logo.png',
+                    'dart 18': '/artwork/Class Logo/Dart-18-Class-Logo.png',
+                    'tsl': '/artwork/Class Logo/TSL-Class-Logo.png'
                 };
                 return fileMap[key] || '';
             }
@@ -11507,6 +11539,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                             if (next.kind === 'child' && chip) setFleetChipLogoState(chip, false);
                             return;
                         }
+                        if (next.kind === 'event' && !isLandingEventSlotLogo(src)) return;
                         next.img.src = src;
                         next.img.style.display = '';
                         next.img.style.visibility = '';
@@ -11693,13 +11726,14 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 eventLogoImg.alt = '';
                 eventLogoImg.style.display = 'none';
                 eventLogoImg.dataset.saLogoRid = rid;
-                eventLogoImg.dataset.saLogoSrc = (r.logo_url || '');
-                eventLogoImg.dataset.saLogoCatalogueHref = (r.logo_catalogue_href || '');
+                var eventSlotLogo = preferredEventSlotLogo(r);
+                eventLogoImg.dataset.saLogoSrc = eventSlotLogo;
+                eventLogoImg.dataset.saLogoCatalogueHref = eventSlotLogo ? (r.logo_catalogue_href || '') : '';
                 eventLogoImg.dataset.saLogoRetry = '0';
-                if (r.logo_url) {
-                    eventLogoImg.src = r.logo_url;
+                if (eventSlotLogo) {
+                    eventLogoImg.src = eventSlotLogo;
                     eventLogoImg.style.display = '';
-                    updateEventLogoCatalogueLink(eventLogoImg, r.logo_url, r.logo_catalogue_href, rid, title);
+                    updateEventLogoCatalogueLink(eventLogoImg, eventSlotLogo, r.logo_catalogue_href, rid, title);
                 } else {
                     eventLogoLink.removeAttribute('href');
                 }
@@ -11964,7 +11998,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     var rid = ev && ev.dataset ? ev.dataset.saLogoRid : '';
                     var src = ev && ev.dataset ? (ev.dataset.saLogoSrc || '') : '';
                     var catHref = ev && ev.dataset ? (ev.dataset.saLogoCatalogueHref || '') : '';
-                    if (ev && src) {
+                    if (ev && src && isLandingEventSlotLogo(src)) {
                         ev.src = src;
                         ev.style.display = '';
                         updateEventLogoCatalogueLink(ev, src, catHref, rid, '');

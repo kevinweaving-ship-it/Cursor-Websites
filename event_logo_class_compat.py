@@ -33,6 +33,7 @@ _EVENT_LOGO_CLASS_TOKENS = (
 _EVENT_LOGO_ILCA_ALIASES = frozenset({"ilca", "laser"})
 
 MIRROR_CLASS_LOGO = "/artwork/Class Logo/Mirror-Class-Logo.png"
+MIDMAR_CUP_EVENT_LOGO = "/artwork/Event Logo/Midmar-Cup-Event.jpg"
 KZN_MIRROR_ILCA_EVENT_LOGO = "/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png"
 
 
@@ -88,6 +89,12 @@ def named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
     if "lipton" in rid or "lipton" in en:
         src = "/js/lipton-dev-event-logo.png"
         return src if event_logo_src_compatible_with_event(src, hay) else None
+    if "midmar cup" in hay:
+        return (
+            MIDMAR_CUP_EVENT_LOGO
+            if event_logo_src_compatible_with_event(MIDMAR_CUP_EVENT_LOGO, hay)
+            else None
+        )
     if "mirror" in hay and "ilca" not in hay and "laser" not in hay:
         return (
             MIRROR_CLASS_LOGO

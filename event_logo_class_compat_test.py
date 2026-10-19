@@ -11,6 +11,7 @@ sys.path.insert(0, ROOT)
 
 from event_logo_class_compat import (  # noqa: E402
     KZN_MIRROR_ILCA_EVENT_LOGO,
+    MIDMAR_CUP_EVENT_LOGO,
     MIRROR_CLASS_LOGO,
     event_logo_src_compatible_with_event,
     named_event_logo_url,
@@ -56,6 +57,12 @@ class EventLogoClassCompatTest(unittest.TestCase):
                 "/artwork/Event Logo/Cape-Classic-Series.png",
                 "cape classic series",
             )
+        )
+
+    def test_midmar_cup_uses_named_event_logo(self):
+        self.assertEqual(
+            named_event_logo_url("2026-09-19-hmyc-midmar-cup", "The Midmar Cup"),
+            MIDMAR_CUP_EVENT_LOGO,
         )
 
 

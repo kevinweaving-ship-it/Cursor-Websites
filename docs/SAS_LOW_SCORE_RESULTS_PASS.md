@@ -49,6 +49,7 @@ Same as 505 Nationals, except race count:
   Mirror in the name → `/artwork/Class Logo/Mirror-Class-Logo.png`.  
   Combined Event Logo (e.g. `KZN-Mirror-ILCA-Regionals-Champs.png`) **only** if every class named in the filename is in the event name or slug. See `event_logo_class_compat.py`.
 - **Right:** host club logo + `Host: {CODE} - {Full name}`. Club logos that appear **in result rows** (other clubs in the fleet) stay in the table, not as a second header Event Logo.
+- **Landing Latest Results cards:** large left slot = named Event Logo when one exists (TSL, Dam Bottle, Midmar Cup, …). If there is no Event Logo and the card is class = fleet, use that class/fleet logo in the large slot (Mirror, 420 Nationals, Dart 18, Leopard Challenge). Keep the small fleet chip. Never the default Sailing SA mark, and never a combined Event Logo that names a class the event does not.
 - **Status line:** `Results are [Provisional|Final] as at DD Month YYYY at HH:MM`  
   Source: `regattas.result_status` + `regattas.as_at_time`. Use **"as at"**.  
   For this pass, as-at is **17:05 on the event/results date the user gives** (worked example: Final as at 18 October 2026 at 17:05). Never “now”, never a placeholder.
