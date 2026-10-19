@@ -82,9 +82,10 @@ class RewriteEngine(unittest.TestCase):
         }
         paras = rewrite_paragraphs(facts, cluster)
         blob = " ".join(paras)
-        self.assertGreaterEqual(len(paras), 3)
+        self.assertGreaterEqual(len(paras), 4)
         self.assertIn("Dale Rae and James Rae", blob)
         self.assertIn("Theewater", blob)
+        self.assertGreater(len(blob), 400)
         self.assertNotIn("under review", blob.lower())
         self.assertNotIn("From a public social update", blob)
         self.assertIn("under-17", blob)
@@ -125,6 +126,7 @@ class RewriteEngine(unittest.TestCase):
         self.assertIn("story-photo-led", css)
         self.assertIn("story-split", css)
         self.assertIn("story-classic", css)
+        self.assertIn("flex-direction:column", css)
         self.assertIn("@page{size:A3", css.replace(" ", ""))
 
     def test_image_block_always_shows_photo(self):

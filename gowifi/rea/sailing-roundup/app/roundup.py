@@ -225,7 +225,8 @@ def _render_story(index, article):
         elif image:
             mid = image + copy
         inner = head + "<div class='copy cols-2'>" + mid + "</div>" + standings
-    return "<article class='story story-" + layout + "'>" + inner + "</article>"
+    aid = html.escape(article.get("id") or article.get("event_id") or "")
+    return "<article class='story story-" + layout + "' id='" + aid + "'>" + inner + "</article>"
 
 
 def newspaper_css():
@@ -233,22 +234,22 @@ def newspaper_css():
 @import url("https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Oswald:wght@500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap");
 :root{--ink:#111;--rule:#111;--muted:#444;--paper:#f6f1e4;--card:#fffdf6}
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.45 'Source Serif 4',Georgia,serif}
-.paper{max-width:1180px;margin:0 auto;padding:18px 22px 48px;background:var(--card);box-shadow:0 0 0 1px #d7cbb0}
-.masthead{text-align:center;border-top:4px solid var(--rule);border-bottom:1px solid var(--rule);padding:10px 0 8px}
-.masthead .flag{font:600 11px/1 Oswald,sans-serif;letter-spacing:.28em;text-transform:uppercase}
-.masthead h1{font:700 54px/0.92 'Libre Baskerville',Georgia,serif;margin:6px 0 4px;letter-spacing:-1px}
-.folio{display:flex;justify-content:space-between;border-top:3px double var(--rule);border-bottom:1px solid var(--rule);font:600 11px/1 Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:6px 2px;margin-bottom:18px}
-.edition-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 26px;align-items:start}
-.story{break-inside:avoid;page-break-inside:avoid;border-bottom:1px solid #cfc3a6;padding-bottom:16px}
-.story-lead{grid-column:1/-1;border-bottom:3px double var(--rule);padding-bottom:20px;margin-bottom:4px}
-.kicker{font:600 11px/1 Oswald,sans-serif;letter-spacing:.16em;margin:0 0 4px;color:#6a1d1d}
-h2{font:700 28px/1.12 'Libre Baskerville',Georgia,serif;margin:0 0 6px}
-.story-lead h2{font-size:clamp(34px,5vw,52px);text-align:center}
-.story-photo-led h2{font-size:34px}
-.story-split h2{font-size:26px}
-.story-classic h2{font-size:24px;font-style:italic}
-.story-compact h2{font-size:21px;font-family:Oswald,sans-serif;letter-spacing:.02em;text-transform:uppercase}
+body{margin:0;background:var(--paper);color:var(--ink);font:18px/1.55 'Source Serif 4',Georgia,serif}
+.paper{max-width:920px;margin:0 auto;padding:28px 28px 72px;background:var(--card);box-shadow:0 0 0 1px #d7cbb0}
+.masthead{text-align:center;border-top:6px solid var(--rule);border-bottom:1px solid var(--rule);padding:14px 0 10px}
+.masthead .flag{font:600 12px/1 Oswald,sans-serif;letter-spacing:.28em;text-transform:uppercase}
+.masthead h1{font:700 48px/0.95 'Libre Baskerville',Georgia,serif;margin:8px 0 6px;letter-spacing:-1px}
+.folio{display:flex;justify-content:space-between;border-top:3px double var(--rule);border-bottom:1px solid var(--rule);font:600 12px/1 Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;padding:8px 2px;margin-bottom:8px}
+.edition-grid{display:flex;flex-direction:column;gap:0}
+.story{break-inside:avoid;page-break-inside:avoid;border-top:4px solid #111;margin:36px 0 0;padding:28px 0 36px;background:#fff}
+.story-lead{border-top:none;border-bottom:3px double var(--rule);margin-top:12px;padding-top:8px}
+.kicker{font:600 13px/1 Oswald,sans-serif;letter-spacing:.16em;margin:0 0 8px;color:#6a1d1d}
+h2{font:700 34px/1.15 'Libre Baskerville',Georgia,serif;margin:0 0 10px}
+.story-lead h2{font-size:clamp(36px,5vw,50px)}
+.story-photo-led h2{font-size:38px}
+.story-split h2{font-size:34px}
+.story-classic h2{font-size:32px;font-style:italic}
+.story-compact h2{font-size:30px}
 .deck{margin:0 0 6px;color:var(--muted);font:italic 16px/1.35 'Libre Baskerville',Georgia,serif}
 .byline{margin:0 0 10px;font:600 10px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#333}
 .banner{text-align:center}
@@ -272,7 +273,8 @@ figcaption{font:11px/1.3 'Source Serif 4',serif;color:#555;padding-top:4px}
 .board tr:nth-child(odd) td{background:#f3efe3}
 .board tr:first-child td{font-weight:700}
 @media (max-width:860px){
-  .edition-grid,.lead-grid,.split,.compact-row{grid-template-columns:1fr}
+  .edition-grid{display:flex;flex-direction:column}
+  .lead-grid,.split,.compact-row{grid-template-columns:1fr}
   .cols-2,.cols-3{column-count:1}
   .story-classic figure{float:none;width:100%;margin:0 0 10px}
   .masthead h1{font-size:34px}

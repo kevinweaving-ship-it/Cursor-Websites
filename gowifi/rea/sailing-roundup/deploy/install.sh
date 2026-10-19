@@ -37,6 +37,9 @@ if [ -d "$DEST/public" ]; then
   tar -C "$DEST/public" -cf - . | tar -C "$WWW" -xf -
 fi
 
+install -d -m 755 -o rea -g rea "$DEST/deploy"
+install -m 755 -o rea -g rea "$SRC_DIR/deploy/run-monday.sh" "$DEST/deploy/run-monday.sh"
+install -m 755 -o rea -g rea "$SRC_DIR/deploy/publish-to-sailingsa.sh" "$DEST/deploy/publish-to-sailingsa.sh"
 install -m 644 "$SRC_DIR/deploy/sailing-roundup.service" /etc/systemd/system/sailing-roundup.service
 install -m 644 "$SRC_DIR/deploy/sailing-roundup.timer" /etc/systemd/system/sailing-roundup.timer
 # Africa/Johannesburg is the box timezone; timer OnCalendar uses local time.

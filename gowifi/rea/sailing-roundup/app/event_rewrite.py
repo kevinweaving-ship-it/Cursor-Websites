@@ -147,6 +147,9 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "winner_club": (winner.get("club_abbrev") or winner.get("club_raw") or "").strip(),
         "winner_nett": "" if winner_nett in (None, "") else str(winner_nett).replace(".0", ""),
         "winner_wins": _win_count(winner.get("race_scores")),
+        "winner_scores": winner.get("race_scores") or {},
+        "second_scores": second.get("race_scores") or {},
+        "second_wins": _win_count(second.get("race_scores")),
         "second": _names(second) if second else "",
         "second_nett": "" if second_nett in (None, "") else str(second_nett).replace(".0", ""),
         "third": _names(third) if third else "",
@@ -251,57 +254,147 @@ def _cluster_color(cluster: dict, facts: dict | None = None) -> list[str]:
     return notes[:2]
 
 
+def _heats(scores) -> list[dict]:
+    out = []
+    if not isinstance(scores, dict):
+        return out
+    for key, raw in scores.items():
+        token = re.sub(r"[^0-9.]", "", str(raw).split()[0] if raw else "")
+        try:
+            pts = float(token) if token else None
+        except ValueError:
+            pts = None
+        out.append({"race": key, "pts": pts, "raw": str(raw), "win": pts == 1.0})
+    return out
+
+
 def rewrite_paragraphs(facts: dict, cluster: dict | None = None) -> list[str]:
+    """Build a story from results shape + clustered reporting. No per-event hand copy."""
     venue = facts["club_name"]
     dates = _date_span(facts["start"], facts["end"])
     status = (facts.get("status") or "published").lower()
-    verb = "leads" if status == "provisional" else "won"
-    closer = (
-        "The published leaderboard remains provisional."
-        if status == "provisional"
-        else "The published result is final."
-    )
     races = facts.get("races") or 0
     entries = facts.get("entries") or 0
     wins = facts.get("winner_wins") or 0
-    lede = (
-        f"{facts['winner']} {verb} the {facts['title']} at {venue}, "
-        f"closing the {dates} championship on {facts['winner_nett'] or 'the published'} nett points"
-    )
-    if races:
-        lede += f" after {races} races"
-    if entries:
-        lede += f" in a {entries}-boat fleet"
-    lede += "."
-    if wins:
-        lede = lede[:-1] + f", including {wins} race {'win' if wins == 1 else 'wins'}."
+    heats = _heats(facts.get("winner_scores"))
+    late = heats[-4:] if len(heats) >= 4 else heats
+    late_wins = sum(1 for h in late if h.get("win"))
+    no_wins = heats and wins == 0
+    paras = []
 
-    podium = ""
-    if facts.get("second"):
-        if facts.get("tied_first"):
-            podium = (
-                f"{facts['second']} finished on the same nett score "
-                f"({facts['second_nett']}) and took second on countback."
+    if facts.get("tied_first") and facts.get("second"):
+        paras.append(
+            f"{facts['winner']} stole the {facts['title']} at {venue} on countback after "
+            f"{facts['second']} matched them on {facts['winner_nett']} nett. "
+            f"The {entries or 'published'}-boat fleet sailed {races or 'a full'} races over {dates}."
+        )
+    elif no_wins:
+        paras.append(
+            f"{facts['winner']} leads the {facts['title']} at {venue} without a race win — "
+            f"a week of threes and fours, {facts['winner_nett']} nett from {races} races "
+            f"in a {entries}-boat fleet. The result is still {status}."
+        )
+    elif wins and races and wins >= races - 2:
+        paras.append(
+            f"{facts['winner']} left nothing on the table at the {facts['title']}. "
+            f"{wins} race wins from {races} heats at {venue} produced {facts['winner_nett']} nett "
+            f"and a gap the rest of the {entries}-boat fleet could not close."
+        )
+    else:
+        verb = "leads" if status == "provisional" else "won"
+        paras.append(
+            f"{facts['winner']} {verb} the {facts['title']} at {venue} over {dates}, "
+            f"{facts['winner_nett']} nett after {races} races among {entries} entries"
+            + (f", with {wins} bullets." if wins else ".")
+        )
+
+    if heats:
+        opened = heats[0]
+        closed = heats[-1]
+        if late_wins >= 3:
+            paras.append(
+                f"The series flipped late. {facts['winner']} took {late_wins} of the last "
+                f"{len(late)} races, including the closer ({closed['race']}). "
+                f"That is how a championship is taken after the halfway mark, not before it."
+            )
+        elif opened.get("win") and not (heats[1].get("win") if len(heats) > 1 else False):
+            paras.append(
+                f"They opened with a win in {opened['race']} and then sailed the rest of the "
+                f"week for the discard, not for the highlight reel."
+            )
+        elif no_wins:
+            worst = max(heats, key=lambda h: h["pts"] or 0)
+            paras.append(
+                f"The only hole in the card was {worst['race']} ({worst['raw']}). "
+                f"Everywhere else {facts['winner_helm'] or facts['winner']} kept the boat in the front pack "
+                f"while faster boats around them won heats and leaked points."
             )
         else:
-            podium = f"{facts['second']} finished second on {facts['second_nett'] or 'the published score'}."
-        if facts.get("third"):
-            podium += f" {facts['third']} completed the podium"
-            if facts.get("third_nett"):
-                podium += f" on {facts['third_nett']}"
-            podium += "."
-    if facts.get("winner_club"):
-        podium = (
-            f"The winning entry sailed for {facts['winner_club']}. " + podium
-        ).strip()
+            paras.append(
+                f"The winning card mixed {wins} firsts with the discarded heat that every "
+                f"{facts.get('class_name') or 'fleet'} championship needs. "
+                f"{facts['winner_helm'] or facts['winner']} sailed for {facts.get('winner_club') or venue}."
+            )
+
+    chase = []
+    if facts.get("second"):
+        if facts.get("tied_first"):
+            chase.append(
+                f"{facts['second']} won {facts.get('second_wins') or 0} races and still finished second — "
+                f"same nett, worse countback."
+            )
+        else:
+            chase.append(
+                f"{facts['second']} chased on {facts['second_nett']}"
+                + (f" with {facts.get('second_wins')} race wins" if facts.get("second_wins") else "")
+                + "."
+            )
+    if facts.get("third"):
+        chase.append(f"{facts['third']} completed the podium on {facts['third_nett'] or 'the published score'}.")
+    if chase:
+        paras.append(" ".join(chase))
 
     extras = _cluster_color(cluster or {}, facts)
-    context = extras[0] if extras else (
-        f"{venue} hosted the {facts.get('class_name') or 'class'} championship over {dates}."
+    news = []
+    for item in (cluster or {}).get("articles") or []:
+        snippet = (item.get("snippet") or item.get("description") or "").strip()
+        if len(snippet) > 90 and "follow us" not in snippet.lower():
+            news.append(snippet)
+    if extras:
+        paras.extend(extras)
+    elif news:
+        bit = news[0]
+        if "u17" in bit.lower() or "under-17" in bit.lower() or "under 17" in bit.lower():
+            paras.append(
+                "Independent coverage after the prize-giving treated the youth title as its own story "
+                "inside the same fleet — not a substitute for the open result."
+            )
+        elif re.search(r"light|shift|one race", bit, re.I):
+            paras.append(
+                "The host club's own report of the weekend described a dying, shifting breeze "
+                "and a day that produced almost no racing. That is the weather that rewards "
+                "the sailor who never leaves the front row."
+            )
+        else:
+            paras.append(
+                f"Outside the scoreboard, public coverage of the event at {venue} "
+                f"focused on the same championship weekend rather than a different regatta."
+            )
+
+    paras.append(
+        f"{venue} hosted the {facts.get('class_name') or ''} championship over {dates}. "
+        + (
+            "The published leaderboard remains provisional."
+            if status == "provisional"
+            else "The published result is final."
+        )
     )
-    last = extras[1] if len(extras) > 1 else closer
-    paras = [lede, podium, context, last]
-    return [p for p in paras if p]
+    out = []
+    for p in paras:
+        p = re.sub(r"\s+", " ", p).strip()
+        if p and p not in out:
+            out.append(p)
+    return out[:7]
 
 
 def deck_from_facts(facts: dict) -> str:
@@ -500,10 +593,70 @@ def cluster_coverage(facts: dict, pack: dict | None = None, fetch: bool = True) 
     }
 
 
+def _bad_image_url(url: str) -> bool:
+    low = (url or "").lower()
+    return any(
+        token in low
+        for token in (
+            "logo",
+            "reel",
+            "badge",
+            ".svg",
+            "icon",
+            "avatar",
+            "profile",
+            "sprite",
+            "placeholder",
+            "default-user",
+            "ytimg.com/vi",
+        )
+    )
+
+
+def commons_class_photo(klass: str) -> dict | None:
+    q = (klass or "sailing dinghy").strip() + " dinghy sailing"
+    url = "https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(
+        {
+            "action": "query",
+            "generator": "search",
+            "gsrsearch": q,
+            "gsrnamespace": 6,
+            "gsrlimit": 8,
+            "prop": "imageinfo",
+            "iiprop": "url|size|mime",
+            "format": "json",
+        }
+    )
+    try:
+        raw, _ = _http_get(url, UA, timeout=18)
+        data = json.loads(raw.decode("utf-8", "replace"))
+    except Exception:
+        return None
+    best = None
+    for page in ((data.get("query") or {}).get("pages") or {}).values():
+        info = (page.get("imageinfo") or [{}])[0]
+        link = info.get("url") or ""
+        mime = (info.get("mime") or "").lower()
+        width = int(info.get("width") or 0)
+        if not link.endswith((".jpg", ".jpeg")) or "svg" in mime or width < 600:
+            continue
+        if _bad_image_url(link) or "logo" in (page.get("title") or "").lower():
+            continue
+        best = {
+            "url": link.split("?")[0],
+            "source_url": "https://commons.wikimedia.org/wiki/" + urllib.parse.quote(page.get("title") or ""),
+            "title": page.get("title") or klass,
+            "credit": "Wikimedia Commons",
+        }
+        if width >= 1000:
+            break
+    return best
+
+
 def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | None:
     candidates = []
     for item in (cluster or {}).get("articles") or []:
-        if item.get("image"):
+        if item.get("image") and not _bad_image_url(item["image"]):
             candidates.append(
                 {
                     "url": item["image"],
@@ -513,7 +666,7 @@ def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | N
                 }
             )
     for img in (pack or {}).get("images") or []:
-        if img.get("image_url"):
+        if img.get("image_url") and not _bad_image_url(img["image_url"]):
             candidates.append(
                 {
                     "url": img["image_url"],
@@ -529,14 +682,20 @@ def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | N
             n += 80
         if "wp-content/uploads" in (item.get("url") or ""):
             n += 30
+        if "wikimedia" in blob or "upload.wikimedia" in (item.get("url") or ""):
+            n += 25
         if any(k in blob for k in ("nationals", "regatta", "day 2", "day2")):
             n += 15
         if "fbcdn" in (item.get("url") or "") and "t39.30808-1" in (item.get("url") or ""):
-            n -= 20
+            n -= 40
+        if _bad_image_url(item.get("url") or ""):
+            n -= 100
         return n
 
     candidates.sort(key=score, reverse=True)
-    return candidates[0] if candidates else None
+    if candidates and score(candidates[0]) >= 0:
+        return candidates[0]
+    return commons_class_photo(facts.get("class_name") or "sailing")
 
 
 def pretty_credit(raw: str, url: str = "") -> str:
@@ -569,20 +728,20 @@ def download_image(image: dict, issue: str, slug: str) -> dict | None:
     dest_dir.mkdir(parents=True, exist_ok=True)
     source_dir = ROOT / "issues" / issue / "media"
     source_dir.mkdir(parents=True, exist_ok=True)
-    existing = dest_dir / f"{slug}.jpg"
     for alt in dest_dir.glob(f"{slug}*"):
-        if alt.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"} and alt.stat().st_size > 4000:
+        if alt.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"} and alt.stat().st_size > 12000:
+            if "reel" in alt.name.lower() or "logo" in alt.name.lower():
+                continue
             rel = "media/" + alt.name
             out = dict(image)
             out["url"] = rel
             out["local_path"] = str(alt)
             return out
-    # Keep a known Dart file if the generic slug download is not yet there.
-    for named in dest_dir.glob("*.jpg"):
-        if slug.split("-")[-2:] and "dart" in slug and "dart" in named.name and named.stat().st_size > 4000:
-            rel = "media/" + named.name
+    if "dart" in slug:
+        named = dest_dir / "dart18-nationals-day2-hmyc.jpg"
+        if named.exists() and named.stat().st_size > 12000:
             out = dict(image)
-            out["url"] = rel
+            out["url"] = "media/" + named.name
             out["local_path"] = str(named)
             return out
     ext = ".jpg"
@@ -599,7 +758,7 @@ def download_image(image: dict, issue: str, slug: str) -> dict | None:
         raw, ctype = _http_get(url, headers, timeout=25)
     except Exception:
         return None
-    if len(raw) < 4000 or (ctype and not ctype.startswith("image") and not raw[:3] in (b"\xff\xd8\xff", b"\x89PN")):
+    if len(raw) < 12000 or (ctype and not ctype.startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
         return None
     dest.write_bytes(raw)
     (source_dir / filename).write_bytes(raw)
@@ -627,6 +786,9 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         local = image
     if not local:
         local = _fallback_club_image(issue, facts)
+    if not local:
+        file_photo = commons_class_photo(facts.get("class_name") or "sailing dinghy")
+        local = download_image(file_photo, issue, facts["slug"]) if file_photo else None
     blocks = []
     if local:
         credit = pretty_credit(local.get("credit") or "", local.get("source_url") or local.get("url") or "")

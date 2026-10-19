@@ -66,7 +66,7 @@ No login walls are bypassed. Photos are downloaded locally and credited.
 
 ## Automation
 
-`sailing-roundup.timer` runs 06:00 Mondays (Africa/Johannesburg) and on boot if a run was missed (`Persistent=true`). It publishes the current Monday plus the previous three if they are missing, and refreshes social on existing drafts.
+`sailing-roundup.timer` runs 06:00 Mondays (Africa/Johannesburg) unattended: cluster the weekend, rewrite each event, download a photo, write HTML/PDF/`cards.json`, then publish to sailingsa.co.za. `deploy/run-monday.sh` is the only command the timer needs.
 
 ```bash
 sudo -u rea -H /opt/rea/work/sailing-roundup/.venv/bin/python3 \
