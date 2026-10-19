@@ -1,5 +1,8 @@
 # Display Rules for Regatta Results
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+No extra cards / Super Admin section on that public Event URL. Class=fleet left logo. Print/PDF: delete leftovers, do not hide them.
+
 ## Purpose
 Documents the visual formatting rules for displaying regatta results in the HTML viewer, including rank ordinals, name display, and score formatting with colors and brackets.
 

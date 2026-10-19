@@ -41,6 +41,8 @@ Use these names to scope work and split agents:
 
 - **News Feed** — Landing-page "Latest News" section (Local / International), 16:9 thumb cards, fetch from `/api/news/latest`. In scope: `sailingsa/frontend/index.html` (`#landing-news-embed`, `#landing-news-list`, `.news-feed-*` CSS, `loadLandingNews()`), optional `sailingsa/news/index.html`, and in `api.py` only `GET /api/news/latest`, `POST /api/news/refresh`, and the news cache/pipeline. **Full scope:** **`docs/NEWS_FEED_AGENT.md`**. When the user says "News Feed", limit changes to this scope only.
 
+- **SAS Low Score Results Pass** — Gold Event URL for SAS Appendix A / Low Point results. **Pinned std chat:** https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf — **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`**. **Rule 1:** match parsed SAS results to `public.events` (the SAS event that actually ran — name + host + dates) **before** creating the slug. Gold slug = that row’s `start_date`. Daily scrape ≠ matching. Class=fleet left logo; no MM/Facebook/SA chrome; single fleet = parent URL + parent `results.pdf` only. Worked example: `/regatta/2026-10-17-pyc-kzn-mirror-regionals`. When the user says “SAS Low Score Results Pass”, “low score SAS results”, or “Low Point Event URL”, follow that doc and chat only.
+
 ## UI / design system — hard rules (do not break pages)
 
 **`docs/UI_COMPONENTS_README.md`** — Hard rules for layout and components. **Store in Cursor memory for easy access.**
@@ -62,6 +64,10 @@ When asked to "fix the app" or "update the site", ask which area or file to focu
 
 **`docs/RESULTS_LINE_CLEANUP_COMPLETE.md`** — Results-line / `result_status` work for regattas with rows in `public.results` only. **Do not** map `Unknown` or auto-fix unapproved values; remaining invalid rows are **intentional** until per-regatta review. Scripts: `list_distinct_result_statuses_results_only.py`, `apply_result_status_map.py`, `qa_results_line_metrics.py`. **Next (controlled):** HOST / `host_club_id` linking on the same results-only set.
 
+## SAS Low Score Results Pass / Results Data Pass
+
+**`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — Locked std for SAS Appendix A / Low Point Event URLs. Pinned chat: https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf. **Rule 1:** match `public.events` before slug/dates.
+
 ## Results HTML "Results are" status line
 
-**`docs/RESULTS_HTML_STATUS_LINE_RULE.md`** — For all results reports/sheets: the status line must be exactly **`Results are [Provisional|Final] as at DD Month YYYY at HH:MM`** (e.g. `Results are Provisional as at 15 February 2026 at 14:20`). Source: `regattas.result_status` and `regattas.as_at_time`. Use "as at" not "as of". No current date or event date placeholder. See also `docs/RESULTS_PASSING_WORKFLOW.md` and README "Results Data Pass".
+**`docs/RESULTS_HTML_STATUS_LINE_RULE.md`** — For all results reports/sheets: the status line must be exactly **`Results are [Provisional|Final] as at DD Month YYYY at HH:MM`** (e.g. `Results are Provisional as at 15 February 2026 at 14:20`). Source: `regattas.result_status` and `regattas.as_at_time`. Use "as at" not "as of". No current date or event date placeholder. See also `docs/RESULTS_PASSING_WORKFLOW.md` and `docs/SAS_LOW_SCORE_RESULTS_PASS.md`.

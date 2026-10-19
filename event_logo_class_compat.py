@@ -1,5 +1,8 @@
 """Event Logo vs raced/named classes.
 
+SAS Low Score Results Pass: docs/SAS_LOW_SCORE_RESULTS_PASS.md
+Pinned chat: https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
 Combined Event Logos (e.g. KZN-Mirror-ILCA-Regionals-Champs.png) may only be
 used when every class named in the artwork filename is in the event name or
 slug. Sole-class events are class = fleet and fall back to that class logo.

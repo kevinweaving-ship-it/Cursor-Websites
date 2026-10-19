@@ -1,5 +1,7 @@
 # Complete Column Rules Reference - All Tables
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
 **CRITICAL**: This document is the **master reference** for ALL column rules across ALL tables. Every rule must be checked during data entry to ensure compliance and consistency.
 
 **Last Updated**: 2025-01-XX (after comprehensive audit)

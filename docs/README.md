@@ -1,5 +1,8 @@
 # Regatta Results System
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+**Rule 1:** match `public.events` before Event URL slug/dates. Super Admin chrome is not in that pass.
+
 ## ⚠️ CRITICAL DATA INTEGRITY WARNING ⚠️
 
 **BEFORE MAKING ANY CHANGES, READ `DATA_INTEGRITY_RULES.md`**

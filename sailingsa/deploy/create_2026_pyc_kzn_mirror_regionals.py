@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """Create Event URL + Low Point results for 2026 KZN Mirror Regionals (PYC).
 
+SAS Low Score Results Pass (LOCKED STD):
+  docs/SAS_LOW_SCORE_RESULTS_PASS.md
+  pinned chat: https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
 Gold template: /regatta/2026-09-24-ayc-505-nationals
 Same columns; R1–R8 instead of R1–R12.
+
+Rule 1: slug/dates from public.events SAS 382272 (17–18 Oct), not stale May 344422.
 
 Discard rule (Appendix A / Low Point):
   total = sum of ALL race points including the discarded race

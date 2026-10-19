@@ -1,5 +1,8 @@
 # SailingSA Live Server — SSH & Deploy
 
+**SAS Low Score Results Pass (LOCKED STD):** `docs/SAS_LOW_SCORE_RESULTS_PASS.md` — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+Live Event URL apply uses this SSH readme. Do not scp an older local `api.py` over live.
+
 ⚠ **PRODUCTION MODE**  
 You are operating on LIVE infrastructure.  
 All edits must be deliberate.  

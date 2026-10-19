@@ -1,3 +1,12 @@
+## SAS Low Score Results Pass (LOCKED STD)
+
+Pinned chat: https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+Canonical: **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`**
+
+**Rule 1 (do not skip):** match parsed SAS Low Point results to `public.events` (name + host + the SAS dates that actually ran) **before** creating the Event URL. Gold slug = that row’s `start_date`. Daily scrape ingesting the row is not matching. Super Admin chrome / extra cards are not in this pass.
+
+---
+
 ## Results Passing Workflow (Per User Spec)
 
 1. **Regatta Intake**

@@ -1,5 +1,7 @@
 # RACE_SCORES DATA ENTRY VALIDATION - MANDATORY CHECKS
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
 ## Purpose
 This document defines **MANDATORY validation rules** that MUST be checked **BEFORE** any race_scores data is entered into the database. Data that fails validation **MUST BE REJECTED** and fixed before entry.
 
