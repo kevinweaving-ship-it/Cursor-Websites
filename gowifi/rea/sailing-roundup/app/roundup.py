@@ -332,8 +332,21 @@ def render(issue):
         + "</section></main></body></html>"
     )
     (out / "index.html").write_text(page)
-    browser = "/opt/chromium/chrome"
-    if pathlib.Path(browser).exists():
+    browser = next(
+        (
+            path
+            for path in (
+                "/opt/chromium/chrome",
+                "/usr/bin/google-chrome",
+                "/usr/local/bin/google-chrome",
+                "/usr/bin/chromium",
+                "/usr/bin/chromium-browser",
+            )
+            if pathlib.Path(path).exists()
+        ),
+        "",
+    )
+    if browser:
         try:
             p = subprocess.run(
                 [
