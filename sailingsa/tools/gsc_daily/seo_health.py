@@ -173,7 +173,10 @@ def googlebot_activity(
         first_ts = _first_log_ts(path)
         if first_ts is not None and (oldest_log_ts is None or first_ts < oldest_log_ts):
             oldest_log_ts = first_ts
-        if not _file_overlaps_window(path, window_start, as_of):
+        # File mtime can be "now" in tests/replays; still scan if the log itself is in range.
+        if not _file_overlaps_window(path, window_start, as_of) and not (
+            first_ts is not None and first_ts <= as_of
+        ):
             continue
         try:
             fh = _open_log(path)
