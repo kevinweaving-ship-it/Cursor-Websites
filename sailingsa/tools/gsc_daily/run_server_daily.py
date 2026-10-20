@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 from .classify import HUMAN, OK, REAL, STALE, classify, issue_key_from_inspect
 from .config import GSC_RESOURCE, INSPECT_BUDGET, SITE, server_data_root
 from .probe_live import load_sitemap_urls, save_probes, test_urls
-from .server_api import inspect_url, list_sitemaps, list_sites, search_analytics_totals
+from .server_api import inspect_url, list_sitemaps, list_sites, search_analytics_totals, submit_sitemap
 from .server_auth import NeedGoogleConsent, access_token
 from .seo_health import evaluate_health, health_lines, write_health
 from .watchlist import build_watchlist, persist_reals
@@ -121,6 +121,12 @@ def main(argv: list[str] | None = None) -> int:
             if GSC_RESOURCE not in names and SITE.rstrip("/") + "/" not in names:
                 google["auth"] = "OK_BUT_PROPERTY_MISSING"
             google["sitemaps"] = list_sitemaps(token)
+            try:
+                submit_sitemap(token)
+                google["sitemap_submit"] = "OK"
+                google["sitemaps"] = list_sitemaps(token)
+            except Exception as e:
+                google["sitemap_submit"] = f"{type(e).__name__}: {e}"
             end = date.fromisoformat(day)
             start = end - timedelta(days=7)
             google["search_analytics"] = search_analytics_totals(

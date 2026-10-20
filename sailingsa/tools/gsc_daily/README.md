@@ -7,6 +7,8 @@ Automates the **existing authenticated Google Search Console web session** on th
 Does **not** use a Page Indexing API (Google does not expose those cohorts).  
 Does **not** copy cookies, tokens, or passwords into Git, `/var/www`, or the website.
 
+Priority event URLs (Cape Classic, Lipton, near-term 2026 events) are first on the inspect watchlist. Daily run re-submits `sitemap.xml` (write scope). One-shot: `PYTHONPATH=/opt/sailingsa-gsc python3 -m sailingsa.tools.gsc_daily.inspect_priority`. Generic pages cannot use Google’s Indexing API (JobPosting/BroadcastEvent only). Do not click Validate Fix.
+
 Ubuntu `run_server_daily.py` also writes **`seo_health.json`**: verified Googlebot activity (nginx logs + rDNS/fDNS, 48h; skipped if logs do not cover the window), GSC sitemap last-download/errors (7d; auth gaps are not stale), URL Inspection crawl-vs-index split (not-crawled ≠ crawled-not-indexed), live canonical mismatches only when **both** user and Google URLs still HTTP 200, new REAL defects vs yesterday, and sustained Search Analytics drops (clicks AND impressions vs prior week, 2 consecutive days). Alerts append to the existing WhatsApp block. Replay (no GSC API): `PYTHONPATH=/opt/sailingsa-gsc python3 -m sailingsa.tools.gsc_daily.seo_health --day YYYY-MM-DD`.
 
 ## What it does

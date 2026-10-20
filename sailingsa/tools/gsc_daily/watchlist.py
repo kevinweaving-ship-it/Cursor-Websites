@@ -3,22 +3,26 @@
 from __future__ import annotations
 
 import json
+import re
+from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
 
 from .config import SITE
-from .probe_live import load_sitemap_urls
 
 _SEED = Path(__file__).with_name("watchlist_seed.json")
 
 PREFIX_QUOTA = {
     "/sailor/": 8,
-    "/regatta/": 8,
+    "/regatta/": 12,
     "/class/": 6,
     "/club/": 6,
     "/event/": 4,
     "/events/": 4,
 }
+
+# Dated public event slugs /regatta/YYYY-MM-DD-...
+_DATED_REGATTA = re.compile(r"^/regatta/(\d{4}-\d{2}-\d{2})-")
 
 
 def _norm(url: str) -> str:
@@ -51,10 +55,28 @@ def persist_reals(
     dest.write_text(json.dumps({"prior_real": keep}, indent=2) + "\n", encoding="utf-8")
 
 
+def _regatta_sort_key(url: str) -> tuple:
+    """Newest dated /regatta/YYYY-MM-DD-* first; undated numeric IDs last."""
+    path = urlparse(url).path or "/"
+    m = _DATED_REGATTA.match(path)
+    if m:
+        try:
+            d = date.fromisoformat(m.group(1))
+            return (0, -d.toordinal(), path)
+        except ValueError:
+            pass
+    return (1, 0, path)
+
+
 def _sitemap_sample(sitemap: set[str]) -> list[str]:
     buckets: dict[str, list[str]] = {k: [] for k in PREFIX_QUOTA}
     other: list[str] = []
-    for u in sorted(sitemap):
+    regatta_sorted = sorted(
+        (u for u in sitemap if (urlparse(u).path or "/").startswith("/regatta/")),
+        key=_regatta_sort_key,
+    )
+    rest = sorted(u for u in sitemap if u not in set(regatta_sorted))
+    for u in list(regatta_sorted) + rest:
         path = urlparse(u).path or "/"
         hit = False
         for prefix, n in PREFIX_QUOTA.items():
@@ -77,13 +99,20 @@ def build_watchlist(data_root: Path, sitemap: set[str], budget: int) -> list[str
     extra = []
     if yesterday.is_file():
         extra = json.loads(yesterday.read_text(encoding="utf-8")).get("prior_real") or []
+    # Core + current sitemap sample first so 2026 event URLs are inspected.
+    # Historic REAL junk (404/301 aliases) is last and dropped if not in sitemap.
+    seed_prior = [
+        u
+        for u in (seed.get("prior_real") or [])
+        if not sitemap or _norm(u) in sitemap
+    ]
     ordered = []
     seen = set()
     for u in (
         list(seed.get("core") or [])
-        + list(seed.get("prior_real") or [])
-        + extra
         + _sitemap_sample(sitemap)
+        + extra
+        + seed_prior
     ):
         u = _norm(u)
         if not u or u in seen:
