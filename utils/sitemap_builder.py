@@ -24,7 +24,15 @@ BASE_URL_DEFAULT = "https://sailingsa.co.za"
 # Protocol max URLs per urlset; larger sets are split into -partNNNNN.xml files.
 SITEMAP_MAX_URLS_PER_FILE = int(os.environ.get("SITEMAP_MAX_URLS_PER_FILE", "50000"))
 
-CHILD_STEMS = ("sitemap-core", "sitemap-regattas", "sitemap-sailors", "sitemap-classes", "sitemap-clubs")
+CHILD_STEMS = (
+    "sitemap-core",
+    "sitemap-regattas",
+    "sitemap-sailors",
+    "sitemap-classes",
+    "sitemap-clubs",
+    "sitemap-roundups",
+    "sitemap-news",
+)
 
 
 def _slug_from_name(full_name: str) -> str:
@@ -261,6 +269,40 @@ def _chunk_filenames(stem: str, n: int, max_per: int) -> list[str]:
     return [f"{stem}-part{i + 1:05d}.xml" for i in range(n_parts)]
 
 
+def _fetch_roundup_entries(out_dir: str, base_url: str) -> list[tuple[str, str]]:
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(out_dir or ".")), "sailing-roundup", "issues"),
+        "/var/www/sailingsa/sailing-roundup/issues",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "gowifi", "rea", "sailing-roundup", "public", "issues"),
+    ]
+    entries: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for root in candidates:
+        root = os.path.abspath(root)
+        if not os.path.isdir(root):
+            continue
+        try:
+            names = sorted(os.listdir(root))
+        except OSError:
+            continue
+        for name in names:
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", name):
+                continue
+            if not os.path.isfile(os.path.join(root, name, "issue.json")):
+                continue
+            path = f"/sailing-roundup/issues/{name}/"
+            if path in seen:
+                continue
+            seen.add(path)
+            entries.append((path, name))
+        if entries:
+            break
+    last = _max_lastmod(entries) if entries else "2000-01-01"
+    if "/sailing-roundup/" not in seen:
+        entries.insert(0, ("/sailing-roundup/", last))
+    return entries
+
+
 def _remove_stale_sitemaps(out_dir: str, keep_basenames: set[str]) -> None:
     pattern = os.path.join(out_dir, "sitemap*.xml")
     for path in glob.glob(pattern):
@@ -407,6 +449,10 @@ def build_sitemap(
     write_chunked("sitemap-classes", class_entries)
     write_chunked("sitemap-clubs", club_entries)
     write_chunked("sitemap-sailors", sailor_entries)
+    write_chunked("sitemap-roundups", _fetch_roundup_entries(out_dir, base_url))
+    written_names.add("sitemap-news.xml")
+    written_names.add("sitemap-core.xml")
+    index_rows.append((f"{base}/sitemap-news.xml", datetime.now(timezone.utc).strftime("%Y-%m-%d")))
 
     index_rows.sort(key=lambda x: x[0])
 
