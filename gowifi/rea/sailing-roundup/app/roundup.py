@@ -2,6 +2,7 @@
 """Standalone sailing roundup builder: read-only public results, web research, JSON feed, HTML, PDF."""
 import argparse
 import datetime as dt
+import hashlib
 import html
 import json
 import pathlib
@@ -159,6 +160,18 @@ def _image_block(block):
     credit = block.get("credit") or ""
     if credit and credit.lower() not in caption.lower():
         caption = (caption + " Photo: " + credit).strip()
+    region = block.get("source_region")
+    if region:
+        x, y, w, h = region
+        sw, sh = block["source_dimensions"]
+        label = html.escape(block.get("alt") or caption or "", quote=True)
+        clip = "photo-" + hashlib.sha256((url + repr(region)).encode()).hexdigest()[:16]
+        return (
+            f'<figure><svg class="source-photo-panel" role="img" aria-label="{label}" viewBox="{x} {y} {w} {h}" xmlns="http://www.w3.org/2000/svg">'
+            f'<title>{label}</title><defs><clipPath id="{clip}" clipPathUnits="userSpaceOnUse"><rect x="{x}" y="{y}" width="{w}" height="{h}"/></clipPath></defs>'
+            f'<image href="{html.escape(url, quote=True)}" x="0" y="0" width="{sw}" height="{sh}" clip-path="url(#{clip})"/></svg>'
+            f"<figcaption>{html.escape(caption)}</figcaption></figure>"
+        )
     return (
         "<figure><img src="
         + chr(34)
@@ -198,30 +211,39 @@ def _cited_paragraph(text: str) -> str:
     return escaped
 
 
-def _photo_set(images: list[str]) -> str:
+def _photo_set(images: list[str], media_layout: str = "") -> str:
     if not images:
         return ""
+    images = images[:4]
     cls = "photo-set pair" if len(images) > 1 else "photo-set"
+    if media_layout == "paired-then-full":
+        cls += " paired-then-full"
     return "<div class='" + cls + "'>" + "".join(images) + "</div>"
 
 
-def _sources_block(article) -> str:
-    cites = article.get("citations") or []
-    urls = [c.get("url") for c in cites if c.get("url")] or [u for u in (article.get("sources") or []) if u]
-    if not urls:
-        return ""
-    items = []
-    for i, url in enumerate(urls, 1):
-        items.append(
-            "<li id='src-"
-            + str(i)
-            + "'><a href='"
-            + html.escape(url, quote=True)
-            + "'>"
-            + html.escape(url)
-            + "</a></li>"
+def _sources_block(article):
+    cites = article.get("citations") or [{"url": u} for u in article.get("sources", [])]
+    aid = html.escape(article.get("id") or article.get("event_id") or "edition", quote=True)
+    links = []
+    for index, cite in enumerate(cites, 1):
+        url = cite.get("url") if isinstance(cite, dict) else cite
+        if not url:
+            continue
+        label = (
+            ("Event calendar" if article.get("type") == "feature" else "Full event results")
+            if index == 1
+            else ((cite.get("title") if isinstance(cite, dict) else "") or "Source report")
         )
-    return "<ol class='sources'>" + "".join(items) + "</ol>"
+        links.append(
+            f'<li id="{aid}-src-{index}"><a href="{html.escape(url, quote=True)}">{html.escape(label)}</a></li>'
+        )
+    return (
+        '<aside class="source-notes" aria-label="Sources"><span class="sources-label">Sources &amp; results</span><ol class="sources">'
+        + "".join(links)
+        + "</ol></aside>"
+        if links
+        else ""
+    )
 
 
 def _story_parts(article):
@@ -284,7 +306,7 @@ def _render_story(index, article):
         )
     header += "</header>"
     copy = "".join(paras)
-    photos = _photo_set(images)
+    photos = _photo_set(images, article.get("media_layout") or ("paired-then-full" if len(images) > 1 else ""))
     content = header + photos + '<div class="copy">' + copy + "</div>" + "".join(board) + _sources_block(article)
     return (
         f'<article class="story story-{layout} {"edition-lead" if lead else "event-story"}" id="{aid}">'

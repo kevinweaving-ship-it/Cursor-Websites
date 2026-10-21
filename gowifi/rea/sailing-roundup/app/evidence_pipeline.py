@@ -3,9 +3,21 @@ from __future__ import annotations
 import concurrent.futures, datetime as dt, hashlib, json, re, urllib.parse, urllib.request
 from bs4 import BeautifulSoup
 
-MEDIA_EXCLUSIONS = {"https://rsa505.org.za/images/20261013_101619-COLLAGE.jpg":"Photographed results sheet is labelled 2025; not verified as 2026 event photography."}
+MEDIA_EXCLUSIONS = {"https://rsa505.org.za/images/20261013_101619-COLLAGE.jpg":"Composite includes a scanned results sheet; only approved photograph panels may be used."}
+# Auto rule: crop real photographs out of a source collage. Score sheets stay out.
+MEDIA_REGIONS={"https://rsa505.org.za/images/20261013_101619-COLLAGE.jpg":{
+    "dimensions":[2160,3840],
+    "regions":[{"rect":[0,0,2160,1280],"label":"505 Nationals prizegiving"},
+               {"rect":[0,2560,2160,1280],"label":"505 Nationals on-water racing"}]}}
+SCORE_SHEET=re.compile(r"score\s*sheets?|results?\s+sheet|results?\s+paper|scanned results|notice of race|sailing instructions",re.I)
+PAGE_CHROME=re.compile(r"\bfollowers\b|communicate with you|finest sailing venues|like and share|enter now",re.I)
 TRACKING = {"fbclid","gclid","mc_cid","mc_eid"}
 BAD_HOSTS = ("dart.dev","dartpad.dev","dart.org","dartcontainer.com","wikipedia.org","wikimedia.org")
+def is_scoresheet(item: dict) -> bool:
+    blob=" ".join(str(item.get(k) or "") for k in ("url","title","alt","caption","panel_label","label"))
+    return bool(SCORE_SHEET.search(blob))
+
+
 def canonical(url):
     p=urllib.parse.urlsplit((url or "").strip())
     host=p.netloc.lower().removeprefix("www.").replace("m.facebook.com","facebook.com")
@@ -222,6 +234,7 @@ def source_notes(cluster,facts,index):
     for item in cluster.get("articles",[]):
         body=text_of(item)
         if not verify(item,facts)["accepted"]:continue
+        if PAGE_CHROME.search(body):continue
         cite=next((x["n"] for x in index if canonical(x["url"])==canonical(item.get("url"))),None)
         if not cite:continue
         # Youth identity must come from the official fleet and the source's title statement.

@@ -926,11 +926,11 @@ def seed_media_images(facts: dict) -> list[dict]:
     return found
 
 
-def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int = 2) -> list[dict]:
-    """Prizegiving and on-the-water shots from this event's sources. Never wiki or logos."""
+def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int = 4) -> list[dict]:
+    """Prizegiving and on-the-water shots from this event's sources. Never wiki, logos, or score sheets."""
     candidates = []
     seen = set()
-    from evidence_pipeline import canonical, MEDIA_EXCLUSIONS, other_event_conflict
+    from evidence_pipeline import MEDIA_EXCLUSIONS, MEDIA_REGIONS, canonical, is_scoresheet, other_event_conflict
     accepted_sources = {canonical(x.get("url")) for x in cluster.get("articles", [])}
     accepted_sources.add(canonical(facts.get("url") or ""))
 
@@ -938,18 +938,32 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
         url = (item.get("url") or "").split("#")[0]
         source = item.get("source_url") or ""
         original_title = item.get("title") or ""
-        # Never copy this event's headline onto a foreign photo before the conflict check.
+        regions = MEDIA_REGIONS.get(canonical(url))
+        if regions and not item.get("source_region"):
+            for panel in regions["regions"]:
+                add(
+                    dict(
+                        item,
+                        source_region=panel["rect"],
+                        source_dimensions=regions["dimensions"],
+                        title=panel["label"],
+                        panel_label=panel["label"],
+                    )
+                )
+            return
         if other_event_conflict({"url": source, "source_url": source, "title": original_title, "body": original_title}, facts):
             return
-        if is_chrome_image(url, original_title) or is_chrome_image(source, original_title):
+        if is_chrome_image(url, original_title) or is_chrome_image(source, original_title) or is_scoresheet(item):
             return
         if cluster.get("schema_version") == "verified-evidence-1" and canonical(source) not in accepted_sources:
             return
-        if not url or url in seen or _wiki_url(url) or canonical(url) in MEDIA_EXCLUSIONS:
+        allowed_region = bool(regions and item.get("source_region") in [p["rect"] for p in regions["regions"]])
+        identity = (canonical(url), tuple(item.get("source_region") or []))
+        if not url or identity in seen or _wiki_url(url) or (canonical(url) in MEDIA_EXCLUSIONS and not allowed_region):
             return
         if not item.get("local_file") and (_bad_image_url(url) or (_facebook_page_chrome(source, url) and _event_photo_score(item, facts) < 40)):
             return
-        seen.add(url)
+        seen.add(identity)
         candidates.append(item)
 
     for item in (cluster or {}).get("articles") or []:
@@ -976,9 +990,9 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
                     "credit": pretty_credit(img.get("platform") or "", img.get("source_url") or img.get("image_url") or ""),
                 }
             )
-    ranked = [item for item in candidates if item.get("seed") or _event_photo_score(item, facts) >= 40]
-    ranked.sort(key=lambda item: (1 if item.get("seed") else 0, _event_photo_score(item, facts)), reverse=True)
-    return (seed_media_images(facts) + ranked)[:limit]
+    ranked = [item for item in candidates if item.get("seed") or item.get("source_region") or _event_photo_score(item, facts) >= 40]
+    ranked.sort(key=lambda item: (1 if item.get("seed") else 0, 1 if item.get("source_region") else 0, _event_photo_score(item, facts)), reverse=True)
+    return (seed_media_images(facts) + ranked)[: min(limit, 4)]
 
 
 def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | None:
@@ -1062,7 +1076,11 @@ def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict |
     out["url"] = "media/" + filename
     out["local_path"] = str(dest)
     out["bytes"] = len(raw)
-    out["digest"] = hashlib.md5(raw).hexdigest()
+    out["digest"] = hashlib.md5(raw + json.dumps(image.get("source_region") or []).encode()).hexdigest()
+    if image.get("source_region"):
+        out["source_region"] = image["source_region"]
+        out["source_dimensions"] = image.get("source_dimensions")
+        out["title"] = image.get("title") or image.get("panel_label") or out.get("title")
     return out
 
 
@@ -1097,17 +1115,19 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
     from evidence_pipeline import photo_caption
     for local in locals:
         credit = pretty_credit(local.get("credit") or "", local.get("source_url") or local.get("url") or "")
-        blocks.append(
-            {
-                "type": "image",
-                "url": local["url"],
-                "alt": local.get("title") or facts["title"],
-                "caption": photo_caption(local,facts,cluster) + f" Photo: {credit}.",
-                "credit": credit,
-                "source_url": local.get("source_url") or facts["url"],
-                "rights_status": "source_attributed",
-            }
-        )
+        block = {
+            "type": "image",
+            "url": local["url"],
+            "alt": local.get("title") or facts["title"],
+            "caption": photo_caption(local,facts,cluster) + f" Photo: {credit}.",
+            "credit": credit,
+            "source_url": local.get("source_url") or facts["url"],
+            "rights_status": "source_attributed",
+        }
+        if local.get("source_region"):
+            block["source_region"] = local["source_region"]
+            block["source_dimensions"] = local.get("source_dimensions")
+        blocks.append(block)
     for text in paras:
         blocks.append({"type": "paragraph", "text": text})
     blocks.append({"type": "heading", "text": "1st, 2nd, 3rd"})
@@ -1144,6 +1164,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         "event_id": facts["slug"],
         "layout": layout,
         "hero_image": {"url": hero["url"], "source_url": hero.get("source_url"), "rights_status": "source_attributed"} if hero else None,
+        "media_layout": "paired-then-full" if any(x.get("source_region") for x in locals) or len(locals) > 1 else "",
         "blocks": blocks,
         "sources": sources,
         "citations": cites,

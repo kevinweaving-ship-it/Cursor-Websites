@@ -55,6 +55,12 @@
       .replace(/</g, "&lt;");
   }
 
+  function decodeEntities(value) {
+    var box = document.createElement("textarea");
+    box.innerHTML = String(value || "");
+    return box.value.replace(/\s+/g, " ").trim();
+  }
+
   function bannedHero(src) {
     var low = String(src || "").toLowerCase();
     if (!low) return true;
@@ -108,20 +114,14 @@
     var found = heroImgTag(html || "", pageUrl, item);
     var leadHtml = found.leadHtml;
     var cap = found.caption || "";
-    var title = ((leadHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/) || leadHtml.match(/<h2[^>]*>([\s\S]*?)<\/h2>/) || ["", ""])[1] || "")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    var date = ((leadHtml.match(/<p class=["']deck["']>([\s\S]*?)<\/p>/) || ["", ""])[1] || "")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
+    var title = decodeEntities(((leadHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/) || leadHtml.match(/<h2[^>]*>([\s\S]*?)<\/h2>/) || ["", ""])[1] || "").replace(/<[^>]+>/g, ""));
+    var date = decodeEntities(((leadHtml.match(/<p class=["']deck["']>([\s\S]*?)<\/p>/) || ["", ""])[1] || "").replace(/<[^>]+>/g, ""));
     var copy = (leadHtml.match(/<div class=["']copy["']>([\s\S]*?)<\/div>/) || ["", ""])[1] || "";
     var paragraphs = [];
     var pm;
     var pre = /<p[^>]*>([\s\S]*?)<\/p>/g;
     while ((pm = pre.exec(copy))) {
-      var text = pm[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+      var text = decodeEntities(pm[1].replace(/<[^>]+>/g, ""));
       if (text) paragraphs.push(text);
     }
     return {

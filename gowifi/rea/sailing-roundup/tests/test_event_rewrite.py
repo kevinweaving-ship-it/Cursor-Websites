@@ -421,6 +421,26 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(photos, [])
         self.assertFalse(_keep_cluster_item({"url": dart_photo["source_url"], "title": dart_photo["title"], "body": dart_photo["title"] + " Bradley Levin Kyle Boman at Henley Midmar Yacht Club 2026."}, facts))
 
+    def test_collage_keeps_photos_and_bans_score_sheets(self):
+        from evidence_pipeline import is_scoresheet
+        from roundup import _image_block, _photo_set
+
+        self.assertTrue(is_scoresheet({"title": "scanned results sheet"}))
+        url = "https://rsa505.org.za/images/20261013_101619-COLLAGE.jpg"
+        source = "https://rsa505.org.za/index.php?id=338:505-nationals-2026"
+        cluster = {
+            "schema_version": "verified-evidence-1",
+            "articles": [{"url": source, "title": "505 Nationals 2026", "image": url, "verification": {"accepted": True}}],
+        }
+        photos = pick_images({"class_name": "505", "title": "505 Nationals", "start": "2026-09-24", "end": "2026-09-27", "url": source}, cluster)
+        regions = {tuple(p["source_region"]) for p in photos}
+        self.assertEqual(regions, {(0, 0, 2160, 1280), (0, 2560, 2160, 1280)})
+        self.assertNotIn((0, 1280, 1080, 1280), regions)
+        self.assertNotIn((1080, 1280, 1080, 1280), regions)
+        self.assertIn("source-photo-panel", _image_block(photos[0]))
+        gallery = _photo_set(["<figure>" + str(i) + "</figure>" for i in range(5)], "paired-then-full")
+        self.assertEqual(gallery.count("<figure>"), 4)
+
     def test_club_burgee_is_not_an_event_photo(self):
         from event_rewrite import is_chrome_image
 
