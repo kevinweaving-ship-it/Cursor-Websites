@@ -144,11 +144,11 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
             article = "an" if str(entries)[:1] == "8" or str(entries) in {"11", "18"} else "a"
             fleet = f" in {article} {entries}-team{(' ' + klass) if klass else ''} field"
         else:
-            if facts.get("overall") and not klass:
+            if facts.get("overall"):
                 scoring = str(facts.get("scoring_system") or "")
                 if re.search(r"py|portsmouth", scoring, re.I):
                     klass = "PY"
-                elif scoring:
+                elif scoring and not klass:
                     klass = scoring
             fleet = f" in a {entries}-boat{(' ' + klass) if klass else ''} fleet" if entries else ""
         if bits:

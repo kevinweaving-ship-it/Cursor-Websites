@@ -149,6 +149,7 @@ class DeskEditor(unittest.TestCase):
             races=3,
             winner="Lorrian Wells",
             winner_helm="Lorrian Wells",
+            winner_class="Dart 18",
             winner_nett="5",
             second="Simon Dommett",
             second_nett="7",

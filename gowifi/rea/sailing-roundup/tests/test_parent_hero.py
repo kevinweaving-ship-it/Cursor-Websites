@@ -13,6 +13,7 @@ from parent_hero import (
     collect_event_hero,
     inspect_parent,
     pick_best_hero,
+    score_hero,
     store_on_box,
     store_roster_heroes,
 )
@@ -125,6 +126,22 @@ class ParentHero(unittest.TestCase):
             )
             self.assertIn(SLUG, heroes)
             self.assertNotIn("2026-09-24-hmyc-dart-18-nationals", heroes)
+
+    def test_external_junk_is_not_a_hero(self):
+        dam = {
+            "url": "https://storage.googleapis.com/x/how-are-river-dams-built.jpg",
+            "source_url": "https://example.com/how-are-river-dams-built.html",
+            "title": "How river dams are built",
+            "from_external": True,
+        }
+        ad = {
+            "url": "https://lowendtalk.com/ad.jpg",
+            "source_url": "https://lowendtalk.com/discussion/191501/real-deals-here-win-big",
+            "title": "REAL DEALS HERE -- WIN BIG WITH THOUSANDS IN PRIZES",
+            "from_external": True,
+        }
+        self.assertLess(score_hero(dam, {"title": "Dam Bottle Sprints", "slug": "2026-10-10-hmyc-dam-bottle-sprints"}), 0)
+        self.assertLess(score_hero(ad, {"title": "KZN Mirror Regionals", "winner": "Mark Flack"}), 0)
 
     def test_empty_parent_is_inspected_not_a_hard_fail(self):
         with tempfile.TemporaryDirectory() as temp:

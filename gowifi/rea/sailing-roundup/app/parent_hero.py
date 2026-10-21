@@ -31,6 +31,23 @@ from event_rewrite import (
 from evidence_pipeline import is_scoresheet
 
 IMAGE_EXT = re.compile(r"\.(jpe?g|png|webp)(\?|$)", re.I)
+EXTERNAL_JUNK = re.compile(
+    r"win big|real deals|racknerd|giveaway|buy now|how-are-river-dams|"
+    r"lowendtalk|prize.?pool|click here|sponsored",
+    re.I,
+)
+GENERIC_PHOTO_TOKEN = {
+    "sailing",
+    "regatta",
+    "event",
+    "club",
+    "yacht",
+    "boat",
+    "fleet",
+    "race",
+    "dam",
+    "bottle",
+}
 
 
 def images_from_html(url: str, html: str) -> list[dict]:
@@ -155,6 +172,30 @@ def available_images(facts: dict, parent_images: list[dict], extra=None, search_
     return out
 
 
+def _external_belongs(item: dict, facts: dict) -> bool:
+    """Bing/web hits must name this event, class, or winner — not a generic dam or an ad."""
+    blob = " ".join(
+        (
+            item.get("url") or "",
+            item.get("source_url") or "",
+            item.get("title") or "",
+        )
+    ).lower()
+    if EXTERNAL_JUNK.search(blob):
+        return False
+    title = (facts.get("title") or facts.get("name") or "").strip().lower()
+    if title and title in blob:
+        return True
+    winner = (facts.get("winner") or facts.get("winner_helm") or "").strip().lower()
+    if winner and winner not in {"the leader", "mac"} and winner in blob:
+        return True
+    tokens = []
+    for part in (title, facts.get("slug") or "", facts.get("class_name") or ""):
+        tokens.extend(re.findall(r"[a-z0-9]+", str(part).lower()))
+    meaningful = [t for t in tokens if t not in GENERIC_PHOTO_TOKEN and len(t) > 3]
+    return bool(meaningful) and sum(1 for t in set(meaningful) if t in blob) >= 2
+
+
 def score_hero(item: dict, facts: dict, raw: bytes | None = None) -> int:
     """Identify the best suited hero from available images."""
     url = item.get("url") or item.get("local_file") or ""
@@ -163,6 +204,8 @@ def score_hero(item: dict, facts: dict, raw: bytes | None = None) -> int:
     if is_chrome_image(url, title) or is_chrome_image(source, title):
         return -1000
     if is_scoresheet({"url": url, "title": title, "caption": title}):
+        return -1000
+    if item.get("from_external") and not _external_belongs(item, facts):
         return -1000
     score = _event_photo_score(item, facts)
     if item.get("from_parent"):
