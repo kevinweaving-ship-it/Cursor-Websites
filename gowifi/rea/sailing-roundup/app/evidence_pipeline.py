@@ -315,8 +315,11 @@ def feature(issue,monday,events,articles):
     if not reports:
         paragraphs.append(f"No scored results were published for {date_line}.")
     elif len(reports)==1:
+        from event_rewrite import is_chrome_image
         lead=reports[0]
         hero=lead.get("hero_image") or None
+        if hero and is_chrome_image(hero.get("url") or "", hero.get("source_url") or hero.get("url") or ""):
+            hero=None
         paragraphs.append(f"{lead.get('headline') or 'Weekend racing'}. {lead.get('deck') or ''}".strip())
     else:
         paragraphs.append(f"{len(reports)} scored events over {date_line}:")
