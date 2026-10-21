@@ -2320,192 +2320,16 @@ def _compute_hub_upcoming_window_payload(
 
 
 def _sort_past_event_cards(cards: list) -> list:
-    """Auto rule: Past is newest first; same day lists results-passed events first.
+    order_san = {"SAS": 0, "CLUB": 1, "OTHER": 2}
 
-    Why: SAS-then-CLUB-then-OTHER buried Mirror (same dates as TSL) and other
-    scored events under every SAS/CLUB card. The Events URL is generated from
-    this list — the sort must keep same-weekend results together.
-    """
+    def date_key(c):
+        return c.get("start_date_iso") or ""
 
-    def key(c):
-        return (
-            c.get("start_date_iso") or "",
-            1 if c.get("result_yes") else 0,
-            (c.get("event_name") or "").lower(),
-        )
-
-    return sorted(cards, key=key, reverse=True)
-
-
-_PAST_NAME_STOP = {
-    "the", "and", "for", "with", "from", "sailing", "event", "club", "yacht", "open", "inc", "sas",
-}
-
-
-def _past_name_tokens(name: str) -> set:
-    return {w for w in re.findall(r"[a-z0-9]+", (name or "").lower()) if w not in _PAST_NAME_STOP and len(w) > 2}
-
-
-def _past_card_covers_regatta(card: dict, rid: str, name: str, start_key: str) -> bool:
-    have = (card.get("regatta_id") or "").strip()
-    if have and rid and have == rid:
-        return True
-    for opt in card.get("result_options") or []:
-        url = (opt.get("url") or "").rstrip("/")
-        if rid and url.endswith("/regatta/" + rid):
-            return True
-    cd = (card.get("start_date_iso") or "")[:10]
-    sk = (start_key or "")[:10]
-    if cd and sk:
-        ed = (card.get("end_date_iso") or cd)[:10]
-        if not (cd <= sk <= ed):
-            return False
-    ct = _past_name_tokens(card.get("event_name") or "")
-    rt = _past_name_tokens(name)
-    shared = ct & rt
-    if not shared:
-        return False
-    if len(shared) >= 2:
-        return True
-    if any(t in shared for t in ("mirror", "dabchick", "bottle", "420", "505", "dart", "tsl")):
-        return True
-    cl = (card.get("event_name") or "").strip().lower()
-    rl = (name or "").strip().lower()
-    return bool(cl and rl and (cl in rl or rl in cl))
-
-
-def _regatta_tuple_to_event_row(name, rid, date_str, start_key):
-    sd = _parse_iso_date_only(start_key) if start_key else None
-    if sd is None:
-        sd = start_key or None
-    return {
-        "event_id": None,
-        "event_name": name,
-        "start_date": sd,
-        "end_date": sd,
-        "start_time": None,
-        "end_time": None,
-        "source_url": "",
-        "source": "regatta_results",
-        "venue_raw": "",
-        "host_club_name_raw": "",
-        "location_raw": "",
-        "category": "",
-        "regatta_id": rid,
-        "host_club_id": None,
-        "club_abbrev": None,
-        "club_fullname": None,
-        "club_slug": None,
-        "map_url": None,
-        "image_url": None,
-        "address": None,
-    }
-
-
-def _ensure_past_includes_published_results(cards, pool, has_regatta_id=True, has_host_club_id=True):
-    """Auto rule: every past regatta with passed results appears on /events Past.
-
-    Why: calendar-only Past omitted Mirror, Dabchick Gauteng, 420 Nationals and
-    505 Nationals when events.regatta_id was null or the row lived only in
-    regattas/results. Generation scrapes this list — missing cards become
-    missing weekly URLs.
-    """
-    if not pool:
-        return cards
-    for t in pool:
-        if len(t) < 4:
-            continue
-        name, rid, _date_str, start_key = t[0], str(t[1]).strip(), t[2], t[3]
-        if not rid:
-            continue
-        attached = False
-        for card in cards:
-            if _past_card_covers_regatta(card, rid, name, start_key):
-                if not (card.get("regatta_id") or "").strip():
-                    _club_sync_past_card_regatta_url(card, rid)
-                card["result_yes"] = True
-                if not card.get("result_url"):
-                    card["result_url"] = "/regatta/" + rid
-                attached = True
-                break
-        if attached:
-            continue
-        row = _regatta_tuple_to_event_row(name, rid, _date_str, start_key)
-        cards.append(
-            _event_row_to_card(
-                row, has_regatta_id, has_host_club_id, is_upcoming=False, regattas_with_results={rid}
-            )
-        )
-    return cards
-
-
-def _public_event_matches_regatta(item, reg) -> bool:
-    iname = (item.get("event_name") or "").strip()
-    rname = (reg.get("event_name") or "").strip()
-    idate = str(item.get("start_date") or "")[:10]
-    edate = str(item.get("end_date") or idate)[:10]
-    rsd = reg.get("start_date")
-    red = reg.get("end_date") or rsd
-    rstart = rsd.isoformat()[:10] if hasattr(rsd, "isoformat") else str(rsd or "")[:10]
-    rend = red.isoformat()[:10] if hasattr(red, "isoformat") else str(red or rstart)[:10]
-    if idate and rstart and not (idate <= rend and edate >= rstart):
-        return False
-    it = _past_name_tokens(iname)
-    rt = _past_name_tokens(rname)
-    shared = it & rt
-    if not shared:
-        return False
-    if len(shared) >= 2:
-        return True
-    if any(t in shared for t in ("mirror", "dabchick", "bottle", "420", "505", "dart", "tsl")):
-        return True
-    il, rl = iname.lower(), rname.lower()
-    return bool(il and rl and (il in rl or rl in il))
-
-
-def _fill_public_events_regatta_ids(cur, out):
-    """Auto rule: /api/events must carry the scored slug when the calendar row exists.
-
-    Why: slugs_for_weekend skipped Mirror because regatta_id was null. The Monday
-    publisher then short-circuited discovery. Filling the slug here is what
-    weekly generation reads.
-    """
-    if not out:
-        return out
-    dates = []
-    for it in out:
-        for key in ("start_date", "end_date"):
-            raw = it.get(key)
-            if not raw:
-                continue
-            d = raw if hasattr(raw, "isoformat") else _parse_iso_date_only(str(raw)[:10])
-            if d:
-                dates.append(d)
-    if not dates or not table_exists("regattas") or not table_exists("results"):
-        return out
-    cur.execute(
-        """
-        SELECT reg.regatta_id, reg.event_name, reg.start_date, reg.end_date
-        FROM regattas reg
-        WHERE EXISTS (SELECT 1 FROM results r WHERE r.regatta_id = reg.regatta_id)
-          AND COALESCE(reg.start_date, reg.end_date) >= %s
-          AND COALESCE(reg.start_date, reg.end_date) <= %s
-        """,
-        (min(dates), max(dates)),
-    )
-    scored = list(cur.fetchall() or [])
-    used = {(it.get("regatta_id") or "").strip() for it in out if (it.get("regatta_id") or "").strip()}
-    for it in out:
-        if (it.get("regatta_id") or "").strip():
-            continue
-        matches = [s for s in scored if _public_event_matches_regatta(it, s)]
-        if len(matches) != 1:
-            continue
-        rid = str(matches[0].get("regatta_id") or "").strip()
-        if not rid or rid in used:
-            continue
-        it["regatta_id"] = rid
-        used.add(rid)
+    out = []
+    for s in ("SAS", "CLUB", "OTHER"):
+        sub = [c for c in cards if (c.get("sanction_level") or "CLUB") == s]
+        sub.sort(key=date_key, reverse=True)
+        out.extend(sub)
     return out
 
 
@@ -2797,12 +2621,10 @@ def _get_upcoming_events(host_club_id=None):
             out["past"].append(_event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming=False, regattas_with_results=regattas_with_results))
         # Automatic calendar↔regatta linking: global date pool for /events and type filters only.
         # Club pages (host_club_id set) re-match in serve_club_page against Regattas hosted only.
-        if past_rows and host_club_id is None:
+        if out["past"] and past_rows and host_club_id is None:
             pool = _regatta_match_pool_for_past_rows(cur, past_rows)
             if pool:
-                if out["past"]:
-                    _club_past_events_match_hosted(out["past"], pool, None)
-                _ensure_past_includes_published_results(out["past"], pool, has_regatta_id, has_host_club_id)
+                _club_past_events_match_hosted(out["past"], pool, None)
         out["past"] = _sort_past_event_cards(out["past"])
         t5 = time.time()
         print("EVENTS: rows upcoming:", len(out["upcoming"]), "live:", len(out["live"]), "past:", len(out["past"]))
@@ -10296,11 +10118,6 @@ def api_events_public_list(
                         print(f"[api_events_public_list] hub badge merge: {e_badge}", flush=True)
             hub_window = _compute_hub_upcoming_window_payload(out, today_iso=date.today().isoformat(), window_days=5, limit=10)
             return {"events": out, "hub_upcoming_window": hub_window}
-        if has_regatta_id:
-            try:
-                _fill_public_events_regatta_ids(cur, out)
-            except Exception as e_fill:
-                print(f"[api_events_public_list] fill scored regatta_id: {e_fill}", flush=True)
         return out
     except Exception as e:
         print(f"[api_events_public_list] {e}")
