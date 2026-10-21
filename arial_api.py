@@ -925,7 +925,10 @@ def _sharing_health() -> dict[str, Any] | None:
     h = _sharing_get("/health")
     if not h:
         return None
-    return {k: h.get(k) for k in ("ok", "mqttConnected", "meterOnline", "meterLastReportAgeS", "meterStale", "authFailed", "tokenExpiresInS")}
+    return {k: h.get(k) for k in (
+        "ok", "mqttConnected", "meterOnline", "meterLastReportAgeS", "meterLastReadingAt",
+        "lastReadingAt", "meterStale", "authFailed", "tokenExpiresInS",
+    )}
 
 
 def _sharing_probe(out: dict[str, Any]) -> dict[str, Any]:
@@ -1271,7 +1274,7 @@ def _clip_energy_days(days: list[dict[str, Any]], last_ts: float | None) -> list
             hours.append(None)
             est.append(False)
         for h in range(24):
-            if f"{ymd}{h:02d}" > last_key:
+            if f"{ymd}{h:02d}" > last_key or (h < len(est) and est[h]):
                 hours[h] = None
                 if h < len(est):
                     est[h] = False
@@ -1287,15 +1290,32 @@ def _clip_energy_days(days: list[dict[str, Any]], last_ts: float | None) -> list
 
 def _meter_last_ts() -> float | None:
     latest = _meter_load()
-    if not latest:
-        return None
+    if latest:
+        try:
+            ts = float(latest.get("ts") or 0)
+        except (TypeError, ValueError):
+            ts = 0.0
+        if ts > 1e12:
+            ts /= 1000.0
+        if ts > 1e9:
+            return ts
+    h = _sharing_health() or {}
+    for key in ("meterLastReadingAt", "lastReadingAt"):
+        try:
+            ts = float(h.get(key) or 0)
+        except (TypeError, ValueError):
+            ts = 0.0
+        if ts > 1e12:
+            ts /= 1000.0
+        if ts > 1e9:
+            return ts
     try:
-        ts = float(latest.get("ts") or 0)
+        age = float(h.get("meterLastReportAgeS"))
     except (TypeError, ValueError):
-        return None
-    if ts > 1e12:
-        ts /= 1000.0
-    return ts if ts > 1e9 else None
+        age = None
+    if age is not None and age >= 0:
+        return time.time() - age
+    return None
 
 
 _energy_est_cache: dict[str, Any] = {"at": 0.0, "keys": set()}
