@@ -2,6 +2,8 @@
 
 Public URLs: `https://sailingsa.co.za/sailing-roundup/` and `…/issues/YYYY-MM-DD/`.
 
+**Gold default:** `https://sailingsa.co.za/sailing-roundup/issues/2026-09-28/` is the locked format, layout, and style. Every issue uses that magazine chrome (cream paper, gold accent, SailingSA header, `The Weekend Roundup` lead, story-heading, per-class official boards). Later issues must not drift to the older purple/folio template.
+
 This is a **Monday weekly**, not Sat–Sun only. Midweek races, long weekends, and multi-week events are included. The name on the site stays Weekend Roundup.
 
 ## Assignment rule

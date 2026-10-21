@@ -262,7 +262,7 @@ def publish(
     data = {
         "schema_version": "1.0",
         "issue_id": issue,
-        "title": "Weekend Sailing Roundup",
+        "title": "South African Sailing — The Weekend Roundup",
         "edition_date": issue,
         "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "status": "draft",

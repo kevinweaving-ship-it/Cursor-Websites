@@ -116,7 +116,7 @@ def create(issue, urls):
     data = {
         "schema_version": "1.0",
         "issue_id": issue,
-        "title": "Weekend Sailing Roundup",
+        "title": GOLD_ISSUE_TITLE,
         "edition_date": issue,
         "status": "draft",
         "articles": articles,
@@ -127,6 +127,19 @@ def create(issue, urls):
 
 
 LAYOUTS = ("lead", "photo-led", "split", "classic", "compact")
+GOLD_ISSUE_TITLE = "South African Sailing — The Weekend Roundup"
+GOLD_PAGE_NAME = "The Weekend Roundup"
+GOLD_HEADER = """<header class="site-header roundup-site-header" aria-label="SailingSA">
+  <div class="container">
+    <a class="logo js-go-home" href="https://sailingsa.co.za/" title="Home – SailingSA">
+      <img src="https://sailingsa.co.za/assets/logos/sailingsa-logo.png" alt="SailingSA">
+    </a>
+    <a class="roundup-home" href="https://sailingsa.co.za/" title="Back to Home">
+      <img src="https://sailingsa.co.za/assets/back-to-home.png?v=2" alt="Back to Home">
+    </a>
+  </div>
+</header>
+"""
 
 
 def _image_block(block):
@@ -166,11 +179,12 @@ def _results_block(block):
     return "".join(html_rows)
 
 
-def _cited_paragraph(text: str) -> str:
+def _cited_paragraph(text: str, article_id: str = "") -> str:
     escaped = html.escape(text or "")
+    prefix = (article_id + "-src-") if article_id else "src-"
     escaped = re.sub(
         r"\[(\d+)\]",
-        r'<sup class="cite"><a href="#src-\1">\1</a></sup>',
+        r'<sup class="cite"><a href="#' + prefix + r'\1">\1</a></sup>',
         escaped,
     )
     return escaped
@@ -179,39 +193,21 @@ def _cited_paragraph(text: str) -> str:
 def _photo_set(images: list[str]) -> str:
     if not images:
         return ""
-    cls = "photo-set pair" if len(images) > 1 else "photo-set"
+    cls = "photo-set pair paired-then-full" if len(images) > 1 else "photo-set"
     return "<div class='" + cls + "'>" + "".join(images) + "</div>"
-
-
-def _sources_block(article) -> str:
-    cites = article.get("citations") or []
-    urls = [c.get("url") for c in cites if c.get("url")] or [u for u in (article.get("sources") or []) if u]
-    if not urls:
-        return ""
-    items = []
-    for i, url in enumerate(urls, 1):
-        items.append(
-            "<li id='src-"
-            + str(i)
-            + "'><a href='"
-            + html.escape(url, quote=True)
-            + "'>"
-            + html.escape(url)
-            + "</a></li>"
-        )
-    return "<ol class='sources'>" + "".join(items) + "</ol>"
 
 
 def _story_parts(article):
     images = []
     paras = []
     board = []
+    aid = article.get("id") or article.get("event_id") or ""
     for block in article.get("blocks") or []:
         kind = block.get("type")
         if kind == "image":
             images.append(_image_block(block))
         elif kind == "paragraph":
-            paras.append("<p>" + _cited_paragraph(block.get("text") or "") + "</p>")
+            paras.append("<p>" + _cited_paragraph(block.get("text") or "", aid) + "</p>")
         elif kind == "heading":
             board.append("<h3 class='board-label'>" + html.escape(block.get("text") or "Leaderboard") + "</h3>")
         elif kind == "results":
@@ -231,117 +227,43 @@ def _layout_name(index, article):
 
 
 def _render_story(index, article):
+    """Gold 2026-09-28 story chrome: heading + photos + copy + boards."""
     layout = _layout_name(index, article)
     images, paras, board = _story_parts(article)
     photos = _photo_set(images)
-    hero = images[0] if images else ""
-    rest = _photo_set(images[1:]) if len(images) > 1 else ""
-    kicker = html.escape(article.get("kicker") or (article.get("class_name") or "Weekend").upper())
+    aid = html.escape(article.get("id") or article.get("event_id") or "")
+    copy = "<div class='copy'>" + "".join(paras) + "</div>" if paras else ""
+    if layout == "lead" or article.get("type") == "feature":
+        deck = html.escape(article.get("deck") or "")
+        inner = (
+            '<header class="story-heading"><h1>'
+            + GOLD_PAGE_NAME
+            + "</h1>"
+            + (('<p class="deck">' + deck + "</p>") if deck else "")
+            + "</header>"
+            + copy
+        )
+        return '<article class="story story-lead edition-lead" id="' + aid + '">' + inner + "</article>"
+    kicker = html.escape(article.get("kicker") or (article.get("class_name") or "Regatta").upper())
     headline = html.escape(article.get("headline") or "")
     deck = html.escape(article.get("deck") or "")
-    byline = html.escape(article.get("byline") or "SailingSA")
-    dateline = html.escape(article.get("published_at") or "")
-    head = (
-        "<p class='kicker'>" + kicker + "</p>"
-        "<h2>" + headline + "</h2>"
-        + (("<p class='deck'>" + deck + "</p>") if deck else "")
-        + "<p class='byline'>By " + byline + "  ·  " + dateline + "</p>"
+    inner = (
+        '<header class="story-heading"><p class="kicker">'
+        + kicker
+        + "</p><h2>"
+        + headline
+        + "</h2>"
+        + (('<p class="deck">' + deck + "</p>") if deck else "")
+        + "</header>"
+        + photos
+        + copy
+        + "".join(board)
     )
-    copy = "".join(paras)
-    standings = "".join(board)
-    notes = _sources_block(article)
-    if layout == "lead":
-        inner = "<div class='banner'>" + head + "</div><div class='copy'>" + copy + "</div>"
-    elif layout == "photo-led":
-        inner = (hero or "") + head + "<div class='copy cols-2'>" + copy + "</div>" + rest + standings + notes
-    elif layout == "split":
-        inner = head + "<div class='split'><div class='split-photo'>" + photos + "</div><div class='copy'>" + copy + "</div></div>" + standings + notes
-    elif layout == "compact":
-        inner = "<div class='compact-head'>" + head + "</div><div class='compact-row'>" + photos + "<div class='copy'>" + copy + "</div></div>" + standings + notes
-    else:
-        mid = copy
-        if hero and paras:
-            mid = paras[0] + hero + rest + "".join(paras[1:])
-        elif photos:
-            mid = photos + copy
-        inner = head + "<div class='copy cols-2'>" + mid + "</div>" + standings + notes
-    aid = html.escape(article.get("id") or article.get("event_id") or "")
-    return "<article class='story story-" + layout + "' id='" + aid + "'>" + inner + "</article>"
+    return '<article class="story story-' + layout + ' event-story" id="' + aid + '">' + inner + "</article>"
 
 
 def newspaper_css():
-    return """
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap");
-:root{--ink:#1e293b;--navy:#001f3f;--muted:#334155;--paper:#f5f7fa;--card:#fff}
-*{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font:18px/1.6 'Source Serif 4',Georgia,serif}
-.paper{max-width:860px;margin:0 auto;background:var(--card)}
-.masthead{display:flex;align-items:center;gap:16px;background:var(--navy);color:#fff;padding:14px 28px}
-.masthead a{display:flex;align-items:center}
-.ssa-logo{height:52px;width:auto;display:block}
-.masthead .flag{font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#fff;margin:0 0 4px}
-.masthead h1{font:700 34px/1 'Playfair Display',Georgia,serif;margin:0;letter-spacing:.02em;color:#fff}
-.folio{display:flex;justify-content:space-between;padding:10px 28px;border-bottom:1px solid #e0e0e0;font:12px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#64748b}
-.edition-grid{display:flex;flex-direction:column;gap:0;padding:0 28px 72px}
-.story{break-inside:avoid;page-break-inside:avoid;border-top:1px solid #e0e0e0;margin:36px 0 0;padding:28px 0 8px;background:#fff}
-.story-lead{border-top:none;margin-top:18px;padding-top:8px}
-.kicker{font:700 12px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.14em;margin:0 0 8px;color:#6B2C91}
-h2{font:700 32px/1.2 'Playfair Display',Georgia,serif;margin:0 0 10px;color:var(--navy)}
-.story-lead h2{font-size:clamp(32px,4.5vw,44px)}
-.story-photo-led h2{font-size:34px}
-.story-split h2{font-size:32px}
-.story-classic h2{font-size:30px}
-.story-compact h2{font-size:28px}
-.deck{margin:0 0 8px;color:var(--muted);font:italic 17px/1.4 'Playfair Display',Georgia,serif}
-.byline{margin:0 0 14px;font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
-.banner{text-align:left}
-.copy p{margin:0 0 12px}
-.copy .lede{font-size:19px}
-.cols-2{column-count:1}
-.cols-3{column-count:1}
-.split{display:grid;grid-template-columns:1fr;gap:16px}
-.compact-row{display:grid;grid-template-columns:1fr;gap:16px}
-figure{margin:0 0 14px}
-figure img{width:100%;height:auto;display:block}
-.photo-set{display:grid;grid-template-columns:1fr;gap:12px;margin:0 0 14px}
-.photo-set.pair{grid-template-columns:1fr}
-.story-photo-led figure img{max-height:480px;object-fit:cover}
-.story-classic figure{float:none;width:100%;margin:0 0 14px}
-figcaption{font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#64748b;padding-top:6px}
-.cite{font-size:11px;line-height:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-.cite a{color:#6B2C91;text-decoration:none}
-.sources{margin:18px 0 0;padding-left:18px;font:12px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#64748b}
-.sources a{color:#334155}
-.board-label{font:700 12px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.12em;text-transform:uppercase;margin:18px 0 8px;color:var(--navy)}
-.board{overflow:hidden;border:2px solid var(--navy);border-radius:8px}
-.board table{border-collapse:collapse;width:100%;font:14px/1.35 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-.board th,.board td{border-bottom:1px solid #e0e0e0;padding:8px 10px;text-align:left}
-.board th{background:var(--navy);color:#fff;font-weight:600}
-.board tr:nth-child(odd) td{background:#f8fafc}
-.board tr:first-child td{font-weight:700}
-@media (min-width:700px){
-  .photo-set.pair{grid-template-columns:1fr 1fr}
-}
-@media (max-width:860px){
-  .edition-grid{display:flex;flex-direction:column;padding:0 16px 48px}
-  .masthead{padding:12px 16px}
-  .lead-grid,.split,.compact-row{grid-template-columns:1fr}
-  .cols-2,.cols-3{column-count:1}
-  .photo-set.pair{grid-template-columns:1fr}
-  .story-classic figure{float:none;width:100%;margin:0 0 10px}
-  .masthead h1{font-size:26px}
-  .ssa-logo{height:40px}
-}
-@page{size:A3;margin:12mm}
-@media print{
-  body{background:#fff;font-size:12px}
-  .paper{box-shadow:none;max-width:none}
-  .story{break-inside:avoid}
-  .story-lead{break-after:avoid}
-  figure img{filter:none}
-  .board{break-inside:avoid}
-}
-"""
+    return (pathlib.Path(__file__).with_name("gold_default.css")).read_text()
 
 
 def render(issue):
@@ -364,19 +286,15 @@ def render(issue):
         stories.append(_render_story(i, article))
     if not stories:
         stories.append("<article class='story'><p>No scored weekend events were published for this edition.</p></article>")
-    try:
-        day = dt.date.fromisoformat(issue)
-        folio_date = day.strftime("%A %d %B %Y").upper()
-    except ValueError:
-        folio_date = issue
     page = (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>Sailing — "
+        "<title>"
+        + GOLD_PAGE_NAME
+        + " — "
         + issue
         + "</title><style>"
         + newspaper_css()
-        + "@media print{.story figure img{max-height:190mm;width:auto;max-width:100%;object-fit:contain}.story table{break-inside:avoid}}"
         + "</style>"
     )
     try:
@@ -386,12 +304,9 @@ def render(issue):
     except Exception:
         pass
     page += (
-        "</head><body><main class='paper'><header class='masthead'>"
-        "<a href='https://sailingsa.co.za/'><img class='ssa-logo' src='https://sailingsa.co.za/assets/logos/sailingsa-logo.png' alt='SailingSA'></a>"
-        "<div><p class='flag'>SailingSA</p><h1>Sailing</h1></div>"
-        "</header><div class='folio'><span>"
-        + html.escape(folio_date)
-        + "</span><span>South Africa</span></div><section class='edition-grid'>"
+        "</head><body>"
+        + GOLD_HEADER
+        + "<main class='paper'><section class='edition-grid'>"
         + "".join(stories)
         + "</section></main></body></html>"
     )

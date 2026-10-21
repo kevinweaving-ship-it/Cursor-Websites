@@ -28,7 +28,7 @@ def _iso_monday(issue: str) -> str:
 def news_article_jsonld(issue: str, data: dict) -> dict:
     articles = data.get("articles") or []
     feature = next((a for a in articles if a.get("type") == "feature"), articles[0] if articles else {})
-    headline = (feature.get("headline") or data.get("title") or "Weekend Sailing Roundup").strip()
+    headline = (feature.get("headline") or data.get("title") or "South African Sailing — The Weekend Roundup").strip()
     url = f"https://sailingsa.co.za/sailing-roundup/issues/{issue}/"
     published = feature.get("published_at") or data.get("edition_date") or issue
     date_published = _iso_monday(str(published)[:10] if published else issue)

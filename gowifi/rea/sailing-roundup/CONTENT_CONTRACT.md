@@ -1,6 +1,7 @@
 # Independent Sailing Roundup — news feed contract v1
 
 Output: `GET https://sailingsa.co.za/sailing-roundup/issues/YYYY-MM-DD/issue.json`.
+Visual default is the gold 2026-09-28 edition: cream paper, gold accent, SailingSA header, H1 “The Weekend Roundup”, event stories as kicker / headline / deck / photos / copy / official board.
 The edition is generated independently (GoWifi REA box) and published as static
 files under `/var/www/sailingsa/sailing-roundup/`. SailingSA remains a read-only
 results source; this path does not change the SailingSA SPA, header, or database.

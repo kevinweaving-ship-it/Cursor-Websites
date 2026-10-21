@@ -367,12 +367,13 @@ def feature(issue,monday,events,articles):
     sat, sun = saturday_sunday(monday)
     reports=[a for a in articles if a.get("type")=="regatta_report"]
     span = f"{week_start.day}–{week_end.strftime('%-d %B %Y')}"
-    paragraphs=[f"Four fleets raced at Aeolians, Henley Midmar and Theewater over {sat.day}–{sun.strftime('%-d %B %Y')}." if len(reports)==4 and issue=="2026-09-28" else f"{len(reports)} scored events feature in the sailing roundup for {span}."]
+    lead = "Four fleets raced at Aeolians, Henley Midmar and Theewater over the weekend." if len(reports)==4 and issue=="2026-09-28" else f"{len(reports)} scored events feature in the sailing roundup for {span}."
+    paragraphs=[lead]
     covered={a.get("event_id") for a in reports}
     missing=sorted({e.get("event_name") for e in events if e.get("event_name") and e.get("regatta_id") not in covered})
     if missing:
         paragraphs.append("The calendar also listed "+", ".join(missing)+". Results for those events were not available in the source snapshot.")
-    return {"id":"sailing-"+issue,"type":"feature","headline":"South Africa's September sailing roundup" if issue=="2026-09-28" else "Weekend sailing roundup",
+    return {"id":"sailing-"+issue,"type":"feature","headline":"South African Sailing — The Weekend Roundup",
         "deck": f"{sat.day}–{sun.strftime('%-d %B %Y')}" if issue=="2026-09-28" else span, "byline":"SailingSA","kicker":"SAILING","published_at":issue,
         "event_id":"sailing-"+issue,"layout":"lead","hero_image":None,"blocks":[{"type":"paragraph","text":t} for t in paragraphs],
         "sources":["https://sailingsa.co.za/api/events"],"review_status":"rewritten"}

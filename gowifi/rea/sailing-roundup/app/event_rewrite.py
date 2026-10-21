@@ -477,14 +477,12 @@ def rewrite_paragraphs(facts, cluster=None, index=None):
 
 
 def deck_from_facts(facts: dict) -> str:
-    bits = [facts["winner"], facts["title"], facts["club_name"]]
+    bits = [facts.get("club_name") or facts.get("club") or ""]
     if facts.get("winner_nett"):
         bits.append(f"{facts['winner_nett']} nett")
-    if facts.get("multi_class") and facts.get("fleets"):
-        bits.append(f"{len(facts['fleets'])} classes")
     if facts.get("entries"):
         bits.append(f"{facts['entries']} entries")
-    return " · ".join(bits)
+    return " · ".join(x for x in bits if x)
 
 
 def _http_get(url: str, headers: dict | None = None, timeout: int = 18) -> tuple[bytes, str]:

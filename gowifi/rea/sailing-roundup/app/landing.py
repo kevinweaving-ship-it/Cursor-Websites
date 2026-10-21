@@ -44,7 +44,7 @@ def _issues() -> list[dict]:
         out.append(
             {
                 "issue_id": data.get("issue_id") or folder.name,
-                "title": data.get("title") or "Weekend Sailing Roundup",
+                "title": data.get("title") or "South African Sailing — The Weekend Roundup",
                 "edition_date": data.get("edition_date") or folder.name,
                 "articles": len(articles),
                 "lead": (articles[0].get("headline") if articles else ""),
@@ -131,17 +131,27 @@ def write_public_index() -> dict:
     page = (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>Sailing — SailingSA</title>"
-        "<style>body{margin:0;color:#1e293b;background:#f5f7fa;font:17px/1.5 Georgia,serif}"
-        ".bar{display:flex;align-items:center;gap:14px;background:#001f3f;color:#fff;padding:14px 24px}"
-        ".bar img{height:48px}.bar h1{margin:0;font:700 28px/1 Georgia,serif}"
-        ".wrap{max-width:1080px;margin:auto;padding:28px 24px}h2,h3{font-family:Georgia,serif;color:#001f3f}"
+        "<title>The Weekend Roundup — SailingSA</title>"
+        '<style>@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap");'
+        ":root{--ink:#172b3a;--navy:#001f3f;--muted:#697078;--paper:#f2f0eb;--rule:#d9d7d1;--accent:#8b6c43}"
+        "body{margin:0;color:var(--ink);background:var(--paper);font:18px/1.6 'Source Serif 4',Georgia,serif}"
+        ".roundup-site-header{position:sticky;top:0;z-index:40;width:100%;background:#001f3f;border-bottom:1px solid rgba(255,255,255,.1);height:80px}"
+        ".roundup-site-header .container{max-width:1200px;height:80px;margin:0 auto;padding:0 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}"
+        ".roundup-site-header .logo img{display:block;height:68px;width:auto;max-width:46vw}"
+        ".roundup-home img{display:block;height:46px;width:auto;max-width:100%}"
+        ".wrap{max-width:1040px;margin:auto;padding:36px 5.5% 80px}h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:500;color:var(--navy)}"
+        "h2{font-size:clamp(26px,3vw,36px);letter-spacing:-.02em}h2 a{color:var(--navy);text-decoration:none}"
         ".cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}"
-        ".card{display:block;background:#fff;border:2px solid #001f3f;border-radius:8px;padding:0 0 12px;color:#1e293b;text-decoration:none}"
-        ".card img{width:100%;height:140px;object-fit:cover;display:block}.card strong{display:block;padding:8px 10px 0;font:12px/1 sans-serif;letter-spacing:.08em;color:#6B2C91}"
-        ".card h3{margin:6px 10px;font-size:18px}.card p{margin:0 10px;color:#334155;font-size:14px}"
-        "section{border-top:1px solid #e0e0e0;padding:22px 0}a{color:#001f3f}</style></head>"
-        "<body><header class='bar'><a href='https://sailingsa.co.za/'><img src='https://sailingsa.co.za/assets/logos/sailingsa-logo.png' alt='SailingSA'></a><h1>Sailing</h1></header>"
+        ".card{display:block;background:#fff;border-top:2px solid var(--navy);padding:0 0 14px;color:var(--ink);text-decoration:none}"
+        ".card img{width:100%;height:140px;object-fit:cover;display:block}.card strong{display:block;padding:12px 12px 0;font:650 11px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:.18em;text-transform:uppercase;color:var(--accent)}"
+        ".card h3{margin:8px 12px;font-size:20px;line-height:1.25}.card p{margin:0 12px;color:var(--muted);font-size:13px}"
+        "section{border-top:1px solid var(--rule);padding:28px 0}section:first-child{border-top:0;padding-top:0}"
+        "a{color:var(--accent)}</style></head>"
+        '<body><header class="site-header roundup-site-header" aria-label="SailingSA">'
+        '<div class="container"><a class="logo js-go-home" href="https://sailingsa.co.za/" title="Home – SailingSA">'
+        '<img src="https://sailingsa.co.za/assets/logos/sailingsa-logo.png" alt="SailingSA"></a>'
+        '<a class="roundup-home" href="https://sailingsa.co.za/" title="Back to Home">'
+        '<img src="https://sailingsa.co.za/assets/back-to-home.png?v=2" alt="Back to Home"></a></div></header>'
         "<main class='wrap'>" + "".join(cards) + "</main></body></html>"
     )
     (public / "index.html").write_text(page)

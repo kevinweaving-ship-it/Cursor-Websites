@@ -134,8 +134,12 @@ class RewriteEngine(unittest.TestCase):
         self.assertNotIn("source_info", article)
         html = _render_story(1, article)
         self.assertIn("story-photo-led", html)
+        self.assertIn("event-story", html)
+        self.assertIn("story-heading", html)
         self.assertNotIn("Source info", html)
         self.assertNotIn("Social and media sources", html)
+        self.assertNotIn("class='folio'", html)
+        self.assertNotIn("class='banner'", html)
 
     def test_layouts_differ(self):
         self.assertEqual(layout_for(0, "feature"), "lead")
@@ -144,11 +148,14 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(layout_for(2, "regatta_report"), "classic")
         self.assertEqual(layout_for(3, "regatta_report"), "compact")
         css = newspaper_css()
-        self.assertIn("story-photo-led", css)
-        self.assertIn("story-split", css)
-        self.assertIn("story-classic", css)
-        self.assertIn("flex-direction:column", css)
+        self.assertIn("--accent:#8b6c43", css.replace(" ", ""))
+        self.assertIn("--paper:#f2f0eb", css.replace(" ", ""))
+        self.assertIn("story-heading", css)
+        self.assertIn("edition-lead", css)
+        self.assertIn("paired-then-full", css)
         self.assertIn("@page{size:A3", css.replace(" ", ""))
+        self.assertNotIn("#6B2C91", css)
+        self.assertNotIn(".folio{", css)
 
     def test_image_block_always_shows_photo(self):
         html = _image_block(
@@ -167,6 +174,44 @@ class RewriteEngine(unittest.TestCase):
     def test_layout_assignment(self):
         self.assertEqual(_layout_name(0, {"type": "feature"}), "lead")
         self.assertEqual(_layout_name(1, {"type": "regatta_report", "layout": "split"}), "split")
+
+    def test_gold_default_story_chrome(self):
+        lead = _render_story(
+            0,
+            {
+                "id": "sailing-2026-10-19",
+                "type": "feature",
+                "layout": "lead",
+                "headline": "South African Sailing — The Weekend Roundup",
+                "deck": "12–18 October 2026",
+                "blocks": [{"type": "paragraph", "text": "Two scored events feature in the sailing roundup."}],
+            },
+        )
+        self.assertIn('class="story story-lead edition-lead"', lead)
+        self.assertIn("<h1>The Weekend Roundup</h1>", lead)
+        self.assertIn("12–18 October 2026", lead)
+        self.assertNotIn("Weekend sailing roundup", lead)
+        event = _render_story(
+            1,
+            {
+                "id": "2026-10-17-mac-tsl-wc-team-sailing",
+                "type": "regatta_report",
+                "layout": "photo-led",
+                "kicker": "TSL  ·  MAC",
+                "headline": "MAC win team sailing",
+                "deck": "Magic Ace · 6 entries",
+                "blocks": [
+                    {"type": "paragraph", "text": "Official results. [1]"},
+                    {"type": "heading", "text": "TSL leaderboard"},
+                    {"type": "results", "columns": ["Pos", "Helm"], "rows": [["1", "A"]]},
+                ],
+            },
+        )
+        self.assertIn("event-story", event)
+        self.assertIn("story-heading", event)
+        self.assertIn("TSL leaderboard", event)
+        self.assertIn("#2026-10-17-mac-tsl-wc-team-sailing-src-1", event)
+        self.assertNotIn("By SailingSA", event)
 
     def test_dart_uses_hmyc_facebook_source(self):
         rows = [
@@ -471,6 +516,8 @@ class RewriteEngine(unittest.TestCase):
         html = _render_story(1, article)
         self.assertIn("Laser leaderboard", html)
         self.assertIn("420 leaderboard", html)
+        self.assertIn("event-story", html)
+        self.assertIn("story-heading", html)
 
 
 if __name__ == "__main__":

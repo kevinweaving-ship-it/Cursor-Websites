@@ -92,7 +92,7 @@ class PublishHelpers(unittest.TestCase):
         self.assertEqual(feature["type"], "feature")
         self.assertEqual(feature["layout"], "lead")
         self.assertIn("26–27 September 2026", feature["deck"])
-        self.assertNotEqual(feature["headline"], "Weekend sailing roundup")
+        self.assertEqual(feature["headline"], "South African Sailing — The Weekend Roundup")
 
     def test_verify_everywhere_against_event_and_results(self):
         event = {
