@@ -8,11 +8,14 @@ sys.path.insert(0, str(ROOT / "app"))
 
 from event_rewrite import (
     GOLD_BOARD_LABEL,
+    admin_seed_images,
     artwork_matches_event,
+    attach_weekend_hero,
     board_label,
     citation_index,
     clean_event_title,
     cluster_coverage,
+    download_image,
     event_finished,
     facts_from_rows,
     layout_for,
@@ -20,6 +23,7 @@ from event_rewrite import (
     pick_image,
     _request_url,
     pick_images,
+    pretty_credit,
     rewrite_event,
     rewrite_paragraphs,
     unique_headline,
@@ -834,6 +838,88 @@ class RewriteEngine(unittest.TestCase):
         facts = facts_from_rows("2026-09-25-tsc-420-nationals", sample_rows())
         fallback = ["Dale Rae and James Rae won the 420 Nationals at Theewater Sports Club. [1]"]
         self.assertEqual(polish(facts, {"articles": []}, [{"n": 1, "url": facts["url"]}], fallback), fallback)
+
+    def test_admin_seed_portrait_is_kept_and_credited(self):
+        facts = {
+            "slug": "2026-10-17-pyc-kzn-mirror-regionals",
+            "title": "KZN Mirror Regionals",
+            "class_name": "Mirror",
+        }
+        seeds = admin_seed_images(facts)
+        self.assertEqual(len(seeds), 1)
+        self.assertEqual(seeds[0]["kind"], "admin_seed")
+        raw = (ROOT / "app" / "seed_media" / "2026-10-17-pyc-kzn-mirror-regionals.jpg").read_bytes()
+        self.assertFalse(_is_event_photograph(raw))
+        local = download_image(seeds[0], "2026-10-19", facts["slug"], 0)
+        self.assertIsNotNone(local)
+        self.assertEqual(local["url"], "media/2026-10-17-pyc-kzn-mirror-regionals.jpg")
+        self.assertGreater(local["bytes"], 8000)
+        self.assertEqual(
+            pretty_credit("KZN Mirror / event administration", "https://sailingsa.co.za/regatta/2026-10-17-pyc-kzn-mirror-regionals"),
+            "KZN Mirror / event administration",
+        )
+        chosen = pick_images(facts, {"articles": [], "schema_version": "verified-evidence-1"}, None, limit=2)
+        self.assertEqual(chosen[0]["kind"], "admin_seed")
+
+    def test_weekend_hero_prefers_mirror_admin_seed(self):
+        feature = {
+            "type": "feature",
+            "hero_image": None,
+            "blocks": [{"type": "paragraph", "text": "Two fleets raced at Milnerton and Point Yacht Club."}],
+        }
+        articles = [
+            {
+                "type": "regatta_report",
+                "id": "2026-10-17-mac-tsl-wc-team-sailing",
+                "hero_image": {"url": "media/2026-10-17-mac-tsl-wc-team-sailing-2.png"},
+                "blocks": [
+                    {
+                        "type": "image",
+                        "url": "media/2026-10-17-mac-tsl-wc-team-sailing-2.png",
+                        "kind": "official_event_artwork",
+                        "credit": "SailingSA",
+                    }
+                ],
+            },
+            {
+                "type": "regatta_report",
+                "id": "2026-10-17-pyc-kzn-mirror-regionals",
+                "hero_image": {"url": "media/2026-10-17-pyc-kzn-mirror-regionals.jpg"},
+                "blocks": [
+                    {
+                        "type": "image",
+                        "url": "media/2026-10-17-pyc-kzn-mirror-regionals.jpg",
+                        "kind": "admin_seed",
+                        "credit": "KZN Mirror / event administration",
+                        "source_url": "https://sailingsa.co.za/regatta/2026-10-17-pyc-kzn-mirror-regionals",
+                        "alt": "KZN Mirror Regionals on the water at Point Yacht Club",
+                        "caption": "KZN Mirror Regionals. Photo: KZN Mirror / event administration.",
+                    }
+                ],
+            },
+        ]
+        out = attach_weekend_hero(feature, articles)
+        self.assertEqual(out["hero_image"]["url"], "media/2026-10-17-pyc-kzn-mirror-regionals.jpg")
+        self.assertEqual(out["blocks"][0]["type"], "image")
+        self.assertEqual(out["blocks"][0]["url"], "media/2026-10-17-pyc-kzn-mirror-regionals.jpg")
+        html = _render_story(0, {"id": "sailing-2026-10-19", "type": "feature", "layout": "lead", **out})
+        self.assertIn("edition-lead", html)
+        self.assertIn("<figure>", html)
+        self.assertIn("media/2026-10-17-pyc-kzn-mirror-regionals.jpg", html)
+        from landing import edition_hero
+        from news_schema import news_article_jsonld
+
+        cards = [
+            {"image": "issues/2026-10-19/media/2026-10-17-mac-tsl-wc-team-sailing-2.png"},
+            {"image": "issues/2026-10-19/media/2026-10-17-pyc-kzn-mirror-regionals.jpg"},
+        ]
+        self.assertEqual(
+            edition_hero("2026-10-19", [out] + articles, cards),
+            "issues/2026-10-19/media/2026-10-17-pyc-kzn-mirror-regionals.jpg",
+        )
+        payload = news_article_jsonld("2026-10-19", {"articles": [out] + articles, "title": "The Weekend Roundup"})
+        self.assertIn("2026-10-17-pyc-kzn-mirror-regionals.jpg", payload["image"][0])
+        self.assertNotIn("mac-tsl-wc-team-sailing-2.png", payload["image"][0])
 
 
 if __name__ == "__main__":

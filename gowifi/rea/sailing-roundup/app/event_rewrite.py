@@ -70,6 +70,19 @@ SEED_URLS = {
         "https://www.facebook.com/AeoliansClub/",
     ],
 }
+SEED_MEDIA = ROOT / "app" / "seed_media"
+SEED_PHOTOS = {
+    "2026-10-17-pyc-kzn-mirror-regionals": [
+        {
+            "file": "2026-10-17-pyc-kzn-mirror-regionals.jpg",
+            "kind": "admin_seed",
+            "score": 80,
+            "credit": "KZN Mirror / event administration",
+            "source_url": "https://sailingsa.co.za/regatta/2026-10-17-pyc-kzn-mirror-regionals",
+            "title": "KZN Mirror Regionals on the water at Point Yacht Club",
+        }
+    ],
+}
 LAYOUTS = ("photo-led", "split", "classic", "compact")
 HOST_FALLBACK = {
     "TSC": "Theewater Sports Club",
@@ -1182,8 +1195,34 @@ def class_gallery_photo(klass: str) -> dict | None:
     return None
 
 
+def admin_seed_images(facts: dict) -> list[dict]:
+    """Admin-valid local photographs (WhatsApp / race office). Portrait is allowed."""
+    found = []
+    for item in SEED_PHOTOS.get(facts.get("slug") or "", []):
+        name = pathlib.Path(item.get("file") or "").name
+        if not name:
+            continue
+        path = SEED_MEDIA / name
+        if not path.is_file():
+            continue
+        found.append(
+            {
+                "url": path.resolve().as_uri(),
+                "file": name,
+                "source_url": item.get("source_url") or "",
+                "title": item.get("title") or facts.get("title") or "",
+                "credit": item.get("credit") or "event administration",
+                "kind": item.get("kind") or "admin_seed",
+                "score": int(item.get("score") or 80),
+            }
+        )
+    return found
+
+
 def _event_photo_score(item: dict, facts: dict) -> int:
     """Score only photographs that belong to this event. Wiki and stock boats lose."""
+    if (item.get("kind") or "") == "admin_seed":
+        return int(item.get("score") or 80)
     klass = (facts.get("class_name") or "").strip()
     blob = " ".join((item.get("url") or "", item.get("source_url") or "", item.get("title") or "")).lower()
     photo = (item.get("url") or "").lower()
@@ -1248,6 +1287,14 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
     def add(item: dict):
         url = (item.get("url") or "").split("#")[0]
         source = item.get("source_url") or ""
+        admin = (item.get("kind") or "") == "admin_seed"
+        if admin:
+            key = item.get("file") or url
+            if not key or key in seen:
+                return
+            seen.add(key)
+            candidates.append(item)
+            return
         if cluster.get("schema_version") == "verified-evidence-1" and canonical(source) not in accepted_sources:
             return
         if not url or url in seen or _wiki_url(url) or _bad_image_url(url) or canonical(url) in MEDIA_EXCLUSIONS:
@@ -1256,6 +1303,9 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
             return
         seen.add(url)
         candidates.append(item)
+
+    for item in admin_seed_images(facts):
+        add(item)
 
     for item in (cluster or {}).get("articles") or []:
         if item.get("image"):
@@ -1295,6 +1345,9 @@ def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | N
 
 
 def pretty_credit(raw: str, url: str = "") -> str:
+    credit = (raw or "").strip()
+    if credit and "event administration" in credit.lower():
+        return credit
     blob = f"{raw or ''} {url or ''}".lower()
     if "novanews" in blob:
         return "NovaNews"
@@ -1328,9 +1381,26 @@ def _credit_from_url(url: str) -> str:
     return pretty_credit("", url)
 
 
+def _local_seed_path(image: dict) -> pathlib.Path | None:
+    name = pathlib.Path((image or {}).get("file") or "").name
+    if name:
+        path = SEED_MEDIA / name
+        if path.is_file():
+            return path
+    url = (image or {}).get("url") or ""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme == "file" and parsed.path:
+        path = pathlib.Path(urllib.parse.unquote(parsed.path))
+        if path.is_file():
+            return path
+    return None
+
+
 def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict | None:
     url = (image or {}).get("url") or ""
-    if not url or _wiki_url(url):
+    admin = (image or {}).get("kind") == "admin_seed"
+    seed = _local_seed_path(image) if admin or (image or {}).get("file") else None
+    if not admin and (not url or _wiki_url(url)):
         return None
     dest_dir = ROOT / "public" / "issues" / issue / "media"
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -1338,6 +1408,8 @@ def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict |
     source_dir.mkdir(parents=True, exist_ok=True)
     ext = ".jpg"
     path = urllib.parse.urlparse(url).path.lower()
+    if seed:
+        path = seed.name.lower()
     for cand in (".png", ".webp", ".jpeg", ".jpg"):
         if path.endswith(cand):
             ext = ".jpg" if cand == ".jpeg" else cand
@@ -1347,20 +1419,24 @@ def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict |
     suffix = "" if index == 0 else f"-{index + 1}"
     filename = slug + suffix + ext
     dest = dest_dir / filename
-    headers = dict(
-        FB_UA
-        if any(token in url for token in ("fbcdn", "facebook.com", "lookaside.fbsbx"))
-        else UA
-    )
-    headers["Accept"] = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
-    try:
-        raw, ctype = _http_get(url, headers, timeout=25)
-    except Exception:
-        return None
-    if len(raw) < 8000 or (ctype and not ctype.startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
+    if seed:
+        raw = seed.read_bytes()
+        ctype = "image/jpeg"
+    else:
+        headers = dict(
+            FB_UA
+            if any(token in url for token in ("fbcdn", "facebook.com", "lookaside.fbsbx"))
+            else UA
+        )
+        headers["Accept"] = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+        try:
+            raw, ctype = _http_get(url, headers, timeout=25)
+        except Exception:
+            return None
+    if len(raw) < 8000 or (ctype and not str(ctype).startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
         return None
     official = _is_official_event_artwork(url) or image.get("kind") == "official_event_artwork"
-    if not official and not _is_event_photograph(raw):
+    if not official and not admin and not _is_event_photograph(raw):
         return None
     dest.write_bytes(raw)
     (source_dir / filename).write_bytes(raw)
@@ -1414,8 +1490,11 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
                 "credit": credit,
                 "source_url": local.get("source_url") or facts["url"],
                 "rights_status": "source_attributed",
+                "kind": local.get("kind") or "",
             }
         )
+    if any((local.get("kind") or "") == "admin_seed" for local in locals):
+        layout = "photo-led"
     for text in paras:
         blocks.append({"type": "paragraph", "text": text})
     multi = bool(facts.get("multi_class"))
@@ -1491,6 +1570,116 @@ def _seed_event_images(facts: dict) -> list[dict]:
     return uniq[:2]
 
 
+def _image_as_hero(block: dict) -> dict:
+    return {
+        "url": block.get("url") or "",
+        "source_url": block.get("source_url") or "",
+        "rights_status": block.get("rights_status") or "source_attributed",
+    }
+
+
+def weekend_hero_block(articles: list[dict]) -> dict | None:
+    """Edition hero: admin-seed photograph first, then a real photo, never a logo dump."""
+    reports = [a for a in articles if a.get("type") == "regatta_report"]
+    images = []
+    for article in reports:
+        for block in article.get("blocks") or []:
+            if block.get("type") == "image" and block.get("url"):
+                images.append(block)
+        hero = article.get("hero_image") or {}
+        if hero.get("url") and not any(b.get("url") == hero["url"] for b in images):
+            images.append(
+                {
+                    "type": "image",
+                    "url": hero["url"],
+                    "source_url": hero.get("source_url") or "",
+                    "rights_status": hero.get("rights_status") or "source_attributed",
+                    "kind": hero.get("kind") or "",
+                    "credit": hero.get("credit") or "",
+                    "alt": article.get("headline") or "",
+                    "caption": "",
+                }
+            )
+    for block in images:
+        if (block.get("kind") or "") == "admin_seed":
+            return block
+    for block in images:
+        kind = block.get("kind") or ""
+        url = (block.get("url") or "").lower()
+        if kind == "official_event_artwork" or url.endswith(".png"):
+            continue
+        return block
+    return images[0] if images else None
+
+
+def attach_weekend_hero(feature: dict, articles: list[dict]) -> dict:
+    """Put the weekend photograph on the edition lead, landing, and NewsArticle image."""
+    block = weekend_hero_block(articles)
+    if not block:
+        return feature
+    feature["hero_image"] = _image_as_hero(block)
+    blocks = list(feature.get("blocks") or [])
+    if not any(b.get("type") == "image" and b.get("url") == block.get("url") for b in blocks):
+        feature["blocks"] = [
+            {
+                "type": "image",
+                "url": block.get("url") or "",
+                "alt": block.get("alt") or "Weekend sailing",
+                "caption": block.get("caption") or "",
+                "credit": block.get("credit") or "",
+                "source_url": block.get("source_url") or "",
+                "rights_status": block.get("rights_status") or "source_attributed",
+                "kind": block.get("kind") or "",
+            }
+        ] + blocks
+    return feature
+
+
+def apply_admin_seed_to_article(issue: str, article: dict) -> dict:
+    """Attach a seeded photograph to an already-written report (rebuild without a full scrape)."""
+    slug = article.get("event_id") or article.get("id") or ""
+    facts = {
+        "slug": slug,
+        "title": article.get("headline") or slug,
+        "class_name": article.get("class_name") or "",
+        "url": f"https://sailingsa.co.za/regatta/{slug}" if slug else "",
+    }
+    locals = []
+    for idx, image in enumerate(admin_seed_images(facts)):
+        local = download_image(image, issue, slug, index=idx)
+        if local:
+            locals.append(local)
+    if not locals:
+        return article
+    existing = {b.get("url") for b in article.get("blocks") or []}
+    new_blocks = []
+    for local in locals:
+        if local["url"] in existing:
+            continue
+        credit = pretty_credit(local.get("credit") or "", local.get("source_url") or "")
+        new_blocks.append(
+            {
+                "type": "image",
+                "url": local["url"],
+                "alt": local.get("title") or article.get("headline") or slug,
+                "caption": f"{article.get('headline') or slug}. Photo: {credit}.",
+                "credit": credit,
+                "source_url": local.get("source_url") or facts["url"],
+                "rights_status": "source_attributed",
+                "kind": local.get("kind") or "admin_seed",
+            }
+        )
+    article["blocks"] = new_blocks + list(article.get("blocks") or [])
+    hero = locals[0]
+    article["hero_image"] = {
+        "url": hero["url"],
+        "source_url": hero.get("source_url") or facts["url"],
+        "rights_status": "source_attributed",
+    }
+    article["layout"] = "photo-led"
+    return article
+
+
 def rewrite_weekend_feature(issue,monday,events,articles):
     from evidence_pipeline import feature
-    return feature(issue,monday,events,articles)
+    return attach_weekend_hero(feature(issue,monday,events,articles), articles)

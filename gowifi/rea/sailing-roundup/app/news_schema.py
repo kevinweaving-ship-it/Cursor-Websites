@@ -34,14 +34,16 @@ def news_article_jsonld(issue: str, data: dict) -> dict:
     date_published = _iso_monday(str(published)[:10] if published else issue)
     updated = data.get("updated_at") or datetime.now(timezone.utc).isoformat()
     image = None
-    for article in articles:
+    scan = [feature] + [a for a in articles if a is not feature]
+    for article in scan:
         hero = ((article.get("hero_image") or {}) or {}).get("url") or ""
+        if not hero:
+            continue
         if hero.startswith("http"):
             image = hero
             break
-        if hero:
-            image = f"https://sailingsa.co.za/sailing-roundup/issues/{issue}/{hero.lstrip('/')}"
-            break
+        image = f"https://sailingsa.co.za/sailing-roundup/issues/{issue}/{hero.lstrip('/')}"
+        break
     about = []
     for article in articles:
         if article.get("type") != "regatta_report":

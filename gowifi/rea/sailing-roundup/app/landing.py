@@ -10,6 +10,27 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PUBLIC_BASE = "https://sailingsa.co.za/sailing-roundup"
 
 
+def _abs_issue_image(folder_name: str, url: str) -> str:
+    if not url:
+        return ""
+    if url.startswith("http") or url.startswith("issues/"):
+        return url
+    return f"issues/{folder_name}/{url.lstrip('/')}"
+
+
+def edition_hero(folder_name: str, articles: list[dict], cards: list[dict]) -> str:
+    """Weekend hero is the feature photograph, not the first event-logo card."""
+    feature = next((a for a in articles if a.get("type") == "feature"), None)
+    if feature:
+        url = ((feature.get("hero_image") or {}) or {}).get("url") or ""
+        if url:
+            return _abs_issue_image(folder_name, url)
+    for card in cards:
+        if card.get("image"):
+            return card["image"]
+    return ""
+
+
 def _issues() -> list[dict]:
     root = ROOT / "public" / "issues"
     if not root.exists():
@@ -51,7 +72,7 @@ def _issues() -> list[dict]:
                 "html": f"issues/{folder.name}/",
                 "pdf": f"issues/{folder.name}/edition.pdf",
                 "json": f"issues/{folder.name}/issue.json",
-                "hero": cards[0]["image"] if cards else ((articles[0].get("hero_image") or {}) if articles else {}).get("url"),
+                "hero": edition_hero(folder.name, articles, cards),
                 "cards": cards,
             }
         )

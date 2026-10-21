@@ -25,6 +25,8 @@ h2{margin:0 0 16px;font-size:clamp(29px,3.6vw,43px);line-height:1.15;letter-spac
 .edition-lead .copy{margin-top:22px}
 .edition-lead .copy p{font-size:17px}
 .edition-lead .copy p+p{font-size:14px;color:var(--muted)}
+.edition-lead .photo-set{margin:8px 0 4px}
+.edition-lead figure img{width:100%;max-height:min(70vh,760px);object-fit:cover;object-position:center 28%;background:#111}
 .photo-set{display:grid;grid-template-columns:minmax(0,1fr);gap:22px 18px;margin:26px 0 0}
 .photo-set.pair,.photo-set.paired-then-full{grid-template-columns:repeat(2,minmax(0,1fr))}
 figure{min-width:0;margin:0}

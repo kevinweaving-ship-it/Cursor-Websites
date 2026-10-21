@@ -241,6 +241,7 @@ def _render_story(index, article):
             + "</h1>"
             + (('<p class="deck">' + deck + "</p>") if deck else "")
             + "</header>"
+            + photos
             + copy
         )
         return '<article class="story story-lead edition-lead" id="' + aid + '">' + inner + "</article>"
