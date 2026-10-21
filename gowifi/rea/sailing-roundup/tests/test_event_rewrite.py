@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import pathlib
 import sys
 import unittest
@@ -35,7 +36,7 @@ from event_rewrite import (
     _keep_cluster_item,
     _wiki_url,
 )
-from roundup import _image_block, _layout_name, _render_story, newspaper_css
+from roundup import _article_event_urls, _image_block, _layout_name, _render_story, newspaper_css
 
 
 def sample_rows():
@@ -183,6 +184,21 @@ class RewriteEngine(unittest.TestCase):
         self.assertIn("<figure>", html)
         self.assertNotIn("View original photograph", html)
 
+    def test_image_block_keeps_gold_505_source_region_panel(self):
+        html = _image_block(
+            {
+                "url": "media/2026-09-24-ayc-505-nationals-source.jpg",
+                "alt": "505 Nationals on-water racing",
+                "caption": "505 Nationals — Aeolians Yacht Club. Photo: RSA 505.",
+                "source_region": [0, 2560, 2160, 1280],
+                "source_dimensions": [2160, 3840],
+            }
+        )
+        self.assertIn('class="source-photo-panel"', html)
+        self.assertIn('viewBox="0 2560 2160 1280"', html)
+        self.assertIn('href="media/2026-09-24-ayc-505-nationals-source.jpg"', html)
+        self.assertNotIn("<img src=", html)
+
     def test_layout_assignment(self):
         self.assertEqual(_layout_name(0, {"type": "feature"}), "lead")
         self.assertEqual(_layout_name(1, {"type": "regatta_report", "layout": "split"}), "split")
@@ -222,9 +238,33 @@ class RewriteEngine(unittest.TestCase):
         self.assertIn("event-story", event)
         self.assertIn("story-heading", event)
         self.assertIn("1st, 2nd, 3rd", event)
-        self.assertIn("https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing", event)
+        self.assertIn("</h2><p class=\"event-url\"><a href=\"https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing\">", event)
         self.assertIn("#2026-10-17-mac-tsl-wc-team-sailing-src-1", event)
         self.assertNotIn("By SailingSA", event)
+
+    def test_gold_event_urls_listed_under_every_heading(self):
+        gold = pathlib.Path(__file__).resolve().parents[1] / "public" / "issues" / "2026-09-28" / "issue.json"
+        if not gold.is_file():
+            self.skipTest("gold 2026-09-28 issue.json not in checkout")
+        data = json.loads(gold.read_text())
+        expected = {
+            "2026-09-24-ayc-505-nationals": "https://sailingsa.co.za/regatta/2026-09-24-ayc-505-nationals",
+            "2026-09-24-ayc-dabchick-gauteng-regionals": "https://sailingsa.co.za/regatta/2026-09-24-ayc-dabchick-gauteng-regionals",
+            "2026-09-24-hmyc-dart-18-nationals": "https://sailingsa.co.za/regatta/2026-09-24-hmyc-dart-18-nationals",
+            "2026-09-25-tsc-420-nationals": "https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals",
+        }
+        for article in data.get("articles") or []:
+            if article.get("type") != "regatta_report":
+                continue
+            urls = _article_event_urls(article)
+            want = expected[article["event_id"]]
+            self.assertIn(want, urls)
+            html = _render_story(1, article)
+            self.assertIn("</h2><p class=\"event-url\"><a href=\"" + want + "\">", html)
+            self.assertIn(want + "</a></p>", html)
+            if article["event_id"] == "2026-09-24-ayc-505-nationals":
+                self.assertIn('class="source-photo-panel"', html)
+                self.assertIn('viewBox="0 2560 2160 1280"', html)
 
     def test_dart_uses_hmyc_facebook_source(self):
         rows = [

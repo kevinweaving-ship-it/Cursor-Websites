@@ -11,6 +11,8 @@ The lead article is type `feature` and is written from the public `events`
 table. The Monday issue covers the previous week (Mon–Sun). A multi-week
 event is included once, on the Monday after the week it ended.
 Each following article is a **rewritten** regatta report: unique headline,
+the official `https://sailingsa.co.za/regatta/{slug}` listed and clickable
+directly under that headline (every event URL the article refers to),
 original copy clustered from the event's own sources with inline citations,
 photographs from those same sources (podium and on the water are both
 valid; more than one photo is allowed; never Wikimedia), and the official

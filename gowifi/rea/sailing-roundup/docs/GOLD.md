@@ -20,7 +20,8 @@ Cream paper, gold accent `#8b6c43`, navy `#001f3f`, SailingSA header, H1 **The W
 | --- | --- |
 | Edition lead | Feature article. H1 “The Weekend Roundup”. Deck is Sat–Sun of the covered week (gold: `26–27 September 2026`). Lede counts fleets and names venues. Calendar-only events (no results) are listed as unavailable — scored same-weekend events are never hidden that way. |
 | Weekend hero | One real photograph on the lead (and in `feed.json` / NewsArticle `image`). Admin-seed first, then a jpg from a verified story. **Never** Event / Club / Class Logo, **never** a PNG artwork file, **never** a photographed results sheet, **never** `*-source.jpg` collage as the card image. |
-| Event story | Kicker (`CLASS  ·  CLUB`) → unique headline → **clickable** `https://sailingsa.co.za/regatta/{slug}` → deck (`Venue · N nett · E entries`) → photos → cited magazine copy → heading exactly `1st, 2nd, 3rd` (or `{Class} · 1st, 2nd, 3rd` when one event has several classes) → official 3-row podium. |
+| Event story | Kicker (`CLASS  ·  CLUB`) → unique headline → **every SailingSA event URL that article refers to, listed and clickable immediately under the H2** → deck (`Venue · N nett · E entries`) → photos → cited magazine copy → heading exactly `1st, 2nd, 3rd` (or `{Class} · 1st, 2nd, 3rd` when one event has several classes) → official 3-row podium. |
+| Event URL | Required. Directly under the headline, before the deck. Gold 505 is the shape: headline `Peter Funke and Thomas Funke take 505 Nationals after a points tie at Aeolians` then a clickable `https://sailingsa.co.za/regatta/2026-09-24-ayc-505-nationals`. Same for Dabchick, Dart 18, and 420. If copy, citations, or results blocks refer to more than one `/regatta/{slug}`, list each URL. Calendar-only names with no slug stay unlinked. Markup: `<p class="event-url"><a href="…">…</a></p>`. |
 | Podium | `LEADERBOARD_LIMIT = 3`. Columns: Pos, Helm, Crew, Club, Sail No, Nett. Team racing: Pos, Team, Club [, Nett]. **Not** the full fleet. **Not** sailor cells on a TSL board. |
 | Copy | Magazine paragraphs, not a results dump. Every paragraph ends with `[n]`. `[1]` is always the SailingSA results card. |
 | Photos | Prizegiving and on-water from **this event’s** cluster. Video stills are valid (gold Dabchick still has the play-button overlay). More than one photo is allowed. No Wikimedia. No invented photo. No host/school/class logo as a photograph. |
@@ -302,7 +303,8 @@ The public HTML/PDF must **not** dump `source_info` or social caption lists.
 - Sticky SailingSA header (do not restyle the site-wide header).
 - Edition lead + one `.event-story` per report.
 - Citations become `<sup class="cite"><a href="#slug-src-n">n</a></sup>`.
-- Event URL under the headline: `<p class="event-url"><a href="https://sailingsa.co.za/regatta/{slug}">…</a></p>`.
+- Event URL(s) immediately under every event H2: `<p class="event-url"><a href="https://sailingsa.co.za/regatta/{slug}">https://sailingsa.co.za/regatta/{slug}</a></p>`. Gold 09-28 lists all four: 505, Dabchick, Dart 18, 420. A story with no `/regatta/` slug publishes without a fake link. `roundup._article_event_urls` collects every `/regatta/` URL from results blocks, sources, citations, and the event id — all of them must render as clickable lines under that headline.
+- 505 source-region crops stay SVG `source-photo-panel` viewBoxes on `*-source.jpg`. Re-render must not flatten those panels into a full collage `<img>`.
 - NewsArticle JSON-LD (`app/news_schema.py`): `datePublished` Monday 06:00 SAST, `headline`, `author`, `image` = weekend hero, `about` = SportsEvent per scored slug.
 - PDF: headless Chromium, A3, same HTML.
 
@@ -437,7 +439,7 @@ A new `https://sailingsa.co.za/sailing-roundup/issues/YYYY-MM-DD/` is Gold when 
 
 1. Timer ran `--due` for that Monday (or `--year` for a historical week that had racing).
 2. Every scored `regatta_id` that finished in the previous week has a report. Calendar-only names appear only in the feature.
-3. Each report has a unique headline, kicker, clickable event URL, Gold deck, cited paragraphs, and a 3-row official podium headed `1st, 2nd, 3rd`.
+3. Each report has a unique headline, kicker, **every referred-to SailingSA event URL listed and clickable directly under the H2**, Gold deck, cited paragraphs, and a 3-row official podium headed `1st, 2nd, 3rd`. Gold 505: heading then `https://sailingsa.co.za/regatta/2026-09-24-ayc-505-nationals`.
 4. Team events name teams. No sailor dump. No invented overall places.
 5. Every paragraph has `[n]`. `[1]` is the official card. Age titles cite a verified body that names official sailors.
 6. Photographs (if any) are on-water or prizegiving from this event’s cluster, credited, unique hashes. Video stills may show playback UI. **Zero logos.**

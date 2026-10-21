@@ -2,6 +2,7 @@
 """Standalone sailing roundup builder: read-only public results, web research, JSON feed, HTML, PDF."""
 import argparse
 import datetime as dt
+import hashlib
 import html
 import json
 import pathlib
@@ -142,6 +143,64 @@ GOLD_HEADER = """<header class="site-header roundup-site-header" aria-label="Sai
 """
 
 
+REGATTA_URL = re.compile(
+    r"https://sailingsa\.co\.za/regatta/\d{4}-\d{2}-\d{2}-[a-z0-9-]+",
+    re.I,
+)
+DECK_TAIL = re.compile(
+    r"(?P<venue>.+?)\s*·\s*(?P<nett>[\d.]+)\s*nett(?:\s*·\s*(?P<entries>\d+)\s*entries)?",
+    re.I,
+)
+
+
+def _article_event_urls(article):
+    """Every SailingSA event URL this article refers to, in first-seen order."""
+    found = []
+
+    def add(raw):
+        for match in REGATTA_URL.finditer(str(raw or "")):
+            url = match.group(0).rstrip("/")
+            if url not in found:
+                found.append(url)
+
+    for block in article.get("blocks") or []:
+        add(block.get("source_event_url") or "")
+        if block.get("type") in {"paragraph", "quote", "heading"}:
+            add(block.get("text") or "")
+    add(article.get("event_url") or "")
+    eid = str(article.get("event_id") or article.get("id") or "")
+    if re.match(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$", eid):
+        add("https://sailingsa.co.za/regatta/" + eid)
+    for src in article.get("sources") or []:
+        add(src if isinstance(src, str) else (src or {}).get("url") or "")
+    for cite in article.get("citations") or []:
+        add(cite.get("url") if isinstance(cite, dict) else cite)
+    return found
+
+
+def _event_url_markup(urls):
+    parts = []
+    for url in urls:
+        safe = html.escape(url, quote=True)
+        parts.append('<p class="event-url"><a href="' + safe + '">' + html.escape(url) + "</a></p>")
+    return "".join(parts)
+
+
+def gold_deck_text(deck):
+    """Gold 2026-09-28 deck: Venue · N nett · E entries. No winner prefix."""
+    match = DECK_TAIL.search(deck or "")
+    if not match:
+        return deck or ""
+    venue = (match.group("venue") or "").split(" · ")[-1].strip()
+    nett = (match.group("nett") or "").replace(".0", "")
+    bits = [venue]
+    if nett:
+        bits.append(nett + " nett")
+    if match.group("entries"):
+        bits.append(match.group("entries") + " entries")
+    return " · ".join(x for x in bits if x)
+
+
 def _image_block(block):
     url = block.get("url") or ""
     if not url:
@@ -150,6 +209,46 @@ def _image_block(block):
     credit = block.get("credit") or ""
     if credit and credit.lower() not in caption.lower():
         caption = (caption + " Photo: " + credit).strip()
+    alt = block.get("alt") or caption or ""
+    region = block.get("source_region")
+    dims = block.get("source_dimensions")
+    if (
+        isinstance(region, (list, tuple))
+        and len(region) == 4
+        and isinstance(dims, (list, tuple))
+        and len(dims) == 2
+    ):
+        x, y, width, height = (int(v) for v in region)
+        sheet_w, sheet_h = (int(v) for v in dims)
+        clip = "photo-" + hashlib.md5(f"{url}:{x}:{y}:{width}:{height}".encode()).hexdigest()[:16]
+        return (
+            "<figure><svg class=\"source-photo-panel\" role=\"img\" aria-label="
+            + chr(34)
+            + html.escape(alt, quote=True)
+            + chr(34)
+            + ' viewBox="'
+            + f"{x} {y} {width} {height}"
+            + '" xmlns="http://www.w3.org/2000/svg"><title>'
+            + html.escape(alt)
+            + '</title><defs><clipPath id="'
+            + clip
+            + '" clipPathUnits="userSpaceOnUse"><rect x="'
+            + str(x)
+            + '" y="'
+            + str(y)
+            + '" width="'
+            + str(width)
+            + '" height="'
+            + str(height)
+            + '"/></clipPath></defs><image href='
+            + chr(34)
+            + html.escape(url, quote=True)
+            + chr(34)
+            + f' x="0" y="0" width="{sheet_w}" height="{sheet_h}" clip-path="url(#{clip})"/></svg>'
+            + "<figcaption>"
+            + html.escape(caption)
+            + "</figcaption></figure>"
+        )
     return (
         "<figure><img src="
         + chr(34)
@@ -157,7 +256,7 @@ def _image_block(block):
         + chr(34)
         + " alt="
         + chr(34)
-        + html.escape(block.get("alt") or caption or "", quote=True)
+        + html.escape(alt, quote=True)
         + chr(34)
         + "><figcaption>"
         + html.escape(caption)
@@ -247,20 +346,8 @@ def _render_story(index, article):
         return '<article class="story story-lead edition-lead" id="' + aid + '">' + inner + "</article>"
     kicker = html.escape(article.get("kicker") or (article.get("class_name") or "Regatta").upper())
     headline = html.escape(article.get("headline") or "")
-    deck = html.escape(article.get("deck") or "")
-    event_url = ""
-    for block in article.get("blocks") or []:
-        if block.get("type") == "results" and block.get("source_event_url"):
-            event_url = block.get("source_event_url") or ""
-            break
-    if not event_url:
-        eid = article.get("event_id") or article.get("id") or ""
-        if str(eid).startswith("20"):
-            event_url = "https://sailingsa.co.za/regatta/" + str(eid)
-    event_link = ""
-    if event_url:
-        safe = html.escape(event_url, quote=True)
-        event_link = '<p class="event-url"><a href="' + safe + '">' + html.escape(event_url) + "</a></p>"
+    deck = html.escape(gold_deck_text(article.get("deck") or ""))
+    event_link = _event_url_markup(_article_event_urls(article))
     inner = (
         '<header class="story-heading"><p class="kicker">'
         + kicker
