@@ -463,6 +463,11 @@ def gate_media(ctx: dict) -> GateResult:
             "local_path": hero.get("local_path") or "",
             "errors": [],
         }
+        inspected_empty = hero.get("status") == "empty" and hero.get("inspected")
+        if inspected_empty:
+            rec["empty"] = True
+            events.append(rec)
+            continue
         if hero.get("status") != "pass":
             rec["errors"].append(hero.get("error") or "no hero stored on box")
         path = _hero_file(ctx, hero)

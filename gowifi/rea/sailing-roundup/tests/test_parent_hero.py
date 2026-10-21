@@ -126,6 +126,23 @@ class ParentHero(unittest.TestCase):
             self.assertIn(SLUG, heroes)
             self.assertNotIn("2026-09-24-hmyc-dart-18-nationals", heroes)
 
+    def test_empty_parent_is_inspected_not_a_hard_fail(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            pack = collect_event_hero(
+                "2026-09-28",
+                {"slug": SLUG, "url": PARENT, "status": "pass", "name": "420 Nationals"},
+                facts(),
+                root=root,
+                html="<html><body>results only</body></html>",
+                extra=[],
+                use_external=False,
+            )
+            self.assertEqual(pack["status"], "empty")
+            self.assertTrue(pack["inspected"])
+            self.assertTrue(pack["empty"])
+            self.assertFalse(pack["parent_has_media"])
+
     def test_available_images_parent_first(self):
         parent = [{"url": "https://a/parent.jpg", "from_parent": True}]
         extra = [{"url": "https://b/extra.jpg"}]

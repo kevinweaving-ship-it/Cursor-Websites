@@ -211,7 +211,7 @@ def entry_kind(row: dict | None = None, slug: str = "", rows: list[dict] | None 
         return "team"
     if BOAT_EVENT.search(hint) and (boat or row.get("club_abbrev")):
         return "boat"
-    if score in ("handicap", "timed") and (boat or row.get("club_abbrev")):
+    if score in ("handicap", "timed") and boat:
         return "boat"
     if boat and not helm and not crew:
         return "boat"
@@ -365,6 +365,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "leaderboard": leaderboard(ranked),
         "class_leaderboards": boards,
         "fleets": [b["fleet"] for b in boards],
+        "overall": bool(boards and boards[0].get("overall")),
         "ranked_rows": ranked,
     }
 
@@ -514,9 +515,51 @@ def _board_entry(row: dict) -> dict:
     }
 
 
+def _overall_open_board(rows: list[dict]) -> bool:
+    """Mixed classes with one overall 1st (PY / pursuit / timed) are one board, not per-class."""
+    firsts = [r for r in rows if str(_row_rank(r) or "").split(".")[0] == "1"]
+    classes = {
+        (r.get("class_name") or r.get("class_canonical") or "").strip()
+        for r in rows
+        if (r.get("class_name") or r.get("class_canonical") or "").strip()
+    }
+    fleets = {
+        (r.get("fleet_label") or "").strip()
+        for r in rows
+        if (r.get("fleet_label") or "").strip() and (r.get("fleet_label") or "").strip().lower() not in GENERIC_FLEET
+    }
+    return len(classes) > 1 and len(firsts) == 1 and not fleets
+
+
+def _overall_fleet_name(rows: list[dict]) -> str:
+    raw = str((rows[0].get("scoring_system") if rows else "") or "")
+    if re.search(r"py|portsmouth", raw, re.I):
+        return "PY"
+    if HANDICAP_SCORING.search(raw):
+        return HANDICAP_SCORING.search(raw).group(0).upper()
+    if TIMED_SCORING.search(raw):
+        return "Timed"
+    return "Open"
+
+
 def class_leaderboards(rows: list[dict]) -> list[dict]:
     """Full parent-URL leaderboard for every class/fleet. All ranks, not a 3-boat podium cut."""
     ranked = _ranked(rows)
+    if _overall_open_board(ranked):
+        name = _overall_fleet_name(ranked)
+        kind = entry_kind(ranked[0], rows=ranked)
+        return [
+            {
+                "fleet": name,
+                "class": name,
+                "entries": len(ranked),
+                "scoring_system": (ranked[0].get("scoring_system") or "").strip(),
+                "identity": kind,
+                "overall": True,
+                "team_racing": kind == "team",
+                "rows": [_board_entry(r) for r in ranked],
+            }
+        ]
     keys = [_class_or_fleet_name(row) for row in ranked]
     named = [key for key in keys if key != "Open"]
     default = named[0] if len(set(named)) == 1 else None

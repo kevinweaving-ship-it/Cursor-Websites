@@ -137,6 +137,36 @@ class DeskEditor(unittest.TestCase):
         self.assertNotIn("Maddison", blob)
         self.assertEqual(qa(blob, f), [])
 
+    def test_py_overall_names_the_helm_not_a_class_split(self):
+        f = facts(
+            title="Dam Bottle Sprints",
+            class_name="",
+            club="HMYC",
+            club_name="Henley Midmar Yacht Club",
+            start="2026-10-10",
+            end="2026-10-11",
+            entries=4,
+            races=3,
+            winner="Lorrian Wells",
+            winner_helm="Lorrian Wells",
+            winner_nett="5",
+            second="Simon Dommett",
+            second_nett="7",
+            third="Bryan Paxman",
+            third_nett="13",
+            identity="helm",
+            overall=True,
+            mixed_class=True,
+            classes=["Dart 18", "Ilca 7", "Hunter 19"],
+            scoring_system="Portsmouth Yardstick (PY)",
+            scoring_kind="handicap",
+        )
+        blob = " ".join(edit_event(f))
+        self.assertIn("Lorrian Wells won the Dam Bottle Sprints", blob)
+        self.assertIn("4-boat PY fleet", blob)
+        self.assertNotIn("taking the Dart 18 fleet", blob)
+        self.assertEqual(qa(blob, f), [])
+
     def test_lipton_copy_names_the_boat(self):
         f = facts(
             title="Lipton Challenge Cup",

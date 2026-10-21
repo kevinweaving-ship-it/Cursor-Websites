@@ -266,6 +266,7 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
         raise GateError(run)
     facts_by_slug = ctx.get("facts_by_slug") or {}
     hero_hooks = dict(inject.get("hero_hooks") or {})
+    hero_hooks.setdefault("use_external", True)
     heroes = store_roster_heroes(issue, step1.events, facts_by_slug, root=root, **hero_hooks)
     ctx["heroes"] = heroes
     require_gates(monday, ctx, through=2, root=root)

@@ -400,12 +400,15 @@ class RewriteEngine(unittest.TestCase):
         ]
         facts = facts_from_rows("2026-10-10-hmyc-dam-bottle-sprints", rows)
         self.assertTrue(facts["mixed_class"])
+        self.assertTrue(facts["overall"])
         self.assertEqual(facts["class_name"], "")
+        self.assertEqual(facts["winner"], "Lorrian Wells")
         self.assertIn("Dart 18", facts["classes"])
         self.assertIn("ILCA 7", facts["classes"])
-        boards = {b["fleet"]: b["rows"] for b in facts["class_leaderboards"]}
-        self.assertEqual(set(boards), {"Dart 18", "ILCA 7", "Hunter 19"})
-        self.assertEqual(boards["Dart 18"][0]["helm"], "Lorrian Wells")
+        self.assertEqual(len(facts["class_leaderboards"]), 1)
+        board = facts["class_leaderboards"][0]
+        self.assertEqual([r["pos"] for r in board["rows"]], ["1", "2", "3"])
+        self.assertEqual(board["rows"][0]["helm"], "Lorrian Wells")
         self.assertEqual(len(facts["leaderboard"][1]), 3)
         dart_photo = {
             "url": "https://scontent.xx.fbcdn.net/prizegiving.jpg",

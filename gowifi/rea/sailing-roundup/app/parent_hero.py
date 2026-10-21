@@ -282,6 +282,9 @@ def collect_event_hero(
         ],
     }
     if not best:
+        pack["status"] = "empty"
+        pack["inspected"] = True
+        pack["empty"] = True
         pack["error"] = "no usable hero in available images"
         (source_dir / f"{slug}-hero.json").write_text(json.dumps(pack, indent=2, ensure_ascii=False) + "\n")
         return pack

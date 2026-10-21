@@ -455,6 +455,40 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["equals"]["identity"], "boat")
         self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
 
+    def test_py_mixed_fleet_is_one_overall_board(self):
+        monday = dt.date(2026, 10, 12)
+        slug = "2026-10-10-hmyc-dam-bottle-sprints"
+        rows = [
+            {
+                "event_name": "Dam Bottle Sprints",
+                "host_club_code": "HMYC",
+                "host_club_name": "Henley Midmar Yacht Club",
+                "class_name": klass,
+                "start_date": "2026-10-10",
+                "end_date": "2026-10-11",
+                "scoring_system": "Portsmouth Yardstick (PY)",
+                "entries_total": 4,
+                "rank": pos,
+                "helm_name": helm,
+                "boat_name": None,
+                "nett_points_raw": nett,
+            }
+            for klass, pos, helm, nett in (
+                ("Dart 18", 1, "Lorrian Wells", 5),
+                ("Ilca 7", 2, "Simon Dommett", 7),
+                ("Hunter 19", 3, "Bryan Paxman", 13),
+                ("Hunter 19", 4, "Tim Kerry", 18),
+            )
+        ]
+        rec = check_one_event(monday, slug, rows)
+        self.assertEqual(rec["status"], "pass", rec["errors"])
+        self.assertEqual(rec["winner"], "Lorrian Wells")
+        self.assertEqual(rec["equals"]["identity"], "helm")
+        self.assertEqual(rec["equals"]["fleets"], ["PY"])
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3", "4"])
+        self.assertEqual(rec["equals"]["leaderboard"][0]["helm"], "Lorrian Wells")
+        self.assertFalse(any("1st place" in e for e in rec["errors"]))
+
     def test_single_handed_still_ranks_the_helm(self):
         rows = sample_rows(crew_name="")
         rows[0]["class_name"] = "ILCA 7"
@@ -482,6 +516,23 @@ class SequentialGates(unittest.TestCase):
         run = run_gates(facts_ctx(rows=[], slugs=[], rows_by_slug={}, table_events=[]), through=1)
         self.assertEqual(run.step(1).status, "fail")
         self.assertTrue(any("no events with results/url" in e for e in run.step(1).errors))
+
+    def test_media_passes_when_parent_was_inspected_and_empty(self):
+        ctx = facts_ctx(
+            heroes={
+                SLUG: {
+                    "slug": SLUG,
+                    "status": "empty",
+                    "inspected": True,
+                    "empty": True,
+                    "local_path": "",
+                    "parent_has_media": False,
+                }
+            }
+        )
+        run = run_gates(ctx, through=2)
+        self.assertEqual(run.step(1).status, "pass")
+        self.assertEqual(run.step(2).status, "pass", run.summary())
 
     def test_step1_pass_allows_step2_which_fails_without_photos(self):
         run = run_gates(facts_ctx(), through=6)

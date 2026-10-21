@@ -123,7 +123,7 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
         lead = f"{winner} {verb} the {title} at {venue}"
     if dates:
         lead += f" over {dates}"
-    if facts.get("mixed_class") and classes:
+    if facts.get("mixed_class") and classes and not facts.get("overall"):
         lead += f", taking the {klass or classes[0]} fleet"
         if nett:
             lead += f" on {nett} nett points"
@@ -144,6 +144,12 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
             article = "an" if str(entries)[:1] == "8" or str(entries) in {"11", "18"} else "a"
             fleet = f" in {article} {entries}-team{(' ' + klass) if klass else ''} field"
         else:
+            if facts.get("overall") and not klass:
+                scoring = str(facts.get("scoring_system") or "")
+                if re.search(r"py|portsmouth", scoring, re.I):
+                    klass = "PY"
+                elif scoring:
+                    klass = scoring
             fleet = f" in a {entries}-boat{(' ' + klass) if klass else ''} fleet" if entries else ""
         if bits:
             lead += ", scoring " + " across ".join(bits) + fleet + f". {mark}"
@@ -154,7 +160,7 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
         paragraphs.append(
             f"The top two crews were level on nett points; the official results rank {winner} first. {mark}"
         )
-    if facts.get("mixed_class") and facts.get("ranked_rows"):
+    if facts.get("mixed_class") and facts.get("ranked_rows") and not facts.get("overall"):
         by = {}
         for row in facts["ranked_rows"]:
             key = (row.get("class_name") or row.get("class_canonical") or "").strip()
