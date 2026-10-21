@@ -32,7 +32,7 @@ def validate(root,issue):
             if b["type"]=="paragraph":
                 refs=[int(x) for x in re.findall(r"\[(\d+)\]",b["text"])]
                 if not refs or not set(refs)<=citations:raise ValueError("Untraceable paragraph")
-                if other_event_conflict({"url":"","title":"","body":b.get("text") or ""}, {"slug":slug,"title":a.get("headline") or slug}):
+                if other_event_conflict({"url":"","title":"","body":b.get("text") or ""}, {"slug":slug,"title":a.get("headline") or slug}, require_identity=False):
                     raise ValueError("Article quotes another event")
             if b["type"]=="results" and len(b["rows"])>3:raise ValueError("Article table must be podium only")
             if b["type"]=="image":

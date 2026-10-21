@@ -99,13 +99,16 @@ def event_title_tokens(title):
 def source_blob(item):
     return " ".join(str(item.get(k) or "") for k in ("url","source_url","title","headline","description","snippet","body","text")).lower()
 
-def other_event_conflict(item,facts):
+def other_event_conflict(item,facts,require_identity=True):
     """Auto rule: a source about another event can never attach here.
 
     Why: Dam Bottle Sprints (mixed fleet at HMYC) accepted a Dart 18 Nationals
     Facebook post because verify treated class+venue+year, or host_club_page, as
     identity. Weekly generation and old-week rebuilds must reject that, not rely
     on a hand edit of the published HTML.
+
+    require_identity=True is for incoming sources (must be about this event).
+    False is for our own recap paragraphs (reject only a quote of another event).
     """
     slug=(facts.get("slug") or facts.get("event_id") or facts.get("id") or "").lower()
     title=facts.get("title") or facts.get("event_name") or ""
@@ -127,9 +130,10 @@ def other_event_conflict(item,facts):
         return "other_event"
     if re.search(r"\bregionals?\b",blob) and "regional" not in title.lower() and not any(t in blob for t in event_title_tokens(title)):
         return "other_event"
-    distinctive=[t for t in event_title_tokens(title) if t not in {"dart"}]
-    if distinctive and blob.strip() and not any(t in blob for t in distinctive):
-        return "other_event"
+    if require_identity:
+        distinctive=[t for t in event_title_tokens(title) if t not in {"dart"}]
+        if distinctive and blob.strip() and not any(t in blob for t in distinctive):
+            return "other_event"
     return None
 
 def verify(item,facts):

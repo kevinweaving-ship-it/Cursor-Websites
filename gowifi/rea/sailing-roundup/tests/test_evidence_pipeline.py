@@ -86,4 +86,11 @@ class EvidenceRegression(unittest.TestCase):
   bottle={"slug":"2026-10-10-hmyc-dam-bottle-sprints","title":"Dam Bottle Sprints","url":"https://sailingsa.co.za/regatta/2026-10-10-hmyc-dam-bottle-sprints","class_name":"Dart 18","club":"HMYC","club_name":"Henley Midmar Yacht Club","start":"2026-10-10","end":"2026-10-11","names":["Lorrian Wells"]}
   item={"url":"https://example.org/hmyc-open","title":"Weekend racing at HMYC","body":"Dart 18 racing at Henley Midmar Yacht Club in 2026 with a long enough caption for the verifier."}
   self.assertFalse(verify(item,bottle)["accepted"])
+ def test_own_recap_paragraph_is_not_required_to_repeat_the_headline(self):
+  from evidence_pipeline import other_event_conflict
+  facts={"slug":"2026-10-10-hmyc-dam-bottle-sprints","title":"Lorrian Wells dominates Dam Bottle Sprints"}
+  recap={"url":"","title":"","body":"Lorrian Wells won on 5 points from Colin Dommett [1]."}
+  self.assertIsNone(other_event_conflict(recap,facts,require_identity=False))
+  dart_quote={"url":"","title":"","body":"Bradley Levin won the Dart 18 Nationals at HMYC [2]."}
+  self.assertEqual(other_event_conflict(dart_quote,facts,require_identity=False),"other_event")
 if __name__=="__main__":unittest.main()
