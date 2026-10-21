@@ -224,6 +224,23 @@ def store_on_box(issue: str, slug: str, image: dict, raw: bytes, root: pathlib.P
     }
 
 
+def download_hero_bytes(item: dict) -> bytes:
+    """Fetch the chosen hero onto the box. Used by dry-run and Monday publish."""
+    local = item.get("local_file") or ""
+    if local and pathlib.Path(local).is_file():
+        return pathlib.Path(local).read_bytes()
+    url = item.get("url") or ""
+    if url.startswith("file://"):
+        path = pathlib.Path(urllib.parse.urlparse(url).path)
+        return path.read_bytes() if path.is_file() else b""
+    if url.startswith("http://") or url.startswith("https://"):
+        from event_rewrite import UA, _http_get
+
+        raw, _ = _http_get(url, UA, timeout=20)
+        return raw
+    return b""
+
+
 def collect_event_hero(
     issue: str,
     rec: dict,
@@ -239,6 +256,8 @@ def collect_event_hero(
     root = root or ROOT
     slug = rec.get("slug") or facts.get("slug") or ""
     url = rec.get("url") or facts.get("url") or ""
+    if fetch_bytes is None:
+        fetch_bytes = download_hero_bytes
     parent = inspect_parent(url, html=html, fetch_html=fetch_html)
     if use_external and search_fn is None:
         search_fn = _bing_images

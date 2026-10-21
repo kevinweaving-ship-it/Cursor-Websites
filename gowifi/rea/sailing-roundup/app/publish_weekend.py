@@ -356,14 +356,24 @@ def main():
     p.add_argument("--rebuild", action="store_true")
     p.add_argument("--due", action="store_true", help="Publish last Monday plus missing backfill weeks")
     p.add_argument("--test-weekend", action="store_true", help="Rebuild the 26–27 Sep 2026 reference weekend")
+    p.add_argument("--dry-run", action="store_true", help="Stop after story drafts. Never publish.")
+    p.add_argument("--through", type=int, default=0, help="Stop after this gate (3 = story).")
     args = p.parse_args()
+    if args.dry_run:
+        from dry_run import run as dry_run
+
+        print(json.dumps(dry_run(last_week=not args.monday, monday=args.monday), indent=2, ensure_ascii=False))
+        return
+    inject = {}
+    if args.through:
+        inject["through"] = args.through
     if args.test_weekend:
-        print(json.dumps(publish("2026-09-28", rebuild=True), indent=2))
+        print(json.dumps(publish("2026-09-28", rebuild=True, **inject), indent=2))
         return
     if args.due or not args.monday:
         print(json.dumps(publish_due(backfill=args.backfill, rebuild=args.rebuild), indent=2))
     else:
-        print(json.dumps(publish(args.monday, rebuild=args.rebuild), indent=2))
+        print(json.dumps(publish(args.monday, rebuild=args.rebuild, **inject), indent=2))
 
 
 if __name__ == "__main__":

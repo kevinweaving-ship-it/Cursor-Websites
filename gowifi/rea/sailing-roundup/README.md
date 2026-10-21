@@ -65,6 +65,18 @@ United Robots / Stats Perform for the recap) are listed in
 
 No login walls are bypassed. Photos are downloaded locally and credited.
 
+## Dry run (no live publish)
+
+Install local deps, then draft last week and every October issue Monday that has already happened:
+
+```bash
+python3 -m pip install -r gowifi/rea/sailing-roundup/requirements.txt
+cd gowifi/rea/sailing-roundup
+python3 app/dry_run.py --last-week --october 2026
+```
+
+Writes `dry-runs/REPORT.md` and `dry-runs/report.json`. Stops after the story gate. Never publishes.
+
 ## Automation
 
 `sailing-roundup.timer` runs 06:00 Mondays (Africa/Johannesburg) unattended: cluster the weekend, rewrite each event, download a photo, write HTML/PDF/`cards.json`, then publish to sailingsa.co.za. `deploy/run-monday.sh` is the only command the timer needs.
