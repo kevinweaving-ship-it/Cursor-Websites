@@ -137,6 +137,32 @@ class DeskEditor(unittest.TestCase):
         self.assertNotIn("Maddison", blob)
         self.assertEqual(qa(blob, f), [])
 
+    def test_lipton_copy_names_the_boat(self):
+        f = facts(
+            title="Lipton Challenge Cup",
+            class_name="J22",
+            club="RCYC",
+            club_name="Royal Cape Yacht Club",
+            start="2026-08-29",
+            end="2026-08-30",
+            entries=17,
+            races=10,
+            winner="HYC",
+            winner_helm="HYC",
+            winner_team="HYC",
+            winner_nett="",
+            second="RCYC",
+            third="UCTYC",
+            identity="boat",
+            scoring_system="Appendix A",
+        )
+        blob = " ".join(edit_event(f))
+        self.assertIn("HYC won the Lipton Challenge Cup", blob)
+        self.assertIn("17-boat J22 fleet", blob)
+        self.assertIn("RCYC finished second", blob)
+        self.assertNotIn("nett points", blob)
+        self.assertEqual(qa(blob, f), [])
+
     def test_rejects_generic_filler(self):
         self.assertTrue(is_generic("Sailors took to the water for an exciting weekend."))
         self.assertTrue(qa("An exciting weekend of sailing. Dale won.", facts()))

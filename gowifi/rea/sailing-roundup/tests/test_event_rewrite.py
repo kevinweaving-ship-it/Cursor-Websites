@@ -10,6 +10,7 @@ from event_rewrite import (
     citation_index,
     class_leaderboards,
     cluster_coverage,
+    entry_kind,
     event_finished,
     facts_from_rows,
     is_team_racing,
@@ -477,6 +478,91 @@ class RewriteEngine(unittest.TestCase):
         self.assertIn("MAC", headline)
         self.assertIn("wins", headline)
         self.assertNotIn("Maddison", headline)
+
+    def test_lipton_and_py_and_timed_adapt_identity(self):
+        lipton = [
+            {
+                "event_name": "Lipton Challenge Cup",
+                "host_club_code": "RCYC",
+                "host_club_name": "Royal Cape Yacht Club",
+                "class_name": "J22",
+                "scoring_system": "Appendix A",
+                "rank": 1,
+                "boat_name": "HYC",
+                "helm_name": "David Rae",
+                "club_abbrev": "HYC",
+                "nett_points_raw": 44,
+                "start_date": "2026-08-29",
+                "end_date": "2026-08-30",
+                "entries_total": 2,
+            },
+            {
+                "event_name": "Lipton Challenge Cup",
+                "host_club_code": "RCYC",
+                "class_name": "J22",
+                "rank": 2,
+                "boat_name": "RCYC",
+                "helm_name": "Rick Nankin",
+                "club_abbrev": "RCYC",
+                "nett_points_raw": 46,
+            },
+        ]
+        facts = facts_from_rows("2026-08-29-lipton-challenge-cup", lipton)
+        self.assertEqual(facts["identity"], "boat")
+        self.assertEqual(facts["winner"], "HYC")
+        self.assertEqual(facts["second"], "RCYC")
+        self.assertNotIn("David Rae", facts["winner"])
+        self.assertEqual(facts["leaderboard"][0], ["Pos", "Boat", "Helm", "Club", "Time"])
+
+        py = [
+            {
+                "event_name": "Club PY",
+                "host_club_code": "ZYC",
+                "host_club_name": "ZVYC",
+                "scoring_system": "PY",
+                "rank": 1,
+                "boat_name": "Chinook",
+                "helm_name": "Sam Peters",
+                "corrected_time": "1:12:04",
+                "start_date": "2026-09-26",
+                "end_date": "2026-09-27",
+                "entries_total": 2,
+            },
+            {
+                "event_name": "Club PY",
+                "host_club_code": "ZYC",
+                "scoring_system": "PY",
+                "rank": 2,
+                "boat_name": "Sea Breeze",
+                "helm_name": "Pat Naidoo",
+                "corrected_time": "1:14:22",
+            },
+        ]
+        self.assertEqual(entry_kind(py[0]), "boat")
+        py_facts = facts_from_rows("2026-09-26-zyc-club-py", py)
+        self.assertEqual(py_facts["winner"], "Chinook")
+        self.assertEqual(py_facts["winner_time"], "1:12:04")
+        self.assertEqual(py_facts["scoring_kind"], "handicap")
+
+        timed = [
+            {
+                "event_name": "Timed Race",
+                "host_club_code": "HMYC",
+                "host_club_name": "Henley Midmar Yacht Club",
+                "scoring_system": "Timed",
+                "rank": None,
+                "boat_name": "Orion",
+                "helm_name": "Chris Bell",
+                "elapsed_time": "2:01:10",
+                "start_date": "2026-09-26",
+                "end_date": "2026-09-27",
+                "entries_total": 1,
+            }
+        ]
+        timed_facts = facts_from_rows("2026-09-26-hmyc-timed-race", timed)
+        self.assertEqual(timed_facts["identity"], "boat")
+        self.assertEqual(timed_facts["winner"], "Orion")
+        self.assertEqual(timed_facts["ranked_rows"][0]["rank"], 1)
 
     def test_parent_leaderboards_keep_all_ranks_magazine_stays_podium(self):
         rows = sample_rows()

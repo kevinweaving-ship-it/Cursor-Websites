@@ -31,7 +31,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
-from event_rewrite import class_leaderboards, facts_from_rows, is_chrome_image, is_team_racing
+from event_rewrite import class_leaderboards, entry_kind, facts_from_rows, is_chrome_image, _is_roster
 from events_weekend import SKIP_NAME, overlaps, parse_day, saturday_sunday
 from desk_editor import is_generic
 from evidence_pipeline import is_scoresheet, other_event_conflict, unlisted_event_names
@@ -147,6 +147,8 @@ def equals_from_facts(facts: dict) -> dict:
         "leaderboards": boards,
         "leaderboard": boards[0]["rows"] if boards else [],
         "scoring_system": facts.get("scoring_system") or "",
+        "scoring_kind": facts.get("scoring_kind") or "",
+        "identity": facts.get("identity") or "",
         "team_racing": bool(facts.get("team_racing")),
     }
 
@@ -207,10 +209,19 @@ def _monday_date(monday) -> dt.date:
     return day
 
 
-def _check_parent_leaderboards(equals: dict) -> list[str]:
-    """Every class/fleet from the parent URL must have a full ranked board.
+def _identity_word(kind: str) -> str:
+    if kind == "team":
+        return "team"
+    if kind == "boat":
+        return "boat"
+    return "sailor"
 
-    TSL / team racing is not Appendix A: the ranked identity is the team.
+
+def _check_parent_leaderboards(equals: dict) -> list[str]:
+    """Every class/fleet from the parent URL must have ranks 1st–X.
+
+    Scoring can be Appendix A, team racing, PY, timed, or keelboat.
+    The named identity adapts: team, boat, helm/crew, or single helm.
     """
     errors: list[str] = []
     boards = list(equals.get("leaderboards") or [])
@@ -223,18 +234,16 @@ def _check_parent_leaderboards(equals: dict) -> list[str]:
     for board in boards:
         name = (board.get("fleet") or board.get("class") or "fleet").strip() or "fleet"
         rows = list(board.get("rows") or [])
-        team = bool(equals.get("team_racing") or board.get("team_racing"))
+        kind = board.get("identity") or equals.get("identity") or ""
+        who = _identity_word(kind)
         if not rows:
             errors.append(f"{name}: empty class/fleet leaderboard")
             continue
-        if team:
-            if not any((r.get("team") or r.get("boat") or r.get("helm")) for r in rows):
-                errors.append(f"{name}: team racing board has no team names")
-        elif not any((r.get("helm") or r.get("crew") or r.get("boat")) for r in rows):
-            errors.append(f"{name}: leaderboard rows have no helm/crew names")
+        if not any((r.get("team") or r.get("boat") or r.get("helm") or r.get("crew")) for r in rows):
+            errors.append(f"{name}: leaderboard rows have no {who} names")
         firsts = [r for r in rows if str(r.get("pos") or "").split(".")[0] == "1"]
         if not firsts:
-            errors.append(f"{name}: no {'team' if team else 'sailor/team'} in 1st place")
+            errors.append(f"{name}: no {who} in 1st place")
         elif len(rows) > 2 and len(firsts) == len(rows):
             errors.append(f"{name}: every entry is listed as 1st — leaderboard is not a result")
     return errors
@@ -307,19 +316,21 @@ def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: s
     if not host and (not host_name or host_name.lower() == "the host club"):
         errors.append("missing host club")
 
-    team = bool(facts.get("team_racing") or is_team_racing(rows[0], slug=slug, rows=rows))
-    ranked = [r for r in rows if r.get("rank") not in (None, "") or r.get("team_rank") not in (None, "")]
-    if not ranked and not team:
+    kind = facts.get("identity") or entry_kind(rows[0], slug=slug, rows=rows)
+    boards = (record.get("equals") or {}).get("leaderboards") or []
+    if not any(r.get("pos") for b in boards for r in (b.get("rows") or [])):
         errors.append("leaderboard has no ranked rows")
-    if team and not any((r.get("boat_name") or r.get("team_name") or "").strip() for r in rows):
-        errors.append("team racing card has no team names")
+    if kind in ("team", "boat") and not any(
+        (r.get("boat_name") or r.get("team_name") or r.get("club_abbrev") or "").strip() for r in rows
+    ):
+        errors.append(f"{kind} card has no {kind} names")
     errors.extend(_check_parent_leaderboards(record.get("equals") or {}))
 
     winner = (facts.get("winner") or "").strip()
     if not winner or winner == "The leader":
         errors.append("leaderboard has no winner name")
-    elif team and winner == (rows[0].get("helm_name") or "").strip():
-        errors.append("team racing winner is a sailor name — TSL ranks teams")
+    elif kind in ("team", "boat") and _is_roster(winner):
+        errors.append(f"{kind} winner is a sailor roster — ranks are {kind} names")
 
     if (facts.get("entries") or 0) < 1 and len(rows) < 1:
         errors.append("no entries on the result card")

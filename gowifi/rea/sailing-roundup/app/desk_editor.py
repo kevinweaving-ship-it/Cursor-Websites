@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from event_rewrite import _agree, _date_span, _heats
+from event_rewrite import _agree, _date_span, _heats, entry_label
 
 GENERIC = re.compile(
     r"exciting weekend|took to the water|action[- ]packed|thrilling display|"
@@ -132,11 +132,15 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
         lead += f". {entries} boats raced in {', '.join(classes)}. {mark}"
     else:
         bits = []
-        if nett and not facts.get("team_racing"):
+        identity = facts.get("identity") or ("team" if facts.get("team_racing") else "")
+        time = (facts.get("winner_time") or "").strip()
+        if nett and identity not in ("team", "boat"):
             bits.append(f"{nett} nett points")
+        elif time:
+            bits.append(time)
         if races and chosen != "sweep":
             bits.append(f"{races} races")
-        if facts.get("team_racing") and entries:
+        if identity == "team" and entries:
             article = "an" if str(entries)[:1] == "8" or str(entries) in {"11", "18"} else "a"
             fleet = f" in {article} {entries}-team{(' ' + klass) if klass else ''} field"
         else:
@@ -158,7 +162,7 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
                 by.setdefault(key, []).append(row)
         bits = []
         for key, rows in by.items():
-            names = [((r.get("helm_name") or "").strip()) for r in rows[:3] if (r.get("helm_name") or "").strip()]
+            names = [entry_label(r) for r in rows[:3] if entry_label(r) not in ("", "The leader")]
             if names:
                 bits.append(f"{key} 1–{len(names)} {', '.join(names)}")
         if bits:
@@ -166,18 +170,20 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
     else:
         podium = []
         gap = _margin(facts)
+        identity = facts.get("identity") or ("team" if facts.get("team_racing") else "")
+        points = identity not in ("team", "boat")
         if facts.get("second"):
             second = f"{facts['second']} finished second"
             nett2 = _nett(facts.get("second_nett"))
-            if nett2 and not facts.get("team_racing"):
+            if nett2 and points:
                 second += f" on {nett2} nett points"
-            if gap and chosen != "tie" and not facts.get("team_racing"):
+            if gap and chosen != "tie" and points:
                 second += f", {gap} behind"
             podium.append(second + ".")
         if facts.get("third"):
             third = f"{facts['third']} finished third"
             nett3 = _nett(facts.get("third_nett"))
-            if nett3 and not facts.get("team_racing"):
+            if nett3 and points:
                 third += f" on {nett3} nett points"
             podium.append(third + ".")
         if podium:

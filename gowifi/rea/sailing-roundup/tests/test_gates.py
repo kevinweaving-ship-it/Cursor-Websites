@@ -357,13 +357,116 @@ class EventFactsGate(unittest.TestCase):
         self.assertFalse(any("no ranked rows" in e for e in rec["errors"]))
         self.assertFalse(any("1st place" in e for e in rec["errors"]))
 
-    def test_fleet_racing_still_needs_sailor_ranks(self):
+    def test_missing_first_place_still_fails(self):
         rows = sample_rows()
         for row in rows:
-            row["rank"] = None
+            row["rank"] = int(row["rank"]) + 1
         rec = check_one_event(MONDAY, SLUG, rows)
         self.assertEqual(rec["status"], "fail")
-        self.assertTrue(any("no ranked rows" in e or "1st place" in e for e in rec["errors"]))
+        self.assertTrue(any("1st place" in e for e in rec["errors"]))
+
+    def test_lipton_ranks_boats_not_skippers(self):
+        monday = dt.date(2026, 8, 31)
+        slug = "2026-08-29-lipton-challenge-cup"
+        rows = [
+            {
+                "event_name": "Lipton Challenge Cup",
+                "host_club_code": "RCYC",
+                "host_club_name": "Royal Cape Yacht Club",
+                "class_name": "J22",
+                "start_date": "2026-08-29",
+                "end_date": "2026-08-30",
+                "scoring_system": "Appendix A",
+                "entries_total": 3,
+                "rank": pos,
+                "boat_name": boat,
+                "helm_name": skipper,
+                "club_abbrev": boat,
+                "nett_points_raw": nett,
+            }
+            for pos, boat, skipper, nett in (
+                (1, "HYC", "David Rae", 44),
+                (2, "RCYC", "Rick Nankin", 46),
+                (3, "UCTYC", "Dave Hudson", 51),
+            )
+        ]
+        rec = check_one_event(monday, slug, rows)
+        self.assertEqual(rec["status"], "pass", rec["errors"])
+        self.assertEqual(rec["winner"], "HYC")
+        self.assertEqual(rec["equals"]["identity"], "boat")
+        self.assertEqual([row["helm"] for row in rec["equals"]["leaderboard"]], ["HYC", "RCYC", "UCTYC"])
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
+
+    def test_py_handicap_ranks_boats(self):
+        rows = [
+            {
+                "event_name": "Club PY Pursuit",
+                "host_club_code": "ZYC",
+                "host_club_name": "ZVYC",
+                "class_name": "PY",
+                "start_date": "2026-09-26",
+                "end_date": "2026-09-27",
+                "scoring_system": "PY",
+                "entries_total": 3,
+                "rank": pos,
+                "boat_name": boat,
+                "helm_name": helm,
+                "corrected_time": time,
+            }
+            for pos, boat, helm, time in (
+                (1, "Chinook", "Sam Peters", "1:12:04"),
+                (2, "Sea Breeze", "Pat Naidoo", "1:14:22"),
+                (3, "Storm", "Lee Adams", "1:18:01"),
+            )
+        ]
+        rec = check_one_event(MONDAY, "2026-09-26-zyc-club-py-pursuit", rows)
+        self.assertEqual(rec["status"], "pass", rec["errors"])
+        self.assertEqual(rec["winner"], "Chinook")
+        self.assertEqual(rec["equals"]["identity"], "boat")
+        self.assertEqual(rec["equals"]["scoring_system"], "PY")
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
+        self.assertEqual(rec["equals"]["leaderboard"][0]["boat"], "Chinook")
+
+    def test_timed_race_ranks_from_finish_order(self):
+        rows = [
+            {
+                "event_name": "Agulhas Timed Race",
+                "host_club_code": "HMYC",
+                "host_club_name": "Henley Midmar Yacht Club",
+                "class_name": "Open",
+                "start_date": "2026-09-26",
+                "end_date": "2026-09-27",
+                "scoring_system": "Timed",
+                "entries_total": 3,
+                "rank": None,
+                "boat_name": boat,
+                "helm_name": helm,
+                "elapsed_time": time,
+            }
+            for boat, helm, time in (
+                ("Orion", "Chris Bell", "2:01:10"),
+                ("Mistral", "Ann Bell", "2:04:40"),
+                ("Swift", "Jon Reed", "2:11:05"),
+            )
+        ]
+        rec = check_one_event(MONDAY, "2026-09-26-hmyc-agulhas-timed-race", rows)
+        self.assertEqual(rec["status"], "pass", rec["errors"])
+        self.assertEqual(rec["winner"], "Orion")
+        self.assertEqual(rec["equals"]["identity"], "boat")
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
+
+    def test_single_handed_still_ranks_the_helm(self):
+        rows = sample_rows(crew_name="")
+        rows[0]["class_name"] = "ILCA 7"
+        rows[0]["helm_name"] = "Simon Dommett"
+        rows[0]["crew_name"] = ""
+        rows[1]["crew_name"] = ""
+        rows[2]["crew_name"] = ""
+        rec = check_one_event(MONDAY, SLUG, rows)
+        self.assertEqual(rec["status"], "pass", rec["errors"])
+        self.assertEqual(rec["winner"], "Simon Dommett")
+        self.assertEqual(rec["equals"]["identity"], "helm")
+        self.assertEqual(rec["equals"]["leaderboard"][0]["helm"], "Simon Dommett")
 
 
 class SequentialGates(unittest.TestCase):
