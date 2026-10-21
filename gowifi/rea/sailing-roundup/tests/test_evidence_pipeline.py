@@ -86,6 +86,18 @@ class EvidenceRegression(unittest.TestCase):
   bottle={"slug":"2026-10-10-hmyc-dam-bottle-sprints","title":"Dam Bottle Sprints","url":"https://sailingsa.co.za/regatta/2026-10-10-hmyc-dam-bottle-sprints","class_name":"Dart 18","club":"HMYC","club_name":"Henley Midmar Yacht Club","start":"2026-10-10","end":"2026-10-11","names":["Lorrian Wells"]}
   item={"url":"https://example.org/hmyc-open","title":"Weekend racing at HMYC","body":"Dart 18 racing at Henley Midmar Yacht Club in 2026 with a long enough caption for the verifier."}
   self.assertFalse(verify(item,bottle)["accepted"])
+ def test_feature_uses_scored_report_not_empty_calendar_line(self):
+  from evidence_pipeline import feature
+  import datetime as dt
+  reports=[{"id":"2026-10-04-free-state-youth-provincial-champs","type":"regatta_report","headline":"Maximilian Malan dominates Free State Youth Provincial Champs at Lake Deneys","deck":"Lake Deneys Yacht Club · 6 nett · 26 entries","kicker":"DABCHICK / OPTIMIST A / OPTIMIST B  ·  LDYC","hero_image":{"url":"media/2026-10-04-free-state-youth-provincial-champs.png","source_url":"https://sailingsa.co.za/regatta/2026-10-04-free-state-youth-provincial-champs"}}]
+  events=[{"event_name":"Agulhas Race","regatta_id":None,"has_results":False}]
+  art=feature("2026-10-05",dt.date(2026,10,5),events,reports)
+  blob=" ".join(b.get("text") or "" for b in art["blocks"] if b.get("type")=="paragraph")
+  self.assertIn("Maximilian Malan",blob)
+  self.assertIn("Lake Deneys",blob)
+  self.assertTrue(art.get("hero_image"))
+  self.assertTrue(any(b.get("type")=="image" for b in art["blocks"]))
+  self.assertNotIn("source snapshot",blob)
  def test_own_recap_paragraph_is_not_required_to_repeat_the_headline(self):
   from evidence_pipeline import other_event_conflict
   facts={"slug":"2026-10-10-hmyc-dam-bottle-sprints","title":"Lorrian Wells dominates Dam Bottle Sprints"}

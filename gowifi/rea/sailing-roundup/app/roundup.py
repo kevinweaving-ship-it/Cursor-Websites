@@ -273,7 +273,7 @@ def _render_story(index, article):
     standings = "".join(board)
     notes = _sources_block(article)
     if layout == "lead":
-        inner = "<div class='banner'>" + head + "</div><div class='copy'>" + copy + "</div>"
+        inner = "<div class='banner'>" + head + "</div>" + (hero or photos) + "<div class='copy'>" + copy + "</div>"
     elif layout == "photo-led":
         inner = (hero or "") + head + "<div class='copy cols-2'>" + copy + "</div>" + rest + standings + notes
     elif layout == "split":

@@ -258,10 +258,15 @@ def recap(facts,cluster,index):
     mark="[1]";winner=facts["winner"];singular=" and " not in winner;subject="He" if singular else "They"
     verb="finished" if facts.get("status","").lower()=="provisional" else "won"
     title=facts["title"];venue=facts["club_name"];entries=facts.get("entries",0);races=facts.get("races",0)
+    classes=[c for c in (facts.get("classes") or []) if c]
+    klass=facts.get("winner_class") or facts.get("class_name") or ""
     if verb=="finished":
         opening=f"{winner} finished first in the published {title} standings at {venue}"
     else:opening=f"{winner} won the {title} at {venue}"
-    opening+=f", scoring {facts['winner_nett']} nett points across {races} races in a {entries}-boat fleet. {mark}"
+    if facts.get("mixed_class") and classes:
+        opening+=f", taking the {klass or classes[0]} fleet on {facts['winner_nett']} nett points across {races} races. {entries} boats raced in {', '.join(classes)}. {mark}"
+    else:
+        opening+=f", scoring {facts['winner_nett']} nett points across {races} races in a {entries}-boat fleet. {mark}"
     paragraphs=[opening]
     heats=_heats(facts.get("winner_scores"))
     wins=sum(h.get("win",False) for h in heats)
@@ -288,16 +293,36 @@ def recap(facts,cluster,index):
 
 def feature(issue,monday,events,articles):
     from events_weekend import saturday_sunday
-    sat,sun=saturday_sunday(monday);reports=[a for a in articles if a.get("type")=="regatta_report"]
-    paragraphs=[f"Four fleets raced at Aeolians, Henley Midmar and Theewater over {sat.day}–{sun.strftime('%-d %B %Y')}." if len(reports)==4 and issue=="2026-09-28" else f"{len(reports)} scored events feature in the sailing roundup for {sat.day}–{sun.strftime('%-d %B %Y')}."]
+    sat,sun=saturday_sunday(monday)
+    reports=[a for a in articles if a.get("type")=="regatta_report"]
+    date_line=f"{sat.day}–{sun.strftime('%-d %B %Y')}"
+    paragraphs=[]
+    hero=None
+    if reports:
+        lead=reports[0]
+        hero=lead.get("hero_image") or None
+        deck=lead.get("deck") or ""
+        kicker=lead.get("kicker") or ""
+        headline=lead.get("headline") or lead.get("event_id") or "the weekend's racing"
+        paragraphs.append(f"{headline}. {deck}".strip())
+        more=[a.get("headline") for a in reports[1:] if a.get("headline")]
+        if more:
+            paragraphs.append("Also in this edition: "+", ".join(more)+".")
+    else:
+        paragraphs.append(f"No scored results were published for {date_line}.")
     covered={a.get("event_id") for a in reports}
-    missing=sorted({e.get("event_name") for e in events if e.get("event_name") and e.get("regatta_id") not in covered})
+    missing=sorted({e.get("event_name") for e in events if e.get("event_name") and (e.get("regatta_id") or "") not in covered and not e.get("has_results")})
     if missing:
-        paragraphs.append("The calendar also listed "+", ".join(missing)+". Results for those events were not available in the source snapshot.")
+        paragraphs.append("The calendar also listed "+", ".join(missing)+", with no published results card.")
+    blocks=[]
+    if hero and hero.get("url"):
+        blocks.append({"type":"image","url":hero.get("url"),"alt":reports[0].get("headline") or "Last Week's Roundup","caption":(reports[0].get("kicker") or "Weekend racing")+" at "+(reports[0].get("deck") or "the host club")+".","credit":"Event photography","source_url":hero.get("source_url") or "","rights_status":"source_attributed"})
+    blocks+=[{"type":"paragraph","text":t} for t in paragraphs]
     return {"id":"sailing-"+issue,"type":"feature","headline":"Last Week's Roundup",
-        "deck":f"{sat.day}–{sun.strftime('%-d %B %Y')}","byline":"SailingSA","kicker":"SAILING","published_at":issue,
-        "event_id":"sailing-"+issue,"layout":"lead","hero_image":None,"blocks":[{"type":"paragraph","text":t} for t in paragraphs],
-        "sources":["https://sailingsa.co.za/api/events"],"review_status":"rewritten"}
+        "deck":date_line,"byline":"SailingSA","kicker":"SAILING","published_at":issue,
+        "event_id":"sailing-"+issue,"layout":"lead","hero_image":hero,
+        "blocks":blocks,"sources":["https://sailingsa.co.za/api/events"]+[f"https://sailingsa.co.za/regatta/{a['id']}" for a in reports if a.get("id")],
+        "review_status":"rewritten"}
 
 
 def photo_caption(image,facts,cluster):

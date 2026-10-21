@@ -421,6 +421,27 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(photos, [])
         self.assertFalse(_keep_cluster_item({"url": dart_photo["source_url"], "title": dart_photo["title"], "body": dart_photo["title"] + " Bradley Levin Kyle Boman at Henley Midmar Yacht Club 2026."}, facts))
 
+    def test_seed_media_is_preferred_hero(self):
+        import event_rewrite as er
+        import shutil
+
+        src = pathlib.Path(__file__).resolve().parents[1] / "data" / "seed-media" / "2026-10-04-free-state-youth-provincial-champs.png"
+        dest = er.ROOT / "data" / "seed-media"
+        dest.mkdir(parents=True)
+        shutil.copy(src, dest / src.name)
+        facts = {
+            "slug": "2026-10-04-free-state-youth-provincial-champs",
+            "title": "Free State Youth Provincial Champs",
+            "url": "https://sailingsa.co.za/regatta/2026-10-04-free-state-youth-provincial-champs",
+            "class_name": "",
+            "mixed_class": True,
+        }
+        seeds = er.seed_media_images(facts)
+        self.assertTrue(seeds)
+        self.assertTrue(seeds[0]["local_file"].endswith(".png"))
+        photos = pick_images(facts, {"articles": []})
+        self.assertEqual(photos[0].get("seed"), True)
+
 
 if __name__ == "__main__":
     unittest.main()

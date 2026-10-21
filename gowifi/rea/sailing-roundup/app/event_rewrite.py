@@ -66,6 +66,12 @@ SEED_URLS = {
         "https://www.facebook.com/dabchicksailingrsa",
         "https://www.facebook.com/AeoliansClub/",
     ],
+    "2026-10-04-free-state-youth-provincial-champs": [
+        "https://sailingsa.co.za/regatta/2026-10-04-free-state-youth-provincial-champs",
+        "https://www.ldyc.co.za/",
+        "https://www.ldyc.co.za/youthsailing",
+        "https://www.ldyc.co.za/free-state",
+    ],
 }
 LAYOUTS = ("photo-led", "split", "classic", "compact")
 HOST_FALLBACK = {
@@ -188,6 +194,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "races": races,
         "status": (first.get("result_status") or "Published").strip(),
         "winner": _names(winner),
+        "winner_class": (winner.get("class_name") or winner.get("class_canonical") or "").strip(),
         "winner_helm": (winner.get("helm_name") or "").strip(),
         "winner_crew": (winner.get("crew_name") or "").strip(),
         "winner_club": (winner.get("club_abbrev") or winner.get("club_raw") or "").strip(),
@@ -881,12 +888,37 @@ def _event_photo_score(item: dict, facts: dict) -> int:
     return n
 
 
+def seed_media_images(facts: dict) -> list[dict]:
+    """Local event photographs checked into data/seed-media/<slug>.<ext>."""
+    slug = (facts.get("slug") or "").strip()
+    if not slug:
+        return []
+    folder = ROOT / "data" / "seed-media"
+    found = []
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        path = folder / (slug + ext)
+        if not path.is_file():
+            continue
+        found.append(
+            {
+                "url": str(path),
+                "source_url": facts.get("url") or "",
+                "title": facts.get("title") or slug,
+                "credit": "Event photography",
+                "local_file": str(path),
+                "seed": True,
+            }
+        )
+    return found
+
+
 def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int = 2) -> list[dict]:
     """Prizegiving and on-the-water shots from this event's sources. Never wiki or logos."""
     candidates = []
     seen = set()
     from evidence_pipeline import canonical, MEDIA_EXCLUSIONS, other_event_conflict
     accepted_sources = {canonical(x.get("url")) for x in cluster.get("articles", [])}
+    accepted_sources.add(canonical(facts.get("url") or ""))
 
     def add(item: dict):
         url = (item.get("url") or "").split("#")[0]
@@ -897,9 +929,9 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
             return
         if cluster.get("schema_version") == "verified-evidence-1" and canonical(source) not in accepted_sources:
             return
-        if not url or url in seen or _wiki_url(url) or _bad_image_url(url) or canonical(url) in MEDIA_EXCLUSIONS:
+        if not url or url in seen or _wiki_url(url) or canonical(url) in MEDIA_EXCLUSIONS:
             return
-        if _facebook_page_chrome(source, url) and _event_photo_score(item, facts) < 40:
+        if not item.get("local_file") and (_bad_image_url(url) or (_facebook_page_chrome(source, url) and _event_photo_score(item, facts) < 40)):
             return
         seen.add(url)
         candidates.append(item)
@@ -928,9 +960,9 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
                     "credit": pretty_credit(img.get("platform") or "", img.get("source_url") or img.get("image_url") or ""),
                 }
             )
-    ranked = [item for item in candidates if _event_photo_score(item, facts) >= 40]
-    ranked.sort(key=lambda item: _event_photo_score(item, facts), reverse=True)
-    return ranked[:limit]
+    ranked = [item for item in candidates if item.get("seed") or _event_photo_score(item, facts) >= 40]
+    ranked.sort(key=lambda item: (1 if item.get("seed") else 0, _event_photo_score(item, facts)), reverse=True)
+    return (seed_media_images(facts) + ranked)[:limit]
 
 
 def pick_image(facts: dict, cluster: dict, pack: dict | None = None) -> dict | None:
@@ -954,6 +986,8 @@ def pretty_credit(raw: str, url: str = "") -> str:
         return "Theewater Sports Club"
     if "aeolians" in blob:
         return "Aeolians Yacht Club"
+    if "ldyc" in blob or "lakedeneys" in blob or "deneys" in blob:
+        return "Lake Deneys Yacht Club"
     if "youtube" in blob or "youtu.be" in blob:
         return "YouTube"
     if "facebook" in blob or "fbcdn" in blob or "lookaside.fbsbx" in blob:
@@ -968,14 +1002,15 @@ def _credit_from_url(url: str) -> str:
 
 def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict | None:
     url = (image or {}).get("url") or ""
-    if not url or _wiki_url(url):
+    local_file = (image or {}).get("local_file") or ""
+    if (not url and not local_file) or _wiki_url(url):
         return None
     dest_dir = ROOT / "public" / "issues" / issue / "media"
     dest_dir.mkdir(parents=True, exist_ok=True)
     source_dir = ROOT / "issues" / issue / "media"
     source_dir.mkdir(parents=True, exist_ok=True)
     ext = ".jpg"
-    path = urllib.parse.urlparse(url).path.lower()
+    path = (local_file or urllib.parse.urlparse(url).path).lower()
     for cand in (".png", ".webp", ".jpeg", ".jpg"):
         if path.endswith(cand):
             ext = ".jpg" if cand == ".jpeg" else cand
@@ -985,19 +1020,25 @@ def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict |
     suffix = "" if index == 0 else f"-{index + 1}"
     filename = slug + suffix + ext
     dest = dest_dir / filename
-    headers = dict(
-        FB_UA
-        if any(token in url for token in ("fbcdn", "facebook.com", "lookaside.fbsbx"))
-        else UA
-    )
-    headers["Accept"] = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
-    try:
-        raw, ctype = _http_get(url, headers, timeout=25)
-    except Exception:
+    raw = b""
+    ctype = ""
+    if local_file and pathlib.Path(local_file).is_file():
+        raw = pathlib.Path(local_file).read_bytes()
+        ctype = "image/png" if raw[:8] == b"\x89PNG\r\n\x1a\n" else "image/jpeg"
+    else:
+        headers = dict(
+            FB_UA
+            if any(token in url for token in ("fbcdn", "facebook.com", "lookaside.fbsbx"))
+            else UA
+        )
+        headers["Accept"] = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+        try:
+            raw, ctype = _http_get(url, headers, timeout=25)
+        except Exception:
+            return None
+    if len(raw) < 8000 or (ctype and not str(ctype).startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
         return None
-    if len(raw) < 8000 or (ctype and not ctype.startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
-        return None
-    if not _is_event_photograph(raw):
+    if not image.get("seed") and not _is_event_photograph(raw):
         return None
     dest.write_bytes(raw)
     (source_dir / filename).write_bytes(raw)
@@ -1074,7 +1115,15 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         "headline": headline,
         "deck": deck_from_facts(facts),
         "byline": "SailingSA",
-        "kicker": (("MIXED" if facts.get("mixed_class") else (facts.get("class_name") or "Regatta")).upper() + "  ·  " + facts["club"]),
+        "kicker": (
+            (
+                " / ".join(facts.get("classes") or [])
+                if facts.get("mixed_class")
+                else (facts.get("class_name") or "Regatta")
+            ).upper()
+            + "  ·  "
+            + facts["club"]
+        ),
         "published_at": issue,
         "event_id": facts["slug"],
         "layout": layout,
