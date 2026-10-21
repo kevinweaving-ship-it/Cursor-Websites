@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import re
 import subprocess
 import urllib.parse
 
@@ -140,18 +141,22 @@ def known_club_posts(club: str, event: dict | None = None) -> list[dict]:
     from facebook_cross_share import resolve_facebook_url
 
     cfg = club_config(club)
-    hint = " ".join(
+    identity = " ".join(
         (
             (event or {}).get("title") or "",
             (event or {}).get("id") or "",
-            (event or {}).get("class_name") or "",
+            (event or {}).get("slug") or "",
         )
     ).lower()
+    hint = identity
     out = []
     for post in cfg.get("posts") or []:
         event_hint = (post.get("event_hint") or "").lower()
+        if event and event_hint:
+            tokens = [t for t in re.split(r"[-_\s]+", event_hint) if len(t) >= 4]
+            if tokens and sum(1 for t in tokens if t in identity) < max(1, (len(tokens) + 1) // 2):
+                continue
         if event_hint and hint and event_hint.split("-")[0] not in hint and event_hint not in hint:
-            # Keep the post when we cannot tell; only skip obvious mismatches.
             if any(token in hint for token in ("420", "505", "dabchick", "optimist")) and "dart" in event_hint:
                 continue
         url = post.get("url") or post.get("share_url") or ""

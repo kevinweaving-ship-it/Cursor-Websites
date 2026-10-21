@@ -7,7 +7,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from event_rewrite import (
+    GOLD_BOARD_LABEL,
+    board_label,
     citation_index,
+    clean_event_title,
     cluster_coverage,
     event_finished,
     facts_from_rows,
@@ -130,7 +133,7 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(len(results["rows"]), 3)
         self.assertEqual([r[0] for r in results["rows"]], ["1", "2", "3"])
         heading = next(b for b in article["blocks"] if b["type"] == "heading")
-        self.assertEqual(heading["text"], "420 leaderboard")
+        self.assertEqual(heading["text"], GOLD_BOARD_LABEL)
         self.assertNotIn("source_info", article)
         html = _render_story(1, article)
         self.assertIn("story-photo-led", html)
@@ -202,14 +205,14 @@ class RewriteEngine(unittest.TestCase):
                 "deck": "Magic Ace · 6 entries",
                 "blocks": [
                     {"type": "paragraph", "text": "Official results. [1]"},
-                    {"type": "heading", "text": "TSL leaderboard"},
+                    {"type": "heading", "text": "1st, 2nd, 3rd"},
                     {"type": "results", "columns": ["Pos", "Helm"], "rows": [["1", "A"]]},
                 ],
             },
         )
         self.assertIn("event-story", event)
         self.assertIn("story-heading", event)
-        self.assertIn("TSL leaderboard", event)
+        self.assertIn("1st, 2nd, 3rd", event)
         self.assertIn("#2026-10-17-mac-tsl-wc-team-sailing-src-1", event)
         self.assertNotIn("By SailingSA", event)
 
@@ -412,7 +415,7 @@ class RewriteEngine(unittest.TestCase):
         cites = citation_index(cluster, facts)
         self.assertEqual(cites[0]["url"], facts["url"])
 
-    def test_full_fleet_leaderboard_not_podium_only(self):
+    def test_gold_podium_not_full_fleet_dump(self):
         rows = sample_rows() + [
             {
                 "event_name": "420 Nationals",
@@ -440,11 +443,15 @@ class RewriteEngine(unittest.TestCase):
         facts = facts_from_rows("2026-09-25-tsc-420-nationals", rows)
         article = rewrite_event("2026-09-28", facts, pack={}, cluster={"articles": []}, layout="classic")
         boards = [b for b in article["blocks"] if b["type"] == "results"]
+        headings = [b["text"] for b in article["blocks"] if b["type"] == "heading"]
+        self.assertEqual(headings, [GOLD_BOARD_LABEL])
         self.assertEqual(len(boards), 1)
-        self.assertEqual(len(boards[0]["rows"]), 5)
-        self.assertEqual([r[1] for r in boards[0]["rows"]], [
-            "Dale Rae", "Howard Leoto", "Kamva Mgcubhe", "Timothy Weaving", "Alex Guest",
-        ])
+        self.assertEqual(len(boards[0]["rows"]), 3)
+        self.assertEqual([r[0] for r in boards[0]["rows"]], ["1", "2", "3"])
+        self.assertEqual([r[1] for r in boards[0]["rows"]], ["Dale Rae", "Howard Leoto", "Kamva Mgcubhe"])
+        html = _render_story(1, article)
+        self.assertIn("1st, 2nd, 3rd", html)
+        self.assertNotIn("leaderboard", html.lower())
 
     def test_multi_class_one_leaderboard_per_class(self):
         rows = [
@@ -505,7 +512,7 @@ class RewriteEngine(unittest.TestCase):
         article = rewrite_event("2026-04-13", facts, pack={}, cluster={"articles": []}, layout="classic")
         headings = [b["text"] for b in article["blocks"] if b["type"] == "heading"]
         boards = [b for b in article["blocks"] if b["type"] == "results"]
-        self.assertEqual(headings, ["Laser leaderboard", "420 leaderboard"])
+        self.assertEqual(headings, ["Laser · 1st, 2nd, 3rd", "420 · 1st, 2nd, 3rd"])
         self.assertEqual(len(boards), 2)
         self.assertEqual(len(boards[0]["rows"]), 2)
         self.assertEqual(len(boards[1]["rows"]), 2)
@@ -514,10 +521,99 @@ class RewriteEngine(unittest.TestCase):
         blob = " ".join(b["text"] for b in article["blocks"] if b["type"] == "paragraph")
         self.assertIn("Cara Crew and Dana Crew", blob)
         html = _render_story(1, article)
-        self.assertIn("Laser leaderboard", html)
-        self.assertIn("420 leaderboard", html)
+        self.assertIn("Laser · 1st, 2nd, 3rd", html)
+        self.assertIn("420 · 1st, 2nd, 3rd", html)
+        self.assertNotIn("leaderboard", html.lower())
         self.assertIn("event-story", html)
         self.assertIn("story-heading", html)
+
+    def test_gold_title_headline_and_wrong_event_cluster(self):
+        self.assertEqual(clean_event_title("2026-10-04 Free State Youth Provincial Champ"), "Free State Youth Provincial Champs")
+        self.assertEqual(board_label("Dabchick", True), "Dabchick · 1st, 2nd, 3rd")
+        rows = [
+            {
+                "event_name": "2026-10-10 Dam Bottle Sprints",
+                "host_club_code": "HMYC",
+                "host_club_name": "Henley Midmar Yacht Club",
+                "class_name": "Dart 18",
+                "start_date": "2026-10-10",
+                "end_date": "2026-10-11",
+                "result_status": "Final",
+                "races_sailed": 4,
+                "entries_total": 1,
+                "rank": 1,
+                "helm_name": "Lorrian Wells",
+                "club_abbrev": "HMYC",
+                "sail_number": "520",
+                "nett_points_raw": 5,
+            },
+            {
+                "event_name": "2026-10-10 Dam Bottle Sprints",
+                "host_club_code": "HMYC",
+                "class_name": "Ilca 7",
+                "rank": 2,
+                "helm_name": "Simon Dommett",
+                "club_abbrev": "HMYC",
+                "sail_number": "2",
+                "nett_points_raw": 7,
+            },
+        ]
+        facts = facts_from_rows("2026-10-10-hmyc-dam-bottle-sprints", rows)
+        self.assertEqual(facts["title"], "Dam Bottle Sprints")
+        self.assertTrue(facts["multi_class"])
+        self.assertEqual(facts["winner"], "Lorrian Wells")
+        dart_nationals = {
+            "url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+            "title": "DART 18 NATIONALS – Final results",
+            "description": (
+                "What a day on the water! Congratulations to all the sailors competing in the Dart 18 Nationals. "
+                "1st – Bradley Levin (SYC) – Sail 7951 2nd – Kyle Boman (TCC) – Sail 2460"
+            ),
+            "published": "2026-09-27",
+            "engine": "host_club_post",
+        }
+        self.assertFalse(_keep_cluster_item(dart_nationals, facts))
+        team = {
+            "event_name": "SA Sailing WC Team Sailing Event",
+            "host_club_code": "MAC",
+            "host_club_name": "MAC",
+            "class_name": "TSL",
+            "start_date": "2026-10-17",
+            "end_date": "2026-10-18",
+            "result_status": "Final",
+            "races_sailed": 0,
+            "entries_total": 2,
+            "rank": None,
+            "helm_name": "Maddison Smit; Tristan Gress; Unam Lubhelwana",
+            "crew_name": "Kamva Mgcubhe; Thandokazi Sibanyoni; Alexa Aab",
+            "club_abbrev": "MAC",
+        }
+        team_facts = facts_from_rows("2026-10-17-mac-tsl-wc-team-sailing", [team])
+        self.assertIn("MAC win", unique_headline(team_facts))
+        self.assertNotIn(";", unique_headline(team_facts))
+        self.assertEqual(team_facts["club_name"], "Milnerton Aquatic Club")
+
+    def test_feature_lead_is_gold_sentence(self):
+        from evidence_pipeline import feature
+        import datetime as dt
+        articles = [
+            {
+                "type": "regatta_report",
+                "event_id": "2026-10-04-free-state-youth-provincial-champs",
+                "club": "LDYC",
+                "class_name": "Dabchick",
+                "class_names": ["Dabchick", "Optimist A", "Optimist B"],
+            }
+        ]
+        out = feature("2026-10-05", dt.date(2026, 10, 5), [], articles)
+        self.assertEqual(out["blocks"][0]["text"], "Three fleets raced at Lake Deneys over the weekend.")
+        self.assertNotIn("0 of 1", out["blocks"][0]["text"])
+
+    def test_ai_assist_falls_back_without_keys(self):
+        from ai_assist import polish
+        facts = facts_from_rows("2026-09-25-tsc-420-nationals", sample_rows())
+        fallback = ["Dale Rae and James Rae won the 420 Nationals at Theewater Sports Club. [1]"]
+        self.assertEqual(polish(facts, {"articles": []}, [{"n": 1, "url": facts["url"]}], fallback), fallback)
 
 
 if __name__ == "__main__":

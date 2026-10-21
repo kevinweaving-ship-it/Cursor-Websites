@@ -31,8 +31,9 @@ UA = {
     "User-Agent": "Mozilla/5.0 (compatible; SailingRoundupResearch/1.0; +https://sailingsa.co.za/sailing-roundup)"
 }
 FB_UA = {"User-Agent": "facebookexternalhit/1.1"}
-LEADERBOARD_LIMIT = None
+LEADERBOARD_LIMIT = 3
 LEADERBOARD_COLS = ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"]
+GOLD_BOARD_LABEL = "1st, 2nd, 3rd"
 WRONG_CLASS = {
     "420": ("505", "dart 18", "dabchick", "hobie", "optimist"),
     "505": ("420", "dart 18", "dabchick", "hobie", "optimist"),
@@ -74,6 +75,15 @@ HOST_FALLBACK = {
     "TSC": "Theewater Sports Club",
     "HMYC": "Henley Midmar Yacht Club",
     "AYC": "Aeolians Yacht Club",
+    "LDYC": "Lake Deneys Yacht Club",
+    "MAC": "Milnerton Aquatic Club",
+}
+DATE_PREFIX = re.compile(r"^(?:20\d{2}-\d{2}-\d{2}|20\d{2})\s+")
+TITLE_STOP = {
+    "the", "and", "for", "with", "from", "that", "this", "sa", "sas", "inc",
+    "sailing", "event", "open", "championship", "championships", "champs",
+    "champ", "provincial", "regionals", "regional", "national", "nationals",
+    "youth", "south", "african", "africa", "incorporating",
 }
 JUNK_CLUSTER = (
     "dart.dev",
@@ -114,12 +124,55 @@ def _club_name(code: str, explicit: str = "") -> str:
     return HOST_FALLBACK.get(code.upper(), explicit or code or "the host club")
 
 
+def _split_people(raw: str) -> list[str]:
+    return [p.strip() for p in re.split(r"\s*;\s*|\s+and\s+", raw or "") if p.strip()]
+
+
+def _readable_list(names: list[str]) -> str:
+    names = [n for n in names if n]
+    if not names:
+        return ""
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return ", ".join(names[:-1]) + " and " + names[-1]
+
+
 def _names(row: dict) -> str:
     helm = (row.get("helm_name") or "").strip()
     crew = (row.get("crew_name") or "").strip()
+    if ";" in helm or ";" in crew:
+        return _readable_list(_split_people(helm) + _split_people(crew))
     if helm and crew:
         return f"{helm} and {crew}"
     return helm or crew or "The leader"
+
+
+def is_team_event(facts: dict) -> bool:
+    klass = (facts.get("class_name") or "").upper()
+    winner = facts.get("winner") or ""
+    return klass in {"TSL", "TEAM SAILING"} or ";" in winner or winner.count(" and ") >= 2
+
+
+def clean_event_title(title: str, slug: str = "") -> str:
+    title = (title or slug or "").strip()
+    title = DATE_PREFIX.sub("", title)
+    title = re.sub(r"\s+incorporating\b.*$", "", title, flags=re.I).strip()
+    if re.search(r"\bChamp$", title) and not title.lower().endswith("championship"):
+        title += "s"
+    return title
+
+
+def title_tokens(title: str) -> list[str]:
+    return [t for t in re.findall(r"[a-z0-9]+", (title or "").lower()) if t not in TITLE_STOP and len(t) >= 4]
+
+
+def board_label(klass: str = "", multi: bool = False) -> str:
+    klass = (klass or "").strip()
+    if multi and klass:
+        return f"{klass} · {GOLD_BOARD_LABEL}"
+    return GOLD_BOARD_LABEL
 
 
 def _surname(name: str) -> str:
@@ -137,9 +190,16 @@ def _intish(value) -> int | None:
 
 
 def _ranked(rows: list[dict]) -> list[dict]:
-    out = [r for r in rows if r.get("rank") not in (None, "")]
-    out.sort(key=lambda r: int(r["rank"]) if str(r.get("rank")).isdigit() else 999)
-    return out or list(rows)
+    copied = [dict(row) for row in rows]
+    numeric = [r for r in copied if str(r.get("rank") or "").isdigit()]
+    ranks = [str(r.get("rank")) for r in numeric]
+    if numeric and len(set(ranks)) == len(numeric):
+        numeric.sort(key=lambda r: int(r["rank"]))
+        return numeric
+    copied.sort(key=lambda r: (_intish(r.get("nett_points_raw")) is None, _intish(r.get("nett_points_raw")) or 999))
+    for i, row in enumerate(copied, 1):
+        row["rank"] = i
+    return copied
 
 
 def _win_count(scores) -> int:
@@ -161,7 +221,10 @@ def _class_key(row: dict) -> str:
 
 
 def _row_people(row: dict) -> list[str]:
-    return [n for n in ((row.get("helm_name") or "").strip(), (row.get("crew_name") or "").strip()) if n]
+    out = []
+    for raw in ((row.get("helm_name") or "").strip(), (row.get("crew_name") or "").strip()):
+        out.extend(_split_people(raw) if raw else [])
+    return out
 
 
 def _nett(value) -> str:
@@ -175,9 +238,11 @@ def _fleet_from_rows(rows: list[dict]) -> dict:
     third = ranked[2] if len(ranked) > 2 else {}
     first = rows[0] if rows else {}
     races = _intish(first.get("races_sailed")) or len(winner.get("race_scores") or {})
+    listed = _intish(first.get("entries_total"))
+    entries = listed if listed and listed <= len(rows) + 1 else len(rows)
     return {
         "class_name": _class_key(first),
-        "entries": _intish(first.get("entries_total")) or len(rows),
+        "entries": entries,
         "races": races,
         "winner": _names(winner) if winner else "",
         "winner_helm": (winner.get("helm_name") or "").strip(),
@@ -204,6 +269,12 @@ def _primary_fleet(fleets: list[dict], title: str) -> dict:
         return _fleet_from_rows([])
     if len(fleets) == 1:
         return fleets[0]
+    ones = []
+    for fleet in fleets:
+        if any(str(row.get("rank")) == "1" for row in fleet.get("ranked_rows") or []):
+            ones.append(fleet)
+    if len(ones) == 1:
+        return ones[0]
     title_l = (title or "").lower()
     for fleet in fleets:
         klass = (fleet.get("class_name") or "").lower()
@@ -229,10 +300,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         grouped[index[key]].append(row)
     fleets = [_fleet_from_rows(group) for group in grouped]
     club = (first.get("host_club_code") or first.get("host_club_name") or "").strip()
-    title = (first.get("event_name") or slug).strip()
-    if title.lower().startswith("2026 "):
-        title = title[5:]
-    title = re.sub(r"\s+incorporating\b.*$", "", title, flags=re.I).strip()
+    title = clean_event_title(first.get("event_name") or slug, slug)
     primary = _primary_fleet(fleets, title)
     start = str(first.get("start_date") or slug[:10])[:10]
     end = str(first.get("end_date") or start)[:10]
@@ -362,8 +430,11 @@ def unique_headline(facts: dict, cluster: dict | None = None) -> str:
     winner = facts["winner"]
     title = facts["title"]
     venue = facts["club_name"]
-    short_venue = venue.replace(" Yacht Club", "").replace(" Sports Club", "").replace(" Club", "")
+    short_venue = re.sub(r"\s+(Yacht Club|Sports Club|Aquatic Club|Club)$", "", venue or "", flags=re.I).strip() or venue
     finished = event_finished(facts)
+    if is_team_event(facts):
+        club = facts.get("winner_club") or facts.get("club") or "The host club"
+        return f"{club} win {title} at {short_venue}"
     if facts.get("tied_first") and facts.get("second"):
         return f"{winner} {_agree(winner, 'take', 'takes')} {title} after a points tie at {short_venue}"
     if facts.get("winner_wins") and facts["winner_wins"] >= max(3, int(facts.get("races") or 0) // 2):
@@ -473,7 +544,13 @@ def _heats(scores) -> list[dict]:
 
 def rewrite_paragraphs(facts, cluster=None, index=None):
     from evidence_pipeline import recap
-    return recap(facts,cluster or {},index or citation_index(cluster,facts))
+    index = index or citation_index(cluster, facts)
+    fallback = recap(facts, cluster or {}, index)
+    try:
+        from ai_assist import polish
+        return polish(facts, cluster or {}, index, fallback)
+    except Exception:
+        return fallback
 
 
 def deck_from_facts(facts: dict) -> str:
@@ -634,6 +711,19 @@ def cluster_coverage(facts, pack=None, fetch=True):
             for cite in article.get("citations",[]):
                 candidates.append({"url":cite["url"],"title":cite.get("title",""),"body":cite.get("text",""),"engine":"cached_evidence"})
     candidates += [{"url":u,"engine":"seed"} for u in SEED_URLS.get(facts["slug"],[])]
+    try:
+        from search_everywhere import catalog_local_urls
+        candidates.extend(catalog_local_urls(dict(facts, id=facts["slug"], event_url=facts.get("url"))))
+    except Exception:
+        pass
+    try:
+        from social_collect import known_club_posts
+        candidates.extend(known_club_posts(facts.get("club") or "", dict(facts, id=facts["slug"], title=facts.get("title"))))
+    except Exception:
+        pass
+    if fetch:
+        query = " ".join(x for x in (facts.get("title"), str(facts.get("end") or "")[:4], facts.get("club_name"), "sailing") if x)
+        candidates.extend(_try_paid_clusters(query))
     if fetch:
         from search_everywhere import discovery_queries,google_news,web_hits
         import concurrent.futures
@@ -1036,6 +1126,10 @@ def pretty_credit(raw: str, url: str = "") -> str:
         return "Theewater Sports Club"
     if "aeolians" in blob:
         return "Aeolians Yacht Club"
+    if "ldyclub" in blob or "lake deneys" in blob or "ldyc" in blob:
+        return "Lake Deneys Yacht Club"
+    if "milnertonaquatic" in blob or "milnerton aquatic" in blob:
+        return "Milnerton Aquatic Club"
     if "youtube" in blob or "youtu.be" in blob:
         return "YouTube"
     if "facebook" in blob or "fbcdn" in blob or "lookaside.fbsbx" in blob:
@@ -1137,10 +1231,11 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         )
     for text in paras:
         blocks.append({"type": "paragraph", "text": text})
+    multi = bool(facts.get("multi_class"))
     for fleet in fleets:
         cols, table = fleet.get("leaderboard") or leaderboard([])
         klass = (fleet.get("class_name") or "").strip()
-        blocks.append({"type": "heading", "text": f"{klass} leaderboard" if klass else "Leaderboard"})
+        blocks.append({"type": "heading", "text": board_label(klass, multi)})
         blocks.append(
             {
                 "type": "results",
@@ -1177,6 +1272,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         "review_status": "rewritten",
         "club": facts["club"],
         "class_name": facts["class_name"],
+        "class_names": facts.get("class_names") or [facts.get("class_name") or ""],
         "host_club_slug": facts.get("host_club_slug") or "",
         "start_date": facts["start"],
         "end_date": facts["end"],

@@ -169,16 +169,52 @@ def sailor_ids(rows: list[dict], limit: int = 24) -> list[str]:
     return ids[:limit]
 
 
+def media_pack(issue, slug, rows, facts):
+    """Club/class sources + sailor Media-tab mentions for this event only."""
+    pack = {"issue": issue}
+    source_dir = ROOT / "issues" / issue / "sources"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    cached = source_dir / (slug + "-social.json")
+    if cached.exists():
+        try:
+            pack.update(json.loads(cached.read_text()))
+        except Exception:
+            pass
+    try:
+        start = dt.date.fromisoformat(str(facts.get("start") or "")[:10])
+        end = dt.date.fromisoformat(str(facts.get("end") or start.isoformat())[:10])
+    except ValueError:
+        return pack
+    from sailor_mentions import collect_for_sailors
+
+    ids = sailor_ids(rows)
+    terms = event_terms(facts.get("title"), facts.get("class_name"), facts.get("club_name"), slug)
+    mentions = collect_for_sailors(ids, start, end, terms)
+    pack["sailor_mentions"] = mentions
+    images = list(pack.get("images") or [])
+    for item in mentions.get("matched") or []:
+        url = item.get("image") or item.get("image_url") or item.get("thumbnail")
+        if url:
+            images.append(
+                {
+                    "image_url": url,
+                    "source_url": item.get("url"),
+                    "source_title": item.get("headline") or item.get("title") or facts.get("title"),
+                    "platform": item.get("source") or "",
+                }
+            )
+    pack["images"] = images
+    (source_dir / (slug + "-media.json")).write_text(json.dumps(mentions, indent=2, ensure_ascii=False))
+    return pack
+
+
 def article_from_regatta(issue, slug, rows, layout="classic"):
     if not rows or skip_event_name(rows[0].get("event_name") or slug):return None
     facts=facts_from_rows(slug,rows)
     source_dir=ROOT/"issues"/issue/"sources"
     source_dir.mkdir(parents=True,exist_ok=True)
     (source_dir/(slug+"-results.json")).write_text(json.dumps(rows,indent=2,ensure_ascii=False))
-    pack={"issue":issue}
-    cached=source_dir/(slug+"-social.json")
-    if cached.exists():
-        pack.update(json.loads(cached.read_text()))
+    pack=media_pack(issue,slug,rows,facts)
     return rewrite_event(issue,facts,pack=pack,layout=layout)
 
 

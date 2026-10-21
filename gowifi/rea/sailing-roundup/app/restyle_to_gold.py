@@ -59,6 +59,13 @@ def restyle_issue(issue: str) -> dict:
             article["kicker"] = "SAILING"
         elif article.get("type") == "regatta_report":
             article["deck"] = gold_deck(article)
+            headings = [b for b in article.get("blocks") or [] if b.get("type") == "heading"]
+            multi = len(headings) > 1
+            for block in headings:
+                text = (block.get("text") or "").strip()
+                if text.lower().endswith("leaderboard") or text == "Leaderboard":
+                    klass = text[: -len("leaderboard")].strip() if text.lower().endswith("leaderboard") else ""
+                    block["text"] = f"{klass} · 1st, 2nd, 3rd" if multi and klass else "1st, 2nd, 3rd"
     src.write_text(json.dumps(data, indent=2, ensure_ascii=False))
     public = ROOT / "public" / "issues" / issue
     public.mkdir(parents=True, exist_ok=True)

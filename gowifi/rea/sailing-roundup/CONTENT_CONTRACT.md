@@ -13,7 +13,9 @@ Each following article is a **rewritten** regatta report: unique headline,
 original copy clustered from the event's own sources with inline citations,
 photographs from those same sources (podium and on the water are both
 valid; more than one photo is allowed; never Wikimedia), and the official
-event leaderboard — one board per class. External media is kept only when
+event podium in gold format — heading exactly `1st, 2nd, 3rd` (or
+`{Class} · 1st, 2nd, 3rd` when one event has several classes). Same
+columns as 2026-09-28: Pos, Helm, Crew, Club, Sail No, Nett. External media is kept only when
 named sailors checksum against those official results. Age titles (U17,
 U19, and the like) are mentioned only when verified media names sailors
 who appear in the results. Discovery always includes the SailingSA regatta page (direct API access;

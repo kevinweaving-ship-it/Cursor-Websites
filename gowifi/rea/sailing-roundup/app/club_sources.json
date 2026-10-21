@@ -50,6 +50,23 @@
       "name": "Aeolians Yacht Club",
       "website": "https://aeolians.co.za/",
       "facebook": "https://www.facebook.com/AeoliansClub/"
+    },
+    "LDYC": {
+      "name": "Lake Deneys Yacht Club",
+      "code": "LDYC",
+      "slug": "ldyc",
+      "sailingsa_url": "https://sailingsa.co.za/club/ldyc",
+      "facebook": "https://www.facebook.com/LDYClub",
+      "instagram": "https://www.instagram.com/ldyc_lake_deneys_yc/"
+    },
+    "MAC": {
+      "name": "Milnerton Aquatic Club",
+      "code": "MAC",
+      "slug": "mac",
+      "sailingsa_url": "https://sailingsa.co.za/club/mac",
+      "website": "https://milnertonaquaticclub.co.za/",
+      "facebook": "https://www.facebook.com/milnertonaquaticclub/",
+      "instagram": "https://www.instagram.com/milnertonaquaticclub.official/"
     }
   }
 }

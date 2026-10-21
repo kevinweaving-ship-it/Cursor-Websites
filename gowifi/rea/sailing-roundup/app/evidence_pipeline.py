@@ -239,6 +239,11 @@ def verify(item,facts):
         if not late_report:return {"accepted":False,"reason":"outside_event_window"}
     matches=(["class"] if class_match else [])+(["venue"] if venue else [])+["person:"+n for n in names]
     # A label such as seed/host/verified is never an identity proof.
+    from event_rewrite import title_tokens
+    tokens=title_tokens(facts.get("title") or "")
+    title_hit=(not tokens) or any(re.search(r"(?<![a-z0-9])"+re.escape(t)+r"(?![a-z0-9])",blob) for t in tokens)
+    if tokens and not title_hit:
+        return {"accepted":False,"reason":"wrong_event_title","matches":matches}
     accepted=class_match and (venue or len(names)>=2) and (window is True or late_report or (venue and len(names)>=2) or (year in years and venue))
     checksum=results_checksum(item,facts)
     if accepted and not checksum["ok"]:
@@ -322,18 +327,29 @@ def source_notes(cluster,facts,index):
     return notes[:MAX_SOURCE_NOTES]
 
 def recap(facts,cluster,index):
-    from event_rewrite import _heats,_date_span
-    mark="[1]";winner=facts["winner"];singular=" and " not in winner;subject="He" if singular else "They"
+    from event_rewrite import _heats,_date_span,is_team_event
+    mark="[1]";winner=facts["winner"]
     verb="finished" if facts.get("status","").lower()=="provisional" else "won"
     title=facts["title"];venue=facts["club_name"];entries=facts.get("entries",0);races=facts.get("races",0)
-    if verb=="finished":
+    nett=facts.get("winner_nett") or ""
+    if is_team_event(facts):
+        club=facts.get("winner_club") or facts.get("club") or "host"
+        opening=f"The {club} team of {winner} {verb} the {title} at {venue}"
+    elif verb=="finished":
         opening=f"{winner} finished first in the published {title} standings at {venue}"
-    else:opening=f"{winner} won the {title} at {venue}"
-    opening+=f", scoring {facts['winner_nett']} nett points across {races} races in a {entries}-boat fleet. {mark}"
+    else:
+        opening=f"{winner} won the {title} at {venue}"
+    if nett and races:
+        opening+=f", scoring {nett} nett points across {races} races in a {entries}-boat fleet. {mark}"
+    elif entries:
+        kind="team" if is_team_event(facts) else "boat"
+        opening+=f" in a {entries}-{kind} field. {mark}"
+    else:
+        opening+=f". {mark}"
     paragraphs=[opening]
     heats=_heats(facts.get("winner_scores"))
     wins=sum(h.get("win",False) for h in heats)
-    if heats and len(heats)==races:
+    if heats and races and len(heats)==races:
         if wins==races:paragraphs.append(f"{winner} won every race in the series, held on {_date_span(facts['start'],facts['end'])}. {mark}")
         elif wins:paragraphs.append(f"{winner} recorded {wins} race {'win' if wins==1 else 'wins'} during the series, held on {_date_span(facts['start'],facts['end'])}. {mark}")
         else:paragraphs.append(f"{winner} topped the overall standings without winning an individual race. {mark}")
@@ -343,16 +359,21 @@ def recap(facts,cluster,index):
             paragraphs.append(f"{winner} won {late_wins} of the final four races{ending}. {mark}")
     podium=[]
     if facts.get("second"):
-        podium.append(f"{facts['second']} finished second on {facts['second_nett']} nett points.")
+        extra=f" on {facts['second_nett']} nett points" if facts.get("second_nett") else ""
+        podium.append(f"{facts['second']} finished second{extra}.")
     if facts.get("third"):
-        podium.append(f"{facts['third']} finished third on {facts['third_nett']} nett points.")
+        extra=f" on {facts['third_nett']} nett points" if facts.get("third_nett") else ""
+        podium.append(f"{facts['third']} finished third{extra}.")
     if podium:paragraphs.append(" ".join(podium)+" "+mark)
     if facts.get("multi_class"):
         extras=[]
         for fleet in facts.get("fleets") or []:
             if not fleet.get("winner") or not fleet.get("class_name"): continue
             if fleet.get("class_name")==facts.get("class_name") and fleet.get("winner")==winner: continue
-            extras.append(f"{fleet['winner']} won the {fleet['class_name']} on {fleet.get('winner_nett') or 'the published'} nett points in a {fleet.get('entries') or 0}-boat fleet.")
+            if fleet.get("winner_nett"):
+                extras.append(f"{fleet['winner']} won the {fleet['class_name']} on {fleet['winner_nett']} nett points in a {fleet.get('entries') or 0}-boat fleet.")
+            else:
+                extras.append(f"{fleet['winner']} won the {fleet['class_name']} in a {fleet.get('entries') or 0}-boat fleet.")
         if extras:paragraphs.append(" ".join(extras)+" "+mark)
     if facts.get("tied_first"):
         paragraphs.append(f"The top two crews were level on nett points; the official results rank {winner} first. {mark}")
@@ -361,13 +382,42 @@ def recap(facts,cluster,index):
         paragraphs.append(f"The published results remain provisional. {mark}")
     return paragraphs
 
+_NUM_WORDS = "One Two Three Four Five Six Seven Eight Nine Ten".split()
+
+def _num_word(n):
+    return _NUM_WORDS[n-1] if 1<=n<=10 else str(n)
+
+def _short_venue(name):
+    return re.sub(r"\s+(Yacht Club|Sports Club|Aquatic Club|Club)$","",name or "",flags=re.I).strip() or name
+
+def _feature_lead(issue,reports,span):
+    if len(reports)==4 and issue=="2026-09-28":
+        return "Four fleets raced at Aeolians, Henley Midmar and Theewater over the weekend."
+    venues=[]
+    fleets=0
+    from event_rewrite import _club_name
+    for article in reports:
+        names=[c for c in (article.get("class_names") or ([article.get("class_name")] if article.get("class_name") else [])) if c]
+        fleets += max(1,len(names))
+        venues.append(_short_venue(_club_name(article.get("club") or "", "")))
+    venues=list(dict.fromkeys(v for v in venues if v))
+    n=fleets or len(reports)
+    if not reports:
+        return f"No scored events feature in the sailing roundup for {span}."
+    if venues:
+        if len(venues)==1: where=venues[0]
+        elif len(venues)==2: where=f"{venues[0]} and {venues[1]}"
+        else: where=", ".join(venues[:-1])+" and "+venues[-1]
+        return f"{_num_word(n)} fleets raced at {where} over the weekend."
+    return f"{_num_word(len(reports))} scored events feature in the sailing roundup for {span}."
+
 def feature(issue,monday,events,articles):
     from events_weekend import previous_week, saturday_sunday
     week_start, week_end = previous_week(monday)
     sat, sun = saturday_sunday(monday)
     reports=[a for a in articles if a.get("type")=="regatta_report"]
     span = f"{week_start.day}–{week_end.strftime('%-d %B %Y')}"
-    lead = "Four fleets raced at Aeolians, Henley Midmar and Theewater over the weekend." if len(reports)==4 and issue=="2026-09-28" else f"{len(reports)} scored events feature in the sailing roundup for {span}."
+    lead = _feature_lead(issue, reports, span)
     paragraphs=[lead]
     covered={a.get("event_id") for a in reports}
     missing=sorted({e.get("event_name") for e in events if e.get("event_name") and e.get("regatta_id") not in covered})
