@@ -44,7 +44,7 @@ def _issues() -> list[dict]:
         out.append(
             {
                 "issue_id": data.get("issue_id") or folder.name,
-                "title": data.get("title") or "Weekend Sailing Roundup",
+                "title": data.get("title") or "Last Week's Roundup",
                 "edition_date": data.get("edition_date") or folder.name,
                 "articles": len(articles),
                 "lead": (articles[0].get("headline") if articles else ""),
@@ -73,7 +73,7 @@ def write_public_index() -> dict:
                 "excerpt": item.get("lead") or f"{item['articles']} weekend reports",
                 "published_at": item["edition_date"],
                 "image": item.get("hero"),
-                "source": "Weekend Sailing Roundup",
+                "source": "Last Week's Roundup",
                 "category": "weekend_roundup",
                 "pdf": f"{PUBLIC_BASE}/{item['pdf']}",
             }

@@ -116,7 +116,7 @@ def create(issue, urls):
     data = {
         "schema_version": "1.0",
         "issue_id": issue,
-        "title": "Weekend Sailing Roundup",
+        "title": "Last Week's Roundup",
         "edition_date": issue,
         "status": "draft",
         "articles": articles,
@@ -127,6 +127,28 @@ def create(issue, urls):
 
 
 LAYOUTS = ("lead", "photo-led", "split", "classic", "compact")
+
+# Single images that do not span the column must sit in the centre, never left or right.
+SINGLE_IMAGE_CENTER_MARK = "/* Single non-full-width images stay centered */"
+SINGLE_IMAGE_CENTER_CSS = (
+    SINGLE_IMAGE_CENTER_MARK
+    + """
+.photo-set:not(.pair):not(.paired-then-full){justify-items:center}
+.photo-set:not(.pair):not(.paired-then-full) figure{justify-self:center;margin-left:auto;margin-right:auto;width:auto;max-width:100%}
+.edition-lead .photo-set{justify-items:center}
+.edition-lead figure{justify-self:center;margin-left:auto;margin-right:auto}
+figure{margin-left:auto;margin-right:auto;text-align:center}
+figure img,.source-photo-panel{margin-left:auto;margin-right:auto}
+"""
+)
+
+
+def apply_single_image_center_css(page: str) -> str:
+    if SINGLE_IMAGE_CENTER_MARK in page:
+        return page
+    if "</style>" in page:
+        return page.replace("</style>", SINGLE_IMAGE_CENTER_CSS + "</style>", 1)
+    return page
 
 
 def _image_block(block):
@@ -301,12 +323,16 @@ h2{font:700 32px/1.2 'Playfair Display',Georgia,serif;margin:0 0 10px;color:var(
 .cols-3{column-count:1}
 .split{display:grid;grid-template-columns:1fr;gap:16px}
 .compact-row{display:grid;grid-template-columns:1fr;gap:16px}
-figure{margin:0 0 14px}
-figure img{width:100%;height:auto;display:block}
-.photo-set{display:grid;grid-template-columns:1fr;gap:12px;margin:0 0 14px}
+figure{margin:0 auto 14px;text-align:center}
+figure img,.source-photo-panel{width:100%;height:auto;display:block;margin-left:auto;margin-right:auto}
+.photo-set{display:grid;grid-template-columns:1fr;gap:12px;margin:0 auto 14px;justify-items:center}
+.photo-set:not(.pair):not(.paired-then-full){justify-items:center}
+.photo-set:not(.pair):not(.paired-then-full) figure{justify-self:center;margin-left:auto;margin-right:auto;width:auto;max-width:100%}
 .photo-set.pair{grid-template-columns:1fr}
+.edition-lead .photo-set{justify-items:center}
+.edition-lead figure{justify-self:center;margin-left:auto;margin-right:auto}
 .story-photo-led figure img{max-height:480px;object-fit:cover}
-.story-classic figure{float:none;width:100%;margin:0 0 14px}
+.story-classic figure{float:none;width:auto;max-width:100%;margin:0 auto 14px}
 figcaption{font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#64748b;padding-top:6px}
 .cite{font-size:11px;line-height:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 .cite a{color:#6B2C91;text-decoration:none}
@@ -328,7 +354,7 @@ figcaption{font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   .lead-grid,.split,.compact-row{grid-template-columns:1fr}
   .cols-2,.cols-3{column-count:1}
   .photo-set.pair{grid-template-columns:1fr}
-  .story-classic figure{float:none;width:100%;margin:0 0 10px}
+  .story-classic figure{float:none;width:100%;margin:0 auto 10px}
   .masthead h1{font-size:26px}
   .ssa-logo{height:40px}
 }
@@ -338,7 +364,7 @@ figcaption{font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   .paper{box-shadow:none;max-width:none}
   .story{break-inside:avoid}
   .story-lead{break-after:avoid}
-  figure img{filter:none}
+  figure img{filter:none;width:auto;max-width:100%;margin-left:auto;margin-right:auto}
   .board{break-inside:avoid}
 }
 """
@@ -386,6 +412,7 @@ def render(issue):
         + "".join(stories)
         + "</section></main></body></html>"
     )
+    page = apply_single_image_center_css(page)
     (out / "index.html").write_text(page)
     browser = next(
         (

@@ -113,7 +113,7 @@ verify_public() {
 import hashlib, pathlib, sys
 live, local, issue = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
 body = live.read_text("utf-8", "replace")
-if "Weekend Sailing Roundup" not in body and "Sailing" not in body:
+if "Last Week's Roundup" not in body and "Weekend Sailing Roundup" not in body and "Sailing" not in body:
     raise SystemExit("live HTML missing edition chrome")
 if issue == "2026-09-28":
     if "Timothy Weaving" not in body or "Hayden Miller" not in body:
