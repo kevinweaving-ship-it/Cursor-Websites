@@ -122,9 +122,17 @@ def verify_post(post: dict, event: dict) -> dict:
     if "sailingsa.co.za/regatta/" in text and slug and slug not in text:
         score -= 4
         reasons.append("other_event_url")
+    try:
+        from evidence_pipeline import other_event_conflict
+        conflict = other_event_conflict(post, event)
+    except Exception:
+        conflict = None
+    if conflict:
+        score -= 12
+        reasons.append(conflict)
 
-    # Same-weekend collision: a Dart post must not attach to the 420 article.
-    rivals = [c for c in CLASS_KEYS if c not in classes and c not in ("dart",)]
+    # Same-weekend collision: a Dart Nationals post must not attach to Bottle or 420.
+    rivals = [c for c in CLASS_KEYS if c not in classes]
     rival_hits = [c for c in rivals if re.search(r"(^|[^a-z0-9])" + re.escape(c) + r"([^a-z0-9]|$)", text)]
     if rival_hits and not class_hits and "event_url" not in reasons:
         score -= 3
@@ -148,14 +156,14 @@ def verify_post(post: dict, event: dict) -> dict:
         score -= 8
         reasons.append("outside_event_window")
 
-    verified = score >= 5 and window is not False and (
+    # Host-club page / class+venue is not identity. This event's URL, slug, title, or result names must match.
+    verified = score >= 5 and window is not False and conflict is None and (
         "sailingsa_official" in reasons
         or
         "event_url" in reasons
         or "event_slug" in reasons
         or "results_name" in "".join(reasons)
-        or "host_club_page" in reasons
-        or ("class:" in "".join(reasons) and ("host_club" in reasons or "host_club_name" in reasons or "event_title:" in "".join(reasons)))
+        or "event_title:" in "".join(reasons)
     )
     return {
         "url": post.get("url") or post.get("source_url"),

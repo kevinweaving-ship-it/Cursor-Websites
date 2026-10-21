@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT / "app"))
 
 from events_weekend import overlaps, saturday_sunday, skip_event, weekend_events
 from publish_weekend import (
+    discover_slugs,
     event_terms,
     issue_mondays,
     last_monday,
@@ -49,6 +50,22 @@ class PublishHelpers(unittest.TestCase):
     def test_scrape_slugs(self):
         html = '<a href="/regatta/2026-10-17-mac-tsl-wc-team-sailing">x</a>'
         self.assertEqual(scrape_slugs(html), {"2026-10-17-mac-tsl-wc-team-sailing"})
+
+    def test_discover_slugs_unions_table_and_html(self):
+        monday = dt.date(2026, 10, 19)
+        table = ["2026-10-17-mac-tsl-wc-team-sailing"]
+        html = ["2026-10-17-pyc-kzn-mirror-regionals"]
+        from unittest.mock import patch
+        with patch("publish_weekend.slugs_for_weekend", return_value=table), patch(
+            "publish_weekend.html_slugs", return_value=html
+        ):
+            self.assertEqual(
+                discover_slugs(monday),
+                [
+                    "2026-10-17-mac-tsl-wc-team-sailing",
+                    "2026-10-17-pyc-kzn-mirror-regionals",
+                ],
+            )
 
     def test_filter_mentions(self):
         items = [
@@ -110,6 +127,23 @@ class PublishHelpers(unittest.TestCase):
             event,
         )
         self.assertFalse(dart["verified"], dart)
+        bottle = {
+            "id": "2026-10-10-hmyc-dam-bottle-sprints",
+            "title": "Dam Bottle Sprints",
+            "club": "HMYC",
+            "class_slugs": ["dart-18"],
+            "result_names": ["Lorrian Wells"],
+            "event_url": "https://sailingsa.co.za/regatta/2026-10-10-hmyc-dam-bottle-sprints",
+        }
+        dart_on_bottle = verify_post(
+            {
+                "url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+                "title": "Dart 18 Nationals Day 2 at HMYC",
+                "description": "Bradley Levin won the Dart 18 Nationals",
+            },
+            bottle,
+        )
+        self.assertFalse(dart_on_bottle["verified"], dart_on_bottle)
 
     def test_discovery_looks_for_class_facebook(self):
         qs = discovery_queries({"title": "505 Nationals", "class_name": "505", "club": "AYC", "club_name": "Aeolians Yacht Club"})

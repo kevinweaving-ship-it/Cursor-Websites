@@ -171,10 +171,14 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
     end = str(first.get("end_date") or start)[:10]
     winner_nett = winner.get("nett_points_raw")
     second_nett = second.get("nett_points_raw")
+    classes = list(dict.fromkeys((r.get("class_name") or r.get("class_canonical") or "").strip() for r in ranked if (r.get("class_name") or r.get("class_canonical") or "").strip()))
+    mixed_class = len(classes) > 1
     return {
         "slug": slug,
         "title": title,
-        "class_name": (first.get("class_name") or first.get("class_canonical") or "").strip(),
+        "class_name": "" if mixed_class else (first.get("class_name") or first.get("class_canonical") or "").strip(),
+        "classes": classes,
+        "mixed_class": mixed_class,
         "club": club,
         "club_name": _club_name(club, first.get("host_club_name") or ""),
         "host_club_slug": first.get("host_club_slug") or club.lower(),
@@ -312,17 +316,18 @@ def _keep_cluster_item(item, facts):
     return verify(item,facts)["accepted"]
 
 
-def _host_source(cluster: dict | None) -> dict | None:
+def _host_source(cluster: dict | None, facts: dict | None = None) -> dict | None:
     best = None
     best_len = 0
+    slug = str((facts or {}).get("slug") or "")
     for item in (cluster or {}).get("articles") or []:
         text = _cluster_text(item)
         score = len(text)
         url = (item.get("url") or "") + " " + (item.get("share_url") or "")
-        if "1PGpY1pGh1" in url or "host_club" in (item.get("engine") or "") + (item.get("provenance") or ""):
-            score += 1000
-        if "facebook.com" in url.lower() and "henleymidmaryachtclub" in url.lower():
-            score += 500
+        if "1PGpY1pGh1" in url and "dart-18-nationals" not in slug:
+            continue
+        if "host_club" in (item.get("engine") or "") + (item.get("provenance") or ""):
+            score += 200
         if score > best_len:
             best = dict(item, text=text)
             best_len = score
@@ -828,15 +833,22 @@ def _event_photo_score(item: dict, facts: dict) -> int:
         return -80
     if klass and klass.lower() in blob:
         n += 30
+    slug = str(facts.get("slug") or "").lower()
     if "1pgpy1pgh1" in blob or "1633819895206118" in blob:
+        if "dart-18-nationals" not in slug:
+            return -10000
         n += 220
     if "1MHJNWcFSM".lower() in blob or "230542873685522" in blob:
         n += 140
     if "19VLSkGHBk".lower() in blob or "310727125653436" in blob:
+        if "dart-18-nationals" not in slug:
+            return -10000
         n += 140
     if "420nationalssouthafrica" in blob and klass == "420":
         n += 160
     if "id=338" in source or "505-nationals-2026" in blob:
+        if "505-nationals" not in slug:
+            return -10000
         n += 180
     if "rsa505.org.za" in blob and klass == "505":
         n += 80
@@ -847,6 +859,8 @@ def _event_photo_score(item: dict, facts: dict) -> int:
     if "novanews" in blob and "hermanus-high-schools-sailors" in blob:
         n += 90
     if "hmyc.org.za/events/367984" in blob:
+        if "dart-18-nationals" not in slug:
+            return -10000
         n += 80
     if any(k in blob for k in ("prize", "trophy", "podium", "final result")):
         n += 50
@@ -871,12 +885,16 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
     """Prizegiving and on-the-water shots from this event's sources. Never wiki or logos."""
     candidates = []
     seen = set()
-    from evidence_pipeline import canonical, MEDIA_EXCLUSIONS
+    from evidence_pipeline import canonical, MEDIA_EXCLUSIONS, other_event_conflict
     accepted_sources = {canonical(x.get("url")) for x in cluster.get("articles", [])}
 
     def add(item: dict):
         url = (item.get("url") or "").split("#")[0]
         source = item.get("source_url") or ""
+        original_title = item.get("title") or ""
+        # Never copy this event's headline onto a foreign photo before the conflict check.
+        if other_event_conflict({"url": source, "source_url": source, "title": original_title, "body": original_title}, facts):
+            return
         if cluster.get("schema_version") == "verified-evidence-1" and canonical(source) not in accepted_sources:
             return
         if not url or url in seen or _wiki_url(url) or _bad_image_url(url) or canonical(url) in MEDIA_EXCLUSIONS:
@@ -892,21 +910,21 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
                 {
                     "url": item["image"],
                     "source_url": item.get("url") or item.get("share_url") or "",
-                    "title": item.get("title") or facts["title"],
+                    "title": item.get("title") or "",
                     "credit": _credit_from_url(item.get("url") or item["image"]),
                 }
             )
     for document in (cluster or {}).get("articles") or []:
         for attachment in document.get("images") or []:
             add({"url":attachment["url"],"source_url":document.get("url") or "",
-                 "title":attachment.get("title") or facts["title"],"credit":_credit_from_url(document.get("url") or "")})
+                 "title":attachment.get("title") or "","credit":_credit_from_url(document.get("url") or "")})
     for img in (pack or {}).get("images") or []:
         if img.get("image_url"):
             add(
                 {
                     "url": img["image_url"],
                     "source_url": img.get("source_url") or "",
-                    "title": img.get("source_title") or facts["title"],
+                    "title": img.get("source_title") or "",
                     "credit": pretty_credit(img.get("platform") or "", img.get("source_url") or img.get("image_url") or ""),
                 }
             )
@@ -1056,7 +1074,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         "headline": headline,
         "deck": deck_from_facts(facts),
         "byline": "SailingSA",
-        "kicker": (facts.get("class_name") or "Regatta").upper() + "  ·  " + facts["club"],
+        "kicker": (("MIXED" if facts.get("mixed_class") else (facts.get("class_name") or "Regatta")).upper() + "  ·  " + facts["club"]),
         "published_at": issue,
         "event_id": facts["slug"],
         "layout": layout,

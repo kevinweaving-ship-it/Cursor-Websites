@@ -10,19 +10,30 @@ def validate(root,issue):
     articles=data.get("articles",[]);ids=[a["event_id"] for a in articles]
     if len(ids)!=len(set(ids)):raise ValueError("Duplicate event articles")
     reports=[a for a in articles if a["type"]=="regatta_report"]
-    events=json.loads((root/"issues"/issue/"sources/events-weekend.json").read_text())["events"]
+    weekend=json.loads((root/"issues"/issue/"sources/events-weekend.json").read_text())
+    events=weekend.get("events") or []
     expected={e["regatta_id"] for e in events if e.get("regatta_id")}
-    if {a["event_id"] for a in reports}!=expected:raise ValueError("Missing scored event")
+    expected |= {s for s in (weekend.get("slugs") or []) if s}
+    report_ids={a["event_id"] for a in reports}
+    if not expected <= report_ids:raise ValueError("Missing scored event")
     hashes=set()
     for a in reports:
         cluster=json.loads((root/"issues"/issue/"sources"/(a["event_id"]+"-cluster.json")).read_text())
         if any(not s.get("verification",{}).get("accepted") for s in cluster["articles"]):raise ValueError("Unverified source")
         if len(a.get("citations",[]))!=len({x["url"].rstrip("/") for x in a.get("citations",[])}):raise ValueError("Duplicate citations")
         citations={x["n"] for x in a.get("citations",[])}
+        from evidence_pipeline import other_event_conflict
+        facts={"slug":a.get("event_id") or a.get("id") or "","title":a.get("class_name") and "" or "","event_name":a.get("headline") or ""}
+        slug=str(facts["slug"])
+        for cite in a.get("citations") or []:
+            if other_event_conflict(cite, {"slug":slug,"title":a.get("headline") or slug,"url":"https://sailingsa.co.za/regatta/"+slug}):
+                raise ValueError("Citation belongs to another event")
         for b in a["blocks"]:
             if b["type"]=="paragraph":
                 refs=[int(x) for x in re.findall(r"\[(\d+)\]",b["text"])]
                 if not refs or not set(refs)<=citations:raise ValueError("Untraceable paragraph")
+                if other_event_conflict({"url":"","title":"","body":b.get("text") or ""}, {"slug":slug,"title":a.get("headline") or slug}):
+                    raise ValueError("Article quotes another event")
             if b["type"]=="results" and len(b["rows"])>3:raise ValueError("Article table must be podium only")
             if b["type"]=="image":
                 path=(out/b["url"]).resolve()
@@ -30,6 +41,8 @@ def validate(root,issue):
                 digest=hashlib.sha256(path.read_bytes()).hexdigest()
                 if digest in hashes:raise ValueError("Repeated photograph")
                 hashes.add(digest)
+                if other_event_conflict({"url":b.get("source_url") or "","title":b.get("caption") or ""}, {"slug":slug,"title":a.get("headline") or slug}):
+                    raise ValueError("Photograph belongs to another event")
     if not (out/"index.html").is_file():raise ValueError("Missing HTML")
     pdf=out/"edition.pdf"
     if not pdf.is_file() or not pdf.read_bytes().startswith(b"%PDF-"):raise ValueError("Missing PDF")

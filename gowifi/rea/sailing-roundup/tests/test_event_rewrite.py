@@ -365,6 +365,62 @@ class RewriteEngine(unittest.TestCase):
         cites = citation_index(cluster, facts)
         self.assertEqual(cites[0]["url"], facts["url"])
 
+    def test_mixed_fleet_is_not_labelled_as_first_row_class(self):
+        rows = [
+            {
+                "event_name": "Dam Bottle Sprints",
+                "host_club_code": "HMYC",
+                "host_club_name": "Henley Midmar Yacht Club",
+                "class_name": "Dart 18",
+                "rank": 1,
+                "helm_name": "Lorrian Wells",
+                "nett_points_raw": 5,
+                "start_date": "2026-10-10",
+                "end_date": "2026-10-11",
+            },
+            {
+                "event_name": "Dam Bottle Sprints",
+                "host_club_code": "HMYC",
+                "class_name": "ILCA 7",
+                "rank": 2,
+                "helm_name": "Colin Dommett",
+                "nett_points_raw": 7,
+            },
+            {
+                "event_name": "Dam Bottle Sprints",
+                "host_club_code": "HMYC",
+                "class_name": "Hunter 19",
+                "rank": 3,
+                "helm_name": "Iain Paxman",
+                "nett_points_raw": 13,
+            },
+        ]
+        facts = facts_from_rows("2026-10-10-hmyc-dam-bottle-sprints", rows)
+        self.assertTrue(facts["mixed_class"])
+        self.assertEqual(facts["class_name"], "")
+        self.assertIn("Dart 18", facts["classes"])
+        self.assertIn("ILCA 7", facts["classes"])
+        dart_photo = {
+            "url": "https://scontent.xx.fbcdn.net/prizegiving.jpg",
+            "source_url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+            "title": "DART 18 NATIONALS – Final results!",
+        }
+        self.assertLess(_event_photo_score(dart_photo, facts), 0)
+        photos = pick_images(
+            facts,
+            {
+                "articles": [
+                    {
+                        "url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+                        "title": "DART 18 NATIONALS – Final results!",
+                        "image": "https://scontent.xx.fbcdn.net/prizegiving.jpg",
+                    }
+                ]
+            },
+        )
+        self.assertEqual(photos, [])
+        self.assertFalse(_keep_cluster_item({"url": dart_photo["source_url"], "title": dart_photo["title"], "body": dart_photo["title"] + " Bradley Levin Kyle Boman at Henley Midmar Yacht Club 2026."}, facts))
+
 
 if __name__ == "__main__":
     unittest.main()

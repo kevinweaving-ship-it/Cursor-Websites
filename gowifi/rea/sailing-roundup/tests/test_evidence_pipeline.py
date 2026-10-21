@@ -44,7 +44,7 @@ class EvidenceRegression(unittest.TestCase):
   text=" ".join(recap(facts,{},[{"n":1}]))
   self.assertNotIn("won the final race",text)
  def test_delayed_primary_report_needs_event_and_competitor_proof(self):
-  facts=dict(F,slug="2026-09-24-ayc-505-nationals",class_name="505",club="AYC",club_name="Aeolians Yacht Club",names=["Peter Funke","Thomas Funke","Kyle Klaas"],start="2026-09-24")
+  facts=dict(F,slug="2026-09-24-ayc-505-nationals",title="505 Nationals",class_name="505",club="AYC",club_name="Aeolians Yacht Club",names=["Peter Funke","Thomas Funke","Kyle Klaas"],start="2026-09-24",end="2026-09-27")
   item={"url":"https://rsa505.org.za/report","title":"505 Nationals 2026 at Aeolians","body":"The 505 Class held its 2026 Nationals at Aeolians. Peter Funke and Thomas Funke tied with Kyle Klaas.","published":"2026-10-13"}
   self.assertTrue(verify(item,facts)["accepted"])
   self.assertEqual(verify(item,facts)["reason"],"late_report_matched")
@@ -73,4 +73,17 @@ class EvidenceRegression(unittest.TestCase):
   text=" ".join(recap(facts,{},[{"n":1}]))
   self.assertNotIn("countback",text)
   self.assertIn("level on nett points",text)
+ def test_dart_nationals_post_never_verifies_as_bottle(self):
+  from evidence_pipeline import other_event_conflict
+  bottle={"slug":"2026-10-10-hmyc-dam-bottle-sprints","title":"Dam Bottle Sprints","url":"https://sailingsa.co.za/regatta/2026-10-10-hmyc-dam-bottle-sprints","class_name":"","mixed_class":True,"club":"HMYC","club_name":"Henley Midmar Yacht Club","start":"2026-10-10","end":"2026-10-11","names":["Lorrian Wells","Colin Dommett","Iain Paxman"]}
+  dart_post={"url":"https://www.facebook.com/share/p/1PGpY1pGh1/","title":"DART 18 NATIONALS – Final results!","body":"Congratulations to all the sailors competing in the Dart 18 Nationals. 1st Bradley Levin 2nd Kyle Boman 3rd Bradley Stemmett. 7th Lorrian Wells at Henley Midmar Yacht Club 2026."}
+  self.assertEqual(other_event_conflict(dart_post,bottle),"other_event")
+  self.assertFalse(verify(dart_post,bottle)["accepted"])
+  official={"url":bottle["url"],"title":"Dam Bottle Sprints — SailingSA results","body":"Official SAS-sanctioned Dam Bottle Sprints at Henley Midmar Yacht Club. 1st Lorrian Wells. 2nd Colin Dommett. 3rd Iain Paxman."}
+  self.assertIsNone(other_event_conflict(official,bottle))
+  self.assertTrue(verify(official,bottle)["accepted"])
+ def test_class_venue_year_is_not_identity(self):
+  bottle={"slug":"2026-10-10-hmyc-dam-bottle-sprints","title":"Dam Bottle Sprints","url":"https://sailingsa.co.za/regatta/2026-10-10-hmyc-dam-bottle-sprints","class_name":"Dart 18","club":"HMYC","club_name":"Henley Midmar Yacht Club","start":"2026-10-10","end":"2026-10-11","names":["Lorrian Wells"]}
+  item={"url":"https://example.org/hmyc-open","title":"Weekend racing at HMYC","body":"Dart 18 racing at Henley Midmar Yacht Club in 2026 with a long enough caption for the verifier."}
+  self.assertFalse(verify(item,bottle)["accepted"])
 if __name__=="__main__":unittest.main()

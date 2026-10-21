@@ -83,6 +83,55 @@ def extract(url):
     result["canonical_url"]=canonical(result["url"])
     return result
 
+TITLE_STOP={"the","and","for","with","from","that","this","2026","2025","2024","sailing","event","sa","sas","open","club","yacht","at","of","inc","incorporating","class"}
+FOREIGN_EVENT_SLUG = re.compile(r"(dart-18-nationals|420-nationals|505-nationals|dabchick-gauteng|kzn-mirror-regionals|mac-tsl-wc-team-sailing)")
+# Facebook / club URLs that belong to one event only. Bottle at the same club must not inherit Dart Nationals media.
+EVENT_BOUND_SOURCES = (
+    (re.compile(r"1pgpy1pgh1|1633819895206118|19vlskghbk|hmyc\.org\.za/events/367984", re.I), "dart-18-nationals"),
+    (re.compile(r"420nationalssouthafrica|1jh51cdmew", re.I), "420-nationals"),
+    (re.compile(r"id=338|505-nationals-2026|1mhjnwcfsm", re.I), "505-nationals"),
+    (re.compile(r"dabchickca/events/358939", re.I), "dabchick-gauteng"),
+)
+
+def event_title_tokens(title):
+    return [w for w in re.findall(r"[a-z0-9]+",(title or "").lower()) if w not in TITLE_STOP and len(w)>2]
+
+def source_blob(item):
+    return " ".join(str(item.get(k) or "") for k in ("url","source_url","title","headline","description","snippet","body","text")).lower()
+
+def other_event_conflict(item,facts):
+    """Auto rule: a source about another event can never attach here.
+
+    Why: Dam Bottle Sprints (mixed fleet at HMYC) accepted a Dart 18 Nationals
+    Facebook post because verify treated class+venue+year, or host_club_page, as
+    identity. Weekly generation and old-week rebuilds must reject that, not rely
+    on a hand edit of the published HTML.
+    """
+    slug=(facts.get("slug") or facts.get("event_id") or facts.get("id") or "").lower()
+    title=facts.get("title") or facts.get("event_name") or ""
+    blob=source_blob(item)
+    url=canonical(item.get("url") or item.get("source_url"))
+    official=canonical(facts.get("url") or facts.get("event_url") or "")
+    if url and official and url==official:
+        return None
+    for match in re.finditer(r"/regatta/([a-z0-9\-]+)",blob):
+        if slug and match.group(1)!=slug:
+            return "different_event"
+    for pat, need in EVENT_BOUND_SOURCES:
+        if pat.search(blob) and need not in slug:
+            return "other_event"
+    foreign=FOREIGN_EVENT_SLUG.search(blob)
+    if foreign and (not slug or foreign.group(1) not in slug):
+        return "other_event"
+    if re.search(r"\bnationals?\b",blob) and "national" not in title.lower():
+        return "other_event"
+    if re.search(r"\bregionals?\b",blob) and "regional" not in title.lower() and not any(t in blob for t in event_title_tokens(title)):
+        return "other_event"
+    distinctive=[t for t in event_title_tokens(title) if t not in {"dart"}]
+    if distinctive and blob.strip() and not any(t in blob for t in distinctive):
+        return "other_event"
+    return None
+
 def verify(item,facts):
     url=canonical(item.get("url") or item.get("source_url"))
     if url==canonical(facts.get("url")):return {"accepted":True,"reason":"official_results","matches":["canonical_event_id"]}
@@ -95,13 +144,19 @@ def verify(item,facts):
         return {"accepted":False,"reason":"directory_or_login"}
     if p.netloc=="facebook.com" and not any(x in path for x in ("/posts/","/permalink/","/share/p/","/videos/","/reel/")) and not p.query:
         return {"accepted":False,"reason":"social_directory"}
+    conflict=other_event_conflict(item,facts)
+    if conflict:return {"accepted":False,"reason":conflict,"matches":[]}
     body=text_of(item);blob=(item.get("title","")+" "+body).lower()
     if len(body)<40:return {"accepted":False,"reason":"no_article_or_caption"}
     from search_everywhere import in_coverage_window
     window=in_coverage_window(item,facts)
 
     klass=str(facts.get("class_name") or "").lower()
+    mixed=bool(facts.get("mixed_class"))
     class_match=bool(klass and re.search(r"(?<![a-z0-9])"+re.escape(klass)+r"(?![a-z0-9])",blob))
+    title_hit=any(t in blob for t in event_title_tokens(facts.get("title") or ""))
+    if mixed:
+        class_match=class_match or title_hit
     aliases=[facts.get("club_name",""),facts.get("club","")]
     aliases += [re.sub(r"\b(yacht|sports|club)\b","",facts.get("club_name",""),flags=re.I).strip()]
     venue=any(len(a.strip())>=3 and re.search(r"(?<![a-z0-9])"+re.escape(a.strip().lower())+r"(?![a-z0-9])",blob) for a in aliases)
@@ -116,9 +171,10 @@ def verify(item,facts):
             late_report=(end<published<=end+dt.timedelta(days=28) and class_match and venue and len(names)>=2 and year in (item.get("title") or ""))
         except (ValueError,KeyError):pass
         if not late_report:return {"accepted":False,"reason":"outside_event_window"}
-    matches=(["class"] if class_match else [])+(["venue"] if venue else [])+["person:"+n for n in names]
-    # A label such as seed/host/verified is never an identity proof.
-    accepted=class_match and (venue or len(names)>=2) and (window is True or late_report or (venue and len(names)>=2) or (year in years and venue))
+    matches=(["class"] if class_match else [])+(["venue"] if venue else [])+(["title"] if title_hit else [])+["person:"+n for n in names]
+    # Class + venue + year is not identity. This event's title tokens or two of its sailors must appear.
+    identity=title_hit or len(names)>=2
+    accepted=identity and (class_match or title_hit) and (venue or title_hit) and (window is True or late_report or identity)
     return {"accepted":bool(accepted),"reason":("late_report_matched" if late_report else "event_identity_matched") if accepted else "insufficient_event_identity","matches":matches}
 
 def verified_cluster(facts,candidates,fetch=True):

@@ -96,11 +96,8 @@ def scrape_slugs(html: str) -> set[str]:
     return set(re.findall(r"/regatta/(\d{4}-\d{2}-\d{2}-[a-z0-9-]+)", html or ""))
 
 
-def discover_slugs(monday: dt.date) -> list[str]:
-    """Primary source is the public events table. HTML slugs are a fallback."""
-    slugs = slugs_for_weekend(monday)
-    if slugs:
-        return slugs
+def html_slugs(monday: dt.date) -> list[str]:
+    """Slugs published on /events and /yearly-events. Always scanned — never skipped because one calendar row already has a slug."""
     sat, sun = saturday_sunday(monday)
     found: set[str] = set()
     for url in EVENTS_PAGES:
@@ -117,6 +114,11 @@ def discover_slugs(monday: dt.date) -> list[str]:
         if sat - dt.timedelta(days=2) <= day <= sun and not skip_event_name(slug):
             chosen.append(slug)
     return chosen
+
+
+def discover_slugs(monday: dt.date) -> list[str]:
+    """Union of the events table and the public Events URL. One linked event must not hide another."""
+    return sorted(set(slugs_for_weekend(monday)) | set(html_slugs(monday)))
 
 
 def fetch_regatta(slug: str) -> list[dict]:
@@ -198,7 +200,7 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -
         write_public_index()
         return {"issue": issue, "action": "enriched", "articles": len(data.get("articles") or [])}
     table_events = weekend_events(monday)
-    slugs = sorted(set(e["regatta_id"] for e in table_events if e.get("regatta_id"))) or discover_slugs(monday)
+    slugs = discover_slugs(monday)
     articles = []
     def build_event(pair):
         index,slug=pair
@@ -221,7 +223,7 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -
     dest.parent.mkdir(parents=True, exist_ok=True)
     (dest.parent / "sources").mkdir(parents=True, exist_ok=True)
     (dest.parent / "sources" / "events-weekend.json").write_text(
-        json.dumps({"monday": issue, "events": table_events}, indent=2, ensure_ascii=False)
+        json.dumps({"monday": issue, "events": table_events, "slugs": slugs}, indent=2, ensure_ascii=False)
     )
     feature = weekend_feature(issue, monday, table_events, articles)
     data = {
