@@ -78,6 +78,7 @@ HOST_FALLBACK = {
     "TSC": "Theewater Sports Club",
     "HMYC": "Henley Midmar Yacht Club",
     "AYC": "Aeolians Yacht Club",
+    "LDYC": "Lake Deneys Yacht Club",
 }
 JUNK_CLUSTER = (
     "dart.dev",
@@ -172,6 +173,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
     title = (first.get("event_name") or slug).strip()
     if title.lower().startswith("2026 "):
         title = title[5:]
+    title = re.sub(r"^\d{4}-\d{2}-\d{2}\s+", "", title).strip()
     title = re.sub(r"\s+incorporating\b.*$", "", title, flags=re.I).strip()
     start = str(first.get("start_date") or slug[:10])[:10]
     end = str(first.get("end_date") or start)[:10]

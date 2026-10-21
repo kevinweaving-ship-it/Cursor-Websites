@@ -86,6 +86,14 @@ class EvidenceRegression(unittest.TestCase):
   bottle={"slug":"2026-10-10-hmyc-dam-bottle-sprints","title":"Dam Bottle Sprints","url":"https://sailingsa.co.za/regatta/2026-10-10-hmyc-dam-bottle-sprints","class_name":"Dart 18","club":"HMYC","club_name":"Henley Midmar Yacht Club","start":"2026-10-10","end":"2026-10-11","names":["Lorrian Wells"]}
   item={"url":"https://example.org/hmyc-open","title":"Weekend racing at HMYC","body":"Dart 18 racing at Henley Midmar Yacht Club in 2026 with a long enough caption for the verifier."}
   self.assertFalse(verify(item,bottle)["accepted"])
+ def test_mixed_recap_keeps_class_podiums_separate(self):
+  from evidence_pipeline import recap
+  facts={"title":"Free State Youth Provincial Champs","club_name":"Lake Deneys Yacht Club","winner":"Maximilian Malan","winner_class":"Dabchick","winner_nett":"6","winner_scores":{"R1":"1","R2":"1","R3":"1","R4":"1","R5":"1","R6":"1","R7":"14"},"races":7,"entries":26,"status":"Final","mixed_class":True,"classes":["Dabchick","Optimist A","Optimist B"],"second":"Taylor Milln","second_nett":"8","third":"Danny Coetzer","third_nett":"10","tied_first":False,"start":"2026-10-03","end":"2026-10-04","ranked_rows":[{"class_name":"Dabchick","helm_name":"Maximilian Malan"},{"class_name":"Dabchick","helm_name":"Ethan Biagio"},{"class_name":"Dabchick","helm_name":"David Smith"},{"class_name":"Optimist A","helm_name":"Taylor Milln"},{"class_name":"Optimist A","helm_name":"Luan Bester"},{"class_name":"Optimist B","helm_name":"Danny Coetzer"}]}
+  text=" ".join(recap(facts,{},[{"n":1}]))
+  self.assertIn("Ethan Biagio",text)
+  self.assertIn("Dabchick",text)
+  self.assertIn("Optimist A",text)
+  self.assertNotIn("Taylor Milln finished second",text)
  def test_feature_uses_scored_report_not_empty_calendar_line(self):
   from evidence_pipeline import feature
   import datetime as dt

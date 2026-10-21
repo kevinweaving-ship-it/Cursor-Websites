@@ -278,12 +278,26 @@ def recap(facts,cluster,index):
         if wins!=races and len(late)==4 and late_wins>=3:
             ending=" and won the final race" if late_wins < 4 and heats[-1].get("win") else ""
             paragraphs.append(f"{winner} won {late_wins} of the final four races{ending}. {mark}")
-    podium=[]
-    if facts.get("second"):
-        podium.append(f"{facts['second']} finished second on {facts['second_nett']} nett points.")
-    if facts.get("third"):
-        podium.append(f"{facts['third']} finished third on {facts['third_nett']} nett points.")
-    if podium:paragraphs.append(" ".join(podium)+" "+mark)
+    if facts.get("mixed_class") and facts.get("ranked_rows"):
+        by={}
+        for row in facts["ranked_rows"]:
+            key=(row.get("class_name") or row.get("class_canonical") or "").strip()
+            if key:by.setdefault(key,[]).append(row)
+        bits=[]
+        for key,rs in by.items():
+            names=[]
+            for row in rs[:3]:
+                n=(row.get("helm_name") or "").strip()
+                if n:names.append(n)
+            if names:bits.append(f"{key} 1–{len(names)} {', '.join(names)}")
+        if bits:paragraphs.append("; ".join(bits)+f" {mark}")
+    else:
+        podium=[]
+        if facts.get("second"):
+            podium.append(f"{facts['second']} finished second on {facts['second_nett']} nett points.")
+        if facts.get("third"):
+            podium.append(f"{facts['third']} finished third on {facts['third_nett']} nett points.")
+        if podium:paragraphs.append(" ".join(podium)+" "+mark)
     if facts.get("tied_first"):
         paragraphs.append(f"The top two crews were level on nett points; the official results rank {winner} first. {mark}")
     paragraphs.extend(source_notes(cluster,facts,index))
