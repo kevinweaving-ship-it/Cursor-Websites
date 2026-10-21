@@ -119,8 +119,10 @@ class ArticleWrite(unittest.TestCase):
         self.assertTrue(any(b.get("type") == "results" for b in article["blocks"]))
         self.assertFalse(article["third_party"])
         self.assertTrue(article["needs_external"])
-        self.assertEqual(article["ai_writer"], "official")
-        self.assertIn("stored hero photograph", blob)
+        self.assertEqual(article["ai_writer"], "desk")
+        self.assertNotIn("stored hero photograph", blob)
+        cap = next(b.get("caption") for b in article["blocks"] if b.get("type") == "image")
+        self.assertIn("420 Nationals", cap)
         self.assertEqual(article["sources"][0], facts["url"])
 
     def test_polish_discarded_when_winner_or_title_missing(self):
@@ -162,7 +164,7 @@ class ArticleWrite(unittest.TestCase):
         }
         with patch.dict("os.environ", empty, clear=False):
             self.assertIsNone(ai_polish("event article", raw_context(rec, facts), facts, "draft"))
-        self.assertIn("stored hero photograph", media_note({"status": "pass", "local_path": "media/x.jpg", "title": "420 Nationals prizegiving"}, facts))
+        self.assertIn("prizegiving", media_note({"status": "pass", "local_path": "media/x.jpg", "title": "420 Nationals prizegiving"}, facts))
 
     def test_week_roundup_names_four_scored_and_two_unlisted_biggest_first(self):
         packs = [

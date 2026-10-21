@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Step 3: write Last Week's Roundup from the locked roster, leaderboards, and stored heroes.
+"""Step 3: sports-desk editor writes Last Week's Roundup from locked facts + stored heroes.
 
-Uses the official equals card as the starting point. An AI call (OpenAI or Perplexity)
-may polish the copy; if it invents a name or there is no key, the facts-locked recap
-is kept. No third-party source is required. Events that happened without a results
-card are named on the week lead. Scored events get their own heading, biggest fleet first.
+The writer is a United Robots / Wordsmith-style desk: every sentence is a data
+point. ChatGPT is not the default. Generic filler is discarded. Official-only
+plus the stored photograph is a pass.
 """
 from __future__ import annotations
 
@@ -16,7 +15,10 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
+import os
+
 from ai_tools import available as ai_available, chat as ai_chat, load_env
+from desk_editor import edit_event, is_generic, photo_caption, qa
 from event_rewrite import (
     citation_index,
     deck_from_facts,
@@ -24,7 +26,7 @@ from event_rewrite import (
     layout_for,
     unique_headline,
 )
-from evidence_pipeline import feature, recap, unlisted_event_names
+from evidence_pipeline import feature, unlisted_event_names
 from events_weekend import saturday_sunday
 
 
@@ -58,11 +60,10 @@ def raw_context(rec: dict, facts: dict, hero: dict | None = None) -> dict:
 
 
 def media_note(hero: dict | None, facts: dict) -> str:
-    """Official sentence about the stored hero so the writer can adapt it."""
-    if not hero or hero.get("status") != "pass" or not hero.get("local_path"):
-        return ""
-    title = (hero.get("title") or facts.get("title") or "event photography").strip()
-    return f"The stored hero photograph is {title}, saved from the parent event page. [1]"
+    """Desk mention of the stored photograph — caption-quality, never system speak."""
+    from desk_editor import photo_line
+
+    return photo_line(hero, facts)
 
 
 def _required_tokens(facts: dict) -> list[str]:
@@ -78,25 +79,26 @@ def _locked(text: str, facts: dict) -> bool:
 
 def _system_prompt() -> str:
     return (
-        "You write a South African sailing magazine recap. Use only the supplied facts. "
-        "Do not invent sailors, scores, clubs, or other events. Keep citations like [1]. "
-        "Write flowing sentences, not a bullet list. If a stored hero photograph is supplied, "
-        "adapt the recap to mention that picture in one sentence."
+        "You are a newspaper sports editor. Rewrite only from the supplied facts. "
+        "Do not invent sailors, scores, clubs, or colour. Keep citations like [1]. "
+        "No generic phrases. No 'exciting weekend'. Specific names, venue, points."
     )
 
 
 def polish_copy(kind: str, context: dict, facts: dict, draft: str, polish=None) -> tuple[str | None, str]:
-    """Polish the official draft. Returns (text, writer). Writer is official if the call is unused or discarded."""
+    """Optional extra pass. The desk draft is the article unless this stays locked and specific."""
     if polish is not None:
         text = polish(kind, context, facts, draft)
-        if text and _locked(text, facts):
+        if text and _locked(text, facts) and not is_generic(text) and not qa(text, facts):
             return text.strip(), "injected"
-        return None, "official"
+        return None, "desk"
+    if os.getenv("ROUNDUP_USE_AI") != "1":
+        return None, "desk"
     load_env()
     user = kind + "\n" + json.dumps({"context": context, "draft": draft}, ensure_ascii=False)
     text, provider = ai_chat(_system_prompt(), user)
-    if not text or not _locked(text, facts):
-        return None, "official"
+    if not text or not _locked(text, facts) or is_generic(text) or qa(text, facts):
+        return None, "desk"
     return text.strip(), provider
 
 
@@ -111,10 +113,7 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
     ctx = raw_context(rec, facts, hero)
     cluster = {"articles": [], "count": 0}
     cites = citation_index(cluster, facts)
-    paras = recap(facts, cluster, cites)
-    note = media_note(hero, facts)
-    if note:
-        paras.append(note)
+    paras = edit_event(facts, hero)
     polished, writer = polish_copy("event article", ctx, facts, " ".join(paras), polish=polish)
     if polished:
         paras = [p.strip() for p in re.split(r"\n{2,}", polished) if p.strip()] or paras
@@ -127,7 +126,7 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
                 "type": "image",
                 "url": hero["local_path"],
                 "alt": facts.get("title") or rec.get("name") or "",
-                "caption": (hero.get("title") or facts.get("title") or "Event photography") + ".",
+                "caption": photo_caption(hero, facts),
                 "credit": "Event photography",
                 "source_url": hero.get("source_url") or facts.get("url") or "",
                 "rights_status": "source_attributed",
@@ -202,7 +201,7 @@ def write_week_feature(issue, monday, table_events, reports, polish=None) -> dic
                 {"type": "paragraph", "text": p.strip()} for p in re.split(r"\n{2,}", polished) if p.strip()
             )
     art["weekend"] = [sat.isoformat(), sun.isoformat()]
-    art["ai_writer"] = writer if polished else "official"
+    art["ai_writer"] = writer if polished else "desk"
     return art
 
 

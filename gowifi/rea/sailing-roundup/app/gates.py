@@ -33,6 +33,7 @@ sys.path.insert(0, str(ROOT / "app"))
 
 from event_rewrite import class_leaderboards, facts_from_rows, is_chrome_image
 from events_weekend import SKIP_NAME, overlaps, parse_day, saturday_sunday
+from desk_editor import is_generic
 from evidence_pipeline import is_scoresheet, other_event_conflict, unlisted_event_names
 
 SLUG_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$")
@@ -489,6 +490,8 @@ def gate_story(ctx: dict) -> GateResult:
             errors.append("feature lead is too short to be a written story")
         if HEADLINE_LIST.search(blob) and len(blob.split()) < 40:
             errors.append("feature lead is a headline list, not a story")
+        if is_generic(blob):
+            errors.append("feature lead is generic filler, not desk copy")
         for rec in (ctx.get("roster") or {}).get("events") or []:
             if rec.get("status") != "pass":
                 continue
@@ -531,6 +534,8 @@ def gate_story(ctx: dict) -> GateResult:
         token = helm.split()[0] if helm else ""
         if token and token != "The" and token.lower() not in blob.lower():
             rec["errors"].append(f"winner {helm!r} missing from story")
+        if is_generic(blob):
+            rec["errors"].append("generic filler — not desk copy")
         events.append(rec)
         errors.extend(f"{slug}: {err}" for err in rec["errors"])
     return GateResult(3, "story", "pass" if not errors else "fail", errors=errors, events=events)

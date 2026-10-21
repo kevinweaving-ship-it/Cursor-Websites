@@ -355,33 +355,14 @@ def feature(issue,monday,events,articles):
     hero=None
     covered={a.get("event_id") or a.get("id") for a in reports}
     missing=unlisted_event_names(events,covered)
-    if not reports:
-        paragraphs.append(f"No scored results were published for {date_line}.")
-    elif len(reports)==1:
+    from desk_editor import edit_week
+    if len(reports)==1:
         from event_rewrite import is_chrome_image
         lead=reports[0]
         hero=lead.get("hero_image") or None
         if hero and is_chrome_image(hero.get("url") or "", hero.get("source_url") or hero.get("url") or ""):
             hero=None
-        paragraphs.append(f"{lead.get('headline') or 'Weekend racing'}. {lead.get('deck') or ''}".strip())
-    else:
-        biggest=reports[0]
-        others=reports[1:]
-        text=(
-            f"Last week's roundup covers {len(reports)} scored events over {date_line}. "
-            f"{biggest.get('headline') or 'The biggest fleet'} headed the list"
-        )
-        if biggest.get("deck"):
-            text+=f" ({biggest['deck']})"
-        text+="."
-        if others:
-            text+=" Also decided were "+", ".join(r.get("headline") or r.get("event_id") or "another event" for r in others)+"."
-        paragraphs.append(text)
-    if missing:
-        paragraphs.append(
-            "The calendar also listed "+", ".join(missing)
-            +", which ran in the same period but do not yet have a published results card."
-        )
+    paragraphs=edit_week(date_line,reports,missing)
     blocks=[]
     if hero and hero.get("url") and len(reports)==1:
         blocks.append({"type":"image","url":hero.get("url"),"alt":reports[0].get("headline") or "Last Week's Roundup","caption":(reports[0].get("kicker") or "Weekend racing")+".","credit":"Event photography","source_url":hero.get("source_url") or "","rights_status":"source_attributed"})
