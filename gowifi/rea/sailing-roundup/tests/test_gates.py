@@ -146,9 +146,14 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["equals"]["name"], "420 Nationals")
         self.assertEqual(rec["equals"]["host"], "TSC")
         self.assertEqual(rec["equals"]["url"], rec["url"])
+        self.assertEqual(rec["equals"]["source"], "parent")
+        self.assertEqual(rec["equals"]["fleets"], ["420"])
         self.assertEqual(rec["equals"]["leaderboard"][0]["helm"], "Dale Rae")
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
+        self.assertEqual(len(rec["equals"]["leaderboards"][0]["rows"]), 3)
         self.assertTrue(rec["checksum"])
         self.assertEqual(rec["find_externally"]["need"], ["photos", "news", "social"])
+        self.assertEqual(rec["find_externally"]["fleets"], ["420"])
 
     def test_checksum_stable_and_changes_with_winner(self):
         a = event_checksum(facts_from_rows(SLUG, sample_rows()))
@@ -202,6 +207,82 @@ class EventFactsGate(unittest.TestCase):
         rec = check_one_event(MONDAY, SLUG, rows)
         self.assertEqual(rec["status"], "fail")
         self.assertTrue(any("no winner name" in e for e in rec["errors"]))
+
+    def test_parent_leaderboard_keeps_every_rank(self):
+        rows = sample_rows()
+        extra = dict(rows[2])
+        extra["rank"] = 4
+        extra["helm_name"] = "Fourth Helm"
+        extra["nett_points_raw"] = 40
+        fifth = dict(rows[2])
+        fifth["rank"] = 5
+        fifth["helm_name"] = "Fifth Helm"
+        fifth["nett_points_raw"] = 50
+        rec = check_one_event(MONDAY, SLUG, rows + [extra, fifth])
+        self.assertEqual(rec["status"], "pass", rec["errors"])
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3", "4", "5"])
+        self.assertEqual(rec["equals"]["leaderboard"][-1]["helm"], "Fifth Helm")
+
+    def test_each_class_gets_its_own_full_leaderboard(self):
+        rows = [
+            {
+                "event_name": "Free State Youth Provincial Champs",
+                "host_club_code": "LDYC",
+                "host_club_name": "Lake Deneys Yacht Club",
+                "class_name": "Dabchick",
+                "start_date": "2026-09-26",
+                "end_date": "2026-09-27",
+                "rank": 1,
+                "helm_name": "Maximilian Malan",
+                "nett_points_raw": 6,
+            },
+            {
+                "event_name": "Free State Youth Provincial Champs",
+                "host_club_code": "LDYC",
+                "class_name": "Dabchick",
+                "rank": 2,
+                "helm_name": "Ethan Biagio",
+                "nett_points_raw": 8,
+            },
+            {
+                "event_name": "Free State Youth Provincial Champs",
+                "host_club_code": "LDYC",
+                "class_name": "Optimist A",
+                "rank": 1,
+                "helm_name": "Taylor Milln",
+                "nett_points_raw": 8,
+            },
+            {
+                "event_name": "Free State Youth Provincial Champs",
+                "host_club_code": "LDYC",
+                "class_name": "Optimist B",
+                "rank": 1,
+                "helm_name": "Danny Coetzer",
+                "nett_points_raw": 10,
+            },
+        ]
+        rec = check_one_event(MONDAY, "2026-09-26-ldyc-free-state-youth-provincial-champs", rows)
+        self.assertEqual(rec["status"], "pass", rec["errors"])
+        fleets = rec["equals"]["fleets"]
+        self.assertEqual(fleets, ["Dabchick", "Optimist A", "Optimist B"])
+        by_fleet = {b["fleet"]: b["rows"] for b in rec["equals"]["leaderboards"]}
+        self.assertEqual([r["helm"] for r in by_fleet["Dabchick"]], ["Maximilian Malan", "Ethan Biagio"])
+        self.assertEqual(by_fleet["Optimist A"][0]["pos"], "1")
+        self.assertEqual(by_fleet["Optimist B"][0]["helm"], "Danny Coetzer")
+
+    def test_fleet_racing_keeps_fleet_names(self):
+        rows = sample_rows()
+        rows[0]["fleet_label"] = "Gold Fleet"
+        rows[1]["fleet_label"] = "Gold Fleet"
+        rows[2]["fleet_label"] = "Silver Fleet"
+        rows[2]["rank"] = 1
+        rec = check_one_event(MONDAY, SLUG, rows)
+        self.assertEqual(rec["status"], "pass", rec["errors"])
+        self.assertEqual(rec["equals"]["fleets"], ["Gold Fleet", "Silver Fleet"])
+        gold = rec["equals"]["leaderboards"][0]
+        self.assertEqual(gold["fleet"], "Gold Fleet")
+        self.assertEqual(len(gold["rows"]), 2)
+        self.assertEqual(rec["equals"]["leaderboards"][1]["fleet"], "Silver Fleet")
 
     def test_course_name_fails(self):
         rec = check_one_event(MONDAY, "2026-09-26-ityc-instructor-course", sample_rows(event_name="Instructor Course"))

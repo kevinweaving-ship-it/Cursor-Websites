@@ -27,7 +27,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
-from event_rewrite import facts_from_rows, is_chrome_image
+from event_rewrite import class_leaderboards, facts_from_rows, is_chrome_image
 from events_weekend import SKIP_NAME, overlaps, parse_day, saturday_sunday
 from evidence_pipeline import is_scoresheet, other_event_conflict
 
@@ -124,21 +124,12 @@ def results_url(slug: str) -> str:
 
 
 def equals_from_facts(facts: dict) -> dict:
-    """The basic equals card: name, date, host, results URL, leaderboard."""
-    _cols, table = facts.get("leaderboard") or ([], [])
-    podium = []
-    for index, row in enumerate(table[:3], 1):
-        row = list(row or [])
-        row += [""] * (6 - len(row))
-        podium.append(
-            {
-                "pos": row[0] or str(index),
-                "helm": row[1],
-                "crew": row[2],
-                "club": row[3],
-                "nett": row[5],
-            }
-        )
+    """The basic equals card from the parent results URL only.
+
+    Leaderboard is every rank. Multiple classes/fleets each get their own board.
+    Fleet racing keeps the fleet names.
+    """
+    boards = facts.get("class_leaderboards") or class_leaderboards(facts.get("ranked_rows") or [])
     slug = facts.get("slug") or ""
     return {
         "name": facts.get("title") or "",
@@ -146,7 +137,10 @@ def equals_from_facts(facts: dict) -> dict:
         "end": facts.get("end") or "",
         "host": (facts.get("club") or facts.get("club_name") or "").strip(),
         "url": facts.get("url") or results_url(slug),
-        "leaderboard": podium,
+        "source": "parent",
+        "fleets": [b.get("fleet") or b.get("class") or "" for b in boards],
+        "leaderboards": boards,
+        "leaderboard": boards[0]["rows"] if boards else [],
     }
 
 
@@ -168,6 +162,7 @@ def find_externally_for(rec: dict) -> dict:
         "end": equals.get("end") or rec.get("end") or "",
         "winner": rec.get("winner") or "",
         "checksum": rec.get("checksum") or "",
+        "fleets": list(equals.get("fleets") or []),
         "need": ["photos", "news", "social"],
     }
 
@@ -203,6 +198,32 @@ def _monday_date(monday) -> dt.date:
     if day.weekday() != 0:
         raise ValueError("Issue date must be a Monday")
     return day
+
+
+def _check_parent_leaderboards(equals: dict) -> list[str]:
+    """Every class/fleet from the parent URL must have a full ranked board."""
+    errors: list[str] = []
+    boards = list(equals.get("leaderboards") or [])
+    fleets = [b.get("fleet") or b.get("class") or "" for b in boards]
+    if len(boards) > 1 and any(not name.strip() for name in fleets):
+        errors.append("fleet racing is missing fleet/class names")
+    if not boards or not any(b.get("rows") for b in boards):
+        errors.append("empty result leaderboard")
+        return errors
+    for board in boards:
+        name = (board.get("fleet") or board.get("class") or "fleet").strip() or "fleet"
+        rows = list(board.get("rows") or [])
+        if not rows:
+            errors.append(f"{name}: empty class/fleet leaderboard")
+            continue
+        if not any((r.get("helm") or r.get("crew") or r.get("boat")) for r in rows):
+            errors.append(f"{name}: leaderboard rows have no helm/crew names")
+        firsts = [r for r in rows if str(r.get("pos") or "").split(".")[0] == "1"]
+        if not firsts:
+            errors.append(f"{name}: no sailor/team in 1st place")
+        elif len(rows) > 2 and len(firsts) == len(rows):
+            errors.append(f"{name}: every entry is listed as 1st — leaderboard is not a result")
+    return errors
 
 
 def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: str = "") -> dict:
@@ -275,32 +296,11 @@ def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: s
     ranked = [r for r in rows if r.get("rank") not in (None, "")]
     if not ranked:
         errors.append("leaderboard has no ranked rows")
-    else:
-        ranks: list[int] = []
-        for row in ranked:
-            try:
-                ranks.append(int(float(row["rank"])))
-            except (TypeError, ValueError):
-                errors.append(f"non-integer rank {row.get('rank')!r}")
-        firsts = [r for r in ranked if str(r.get("rank")).split(".")[0] == "1"]
-        if ranks and min(ranks) != 1:
-            errors.append(f"first rank is {min(ranks)}, expected 1")
-        if not firsts:
-            errors.append("no sailor/team in 1st place")
-        elif len(ranked) > 2 and len(firsts) == len(ranked):
-            errors.append("every entry is listed as 1st — leaderboard is not a result")
-        elif len(firsts) > 3:
-            errors.append("more than three entries in 1st place — leaderboard is not ranked")
+    errors.extend(_check_parent_leaderboards(record.get("equals") or {}))
 
     winner = (facts.get("winner") or "").strip()
     if not winner or winner == "The leader":
         errors.append("leaderboard has no winner name")
-
-    cols, table = facts.get("leaderboard") or ([], [])
-    if not table:
-        errors.append("empty result leaderboard")
-    elif not any(row and any(cell for cell in row[1:3]) for row in table):
-        errors.append("leaderboard rows have no helm/crew names")
 
     if (facts.get("entries") or 0) < 1 and len(rows) < 1:
         errors.append("no entries on the result card")

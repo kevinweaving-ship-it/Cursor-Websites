@@ -8,6 +8,7 @@ sys.path.insert(0, str(ROOT / "app"))
 
 from event_rewrite import (
     citation_index,
+    class_leaderboards,
     cluster_coverage,
     event_finished,
     facts_from_rows,
@@ -400,6 +401,10 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(facts["class_name"], "")
         self.assertIn("Dart 18", facts["classes"])
         self.assertIn("ILCA 7", facts["classes"])
+        boards = {b["fleet"]: b["rows"] for b in facts["class_leaderboards"]}
+        self.assertEqual(set(boards), {"Dart 18", "ILCA 7", "Hunter 19"})
+        self.assertEqual(boards["Dart 18"][0]["helm"], "Lorrian Wells")
+        self.assertEqual(len(facts["leaderboard"][1]), 3)
         dart_photo = {
             "url": "https://scontent.xx.fbcdn.net/prizegiving.jpg",
             "source_url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
@@ -420,6 +425,19 @@ class RewriteEngine(unittest.TestCase):
         )
         self.assertEqual(photos, [])
         self.assertFalse(_keep_cluster_item({"url": dart_photo["source_url"], "title": dart_photo["title"], "body": dart_photo["title"] + " Bradley Levin Kyle Boman at Henley Midmar Yacht Club 2026."}, facts))
+
+    def test_parent_leaderboards_keep_all_ranks_magazine_stays_podium(self):
+        rows = sample_rows()
+        for pos, name in ((4, "Fourth Helm"), (5, "Fifth Helm")):
+            extra = dict(rows[0])
+            extra["rank"] = pos
+            extra["helm_name"] = name
+            extra["nett_points_raw"] = pos * 10
+            rows.append(extra)
+        facts = facts_from_rows("2026-09-25-tsc-420-nationals", rows)
+        self.assertEqual([r["pos"] for r in facts["class_leaderboards"][0]["rows"]], ["1", "2", "3", "4", "5"])
+        self.assertEqual(len(facts["leaderboard"][1]), 3)
+        self.assertEqual(class_leaderboards(rows)[0]["fleet"], "420")
 
     def test_collage_keeps_photos_and_bans_score_sheets(self):
         from evidence_pipeline import is_scoresheet

@@ -31,6 +31,7 @@ UA = {
 FB_UA = {"User-Agent": "facebookexternalhit/1.1"}
 LEADERBOARD_LIMIT = 3
 LEADERBOARD_COLS = ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"]
+GENERIC_FLEET = {"", "open", "overall", "all", "fleet"}
 WRONG_CLASS = {
     "420": ("505", "dart 18", "dabchick", "hobie", "optimist"),
     "505": ("420", "dart 18", "dabchick", "hobie", "optimist"),
@@ -181,6 +182,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
     second_nett = second.get("nett_points_raw")
     classes = list(dict.fromkeys((r.get("class_name") or r.get("class_canonical") or "").strip() for r in ranked if (r.get("class_name") or r.get("class_canonical") or "").strip()))
     mixed_class = len(classes) > 1
+    boards = class_leaderboards(ranked)
     return {
         "slug": slug,
         "title": title,
@@ -213,6 +215,8 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "names": [n for r in ranked for n in ((r.get("helm_name") or "").strip(), (r.get("crew_name") or "").strip()) if n],
         "url": "https://sailingsa.co.za/regatta/" + slug,
         "leaderboard": leaderboard(ranked),
+        "class_leaderboards": boards,
+        "fleets": [b["fleet"] for b in boards],
         "ranked_rows": ranked,
     }
 
@@ -259,6 +263,64 @@ def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[
             ]
         )
     return list(LEADERBOARD_COLS), table
+
+
+def _class_or_fleet_name(row: dict) -> str:
+    """Fleet racing uses fleet_label; otherwise the class name from the parent results URL."""
+    fleet = (row.get("fleet_label") or "").strip()
+    klass = (
+        row.get("class_name") or row.get("class_canonical") or row.get("class_original") or ""
+    ).strip()
+    if fleet and fleet.lower() not in GENERIC_FLEET:
+        return fleet
+    return klass or fleet or "Open"
+
+
+def _board_entry(row: dict) -> dict:
+    helm = (row.get("helm_name") or "").strip()
+    boat = (row.get("boat_name") or row.get("team_name") or "").strip()
+    return {
+        "pos": "" if row.get("rank") in (None, "") else str(row.get("rank")).replace(".0", ""),
+        "helm": helm or boat,
+        "crew": (row.get("crew_name") or "").strip(),
+        "club": (row.get("club_abbrev") or row.get("club_raw") or "").strip(),
+        "sail": (row.get("sail_number") or "").strip(),
+        "nett": "" if row.get("nett_points_raw") in (None, "") else str(row.get("nett_points_raw")).replace(".0", ""),
+        "boat": boat,
+    }
+
+
+def class_leaderboards(rows: list[dict]) -> list[dict]:
+    """Full parent-URL leaderboard for every class/fleet. All ranks, not a 3-boat podium cut."""
+    ranked = _ranked(rows)
+    keys = [_class_or_fleet_name(row) for row in ranked]
+    named = [key for key in keys if key != "Open"]
+    default = named[0] if len(set(named)) == 1 else None
+    groups: dict[str, list] = {}
+    order: list[str] = []
+    for row, key in zip(ranked, keys):
+        if key == "Open" and default:
+            key = default
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(row)
+    boards = []
+    for key in order:
+        rs = groups[key]
+        klass = (
+            rs[0].get("class_name") or rs[0].get("class_canonical") or rs[0].get("class_original") or ""
+        ).strip()
+        fleet = (rs[0].get("fleet_label") or "").strip() or key
+        boards.append(
+            {
+                "fleet": fleet,
+                "class": klass or key,
+                "entries": len(rs),
+                "rows": [_board_entry(r) for r in rs],
+            }
+        )
+    return boards
 
 
 def _agree(winner: str, plural: str, singular: str) -> str:
