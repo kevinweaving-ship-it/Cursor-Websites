@@ -5,7 +5,8 @@
                      lay out name / date / host / url / leaderboard;
                      ALL must PASS, then save the confirmed roster.
                      That roster is the only list later steps may find externally.
-  2 media          — real photographs for each confirmed roster event
+  2 media          — inspect each parent event URL for its own images;
+                     pick the best suited hero; store it on the box
   3 story          — written recap locked to those same events
   4 render         — gold HTML (edition-lead, h1, figures)
   5 cards          — homepage cards have real copy and a real photo
@@ -391,41 +392,64 @@ def _roster_coverage_errors(ctx: dict, reports: list[dict], step: str) -> list[s
     return errors
 
 
+def _hero_file(ctx: dict, hero: dict) -> pathlib.Path | None:
+    rel = hero.get("local_path") or ""
+    if not rel:
+        return None
+    root = pathlib.Path(ctx["root"]) if ctx.get("root") else ROOT
+    monday = str(ctx.get("monday") or "")
+    for base in (
+        root / "issues" / monday / rel,
+        root / "public" / "issues" / monday / rel,
+        pathlib.Path(ctx["public_dir"]) / rel if ctx.get("public_dir") else None,
+    ):
+        if base and base.is_file():
+            return base
+    return None
+
+
 def gate_media(ctx: dict) -> GateResult:
+    """Parent URL inspected, best hero stored on the box for every confirmed event."""
+    roster = ctx.get("roster") or {}
+    if roster and not roster.get("confirmed"):
+        return GateResult(2, "media", "fail", errors=["weekend roster is not confirmed — cannot find externally"])
+    passed = _passed_slugs(ctx)
     reports = _reports(ctx)
-    errors: list[str] = _roster_coverage_errors(ctx, reports, "media")
-    events: list[dict] = []
-    if not reports:
-        errors.append("no event articles to check for photographs")
+    errors: list[str] = _roster_coverage_errors(ctx, reports, "media") if reports else []
+    if not passed:
+        errors.append("no confirmed roster events to inspect for media")
         return GateResult(2, "media", "fail", errors=errors)
+    heroes = dict(ctx.get("heroes") or {})
+    if not heroes:
+        from parent_hero import load_heroes
+
+        heroes = load_heroes(str(ctx.get("monday") or ""), passed, root=pathlib.Path(ctx["root"]) if ctx.get("root") else ROOT)
+    events: list[dict] = []
     hashes: set[str] = set()
-    public = pathlib.Path(ctx["public_dir"]) if ctx.get("public_dir") else None
-    for article in reports:
-        slug = article.get("event_id") or article.get("id") or ""
-        images = [b for b in (article.get("blocks") or []) if b.get("type") == "image"]
-        rec = {"slug": slug, "photographs": len(images), "errors": []}
-        if not images:
-            rec["errors"].append("no photographs")
-        for block in images:
-            url = block.get("url") or ""
-            src = block.get("source_url") or ""
-            cap = block.get("caption") or ""
-            if is_chrome_image(src or url, cap):
-                rec["errors"].append("chrome/logo photograph")
-            if is_scoresheet({"url": src or url, "title": cap, "caption": cap}):
-                rec["errors"].append("scoresheet photograph")
-            if other_event_conflict(
-                {"url": src, "title": cap, "body": cap},
-                {"slug": slug, "title": article.get("headline") or slug, "url": "https://sailingsa.co.za/regatta/" + slug},
-            ):
-                rec["errors"].append("photograph belongs to another event")
-            if public and url:
-                path = (public / url).resolve()
-                if path.is_file() and path.is_relative_to(public.resolve()):
-                    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-                    if digest in hashes:
-                        rec["errors"].append("duplicate photograph")
-                    hashes.add(digest)
+    for slug in passed:
+        hero = heroes.get(slug) or {}
+        rec = {
+            "slug": slug,
+            "parent_has_media": bool(hero.get("parent_has_media")),
+            "local_path": hero.get("local_path") or "",
+            "errors": [],
+        }
+        if hero.get("status") != "pass":
+            rec["errors"].append(hero.get("error") or "no hero stored on box")
+        path = _hero_file(ctx, hero)
+        if not path:
+            rec["errors"].append("hero file missing on box")
+        else:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            if digest in hashes:
+                rec["errors"].append("duplicate photograph")
+            hashes.add(digest)
+        src = hero.get("source_url") or hero.get("remote_url") or ""
+        cap = hero.get("title") or ""
+        if src and is_chrome_image(src, cap):
+            rec["errors"].append("chrome/logo photograph")
+        if src and is_scoresheet({"url": src, "title": cap, "caption": cap}):
+            rec["errors"].append("scoresheet photograph")
         events.append(rec)
         errors.extend(f"{slug}: {err}" for err in rec["errors"])
     return GateResult(2, "media", "pass" if not errors else "fail", errors=errors, events=events)
@@ -655,8 +679,12 @@ def _context_from_disk(monday: str, root: pathlib.Path, slugs=None, rows_by_slug
     if landing_path.is_file():
         landing = landing_path.read_text(encoding="utf-8", errors="replace")
     roster = load_roster(monday, root=root)
+    from parent_hero import load_heroes
+
+    passed = list((roster or {}).get("passed_slugs") or [])
     return {
         "monday": monday,
+        "root": str(root),
         "slugs": slugs,
         "rows_by_slug": rows_by_slug,
         "table_events": table_events,
@@ -664,7 +692,8 @@ def _context_from_disk(monday: str, root: pathlib.Path, slugs=None, rows_by_slug
         "public_dir": str(public_dir) if public_dir.is_dir() else "",
         "landing_html": landing,
         "roster": roster or {},
-        "passed_slugs": list((roster or {}).get("passed_slugs") or []),
+        "passed_slugs": passed,
+        "heroes": load_heroes(monday, passed, root=root),
     }
 
 

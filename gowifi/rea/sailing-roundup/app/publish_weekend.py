@@ -21,6 +21,7 @@ from event_rewrite import (
 )
 from events_weekend import saturday_sunday, slugs_for_weekend, weekend_events
 from gates import GateError, run_gates, write_gates
+from parent_hero import store_roster_heroes
 from sailor_mentions import parse_day
 
 UA = {"User-Agent": "SailingRoundupResearch/1.0"}
@@ -162,6 +163,7 @@ def _gate_context(monday: dt.date, slugs, rows_by_slug, table_events, fetch_erro
         "articles": articles or [],
         "public_dir": str(public) if public.is_dir() else "",
         "landing_html": landing.read_text(encoding="utf-8", errors="replace") if landing.is_file() else "",
+        "root": str(root),
     }
 
 
@@ -261,6 +263,11 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
     slugs = list((step1.events and [e["slug"] for e in step1.events if e.get("status") == "pass"]) or [])
     if not slugs:
         raise GateError(run)
+    facts_by_slug = ctx.get("facts_by_slug") or {}
+    hero_hooks = dict(inject.get("hero_hooks") or {})
+    heroes = store_roster_heroes(issue, step1.events, facts_by_slug, root=root, **hero_hooks)
+    ctx["heroes"] = heroes
+    require_gates(monday, ctx, through=2, root=root)
 
     if dest.exists() and not rebuild:
         data = json.loads(dest.read_text())

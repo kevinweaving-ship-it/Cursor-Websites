@@ -308,14 +308,30 @@ class SequentialGates(unittest.TestCase):
         run = run_gates(facts_ctx(), through=6)
         self.assertEqual(run.step(1).status, "pass")
         self.assertEqual(run.step(2).status, "fail")
+        self.assertTrue(any("no hero stored on box" in e or "hero file missing" in e for e in run.step(2).errors))
         self.assertEqual(run.step(3).status, "blocked")
         self.assertFalse(run.can_publish)
         self.assertTrue(run.ok_through(1))
         self.assertFalse(run.ok_through(2))
 
+    def _stored_hero(self, root, slug=SLUG):
+        rel = f"media/{slug}-hero.jpg"
+        path = root / "issues" / MONDAY.isoformat() / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"real-photo-bytes")
+        return {
+            "slug": slug,
+            "status": "pass",
+            "local_path": rel,
+            "parent_has_media": True,
+            "source_url": "https://sailingsa.co.za/regatta/" + slug,
+            "title": "420 Nationals prizegiving",
+        }
+
     def test_all_steps_pass_unlocks_publish(self):
         with tempfile.TemporaryDirectory() as temp:
-            public = pathlib.Path(temp) / "public"
+            root = pathlib.Path(temp)
+            public = root / "public"
             public.mkdir()
             html = (
                 '<article class="edition-lead"><h1>Last Week\'s Roundup</h1>'
@@ -330,6 +346,8 @@ class SequentialGates(unittest.TestCase):
                 public_dir=str(public),
                 landing_html=html,
                 feature_excerpt="Two national championships closed the weekend with a written story, not a headline list.",
+                root=str(root),
+                heroes={SLUG: self._stored_hero(root)},
             )
             run = run_gates(ctx, through=6)
             self.assertEqual([s.status for s in run.steps], ["pass"] * 6, run.summary())
@@ -410,8 +428,14 @@ class SequentialGates(unittest.TestCase):
         self.assertEqual(ctx["roster"]["events"][0]["equals"]["url"], "https://sailingsa.co.za/regatta/" + SLUG)
 
     def test_media_cannot_cover_an_event_off_the_roster(self):
-        ctx = facts_ctx(articles=[passing_feature(), passing_article(), passing_article("2026-10-10-hmyc-dam-bottle-sprints")])
-        run = run_gates(ctx, through=6)
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            ctx = facts_ctx(
+                articles=[passing_feature(), passing_article(), passing_article("2026-10-10-hmyc-dam-bottle-sprints")],
+                root=str(root),
+                heroes={SLUG: self._stored_hero(root)},
+            )
+            run = run_gates(ctx, through=6)
         self.assertEqual(run.step(1).status, "pass")
         self.assertEqual(run.step(2).status, "fail")
         self.assertTrue(any("not on confirmed weekend roster" in e for e in run.step(2).errors))
