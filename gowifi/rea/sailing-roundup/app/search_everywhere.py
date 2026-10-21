@@ -209,6 +209,15 @@ def discovery_queries(event: dict) -> list[str]:
     bounded = google_after_before(event)
     year, month = event_year_month(event)
     queries = [event_query(event)]
+    klass_u = klass.upper()
+    team_event = klass_u in {"TSL", "TEAM SAILING"} or "team sailing" in title.lower()
+    if team_event:
+        for name in (event.get("result_names") or event.get("names") or [])[:5]:
+            if not name:
+                continue
+            queries.append(f'"{name}" team sailing {club} {year}'.strip())
+            queries.append(f'site:facebook.com "{name}" TSL {year}'.strip())
+            queries.append(f'site:instagram.com "{name}" team sailing {year}'.strip())
     if title and year:
         queries.append(f"{title} {year}")
         queries.append(f"{title} {year} SailingSA")

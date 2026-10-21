@@ -8,6 +8,7 @@ sys.path.insert(0, str(ROOT / "app"))
 
 from event_rewrite import (
     GOLD_BOARD_LABEL,
+    artwork_matches_event,
     board_label,
     citation_index,
     clean_event_title,
@@ -15,6 +16,7 @@ from event_rewrite import (
     event_finished,
     facts_from_rows,
     layout_for,
+    official_event_images,
     pick_image,
     pick_images,
     rewrite_event,
@@ -23,6 +25,7 @@ from event_rewrite import (
     _event_photo_score,
     _facebook_page_chrome,
     _is_event_photograph,
+    _is_official_event_artwork,
     _keep_cluster_item,
     _wiki_url,
 )
@@ -670,6 +673,140 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual([r[1] for r in board["rows"]], ["MAC", "MATIES", "RCYC Sailing Academy"])
         heading = next(b for b in article["blocks"] if b["type"] == "heading")
         self.assertEqual(heading["text"], GOLD_BOARD_LABEL)
+
+    def test_event_url_artwork_used_when_it_matches(self):
+        tsl = facts_from_rows(
+            "2026-10-17-mac-tsl-wc-team-sailing",
+            [
+                {
+                    "event_name": "SA Sailing WC Team Sailing Event",
+                    "host_club_code": "MAC",
+                    "class_name": "TSL",
+                    "boat_name": "MAC",
+                    "helm_name": "Maddison Smit; Tristan Gress",
+                    "club_abbrev": "MAC",
+                }
+            ],
+        )
+        html = (
+            '<img src="/artwork/Event%20Logo/TSL-Team-Sailing.png">'
+            '<img src="/artwork/Class%20Logo/TSL-Class-Logo.png">'
+            '<meta property="og:image" content="https://sailingsa.co.za/api/og/regatta/2026-10-17-mac-tsl-wc-team-sailing/x.png">'
+        )
+        found = official_event_images(tsl, html=html)
+        self.assertEqual(
+            [x["url"] for x in found],
+            ["https://sailingsa.co.za/artwork/Event Logo/TSL-Team-Sailing.png"],
+        )
+        photos = pick_images(
+            tsl,
+            {"articles": [{"url": tsl["url"], "title": tsl["title"], "images": found}]},
+        )
+        self.assertEqual(len(photos), 1)
+        self.assertTrue(_is_official_event_artwork(photos[0]["url"]))
+        self.assertGreaterEqual(_event_photo_score(photos[0], tsl), 40)
+
+        dam = facts_from_rows(
+            "2026-10-10-hmyc-dam-bottle-sprints",
+            [
+                {
+                    "event_name": "Dam Bottle Sprints",
+                    "host_club_code": "HMYC",
+                    "class_name": "Dart 18",
+                    "helm_name": "Lorrian Wells",
+                    "club_abbrev": "HMYC",
+                }
+            ],
+        )
+        dam_html = (
+            '<img src="/artwork/Event Logo/Dam-Bottle-Sprints.png">'
+            '<img src="/artwork/Event Logo/Dart-18-Nationals.png">'
+        )
+        dam_found = official_event_images(dam, html=dam_html)
+        self.assertTrue(any("Dam-Bottle-Sprints" in x["url"] for x in dam_found))
+        self.assertFalse(any("Dart-18-Nationals" in x["url"] for x in dam_found))
+
+        youth = facts_from_rows(
+            "2026-10-04-free-state-youth-provincial-champs",
+            [
+                {
+                    "event_name": "Free State Youth Provincial Champs",
+                    "host_club_code": "LDYC",
+                    "class_name": "Dabchick",
+                    "helm_name": "Maximilian Malan",
+                    "club_abbrev": "VLC",
+                }
+            ],
+        )
+        youth_found = official_event_images(
+            youth,
+            html='<img src="/artwork/Event Logo/Free-State-Youth-Provincial-Champs-2025.png">',
+        )
+        self.assertEqual(len(youth_found), 1)
+
+        mirror = facts_from_rows(
+            "2026-10-17-pyc-kzn-mirror-regionals",
+            [
+                {
+                    "event_name": "KZN Mirror Regionals",
+                    "host_club_code": "PYC",
+                    "class_name": "Mirror",
+                    "helm_name": "Mark Flack",
+                    "crew_name": "Ila Gebuza",
+                }
+            ],
+        )
+        self.assertEqual(
+            official_event_images(
+                mirror,
+                html='<img src="/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png">',
+            ),
+            [],
+        )
+        self.assertFalse(
+            artwork_matches_event(
+                "https://sailingsa.co.za/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png",
+                mirror,
+            )
+        )
+
+    def test_tsl_search_uses_team_names(self):
+        from event_social_verify import result_names
+        from search_everywhere import discovery_queries
+
+        rows = [
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "class_name": "TSL",
+                "boat_name": "MAC",
+                "helm_name": "Maddison Smit; Tristan Gress",
+            },
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "class_name": "TSL",
+                "boat_name": "MATIES",
+                "helm_name": "Corben Smith; Robyn Roselli",
+            },
+        ]
+        names = result_names(rows)
+        self.assertEqual(names, ["MAC", "MATIES"])
+        self.assertNotIn("Maddison Smit", names)
+        queries = discovery_queries(
+            {
+                "title": "SA Sailing WC Team Sailing Event",
+                "class_name": "TSL",
+                "club": "MAC",
+                "club_name": "Milnerton Aquatic Club",
+                "start": "2026-10-17",
+                "end": "2026-10-18",
+                "result_names": names,
+                "names": names,
+            }
+        )
+        blob = " ".join(queries)
+        self.assertIn("MAC", blob)
+        self.assertIn("MATIES", blob)
+        self.assertNotIn("Maddison Smit", blob)
 
     def test_feature_lead_is_gold_sentence(self):
         from evidence_pipeline import feature

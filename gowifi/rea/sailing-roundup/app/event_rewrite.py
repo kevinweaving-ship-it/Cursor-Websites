@@ -733,7 +733,13 @@ def _try_paid_clusters(query: str) -> list[dict]:
 
 def cluster_coverage(facts, pack=None, fetch=True):
     from evidence_pipeline import verified_cluster
-    candidates=[_official_results_card(facts)]
+    official=_official_results_card(facts)
+    if fetch:
+        artwork=official_event_images(facts)
+        if artwork:
+            official["images"]=artwork
+            official["image"]=artwork[0]["url"]
+    candidates=[official]
     for post in (pack or {}).get("verified_posts") or (pack or {}).get("posts") or []:
         candidates.append(dict(post))
     for item in ((pack or {}).get("sailor_mentions") or {}).get("matched") or []:
@@ -788,6 +794,23 @@ def cluster_coverage(facts, pack=None, fetch=True):
         if key and key not in seen:
             seen.add(key);unique.append(item)
     cluster=verified_cluster(facts,unique,fetch=fetch)
+    # extract() replaces og:image with the results card; keep this event's own artwork.
+    if fetch:
+        artwork=official_event_images(facts)
+        if artwork:
+            for article in cluster.get("articles") or []:
+                if (article.get("verification") or {}).get("reason")!="official_results":
+                    continue
+                existing=list(article.get("images") or [])
+                seen={x.get("url") for x in existing}
+                for item in artwork:
+                    if item["url"] not in seen:
+                        existing.append(item)
+                article["images"]=existing
+                image=article.get("image") or ""
+                if not image or "api/og" in image or _is_official_event_artwork(image):
+                    article["image"]=artwork[0]["url"]
+                break
     # The official record needs no network extraction and is always citation 1.
     cluster["articles"].sort(key=lambda a:a["verification"]["reason"]!="official_results")
     return cluster
@@ -825,7 +848,109 @@ def _facebook_page_chrome(url: str, image: str = "") -> bool:
     return bool(path)
 
 
+def _is_official_event_artwork(url: str) -> bool:
+    path = urllib.parse.unquote(urllib.parse.urlparse(url or "").path).lower()
+    return "/artwork/event logo/" in path
+
+
+def _artwork_tokens(url: str) -> list[str]:
+    name = urllib.parse.unquote(urllib.parse.urlparse(url or "").path.split("/")[-1])
+    name = re.sub(r"\.[a-z0-9]+$", "", name, flags=re.I)
+    name = re.sub(r"[-_]?(class[-_]?logo|event[-_]?logo|logo)$", "", name, flags=re.I)
+    return [t for t in re.findall(r"[a-z0-9]+", name.lower()) if len(t) >= 3]
+
+
+def artwork_matches_event(url: str, facts: dict) -> bool:
+    """Keep Event Logo files that belong to this event. Drop rival-class artwork."""
+    tokens = _artwork_tokens(url)
+    if not tokens:
+        return False
+    title = (facts.get("title") or "").lower()
+    slug = (facts.get("slug") or "").lower()
+    classes = {
+        str(c).lower()
+        for c in ([facts.get("class_name")] + list(facts.get("class_names") or []))
+        if c
+    }
+    hay = " ".join(
+        x
+        for x in (
+            title,
+            slug.replace("-", " "),
+            " ".join(classes),
+            (facts.get("club") or ""),
+            (facts.get("club_name") or ""),
+        )
+        if x
+    ).lower()
+    hits = [t for t in tokens if t in hay]
+    if len(hits) < 2:
+        return False
+    rivals = ("ilca", "laser", "dart", "505", "420", "j22", "hobie", "optimist", "dabchick", "mirror")
+    for rival in rivals:
+        if rival in tokens and rival not in hay and not any(rival in c for c in classes):
+            return False
+    return True
+
+
+def official_event_images(facts: dict, html: str | None = None) -> list[dict]:
+    """Photographs and this event's own artwork from the official event URL."""
+    url = facts.get("url") or ""
+    if html is None:
+        if not url.startswith("http"):
+            return []
+        try:
+            raw, _ = _http_get(url, UA, timeout=20)
+            html = raw.decode("utf-8", "replace")
+        except Exception:
+            return []
+    found = []
+    seen = set()
+    for src in re.findall(r'(?:src|content)=["\']([^"\']+)["\']', html or "", re.I):
+        link = urllib.parse.urljoin(url or "https://sailingsa.co.za/", src)
+        parsed = urllib.parse.urlsplit(link)
+        link = urllib.parse.urlunsplit(
+            (parsed.scheme, parsed.netloc, urllib.parse.unquote(parsed.path), "", "")
+        )
+        key = link
+        if key in seen:
+            continue
+        if _is_official_event_artwork(link):
+            if not artwork_matches_event(link, facts):
+                continue
+            seen.add(key)
+            found.append(
+                {
+                    "url": key,
+                    "source_url": url,
+                    "title": facts.get("title") or "",
+                    "credit": "SailingSA",
+                    "kind": "official_event_artwork",
+                }
+            )
+            continue
+        if _bad_image_url(link) or _wiki_url(link):
+            continue
+        if not re.search(r"\.(jpe?g|png|webp)(\?|$)", link, re.I):
+            continue
+        if "sailingsa.co.za" in link.lower() and "/artwork/" in urllib.parse.unquote(link).lower():
+            continue
+        seen.add(key)
+        found.append(
+            {
+                "url": link,
+                "source_url": url,
+                "title": facts.get("title") or "",
+                "credit": "SailingSA",
+                "kind": "event_page_photo",
+            }
+        )
+    return found[:6]
+
+
 def _bad_image_url(url: str) -> bool:
+    if _is_official_event_artwork(url):
+        return False
     low = (url or "").lower()
     if _wiki_url(low):
         return True
@@ -1060,6 +1185,8 @@ def _event_photo_score(item: dict, facts: dict) -> int:
     n = 0
     if _wiki_url(blob) or _wiki_url(photo) or _wiki_url(source):
         return -10000
+    if _is_official_event_artwork(photo):
+        return 45 if artwork_matches_event(photo, facts) else -90
     if _bad_image_url(photo) or _wrong_class(blob, klass):
         return -100
     if _facebook_page_chrome(source, photo) and "facebook.com" in source:
@@ -1132,12 +1259,14 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
                     "source_url": item.get("url") or item.get("share_url") or "",
                     "title": item.get("title") or facts["title"],
                     "credit": _credit_from_url(item.get("url") or item["image"]),
+                    "kind": "official_event_artwork" if _is_official_event_artwork(item["image"]) else "",
                 }
             )
     for document in (cluster or {}).get("articles") or []:
         for attachment in document.get("images") or []:
             add({"url":attachment["url"],"source_url":document.get("url") or "",
-                 "title":attachment.get("title") or facts["title"],"credit":_credit_from_url(document.get("url") or "")})
+                 "title":attachment.get("title") or facts["title"],"credit":_credit_from_url(document.get("url") or ""),
+                 "kind":attachment.get("kind") or ("official_event_artwork" if _is_official_event_artwork(attachment.get("url") or "") else "")})
     for img in (pack or {}).get("images") or []:
         if img.get("image_url"):
             add(
@@ -1146,6 +1275,7 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
                     "source_url": img.get("source_url") or "",
                     "title": img.get("source_title") or facts["title"],
                     "credit": pretty_credit(img.get("platform") or "", img.get("source_url") or img.get("image_url") or ""),
+                    "kind": img.get("kind") or "",
                 }
             )
     ranked = [item for item in candidates if _event_photo_score(item, facts) >= 40]
@@ -1162,6 +1292,8 @@ def pretty_credit(raw: str, url: str = "") -> str:
     blob = f"{raw or ''} {url or ''}".lower()
     if "novanews" in blob:
         return "NovaNews"
+    if "artwork/event logo" in blob or "sailingsa.co.za/regatta/" in blob:
+        return "SailingSA"
     if "420nationalssouthafrica" in blob:
         return "420 Sailing South Africa"
     if "rsa505" in blob:
@@ -1221,7 +1353,8 @@ def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict |
         return None
     if len(raw) < 8000 or (ctype and not ctype.startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
         return None
-    if not _is_event_photograph(raw):
+    official = _is_official_event_artwork(url) or image.get("kind") == "official_event_artwork"
+    if not official and not _is_event_photograph(raw):
         return None
     dest.write_bytes(raw)
     (source_dir / filename).write_bytes(raw)

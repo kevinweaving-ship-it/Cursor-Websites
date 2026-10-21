@@ -45,6 +45,20 @@ def class_slugs_from_event(title: str = "", slug: str = "", class_name: str = ""
 
 
 def result_names(rows: list[dict], limit: int = 12) -> list[str]:
+    """Official identity for search: team names on TSL, sailors otherwise."""
+    teamish = any(
+        (row.get("class_name") or row.get("class_canonical") or "").upper() in {"TSL", "TEAM SAILING"}
+        or "team sailing" in str(row.get("event_name") or "").lower()
+        or (";" in str(row.get("helm_name") or "") and (row.get("boat_name") or row.get("team_name")))
+        for row in rows or []
+    )
+    if teamish:
+        names = []
+        for row in rows or []:
+            team = (row.get("boat_name") or row.get("team_name") or "").strip()
+            if team and team.lower() not in {n.lower() for n in names}:
+                names.append(team)
+        return names[:limit]
     names = []
     for row in rows or []:
         for key in ("helm_name", "crew_name", "crew2_name", "crew3_name"):

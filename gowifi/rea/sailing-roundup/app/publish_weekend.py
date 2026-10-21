@@ -185,20 +185,19 @@ def media_pack(issue, slug, rows, facts):
         end = dt.date.fromisoformat(str(facts.get("end") or start.isoformat())[:10])
     except ValueError:
         return pack
-    from event_rewrite import is_team_event
+    from event_rewrite import is_team_event, official_event_images
 
     if is_team_event(facts):
         pack["sailor_mentions"] = {"sailors": [], "matched": [], "reason": "team_event"}
-        (source_dir / (slug + "-media.json")).write_text(json.dumps(pack["sailor_mentions"], indent=2))
-        return pack
-    from sailor_mentions import collect_for_sailors
+    else:
+        from sailor_mentions import collect_for_sailors
 
-    ids = sailor_ids(rows)
-    terms = event_terms(facts.get("title"), facts.get("class_name"), facts.get("club_name"), slug)
-    mentions = collect_for_sailors(ids, start, end, terms)
-    pack["sailor_mentions"] = mentions
+        ids = sailor_ids(rows)
+        terms = event_terms(facts.get("title"), facts.get("class_name"), facts.get("club_name"), slug)
+        mentions = collect_for_sailors(ids, start, end, terms)
+        pack["sailor_mentions"] = mentions
     images = list(pack.get("images") or [])
-    for item in mentions.get("matched") or []:
+    for item in (pack.get("sailor_mentions") or {}).get("matched") or []:
         url = item.get("image") or item.get("image_url") or item.get("thumbnail")
         if url:
             images.append(
@@ -209,8 +208,20 @@ def media_pack(issue, slug, rows, facts):
                     "platform": item.get("source") or "",
                 }
             )
+    for item in official_event_images(facts):
+        images.append(
+            {
+                "image_url": item["url"],
+                "source_url": item.get("source_url") or facts.get("url"),
+                "source_title": item.get("title") or facts.get("title"),
+                "platform": "sailingsa_event",
+                "kind": item.get("kind") or "official_event_artwork",
+            }
+        )
     pack["images"] = images
-    (source_dir / (slug + "-media.json")).write_text(json.dumps(mentions, indent=2, ensure_ascii=False))
+    (source_dir / (slug + "-media.json")).write_text(
+        json.dumps(pack.get("sailor_mentions") or {}, indent=2, ensure_ascii=False)
+    )
     return pack
 
 
