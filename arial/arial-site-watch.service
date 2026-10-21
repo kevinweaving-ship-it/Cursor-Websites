@@ -1,0 +1,22 @@
+[Unit]
+Description=Arial Olarm Offline + Tuya reporting-fail watch (SMS + WhatsApp)
+After=network-online.target arial-api.service
+Wants=arial-api.service
+
+[Service]
+User=wapoc
+Group=wapoc
+WorkingDirectory=/opt/arial-whatsapp-poc
+EnvironmentFile=-/etc/arial-whatsapp-poc.env
+EnvironmentFile=-/etc/arial-sms.env
+ExecStart=/usr/bin/python3 /opt/arial-whatsapp-poc/site_watch.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/arial-whatsapp-poc/state /var/www/sailingsa/data/whatsapp_log.jsonl
+
+[Install]
+WantedBy=multi-user.target
