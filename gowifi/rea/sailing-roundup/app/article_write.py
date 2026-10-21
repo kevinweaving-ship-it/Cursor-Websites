@@ -9,15 +9,14 @@ card are named on the week lead. Scored events get their own heading, biggest fl
 from __future__ import annotations
 
 import json
-import os
 import pathlib
 import re
 import sys
-import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
+from ai_tools import available as ai_available, chat as ai_chat, load_env
 from event_rewrite import (
     citation_index,
     deck_from_facts,
@@ -27,8 +26,6 @@ from event_rewrite import (
 )
 from evidence_pipeline import feature, recap, unlisted_event_names
 from events_weekend import saturday_sunday
-
-UA = {"User-Agent": "SailingRoundupResearch/1.0", "Content-Type": "application/json"}
 
 
 def _as_monday(monday):
@@ -54,8 +51,18 @@ def raw_context(rec: dict, facts: dict, hero: dict | None = None) -> dict:
         "fleets": equals.get("fleets") or facts.get("fleets") or [],
         "leaderboards": equals.get("leaderboards") or facts.get("class_leaderboards") or [],
         "hero": (hero or {}).get("local_path") or "",
+        "hero_title": (hero or {}).get("title") or "",
+        "hero_source": (hero or {}).get("source_url") or "",
         "third_party": False,
     }
+
+
+def media_note(hero: dict | None, facts: dict) -> str:
+    """Official sentence about the stored hero so the writer can adapt it."""
+    if not hero or hero.get("status") != "pass" or not hero.get("local_path"):
+        return ""
+    title = (hero.get("title") or facts.get("title") or "event photography").strip()
+    return f"The stored hero photograph is {title}, saved from the parent event page. [1]"
 
 
 def _required_tokens(facts: dict) -> list[str]:
@@ -69,61 +76,34 @@ def _locked(text: str, facts: dict) -> bool:
     return all(tok.lower() in blob for tok in _required_tokens(facts))
 
 
-def ai_polish(kind: str, context: dict, facts: dict, draft: str) -> str | None:
-    """Optional AI call. Must keep the locked facts or it is discarded."""
-    system = (
+def _system_prompt() -> str:
+    return (
         "You write a South African sailing magazine recap. Use only the supplied facts. "
         "Do not invent sailors, scores, clubs, or other events. Keep citations like [1]. "
-        "Write flowing sentences, not a bullet list."
+        "Write flowing sentences, not a bullet list. If a stored hero photograph is supplied, "
+        "adapt the recap to mention that picture in one sentence."
     )
+
+
+def polish_copy(kind: str, context: dict, facts: dict, draft: str, polish=None) -> tuple[str | None, str]:
+    """Polish the official draft. Returns (text, writer). Writer is official if the call is unused or discarded."""
+    if polish is not None:
+        text = polish(kind, context, facts, draft)
+        if text and _locked(text, facts):
+            return text.strip(), "injected"
+        return None, "official"
+    load_env()
     user = kind + "\n" + json.dumps({"context": context, "draft": draft}, ensure_ascii=False)
-    text = _chat(system, user)
+    text, provider = ai_chat(_system_prompt(), user)
     if not text or not _locked(text, facts):
-        return None
-    return text.strip()
+        return None, "official"
+    return text.strip(), provider
 
 
-def _chat(system: str, user: str) -> str:
-    openai = os.getenv("OPENAI_API_KEY")
-    if openai:
-        try:
-            payload = json.dumps(
-                {
-                    "model": os.getenv("OPENAI_MODEL") or "gpt-4o-mini",
-                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                    "temperature": 0.2,
-                }
-            ).encode()
-            req = urllib.request.Request(
-                "https://api.openai.com/v1/chat/completions",
-                data=payload,
-                headers={**UA, "Authorization": "Bearer " + openai},
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode("utf-8", "replace"))
-            return ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
-        except Exception:
-            pass
-    pplx = os.getenv("PERPLEXITY_API_KEY")
-    if pplx:
-        try:
-            payload = json.dumps(
-                {
-                    "model": "sonar",
-                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                }
-            ).encode()
-            req = urllib.request.Request(
-                "https://api.perplexity.ai/chat/completions",
-                data=payload,
-                headers={**UA, "Authorization": "Bearer " + pplx},
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = json.loads(resp.read().decode("utf-8", "replace"))
-            return ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
-        except Exception:
-            pass
-    return ""
+def ai_polish(kind: str, context: dict, facts: dict, draft: str) -> str | None:
+    """Optional AI call. Must keep the locked facts or it is discarded."""
+    text, _provider = polish_copy(kind, context, facts, draft)
+    return text
 
 
 def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, layout: str = "classic", polish=None) -> dict:
@@ -132,9 +112,10 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
     cluster = {"articles": [], "count": 0}
     cites = citation_index(cluster, facts)
     paras = recap(facts, cluster, cites)
-    polished = (polish or ai_polish)("event article", ctx, facts, " ".join(paras))
-    if polished and not _locked(polished, facts):
-        polished = None
+    note = media_note(hero, facts)
+    if note:
+        paras.append(note)
+    polished, writer = polish_copy("event article", ctx, facts, " ".join(paras), polish=polish)
     if polished:
         paras = [p.strip() for p in re.split(r"\n{2,}", polished) if p.strip()] or paras
         if not any("[1]" in p for p in paras):
@@ -182,6 +163,7 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
         "review_status": "rewritten",
         "third_party": third_party,
         "needs_external": not third_party,
+        "ai_writer": writer,
         "club": facts.get("club") or "",
         "class_name": facts.get("class_name") or "",
         "start_date": facts.get("start") or "",
@@ -200,11 +182,12 @@ def write_week_feature(issue, monday, table_events, reports, polish=None) -> dic
         "winner_helm": "",
     }
     draft = " ".join(b.get("text") or "" for b in art.get("blocks") or [] if b.get("type") == "paragraph")
-    polished = (polish or ai_polish)(
+    polished, writer = polish_copy(
         "week feature",
         {"deck": art.get("deck"), "unlisted": art.get("unlisted_events"), "scored": must},
         lock,
         draft,
+        polish=polish,
     )
     if polished:
         blob = polished.lower()
@@ -219,6 +202,7 @@ def write_week_feature(issue, monday, table_events, reports, polish=None) -> dic
                 {"type": "paragraph", "text": p.strip()} for p in re.split(r"\n{2,}", polished) if p.strip()
             )
     art["weekend"] = [sat.isoformat(), sun.isoformat()]
+    art["ai_writer"] = writer if polished else "official"
     return art
 
 
@@ -259,6 +243,8 @@ def write_issue(issue, monday, roster_events, table_events, facts_by_slug, heroe
     dest = root / "issues" / issue
     dest.mkdir(parents=True, exist_ok=True)
     (dest / "sources").mkdir(parents=True, exist_ok=True)
+    tools = ai_available()
+    story["ai_tools"] = tools
     (dest / "issue.json").write_text(json.dumps(story, indent=2, ensure_ascii=False) + "\n")
     (dest / "sources" / "weekend-story.json").write_text(
         json.dumps(
@@ -268,6 +254,8 @@ def write_issue(issue, monday, roster_events, table_events, facts_by_slug, heroe
                 "unlisted": story["unlisted_events"],
                 "needs_external": story["needs_external"],
                 "sorted_by": "entries",
+                "ai_tools": tools,
+                "ai_writer": [a.get("ai_writer") for a in reports],
             },
             indent=2,
             ensure_ascii=False,

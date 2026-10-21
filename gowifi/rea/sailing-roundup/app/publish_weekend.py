@@ -13,6 +13,7 @@ import urllib.request
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
+from ai_tools import load_env
 from article_write import write_issue, write_week_feature
 from event_rewrite import (
     facts_from_rows,
@@ -236,6 +237,7 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
         monday = dt.date.fromisoformat(monday)
     if monday.weekday() != 0:
         raise ValueError("Issue date must be a Monday")
+    load_env(root=inject.get("root"))
     root = inject.get("root") or ROOT
     issue = monday.isoformat()
     dest = root / "issues" / issue / "issue.json"

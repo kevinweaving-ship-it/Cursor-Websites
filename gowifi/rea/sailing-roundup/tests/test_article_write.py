@@ -10,7 +10,7 @@ from unittest.mock import patch
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from article_write import ai_polish, raw_context, write_event_article, write_issue
+from article_write import ai_polish, media_note, raw_context, write_event_article, write_issue
 from event_rewrite import facts_from_rows
 from gates import run_gates
 from publish_weekend import publish
@@ -104,6 +104,7 @@ class ArticleWrite(unittest.TestCase):
         self.assertEqual(ctx["name"], "420 Nationals")
         self.assertEqual(ctx["winner"], "Dale Rae and James Rae")
         self.assertEqual(ctx["entries"], 16)
+        self.assertEqual(ctx["hero"], "media/hero.jpg")
         self.assertFalse(ctx["third_party"])
 
     def test_official_only_article_passes_without_third_party(self):
@@ -118,6 +119,8 @@ class ArticleWrite(unittest.TestCase):
         self.assertTrue(any(b.get("type") == "results" for b in article["blocks"]))
         self.assertFalse(article["third_party"])
         self.assertTrue(article["needs_external"])
+        self.assertEqual(article["ai_writer"], "official")
+        self.assertIn("stored hero photograph", blob)
         self.assertEqual(article["sources"][0], facts["url"])
 
     def test_polish_discarded_when_winner_or_title_missing(self):
@@ -151,8 +154,15 @@ class ArticleWrite(unittest.TestCase):
 
     def test_ai_polish_returns_none_without_keys(self):
         rec, facts = roster_event(SLUG, sample_rows())
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "", "PERPLEXITY_API_KEY": ""}, clear=False):
+        empty = {
+            "OPENAI_API_KEY": "",
+            "CHATGPT_API_KEY": "",
+            "GPT_API_KEY": "",
+            "PERPLEXITY_API_KEY": "",
+        }
+        with patch.dict("os.environ", empty, clear=False):
             self.assertIsNone(ai_polish("event article", raw_context(rec, facts), facts, "draft"))
+        self.assertIn("stored hero photograph", media_note({"status": "pass", "local_path": "media/x.jpg", "title": "420 Nationals prizegiving"}, facts))
 
     def test_week_roundup_names_four_scored_and_two_unlisted_biggest_first(self):
         packs = [
