@@ -584,6 +584,7 @@ class RewriteEngine(unittest.TestCase):
             "races_sailed": 0,
             "entries_total": 2,
             "rank": None,
+            "boat_name": "MAC",
             "helm_name": "Maddison Smit; Tristan Gress; Unam Lubhelwana",
             "crew_name": "Kamva Mgcubhe; Thandokazi Sibanyoni; Alexa Aab",
             "club_abbrev": "MAC",
@@ -591,7 +592,84 @@ class RewriteEngine(unittest.TestCase):
         team_facts = facts_from_rows("2026-10-17-mac-tsl-wc-team-sailing", [team])
         self.assertIn("MAC win", unique_headline(team_facts))
         self.assertNotIn(";", unique_headline(team_facts))
+        self.assertEqual(team_facts["winner"], "MAC")
         self.assertEqual(team_facts["club_name"], "Milnerton Aquatic Club")
+
+    def test_tsl_names_teams_checksum_rejects_result_sailors(self):
+        from evidence_pipeline import official_names, results_checksum
+        rows = [
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "host_club_code": "MAC",
+                "class_name": "TSL",
+                "start_date": "2026-10-17",
+                "end_date": "2026-10-18",
+                "result_status": "Final",
+                "entries_total": 3,
+                "boat_name": "MAC",
+                "helm_name": "Maddison Smit; Tristan Gress; Unam Lubhelwana",
+                "crew_name": "Kamva Mgcubhe; Thandokazi Sibanyoni; Alexa Aab",
+                "club_abbrev": "MAC",
+            },
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "host_club_code": "MAC",
+                "class_name": "TSL",
+                "boat_name": "MATIES",
+                "helm_name": "Corben Smith; Robyn Roselli; Conrad Holm",
+                "crew_name": "Chiara Fruet",
+                "club_abbrev": "USYC",
+            },
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "host_club_code": "MAC",
+                "class_name": "TSL",
+                "boat_name": "RCYC Sailing Academy",
+                "helm_name": "",
+                "crew_name": "",
+                "club_abbrev": "RCYCA",
+            },
+        ]
+        facts = facts_from_rows("2026-10-17-mac-tsl-wc-team-sailing", rows)
+        self.assertTrue(facts["team_event"])
+        self.assertEqual(facts["winner"], "MAC")
+        self.assertEqual(facts["second"], "MATIES")
+        self.assertEqual(facts["third"], "RCYC Sailing Academy")
+        self.assertIn("MAC win", unique_headline(facts))
+        names = official_names(facts)
+        self.assertIn("MAC", names)
+        self.assertIn("MATIES", names)
+        self.assertIn("RCYC Sailing Academy", names)
+        self.assertNotIn("Maddison Smit", names)
+        self.assertFalse(any(";" in n for n in names))
+        sailor_claim = {
+            "url": "https://example.org/tsl-sailors",
+            "title": "TSL at Milnerton",
+            "body": "Maddison Smit won the SA Sailing WC Team Sailing Event at Milnerton Aquatic Club in October 2026.",
+            "published": "2026-10-19",
+        }
+        check = results_checksum(sailor_claim, facts)
+        self.assertFalse(check["ok"])
+        self.assertEqual(check["reason"], "sailor_name_on_team_event")
+        team_claim = {
+            "url": "https://example.org/tsl-teams",
+            "title": "TSL at Milnerton Aquatic Club",
+            "body": "MAC won the team sailing event at Milnerton Aquatic Club. MATIES finished second. RCYC Sailing Academy also raced.",
+            "published": "2026-10-19",
+        }
+        self.assertTrue(results_checksum(team_claim, facts)["ok"])
+        article = rewrite_event("2026-10-19", facts, pack={}, cluster={"articles": []}, layout="classic")
+        blob = " ".join(b["text"] for b in article["blocks"] if b["type"] == "paragraph")
+        self.assertIn("MAC won", blob)
+        self.assertIn("MATIES", blob)
+        self.assertIn("RCYC Sailing Academy", blob)
+        self.assertNotIn("Maddison Smit", blob)
+        self.assertNotIn(";", blob)
+        board = next(b for b in article["blocks"] if b["type"] == "results")
+        self.assertEqual(board["columns"], ["Pos", "Team", "Club"])
+        self.assertEqual([r[1] for r in board["rows"]], ["MAC", "MATIES", "RCYC Sailing Academy"])
+        heading = next(b for b in article["blocks"] if b["type"] == "heading")
+        self.assertEqual(heading["text"], GOLD_BOARD_LABEL)
 
     def test_feature_lead_is_gold_sentence(self):
         from evidence_pipeline import feature

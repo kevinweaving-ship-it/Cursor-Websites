@@ -104,9 +104,18 @@ def _norm_name(name):
     return re.sub(r"[^a-z0-9]+"," ",(name or "").lower()).strip()
 
 def official_names(facts):
+    from event_rewrite import is_team_event, _team_name
     names=[]
     for n in facts.get("names") or []:
         if n and str(n).strip(): names.append(str(n).strip())
+    if is_team_event(facts):
+        for row in facts.get("ranked_rows") or []:
+            team=_team_name(row)
+            if team: names.append(team)
+        for fleet in facts.get("fleets") or []:
+            for n in fleet.get("names") or []:
+                if n: names.append(str(n).strip())
+        return list(dict.fromkeys(n for n in names if n))
     for fleet in facts.get("fleets") or []:
         for n in fleet.get("names") or []:
             if n and str(n).strip(): names.append(str(n).strip())
@@ -120,12 +129,17 @@ def official_names(facts):
 
 def match_official_name(claimed,official):
     claimed=_norm_name(claimed)
-    if not claimed or len(claimed.split())<2: return None
+    if not claimed: return None
+    for name in official:
+        other=_norm_name(name)
+        if other and claimed==other:
+            return name
+    if len(claimed.split())<2: return None
     if any(part in NAME_STOP for part in claimed.split()): return None
     for name in official:
         other=_norm_name(name)
         if not other: continue
-        if claimed==other or claimed.startswith(other) or other.startswith(claimed):
+        if claimed.startswith(other) or other.startswith(claimed):
             return name
         if set(claimed.split())<=set(other.split()) or set(other.split())<=set(claimed.split()):
             return name
@@ -143,6 +157,13 @@ def _age_near(text,start,end,window=48):
 def official_place(facts,name):
     target=_norm_name(name)
     if not target: return None
+    from event_rewrite import is_team_event, _team_name
+    if is_team_event(facts):
+        for row in facts.get("ranked_rows") or []:
+            if target==_norm_name(_team_name(row)):
+                rank=row.get("rank")
+                return int(rank) if str(rank).isdigit() else None
+        return None
     for row in facts.get("ranked_rows") or []:
         people=[_norm_name(row.get("helm_name") or ""),_norm_name(row.get("crew_name") or "")]
         if target in people or any(target==p or (p and (target.startswith(p) or p.startswith(target))) for p in people if p):
@@ -158,10 +179,19 @@ def results_checksum(item,facts):
     titles are not overall leader claims. Extra host-club names only fail
     the source when the official fleet snapshot is complete.
     """
+    from event_rewrite import is_team_event, result_sailor_names
     official=official_names(facts)
     digest=hashlib.sha256("|".join(sorted(_norm_name(n) for n in official)).encode()).hexdigest()[:12] if official else ""
     body=text_of(item)
     blob=(item.get("title") or "")+"\n"+body
+    if is_team_event(facts):
+        sailors=result_sailor_names(facts)
+        for match in list(PLACE_CLAIM.finditer(blob))+list(WIN_CLAIM.finditer(blob)):
+            for key in ("name","crew"):
+                name=(match.groupdict().get(key) or "").strip()
+                if not name: continue
+                if match_official_name(name,sailors) or _norm_name(name) in {_norm_name(s) for s in sailors}:
+                    return {"ok":False,"reason":"sailor_name_on_team_event","official_digest":digest,"claimed_leaders":[{"name":name}],"unknown_leaders":[{"name":name,"reason":"sailor_name_on_team_event"}]}
     if not official:
         return {"ok":True,"reason":"no_official_names","official_digest":digest,"claimed_leaders":[],"unknown_leaders":[]}
     claimed=[];unknown=[]
@@ -287,6 +317,9 @@ def verified_cluster(facts,candidates,fetch=True):
 
 def source_notes(cluster,facts,index):
     """Extract only supported, named facts. No guessed proper nouns or implied tie-break rules."""
+    from event_rewrite import is_team_event
+    if is_team_event(facts):
+        return []
     notes=[];seen=set()
     for item in cluster.get("articles",[]):
         body=text_of(item)
@@ -333,8 +366,7 @@ def recap(facts,cluster,index):
     title=facts["title"];venue=facts["club_name"];entries=facts.get("entries",0);races=facts.get("races",0)
     nett=facts.get("winner_nett") or ""
     if is_team_event(facts):
-        club=facts.get("winner_club") or facts.get("club") or "host"
-        opening=f"The {club} team of {winner} {verb} the {title} at {venue}"
+        opening=f"{winner} {verb} the {title} at {venue}"
     elif verb=="finished":
         opening=f"{winner} finished first in the published {title} standings at {venue}"
     else:
@@ -349,7 +381,7 @@ def recap(facts,cluster,index):
     paragraphs=[opening]
     heats=_heats(facts.get("winner_scores"))
     wins=sum(h.get("win",False) for h in heats)
-    if heats and races and len(heats)==races:
+    if heats and races and len(heats)==races and not is_team_event(facts):
         if wins==races:paragraphs.append(f"{winner} won every race in the series, held on {_date_span(facts['start'],facts['end'])}. {mark}")
         elif wins:paragraphs.append(f"{winner} recorded {wins} race {'win' if wins==1 else 'wins'} during the series, held on {_date_span(facts['start'],facts['end'])}. {mark}")
         else:paragraphs.append(f"{winner} topped the overall standings without winning an individual race. {mark}")

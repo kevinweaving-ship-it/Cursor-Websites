@@ -15,7 +15,10 @@ photographs from those same sources (podium and on the water are both
 valid; more than one photo is allowed; never Wikimedia), and the official
 event podium in gold format — heading exactly `1st, 2nd, 3rd` (or
 `{Class} · 1st, 2nd, 3rd` when one event has several classes). Same
-columns as 2026-09-28: Pos, Helm, Crew, Club, Sail No, Nett. External media is kept only when
+columns as 2026-09-28: Pos, Helm, Crew, Club, Sail No, Nett. Team racing
+(TSL) names **teams** (MAC, MATIES, RCYC Sailing Academy), not sailors
+from the overall results table; checksum rejects those sailor cells.
+External media is kept only when
 named sailors checksum against those official results. Age titles (U17,
 U19, and the like) are mentioned only when verified media names sailors
 who appear in the results. Discovery always includes the SailingSA regatta page (direct API access;

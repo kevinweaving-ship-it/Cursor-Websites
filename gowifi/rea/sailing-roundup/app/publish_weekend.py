@@ -185,6 +185,12 @@ def media_pack(issue, slug, rows, facts):
         end = dt.date.fromisoformat(str(facts.get("end") or start.isoformat())[:10])
     except ValueError:
         return pack
+    from event_rewrite import is_team_event
+
+    if is_team_event(facts):
+        pack["sailor_mentions"] = {"sailors": [], "matched": [], "reason": "team_event"}
+        (source_dir / (slug + "-media.json")).write_text(json.dumps(pack["sailor_mentions"], indent=2))
+        return pack
     from sailor_mentions import collect_for_sailors
 
     ids = sailor_ids(rows)

@@ -140,20 +140,53 @@ def _readable_list(names: list[str]) -> str:
     return ", ".join(names[:-1]) + " and " + names[-1]
 
 
+def is_team_row(row: dict) -> bool:
+    klass = (row.get("class_name") or row.get("class_canonical") or "").upper()
+    if klass in {"TSL", "TEAM SAILING"} or "TEAM SAILING" in klass:
+        return True
+    boat = (row.get("boat_name") or row.get("team_name") or "").strip()
+    helm = (row.get("helm_name") or "")
+    return bool(boat and (";" in helm or not helm.strip()))
+
+
+def _team_name(row: dict) -> str:
+    raw = (row.get("boat_name") or row.get("team_name") or "").strip()
+    if not raw:
+        return (row.get("club_abbrev") or row.get("club_raw") or "").strip()
+    if raw.isupper() or re.fullmatch(r"[A-Z0-9]+(?:\s+[A-Z0-9]+)*", raw):
+        return raw
+    if raw.lower() == raw:
+        return raw[:1].upper() + raw[1:]
+    return raw
+
+
 def _names(row: dict) -> str:
+    if is_team_row(row):
+        return _team_name(row) or "The leader"
     helm = (row.get("helm_name") or "").strip()
     crew = (row.get("crew_name") or "").strip()
-    if ";" in helm or ";" in crew:
-        return _readable_list(_split_people(helm) + _split_people(crew))
     if helm and crew:
         return f"{helm} and {crew}"
     return helm or crew or "The leader"
 
 
 def is_team_event(facts: dict) -> bool:
+    if facts.get("team_event"):
+        return True
     klass = (facts.get("class_name") or "").upper()
-    winner = facts.get("winner") or ""
-    return klass in {"TSL", "TEAM SAILING"} or ";" in winner or winner.count(" and ") >= 2
+    if klass in {"TSL", "TEAM SAILING"} or "team sailing" in (facts.get("title") or "").lower():
+        return True
+    rows = facts.get("ranked_rows") or []
+    return bool(rows) and all(is_team_row(row) for row in rows)
+
+
+def result_sailor_names(facts: dict) -> list[str]:
+    """Sailor cells on the overall results table — not official identity for TSL."""
+    names = []
+    for row in facts.get("ranked_rows") or []:
+        for raw in ((row.get("helm_name") or ""), (row.get("crew_name") or ""), (row.get("crew2_name") or ""), (row.get("crew3_name") or "")):
+            names.extend(_split_people(raw))
+    return list(dict.fromkeys(n for n in names if n))
 
 
 def clean_event_title(title: str, slug: str = "") -> str:
@@ -222,6 +255,9 @@ def _class_key(row: dict) -> str:
 
 
 def _row_people(row: dict) -> list[str]:
+    if is_team_row(row):
+        team = _team_name(row)
+        return [team] if team else []
     out = []
     for raw in ((row.get("helm_name") or "").strip(), (row.get("crew_name") or "").strip()):
         out.extend(_split_people(raw) if raw else [])
@@ -262,6 +298,7 @@ def _fleet_from_rows(rows: list[dict]) -> dict:
         "leaderboard": leaderboard(ranked),
         "ranked_rows": ranked,
         "names": [n for r in ranked for n in _row_people(r)],
+        "team_event": bool(ranked) and all(is_team_row(r) for r in ranked),
     }
 
 
@@ -339,6 +376,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "third": primary.get("third") or "",
         "third_nett": primary.get("third_nett") or "",
         "tied_first": bool(primary.get("tied_first")),
+        "team_event": bool(primary.get("team_event")) or is_team_event({"class_name": primary.get("class_name"), "title": title, "ranked_rows": all_rows}),
         "names": list(dict.fromkeys(all_names)),
         "url": "https://sailingsa.co.za/regatta/" + slug,
         "leaderboard": primary.get("leaderboard") or leaderboard([]),
@@ -389,6 +427,17 @@ def _official_results_card(facts: dict) -> dict:
 def leaderboard(rows: list[dict], limit: int | None = LEADERBOARD_LIMIT) -> tuple[list[str], list[list[str]]]:
     table = []
     selected = list(rows) if limit is None else rows[:limit]
+    team = bool(selected) and all(is_team_row(row) for row in selected)
+    if team:
+        cols = ["Pos", "Team", "Club"]
+        if any(_nett(row.get("nett_points_raw")) for row in selected):
+            cols.append("Nett")
+        for i, row in enumerate(selected, 1):
+            line = [str(i), _team_name(row), str(row.get("club_abbrev") or row.get("club_raw") or "")]
+            if "Nett" in cols:
+                line.append(_nett(row.get("nett_points_raw")))
+            table.append(line)
+        return cols, table
     for i, row in enumerate(selected, 1):
         table.append(
             [
@@ -432,8 +481,8 @@ def unique_headline(facts: dict, cluster: dict | None = None) -> str:
     short_venue = re.sub(r"\s+(Yacht Club|Sports Club|Aquatic Club|Club)$", "", venue or "", flags=re.I).strip() or venue
     finished = event_finished(facts)
     if is_team_event(facts):
-        club = facts.get("winner_club") or facts.get("club") or "The host club"
-        return f"{club} win {title} at {short_venue}"
+        team = facts.get("winner") or facts.get("winner_club") or facts.get("club") or "The host club"
+        return f"{team} win {title} at {short_venue}"
     if facts.get("tied_first") and facts.get("second"):
         return f"{winner} {_agree(winner, 'take', 'takes')} {title} after a points tie at {short_venue}"
     if facts.get("winner_wins") and facts["winner_wins"] >= max(3, int(facts.get("races") or 0) // 2):
