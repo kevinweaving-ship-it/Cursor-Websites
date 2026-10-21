@@ -26,6 +26,46 @@ MONDAY = dt.date(2026, 9, 28)
 SLUG = "2026-09-25-tsc-420-nationals"
 
 
+def tsl_mac_rows():
+    """SA Sailing WC Team Sailing — TSL ranks teams; sailor rank/nett stay empty."""
+    teams = (
+        ("MAC", "MAC", "Maddison Smit; Tristan Gress; Unam Lubhelwana", "Kamva Mgcubhe; Thandokazi Sibanyoni; Alexa Aab"),
+        ("MATIES", "USYC", "Corben Smith; Robyn Roselli; Conrad Holm", "Chiara Fruet"),
+        ("Eden District", "EDYC", "Christian Cilliers; Arthur Watson; Lulonke Lenks", ""),
+        ("RCYCA A", "RCYC", "Hayden Miller; Aphendule Mqwalaseli; Sesona Ntsaluba", ""),
+        ("University of Cape Town Yacht Club", "UCTYC", "Jessie Basson; Rebecca Hall; Eric Leach", ""),
+        ("RCYCA B", "RCYC", "", ""),
+        ("izivungu", "IZV", "", ""),
+        ("RCYC Sailing Academy", "RCYC", "", ""),
+    )
+    rows = []
+    for boat, club, helm, crew in teams:
+        rows.append(
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "host_club_code": "MAC",
+                "host_club_name": "MAC",
+                "host_club_slug": "mac",
+                "class_name": "TSL",
+                "class_canonical": "TSL",
+                "start_date": "2026-10-17",
+                "end_date": "2026-10-18",
+                "result_status": "Final",
+                "races_sailed": 0,
+                "entries_total": 8,
+                "scoring_system": "Team Racing",
+                "rank": None,
+                "nett_points_raw": None,
+                "total_points_raw": None,
+                "helm_name": helm,
+                "crew_name": crew,
+                "boat_name": boat,
+                "club_abbrev": club,
+            }
+        )
+    return rows
+
+
 def sample_rows(**overrides):
     row = {
         "event_name": "420 Nationals",
@@ -289,6 +329,41 @@ class EventFactsGate(unittest.TestCase):
         rec = check_one_event(MONDAY, "2026-09-26-ityc-instructor-course", sample_rows(event_name="Instructor Course"))
         self.assertEqual(rec["status"], "fail")
         self.assertTrue(any("course/meeting" in e for e in rec["errors"]))
+
+    def test_tsl_team_racing_ranks_teams_not_sailors(self):
+        monday = dt.date(2026, 10, 19)
+        slug = "2026-10-17-mac-tsl-wc-team-sailing"
+        rec = check_one_event(monday, slug, tsl_mac_rows())
+        self.assertEqual(rec["status"], "pass", rec["errors"])
+        self.assertEqual(rec["name"], "SA Sailing WC Team Sailing Event")
+        self.assertEqual(rec["winner"], "MAC")
+        self.assertTrue(rec["equals"]["team_racing"])
+        self.assertEqual(rec["equals"]["scoring_system"], "Team Racing")
+        self.assertEqual(rec["equals"]["fleets"], ["TSL"])
+        board = rec["equals"]["leaderboard"]
+        self.assertEqual([row["pos"] for row in board], ["1", "2", "3", "4", "5", "6", "7", "8"])
+        self.assertEqual([row["helm"] for row in board], [
+            "MAC",
+            "MATIES",
+            "Eden District",
+            "RCYCA A",
+            "University of Cape Town Yacht Club",
+            "RCYCA B",
+            "izivungu",
+            "RCYC Sailing Academy",
+        ])
+        self.assertEqual(board[0]["team"], "MAC")
+        self.assertIn("Maddison Smit", board[0]["crew"])
+        self.assertFalse(any("no ranked rows" in e for e in rec["errors"]))
+        self.assertFalse(any("1st place" in e for e in rec["errors"]))
+
+    def test_fleet_racing_still_needs_sailor_ranks(self):
+        rows = sample_rows()
+        for row in rows:
+            row["rank"] = None
+        rec = check_one_event(MONDAY, SLUG, rows)
+        self.assertEqual(rec["status"], "fail")
+        self.assertTrue(any("no ranked rows" in e or "1st place" in e for e in rec["errors"]))
 
 
 class SequentialGates(unittest.TestCase):

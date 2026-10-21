@@ -31,7 +31,10 @@ UA = {
 FB_UA = {"User-Agent": "facebookexternalhit/1.1"}
 LEADERBOARD_LIMIT = 3
 LEADERBOARD_COLS = ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"]
+TEAM_LEADERBOARD_COLS = ["Pos", "Team", "Sailors"]
 GENERIC_FLEET = {"", "open", "overall", "all", "fleet"}
+TEAM_RACING_SYSTEM = re.compile(r"team\s+(racing|sailing)|tsl", re.I)
+TEAM_RACING_CLASS = {"tsl", "team sailing", "team racing", "team sailing league"}
 WRONG_CLASS = {
     "420": ("505", "dart 18", "dabchick", "hobie", "optimist"),
     "505": ("420", "dart 18", "dabchick", "hobie", "optimist"),
@@ -120,7 +123,53 @@ def _club_name(code: str, explicit: str = "") -> str:
     return HOST_FALLBACK.get(code.upper(), explicit or code or "the host club")
 
 
+def is_team_racing(row: dict | None = None, slug: str = "", rows: list[dict] | None = None) -> bool:
+    """TSL / team racing ranks teams, not sailors. Not Appendix A fleet scoring."""
+    probe = row or ((rows or [None])[0])
+    scoring = str((probe or {}).get("scoring_system") or "")
+    klass = str(
+        (probe or {}).get("class_name")
+        or (probe or {}).get("class_canonical")
+        or (probe or {}).get("class_original")
+        or ""
+    ).strip().lower()
+    slug = (slug or str((probe or {}).get("regatta_id") or "")).lower()
+    if TEAM_RACING_SYSTEM.search(scoring) or klass in TEAM_RACING_CLASS:
+        return True
+    return bool(re.search(r"(?:^|-)(tsl|team-sailing|team-racing)(?:-|$)", slug))
+
+
+def _team_name(row: dict) -> str:
+    return (row.get("boat_name") or row.get("team_name") or "").strip()
+
+
+def _row_rank(row: dict):
+    for key in ("rank", "team_rank", "position"):
+        if row.get(key) not in (None, ""):
+            return row.get(key)
+    return None
+
+
+def _sailor_roster(row: dict) -> list[str]:
+    parts: list[str] = []
+    for key in ("helm_name", "crew_name", "crew2_name", "crew3_name"):
+        raw = (row.get(key) or "").strip()
+        if raw:
+            parts.extend(p.strip() for p in re.split(r"[;,]", raw) if p.strip())
+    seen: set[str] = set()
+    out: list[str] = []
+    for name in parts:
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(name)
+    return out
+
+
 def _names(row: dict) -> str:
+    if is_team_racing(row):
+        return _team_name(row) or "The leader"
     helm = (row.get("helm_name") or "").strip()
     crew = (row.get("crew_name") or "").strip()
     if helm and crew:
@@ -143,6 +192,17 @@ def _intish(value) -> int | None:
 
 
 def _ranked(rows: list[dict]) -> list[dict]:
+    if not rows:
+        return []
+    if is_team_racing(rows[0], rows=rows):
+        out = []
+        for index, raw in enumerate(rows):
+            row = dict(raw)
+            standing = _row_rank(row)
+            row["rank"] = index + 1 if standing in (None, "") else standing
+            out.append(row)
+        out.sort(key=lambda r: int(r["rank"]) if str(r.get("rank")).isdigit() else 999)
+        return out
     out = [r for r in rows if r.get("rank") not in (None, "")]
     out.sort(key=lambda r: int(r["rank"]) if str(r.get("rank")).isdigit() else 999)
     return out or list(rows)
@@ -183,6 +243,9 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
     classes = list(dict.fromkeys((r.get("class_name") or r.get("class_canonical") or "").strip() for r in ranked if (r.get("class_name") or r.get("class_canonical") or "").strip()))
     mixed_class = len(classes) > 1
     boards = class_leaderboards(ranked)
+    team = is_team_racing(first, slug=slug, rows=rows)
+    winner_team = _team_name(winner) if team else ""
+    winner_sailors = _sailor_roster(winner)
     return {
         "slug": slug,
         "title": title,
@@ -197,10 +260,13 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "entries": entries,
         "races": races,
         "status": (first.get("result_status") or "Published").strip(),
+        "scoring_system": (first.get("scoring_system") or ("Team Racing" if team else "")).strip(),
+        "team_racing": team,
         "winner": _names(winner),
         "winner_class": (winner.get("class_name") or winner.get("class_canonical") or "").strip(),
-        "winner_helm": (winner.get("helm_name") or "").strip(),
-        "winner_crew": (winner.get("crew_name") or "").strip(),
+        "winner_helm": winner_team if team else (winner.get("helm_name") or "").strip(),
+        "winner_crew": ", ".join(winner_sailors) if team else (winner.get("crew_name") or "").strip(),
+        "winner_team": winner_team,
         "winner_club": (winner.get("club_abbrev") or winner.get("club_raw") or "").strip(),
         "winner_nett": "" if winner_nett in (None, "") else str(winner_nett).replace(".0", ""),
         "winner_wins": _win_count(winner.get("race_scores")),
@@ -249,6 +315,17 @@ def _official_results_card(facts: dict) -> dict:
 
 def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[str], list[list[str]]]:
     table = []
+    if rows and is_team_racing(rows[0], rows=rows):
+        for row in rows[:limit]:
+            rank = _row_rank(row)
+            table.append(
+                [
+                    "" if rank in (None, "") else str(rank).replace(".0", ""),
+                    _team_name(row),
+                    ", ".join(_sailor_roster(row)),
+                ]
+            )
+        return list(TEAM_LEADERBOARD_COLS), table
     for row in rows[:limit]:
         rank = row.get("rank")
         pos = "" if rank in (None, "") else str(rank)
@@ -277,10 +354,23 @@ def _class_or_fleet_name(row: dict) -> str:
 
 
 def _board_entry(row: dict) -> dict:
+    team = is_team_racing(row)
+    boat = _team_name(row)
     helm = (row.get("helm_name") or "").strip()
-    boat = (row.get("boat_name") or row.get("team_name") or "").strip()
+    rank = _row_rank(row)
+    if team:
+        return {
+            "pos": "" if rank in (None, "") else str(rank).replace(".0", ""),
+            "helm": boat,
+            "crew": ", ".join(_sailor_roster(row)),
+            "club": (row.get("club_abbrev") or row.get("club_raw") or "").strip(),
+            "sail": "",
+            "nett": "",
+            "boat": boat,
+            "team": boat,
+        }
     return {
-        "pos": "" if row.get("rank") in (None, "") else str(row.get("rank")).replace(".0", ""),
+        "pos": "" if rank in (None, "") else str(rank).replace(".0", ""),
         "helm": helm or boat,
         "crew": (row.get("crew_name") or "").strip(),
         "club": (row.get("club_abbrev") or row.get("club_raw") or "").strip(),
@@ -317,6 +407,8 @@ def class_leaderboards(rows: list[dict]) -> list[dict]:
                 "fleet": fleet,
                 "class": klass or key,
                 "entries": len(rs),
+                "scoring_system": (rs[0].get("scoring_system") or "").strip(),
+                "team_racing": is_team_racing(rs[0], rows=rs),
                 "rows": [_board_entry(r) for r in rs],
             }
         )

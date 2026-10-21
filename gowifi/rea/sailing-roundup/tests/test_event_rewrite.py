@@ -12,6 +12,7 @@ from event_rewrite import (
     cluster_coverage,
     event_finished,
     facts_from_rows,
+    is_team_racing,
     layout_for,
     pick_image,
     pick_images,
@@ -425,6 +426,57 @@ class RewriteEngine(unittest.TestCase):
         )
         self.assertEqual(photos, [])
         self.assertFalse(_keep_cluster_item({"url": dart_photo["source_url"], "title": dart_photo["title"], "body": dart_photo["title"] + " Bradley Levin Kyle Boman at Henley Midmar Yacht Club 2026."}, facts))
+
+    def test_tsl_facts_use_team_standings(self):
+        slug = "2026-10-17-mac-tsl-wc-team-sailing"
+        rows = [
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "host_club_code": "MAC",
+                "host_club_name": "MAC",
+                "class_name": "TSL",
+                "start_date": "2026-10-17",
+                "end_date": "2026-10-18",
+                "scoring_system": "Team Racing",
+                "entries_total": 8,
+                "rank": None,
+                "helm_name": helm,
+                "crew_name": crew,
+                "boat_name": boat,
+            }
+            for boat, helm, crew in (
+                ("MAC", "Maddison Smit; Tristan Gress", "Kamva Mgcubhe"),
+                ("MATIES", "Corben Smith", "Chiara Fruet"),
+                ("Eden District", "Christian Cilliers", ""),
+                ("RCYCA A", "Hayden Miller", ""),
+                ("University of Cape Town Yacht Club", "Jessie Basson", ""),
+                ("RCYCA B", "", ""),
+                ("izivungu", "", ""),
+                ("RCYC Sailing Academy", "", ""),
+            )
+        ]
+        self.assertTrue(is_team_racing(rows[0], slug=slug, rows=rows))
+        facts = facts_from_rows(slug, rows)
+        self.assertTrue(facts["team_racing"])
+        self.assertEqual(facts["scoring_system"], "Team Racing")
+        self.assertEqual(facts["winner"], "MAC")
+        self.assertEqual(facts["winner_helm"], "MAC")
+        self.assertEqual(facts["winner_team"], "MAC")
+        self.assertEqual(facts["second"], "MATIES")
+        self.assertEqual(facts["third"], "Eden District")
+        self.assertNotIn("Maddison Smit", facts["winner"])
+        cols, table = facts["leaderboard"]
+        self.assertEqual(cols, ["Pos", "Team", "Sailors"])
+        self.assertEqual([row[0] for row in table], ["1", "2", "3"])
+        self.assertEqual(table[0][1], "MAC")
+        board = facts["class_leaderboards"][0]
+        self.assertTrue(board["team_racing"])
+        self.assertEqual([row["pos"] for row in board["rows"]], [str(i) for i in range(1, 9)])
+        self.assertEqual(board["rows"][0]["helm"], "MAC")
+        headline = unique_headline(facts)
+        self.assertIn("MAC", headline)
+        self.assertIn("wins", headline)
+        self.assertNotIn("Maddison", headline)
 
     def test_parent_leaderboards_keep_all_ranks_magazine_stays_podium(self):
         rows = sample_rows()

@@ -132,11 +132,15 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
         lead += f". {entries} boats raced in {', '.join(classes)}. {mark}"
     else:
         bits = []
-        if nett:
+        if nett and not facts.get("team_racing"):
             bits.append(f"{nett} nett points")
         if races and chosen != "sweep":
             bits.append(f"{races} races")
-        fleet = f" in a {entries}-boat{(' ' + klass) if klass else ''} fleet" if entries else ""
+        if facts.get("team_racing") and entries:
+            article = "an" if str(entries)[:1] == "8" or str(entries) in {"11", "18"} else "a"
+            fleet = f" in {article} {entries}-team{(' ' + klass) if klass else ''} field"
+        else:
+            fleet = f" in a {entries}-boat{(' ' + klass) if klass else ''} fleet" if entries else ""
         if bits:
             lead += ", scoring " + " across ".join(bits) + fleet + f". {mark}"
         else:
@@ -163,14 +167,19 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
         podium = []
         gap = _margin(facts)
         if facts.get("second"):
-            second = f"{facts['second']} finished second on {_nett(facts.get('second_nett'))} nett points"
-            if gap and chosen != "tie":
+            second = f"{facts['second']} finished second"
+            nett2 = _nett(facts.get("second_nett"))
+            if nett2 and not facts.get("team_racing"):
+                second += f" on {nett2} nett points"
+            if gap and chosen != "tie" and not facts.get("team_racing"):
                 second += f", {gap} behind"
             podium.append(second + ".")
         if facts.get("third"):
-            podium.append(
-                f"{facts['third']} finished third on {_nett(facts.get('third_nett'))} nett points."
-            )
+            third = f"{facts['third']} finished third"
+            nett3 = _nett(facts.get("third_nett"))
+            if nett3 and not facts.get("team_racing"):
+                third += f" on {nett3} nett points"
+            podium.append(third + ".")
         if podium:
             paragraphs.append(" ".join(podium) + " " + mark)
     if (facts.get("status") or "").lower() == "provisional":

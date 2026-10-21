@@ -107,6 +107,36 @@ class DeskEditor(unittest.TestCase):
         self.assertIn("photograph with this report is 420 Nationals prizegiving", blob)
         self.assertNotIn("stored hero", blob)
 
+    def test_tsl_copy_names_teams_not_sailor_nett(self):
+        f = facts(
+            title="SA Sailing WC Team Sailing Event",
+            class_name="TSL",
+            club="MAC",
+            club_name="MAC",
+            start="2026-10-17",
+            end="2026-10-18",
+            entries=8,
+            races=0,
+            winner="MAC",
+            winner_helm="MAC",
+            winner_team="MAC",
+            winner_nett="",
+            second="MATIES",
+            second_nett="",
+            third="Eden District",
+            third_nett="",
+            team_racing=True,
+            scoring_system="Team Racing",
+        )
+        blob = " ".join(edit_event(f))
+        self.assertIn("MAC won the SA Sailing WC Team Sailing Event", blob)
+        self.assertIn("8-team TSL field", blob)
+        self.assertIn("MATIES finished second", blob)
+        self.assertIn("Eden District finished third", blob)
+        self.assertNotIn("nett points", blob)
+        self.assertNotIn("Maddison", blob)
+        self.assertEqual(qa(blob, f), [])
+
     def test_rejects_generic_filler(self):
         self.assertTrue(is_generic("Sailors took to the water for an exciting weekend."))
         self.assertTrue(qa("An exciting weekend of sailing. Dale won.", facts()))

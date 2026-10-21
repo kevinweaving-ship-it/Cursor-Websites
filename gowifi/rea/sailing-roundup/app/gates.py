@@ -31,7 +31,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
-from event_rewrite import class_leaderboards, facts_from_rows, is_chrome_image
+from event_rewrite import class_leaderboards, facts_from_rows, is_chrome_image, is_team_racing
 from events_weekend import SKIP_NAME, overlaps, parse_day, saturday_sunday
 from desk_editor import is_generic
 from evidence_pipeline import is_scoresheet, other_event_conflict, unlisted_event_names
@@ -146,6 +146,8 @@ def equals_from_facts(facts: dict) -> dict:
         "fleets": [b.get("fleet") or b.get("class") or "" for b in boards],
         "leaderboards": boards,
         "leaderboard": boards[0]["rows"] if boards else [],
+        "scoring_system": facts.get("scoring_system") or "",
+        "team_racing": bool(facts.get("team_racing")),
     }
 
 
@@ -206,7 +208,10 @@ def _monday_date(monday) -> dt.date:
 
 
 def _check_parent_leaderboards(equals: dict) -> list[str]:
-    """Every class/fleet from the parent URL must have a full ranked board."""
+    """Every class/fleet from the parent URL must have a full ranked board.
+
+    TSL / team racing is not Appendix A: the ranked identity is the team.
+    """
     errors: list[str] = []
     boards = list(equals.get("leaderboards") or [])
     fleets = [b.get("fleet") or b.get("class") or "" for b in boards]
@@ -218,14 +223,18 @@ def _check_parent_leaderboards(equals: dict) -> list[str]:
     for board in boards:
         name = (board.get("fleet") or board.get("class") or "fleet").strip() or "fleet"
         rows = list(board.get("rows") or [])
+        team = bool(equals.get("team_racing") or board.get("team_racing"))
         if not rows:
             errors.append(f"{name}: empty class/fleet leaderboard")
             continue
-        if not any((r.get("helm") or r.get("crew") or r.get("boat")) for r in rows):
+        if team:
+            if not any((r.get("team") or r.get("boat") or r.get("helm")) for r in rows):
+                errors.append(f"{name}: team racing board has no team names")
+        elif not any((r.get("helm") or r.get("crew") or r.get("boat")) for r in rows):
             errors.append(f"{name}: leaderboard rows have no helm/crew names")
         firsts = [r for r in rows if str(r.get("pos") or "").split(".")[0] == "1"]
         if not firsts:
-            errors.append(f"{name}: no sailor/team in 1st place")
+            errors.append(f"{name}: no {'team' if team else 'sailor/team'} in 1st place")
         elif len(rows) > 2 and len(firsts) == len(rows):
             errors.append(f"{name}: every entry is listed as 1st — leaderboard is not a result")
     return errors
@@ -298,14 +307,19 @@ def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: s
     if not host and (not host_name or host_name.lower() == "the host club"):
         errors.append("missing host club")
 
-    ranked = [r for r in rows if r.get("rank") not in (None, "")]
-    if not ranked:
+    team = bool(facts.get("team_racing") or is_team_racing(rows[0], slug=slug, rows=rows))
+    ranked = [r for r in rows if r.get("rank") not in (None, "") or r.get("team_rank") not in (None, "")]
+    if not ranked and not team:
         errors.append("leaderboard has no ranked rows")
+    if team and not any((r.get("boat_name") or r.get("team_name") or "").strip() for r in rows):
+        errors.append("team racing card has no team names")
     errors.extend(_check_parent_leaderboards(record.get("equals") or {}))
 
     winner = (facts.get("winner") or "").strip()
     if not winner or winner == "The leader":
         errors.append("leaderboard has no winner name")
+    elif team and winner == (rows[0].get("helm_name") or "").strip():
+        errors.append("team racing winner is a sailor name — TSL ranks teams")
 
     if (facts.get("entries") or 0) < 1 and len(rows) < 1:
         errors.append("no entries on the result card")
