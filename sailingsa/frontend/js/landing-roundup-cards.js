@@ -55,58 +55,56 @@
       .replace(/</g, "&lt;");
   }
 
+  function bannedHero(src) {
+    var low = String(src || "").toLowerCase();
+    if (!low) return true;
+    if (/artwork\/(event|club|class)[\s_-]*logo/.test(low)) return true;
+    if (/\/(event|club|class)[-_]?logo/.test(low)) return true;
+    if (/-source\.(jpe?g|png|webp)/.test(low)) return true;
+    if (/\.png(\?|$)/.test(low)) return true;
+    return false;
+  }
+
   function firstFigure(html) {
     var leadMatch = html.match(/<article[^>]*edition-lead[\s\S]*?<\/article>/);
     var leadHtml = leadMatch ? leadMatch[0] : "";
-    var searchIn = leadHtml && /<div class=['"]photo-set/.test(leadHtml) ? leadHtml : html;
-    var mark = searchIn.search(/<div class=['"]photo-set/);
-    var slice = mark >= 0 ? searchIn.slice(mark) : searchIn;
-    var fig = slice.match(/<figure[\s\S]*?<\/figure>/);
-    return { leadHtml: leadHtml, figure: fig ? fig[0] : "" };
+    return { leadHtml: leadHtml, figures: html.match(/<figure[\s\S]*?<\/figure>/g) || [] };
   }
 
-  function heroImgTag(figureHtml, pageUrl, item) {
-    var src = "";
-    var pos = "center center";
-    if (figureHtml) {
-      var img = figureHtml.match(/<img[^>]+src=(['"])([^'"]+)\1/i);
-      if (img) src = absUrl(pageUrl, img[2]);
-      if (!src) {
-        var href = figureHtml.match(/<image[^>]+href=(['"])([^'"]+)\1/i);
-        if (href) src = absUrl(pageUrl, href[2]);
-        var vb = figureHtml.match(/viewBox=(['"])([\d.\s]+)\1/i);
-        var ih = figureHtml.match(/<image[^>]+height=(['"])([\d.]+)\1/i);
-        if (vb && ih) {
-          var p = vb[2].trim().split(/\s+/).map(Number);
-          var fullH = parseFloat(ih[2]);
-          if (p.length === 4 && fullH > 0) {
-            var pct = Math.max(0, Math.min(100, ((p[1] + p[3] / 2) / fullH) * 100));
-            pos = "center " + pct.toFixed(1) + "%";
-          }
-        }
-      }
+  function figurePhoto(figureHtml, pageUrl) {
+    if (!figureHtml) return null;
+    var img = figureHtml.match(/<img[^>]+src=(['"])([^'"]+)\1/i);
+    if (!img) return null;
+    var src = absUrl(pageUrl, img[2]);
+    if (bannedHero(src)) return null;
+    var cap = (figureHtml.match(/<figcaption>([\s\S]*?)<\/figcaption>/) || ["", ""])[1];
+    cap = cap.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    return { src: src, caption: cap };
+  }
+
+  function heroImgTag(html, pageUrl, item) {
+    var found = firstFigure(html || "");
+    var photo = null;
+    if (item && item.image) {
+      var fallback = item.image.indexOf("http") === 0 ? item.image : absUrl("https://sailingsa.co.za/sailing-roundup/", item.image);
+      if (!bannedHero(fallback)) photo = { src: fallback, caption: "" };
     }
-    if (!src && item && item.image) {
-      src = item.image.indexOf("http") === 0 ? item.image : absUrl("https://sailingsa.co.za/sailing-roundup/", item.image);
+    var i;
+    for (i = 0; !photo && i < found.figures.length; i++) {
+      photo = figurePhoto(found.figures[i], pageUrl);
     }
-    if (!src) return "";
-    return (
-      '<img src="' +
-      htmlEscape(src) +
-      '" alt="" style="object-position:' +
-      pos +
-      '">'
-    );
+    if (!photo) return { html: "", caption: "", leadHtml: found.leadHtml };
+    return {
+      html: '<img src="' + htmlEscape(photo.src) + '" alt="">',
+      caption: photo.caption,
+      leadHtml: found.leadHtml,
+    };
   }
 
   function heroFrom(html, pageUrl, item) {
-    var found = firstFigure(html || "");
+    var found = heroImgTag(html || "", pageUrl, item);
     var leadHtml = found.leadHtml;
-    var cap = "";
-    if (found.figure) {
-      cap = (found.figure.match(/<figcaption>([\s\S]*?)<\/figcaption>/) || ["", ""])[1];
-      cap = cap.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-    }
+    var cap = found.caption || "";
     var title = ((leadHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/) || ["", ""])[1] || "")
       .replace(/<[^>]+>/g, "")
       .replace(/\s+/g, " ")
@@ -124,7 +122,7 @@
       if (text) paragraphs.push(text);
     }
     return {
-      html: heroImgTag(found.figure, pageUrl, item),
+      html: found.html,
       caption: cap,
       pageUrl: fullIssueUrl(pageUrl),
       title: title || "The Weekend Roundup",

@@ -744,9 +744,8 @@ class RewriteEngine(unittest.TestCase):
             tsl,
             {"articles": [{"url": tsl["url"], "title": tsl["title"], "images": found}]},
         )
-        self.assertEqual(len(photos), 1)
-        self.assertTrue(_is_official_event_artwork(photos[0]["url"]))
-        self.assertGreaterEqual(_event_photo_score(photos[0], tsl), 40)
+        self.assertEqual(photos, [])
+        self.assertTrue(_is_official_event_artwork(found[0]["url"]))
 
         dam = facts_from_rows(
             "2026-10-10-hmyc-dam-bottle-sprints",

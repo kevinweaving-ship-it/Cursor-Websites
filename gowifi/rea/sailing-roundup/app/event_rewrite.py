@@ -1342,6 +1342,10 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
         url = (item.get("url") or "").split("#")[0]
         source = item.get("source_url") or ""
         admin = (item.get("kind") or "") == "admin_seed"
+        if (item.get("kind") or "") == "official_event_artwork" or _is_official_event_artwork(url):
+            return
+        if any(token in url.lower() for token in ("/artwork/club logo/", "/artwork/class logo/", "/artwork/event logo/")):
+            return
         if admin:
             key = item.get("file") or url
             if not key or key in seen:
