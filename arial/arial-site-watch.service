@@ -16,7 +16,7 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/opt/arial-whatsapp-poc/state /var/www/sailingsa/data/whatsapp_log.jsonl
+ReadWritePaths=/opt/arial-whatsapp-poc/state /var/www/sailingsa/data
 
 [Install]
 WantedBy=multi-user.target
