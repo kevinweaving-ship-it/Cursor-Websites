@@ -12,7 +12,7 @@ Scope: the existing standalone roundup only. No changes to SailingSA API, result
 - Six wins from eight is not called a clean sweep. Final-race claims are checked against the final race.
 - Images must belong to an accepted source. Unverified seed-image fallback is disabled.
 - The 505 collage is excluded: its photographed results sheet is labelled 2025.
-- Article tables remain podium-only; full official API result snapshots are retained separately.
+- Article tables are the official per-class leaderboard (full fleet). External media is checksummed against those names; a different event's leaders do not pass.
 - Calendar-only events remain mentioned in the feature.
 - Builds run in an isolated staging directory, reject missing scored events/sources/photos/PDF, and preserve the previous edition on failure.
 - The existing run-monday.sh still targets the explicitly requested September reference weekend. It now invokes safe_publish.py and propagates publication failures.

@@ -26,7 +26,7 @@ copy at `/opt/sailing-roundup` is disabled and masked so it cannot publish.
 ## Publish path
 
 1. `app/safe_publish.py` builds in `.builds/`, validates unique events, accepted
-   sources, citation-backed paragraphs, podium-only tables, unique photo hashes,
+   sources, citation-backed paragraphs, official per-class leaderboards, unique photo hashes,
    HTML and PDF, then atomically replaces only that issue.
 2. `deploy/publish-to-sailingsa.sh <public> <issue>` stages the one issue on
    SailingSA, validates HTML/JSON/PDF, keeps last-good, then directory-renames

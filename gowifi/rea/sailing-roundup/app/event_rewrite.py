@@ -9,7 +9,9 @@ and Sportradar/United Robots box-score recaps:
   news) → keep only items about THIS event → write one article locked to
   those texts and the results card (RAG: no fact that is not in a source) →
   inline citations → photographs from those same sources (podium and on the
-  water are both valid; more than one photo is allowed) → 1st/2nd/3rd.
+  water are both valid; more than one photo is allowed) → one official
+  leaderboard per class. External media is kept only when named leaders
+  checksum against those results.
 
 Wikimedia / Wikipedia is never a source. A 1954 stock boat is not a source.
 Paid APIs are optional. No login-wall bypass.
@@ -29,7 +31,7 @@ UA = {
     "User-Agent": "Mozilla/5.0 (compatible; SailingRoundupResearch/1.0; +https://sailingsa.co.za/sailing-roundup)"
 }
 FB_UA = {"User-Agent": "facebookexternalhit/1.1"}
-LEADERBOARD_LIMIT = 3
+LEADERBOARD_LIMIT = None
 LEADERBOARD_COLS = ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"]
 WRONG_CLASS = {
     "420": ("505", "dart 18", "dabchick", "hobie", "optimist"),
@@ -154,53 +156,124 @@ def _win_count(scores) -> int:
     return wins
 
 
-def facts_from_rows(slug: str, rows: list[dict]) -> dict:
-    first = rows[0]
+def _class_key(row: dict) -> str:
+    return (row.get("class_name") or row.get("class_canonical") or "").strip()
+
+
+def _row_people(row: dict) -> list[str]:
+    return [n for n in ((row.get("helm_name") or "").strip(), (row.get("crew_name") or "").strip()) if n]
+
+
+def _nett(value) -> str:
+    return "" if value in (None, "") else str(value).replace(".0", "")
+
+
+def _fleet_from_rows(rows: list[dict]) -> dict:
     ranked = _ranked(rows)
-    winner = ranked[0]
+    winner = ranked[0] if ranked else {}
     second = ranked[1] if len(ranked) > 1 else {}
     third = ranked[2] if len(ranked) > 2 else {}
+    first = rows[0] if rows else {}
     races = _intish(first.get("races_sailed")) or len(winner.get("race_scores") or {})
-    entries = _intish(first.get("entries_total")) or len(rows)
+    return {
+        "class_name": _class_key(first),
+        "entries": _intish(first.get("entries_total")) or len(rows),
+        "races": races,
+        "winner": _names(winner) if winner else "",
+        "winner_helm": (winner.get("helm_name") or "").strip(),
+        "winner_crew": (winner.get("crew_name") or "").strip(),
+        "winner_club": (winner.get("club_abbrev") or winner.get("club_raw") or "").strip(),
+        "winner_nett": _nett(winner.get("nett_points_raw")),
+        "winner_wins": _win_count(winner.get("race_scores")),
+        "winner_scores": winner.get("race_scores") or {},
+        "second": _names(second) if second else "",
+        "second_nett": _nett(second.get("nett_points_raw")),
+        "second_scores": second.get("race_scores") or {},
+        "second_wins": _win_count(second.get("race_scores")),
+        "third": _names(third) if third else "",
+        "third_nett": _nett(third.get("nett_points_raw")),
+        "tied_first": str(winner.get("nett_points_raw")) == str(second.get("nett_points_raw")) and winner.get("nett_points_raw") not in (None, ""),
+        "leaderboard": leaderboard(ranked),
+        "ranked_rows": ranked,
+        "names": [n for r in ranked for n in _row_people(r)],
+    }
+
+
+def _primary_fleet(fleets: list[dict], title: str) -> dict:
+    if not fleets:
+        return _fleet_from_rows([])
+    if len(fleets) == 1:
+        return fleets[0]
+    title_l = (title or "").lower()
+    for fleet in fleets:
+        klass = (fleet.get("class_name") or "").lower()
+        if klass and klass in title_l:
+            return fleet
+    return max(fleets, key=lambda item: item.get("entries") or 0)
+
+
+def facts_from_rows(slug: str, rows: list[dict]) -> dict:
+    first = rows[0]
+    named = [key for key in (_class_key(row) for row in rows) if key]
+    only = named[0] if len(set(named)) == 1 else ""
+    grouped: list[list[dict]] = []
+    index: dict[str, int] = {}
+    prev = only
+    for row in rows:
+        key = _class_key(row) or prev or only
+        if _class_key(row):
+            prev = _class_key(row)
+        if key not in index:
+            index[key] = len(grouped)
+            grouped.append([])
+        grouped[index[key]].append(row)
+    fleets = [_fleet_from_rows(group) for group in grouped]
     club = (first.get("host_club_code") or first.get("host_club_name") or "").strip()
     title = (first.get("event_name") or slug).strip()
     if title.lower().startswith("2026 "):
         title = title[5:]
     title = re.sub(r"\s+incorporating\b.*$", "", title, flags=re.I).strip()
+    primary = _primary_fleet(fleets, title)
     start = str(first.get("start_date") or slug[:10])[:10]
     end = str(first.get("end_date") or start)[:10]
-    winner_nett = winner.get("nett_points_raw")
-    second_nett = second.get("nett_points_raw")
+    all_rows = [row for fleet in fleets for row in fleet.get("ranked_rows") or []]
+    all_names = [n for fleet in fleets for n in fleet.get("names") or []]
+    entries = sum(len(fleet.get("ranked_rows") or []) for fleet in fleets)
+    if len(fleets) == 1:
+        entries = _intish(first.get("entries_total")) or entries
     return {
         "slug": slug,
         "title": title,
-        "class_name": (first.get("class_name") or first.get("class_canonical") or "").strip(),
+        "class_name": primary.get("class_name") or "",
+        "class_names": [fleet.get("class_name") or "" for fleet in fleets],
+        "multi_class": len(fleets) > 1,
+        "fleets": fleets,
         "club": club,
         "club_name": _club_name(club, first.get("host_club_name") or ""),
         "host_club_slug": first.get("host_club_slug") or club.lower(),
         "start": start,
         "end": end,
         "entries": entries,
-        "races": races,
+        "races": primary.get("races") or 0,
         "status": (first.get("result_status") or "Published").strip(),
-        "winner": _names(winner),
-        "winner_helm": (winner.get("helm_name") or "").strip(),
-        "winner_crew": (winner.get("crew_name") or "").strip(),
-        "winner_club": (winner.get("club_abbrev") or winner.get("club_raw") or "").strip(),
-        "winner_nett": "" if winner_nett in (None, "") else str(winner_nett).replace(".0", ""),
-        "winner_wins": _win_count(winner.get("race_scores")),
-        "winner_scores": winner.get("race_scores") or {},
-        "second_scores": second.get("race_scores") or {},
-        "second_wins": _win_count(second.get("race_scores")),
-        "second": _names(second) if second else "",
-        "second_nett": "" if second_nett in (None, "") else str(second_nett).replace(".0", ""),
-        "third": _names(third) if third else "",
-        "third_nett": "" if third.get("nett_points_raw") in (None, "") else str(third.get("nett_points_raw")).replace(".0", ""),
-        "tied_first": str(winner_nett) == str(second_nett) and winner_nett not in (None, ""),
-        "names": [n for r in ranked for n in ((r.get("helm_name") or "").strip(), (r.get("crew_name") or "").strip()) if n],
+        "winner": primary.get("winner") or "",
+        "winner_helm": primary.get("winner_helm") or "",
+        "winner_crew": primary.get("winner_crew") or "",
+        "winner_club": primary.get("winner_club") or "",
+        "winner_nett": primary.get("winner_nett") or "",
+        "winner_wins": primary.get("winner_wins") or 0,
+        "winner_scores": primary.get("winner_scores") or {},
+        "second_scores": primary.get("second_scores") or {},
+        "second_wins": primary.get("second_wins") or 0,
+        "second": primary.get("second") or "",
+        "second_nett": primary.get("second_nett") or "",
+        "third": primary.get("third") or "",
+        "third_nett": primary.get("third_nett") or "",
+        "tied_first": bool(primary.get("tied_first")),
+        "names": list(dict.fromkeys(all_names)),
         "url": "https://sailingsa.co.za/regatta/" + slug,
-        "leaderboard": leaderboard(ranked),
-        "ranked_rows": ranked,
+        "leaderboard": primary.get("leaderboard") or leaderboard([]),
+        "ranked_rows": all_rows,
     }
 
 
@@ -209,12 +282,26 @@ def _official_results_card(facts: dict) -> dict:
     bits = [
         f"Official SAS-sanctioned {facts.get('title') or 'event'} at {facts.get('club_name') or facts.get('club') or 'the host club'}.",
     ]
-    if facts.get("winner"):
-        bits.append(f"1st {facts['winner']}.")
-    if facts.get("second"):
-        bits.append(f"2nd {facts['second']}.")
-    if facts.get("third"):
-        bits.append(f"3rd {facts['third']}.")
+    fleets = facts.get("fleets") or []
+    if len(fleets) > 1:
+        for fleet in fleets:
+            klass = fleet.get("class_name") or "Open"
+            podium = []
+            if fleet.get("winner"):
+                podium.append(f"1st {fleet['winner']}")
+            if fleet.get("second"):
+                podium.append(f"2nd {fleet['second']}")
+            if fleet.get("third"):
+                podium.append(f"3rd {fleet['third']}")
+            size = fleet.get("entries") or len(fleet.get("ranked_rows") or [])
+            bits.append(f"{klass} ({size} boats): " + "; ".join(podium) + ".")
+    else:
+        if facts.get("winner"):
+            bits.append(f"1st {facts['winner']}.")
+        if facts.get("second"):
+            bits.append(f"2nd {facts['second']}.")
+        if facts.get("third"):
+            bits.append(f"3rd {facts['third']}.")
     if facts.get("entries") or facts.get("races"):
         bits.append(f"{facts.get('entries') or 0} entries, {facts.get('races') or 0} races.")
     if facts.get("status"):
@@ -230,9 +317,10 @@ def _official_results_card(facts: dict) -> dict:
     }
 
 
-def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[str], list[list[str]]]:
+def leaderboard(rows: list[dict], limit: int | None = LEADERBOARD_LIMIT) -> tuple[list[str], list[list[str]]]:
     table = []
-    for row in rows[:limit]:
+    selected = list(rows) if limit is None else rows[:limit]
+    for row in selected:
         rank = row.get("rank")
         pos = "" if rank in (None, "") else str(rank)
         table.append(
@@ -392,6 +480,8 @@ def deck_from_facts(facts: dict) -> str:
     bits = [facts["winner"], facts["title"], facts["club_name"]]
     if facts.get("winner_nett"):
         bits.append(f"{facts['winner_nett']} nett")
+    if facts.get("multi_class") and facts.get("fleets"):
+        bits.append(f"{len(facts['fleets'])} classes")
     if facts.get("entries"):
         bits.append(f"{facts['entries']} entries")
     return " · ".join(bits)
@@ -523,6 +613,18 @@ def cluster_coverage(facts, pack=None, fetch=True):
     candidates=[_official_results_card(facts)]
     for post in (pack or {}).get("verified_posts") or (pack or {}).get("posts") or []:
         candidates.append(dict(post))
+    for item in ((pack or {}).get("sailor_mentions") or {}).get("matched") or []:
+        candidates.append(
+            {
+                "url": item.get("url"),
+                "title": item.get("headline") or item.get("title") or "",
+                "description": item.get("snippet") or item.get("description") or "",
+                "body": item.get("snippet") or item.get("description") or item.get("headline") or "",
+                "published": item.get("published_at") or item.get("date_iso") or "",
+                "engine": "sailor_public_mentions",
+                "role": "sailor_media",
+            }
+        )
     # Previously retrieved source text is evidence, never a trusted identity label.
     issue=str((pack or {}).get("issue") or "2026-09-28")
     old=ROOT/"data"/("reference-"+issue+".json")
@@ -1005,7 +1107,9 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
     cites = citation_index(cluster, facts)
     paras = rewrite_paragraphs(facts, cluster, cites)
     headline = unique_headline(facts, cluster)
-    cols, table = facts["leaderboard"]
+    fleets = facts.get("fleets") or [
+        {"class_name": facts.get("class_name") or "", "leaderboard": facts.get("leaderboard") or leaderboard([])}
+    ]
     images = pick_images(facts, cluster, pack, limit=2)
     locals = []
     seen_hash = set()
@@ -1035,16 +1139,20 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         )
     for text in paras:
         blocks.append({"type": "paragraph", "text": text})
-    blocks.append({"type": "heading", "text": "1st, 2nd, 3rd"})
-    blocks.append(
-        {
-            "type": "results",
-            "source_event_url": facts["url"],
-            "columns": cols,
-            "rows": table,
-            "as_of": issue,
-        }
-    )
+    for fleet in fleets:
+        cols, table = fleet.get("leaderboard") or leaderboard([])
+        klass = (fleet.get("class_name") or "").strip()
+        blocks.append({"type": "heading", "text": f"{klass} leaderboard" if klass else "Leaderboard"})
+        blocks.append(
+            {
+                "type": "results",
+                "source_event_url": facts["url"],
+                "class_name": klass,
+                "columns": cols,
+                "rows": table,
+                "as_of": issue,
+            }
+        )
     sources = [item["url"] for item in cites]
     for item in cluster.get("articles") or []:
         if item.get("url") and item["url"] not in sources and not _wiki_url(item["url"]):
@@ -1056,7 +1164,11 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         "headline": headline,
         "deck": deck_from_facts(facts),
         "byline": "SailingSA",
-        "kicker": (facts.get("class_name") or "Regatta").upper() + "  ·  " + facts["club"],
+        "kicker": (
+            " / ".join(c for c in (facts.get("class_names") or [facts.get("class_name")]) if c) or "Regatta"
+        ).upper()
+        + "  ·  "
+        + facts["club"],
         "published_at": issue,
         "event_id": facts["slug"],
         "layout": layout,

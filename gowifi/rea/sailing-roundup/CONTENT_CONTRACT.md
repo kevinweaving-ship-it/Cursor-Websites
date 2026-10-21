@@ -11,8 +11,11 @@ event is included once, on the Monday after the week it ended.
 Each following article is a **rewritten** regatta report: unique headline,
 original copy clustered from the event's own sources with inline citations,
 photographs from those same sources (podium and on the water are both
-valid; more than one photo is allowed; never Wikimedia), and a compact
-leaderboard only. Discovery always includes the SailingSA regatta page (direct API access;
+valid; more than one photo is allowed; never Wikimedia), and the official
+event leaderboard — one board per class. External media is kept only when
+named sailors checksum against those official results. Age titles (U17,
+U19, and the like) are mentioned only when verified media names sailors
+who appear in the results. Discovery always includes the SailingSA regatta page (direct API access;
 Google `{event} {year}` / `{event} {month} {year}` should also surface it
 as the SAS-sanctioned card). Other web, club, class, and Facebook hits
 are collated around that official source. Posts must be published during

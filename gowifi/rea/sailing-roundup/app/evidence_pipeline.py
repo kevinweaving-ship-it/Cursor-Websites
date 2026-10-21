@@ -6,6 +6,23 @@ from bs4 import BeautifulSoup
 MEDIA_EXCLUSIONS = {"https://rsa505.org.za/images/20261013_101619-COLLAGE.jpg":"Photographed results sheet is labelled 2025; not verified as 2026 event photography."}
 TRACKING = {"fbclid","gclid","mc_cid","mc_eid"}
 BAD_HOSTS = ("dart.dev","dartpad.dev","dart.org","dartcontainer.com","wikipedia.org","wikimedia.org")
+PLACE_CLAIM = re.compile(
+    r"(?P<place>\d+)(?:st|nd|rd|th)\s*[–\-]\s*"
+    r"(?P<name>[A-Z][a-zA-Z'\-]+(?:\s+[A-Z][a-zA-Z'\-]+)+)"
+    r"(?:\s*\((?P<club>[A-Z0-9]{2,8})\))?"
+)
+AGE_LABEL = re.compile(r"\b(?:U-?(?P<u>\d{1,2})|under[- ](?P<under>\d{1,2}))\b", re.I)
+WIN_CLAIM = re.compile(
+    r"\b(?P<name>[A-Z][a-z]+(?:[ \t]+[A-Z][a-z'\-]+){1,2})"
+    r"(?:[ \t]+and[ \t]+(?P<crew>[A-Z][a-z]+(?:[ \t]+[A-Z][a-z'\-]+){1,2}))?"
+    r"[ \t]+(?:won|wins|were crowned|was crowned|named)\b"
+)
+NAME_STOP = frozenset({
+    "school","high","club","yacht","sports","national","nationals","championship",
+    "sailing","results","overall","fleet","class","under","junior","youth","south",
+    "africa","sailors","report","event","open","masters",
+})
+MAX_SOURCE_NOTES = 8
 def canonical(url):
     p=urllib.parse.urlsplit((url or "").strip())
     host=p.netloc.lower().removeprefix("www.").replace("m.facebook.com","facebook.com")
@@ -83,6 +100,110 @@ def extract(url):
     result["canonical_url"]=canonical(result["url"])
     return result
 
+def _norm_name(name):
+    return re.sub(r"[^a-z0-9]+"," ",(name or "").lower()).strip()
+
+def official_names(facts):
+    names=[]
+    for n in facts.get("names") or []:
+        if n and str(n).strip(): names.append(str(n).strip())
+    for fleet in facts.get("fleets") or []:
+        for n in fleet.get("names") or []:
+            if n and str(n).strip(): names.append(str(n).strip())
+        for row in fleet.get("ranked_rows") or []:
+            for key in ("helm_name","crew_name"):
+                if row.get(key): names.append(str(row[key]).strip())
+    for row in facts.get("ranked_rows") or []:
+        for key in ("helm_name","crew_name"):
+            if row.get(key): names.append(str(row[key]).strip())
+    return list(dict.fromkeys(n for n in names if n))
+
+def match_official_name(claimed,official):
+    claimed=_norm_name(claimed)
+    if not claimed or len(claimed.split())<2: return None
+    if any(part in NAME_STOP for part in claimed.split()): return None
+    for name in official:
+        other=_norm_name(name)
+        if not other: continue
+        if claimed==other or claimed.startswith(other) or other.startswith(claimed):
+            return name
+        if set(claimed.split())<=set(other.split()) or set(other.split())<=set(claimed.split()):
+            return name
+    return None
+
+def age_phrase(match):
+    if not match: return ""
+    raw=match.groupdict().get("u") or match.groupdict().get("under") or ""
+    try: return f"under-{int(raw)}"
+    except (TypeError,ValueError): return ""
+
+def _age_near(text,start,end,window=48):
+    return AGE_LABEL.search((text or "")[max(0,start-window):end+window])
+
+def official_place(facts,name):
+    target=_norm_name(name)
+    if not target: return None
+    for row in facts.get("ranked_rows") or []:
+        people=[_norm_name(row.get("helm_name") or ""),_norm_name(row.get("crew_name") or "")]
+        if target in people or any(target==p or (p and (target.startswith(p) or p.startswith(target))) for p in people if p):
+            rank=row.get("rank")
+            return int(rank) if str(rank).isdigit() else None
+    return None
+
+def results_checksum(item,facts):
+    """External media must name this event's official sailors.
+
+    Claimed overall leaders (1st/2nd/3rd, won, champion) have to appear in
+    SailingSA results. A different event's winner is a checksum miss. Age
+    titles are not overall leader claims. Extra host-club names only fail
+    the source when the official fleet snapshot is complete.
+    """
+    official=official_names(facts)
+    digest=hashlib.sha256("|".join(sorted(_norm_name(n) for n in official)).encode()).hexdigest()[:12] if official else ""
+    body=text_of(item)
+    blob=(item.get("title") or "")+"\n"+body
+    if not official:
+        return {"ok":True,"reason":"no_official_names","official_digest":digest,"claimed_leaders":[],"unknown_leaders":[]}
+    claimed=[];unknown=[]
+    for match in PLACE_CLAIM.finditer(blob):
+        name=match.group("name").strip()
+        place=int(match.group("place"))
+        if len(_norm_name(name).split())<2: continue
+        age=age_phrase(_age_near(blob,match.start(),match.end()))
+        claimed.append({"name":name,"place":place,"age":age})
+        if age or place>3: continue
+        if not match_official_name(name,official):
+            unknown.append({"name":name,"place":place,"reason":"unknown_leader"})
+        else:
+            got=official_place(facts,match_official_name(name,official))
+            if got is not None and got!=place:
+                unknown.append({"name":name,"place":place,"official_place":got,"reason":"leader_mismatch"})
+    for match in WIN_CLAIM.finditer(blob):
+        if _age_near(blob,match.start(),match.end()): continue
+        for key in ("name","crew"):
+            name=(match.group(key) or "").strip()
+            if not name or any(part in NAME_STOP for part in _norm_name(name).split()): continue
+            claimed.append({"name":name,"place":1,"age":""})
+            if not match_official_name(name,official):
+                unknown.append({"name":name,"place":1,"reason":"unknown_leader"})
+            else:
+                got=official_place(facts,match_official_name(name,official))
+                if got is not None and got!=1:
+                    unknown.append({"name":name,"place":1,"official_place":got,"reason":"leader_mismatch"})
+    rows=facts.get("ranked_rows") or []
+    complete=bool(facts.get("entries")) and len(rows)>=int(facts.get("entries") or 0) and int(facts.get("entries") or 0)>0
+    if complete:
+        for match in PLACE_CLAIM.finditer(blob):
+            name=match.group("name").strip()
+            if match_official_name(name,official): continue
+            if any(part in NAME_STOP for part in _norm_name(name).split()): continue
+            if len(_norm_name(name).split())<2: continue
+            unknown.append({"name":name,"place":int(match.group("place")),"reason":"unknown_sailor"})
+    if unknown:
+        reason="leader_mismatch" if any(x.get("reason")=="leader_mismatch" for x in unknown) else "unknown_leader"
+        return {"ok":False,"reason":reason,"official_digest":digest,"claimed_leaders":claimed,"unknown_leaders":unknown}
+    return {"ok":True,"reason":"matched" if claimed else "no_leader_claim","official_digest":digest,"claimed_leaders":claimed,"unknown_leaders":[]}
+
 def verify(item,facts):
     url=canonical(item.get("url") or item.get("source_url"))
     if url==canonical(facts.get("url")):return {"accepted":True,"reason":"official_results","matches":["canonical_event_id"]}
@@ -100,8 +221,8 @@ def verify(item,facts):
     from search_everywhere import in_coverage_window
     window=in_coverage_window(item,facts)
 
-    klass=str(facts.get("class_name") or "").lower()
-    class_match=bool(klass and re.search(r"(?<![a-z0-9])"+re.escape(klass)+r"(?![a-z0-9])",blob))
+    classes=[str(x).lower() for x in ([facts.get("class_name")] + list(facts.get("class_names") or [])) if x]
+    class_match=any(klass and re.search(r"(?<![a-z0-9])"+re.escape(klass)+r"(?![a-z0-9])",blob) for klass in dict.fromkeys(classes))
     aliases=[facts.get("club_name",""),facts.get("club","")]
     aliases += [re.sub(r"\b(yacht|sports|club)\b","",facts.get("club_name",""),flags=re.I).strip()]
     venue=any(len(a.strip())>=3 and re.search(r"(?<![a-z0-9])"+re.escape(a.strip().lower())+r"(?![a-z0-9])",blob) for a in aliases)
@@ -119,7 +240,10 @@ def verify(item,facts):
     matches=(["class"] if class_match else [])+(["venue"] if venue else [])+["person:"+n for n in names]
     # A label such as seed/host/verified is never an identity proof.
     accepted=class_match and (venue or len(names)>=2) and (window is True or late_report or (venue and len(names)>=2) or (year in years and venue))
-    return {"accepted":bool(accepted),"reason":("late_report_matched" if late_report else "event_identity_matched") if accepted else "insufficient_event_identity","matches":matches}
+    checksum=results_checksum(item,facts)
+    if accepted and not checksum["ok"]:
+        return {"accepted":False,"reason":"results_checksum_failed","matches":matches,"checksum":checksum}
+    return {"accepted":bool(accepted),"reason":("late_report_matched" if late_report else "event_identity_matched") if accepted else "insufficient_event_identity","matches":matches,"checksum":checksum}
 
 def verified_cluster(facts,candidates,fetch=True):
     candidates=list(candidates)
@@ -164,18 +288,22 @@ def source_notes(cluster,facts,index):
         if not verify(item,facts)["accepted"]:continue
         cite=next((x["n"] for x in index if canonical(x["url"])==canonical(item.get("url"))),None)
         if not cite:continue
-        # Youth identity must come from the official fleet and the source's title statement.
-        if re.search(r"\bU-?17\b|under[- ]17",body,re.I):
+        # Age titles only when verified media names official-result sailors.
+        if AGE_LABEL.search(body):
             paragraphs=re.split(r"\n\s*\n|(?<=[.!?])\s+(?=[A-Z])",body)
             for i,paragraph in enumerate(paragraphs):
-                if not re.search(r"\bU-?17\b|under[- ]17",paragraph,re.I):continue
+                age=AGE_LABEL.search(paragraph)
+                if not age:continue
+                label=age_phrase(age)
+                if not label:continue
                 nearby=" ".join(paragraphs[max(0,i-2):i+1])
-                names=[n for n in facts.get("names",[]) if n in nearby]
+                names=[n for n in official_names(facts) if n in nearby]
                 names=list(dict.fromkeys(names))
-                if len(names)>=2 and re.search(r"1st|first|champion|won",paragraph,re.I):
-                    key=tuple(names[:2])
+                if names and re.search(r"1st|first|champion|won|title|winner",paragraph,re.I):
+                    shown=names[:2]
+                    key=("age",label)+tuple(shown)
                     if key not in seen:
-                        notes.append(f"{' and '.join(names[:2])} also won the under-17 title, according to the published report. [{cite}]");seen.add(key)
+                        notes.append(f"{' and '.join(shown)} also won the {label} title, according to the published report. [{cite}]");seen.add(key)
         if facts.get("tied_first") and re.search(r"won the tie break by winning the last race",body,re.I):
             notes.append(f"The class report attributes the title tie-break to {facts['winner']} winning the final race. [{cite}]")
         # Host club placing mentions are checked against the official rank and sailor name.
@@ -191,7 +319,7 @@ def source_notes(cluster,facts,index):
         if home:
             sentence=f"The host club's report also highlighted {', '.join(dict.fromkeys(home))}. [{cite}]"
             if sentence not in notes:notes.append(sentence)
-    return notes[:3]
+    return notes[:MAX_SOURCE_NOTES]
 
 def recap(facts,cluster,index):
     from event_rewrite import _heats,_date_span
@@ -219,6 +347,13 @@ def recap(facts,cluster,index):
     if facts.get("third"):
         podium.append(f"{facts['third']} finished third on {facts['third_nett']} nett points.")
     if podium:paragraphs.append(" ".join(podium)+" "+mark)
+    if facts.get("multi_class"):
+        extras=[]
+        for fleet in facts.get("fleets") or []:
+            if not fleet.get("winner") or not fleet.get("class_name"): continue
+            if fleet.get("class_name")==facts.get("class_name") and fleet.get("winner")==winner: continue
+            extras.append(f"{fleet['winner']} won the {fleet['class_name']} on {fleet.get('winner_nett') or 'the published'} nett points in a {fleet.get('entries') or 0}-boat fleet.")
+        if extras:paragraphs.append(" ".join(extras)+" "+mark)
     if facts.get("tied_first"):
         paragraphs.append(f"The top two crews were level on nett points; the official results rank {winner} first. {mark}")
     paragraphs.extend(source_notes(cluster,facts,index))
@@ -246,8 +381,10 @@ def feature(issue,monday,events,articles):
 def photo_caption(image,facts,cluster):
     source=next((a for a in cluster.get("articles",[]) if canonical(a.get("url"))==canonical(image.get("source_url"))),{})
     body=text_of(source)
-    names=[n for n in facts.get("names",[]) if n in body]
+    names=[n for n in official_names(facts) if n in body]
     names=list(dict.fromkeys(names))
-    if re.search(r"\bU-?17\b|under[- ]17",body,re.I) and len(names)==2:
-        return " and ".join(names)+" — under-17 champions."
+    age=AGE_LABEL.search(body)
+    label=age_phrase(age)
+    if label and names:
+        return " and ".join(names[:2])+f" — {label} champions."
     return facts["title"]+" — "+facts["club_name"]+"."

@@ -134,23 +134,38 @@ def fetch_regatta(slug: str) -> list[dict]:
     return data if isinstance(data, list) else []
 
 
-def sailor_ids(rows: list[dict], limit: int = 8) -> list[str]:
+def sailor_ids(rows: list[dict], limit: int = 24) -> list[str]:
+    """Collect SAS IDs from each class fleet so Media-tab notes can checksum."""
     ids = []
+    grouped: dict[str, list[dict]] = {}
+    order: list[str] = []
     for row in rows:
-        for key in (
-            "helm_sa_sailing_id",
-            "crew_sa_sailing_id",
-            "crew2_sa_sailing_id",
-            "crew3_sa_sailing_id",
-        ):
-            sid = row.get(key)
-            if sid is None:
-                continue
-            sid = str(sid).strip()
-            if sid.isdigit() and sid not in ids:
-                ids.append(sid)
-        if len(ids) >= limit:
-            break
+        key = (row.get("class_name") or row.get("class_canonical") or "").strip() or "_"
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(row)
+    per_class = max(4, limit // max(1, len(order)))
+    for key in order:
+        taken = 0
+        for row in grouped[key]:
+            for field in (
+                "helm_sa_sailing_id",
+                "crew_sa_sailing_id",
+                "crew2_sa_sailing_id",
+                "crew3_sa_sailing_id",
+            ):
+                sid = row.get(field)
+                if sid is None:
+                    continue
+                sid = str(sid).strip()
+                if sid.isdigit() and sid not in ids:
+                    ids.append(sid)
+                    taken += 1
+                if len(ids) >= limit or taken >= per_class:
+                    break
+            if len(ids) >= limit or taken >= per_class:
+                break
     return ids[:limit]
 
 

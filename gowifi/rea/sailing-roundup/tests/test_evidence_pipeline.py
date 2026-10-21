@@ -1,7 +1,7 @@
 import json,pathlib,sys,unittest
 from unittest.mock import patch
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]/"app"))
-from evidence_pipeline import verify,verified_cluster,extract,recap,source_notes
+from evidence_pipeline import verify,verified_cluster,extract,recap,source_notes,results_checksum
 F={"slug":"2026-09-25-tsc-420-nationals","url":"https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals",
 "title":"420 Nationals","class_name":"420","club":"TSC","club_name":"Theewater Sports Club","start":"2026-09-26","end":"2026-09-27",
 "names":["Dale Rae","James Rae","Timothy Weaving","Hayden Miller"],"ranked_rows":[]}
@@ -68,6 +68,34 @@ class EvidenceRegression(unittest.TestCase):
    (out/"index.html").write_text("<html>New edition</html>")
    with self.assertRaisesRegex(ValueError,"Missing PDF"):
     validate(root,"2026-09-28")
+ def test_u19_mention_requires_official_sailor(self):
+  item={"url":"https://example.org/u19","title":"420 Nationals",
+      "body":"The class report named Timothy Weaving U19 champion at the 420 Nationals at Theewater Sports Club in September 2026."}
+  notes=source_notes({"articles":[item]},F,[{"url":item["url"],"n":2}])
+  self.assertEqual(len(notes),1)
+  self.assertIn("Timothy Weaving",notes[0])
+  self.assertIn("under-19",notes[0])
+  other={"url":"https://example.org/u19-other","title":"420 Nationals",
+      "body":"Jane Doe was named U19 champion at the 420 Nationals at Theewater Sports Club in September 2026."}
+  self.assertEqual(source_notes({"articles":[other]},F,[{"url":other["url"],"n":2}]),[])
+ def test_checksum_rejects_other_event_winner(self):
+  item={"url":"https://example.org/other","title":"420 Nationals at Theewater Sports Club",
+      "body":"Peter Funke and Thomas Funke won the 420 Nationals at Theewater Sports Club in September 2026.","published":"2026-09-28"}
+  check=results_checksum(item,F)
+  self.assertFalse(check["ok"])
+  self.assertEqual(check["reason"],"unknown_leader")
+  self.assertFalse(verify(item,F)["accepted"])
+  self.assertEqual(verify(item,F)["reason"],"results_checksum_failed")
+ def test_checksum_accepts_official_leaders(self):
+  facts=dict(F,ranked_rows=[{"rank":1,"helm_name":"Dale Rae","crew_name":"James Rae"},{"rank":2,"helm_name":"Howard Leoto","crew_name":"Lebogang January"}],
+             names=["Dale Rae","James Rae","Howard Leoto","Lebogang January"],entries=16)
+  item={"url":"https://example.org/ok","title":"420 Nationals at Theewater Sports Club",
+      "body":"Dale Rae and James Rae won the 420 Nationals at Theewater Sports Club in September 2026.\n1st – Dale Rae (HYC)\n2nd – Howard Leoto (RNYC)","published":"2026-09-28"}
+  check=results_checksum(item,facts)
+  self.assertTrue(check["ok"])
+  self.assertTrue(check["official_digest"])
+  mismatch=dict(item,body="Howard Leoto won the 420 Nationals at Theewater Sports Club in September 2026.")
+  self.assertFalse(results_checksum(mismatch,facts)["ok"])
  def test_equal_scores_do_not_prove_countback(self):
   facts=dict(F,winner="Dale Rae and James Rae",winner_nett="10",winner_scores={},races=4,entries=10,status="Final",second="Other Crew",second_nett="10",third="",tied_first=True)
   text=" ".join(recap(facts,{},[{"n":1}]))

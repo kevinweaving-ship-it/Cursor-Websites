@@ -268,7 +268,7 @@ regatta slug
     → emit Monok-shaped article:
          title, shortTitle, description, content/html,
          thumb stored under issues/YYYY-MM-DD/media/,
-         leaderboard rows 1..3 only
+         official per-class leaderboard; media names checksummed to results
 ```
 
 Do **not**:

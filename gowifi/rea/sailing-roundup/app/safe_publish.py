@@ -23,7 +23,9 @@ def validate(root,issue):
             if b["type"]=="paragraph":
                 refs=[int(x) for x in re.findall(r"\[(\d+)\]",b["text"])]
                 if not refs or not set(refs)<=citations:raise ValueError("Untraceable paragraph")
-            if b["type"]=="results" and len(b["rows"])>3:raise ValueError("Article table must be podium only")
+            if b["type"]=="results":
+                if not b.get("rows"):raise ValueError("Empty leaderboard")
+                if len(b["rows"])>80:raise ValueError("Leaderboard exceeds official fleet cap")
             if b["type"]=="image":
                 path=(out/b["url"]).resolve()
                 if not path.is_relative_to(out.resolve()) or not path.is_file():raise ValueError("Missing image")

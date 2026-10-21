@@ -129,6 +129,8 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(results["columns"], ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"])
         self.assertEqual(len(results["rows"]), 3)
         self.assertEqual([r[0] for r in results["rows"]], ["1", "2", "3"])
+        heading = next(b for b in article["blocks"] if b["type"] == "heading")
+        self.assertEqual(heading["text"], "420 leaderboard")
         self.assertNotIn("source_info", article)
         html = _render_story(1, article)
         self.assertIn("story-photo-led", html)
@@ -364,6 +366,111 @@ class RewriteEngine(unittest.TestCase):
         self.assertIn(facts["url"], urls)
         cites = citation_index(cluster, facts)
         self.assertEqual(cites[0]["url"], facts["url"])
+
+    def test_full_fleet_leaderboard_not_podium_only(self):
+        rows = sample_rows() + [
+            {
+                "event_name": "420 Nationals",
+                "host_club_code": "TSC",
+                "class_name": "420",
+                "rank": 4,
+                "helm_name": "Timothy Weaving",
+                "crew_name": "Hayden Miller",
+                "club_abbrev": "HYC",
+                "sail_number": "54811",
+                "nett_points_raw": 32,
+            },
+            {
+                "event_name": "420 Nationals",
+                "host_club_code": "TSC",
+                "class_name": "420",
+                "rank": 5,
+                "helm_name": "Alex Guest",
+                "crew_name": "Sam Guest",
+                "club_abbrev": "ZYC",
+                "sail_number": "12",
+                "nett_points_raw": 40,
+            },
+        ]
+        facts = facts_from_rows("2026-09-25-tsc-420-nationals", rows)
+        article = rewrite_event("2026-09-28", facts, pack={}, cluster={"articles": []}, layout="classic")
+        boards = [b for b in article["blocks"] if b["type"] == "results"]
+        self.assertEqual(len(boards), 1)
+        self.assertEqual(len(boards[0]["rows"]), 5)
+        self.assertEqual([r[1] for r in boards[0]["rows"]], [
+            "Dale Rae", "Howard Leoto", "Kamva Mgcubhe", "Timothy Weaving", "Alex Guest",
+        ])
+
+    def test_multi_class_one_leaderboard_per_class(self):
+        rows = [
+            {
+                "event_name": "All Africa Games",
+                "host_club_code": "ZYC",
+                "host_club_name": "Zeekoe Vlei Yacht Club",
+                "class_name": "Laser",
+                "start_date": "2026-04-10",
+                "end_date": "2026-04-12",
+                "result_status": "Final",
+                "races_sailed": 6,
+                "entries_total": 2,
+                "rank": 1,
+                "helm_name": "Alex Sailor",
+                "club_abbrev": "ZYC",
+                "sail_number": "1",
+                "nett_points_raw": 8,
+            },
+            {
+                "event_name": "All Africa Games",
+                "host_club_code": "ZYC",
+                "class_name": "Laser",
+                "rank": 2,
+                "helm_name": "Bea Helm",
+                "club_abbrev": "RYC",
+                "sail_number": "2",
+                "nett_points_raw": 12,
+            },
+            {
+                "event_name": "All Africa Games",
+                "host_club_code": "ZYC",
+                "class_name": "420",
+                "races_sailed": 6,
+                "entries_total": 2,
+                "rank": 1,
+                "helm_name": "Cara Crew",
+                "crew_name": "Dana Crew",
+                "club_abbrev": "HYC",
+                "sail_number": "4201",
+                "nett_points_raw": 6,
+            },
+            {
+                "event_name": "All Africa Games",
+                "host_club_code": "ZYC",
+                "class_name": "420",
+                "rank": 2,
+                "helm_name": "Evan Helm",
+                "crew_name": "Fay Crew",
+                "club_abbrev": "TSC",
+                "sail_number": "4202",
+                "nett_points_raw": 11,
+            },
+        ]
+        facts = facts_from_rows("2026-04-10-zyc-all-africa-games", rows)
+        self.assertTrue(facts["multi_class"])
+        self.assertEqual(facts["class_names"], ["Laser", "420"])
+        article = rewrite_event("2026-04-13", facts, pack={}, cluster={"articles": []}, layout="classic")
+        headings = [b["text"] for b in article["blocks"] if b["type"] == "heading"]
+        boards = [b for b in article["blocks"] if b["type"] == "results"]
+        self.assertEqual(headings, ["Laser leaderboard", "420 leaderboard"])
+        self.assertEqual(len(boards), 2)
+        self.assertEqual(len(boards[0]["rows"]), 2)
+        self.assertEqual(len(boards[1]["rows"]), 2)
+        self.assertEqual(boards[0]["class_name"], "Laser")
+        self.assertEqual(boards[1]["class_name"], "420")
+        blob = " ".join(b["text"] for b in article["blocks"] if b["type"] == "paragraph")
+        self.assertIn("Cara Crew and Dana Crew", blob)
+        html = _render_story(1, article)
+        self.assertIn("Laser leaderboard", html)
+        self.assertIn("420 leaderboard", html)
 
 
 if __name__ == "__main__":

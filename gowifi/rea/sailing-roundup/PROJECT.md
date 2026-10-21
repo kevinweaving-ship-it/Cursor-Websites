@@ -117,7 +117,7 @@ actually cluster coverage or write a recap from a box score.
 | --- | --- | --- | --- |
 | Calendar | SailingSA `events` table | no | Which events ran this weekend |
 | Results | `/api/regatta/{slug}` | no | Leaderboard + SAS IDs |
-| Sailor media | public-mentions API | no | Tim / Josh / podium sailors |
+| Sailor media | public-mentions API | no | Official-result sailors; checksum drops other-event names |
 | Official links | club/class directory | no | Scraped from SailingSA club URLs; SA class pages + SAS class sites. International class URLs stored as `not_local`. Facebook share/cross-posts matched back to `/club/`, `/class/`, `/sailor/`, sponsor. |
 | Page metadata | Open Graph | no | Title, caption, image |
 | Public extractors | gallery-dl, yt-dlp | no | FB / IG / YouTube public URLs |

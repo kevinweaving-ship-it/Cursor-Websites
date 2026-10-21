@@ -15,6 +15,8 @@ An event is in **exactly one** Monday issue: the **Monday after the week the eve
 
 SailingSA results (names, scores, classes, sailors) are the source of truth. REA then pulls club sites, class socials, Google, and sailor Media-tab mentions for copy and photographs. No Wikimedia. No invented photos.
 
+Each regatta report publishes the official leaderboard. A single-class event gets one board; a multi-class event gets one board per class, using the full official fleet. Extra sailor notes (Media-tab, club or class posts) are included only when those names checksum against the official results. If external media lists other-event sailors as this event's leaders, the source is dropped. U15 / U17 / U19 / U21 titles are mentioned only when verified media names official sailors in that age group.
+
 Historical 2026 (and later years) is the same pipeline, not a results-only stub:
 
 ```bash
