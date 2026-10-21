@@ -178,15 +178,30 @@
     }
   }
 
+  function slideWidth() {
+    var box = viewport.getBoundingClientRect();
+    return Math.round(box.width || viewport.clientWidth || section.clientWidth || 0);
+  }
+
   function sizeSlides() {
-    var w = viewport.clientWidth || section.clientWidth;
+    var w = slideWidth();
     if (!w) return;
     viewport.style.setProperty("--roundup-card-width", w + "px");
+    track.style.width = w * track.children.length + "px";
     Array.prototype.forEach.call(track.children, function (slide) {
       slide.style.width = w + "px";
       slide.style.minWidth = w + "px";
       slide.style.maxWidth = w + "px";
       slide.style.flex = "0 0 " + w + "px";
+      slide.style.boxSizing = "border-box";
+    });
+  }
+
+  function showOnly(index, also) {
+    Array.prototype.forEach.call(track.children, function (slide, i) {
+      var on = i === index || i === also;
+      slide.style.visibility = on ? "visible" : "hidden";
+      slide.setAttribute("aria-hidden", on ? "false" : "true");
     });
   }
 
@@ -210,13 +225,22 @@
     }
 
     function setIndex(next, animate) {
-      index = Math.max(0, Math.min(count - 1, next));
+      var dest = Math.max(0, Math.min(count - 1, next));
+      showOnly(index, dest);
+      index = dest;
       sizeSlides();
-      var w = viewport.clientWidth || 1;
+      var w = slideWidth() || 1;
       track.style.transition = animate === false ? "none" : "transform .28s ease";
       track.style.transform = "translate3d(" + -index * w + "px,0,0)";
       section.setAttribute("data-roundup-index", String(index));
       renderDots(count, index);
+      if (animate === false) {
+        showOnly(index);
+        return;
+      }
+      window.setTimeout(function () {
+        showOnly(index);
+      }, 320);
     }
 
     function finish(openIfTap) {
@@ -260,9 +284,10 @@
         if (axis == null && (adx > 10 || ady > 10)) axis = adx > ady ? "x" : "y";
         if (axis !== "x") return;
         dx = x - startX;
+        showOnly(index, index + (dx < 0 ? 1 : -1));
         var extra = dx;
         if ((index === 0 && dx > 0) || (index === count - 1 && dx < 0)) extra = dx * 0.2;
-        track.style.transform = "translate3d(" + (-index * (viewport.clientWidth || 1) + extra) + "px,0,0)";
+        track.style.transform = "translate3d(" + (-index * (slideWidth() || 1) + extra) + "px,0,0)";
         if (e.cancelable) e.preventDefault();
       },
       { passive: false }
@@ -335,6 +360,7 @@
       slide.className = "landing-top-card-face landing-roundup-slide";
       if (i === 0) slide.id = "landing-roundup-face";
       fillCard(slide, hero);
+      slide.style.visibility = i === 0 ? "visible" : "hidden";
       track.appendChild(slide);
     });
     sizeSlides();
