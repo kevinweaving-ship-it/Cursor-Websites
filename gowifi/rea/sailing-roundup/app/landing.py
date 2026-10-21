@@ -6,8 +6,36 @@ import html
 import json
 import pathlib
 
+import re
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PUBLIC_BASE = "https://sailingsa.co.za/sailing-roundup"
+CHROME_IMAGE = re.compile(
+    r"burgee|pennant|ensign|club[-_ ]?logo|event[-_ ]?logo|class[-_ ]?logo|"
+    r"artwork/(event|club|class)|/t39\.30808-1/|/picture\?|profile[_-]?pic",
+    re.I,
+)
+
+
+def _abs_photo(url: str, folder: str = "") -> str:
+    url = (url or "").strip()
+    if not url or CHROME_IMAGE.search(url):
+        return ""
+    if url.startswith("http"):
+        return url
+    if folder and not url.startswith("issues/"):
+        url = f"issues/{folder}/{url}"
+    if url.startswith("issues/"):
+        return f"{PUBLIC_BASE}/{url}"
+    return url
+
+
+def _feature_excerpt(articles: list) -> str:
+    feature = next((a for a in articles if a.get("type") == "feature"), None)
+    if not feature:
+        return ""
+    texts = [b.get("text") for b in (feature.get("blocks") or []) if b.get("type") == "paragraph" and b.get("text")]
+    return " ".join(texts[:2]).strip()
 
 
 def _issues() -> list[dict]:
@@ -27,9 +55,7 @@ def _issues() -> list[dict]:
         for article in articles:
             if article.get("type") != "regatta_report":
                 continue
-            hero = ((article.get("hero_image") or {}) or {}).get("url") or ""
-            if hero and not hero.startswith("http"):
-                hero = f"issues/{folder.name}/{hero}"
+            hero = _abs_photo(((article.get("hero_image") or {}) or {}).get("url") or "", folder.name)
             cards.append(
                 {
                     "id": article.get("id"),
@@ -47,11 +73,15 @@ def _issues() -> list[dict]:
                 "title": data.get("title") or "Last Week's Roundup",
                 "edition_date": data.get("edition_date") or folder.name,
                 "articles": len(articles),
-                "lead": (articles[0].get("headline") if articles else ""),
+                "lead": _feature_excerpt(articles) or (articles[0].get("headline") if articles else ""),
                 "html": f"issues/{folder.name}/",
                 "pdf": f"issues/{folder.name}/edition.pdf",
                 "json": f"issues/{folder.name}/issue.json",
-                "hero": cards[0]["image"] if cards else ((articles[0].get("hero_image") or {}) if articles else {}).get("url"),
+                "hero": _abs_photo(
+                    ((next((a for a in articles if a.get("type") == "feature"), {}) or {}).get("hero_image") or {}).get("url") or "",
+                    folder.name,
+                )
+                or (cards[0]["image"] if len(cards) == 1 else ""),
                 "cards": cards,
             }
         )

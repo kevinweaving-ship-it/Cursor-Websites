@@ -94,6 +94,20 @@ class EvidenceRegression(unittest.TestCase):
   self.assertIn("Dabchick",text)
   self.assertIn("Optimist A",text)
   self.assertNotIn("Taylor Milln finished second",text)
+ def test_multi_event_feature_lists_each_event_and_has_no_week_hero(self):
+  from evidence_pipeline import feature
+  import datetime as dt
+  reports=[
+    {"id":"a","type":"regatta_report","headline":"505 Nationals at Aeolians","deck":"Aeolians","hero_image":{"url":"media/505.jpg"}},
+    {"id":"b","type":"regatta_report","headline":"Dabchick Gauteng Regionals at Aeolians","deck":"Aeolians","hero_image":{"url":"media/dabchick.jpg"}},
+    {"id":"c","type":"regatta_report","headline":"Dart 18 Nationals at Henley Midmar","deck":"HMYC"},
+  ]
+  art=feature("2026-09-28",dt.date(2026,9,28),[],reports)
+  blob=" ".join(b.get("text") or "" for b in art["blocks"] if b.get("type")=="paragraph")
+  self.assertIn("505 Nationals",blob)
+  self.assertIn("Dabchick Gauteng Regionals",blob)
+  self.assertIn("Dart 18 Nationals",blob)
+  self.assertFalse(any(b.get("type")=="image" for b in art["blocks"]))
  def test_feature_uses_scored_report_not_empty_calendar_line(self):
   from evidence_pipeline import feature
   import datetime as dt

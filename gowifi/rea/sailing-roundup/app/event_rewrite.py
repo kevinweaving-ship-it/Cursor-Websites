@@ -890,6 +890,18 @@ def _event_photo_score(item: dict, facts: dict) -> int:
     return n
 
 
+CHROME_IMAGE = re.compile(
+    r"burgee|pennant|ensign|club[-_ ]?logo|event[-_ ]?logo|class[-_ ]?logo|"
+    r"artwork/(event|club|class)|/t39\.30808-1/|/picture\?|profile[_-]?pic",
+    re.I,
+)
+
+
+def is_chrome_image(url: str = "", title: str = "") -> bool:
+    """Club flags, logos, and Facebook profile pictures are not event photographs."""
+    return bool(CHROME_IMAGE.search(f"{url or ''} {title or ''}"))
+
+
 def seed_media_images(facts: dict) -> list[dict]:
     """Local event photographs checked into data/seed-media/<slug>.<ext>."""
     slug = (facts.get("slug") or "").strip()
@@ -928,6 +940,8 @@ def pick_images(facts: dict, cluster: dict, pack: dict | None = None, limit: int
         original_title = item.get("title") or ""
         # Never copy this event's headline onto a foreign photo before the conflict check.
         if other_event_conflict({"url": source, "source_url": source, "title": original_title, "body": original_title}, facts):
+            return
+        if is_chrome_image(url, original_title) or is_chrome_image(source, original_title):
             return
         if cluster.get("schema_version") == "verified-evidence-1" and canonical(source) not in accepted_sources:
             return

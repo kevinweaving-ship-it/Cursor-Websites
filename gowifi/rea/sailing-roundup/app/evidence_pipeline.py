@@ -312,25 +312,23 @@ def feature(issue,monday,events,articles):
     date_line=f"{sat.day}–{sun.strftime('%-d %B %Y')}"
     paragraphs=[]
     hero=None
-    if reports:
+    if not reports:
+        paragraphs.append(f"No scored results were published for {date_line}.")
+    elif len(reports)==1:
         lead=reports[0]
         hero=lead.get("hero_image") or None
-        deck=lead.get("deck") or ""
-        kicker=lead.get("kicker") or ""
-        headline=lead.get("headline") or lead.get("event_id") or "the weekend's racing"
-        paragraphs.append(f"{headline}. {deck}".strip())
-        more=[a.get("headline") for a in reports[1:] if a.get("headline")]
-        if more:
-            paragraphs.append("Also in this edition: "+", ".join(more)+".")
+        paragraphs.append(f"{lead.get('headline') or 'Weekend racing'}. {lead.get('deck') or ''}".strip())
     else:
-        paragraphs.append(f"No scored results were published for {date_line}.")
+        paragraphs.append(f"{len(reports)} scored events over {date_line}:")
+        for report in reports:
+            paragraphs.append(report.get("headline") or report.get("event_id") or "Weekend racing")
     covered={a.get("event_id") for a in reports}
     missing=sorted({e.get("event_name") for e in events if e.get("event_name") and (e.get("regatta_id") or "") not in covered and not e.get("has_results")})
     if missing:
-        paragraphs.append("The calendar also listed "+", ".join(missing)+", with no published results card.")
+        paragraphs.append("Also on the calendar, with no published results card: "+", ".join(missing)+".")
     blocks=[]
-    if hero and hero.get("url"):
-        blocks.append({"type":"image","url":hero.get("url"),"alt":reports[0].get("headline") or "Last Week's Roundup","caption":(reports[0].get("kicker") or "Weekend racing")+" at "+(reports[0].get("deck") or "the host club")+".","credit":"Event photography","source_url":hero.get("source_url") or "","rights_status":"source_attributed"})
+    if hero and hero.get("url") and len(reports)==1:
+        blocks.append({"type":"image","url":hero.get("url"),"alt":reports[0].get("headline") or "Last Week's Roundup","caption":(reports[0].get("kicker") or "Weekend racing")+".","credit":"Event photography","source_url":hero.get("source_url") or "","rights_status":"source_attributed"})
     blocks+=[{"type":"paragraph","text":t} for t in paragraphs]
     return {"id":"sailing-"+issue,"type":"feature","headline":"Last Week's Roundup",
         "deck":date_line,"byline":"SailingSA","kicker":"SAILING","published_at":issue,

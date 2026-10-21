@@ -255,40 +255,42 @@ def _layout_name(index, article):
 def _render_story(index, article):
     layout = _layout_name(index, article)
     images, paras, board = _story_parts(article)
-    photos = _photo_set(images)
-    hero = images[0] if images else ""
-    rest = _photo_set(images[1:]) if len(images) > 1 else ""
-    kicker = html.escape(article.get("kicker") or (article.get("class_name") or "Weekend").upper())
+    aid = html.escape(article.get("id") or article.get("event_id") or "", quote=True)
     headline = html.escape(article.get("headline") or "")
-    deck = html.escape(article.get("deck") or "")
-    byline = html.escape(article.get("byline") or "SailingSA")
-    dateline = html.escape(article.get("published_at") or "")
-    head = (
-        "<p class='kicker'>" + kicker + "</p>"
-        "<h2>" + headline + "</h2>"
-        + (("<p class='deck'>" + deck + "</p>") if deck else "")
-        + "<p class='byline'>By " + byline + "  ·  " + dateline + "</p>"
+    lead = article.get("type") == "feature"
+    deck = article.get("deck") or ""
+    if not lead and "·" in deck:
+        deck = " · ".join(part.strip() for part in deck.split("·")[2:])
+    kicker = html.escape(article.get("kicker") or article.get("class_name") or "")
+    title_tag = "h1" if lead else "h2"
+    header = (
+        '<header class="story-heading">'
+        + ("" if lead else '<p class="kicker">' + kicker + "</p>")
+        + f"<{title_tag}>{headline}</{title_tag}>"
+        + (('<p class="deck">' + html.escape(deck) + "</p>") if deck else "")
     )
+    if lead:
+        date = article.get("published_at") or ""
+        try:
+            date = dt.date.fromisoformat(date).strftime("%-d %B %Y")
+        except ValueError:
+            pass
+        header += (
+            '<p class="byline">By '
+            + html.escape(article.get("byline") or "SailingSA")
+            + '<span aria-hidden="true"> · </span>Published '
+            + html.escape(date)
+            + "</p>"
+        )
+    header += "</header>"
     copy = "".join(paras)
-    standings = "".join(board)
-    notes = _sources_block(article)
-    if layout == "lead":
-        inner = "<div class='banner'>" + head + "</div>" + (hero or photos) + "<div class='copy'>" + copy + "</div>"
-    elif layout == "photo-led":
-        inner = (hero or "") + head + "<div class='copy cols-2'>" + copy + "</div>" + rest + standings + notes
-    elif layout == "split":
-        inner = head + "<div class='split'><div class='split-photo'>" + photos + "</div><div class='copy'>" + copy + "</div></div>" + standings + notes
-    elif layout == "compact":
-        inner = "<div class='compact-head'>" + head + "</div><div class='compact-row'>" + photos + "<div class='copy'>" + copy + "</div></div>" + standings + notes
-    else:
-        mid = copy
-        if hero and paras:
-            mid = paras[0] + hero + rest + "".join(paras[1:])
-        elif photos:
-            mid = photos + copy
-        inner = head + "<div class='copy cols-2'>" + mid + "</div>" + standings + notes
-    aid = html.escape(article.get("id") or article.get("event_id") or "")
-    return "<article class='story story-" + layout + "' id='" + aid + "'>" + inner + "</article>"
+    photos = _photo_set(images)
+    content = header + photos + '<div class="copy">' + copy + "</div>" + "".join(board) + _sources_block(article)
+    return (
+        f'<article class="story story-{layout} {"edition-lead" if lead else "event-story"}" id="{aid}">'
+        + content
+        + "</article>"
+    )
 
 
 def newspaper_css():

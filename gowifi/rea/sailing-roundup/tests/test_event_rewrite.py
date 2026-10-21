@@ -421,6 +421,30 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(photos, [])
         self.assertFalse(_keep_cluster_item({"url": dart_photo["source_url"], "title": dart_photo["title"], "body": dart_photo["title"] + " Bradley Levin Kyle Boman at Henley Midmar Yacht Club 2026."}, facts))
 
+    def test_club_burgee_is_not_an_event_photo(self):
+        from event_rewrite import is_chrome_image
+
+        self.assertTrue(is_chrome_image("https://scontent.xx.fbcdn.net/v/t39.30808-1/328224423_n.jpg", "HMYC"))
+        self.assertTrue(is_chrome_image("https://hmyc.org.za/artwork/club-logo.png", "burgee"))
+        self.assertFalse(is_chrome_image("https://sailingsa.co.za/sailing-roundup/issues/2026-10-05/media/opti.jpg", "Optimist"))
+
+    def test_lead_html_has_edition_lead_and_h1(self):
+        html = _render_story(
+            0,
+            {
+                "type": "feature",
+                "layout": "lead",
+                "id": "sailing-2026-10-05",
+                "headline": "Last Week's Roundup",
+                "deck": "3–4 October 2026",
+                "published_at": "2026-10-05",
+                "blocks": [{"type": "paragraph", "text": "Maximilian Malan won at Lake Deneys."}],
+            },
+        )
+        self.assertIn("edition-lead", html)
+        self.assertIn("<h1>Last Week&#x27;s Roundup</h1>", html)
+        self.assertIn('class="copy"', html)
+
     def test_seed_media_is_preferred_hero(self):
         import event_rewrite as er
         import shutil
@@ -438,7 +462,7 @@ class RewriteEngine(unittest.TestCase):
         }
         seeds = er.seed_media_images(facts)
         self.assertTrue(seeds)
-        self.assertTrue(seeds[0]["local_file"].endswith(".png"))
+        self.assertTrue(seeds[0]["local_file"].endswith((".jpg", ".png")))
         photos = pick_images(facts, {"articles": []})
         self.assertEqual(photos[0].get("seed"), True)
 
