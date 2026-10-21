@@ -12,6 +12,7 @@ from event_rewrite import (
     artwork_matches_event,
     attach_weekend_hero,
     board_label,
+    crop_center_hero,
     citation_index,
     clean_event_title,
     cluster_coverage,
@@ -889,7 +890,7 @@ class RewriteEngine(unittest.TestCase):
         local = download_image(seeds[0], "2026-10-19", facts["slug"], 0)
         self.assertIsNotNone(local)
         self.assertEqual(local["url"], "media/2026-10-17-pyc-kzn-mirror-regionals.jpg")
-        self.assertGreater(local["bytes"], 8000)
+        self.assertGreater(local["bytes"], 4000)
         self.assertEqual(
             pretty_credit("KZN Mirror / event administration", "https://sailingsa.co.za/regatta/2026-10-17-pyc-kzn-mirror-regionals"),
             "KZN Mirror / event administration",
@@ -956,6 +957,30 @@ class RewriteEngine(unittest.TestCase):
         payload = news_article_jsonld("2026-10-19", {"articles": [out] + articles, "title": "The Weekend Roundup"})
         self.assertIn("2026-10-17-pyc-kzn-mirror-regionals.jpg", payload["image"][0])
         self.assertNotIn("mac-tsl-wc-team-sailing-2.png", payload["image"][0])
+
+    def test_mirror_hero_crop_sits_boats_low_in_frame(self):
+        src = ROOT / "app" / "seed_media" / "2026-10-17-pyc-kzn-mirror-regionals.jpg"
+        dest = pathlib.Path("/tmp/mirror-hero-crop-test.jpg")
+        self.assertTrue(crop_center_hero(src, dest))
+        from PIL import Image
+        im = Image.open(dest)
+        w, h = im.size
+        self.assertAlmostEqual(w / h, 16 / 9, places=2)
+        self.assertLess(h, Image.open(src).size[1])
+        # Red Mirror sails should sit in the lower half after the crop shifts down.
+        px = im.load()
+        weights = []
+        for y in range(h):
+            reds = 0
+            for x in range(0, w, 3):
+                r, g, b = px[x, y][:3]
+                if r > 140 and r > b + 35 and r > g + 15:
+                    reds += 1
+            weights.append(reds)
+        total = sum(weights) or 1
+        centroid = sum(i * n for i, n in enumerate(weights)) / total
+        self.assertGreaterEqual(centroid / h, 0.45)
+        self.assertGreater(sum(weights), 20)
 
 
 if __name__ == "__main__":

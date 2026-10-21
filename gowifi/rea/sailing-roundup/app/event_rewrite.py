@@ -1031,9 +1031,9 @@ def _bad_image_url(url: str) -> bool:
 
 
 def crop_center_hero(src: pathlib.Path, dest: pathlib.Path, aspect: float = 16 / 9) -> pathlib.Path | None:
-    """Clip top/bottom of a tall photo so the busiest band (boats) stays in a gold 16:9 frame."""
+    """Clip a tall photo to gold 16:9 with the subject sitting low, so water below is cut."""
     try:
-        from PIL import Image, ImageFilter
+        from PIL import Image
     except ImportError:
         return None
     if not src.is_file():
@@ -1045,22 +1045,21 @@ def crop_center_hero(src: pathlib.Path, dest: pathlib.Path, aspect: float = 16 /
         dest.parent.mkdir(parents=True, exist_ok=True)
         im.save(dest, quality=88)
         return dest
-    edges = im.convert("L").filter(ImageFilter.FIND_EDGES)
-    energy = []
-    pix = edges.load()
+    from PIL import ImageStat
+
+    gray = im.convert("L")
+    row_var = []
     for y in range(h):
-        energy.append(sum(pix[x, y] for x in range(w)) / w)
-    center_y = (h - target_h) // 2
-    best_y = center_y
-    best = sum(energy[center_y : center_y + target_h])
-    run = best
-    for y in range(1, h - target_h + 1):
-        run += energy[y + target_h - 1] - energy[y - 1]
-        if run > best:
-            best = run
-            best_y = y
+        row_var.append(ImageStat.Stat(gray.crop((0, y, w, y + 1))).var[0])
+    # Horizon / boats: highest row variance, ignoring empty sky at the top
+    # and ripple-heavy water at the bottom.
+    lo, hi = int(h * 0.2), max(int(h * 0.2) + 1, int(h * 0.75))
+    horizon = lo + max(range(hi - lo), key=lambda i: row_var[lo + i])
+    # Same 16:9 size; sit the boats low in the frame so water below is clipped.
+    best_y = int(round(horizon - target_h * 0.66))
+    best_y = max(0, min(h - target_h, best_y))
     dest.parent.mkdir(parents=True, exist_ok=True)
-    im.crop((0, best_y, w, best_y + target_h)).save(dest, quality=88)
+    im.crop((0, best_y, w, best_y + target_h)).save(dest, format="JPEG", quality=92, optimize=True)
     return dest
 
 
