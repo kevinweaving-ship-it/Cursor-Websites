@@ -108,6 +108,38 @@ class EvidenceRegression(unittest.TestCase):
   self.assertIn("Dabchick",text)
   self.assertIn("Optimist A",text)
   self.assertNotIn("Taylor Milln finished second",text)
+ def test_feature_names_six_events_four_scored_two_unlisted_biggest_first(self):
+  from evidence_pipeline import feature, unlisted_event_names
+  import datetime as dt
+  reports=[
+    {"id":"2026-09-26-small","event_id":"2026-09-26-small","type":"regatta_report","headline":"Small Club Open at PYC","deck":"8 entries","entries":8},
+    {"id":"2026-09-26-mid","event_id":"2026-09-26-mid","type":"regatta_report","headline":"Mirror Regionals at PYC","deck":"18 entries","entries":18},
+    {"id":"2026-09-25-tsc-420-nationals","event_id":"2026-09-25-tsc-420-nationals","type":"regatta_report","headline":"Dale Rae wins 420 Nationals","deck":"32 entries","entries":32},
+    {"id":"2026-09-26-youth","event_id":"2026-09-26-youth","type":"regatta_report","headline":"Free State Youth Provincial Champs","deck":"26 entries","entries":26},
+  ]
+  events=[
+    {"event_name":"420 Nationals","regatta_id":"2026-09-25-tsc-420-nationals","has_results":True},
+    {"event_name":"Mirror Regionals","regatta_id":"2026-09-26-mid","has_results":True},
+    {"event_name":"Free State Youth Provincial Champs","regatta_id":"2026-09-26-youth","has_results":True},
+    {"event_name":"Small Club Open","regatta_id":"2026-09-26-small","has_results":True},
+    {"event_name":"Agulhas Race","regatta_id":None,"has_results":False},
+    {"event_name":"Lipton Cup Practice","regatta_id":"","has_results":False},
+    {"event_name":"Instructor Course","regatta_id":None,"category":"Training","has_results":False},
+  ]
+  art=feature("2026-09-28",dt.date(2026,9,28),events,reports)
+  blob=" ".join(b.get("text") or "" for b in art["blocks"] if b.get("type")=="paragraph")
+  self.assertEqual(art["headline"],"Last Week's Roundup")
+  self.assertIn("420 Nationals",blob)
+  self.assertIn("Mirror Regionals",blob)
+  self.assertIn("Free State Youth",blob)
+  self.assertIn("Small Club Open",blob)
+  self.assertIn("Agulhas Race",blob)
+  self.assertIn("Lipton Cup Practice",blob)
+  self.assertNotIn("Instructor Course",blob)
+  self.assertEqual(art["unlisted_events"],["Agulhas Race","Lipton Cup Practice"])
+  self.assertEqual(unlisted_event_names(events,{a["event_id"] for a in reports}),["Agulhas Race","Lipton Cup Practice"])
+  self.assertLess(blob.index("420 Nationals"),blob.index("Free State Youth"))
+  self.assertLess(blob.index("Free State Youth"),blob.index("Mirror Regionals"))
  def test_multi_event_feature_lists_each_event_and_has_no_week_hero(self):
   from evidence_pipeline import feature
   import datetime as dt

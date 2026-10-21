@@ -13,11 +13,10 @@ import urllib.request
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
+from article_write import write_issue, write_week_feature
 from event_rewrite import (
     facts_from_rows,
-    layout_for,
     rewrite_event,
-    rewrite_weekend_feature,
 )
 from events_weekend import saturday_sunday, slugs_for_weekend, weekend_events
 from gates import GateError, run_gates, write_gates
@@ -226,8 +225,9 @@ def enrich_existing(issue: str, article: dict) -> dict:
     return article
 
 
-def weekend_feature(issue: str, monday: dt.date, events: list[dict], articles: list[dict]) -> dict:
-    return rewrite_weekend_feature(issue, monday, events, articles)
+def weekend_feature(issue: str, monday: dt.date, events: list[dict], articles: list[dict], polish=None) -> dict:
+    reports = [a for a in (articles or []) if a.get("type") == "regatta_report"]
+    return write_week_feature(issue, monday, events, reports, polish=polish)
 
 
 def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, **inject) -> dict:
@@ -239,7 +239,6 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
     root = inject.get("root") or ROOT
     issue = monday.isoformat()
     dest = root / "issues" / issue / "issue.json"
-    logs = []
     table_events = inject["table_events"] if "table_events" in inject else weekend_events(monday)
     slugs = inject["slugs"] if "slugs" in inject else discover_slugs(monday)
     if "rows_by_slug" in inject:
@@ -268,6 +267,8 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
     heroes = store_roster_heroes(issue, step1.events, facts_by_slug, root=root, **hero_hooks)
     ctx["heroes"] = heroes
     require_gates(monday, ctx, through=2, root=root)
+    through = int(inject.get("through") or 6)
+    polish = inject.get("polish")
 
     if dest.exists() and not rebuild:
         data = json.loads(dest.read_text())
@@ -276,6 +277,15 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
             dest.write_text(json.dumps(data, indent=2, ensure_ascii=False))
         ctx["articles"] = data.get("articles") or []
         require_gates(monday, ctx, through=3, root=root)
+        if through < 4:
+            return {
+                "issue": issue,
+                "action": "enriched",
+                "articles": len([a for a in ctx["articles"] if a.get("type") == "regatta_report"]),
+                "unlisted": data.get("unlisted_events") or [],
+                "needs_external": data.get("needs_external") or [],
+                "can_publish": False,
+            }
         from landing import write_public_index
         from roundup import render
 
@@ -285,45 +295,41 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
         write_public_index()
         return {"issue": issue, "action": "enriched", "articles": len(data.get("articles") or []), "can_publish": True}
 
-    articles = []
-
-    def build_event(pair):
-        index, slug = pair
-        rows = rows_by_slug.get(slug) or []
-        if not rows:
-            return None, {"event": slug, "status": "skipped_no_api_rows"}
-        try:
-            article = article_from_regatta(issue, slug, rows, layout=layout_for(index, "regatta_report"))
-            if not article:
-                return None, {"event": slug, "status": "skipped"}
-            return article, {"event": slug, "status": "draft", "rows": len(rows)}
-        except Exception as exc:
-            return None, {"event": slug, "status": "error", "error": str(exc)[:180]}
-
-    import concurrent.futures
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        for article, log in pool.map(build_event, enumerate(slugs)):
-            if article:
-                articles.append(article)
-            logs.append(log)
-    failed = [x for x in logs if x["status"] in ("error", "skipped_no_api_rows")]
-    if failed:
-        raise RuntimeError("Edition incomplete: " + json.dumps(failed))
-    feature = weekend_feature(issue, monday, table_events, articles)
-    data = {
-        "schema_version": "1.0",
-        "issue_id": issue,
-        "title": "Last Week's Roundup",
-        "edition_date": issue,
-        "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-        "status": "draft",
-        "articles": [feature] + articles,
-    }
-    dest.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    data = write_issue(
+        issue,
+        monday,
+        step1.events,
+        table_events,
+        facts_by_slug,
+        heroes,
+        root=root,
+        polish=polish,
+    )
+    data["updated_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
+    dest.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    reports = [a for a in data.get("articles") or [] if a.get("type") == "regatta_report"]
+    logs = [
+        {
+            "event": a.get("event_id"),
+            "status": "draft",
+            "third_party": bool(a.get("third_party")),
+            "needs_external": bool(a.get("needs_external")),
+        }
+        for a in reports
+    ]
     (dest.parent / "sources" / "build-log.json").write_text(json.dumps(logs, indent=2))
-    ctx["articles"] = data["articles"]
+    ctx["articles"] = data.get("articles") or []
     require_gates(monday, ctx, through=3, root=root)
+    if through < 4:
+        return {
+            "issue": issue,
+            "action": "drafted",
+            "articles": len(reports),
+            "events": logs,
+            "unlisted": data.get("unlisted_events") or [],
+            "needs_external": data.get("needs_external") or [],
+            "can_publish": False,
+        }
     from landing import write_public_index
     from roundup import render
 
@@ -331,7 +337,7 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
     ctx = _gate_context(monday, slugs, rows_by_slug, table_events, fetch_errors, articles=data["articles"], root=root)
     require_gates(monday, ctx, through=6, root=root)
     write_public_index()
-    return {"issue": issue, "action": "created", "articles": len(articles), "events": logs, "can_publish": True}
+    return {"issue": issue, "action": "created", "articles": len(reports), "events": logs, "can_publish": True}
 
 
 def publish_due(today: dt.date | None = None, backfill: int = 4, rebuild: bool = False) -> list:

@@ -318,13 +318,43 @@ def recap(facts,cluster,index):
         paragraphs.append(f"The published results remain provisional. {mark}")
     return paragraphs
 
+def _article_entries(article):
+    if article.get("entries"):
+        try:
+            return int(article["entries"])
+        except (TypeError, ValueError):
+            pass
+    m=re.search(r"(\d+)\s+entries",article.get("deck") or "",re.I)
+    return int(m.group(1)) if m else 0
+
+
+def unlisted_event_names(events,covered):
+    """Calendar events that happened in the same period but are not in the scored set."""
+    from events_weekend import skip_event
+    out=[];seen=set()
+    covered=set(covered or [])
+    for ev in events or []:
+        if skip_event(ev):
+            continue
+        name=(ev.get("event_name") or "").strip()
+        rid=ev.get("regatta_id") or ""
+        if not name or name.lower() in seen:
+            continue
+        if rid and rid in covered:
+            continue
+        seen.add(name.lower());out.append(name)
+    return out
+
+
 def feature(issue,monday,events,articles):
     from events_weekend import saturday_sunday
     sat,sun=saturday_sunday(monday)
-    reports=[a for a in articles if a.get("type")=="regatta_report"]
+    reports=sorted([a for a in articles if a.get("type")=="regatta_report"],key=_article_entries,reverse=True)
     date_line=f"{sat.day}–{sun.strftime('%-d %B %Y')}"
     paragraphs=[]
     hero=None
+    covered={a.get("event_id") or a.get("id") for a in reports}
+    missing=unlisted_event_names(events,covered)
     if not reports:
         paragraphs.append(f"No scored results were published for {date_line}.")
     elif len(reports)==1:
@@ -335,13 +365,23 @@ def feature(issue,monday,events,articles):
             hero=None
         paragraphs.append(f"{lead.get('headline') or 'Weekend racing'}. {lead.get('deck') or ''}".strip())
     else:
-        paragraphs.append(f"{len(reports)} scored events over {date_line}:")
-        for report in reports:
-            paragraphs.append(report.get("headline") or report.get("event_id") or "Weekend racing")
-    covered={a.get("event_id") for a in reports}
-    missing=sorted({e.get("event_name") for e in events if e.get("event_name") and (e.get("regatta_id") or "") not in covered and not e.get("has_results")})
+        biggest=reports[0]
+        others=reports[1:]
+        text=(
+            f"Last week's roundup covers {len(reports)} scored events over {date_line}. "
+            f"{biggest.get('headline') or 'The biggest fleet'} headed the list"
+        )
+        if biggest.get("deck"):
+            text+=f" ({biggest['deck']})"
+        text+="."
+        if others:
+            text+=" Also decided were "+", ".join(r.get("headline") or r.get("event_id") or "another event" for r in others)+"."
+        paragraphs.append(text)
     if missing:
-        paragraphs.append("Also on the calendar, with no published results card: "+", ".join(missing)+".")
+        paragraphs.append(
+            "The calendar also listed "+", ".join(missing)
+            +", which ran in the same period but do not yet have a published results card."
+        )
     blocks=[]
     if hero and hero.get("url") and len(reports)==1:
         blocks.append({"type":"image","url":hero.get("url"),"alt":reports[0].get("headline") or "Last Week's Roundup","caption":(reports[0].get("kicker") or "Weekend racing")+".","credit":"Event photography","source_url":hero.get("source_url") or "","rights_status":"source_attributed"})
@@ -350,7 +390,7 @@ def feature(issue,monday,events,articles):
         "deck":date_line,"byline":"SailingSA","kicker":"SAILING","published_at":issue,
         "event_id":"sailing-"+issue,"layout":"lead","hero_image":hero,
         "blocks":blocks,"sources":["https://sailingsa.co.za/api/events"]+[f"https://sailingsa.co.za/regatta/{a['id']}" for a in reports if a.get("id")],
-        "review_status":"rewritten"}
+        "review_status":"rewritten","unlisted_events":missing}
 
 
 def photo_caption(image,facts,cluster):

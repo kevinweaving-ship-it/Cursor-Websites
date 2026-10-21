@@ -7,7 +7,10 @@
                      That roster is the only list later steps may find externally.
   2 media          — inspect each parent event URL for its own images;
                      pick the best suited hero; store it on the box
-  3 story          — written recap locked to those same events
+  3 story          — write Last Week's Roundup from official equals + stored hero;
+                     name every scored event and same-period events with no results card;
+                     scored articles biggest-fleet first; official-only is a PASS
+                     (needs_external is recorded for a later 3rd-party find)
   4 render         — gold HTML (edition-lead, h1, figures)
   5 cards          — homepage cards have real copy and a real photo
   6 publish        — replace live only if steps 1–5 all PASSed
@@ -30,7 +33,7 @@ sys.path.insert(0, str(ROOT / "app"))
 
 from event_rewrite import class_leaderboards, facts_from_rows, is_chrome_image
 from events_weekend import SKIP_NAME, overlaps, parse_day, saturday_sunday
-from evidence_pipeline import is_scoresheet, other_event_conflict
+from evidence_pipeline import is_scoresheet, other_event_conflict, unlisted_event_names
 
 SLUG_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$")
 STEPS = (
@@ -455,6 +458,16 @@ def gate_media(ctx: dict) -> GateResult:
     return GateResult(2, "media", "pass" if not errors else "fail", errors=errors, events=events)
 
 
+def _report_entries(article: dict, facts: dict) -> int:
+    for raw in (article.get("entries"), (facts or {}).get("entries")):
+        try:
+            if raw not in (None, ""):
+                return int(raw)
+        except (TypeError, ValueError):
+            continue
+    return 0
+
+
 def gate_story(ctx: dict) -> GateResult:
     articles = list(ctx.get("articles") or [])
     reports = _reports(ctx)
@@ -465,18 +478,41 @@ def gate_story(ctx: dict) -> GateResult:
         errors.append("no event articles to check for written copy")
         return GateResult(3, "story", "fail", errors=errors)
     feature = next((a for a in articles if a.get("type") == "feature"), None)
-    if feature:
+    if not feature:
+        errors.append("missing Last Week's Roundup feature lead")
+    else:
         paras = [b.get("text") or "" for b in (feature.get("blocks") or []) if b.get("type") == "paragraph"]
         blob = "\n".join(paras).strip()
+        if "last week" not in (feature.get("headline") or "").lower():
+            errors.append("feature lead is not titled Last Week's Roundup")
         if len(blob.split()) < 20:
             errors.append("feature lead is too short to be a written story")
         if HEADLINE_LIST.search(blob) and len(blob.split()) < 40:
             errors.append("feature lead is a headline list, not a story")
+        for rec in (ctx.get("roster") or {}).get("events") or []:
+            if rec.get("status") != "pass":
+                continue
+            name = ((rec.get("equals") or {}).get("name") or rec.get("name") or "").strip()
+            if name and name.lower() not in blob.lower():
+                errors.append(f"feature lead does not name scored event {name}")
+        covered = {a.get("event_id") or a.get("id") or "" for a in reports}
+        for name in unlisted_event_names(ctx.get("table_events") or [], covered):
+            if name.lower() not in blob.lower():
+                errors.append(f"feature lead does not name {name} (happened, no results card)")
+    vals = [_report_entries(a, facts_by_slug.get(a.get("event_id") or a.get("id") or "") or {}) for a in reports]
+    if vals != sorted(vals, reverse=True):
+        errors.append("scored event articles are not sorted by entries (biggest first)")
     for article in reports:
         slug = article.get("event_id") or article.get("id") or ""
         paras = [b.get("text") or "" for b in (article.get("blocks") or []) if b.get("type") == "paragraph"]
         blob = " ".join(paras)
-        rec = {"slug": slug, "paragraphs": len(paras), "errors": []}
+        rec = {
+            "slug": slug,
+            "paragraphs": len(paras),
+            "third_party": bool(article.get("third_party")),
+            "needs_external": bool(article.get("needs_external", not article.get("third_party"))),
+            "errors": [],
+        }
         if not paras:
             rec["errors"].append("no written paragraphs")
         citations = {x.get("n") for x in (article.get("citations") or []) if x.get("n") is not None}

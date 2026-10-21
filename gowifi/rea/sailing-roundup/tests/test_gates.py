@@ -99,6 +99,7 @@ def passing_article(slug=SLUG):
         "event_id": slug,
         "type": "regatta_report",
         "headline": "Dale Rae and James Rae win 420 Nationals",
+        "entries": 16,
         "hero_image": {"url": "media/420.jpg"},
         "citations": [{"n": 1, "url": "https://sailingsa.co.za/regatta/" + slug}],
         "blocks": [
@@ -127,7 +128,7 @@ def passing_feature():
                 "type": "paragraph",
                 "text": (
                     "Two national championships closed the weekend at Theewater and Henley Midmar, "
-                    "with Dale Rae defending the 420 title and the Dart 18 fleet finishing Sunday."
+                    "with Dale Rae defending the 420 Nationals title and the Dart 18 fleet finishing Sunday."
                 ),
             }
         ],
@@ -318,7 +319,7 @@ class SequentialGates(unittest.TestCase):
         rel = f"media/{slug}-hero.jpg"
         path = root / "issues" / MONDAY.isoformat() / rel
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(b"real-photo-bytes")
+        path.write_bytes(b"real-photo-bytes-" + slug.encode())
         return {
             "slug": slug,
             "status": "pass",
@@ -440,6 +441,83 @@ class SequentialGates(unittest.TestCase):
         self.assertEqual(run.step(2).status, "fail")
         self.assertTrue(any("not on confirmed weekend roster" in e for e in run.step(2).errors))
         self.assertEqual(run.step(3).status, "blocked")
+
+    def test_story_fails_when_feature_omits_unlisted_calendar_event(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            ctx = facts_ctx(
+                articles=[passing_feature(), passing_article()],
+                table_events=[
+                    {
+                        "event_name": "420 Nationals",
+                        "regatta_id": SLUG,
+                        "has_results": True,
+                        "start_date": "2026-09-26",
+                        "end_date": "2026-09-27",
+                    },
+                    {"event_name": "Agulhas Race", "regatta_id": None, "has_results": False},
+                ],
+                root=str(root),
+                heroes={SLUG: self._stored_hero(root)},
+            )
+            run = run_gates(ctx, through=3)
+        self.assertEqual(run.step(2).status, "pass", run.summary())
+        self.assertEqual(run.step(3).status, "fail")
+        self.assertTrue(any("Agulhas Race" in e and "no results card" in e for e in run.step(3).errors))
+        self.assertFalse(run.ok_through(3))
+
+    def test_story_fails_when_scored_articles_are_not_biggest_first(self):
+        dart = "2026-09-24-hmyc-dart-18-nationals"
+        dart_rows = sample_rows(
+            event_name="Dart 18 Nationals",
+            host_club_code="HMYC",
+            host_club_name="Henley Midmar Yacht Club",
+            start_date="2026-09-24",
+            end_date="2026-09-27",
+            entries_total=8,
+        )
+        small = passing_article(dart)
+        small["headline"] = "Bradley Levin wins Dart 18 Nationals"
+        small["entries"] = 8
+        small["blocks"] = [
+            {
+                "type": "paragraph",
+                "text": "Bradley Levin won the Dart 18 Nationals at Henley Midmar Yacht Club [1].",
+            }
+        ]
+        small["citations"] = [{"n": 1, "url": "https://sailingsa.co.za/regatta/" + dart}]
+        feature = {
+            "id": "weekend-feature",
+            "type": "feature",
+            "headline": "Last Week's Roundup",
+            "blocks": [
+                {
+                    "type": "paragraph",
+                    "text": (
+                        "Last week's roundup covers two scored events. Dale Rae and James Rae win 420 Nationals "
+                        "headed the list. Also decided were Bradley Levin wins Dart 18 Nationals."
+                    ),
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            ctx = facts_ctx(
+                slugs=[SLUG, dart],
+                rows_by_slug={SLUG: sample_rows(), dart: dart_rows},
+                table_events=[
+                    {"event_name": "420 Nationals", "regatta_id": SLUG, "has_results": True},
+                    {"event_name": "Dart 18 Nationals", "regatta_id": dart, "has_results": True},
+                ],
+                articles=[feature, small, passing_article()],
+                root=str(root),
+                heroes={SLUG: self._stored_hero(root), dart: self._stored_hero(root, dart)},
+            )
+            run = run_gates(ctx, through=3)
+        self.assertEqual(run.step(1).status, "pass", run.summary())
+        self.assertEqual(run.step(2).status, "pass", run.summary())
+        self.assertEqual(run.step(3).status, "fail")
+        self.assertTrue(any("sorted by entries" in e for e in run.step(3).errors))
 
 
 class PublishStopsOnStep1(unittest.TestCase):
