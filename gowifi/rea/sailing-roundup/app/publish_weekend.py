@@ -251,8 +251,16 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
     (dest.parent / "sources" / "events-weekend.json").write_text(
         json.dumps({"monday": issue, "events": table_events, "slugs": slugs}, indent=2, ensure_ascii=False)
     )
+    for slug, rows in rows_by_slug.items():
+        (dest.parent / "sources" / f"{slug}-results.json").write_text(
+            json.dumps(rows, indent=2, ensure_ascii=False)
+        )
     ctx = _gate_context(monday, slugs, rows_by_slug, table_events, fetch_errors, root=root)
-    require_gates(monday, ctx, through=1, root=root)
+    run = require_gates(monday, ctx, through=1, root=root)
+    step1 = run.step(1)
+    slugs = list((step1.events and [e["slug"] for e in step1.events if e.get("status") == "pass"]) or [])
+    if not slugs:
+        raise GateError(run)
 
     if dest.exists() and not rebuild:
         data = json.loads(dest.read_text())

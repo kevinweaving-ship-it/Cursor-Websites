@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Sequential publish gates. Later steps do not run until the previous step PASSes.
 
-  1 event_facts  — event name / date / host / result leaderboard checksum
-  2 media        — real photographs only (no chrome, scoresheet, other-event, dupes)
-  3 story        — written recap locked to this event's facts
-  4 render       — gold HTML (edition-lead, h1, figures)
-  5 cards        — homepage cards have real copy and a real photo
-  6 publish      — replace live only if steps 1–5 all PASSed
+  1 weekend_roster — identify every event with a results URL in that week;
+                     lay out name / date / host / url / leaderboard;
+                     ALL must PASS, then save the confirmed roster.
+                     That roster is the only list later steps may find externally.
+  2 media          — real photographs for each confirmed roster event
+  3 story          — written recap locked to those same events
+  4 render         — gold HTML (edition-lead, h1, figures)
+  5 cards          — homepage cards have real copy and a real photo
+  6 publish        — replace live only if steps 1–5 all PASSed
 
 Nothing is published unless every required gate is PASS. A FAIL or BLOCKED
 step stops the pipeline; the next step is not done.
@@ -30,7 +33,7 @@ from evidence_pipeline import is_scoresheet, other_event_conflict
 
 SLUG_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$")
 STEPS = (
-    (1, "event_facts"),
+    (1, "weekend_roster"),
     (2, "media"),
     (3, "story"),
     (4, "render"),
@@ -38,6 +41,8 @@ STEPS = (
     (6, "publish"),
 )
 HEADLINE_LIST = re.compile(r"^(?:[-*•]\s+\S+.*\n){2,}", re.M)
+RESULTS_HOST = "https://sailingsa.co.za/regatta/"
+ROSTER_FILE = "weekend-roster.json"
 
 
 class GateError(RuntimeError):
@@ -113,25 +118,76 @@ class GateRun:
         }
 
 
-def event_checksum(facts: dict) -> str:
-    """Stable identity of name / date / host / podium. Later steps key off this."""
-    payload = {
-        "slug": facts.get("slug") or "",
+def results_url(slug: str) -> str:
+    slug = (slug or "").strip()
+    return RESULTS_HOST + slug if slug else ""
+
+
+def equals_from_facts(facts: dict) -> dict:
+    """The basic equals card: name, date, host, results URL, leaderboard."""
+    _cols, table = facts.get("leaderboard") or ([], [])
+    podium = []
+    for index, row in enumerate(table[:3], 1):
+        row = list(row or [])
+        row += [""] * (6 - len(row))
+        podium.append(
+            {
+                "pos": row[0] or str(index),
+                "helm": row[1],
+                "crew": row[2],
+                "club": row[3],
+                "nett": row[5],
+            }
+        )
+    slug = facts.get("slug") or ""
+    return {
         "name": facts.get("title") or "",
         "start": facts.get("start") or "",
         "end": facts.get("end") or "",
         "host": (facts.get("club") or facts.get("club_name") or "").strip(),
-        "entries": facts.get("entries") or 0,
-        "races": facts.get("races") or 0,
-        "classes": list(facts.get("classes") or []),
-        "podium": [
-            {"pos": 1, "name": facts.get("winner") or "", "nett": facts.get("winner_nett") or ""},
-            {"pos": 2, "name": facts.get("second") or "", "nett": facts.get("second_nett") or ""},
-            {"pos": 3, "name": facts.get("third") or "", "nett": facts.get("third_nett") or ""},
-        ],
+        "url": facts.get("url") or results_url(slug),
+        "leaderboard": podium,
     }
-    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
+def event_checksum(facts: dict) -> str:
+    """Stable checksum of the basic equals card. Later steps key off this."""
+    raw = json.dumps(equals_from_facts(facts), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def find_externally_for(rec: dict) -> dict:
+    """What step 2+ must look for once this event is confirmed on the roster."""
+    equals = rec.get("equals") or {}
+    return {
+        "slug": rec.get("slug") or "",
+        "url": rec.get("url") or equals.get("url") or "",
+        "name": equals.get("name") or rec.get("name") or "",
+        "host": equals.get("host") or rec.get("host") or "",
+        "start": equals.get("start") or rec.get("start") or "",
+        "end": equals.get("end") or rec.get("end") or "",
+        "winner": rec.get("winner") or "",
+        "checksum": rec.get("checksum") or "",
+        "need": ["photos", "news", "social"],
+    }
+
+
+def build_roster(monday, events: list[dict], checksum: str, confirmed: bool) -> dict:
+    day = _monday_date(monday)
+    sat, sun = saturday_sunday(day)
+    passed = [e for e in events if e.get("status") == "pass"]
+    failed = [e for e in events if e.get("status") != "pass"]
+    return {
+        "monday": day.isoformat(),
+        "weekend": [sat.isoformat(), sun.isoformat()],
+        "status": "pass" if confirmed else "fail",
+        "confirmed": bool(confirmed),
+        "checksum": checksum or "",
+        "events": list(events),
+        "passed_slugs": [e.get("slug") for e in passed],
+        "failed_slugs": [e.get("slug") for e in failed],
+        "find_externally": [e["find_externally"] for e in passed if e.get("find_externally")] if confirmed else [],
+    }
 
 
 def _blocked(step: int, name: str, prev: str) -> GateResult:
@@ -150,11 +206,12 @@ def _monday_date(monday) -> dt.date:
 
 
 def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: str = "") -> dict:
-    """Pass/fail one event's name, dates, host club, and result leaderboard."""
+    """Pass/fail one event's name, dates, host, results URL, and leaderboard."""
     sat, sun = saturday_sunday(monday)
     errors: list[str] = []
     record = {
         "slug": slug,
+        "url": results_url(slug),
         "name": "",
         "start": "",
         "end": "",
@@ -162,12 +219,16 @@ def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: s
         "entries": 0,
         "races": 0,
         "winner": "",
+        "equals": {},
         "checksum": "",
+        "find_externally": None,
         "errors": errors,
         "status": "fail",
     }
     if not SLUG_RE.match(slug or ""):
         errors.append("invalid event slug")
+    if not record["url"]:
+        errors.append("missing results url")
     if not rows:
         errors.append("no result rows from /api/regatta" + (f" ({fetch_error})" if fetch_error else ""))
         return record
@@ -186,7 +247,11 @@ def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: s
     record["entries"] = facts.get("entries") or 0
     record["races"] = facts.get("races") or 0
     record["winner"] = facts.get("winner") or ""
+    record["url"] = facts.get("url") or results_url(slug)
+    record["equals"] = equals_from_facts(facts)
     record["checksum"] = event_checksum(facts)
+    if not record["url"]:
+        errors.append("missing results url")
 
     if raw_name and (not record["name"] or record["name"] == slug):
         errors.append("event name collapsed to the slug — not a real title")
@@ -241,10 +306,13 @@ def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: s
         errors.append("no entries on the result card")
 
     record["status"] = "pass" if not errors else "fail"
+    if record["status"] == "pass":
+        record["find_externally"] = find_externally_for(record)
     return record
 
 
 def gate_event_facts(ctx: dict) -> GateResult:
+    """Identify every scored event in the week. ALL basics must pass before step 2."""
     monday = _monday_date(ctx["monday"])
     slugs = list(ctx.get("slugs") or [])
     rows_by_slug = ctx.get("rows_by_slug") or {}
@@ -255,7 +323,7 @@ def gate_event_facts(ctx: dict) -> GateResult:
     facts_by_slug: dict[str, dict] = {}
 
     if not slugs:
-        errors.append("no event slugs discovered for weekend")
+        errors.append("no events with results/url found for this week")
 
     seen: set[str] = set()
     for slug in slugs:
@@ -275,23 +343,61 @@ def gate_event_facts(ctx: dict) -> GateResult:
         if rid and item.get("has_results") and rid not in seen:
             errors.append(f"{rid}: scored events-table row missing from discovered slugs")
 
-    ctx["facts_by_slug"] = facts_by_slug
+    if events and any(e.get("status") != "pass" for e in events):
+        failed = [e.get("slug") for e in events if e.get("status") != "pass"]
+        errors.append("weekend roster incomplete — every scored event must pass before external find: " + ", ".join(failed))
+
     digest = hashlib.sha256(
         "".join(e.get("checksum") or "" for e in events).encode("utf-8")
     ).hexdigest()[:16]
-    return GateResult(1, "event_facts", "pass" if not errors else "fail", checksum=digest, errors=errors, events=events)
+    confirmed = bool(events) and not errors and all(e.get("status") == "pass" for e in events)
+    roster = build_roster(monday, events, digest, confirmed)
+    ctx["facts_by_slug"] = facts_by_slug
+    ctx["roster"] = roster
+    ctx["passed_slugs"] = roster["passed_slugs"]
+    return GateResult(
+        1,
+        "weekend_roster",
+        "pass" if confirmed else "fail",
+        checksum=digest,
+        errors=errors,
+        events=events,
+    )
 
 
 def _reports(ctx: dict) -> list[dict]:
     return [a for a in (ctx.get("articles") or []) if a.get("type") == "regatta_report"]
 
 
+def _passed_slugs(ctx: dict) -> list[str]:
+    roster = ctx.get("roster") or {}
+    return list(roster.get("passed_slugs") or ctx.get("passed_slugs") or [])
+
+
+def _roster_coverage_errors(ctx: dict, reports: list[dict], step: str) -> list[str]:
+    """Later steps may only cover the confirmed roster. That list is what to find externally."""
+    roster = ctx.get("roster") or {}
+    if roster and not roster.get("confirmed"):
+        return ["weekend roster is not confirmed — cannot find externally"]
+    passed = _passed_slugs(ctx)
+    errors: list[str] = []
+    report_ids = [a.get("event_id") or a.get("id") or "" for a in reports]
+    for slug in passed:
+        if slug not in report_ids:
+            errors.append(f"{slug}: on confirmed roster but missing from {step}")
+    for slug in report_ids:
+        if passed and slug not in passed:
+            errors.append(f"{slug}: not on confirmed weekend roster — cannot find externally")
+    return errors
+
+
 def gate_media(ctx: dict) -> GateResult:
     reports = _reports(ctx)
-    errors: list[str] = []
+    errors: list[str] = _roster_coverage_errors(ctx, reports, "media")
     events: list[dict] = []
     if not reports:
-        return GateResult(2, "media", "fail", errors=["no event articles to check for photographs"])
+        errors.append("no event articles to check for photographs")
+        return GateResult(2, "media", "fail", errors=errors)
     hashes: set[str] = set()
     public = pathlib.Path(ctx["public_dir"]) if ctx.get("public_dir") else None
     for article in reports:
@@ -329,10 +435,11 @@ def gate_story(ctx: dict) -> GateResult:
     articles = list(ctx.get("articles") or [])
     reports = _reports(ctx)
     facts_by_slug = ctx.get("facts_by_slug") or {}
-    errors: list[str] = []
+    errors: list[str] = _roster_coverage_errors(ctx, reports, "story")
     events: list[dict] = []
     if not reports:
-        return GateResult(3, "story", "fail", errors=["no event articles to check for written copy"])
+        errors.append("no event articles to check for written copy")
+        return GateResult(3, "story", "fail", errors=errors)
     feature = next((a for a in articles if a.get("type") == "feature"), None)
     if feature:
         paras = [b.get("text") or "" for b in (feature.get("blocks") or []) if b.get("type") == "paragraph"]
@@ -451,7 +558,7 @@ def run_gates(ctx: dict, through: int = 6) -> GateRun:
         monday = ctx["monday"].isoformat()
     results: list[GateResult] = []
     blocked = False
-    prior_name = "event_facts"
+    prior_name = "weekend_roster"
     for number, name in STEPS:
         if number > through:
             break
@@ -473,11 +580,30 @@ def run_gates(ctx: dict, through: int = 6) -> GateRun:
     return GateRun(monday, results)
 
 
+def write_roster(monday: str, roster: dict, root: pathlib.Path | None = None) -> pathlib.Path:
+    root = root or ROOT
+    path = root / "issues" / monday / "sources" / ROSTER_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(roster, indent=2, ensure_ascii=False) + "\n")
+    return path
+
+
+def load_roster(monday: str, root: pathlib.Path | None = None) -> dict | None:
+    root = root or ROOT
+    path = root / "issues" / monday / "sources" / ROSTER_FILE
+    if not path.is_file():
+        return None
+    return json.loads(path.read_text())
+
+
 def write_gates(monday: str, run: GateRun, root: pathlib.Path | None = None) -> pathlib.Path:
     root = root or ROOT
     path = root / "issues" / monday / "sources" / "gates.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(run.to_dict(), indent=2, ensure_ascii=False) + "\n")
+    step1 = run.step(1)
+    if step1:
+        write_roster(monday, build_roster(monday, step1.events, step1.checksum, step1.ok), root=root)
     return path
 
 
@@ -528,6 +654,7 @@ def _context_from_disk(monday: str, root: pathlib.Path, slugs=None, rows_by_slug
     landing_path = root / "public" / "index.html"
     if landing_path.is_file():
         landing = landing_path.read_text(encoding="utf-8", errors="replace")
+    roster = load_roster(monday, root=root)
     return {
         "monday": monday,
         "slugs": slugs,
@@ -536,6 +663,8 @@ def _context_from_disk(monday: str, root: pathlib.Path, slugs=None, rows_by_slug
         "articles": articles,
         "public_dir": str(public_dir) if public_dir.is_dir() else "",
         "landing_html": landing,
+        "roster": roster or {},
+        "passed_slugs": list((roster or {}).get("passed_slugs") or []),
     }
 
 

@@ -15,6 +15,7 @@ from gates import (
     GateError,
     check_one_event,
     event_checksum,
+    load_roster,
     require_publishable,
     run_gates,
     write_gates,
@@ -141,7 +142,13 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["host"], "TSC")
         self.assertEqual(rec["start"], "2026-09-26")
         self.assertEqual(rec["winner"], "Dale Rae and James Rae")
+        self.assertEqual(rec["url"], "https://sailingsa.co.za/regatta/" + SLUG)
+        self.assertEqual(rec["equals"]["name"], "420 Nationals")
+        self.assertEqual(rec["equals"]["host"], "TSC")
+        self.assertEqual(rec["equals"]["url"], rec["url"])
+        self.assertEqual(rec["equals"]["leaderboard"][0]["helm"], "Dale Rae")
         self.assertTrue(rec["checksum"])
+        self.assertEqual(rec["find_externally"]["need"], ["photos", "news", "social"])
 
     def test_checksum_stable_and_changes_with_winner(self):
         a = event_checksum(facts_from_rows(SLUG, sample_rows()))
@@ -214,7 +221,7 @@ class SequentialGates(unittest.TestCase):
     def test_empty_weekend_fails_step1(self):
         run = run_gates(facts_ctx(rows=[], slugs=[], rows_by_slug={}, table_events=[]), through=1)
         self.assertEqual(run.step(1).status, "fail")
-        self.assertTrue(any("no event slugs" in e for e in run.step(1).errors))
+        self.assertTrue(any("no events with results/url" in e for e in run.step(1).errors))
 
     def test_step1_pass_allows_step2_which_fails_without_photos(self):
         run = run_gates(facts_ctx(), through=6)
@@ -261,10 +268,73 @@ class SequentialGates(unittest.TestCase):
             self.assertTrue(path.is_file())
             data = json.loads(path.read_text())
             self.assertFalse(data["can_publish"])
+            roster = load_roster(MONDAY.isoformat(), root=root)
+            self.assertFalse(roster["confirmed"])
+            self.assertEqual(roster["find_externally"], [])
             with self.assertRaisesRegex(ValueError, "gates did not all pass"):
                 require_publishable(MONDAY.isoformat(), root=root)
             with self.assertRaisesRegex(ValueError, "Missing gates.json"):
                 require_publishable("2026-10-05", root=root)
+
+    def test_all_scored_events_must_pass_before_external_find(self):
+        dart = "2026-09-24-hmyc-dart-18-nationals"
+        dart_rows = sample_rows(
+            event_name="Dart 18 Nationals",
+            host_club_code="HMYC",
+            host_club_name="Henley Midmar Yacht Club",
+            start_date="2026-09-24",
+            end_date="2026-09-27",
+        )
+        ctx = facts_ctx(
+            slugs=[SLUG, dart],
+            rows_by_slug={SLUG: sample_rows(), dart: sample_rows(host_club_code="", host_club_name="")},
+            table_events=[
+                {"event_name": "420 Nationals", "regatta_id": SLUG, "has_results": True},
+                {"event_name": "Dart 18 Nationals", "regatta_id": dart, "has_results": True},
+            ],
+        )
+        run = run_gates(ctx, through=6)
+        self.assertEqual(run.step(1).status, "fail")
+        self.assertEqual(run.step(2).status, "blocked")
+        self.assertIn(dart, run.step(1).errors[-1] if run.step(1).errors else "")
+        self.assertEqual(ctx["roster"]["passed_slugs"], [SLUG])
+        self.assertEqual(ctx["roster"]["failed_slugs"], [dart])
+        self.assertFalse(ctx["roster"]["confirmed"])
+        self.assertEqual(ctx["roster"]["find_externally"], [])
+
+    def test_confirmed_roster_is_what_must_be_found_externally(self):
+        dart = "2026-09-24-hmyc-dart-18-nationals"
+        dart_rows = sample_rows(
+            event_name="Dart 18 Nationals",
+            host_club_code="HMYC",
+            host_club_name="Henley Midmar Yacht Club",
+            start_date="2026-09-24",
+            end_date="2026-09-27",
+        )
+        ctx = facts_ctx(
+            slugs=[SLUG, dart],
+            rows_by_slug={SLUG: sample_rows(), dart: dart_rows},
+            table_events=[
+                {"event_name": "420 Nationals", "regatta_id": SLUG, "has_results": True},
+                {"event_name": "Dart 18 Nationals", "regatta_id": dart, "has_results": True},
+            ],
+        )
+        run = run_gates(ctx, through=1)
+        self.assertEqual(run.step(1).status, "pass", run.summary())
+        self.assertTrue(ctx["roster"]["confirmed"])
+        self.assertEqual(ctx["roster"]["passed_slugs"], [SLUG, dart])
+        needs = {item["slug"]: item["need"] for item in ctx["roster"]["find_externally"]}
+        self.assertEqual(set(needs), {SLUG, dart})
+        self.assertEqual(needs[SLUG], ["photos", "news", "social"])
+        self.assertEqual(ctx["roster"]["events"][0]["equals"]["url"], "https://sailingsa.co.za/regatta/" + SLUG)
+
+    def test_media_cannot_cover_an_event_off_the_roster(self):
+        ctx = facts_ctx(articles=[passing_feature(), passing_article(), passing_article("2026-10-10-hmyc-dam-bottle-sprints")])
+        run = run_gates(ctx, through=6)
+        self.assertEqual(run.step(1).status, "pass")
+        self.assertEqual(run.step(2).status, "fail")
+        self.assertTrue(any("not on confirmed weekend roster" in e for e in run.step(2).errors))
+        self.assertEqual(run.step(3).status, "blocked")
 
 
 class PublishStopsOnStep1(unittest.TestCase):
@@ -286,6 +356,10 @@ class PublishStopsOnStep1(unittest.TestCase):
             self.assertEqual(gates["steps"][0]["status"], "fail")
             self.assertFalse(gates["can_publish"])
             self.assertEqual(gates["steps"][1]["status"], "blocked")
+            roster = load_roster(MONDAY.isoformat(), root=root)
+            self.assertFalse(roster["confirmed"])
+            self.assertEqual(roster["find_externally"], [])
+            self.assertTrue((root / "issues" / MONDAY.isoformat() / "sources" / f"{SLUG}-results.json").is_file())
 
     def test_require_gates_writes_then_raises(self):
         with tempfile.TemporaryDirectory() as temp:
