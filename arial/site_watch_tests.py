@@ -44,6 +44,10 @@ def test_tuya_fail_stale_and_fresh():
     assert detail == ""
 
 
+def test_nag_default_is_two_hours():
+    assert sw.NAG_S == 2 * 60 * 60
+
+
 def test_edge_confirms_then_nags():
     st = {}
     now = time.time()
