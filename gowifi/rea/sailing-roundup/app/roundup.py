@@ -248,12 +248,26 @@ def _render_story(index, article):
     kicker = html.escape(article.get("kicker") or (article.get("class_name") or "Regatta").upper())
     headline = html.escape(article.get("headline") or "")
     deck = html.escape(article.get("deck") or "")
+    event_url = ""
+    for block in article.get("blocks") or []:
+        if block.get("type") == "results" and block.get("source_event_url"):
+            event_url = block.get("source_event_url") or ""
+            break
+    if not event_url:
+        eid = article.get("event_id") or article.get("id") or ""
+        if str(eid).startswith("20"):
+            event_url = "https://sailingsa.co.za/regatta/" + str(eid)
+    event_link = ""
+    if event_url:
+        safe = html.escape(event_url, quote=True)
+        event_link = '<p class="event-url"><a href="' + safe + '">' + html.escape(event_url) + "</a></p>"
     inner = (
         '<header class="story-heading"><p class="kicker">'
         + kicker
         + "</p><h2>"
         + headline
         + "</h2>"
+        + event_link
         + (('<p class="deck">' + deck + "</p>") if deck else "")
         + "</header>"
         + photos

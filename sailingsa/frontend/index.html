@@ -3323,7 +3323,6 @@
     display: block;
     color: inherit;
     text-decoration: none;
-    container-type: inline-size;
 }
 .landing-roundup-hero {
     display: block;
@@ -3331,16 +3330,17 @@
     line-height: 0;
     background: #111;
     overflow: hidden;
-    max-height: min(52vw, 320px);
+    aspect-ratio: 16 / 9;
+    max-height: 220px;
 }
 .landing-roundup-hero svg,
 .landing-roundup-hero img {
     display: block;
     width: 100%;
-    height: min(52vw, 320px);
-    max-width: 100%;
+    height: 100%;
+    max-height: 220px;
     object-fit: cover;
-    object-position: center 28%;
+    object-position: center center;
     background: #111;
 }
 .landing-top-card-caption {
@@ -3352,14 +3352,14 @@
 }
 .landing-roundup-title {
     margin: 0;
-    padding: 2px 6px 0;
+    padding: 10px 12px 0;
     color: #001f3f;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-weight: 800;
-    font-size: 8cqw;
-    line-height: 1;
-    letter-spacing: -0.04em;
-    white-space: nowrap;
+    font-family: "Playfair Display", Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(28px, 7vw, 40px);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    white-space: normal;
 }
 .landing-roundup-date {
     margin: 0;
@@ -4331,7 +4331,7 @@ header.site-header #headerAuth button {
     </div>
     <div class="landing-roundup-dots" id="landing-roundup-dots" hidden></div>
 </section>
-<script src="/js/landing-roundup-cards.js?v=20261021swipe" defer></script>
+<script src="/js/landing-roundup-cards.js?v=20261021cardfix2" defer></script>
             
 <section id="temp-landing-hero-image" class="temp-landing-hero-image" aria-label="SailingSA feedback hero">
     <img src="assets/temp-landing-feedback-hero.png" alt="SailingSA feedback banner">

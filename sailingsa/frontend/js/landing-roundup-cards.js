@@ -1,7 +1,7 @@
 /**
  * Weekend Roundup cards on the homepage.
  * Default = most recent issue. Swipe left for older weekends, swipe right
- * to come back forward. Does not touch the master header.
+ * to come back forward. A tap opens the full issue URL.
  */
 (function () {
   "use strict";
@@ -40,23 +40,35 @@
     }
   }
 
-  function heroFrom(html, pageUrl) {
-    if (html.indexOf(">The Weekend Roundup</h1>") < 0) return null;
+  function fullIssueUrl(url) {
+    try {
+      return new URL(url, "https://sailingsa.co.za/sailing-roundup/").href;
+    } catch (e) {
+      return url;
+    }
+  }
+
+  function heroFrom(html, pageUrl, item) {
     var leadMatch = html.match(/<article[^>]*edition-lead[\s\S]*?<\/article>/);
     var leadHtml = leadMatch ? leadMatch[0] : "";
     var searchIn = leadHtml && /<div class=['"]photo-set/.test(leadHtml) ? leadHtml : html;
     var mark = searchIn.search(/<div class=['"]photo-set/);
     var slice = mark >= 0 ? searchIn.slice(mark) : searchIn;
     var fig = slice.match(/<figure[\s\S]*?<\/figure>/);
-    if (!fig) return null;
-    var block = fig[0];
-    var cap = (block.match(/<figcaption>([\s\S]*?)<\/figcaption>/) || ["", ""])[1];
-    cap = cap.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-    if (!cap) return null;
-    block = block.replace(/(href|src)=(['"])(?!https?:|\/\/)([^'"]+)\2/g, function (_, attr, q, url) {
-      return attr + "=" + q + absUrl(pageUrl, url) + q;
-    });
-    block = block.replace(/<figcaption[\s\S]*?<\/figcaption>/, "");
+    var block = fig ? fig[0] : "";
+    var cap = "";
+    if (block) {
+      cap = (block.match(/<figcaption>([\s\S]*?)<\/figcaption>/) || ["", ""])[1];
+      cap = cap.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+      block = block.replace(/(href|src)=(['"])(?!https?:|\/\/)([^'"]+)\2/g, function (_, attr, q, url) {
+        return attr + "=" + q + absUrl(pageUrl, url) + q;
+      });
+      block = block.replace(/<figcaption[\s\S]*?<\/figcaption>/, "");
+    }
+    if (!block && item && item.image) {
+      var img = item.image.indexOf("http") === 0 ? item.image : absUrl("https://sailingsa.co.za/sailing-roundup/", item.image);
+      block = '<img src="' + img + '" alt="">';
+    }
     var title = ((leadHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/) || ["", ""])[1] || "")
       .replace(/<[^>]+>/g, "")
       .replace(/\s+/g, " ")
@@ -76,40 +88,21 @@
     return {
       html: block,
       caption: cap,
-      pageUrl: pageUrl,
+      pageUrl: fullIssueUrl(pageUrl),
       title: title || "The Weekend Roundup",
-      date: date,
+      date: date || (item && item.published_at) || "",
       paragraphs: paragraphs,
     };
   }
 
-  function fitTitle(el) {
-    var box = el && el.parentElement;
-    if (!box) return;
-    var avail = box.clientWidth - 20;
-    el.style.display = "block";
-    el.style.width = "max-content";
-    el.style.maxWidth = "none";
-    var lo = 12;
-    var hi = Math.max(lo, avail);
-    while (lo < hi) {
-      var mid = Math.ceil((lo + hi) / 2);
-      el.style.fontSize = mid + "px";
-      if (el.scrollWidth <= avail) lo = mid;
-      else hi = mid - 1;
-    }
-    el.style.fontSize = lo + "px";
-  }
-
   function fillCard(root, hero) {
+    var href = htmlEscape(hero.pageUrl);
     var paras = (hero.paragraphs || []).map(function () { return "<p></p>"; }).join("");
     root.innerHTML =
       '<a class="landing-roundup-link" href="' +
-      hero.pageUrl +
+      href +
       '">' +
-      '<div class="landing-roundup-hero">' +
-      hero.html +
-      "</div>" +
+      (hero.html ? '<div class="landing-roundup-hero">' + hero.html + "</div>" : "") +
       '<p class="landing-top-card-caption"></p>' +
       '<p class="landing-roundup-title"></p>' +
       '<p class="landing-roundup-date"></p>' +
@@ -117,14 +110,18 @@
       paras +
       "</div>" +
       '<p class="landing-roundup-more"><span>Read the full roundup \u2192</span></p></a>';
-    root.querySelector(".landing-top-card-caption").textContent = hero.caption;
+    var cap = root.querySelector(".landing-top-card-caption");
+    if (cap) cap.textContent = hero.caption || "";
     root.querySelector(".landing-roundup-title").textContent = hero.title;
     root.querySelector(".landing-roundup-date").textContent = hero.date;
     var nodes = root.querySelectorAll(".landing-roundup-copy p");
     (hero.paragraphs || []).forEach(function (text, i) {
       if (nodes[i]) nodes[i].textContent = text;
     });
-    fitTitle(root.querySelector(".landing-roundup-title"));
+  }
+
+  function htmlEscape(value) {
+    return String(value || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   }
 
   function renderDots(count, index) {
@@ -141,10 +138,21 @@
       btn.type = "button";
       btn.className = "landing-roundup-dot" + (i === index ? " is-active" : "");
       btn.setAttribute("aria-label", "Weekend roundup " + (i + 1) + " of " + count);
-      btn.setAttribute("aria-current", i === index ? "true" : "false");
       btn.setAttribute("data-roundup-index", String(i));
       dotsHost.appendChild(btn);
     }
+  }
+
+  function sizeSlides() {
+    var w = viewport.clientWidth || section.clientWidth;
+    if (!w) return;
+    viewport.style.setProperty("--roundup-card-width", w + "px");
+    Array.prototype.forEach.call(track.children, function (slide) {
+      slide.style.width = w + "px";
+      slide.style.minWidth = w + "px";
+      slide.style.maxWidth = w + "px";
+      slide.style.flex = "0 0 " + w + "px";
+    });
   }
 
   function bindCarousel(count) {
@@ -153,32 +161,30 @@
     var startY = 0;
     var dx = 0;
     var dragging = false;
-    var locked = null;
+    var axis = null;
     var ignoreClick = false;
-    var width = function () {
-      return viewport.clientWidth || 1;
-    };
 
     function setIndex(next, animate) {
       index = Math.max(0, Math.min(count - 1, next));
+      sizeSlides();
+      var w = viewport.clientWidth || 1;
       track.style.transition = animate === false ? "none" : "transform .28s ease";
-      track.style.transform = "translate3d(" + -index * 100 + "%,0,0)";
+      track.style.transform = "translate3d(" + -index * w + "px,0,0)";
       section.setAttribute("data-roundup-index", String(index));
       renderDots(count, index);
     }
 
-    function finishDrag() {
+    function finish() {
       if (!dragging) return;
       dragging = false;
-      var w = width();
-      if (locked === "x" && Math.abs(dx) > Math.min(56, w * 0.18)) {
+      var w = viewport.clientWidth || 1;
+      if (axis === "x" && Math.abs(dx) > Math.min(48, w * 0.16)) {
         ignoreClick = true;
         setIndex(index + (dx < 0 ? 1 : -1), true);
       } else {
-        if (locked === "x" && Math.abs(dx) > 8) ignoreClick = true;
         setIndex(index, true);
       }
-      locked = null;
+      axis = null;
       dx = 0;
     }
 
@@ -187,7 +193,7 @@
       function (e) {
         if (!e.touches || !e.touches[0] || count < 2) return;
         dragging = true;
-        locked = null;
+        axis = null;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         dx = 0;
@@ -195,7 +201,6 @@
       },
       { passive: true }
     );
-
     viewport.addEventListener(
       "touchmove",
       function (e) {
@@ -204,51 +209,18 @@
         var y = e.touches[0].clientY;
         var adx = Math.abs(x - startX);
         var ady = Math.abs(y - startY);
-        if (locked == null && (adx > 8 || ady > 8)) locked = adx > ady ? "x" : "y";
-        if (locked !== "x") return;
+        if (axis == null && (adx > 10 || ady > 10)) axis = adx > ady ? "x" : "y";
+        if (axis !== "x") return;
         dx = x - startX;
         var extra = dx;
-        if ((index === 0 && dx > 0) || (index === count - 1 && dx < 0)) extra = dx * 0.22;
-        track.style.transform = "translate3d(" + (-index * width() + extra) + "px,0,0)";
+        if ((index === 0 && dx > 0) || (index === count - 1 && dx < 0)) extra = dx * 0.2;
+        track.style.transform = "translate3d(" + (-index * (viewport.clientWidth || 1) + extra) + "px,0,0)";
         if (e.cancelable) e.preventDefault();
       },
       { passive: false }
     );
-
-    viewport.addEventListener("touchend", finishDrag, { passive: true });
-    viewport.addEventListener("touchcancel", finishDrag, { passive: true });
-
-    viewport.addEventListener("pointerdown", function (e) {
-      if (e.pointerType === "touch" || count < 2) return;
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      dragging = true;
-      locked = "x";
-      startX = e.clientX;
-      startY = e.clientY;
-      dx = 0;
-      track.style.transition = "none";
-      try {
-        viewport.setPointerCapture(e.pointerId);
-      } catch (err) {}
-    });
-
-    viewport.addEventListener("pointermove", function (e) {
-      if (!dragging || e.pointerType === "touch") return;
-      dx = e.clientX - startX;
-      if (Math.abs(dx) < 2) return;
-      var extra = dx;
-      if ((index === 0 && dx > 0) || (index === count - 1 && dx < 0)) extra = dx * 0.22;
-      track.style.transform = "translate3d(" + (-index * width() + extra) + "px,0,0)";
-    });
-
-    viewport.addEventListener("pointerup", function (e) {
-      if (e.pointerType === "touch") return;
-      finishDrag();
-    });
-    viewport.addEventListener("pointercancel", function (e) {
-      if (e.pointerType === "touch") return;
-      finishDrag();
-    });
+    viewport.addEventListener("touchend", finish, { passive: true });
+    viewport.addEventListener("touchcancel", finish, { passive: true });
 
     viewport.addEventListener(
       "click",
@@ -265,6 +237,7 @@
       dotsHost.addEventListener("click", function (e) {
         var btn = e.target.closest("[data-roundup-index]");
         if (!btn) return;
+        e.preventDefault();
         setIndex(parseInt(btn.getAttribute("data-roundup-index"), 10) || 0, true);
       });
     }
@@ -281,12 +254,10 @@
     });
 
     window.addEventListener("resize", function () {
-      Array.prototype.forEach.call(track.querySelectorAll(".landing-roundup-title"), fitTitle);
       setIndex(index, false);
     });
 
     setIndex(0, false);
-    return { setIndex: setIndex };
   }
 
   function paintAll(heroes) {
@@ -298,7 +269,7 @@
       fillCard(slide, hero);
       track.appendChild(slide);
     });
-    viewport.setAttribute("aria-live", "polite");
+    sizeSlides();
     bindCarousel(heroes.length);
   }
 
@@ -307,26 +278,28 @@
       return r.json();
     })
     .then(function (items) {
-      var urls = [];
-      (items || []).forEach(function (item) {
-        if (item && item.url) urls.push(item.url);
+      var rows = (items || []).filter(function (item) {
+        return item && item.url;
       });
-      if (!urls.length) return;
+      if (!rows.length) return;
       return Promise.all(
-        urls.map(function (url) {
+        rows.map(function (item) {
+          var url = fullIssueUrl(item.url);
           return fetch(url, { cache: "no-store" })
             .then(function (r) {
               return r.text();
             })
             .then(function (html) {
-              return heroFrom(html, url);
+              return heroFrom(html, url, item);
             })
             .catch(function () {
-              return null;
+              return heroFrom("", url, item);
             });
         })
       ).then(function (found) {
-        var heroes = (found || []).filter(Boolean);
+        var heroes = (found || []).filter(function (hero) {
+          return hero && hero.pageUrl;
+        });
         if (heroes.length) paintAll(heroes);
       });
     })

@@ -365,6 +365,16 @@ def recap(facts,cluster,index):
     verb="finished" if facts.get("status","").lower()=="provisional" else "won"
     title=facts["title"];venue=facts["club_name"];entries=facts.get("entries",0);races=facts.get("races",0)
     nett=facts.get("winner_nett") or ""
+    if is_team_event(facts) and not winner:
+        kind = "team" if is_team_event(facts) else "boat"
+        opening = f"{entries} teams contested the {title} at {venue}" if entries else f"Teams contested the {title} at {venue}"
+        opening += f". Official overall scores were not in the published results table. {mark}"
+        paragraphs=[opening]
+        teams = [n for n in (facts.get("names") or []) if n]
+        if teams:
+            paragraphs.append("Entered teams: " + ", ".join(teams) + ". " + mark)
+        paragraphs.extend(source_notes(cluster,facts,index))
+        return paragraphs
     if is_team_event(facts):
         opening=f"{winner} {verb} the {title} at {venue}"
     elif verb=="finished":

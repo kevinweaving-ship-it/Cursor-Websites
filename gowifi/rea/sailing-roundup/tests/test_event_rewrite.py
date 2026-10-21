@@ -221,6 +221,7 @@ class RewriteEngine(unittest.TestCase):
         self.assertIn("event-story", event)
         self.assertIn("story-heading", event)
         self.assertIn("1st, 2nd, 3rd", event)
+        self.assertIn("https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing", event)
         self.assertIn("#2026-10-17-mac-tsl-wc-team-sailing-src-1", event)
         self.assertNotIn("By SailingSA", event)
 
@@ -598,9 +599,10 @@ class RewriteEngine(unittest.TestCase):
             "club_abbrev": "MAC",
         }
         team_facts = facts_from_rows("2026-10-17-mac-tsl-wc-team-sailing", [team])
-        self.assertIn("MAC win", unique_headline(team_facts))
+        self.assertIn("teams contest", unique_headline(team_facts))
         self.assertNotIn(";", unique_headline(team_facts))
-        self.assertEqual(team_facts["winner"], "MAC")
+        self.assertEqual(team_facts["winner"], "")
+        self.assertFalse(team_facts["official_order"])
         self.assertEqual(team_facts["club_name"], "Milnerton Aquatic Club")
 
     def test_tsl_names_teams_checksum_rejects_result_sailors(self):
@@ -640,10 +642,11 @@ class RewriteEngine(unittest.TestCase):
         ]
         facts = facts_from_rows("2026-10-17-mac-tsl-wc-team-sailing", rows)
         self.assertTrue(facts["team_event"])
-        self.assertEqual(facts["winner"], "MAC")
-        self.assertEqual(facts["second"], "MATIES")
-        self.assertEqual(facts["third"], "RCYC Sailing Academy")
-        self.assertIn("MAC win", unique_headline(facts))
+        self.assertEqual(facts["winner"], "")
+        self.assertEqual(facts["second"], "")
+        self.assertEqual(facts["third"], "")
+        self.assertFalse(facts["official_order"])
+        self.assertIn("3 teams contest", unique_headline(facts))
         names = official_names(facts)
         self.assertIn("MAC", names)
         self.assertIn("MATIES", names)
@@ -668,16 +671,49 @@ class RewriteEngine(unittest.TestCase):
         self.assertTrue(results_checksum(team_claim, facts)["ok"])
         article = rewrite_event("2026-10-19", facts, pack={}, cluster={"articles": []}, layout="classic")
         blob = " ".join(b["text"] for b in article["blocks"] if b["type"] == "paragraph")
-        self.assertIn("MAC won", blob)
+        self.assertNotIn("MAC won", blob)
+        self.assertIn("3 teams contested", blob)
         self.assertIn("MATIES", blob)
         self.assertIn("RCYC Sailing Academy", blob)
         self.assertNotIn("Maddison Smit", blob)
         self.assertNotIn(";", blob)
         board = next(b for b in article["blocks"] if b["type"] == "results")
-        self.assertEqual(board["columns"], ["Pos", "Team", "Club"])
-        self.assertEqual([r[1] for r in board["rows"]], ["MAC", "MATIES", "RCYC Sailing Academy"])
+        self.assertEqual(board["columns"], ["Team", "Club"])
+        self.assertEqual([r[0] for r in board["rows"]], ["MAC", "MATIES", "RCYC Sailing Academy"])
         heading = next(b for b in article["blocks"] if b["type"] == "heading")
-        self.assertEqual(heading["text"], GOLD_BOARD_LABEL)
+        self.assertEqual(heading["text"], "Entered teams")
+        html = _render_story(1, article)
+        self.assertIn("https://sailingsa.co.za/regatta/2026-10-17-mac-tsl-wc-team-sailing", html)
+        self.assertIn('class="event-url"', html)
+
+    def test_tsl_keeps_official_order_when_ranks_exist(self):
+        rows = [
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "host_club_code": "MAC",
+                "class_name": "TSL",
+                "start_date": "2026-10-17",
+                "end_date": "2026-10-18",
+                "rank": 1,
+                "boat_name": "MATIES",
+                "club_abbrev": "USYC",
+                "nett_points_raw": 4,
+                "entries_total": 2,
+            },
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "host_club_code": "MAC",
+                "class_name": "TSL",
+                "rank": 2,
+                "boat_name": "MAC",
+                "club_abbrev": "MAC",
+                "nett_points_raw": 8,
+            },
+        ]
+        facts = facts_from_rows("2026-10-17-mac-tsl-wc-team-sailing", rows)
+        self.assertTrue(facts["official_order"])
+        self.assertEqual(facts["winner"], "MATIES")
+        self.assertIn("MATIES win", unique_headline(facts))
 
     def test_event_url_artwork_used_when_it_matches(self):
         tsl = facts_from_rows(

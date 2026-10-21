@@ -215,11 +215,12 @@ def title_tokens(title: str) -> list[str]:
     return [t for t in re.findall(r"[a-z0-9]+", (title or "").lower()) if t not in TITLE_STOP and len(t) >= 4]
 
 
-def board_label(klass: str = "", multi: bool = False) -> str:
+def board_label(klass: str = "", multi: bool = False, official: bool = True) -> str:
     klass = (klass or "").strip()
+    heading = GOLD_BOARD_LABEL if official else "Entered teams"
     if multi and klass:
-        return f"{klass} · {GOLD_BOARD_LABEL}"
-    return GOLD_BOARD_LABEL
+        return f"{klass} · {heading}"
+    return heading
 
 
 def _surname(name: str) -> str:
@@ -236,6 +237,10 @@ def _intish(value) -> int | None:
         return None
 
 
+def _has_official_place(row: dict) -> bool:
+    return str(row.get("rank") or "").isdigit() or _intish(row.get("nett_points_raw")) is not None
+
+
 def _ranked(rows: list[dict]) -> list[dict]:
     copied = [dict(row) for row in rows]
     numeric = [r for r in copied if str(r.get("rank") or "").isdigit()]
@@ -243,9 +248,15 @@ def _ranked(rows: list[dict]) -> list[dict]:
     if numeric and len(set(ranks)) == len(numeric):
         numeric.sort(key=lambda r: int(r["rank"]))
         return numeric
-    copied.sort(key=lambda r: (_intish(r.get("nett_points_raw")) is None, _intish(r.get("nett_points_raw")) or 999))
-    for i, row in enumerate(copied, 1):
-        row["rank"] = i
+    scored = [r for r in copied if _intish(r.get("nett_points_raw")) is not None]
+    if scored:
+        scored.sort(key=lambda r: _intish(r.get("nett_points_raw")) or 999)
+        for i, row in enumerate(scored, 1):
+            if not str(row.get("rank") or "").isdigit():
+                row["rank"] = i
+        return scored
+    for row in copied:
+        row["rank"] = None
     return copied
 
 
@@ -283,9 +294,10 @@ def _nett(value) -> str:
 
 def _fleet_from_rows(rows: list[dict]) -> dict:
     ranked = _ranked(rows)
-    winner = ranked[0] if ranked else {}
-    second = ranked[1] if len(ranked) > 1 else {}
-    third = ranked[2] if len(ranked) > 2 else {}
+    official = any(_has_official_place(r) for r in ranked)
+    winner = ranked[0] if official and ranked else {}
+    second = ranked[1] if official and len(ranked) > 1 else {}
+    third = ranked[2] if official and len(ranked) > 2 else {}
     first = rows[0] if rows else {}
     races = _intish(first.get("races_sailed")) or len(winner.get("race_scores") or {})
     listed = _intish(first.get("entries_total"))
@@ -307,8 +319,9 @@ def _fleet_from_rows(rows: list[dict]) -> dict:
         "second_wins": _win_count(second.get("race_scores")),
         "third": _names(third) if third else "",
         "third_nett": _nett(third.get("nett_points_raw")),
-        "tied_first": str(winner.get("nett_points_raw")) == str(second.get("nett_points_raw")) and winner.get("nett_points_raw") not in (None, ""),
-        "leaderboard": leaderboard(ranked),
+        "tied_first": official and str(winner.get("nett_points_raw")) == str(second.get("nett_points_raw")) and winner.get("nett_points_raw") not in (None, ""),
+        "official_order": official,
+        "leaderboard": leaderboard(ranked, official=official),
         "ranked_rows": ranked,
         "names": [n for r in ranked for n in _row_people(r)],
         "team_event": bool(ranked) and all(is_team_row(r) for r in ranked),
@@ -389,6 +402,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "third": primary.get("third") or "",
         "third_nett": primary.get("third_nett") or "",
         "tied_first": bool(primary.get("tied_first")),
+        "official_order": all(bool(fleet.get("official_order")) for fleet in fleets) if fleets else False,
         "team_event": bool(primary.get("team_event")) or is_team_event({"class_name": primary.get("class_name"), "title": title, "ranked_rows": all_rows}),
         "names": list(dict.fromkeys(all_names)),
         "url": "https://sailingsa.co.za/regatta/" + slug,
@@ -437,16 +451,18 @@ def _official_results_card(facts: dict) -> dict:
     }
 
 
-def leaderboard(rows: list[dict], limit: int | None = LEADERBOARD_LIMIT) -> tuple[list[str], list[list[str]]]:
+def leaderboard(rows: list[dict], limit: int | None = LEADERBOARD_LIMIT, official: bool = True) -> tuple[list[str], list[list[str]]]:
     table = []
-    selected = list(rows) if limit is None else rows[:limit]
+    selected = list(rows) if (limit is None or not official) else rows[:limit]
     team = bool(selected) and all(is_team_row(row) for row in selected)
     if team:
-        cols = ["Pos", "Team", "Club"]
+        cols = ["Team", "Club"] if not official else ["Pos", "Team", "Club"]
         if any(_nett(row.get("nett_points_raw")) for row in selected):
             cols.append("Nett")
         for i, row in enumerate(selected, 1):
-            line = [str(i), _team_name(row), str(row.get("club_abbrev") or row.get("club_raw") or "")]
+            line = [_team_name(row), str(row.get("club_abbrev") or row.get("club_raw") or "")]
+            if official:
+                line = [str(i)] + line
             if "Nett" in cols:
                 line.append(_nett(row.get("nett_points_raw")))
             table.append(line)
@@ -493,6 +509,11 @@ def unique_headline(facts: dict, cluster: dict | None = None) -> str:
     venue = facts["club_name"]
     short_venue = re.sub(r"\s+(Yacht Club|Sports Club|Aquatic Club|Club)$", "", venue or "", flags=re.I).strip() or venue
     finished = event_finished(facts)
+    if is_team_event(facts) and not facts.get("winner"):
+        n = int(facts.get("entries") or 0)
+        if n:
+            return f"{n} teams contest {title} at {short_venue}"
+        return f"{title} at {short_venue}"
     if is_team_event(facts):
         team = facts.get("winner") or facts.get("winner_club") or facts.get("club") or "The host club"
         return f"{team} win {title} at {short_venue}"
@@ -1009,6 +1030,40 @@ def _bad_image_url(url: str) -> bool:
     )
 
 
+def crop_center_hero(src: pathlib.Path, dest: pathlib.Path, aspect: float = 16 / 9) -> pathlib.Path | None:
+    """Clip top/bottom of a tall photo so the busiest band (boats) stays in a gold 16:9 frame."""
+    try:
+        from PIL import Image, ImageFilter
+    except ImportError:
+        return None
+    if not src.is_file():
+        return None
+    im = Image.open(src).convert("RGB")
+    w, h = im.size
+    target_h = max(1, int(round(w / aspect)))
+    if target_h >= h:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        im.save(dest, quality=88)
+        return dest
+    edges = im.convert("L").filter(ImageFilter.FIND_EDGES)
+    energy = []
+    pix = edges.load()
+    for y in range(h):
+        energy.append(sum(pix[x, y] for x in range(w)) / w)
+    center_y = (h - target_h) // 2
+    best_y = center_y
+    best = sum(energy[center_y : center_y + target_h])
+    run = best
+    for y in range(1, h - target_h + 1):
+        run += energy[y + target_h - 1] - energy[y - 1]
+        if run > best:
+            best = run
+            best_y = y
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    im.crop((0, best_y, w, best_y + target_h)).save(dest, quality=88)
+    return dest
+
+
 def _image_size(raw: bytes) -> tuple[int, int] | None:
     if raw[:2] == b"\xff\xd8":
         i = 2
@@ -1440,6 +1495,13 @@ def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict |
         return None
     dest.write_bytes(raw)
     (source_dir / filename).write_bytes(raw)
+    if admin:
+        hero_name = pathlib.Path(filename).stem + "-hero.jpg"
+        hero_dest = dest_dir / hero_name
+        if crop_center_hero(dest, hero_dest):
+            dest.write_bytes(hero_dest.read_bytes())
+            (source_dir / filename).write_bytes(hero_dest.read_bytes())
+            raw = dest.read_bytes()
     out = dict(image)
     out["url"] = "media/" + filename
     out["local_path"] = str(dest)
@@ -1498,10 +1560,11 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
     for text in paras:
         blocks.append({"type": "paragraph", "text": text})
     multi = bool(facts.get("multi_class"))
+    official = bool(facts.get("official_order"))
     for fleet in fleets:
-        cols, table = fleet.get("leaderboard") or leaderboard([])
+        cols, table = fleet.get("leaderboard") or leaderboard([], official=official)
         klass = (fleet.get("class_name") or "").strip()
-        blocks.append({"type": "heading", "text": board_label(klass, multi)})
+        blocks.append({"type": "heading", "text": board_label(klass, multi, official)})
         blocks.append(
             {
                 "type": "results",
