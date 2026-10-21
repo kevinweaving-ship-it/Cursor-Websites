@@ -6,7 +6,7 @@ SailingSA is read-only. This app does not write to the SailingSA database, front
 
 ## Why this exists
 
-The 26–27 September 2026 weekend (Monday issue **2026-09-28**) is the reference test:
+The 26–27 September 2026 weekend (Monday issue **2026-09-28**) is the reference test. Full Gold creation spec: **[docs/GOLD.md](docs/GOLD.md)**.
 
 | Event (events table) | Dates | `regatta_id` | Results |
 | --- | --- | --- | --- |

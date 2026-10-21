@@ -2,6 +2,8 @@
 
 Standalone Monday publication. Generation stays on GoWifi. SailingSA is a **read-only** results and Media-tab source for clustering; the only write is issue-scoped static files under `/sailing-roundup/`. This app never changes the SailingSA SPA, API, nginx on gowifi.co.za, or the REA MCP tunnel.
 
+**Gold contract (master):** [docs/GOLD.md](docs/GOLD.md) — how 2026-09-28 was made and how every new Monday URL must publish the same way with no hand edit.
+
 **Project docs:** [PROJECT.md](PROJECT.md) · **Unattended Monday publish:** [docs/UNATTENDED_MONDAY_PUBLISH.md](docs/UNATTENDED_MONDAY_PUBLISH.md) · **Verified evidence:** [docs/VERIFIED_EVIDENCE_FIX.md](docs/VERIFIED_EVIDENCE_FIX.md) · **Real aggregators to copy:** [docs/REAL_AGGREGATORS.md](docs/REAL_AGGREGATORS.md)
 
 Reference weekend: **26–27 September 2026** (issue Monday 2026-09-28). Driven from the public `events` table, not a homepage scrape.

@@ -4,6 +4,8 @@ Public URLs: `https://sailingsa.co.za/sailing-roundup/` and `…/issues/YYYY-MM-
 
 **Gold default:** `https://sailingsa.co.za/sailing-roundup/issues/2026-09-28/` is the locked format, layout, and style. Every issue uses that magazine chrome (cream paper, gold accent, SailingSA header, `The Weekend Roundup` lead, story-heading, per-class official boards). Later issues must not drift to the older purple/folio template.
 
+**Master Gold spec (step-by-step creation, external media, AI polish, publish, no hand edit):** [gowifi/rea/sailing-roundup/docs/GOLD.md](../gowifi/rea/sailing-roundup/docs/GOLD.md).
+
 This is a **Monday weekly**, not Sat–Sun only. Midweek races, long weekends, and multi-week events are included. The name on the site stays Weekend Roundup.
 
 ## Assignment rule
@@ -17,7 +19,7 @@ An event is in **exactly one** Monday issue: the **Monday after the week the eve
 
 SailingSA results (names, scores, classes, sailors) are the source of truth. REA then pulls club sites, class socials, Google, and sailor Media-tab mentions for copy and photographs. No Wikimedia. No invented photos.
 
-Each regatta report publishes the official leaderboard. A single-class event gets one board; a multi-class event gets one board per class, using the full official fleet. Extra sailor notes (Media-tab, club or class posts) are included only when those names checksum against the official results. If external media lists other-event sailors as this event's leaders, the source is dropped. U15 / U17 / U19 / U21 titles are mentioned only when verified media names official sailors in that age group.
+Each regatta report publishes the official **1st / 2nd / 3rd** podium (not the full fleet). A single-class event gets one board headed `1st, 2nd, 3rd`; a multi-class event gets one board per class headed `{Class} · 1st, 2nd, 3rd`. Extra sailor notes (Media-tab, club or class posts) are included only when those names checksum against the official results. If external media lists other-event sailors as this event's leaders, the source is dropped. U15 / U17 / U19 / U21 titles are mentioned only when verified media names official sailors in that age group. Team racing names teams, not sailors.
 
 Historical 2026 (and later years) is the same pipeline, not a results-only stub:
 

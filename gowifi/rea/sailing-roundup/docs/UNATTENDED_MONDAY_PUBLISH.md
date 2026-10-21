@@ -1,5 +1,7 @@
 # Unattended Monday weekend roundup
 
+Gold product and the full create → publish path: **[GOLD.md](GOLD.md)**. That document is the contract for a new Monday URL with no human edit.
+
 Generation stays on GoWifi (`/opt/rea/work/sailing-roundup`). Publication is
 authenticated, issue-scoped rsync onto SailingSA
 `/var/www/sailingsa/sailing-roundup/issues/YYYY-MM-DD/` only. No SailingSA SPA,
