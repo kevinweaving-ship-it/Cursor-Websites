@@ -15,6 +15,7 @@ install -d -m 755 -o rea -g rea "$DEST" "$DEST/app" "$DEST/data" "$DEST/issues" 
 
 # App code only. Never clobber generated issues or the venv.
 install -m 644 -o rea -g rea "$SRC_DIR"/app/*.py "$DEST/app/"
+install -m 644 -o rea -g rea "$SRC_DIR/app/gold_default.css" "$DEST/app/gold_default.css"
 install -m 644 -o rea -g rea "$SRC_DIR/app/club_sources.json" "$DEST/app/club_sources.json"
 install -m 644 -o rea -g rea "$SRC_DIR/app/class_sources.json" "$DEST/app/class_sources.json"
 install -m 644 -o rea -g rea "$SRC_DIR/requirements.txt" "$DEST/requirements.txt"
@@ -40,6 +41,7 @@ fi
 install -d -m 755 -o rea -g rea "$DEST/deploy"
 install -m 755 -o rea -g rea "$SRC_DIR/deploy/run-monday.sh" "$DEST/deploy/run-monday.sh"
 install -m 755 -o rea -g rea "$SRC_DIR/deploy/publish-to-sailingsa.sh" "$DEST/deploy/publish-to-sailingsa.sh"
+install -m 755 -o rea -g rea "$SRC_DIR/deploy/rebuild-non-gold.sh" "$DEST/deploy/rebuild-non-gold.sh"
 install -m 644 "$SRC_DIR/deploy/sailing-roundup.service" /etc/systemd/system/sailing-roundup.service
 install -m 644 "$SRC_DIR/deploy/sailing-roundup.timer" /etc/systemd/system/sailing-roundup.timer
 # Africa/Johannesburg is the box timezone; timer OnCalendar uses local time.
