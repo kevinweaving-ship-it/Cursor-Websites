@@ -59,6 +59,12 @@
       "facebook": "https://www.facebook.com/LDYClub",
       "instagram": "https://www.instagram.com/ldyc_lake_deneys_yc/"
     },
+    "PYC": {
+      "name": "Point Yacht Club",
+      "code": "PYC",
+      "slug": "pyc",
+      "sailingsa_url": "https://sailingsa.co.za/club/pyc"
+    },
     "MAC": {
       "name": "Milnerton Aquatic Club",
       "code": "MAC",

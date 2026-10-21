@@ -340,10 +340,10 @@ def recap(facts,cluster,index):
     else:
         opening=f"{winner} won the {title} at {venue}"
     if nett and races:
-        opening+=f", scoring {nett} nett points across {races} races in a {entries}-boat fleet. {mark}"
+        opening+=f", scoring {nett} nett points across {races} races in {_a_fleet(entries,'boat')} fleet. {mark}"
     elif entries:
         kind="team" if is_team_event(facts) else "boat"
-        opening+=f" in a {entries}-{kind} field. {mark}"
+        opening+=f" in {_a_fleet(entries,kind)} field. {mark}"
     else:
         opening+=f". {mark}"
     paragraphs=[opening]
@@ -371,9 +371,9 @@ def recap(facts,cluster,index):
             if not fleet.get("winner") or not fleet.get("class_name"): continue
             if fleet.get("class_name")==facts.get("class_name") and fleet.get("winner")==winner: continue
             if fleet.get("winner_nett"):
-                extras.append(f"{fleet['winner']} won the {fleet['class_name']} on {fleet['winner_nett']} nett points in a {fleet.get('entries') or 0}-boat fleet.")
+                extras.append(f"{fleet['winner']} won the {fleet['class_name']} on {fleet['winner_nett']} nett points in {_a_fleet(fleet.get('entries') or 0,'boat')} fleet.")
             else:
-                extras.append(f"{fleet['winner']} won the {fleet['class_name']} in a {fleet.get('entries') or 0}-boat fleet.")
+                extras.append(f"{fleet['winner']} won the {fleet['class_name']} in {_a_fleet(fleet.get('entries') or 0,'boat')} fleet.")
         if extras:paragraphs.append(" ".join(extras)+" "+mark)
     if facts.get("tied_first"):
         paragraphs.append(f"The top two crews were level on nett points; the official results rank {winner} first. {mark}")
@@ -382,13 +382,18 @@ def recap(facts,cluster,index):
         paragraphs.append(f"The published results remain provisional. {mark}")
     return paragraphs
 
+def _a_fleet(n, noun):
+    n=int(n or 0)
+    return f"{'an' if str(n).startswith(('8','11','18')) else 'a'} {n}-{noun}"
+
 _NUM_WORDS = "One Two Three Four Five Six Seven Eight Nine Ten".split()
 
 def _num_word(n):
     return _NUM_WORDS[n-1] if 1<=n<=10 else str(n)
 
 def _short_venue(name):
-    return re.sub(r"\s+(Yacht Club|Sports Club|Aquatic Club|Club)$","",name or "",flags=re.I).strip() or name
+    short=re.sub(r"\s+(Yacht Club|Sports Club|Aquatic Club|Club)$","",name or "",flags=re.I).strip()
+    return short if len(short)>=6 else (name or short)
 
 def _feature_lead(issue,reports,span):
     if len(reports)==4 and issue=="2026-09-28":
@@ -424,7 +429,7 @@ def feature(issue,monday,events,articles):
     if missing:
         paragraphs.append("The calendar also listed "+", ".join(missing)+". Results for those events were not available in the source snapshot.")
     return {"id":"sailing-"+issue,"type":"feature","headline":"South African Sailing — The Weekend Roundup",
-        "deck": f"{sat.day}–{sun.strftime('%-d %B %Y')}" if issue=="2026-09-28" else span, "byline":"SailingSA","kicker":"SAILING","published_at":issue,
+        "deck": f"{sat.day}–{sun.strftime('%-d %B %Y')}" if sat.month==sun.month else f"{sat.strftime('%-d %B')}–{sun.strftime('%-d %B %Y')}", "byline":"SailingSA","kicker":"SAILING","published_at":issue,
         "event_id":"sailing-"+issue,"layout":"lead","hero_image":None,"blocks":[{"type":"paragraph","text":t} for t in paragraphs],
         "sources":["https://sailingsa.co.za/api/events"],"review_status":"rewritten"}
 

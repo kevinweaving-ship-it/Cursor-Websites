@@ -77,6 +77,7 @@ HOST_FALLBACK = {
     "AYC": "Aeolians Yacht Club",
     "LDYC": "Lake Deneys Yacht Club",
     "MAC": "Milnerton Aquatic Club",
+    "PYC": "Point Yacht Club",
 }
 DATE_PREFIX = re.compile(r"^(?:20\d{2}-\d{2}-\d{2}|20\d{2})\s+")
 TITLE_STOP = {
@@ -388,12 +389,10 @@ def _official_results_card(facts: dict) -> dict:
 def leaderboard(rows: list[dict], limit: int | None = LEADERBOARD_LIMIT) -> tuple[list[str], list[list[str]]]:
     table = []
     selected = list(rows) if limit is None else rows[:limit]
-    for row in selected:
-        rank = row.get("rank")
-        pos = "" if rank in (None, "") else str(rank)
+    for i, row in enumerate(selected, 1):
         table.append(
             [
-                pos,
+                str(i),
                 str(row.get("helm_name") or ""),
                 str(row.get("crew_name") or ""),
                 str(row.get("club_abbrev") or row.get("club_raw") or ""),
