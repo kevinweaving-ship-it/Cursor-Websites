@@ -94,6 +94,62 @@ class PublishHelpers(unittest.TestCase):
         self.assertIn("26–27 September 2026", feature["deck"])
         self.assertEqual(feature["headline"], "South African Sailing — The Weekend Roundup")
 
+    def test_same_weekend_keeps_mirror_with_tsl(self):
+        monday = dt.date(2026, 10, 19)
+        rows = [
+            {
+                "event_name": "KZN Mirror Regionals",
+                "start_date": "2026-10-17",
+                "end_date": "2026-10-18",
+                "entries": 0,
+                "races_sailed": 0,
+            },
+            {
+                "event_name": "KZN Mirror Regionals",
+                "start_date": "2026-10-17",
+                "end_date": "2026-10-18",
+                "regatta_id": "2026-10-17-pyc-kzn-mirror-regionals",
+                "entries": 8,
+                "races_sailed": 8,
+                "category": "Regional Championships",
+            },
+            {
+                "event_name": "SA Sailing WC Team Sailing Event",
+                "start_date": "2026-10-17",
+                "end_date": "2026-10-18",
+                "regatta_id": "2026-10-17-mac-tsl-wc-team-sailing",
+                "entries": 0,
+                "races_sailed": 0,
+                "category": "Team Sailing Events",
+            },
+            {
+                "event_name": "2026 DF 95 Global Championship",
+                "start_date": "2026-10-17",
+                "end_date": "2026-10-18",
+                "entries": 0,
+                "races_sailed": 0,
+            },
+        ]
+        picked = weekend_events(monday, rows)
+        slugs = [e["regatta_id"] for e in picked if e.get("regatta_id")]
+        self.assertIn("2026-10-17-pyc-kzn-mirror-regionals", slugs)
+        self.assertIn("2026-10-17-mac-tsl-wc-team-sailing", slugs)
+        mirror = next(e for e in picked if e["event_name"] == "KZN Mirror Regionals")
+        self.assertEqual(mirror["regatta_id"], "2026-10-17-pyc-kzn-mirror-regionals")
+        self.assertTrue(mirror["has_results"])
+        articles = [
+            {"type": "regatta_report", "event_id": "2026-10-17-mac-tsl-wc-team-sailing", "class_name": "TSL", "club": "MAC"},
+            {"type": "regatta_report", "event_id": "2026-10-17-pyc-kzn-mirror-regionals", "class_name": "Mirror", "club": "PYC"},
+        ]
+        feature = weekend_feature("2026-10-19", monday, picked, articles)
+        blob = " ".join(b["text"] for b in feature["blocks"])
+        self.assertIn("Point Yacht Club", blob)
+        self.assertNotIn("KZN Mirror Regionals. Results for those events were not available", blob)
+        self.assertIn("DF 95", blob)
+        half = weekend_feature("2026-10-19", monday, picked, articles[:1])
+        half_blob = " ".join(b["text"] for b in half["blocks"])
+        self.assertNotIn("KZN Mirror Regionals", half_blob)
+
     def test_verify_everywhere_against_event_and_results(self):
         event = {
             "id": "2026-09-25-tsc-420-nationals",

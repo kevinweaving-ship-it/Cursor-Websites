@@ -457,7 +457,11 @@ def feature(issue,monday,events,articles):
     lead = _feature_lead(issue, reports, span)
     paragraphs=[lead]
     covered={a.get("event_id") for a in reports}
-    missing=sorted({e.get("event_name") for e in events if e.get("event_name") and e.get("regatta_id") not in covered})
+    # Never call a scored same-weekend event "unavailable" — that hid KZN Mirror on 19 Oct.
+    missing=sorted({
+        e.get("event_name") for e in events
+        if e.get("event_name") and (e.get("regatta_id") or "") not in covered and not e.get("has_results")
+    })
     if missing:
         paragraphs.append("The calendar also listed "+", ".join(missing)+". Results for those events were not available in the source snapshot.")
     return {"id":"sailing-"+issue,"type":"feature","headline":"South African Sailing — The Weekend Roundup",

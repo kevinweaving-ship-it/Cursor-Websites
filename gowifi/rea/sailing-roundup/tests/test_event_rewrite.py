@@ -18,6 +18,7 @@ from event_rewrite import (
     layout_for,
     official_event_images,
     pick_image,
+    _request_url,
     pick_images,
     rewrite_event,
     rewrite_paragraphs,
@@ -768,6 +769,10 @@ class RewriteEngine(unittest.TestCase):
                 "https://sailingsa.co.za/artwork/Event Logo/KZN-Mirror-ILCA-Regionals-Champs.png",
                 mirror,
             )
+        )
+        self.assertEqual(
+            _request_url("https://sailingsa.co.za/artwork/Event Logo/TSL-Team-Sailing.png"),
+            "https://sailingsa.co.za/artwork/Event%20Logo/TSL-Team-Sailing.png",
         )
 
     def test_tsl_search_uses_team_names(self):

@@ -303,7 +303,20 @@ def publish(
         for article,log in pool.map(build_event,enumerate(slugs)):
             if article:articles.append(article)
             logs.append(log)
-    failed = [x for x in logs if x["status"] in ("error", "skipped_no_api_rows")]
+    covered={a.get("event_id") for a in articles}
+    scored={e["regatta_id"] for e in table_events if e.get("regatta_id") and e.get("has_results")}
+    missing_scored=sorted(scored-covered)
+    if missing_scored:
+        for slug in missing_scored:
+            article,log=build_event((len(articles),slug))
+            logs.append({"retry":True,**log})
+            if article:
+                articles.append(article)
+        covered={a.get("event_id") for a in articles}
+        missing_scored=sorted(scored-covered)
+    if missing_scored:
+        raise RuntimeError("Scored weekend events missing from edition: "+json.dumps(missing_scored))
+    failed = [x for x in logs if x["status"] in ("error", "skipped_no_api_rows") and x.get("event") not in covered]
     if failed and not allow_incomplete:
         raise RuntimeError("Edition incomplete: " + json.dumps(failed))
     dest.parent.mkdir(parents=True, exist_ok=True)

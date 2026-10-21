@@ -113,8 +113,8 @@ def weekend_events(monday: dt.date, events: list[dict] | None = None) -> list[di
     if monday.weekday() != 0:
         raise ValueError("Issue date must be a Monday")
     rows = events if events is not None else _fetch_events()
-    out = []
-    seen = set()
+    merged = {}
+    order = []
     for raw in rows:
         if skip_event(raw):
             continue
@@ -124,11 +124,18 @@ def weekend_events(monday: dt.date, events: list[dict] | None = None) -> list[di
         end = parse_day(item["end_date"])
         if not end or issue_monday_for_end(end) != monday:
             continue
-        key = item["regatta_id"] or (item["event_name"].lower(), item["start_date"])
-        if key in seen:
+        key = (item["event_name"].lower(), item["start_date"], item["end_date"])
+        prev = merged.get(key)
+        if not prev:
+            merged[key] = item
+            order.append(key)
             continue
-        seen.add(key)
-        out.append(item)
+        # Calendar stub + results row: keep the slugged / scored copy.
+        if (item.get("regatta_id") and not prev.get("regatta_id")) or (
+            item.get("has_results") and not prev.get("has_results")
+        ):
+            merged[key] = {**prev, **item}
+    out = [merged[k] for k in order]
     out.sort(key=lambda e: (e["start_date"], e["event_name"]))
     return out
 

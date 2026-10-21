@@ -11,8 +11,8 @@ def validate(root,issue):
     if len(ids)!=len(set(ids)):raise ValueError("Duplicate event articles")
     reports=[a for a in articles if a["type"]=="regatta_report"]
     events=json.loads((root/"issues"/issue/"sources/events-weekend.json").read_text())["events"]
-    expected={e["regatta_id"] for e in events if e.get("regatta_id")}
-    if {a["event_id"] for a in reports}!=expected:raise ValueError("Missing scored event")
+    expected={e["regatta_id"] for e in events if e.get("regatta_id") and e.get("has_results")}
+    if not expected.issubset({a["event_id"] for a in reports}):raise ValueError("Missing scored event")
     hashes=set()
     for a in reports:
         cluster=json.loads((root/"issues"/issue/"sources"/(a["event_id"]+"-cluster.json")).read_text())

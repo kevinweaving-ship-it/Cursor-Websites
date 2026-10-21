@@ -610,8 +610,14 @@ def deck_from_facts(facts: dict) -> str:
     return " · ".join(x for x in bits if x)
 
 
+def _request_url(url: str) -> str:
+    parsed = urllib.parse.urlsplit(url)
+    path = urllib.parse.quote(urllib.parse.unquote(parsed.path), safe="/")
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
+
+
 def _http_get(url: str, headers: dict | None = None, timeout: int = 18) -> tuple[bytes, str]:
-    req = urllib.request.Request(url, headers=headers or UA)
+    req = urllib.request.Request(_request_url(url), headers=headers or UA)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read(), resp.headers.get_content_type() or ""
 
