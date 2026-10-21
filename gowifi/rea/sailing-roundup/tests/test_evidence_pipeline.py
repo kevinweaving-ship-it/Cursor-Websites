@@ -65,8 +65,22 @@ class EvidenceRegression(unittest.TestCase):
    (out/"issue.json").write_text(json.dumps({"articles":[]}))
    source=root/"issues/2026-09-28/sources";source.mkdir(parents=True)
    (source/"events-weekend.json").write_text(json.dumps({"events":[]}))
+   (source/"gates.json").write_text(json.dumps({"monday":"2026-09-28","can_publish":True,"steps":[]}))
    (out/"index.html").write_text("<html>New edition</html>")
    with self.assertRaisesRegex(ValueError,"Missing PDF"):
+    validate(root,"2026-09-28")
+ def test_validate_blocks_when_gates_have_not_all_passed(self):
+  from safe_publish import validate
+  import tempfile
+  with tempfile.TemporaryDirectory() as temp:
+   root=pathlib.Path(temp);out=root/"public/issues/2026-09-28";out.mkdir(parents=True)
+   (out/"issue.json").write_text(json.dumps({"articles":[]}))
+   source=root/"issues/2026-09-28/sources";source.mkdir(parents=True)
+   (source/"events-weekend.json").write_text(json.dumps({"events":[]}))
+   (source/"gates.json").write_text(json.dumps({"monday":"2026-09-28","can_publish":False,"steps":[{"step":1,"name":"event_facts","status":"fail"}]}))
+   (out/"index.html").write_text("<html>x</html>")
+   (out/"edition.pdf").write_bytes(b"%PDF-1.4")
+   with self.assertRaisesRegex(ValueError,"gates did not all pass"):
     validate(root,"2026-09-28")
  def test_equal_scores_do_not_prove_countback(self):
   facts=dict(F,winner="Dale Rae and James Rae",winner_nett="10",winner_scores={},races=4,entries=10,status="Final",second="Other Crew",second_nett="10",third="",tied_first=True)

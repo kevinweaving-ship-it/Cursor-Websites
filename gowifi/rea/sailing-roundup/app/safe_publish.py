@@ -5,6 +5,8 @@ import argparse,hashlib,json,os,pathlib,re,shutil,subprocess,sys,tempfile
 ROOT=pathlib.Path(__file__).resolve().parent.parent
 
 def validate(root,issue):
+    from gates import require_publishable
+    require_publishable(issue, root=root)
     out=root/"public/issues"/issue
     data=json.loads((out/"issue.json").read_text())
     articles=data.get("articles",[]);ids=[a["event_id"] for a in articles]

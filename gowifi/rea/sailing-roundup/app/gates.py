@@ -1,0 +1,578 @@
+#!/usr/bin/env python3
+"""Sequential publish gates. Later steps do not run until the previous step PASSes.
+
+  1 event_facts  — event name / date / host / result leaderboard checksum
+  2 media        — real photographs only (no chrome, scoresheet, other-event, dupes)
+  3 story        — written recap locked to this event's facts
+  4 render       — gold HTML (edition-lead, h1, figures)
+  5 cards        — homepage cards have real copy and a real photo
+  6 publish      — replace live only if steps 1–5 all PASSed
+
+Nothing is published unless every required gate is PASS. A FAIL or BLOCKED
+step stops the pipeline; the next step is not done.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import hashlib
+import json
+import pathlib
+import re
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "app"))
+
+from event_rewrite import facts_from_rows, is_chrome_image
+from events_weekend import SKIP_NAME, overlaps, parse_day, saturday_sunday
+from evidence_pipeline import is_scoresheet, other_event_conflict
+
+SLUG_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$")
+STEPS = (
+    (1, "event_facts"),
+    (2, "media"),
+    (3, "story"),
+    (4, "render"),
+    (5, "cards"),
+    (6, "publish"),
+)
+HEADLINE_LIST = re.compile(r"^(?:[-*•]\s+\S+.*\n){2,}", re.M)
+
+
+class GateError(RuntimeError):
+    """Raised when a required gate fails or a later step is blocked."""
+
+    def __init__(self, run: "GateRun"):
+        self.run = run
+        super().__init__(run.summary())
+
+
+class GateResult:
+    def __init__(self, step: int, name: str, status: str, checksum: str = "", errors=None, events=None):
+        self.step = step
+        self.name = name
+        self.status = status
+        self.checksum = checksum or ""
+        self.errors = list(errors or [])
+        self.events = list(events or [])
+
+    @property
+    def ok(self) -> bool:
+        return self.status == "pass"
+
+    def to_dict(self) -> dict:
+        return {
+            "step": self.step,
+            "name": self.name,
+            "status": self.status,
+            "checksum": self.checksum,
+            "errors": self.errors,
+            "events": self.events,
+        }
+
+
+class GateRun:
+    def __init__(self, monday: str, steps: list[GateResult]):
+        self.monday = monday
+        self.steps = list(steps)
+
+    def step(self, number: int) -> GateResult | None:
+        for item in self.steps:
+            if item.step == number:
+                return item
+        return None
+
+    def ok_through(self, number: int) -> bool:
+        needed = {n for n, _ in STEPS if n <= number}
+        return needed <= {s.step for s in self.steps if s.ok}
+
+    @property
+    def can_publish(self) -> bool:
+        return self.ok_through(6)
+
+    @property
+    def checksum(self) -> str:
+        first = self.step(1)
+        return first.checksum if first else ""
+
+    def summary(self) -> str:
+        lines = [f"gates {self.monday} can_publish={str(self.can_publish).lower()}"]
+        for item in self.steps:
+            lines.append(f"  step {item.step} {item.name}: {item.status.upper()}")
+            for err in item.errors:
+                lines.append(f"    - {err}")
+        return "\n".join(lines)
+
+    def to_dict(self) -> dict:
+        return {
+            "monday": self.monday,
+            "can_publish": self.can_publish,
+            "checksum": self.checksum,
+            "steps": [s.to_dict() for s in self.steps],
+        }
+
+
+def event_checksum(facts: dict) -> str:
+    """Stable identity of name / date / host / podium. Later steps key off this."""
+    payload = {
+        "slug": facts.get("slug") or "",
+        "name": facts.get("title") or "",
+        "start": facts.get("start") or "",
+        "end": facts.get("end") or "",
+        "host": (facts.get("club") or facts.get("club_name") or "").strip(),
+        "entries": facts.get("entries") or 0,
+        "races": facts.get("races") or 0,
+        "classes": list(facts.get("classes") or []),
+        "podium": [
+            {"pos": 1, "name": facts.get("winner") or "", "nett": facts.get("winner_nett") or ""},
+            {"pos": 2, "name": facts.get("second") or "", "nett": facts.get("second_nett") or ""},
+            {"pos": 3, "name": facts.get("third") or "", "nett": facts.get("third_nett") or ""},
+        ],
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def _blocked(step: int, name: str, prev: str) -> GateResult:
+    return GateResult(step, name, "blocked", errors=[f"blocked until {prev} PASSes"])
+
+
+def _monday_date(monday) -> dt.date:
+    if isinstance(monday, dt.date):
+        if monday.weekday() != 0:
+            raise ValueError("Issue date must be a Monday")
+        return monday
+    day = dt.date.fromisoformat(str(monday)[:10])
+    if day.weekday() != 0:
+        raise ValueError("Issue date must be a Monday")
+    return day
+
+
+def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: str = "") -> dict:
+    """Pass/fail one event's name, dates, host club, and result leaderboard."""
+    sat, sun = saturday_sunday(monday)
+    errors: list[str] = []
+    record = {
+        "slug": slug,
+        "name": "",
+        "start": "",
+        "end": "",
+        "host": "",
+        "entries": 0,
+        "races": 0,
+        "winner": "",
+        "checksum": "",
+        "errors": errors,
+        "status": "fail",
+    }
+    if not SLUG_RE.match(slug or ""):
+        errors.append("invalid event slug")
+    if not rows:
+        errors.append("no result rows from /api/regatta" + (f" ({fetch_error})" if fetch_error else ""))
+        return record
+
+    raw_name = (rows[0].get("event_name") or "").strip()
+    if not raw_name:
+        errors.append("missing event name")
+    elif SKIP_NAME.search(raw_name):
+        errors.append("event name is a course/meeting, not a scored event")
+
+    facts = facts_from_rows(slug, rows)
+    record["name"] = facts.get("title") or ""
+    record["start"] = facts.get("start") or ""
+    record["end"] = facts.get("end") or ""
+    record["host"] = (facts.get("club") or facts.get("club_name") or "").strip()
+    record["entries"] = facts.get("entries") or 0
+    record["races"] = facts.get("races") or 0
+    record["winner"] = facts.get("winner") or ""
+    record["checksum"] = event_checksum(facts)
+
+    if raw_name and (not record["name"] or record["name"] == slug):
+        errors.append("event name collapsed to the slug — not a real title")
+
+    start = parse_day(facts.get("start"))
+    end = parse_day(facts.get("end"))
+    if not start:
+        errors.append("missing start date")
+    if not end:
+        errors.append("missing end date")
+    if start and end and start > end:
+        errors.append("start date is after end date")
+    if start and end and not overlaps(start, end, sat, sun):
+        errors.append(f"dates {start.isoformat()}/{end.isoformat()} do not overlap weekend {sat.isoformat()}/{sun.isoformat()}")
+
+    host = (facts.get("club") or "").strip()
+    host_name = (facts.get("club_name") or "").strip()
+    if not host and (not host_name or host_name.lower() == "the host club"):
+        errors.append("missing host club")
+
+    ranked = [r for r in rows if r.get("rank") not in (None, "")]
+    if not ranked:
+        errors.append("leaderboard has no ranked rows")
+    else:
+        ranks: list[int] = []
+        for row in ranked:
+            try:
+                ranks.append(int(float(row["rank"])))
+            except (TypeError, ValueError):
+                errors.append(f"non-integer rank {row.get('rank')!r}")
+        firsts = [r for r in ranked if str(r.get("rank")).split(".")[0] == "1"]
+        if ranks and min(ranks) != 1:
+            errors.append(f"first rank is {min(ranks)}, expected 1")
+        if not firsts:
+            errors.append("no sailor/team in 1st place")
+        elif len(ranked) > 2 and len(firsts) == len(ranked):
+            errors.append("every entry is listed as 1st — leaderboard is not a result")
+        elif len(firsts) > 3:
+            errors.append("more than three entries in 1st place — leaderboard is not ranked")
+
+    winner = (facts.get("winner") or "").strip()
+    if not winner or winner == "The leader":
+        errors.append("leaderboard has no winner name")
+
+    cols, table = facts.get("leaderboard") or ([], [])
+    if not table:
+        errors.append("empty result leaderboard")
+    elif not any(row and any(cell for cell in row[1:3]) for row in table):
+        errors.append("leaderboard rows have no helm/crew names")
+
+    if (facts.get("entries") or 0) < 1 and len(rows) < 1:
+        errors.append("no entries on the result card")
+
+    record["status"] = "pass" if not errors else "fail"
+    return record
+
+
+def gate_event_facts(ctx: dict) -> GateResult:
+    monday = _monday_date(ctx["monday"])
+    slugs = list(ctx.get("slugs") or [])
+    rows_by_slug = ctx.get("rows_by_slug") or {}
+    table_events = ctx.get("table_events") or []
+    fetch_errors = ctx.get("fetch_errors") or {}
+    errors: list[str] = []
+    events: list[dict] = []
+    facts_by_slug: dict[str, dict] = {}
+
+    if not slugs:
+        errors.append("no event slugs discovered for weekend")
+
+    seen: set[str] = set()
+    for slug in slugs:
+        if slug in seen:
+            errors.append(f"{slug}: duplicate slug")
+            continue
+        seen.add(slug)
+        rows = rows_by_slug.get(slug) or []
+        rec = check_one_event(monday, slug, rows, fetch_error=fetch_errors.get(slug) or "")
+        events.append(rec)
+        if rows:
+            facts_by_slug[slug] = facts_from_rows(slug, rows)
+        errors.extend(f"{slug}: {err}" for err in rec["errors"])
+
+    for item in table_events:
+        rid = item.get("regatta_id")
+        if rid and item.get("has_results") and rid not in seen:
+            errors.append(f"{rid}: scored events-table row missing from discovered slugs")
+
+    ctx["facts_by_slug"] = facts_by_slug
+    digest = hashlib.sha256(
+        "".join(e.get("checksum") or "" for e in events).encode("utf-8")
+    ).hexdigest()[:16]
+    return GateResult(1, "event_facts", "pass" if not errors else "fail", checksum=digest, errors=errors, events=events)
+
+
+def _reports(ctx: dict) -> list[dict]:
+    return [a for a in (ctx.get("articles") or []) if a.get("type") == "regatta_report"]
+
+
+def gate_media(ctx: dict) -> GateResult:
+    reports = _reports(ctx)
+    errors: list[str] = []
+    events: list[dict] = []
+    if not reports:
+        return GateResult(2, "media", "fail", errors=["no event articles to check for photographs"])
+    hashes: set[str] = set()
+    public = pathlib.Path(ctx["public_dir"]) if ctx.get("public_dir") else None
+    for article in reports:
+        slug = article.get("event_id") or article.get("id") or ""
+        images = [b for b in (article.get("blocks") or []) if b.get("type") == "image"]
+        rec = {"slug": slug, "photographs": len(images), "errors": []}
+        if not images:
+            rec["errors"].append("no photographs")
+        for block in images:
+            url = block.get("url") or ""
+            src = block.get("source_url") or ""
+            cap = block.get("caption") or ""
+            if is_chrome_image(src or url, cap):
+                rec["errors"].append("chrome/logo photograph")
+            if is_scoresheet({"url": src or url, "title": cap, "caption": cap}):
+                rec["errors"].append("scoresheet photograph")
+            if other_event_conflict(
+                {"url": src, "title": cap, "body": cap},
+                {"slug": slug, "title": article.get("headline") or slug, "url": "https://sailingsa.co.za/regatta/" + slug},
+            ):
+                rec["errors"].append("photograph belongs to another event")
+            if public and url:
+                path = (public / url).resolve()
+                if path.is_file() and path.is_relative_to(public.resolve()):
+                    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                    if digest in hashes:
+                        rec["errors"].append("duplicate photograph")
+                    hashes.add(digest)
+        events.append(rec)
+        errors.extend(f"{slug}: {err}" for err in rec["errors"])
+    return GateResult(2, "media", "pass" if not errors else "fail", errors=errors, events=events)
+
+
+def gate_story(ctx: dict) -> GateResult:
+    articles = list(ctx.get("articles") or [])
+    reports = _reports(ctx)
+    facts_by_slug = ctx.get("facts_by_slug") or {}
+    errors: list[str] = []
+    events: list[dict] = []
+    if not reports:
+        return GateResult(3, "story", "fail", errors=["no event articles to check for written copy"])
+    feature = next((a for a in articles if a.get("type") == "feature"), None)
+    if feature:
+        paras = [b.get("text") or "" for b in (feature.get("blocks") or []) if b.get("type") == "paragraph"]
+        blob = "\n".join(paras).strip()
+        if len(blob.split()) < 20:
+            errors.append("feature lead is too short to be a written story")
+        if HEADLINE_LIST.search(blob) and len(blob.split()) < 40:
+            errors.append("feature lead is a headline list, not a story")
+    for article in reports:
+        slug = article.get("event_id") or article.get("id") or ""
+        paras = [b.get("text") or "" for b in (article.get("blocks") or []) if b.get("type") == "paragraph"]
+        blob = " ".join(paras)
+        rec = {"slug": slug, "paragraphs": len(paras), "errors": []}
+        if not paras:
+            rec["errors"].append("no written paragraphs")
+        citations = {x.get("n") for x in (article.get("citations") or []) if x.get("n") is not None}
+        for text in paras:
+            refs = {int(x) for x in re.findall(r"\[(\d+)\]", text)}
+            if not refs or (citations and not refs <= citations):
+                rec["errors"].append("untraceable paragraph")
+            if other_event_conflict(
+                {"url": "", "title": "", "body": text},
+                {"slug": slug, "title": article.get("headline") or slug},
+                require_identity=False,
+            ):
+                rec["errors"].append("article quotes another event")
+        facts = facts_by_slug.get(slug) or {}
+        helm = (facts.get("winner_helm") or facts.get("winner") or "").strip()
+        token = helm.split()[0] if helm else ""
+        if token and token != "The" and token.lower() not in blob.lower():
+            rec["errors"].append(f"winner {helm!r} missing from story")
+        events.append(rec)
+        errors.extend(f"{slug}: {err}" for err in rec["errors"])
+    return GateResult(3, "story", "pass" if not errors else "fail", errors=errors, events=events)
+
+
+def gate_render(ctx: dict) -> GateResult:
+    public = pathlib.Path(ctx["public_dir"]) if ctx.get("public_dir") else None
+    html_text = ctx.get("html") or ""
+    if public:
+        page = public / "index.html"
+        if page.is_file():
+            html_text = page.read_text(encoding="utf-8", errors="replace")
+    errors: list[str] = []
+    if not html_text.strip():
+        return GateResult(4, "render", "fail", errors=["HTML not rendered — render step has not run"])
+    if "edition-lead" not in html_text:
+        errors.append("missing edition-lead")
+    if not re.search(r"<h1\b", html_text, re.I):
+        errors.append("missing h1")
+    if "<figure" not in html_text and _reports(ctx):
+        images = [
+            b
+            for a in _reports(ctx)
+            for b in (a.get("blocks") or [])
+            if b.get("type") == "image"
+        ]
+        if images:
+            errors.append("photographs missing from rendered HTML")
+    return GateResult(4, "render", "pass" if not errors else "fail", errors=errors)
+
+
+def gate_cards(ctx: dict) -> GateResult:
+    landing = ctx.get("landing_html") or ""
+    lead = (ctx.get("feature_excerpt") or "").strip()
+    articles = list(ctx.get("articles") or [])
+    if not lead:
+        feature = next((a for a in articles if a.get("type") == "feature"), None)
+        if feature:
+            lead = " ".join(
+                b.get("text") or "" for b in (feature.get("blocks") or []) if b.get("type") == "paragraph"
+            ).strip()
+    errors: list[str] = []
+    if len(lead.split()) < 12:
+        errors.append("homepage card has no real copy")
+    reports = _reports(ctx)
+    if reports:
+        has_photo = False
+        for article in reports:
+            hero = ((article.get("hero_image") or {}) or {}).get("url") or ""
+            if hero and not is_chrome_image(hero, article.get("headline") or ""):
+                has_photo = True
+                break
+            if any(b.get("type") == "image" for b in (article.get("blocks") or [])):
+                has_photo = True
+                break
+        if not has_photo:
+            errors.append("homepage card has no real photograph")
+    if landing and "Last Week" not in landing and "roundup" not in landing.lower():
+        errors.append("landing page does not name the roundup")
+    return GateResult(5, "cards", "pass" if not errors else "fail", errors=errors)
+
+
+def gate_publish(ctx: dict) -> GateResult:
+    """Meta-gate: publish is allowed only after 1–5 PASSed."""
+    prior = ctx.get("_prior_ok")
+    if prior:
+        return GateResult(6, "publish", "pass")
+    return GateResult(6, "publish", "fail", errors=["publish blocked — earlier gates have not all PASSed"])
+
+
+_GATE_FNS = {
+    1: gate_event_facts,
+    2: gate_media,
+    3: gate_story,
+    4: gate_render,
+    5: gate_cards,
+    6: gate_publish,
+}
+
+
+def run_gates(ctx: dict, through: int = 6) -> GateRun:
+    """Run steps 1..through in order. A FAIL blocks every later step."""
+    monday = str(ctx.get("monday") or "")
+    if isinstance(ctx.get("monday"), dt.date):
+        monday = ctx["monday"].isoformat()
+    results: list[GateResult] = []
+    blocked = False
+    prior_name = "event_facts"
+    for number, name in STEPS:
+        if number > through:
+            break
+        if blocked:
+            results.append(_blocked(number, name, prior_name))
+            continue
+        if number == 6:
+            ctx["_prior_ok"] = all(s.ok for s in results)
+        result = _GATE_FNS[number](ctx)
+        results.append(result)
+        if not result.ok:
+            blocked = True
+            prior_name = name
+    if results and not results[-1].ok:
+        present = {s.step for s in results}
+        for number, name in STEPS:
+            if number not in present:
+                results.append(_blocked(number, name, prior_name))
+    return GateRun(monday, results)
+
+
+def write_gates(monday: str, run: GateRun, root: pathlib.Path | None = None) -> pathlib.Path:
+    root = root or ROOT
+    path = root / "issues" / monday / "sources" / "gates.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(run.to_dict(), indent=2, ensure_ascii=False) + "\n")
+    return path
+
+
+def load_gates(monday: str, root: pathlib.Path | None = None) -> dict | None:
+    root = root or ROOT
+    path = root / "issues" / monday / "sources" / "gates.json"
+    if not path.is_file():
+        return None
+    return json.loads(path.read_text())
+
+
+def require_publishable(monday: str, root: pathlib.Path | None = None) -> dict:
+    data = load_gates(monday, root=root)
+    if not data:
+        raise ValueError("Missing gates.json — publish blocked")
+    if not data.get("can_publish"):
+        raise ValueError("Publish blocked: gates did not all pass")
+    return data
+
+
+def _load_local_rows(monday: str, slugs: list[str], root: pathlib.Path) -> dict[str, list]:
+    out: dict[str, list] = {}
+    source = root / "issues" / monday / "sources"
+    for slug in slugs:
+        path = source / f"{slug}-results.json"
+        if path.is_file():
+            data = json.loads(path.read_text())
+            out[slug] = data if isinstance(data, list) else []
+    return out
+
+
+def _context_from_disk(monday: str, root: pathlib.Path, slugs=None, rows_by_slug=None, table_events=None) -> dict:
+    issue_dir = root / "issues" / monday
+    public_dir = root / "public" / "issues" / monday
+    articles = []
+    issue_json = issue_dir / "issue.json"
+    if issue_json.is_file():
+        articles = (json.loads(issue_json.read_text()).get("articles") or [])
+    weekend = {}
+    weekend_path = issue_dir / "sources" / "events-weekend.json"
+    if weekend_path.is_file():
+        weekend = json.loads(weekend_path.read_text())
+    slugs = list(slugs or weekend.get("slugs") or [])
+    table_events = list(table_events if table_events is not None else weekend.get("events") or [])
+    rows_by_slug = dict(rows_by_slug or {})
+    rows_by_slug.update({k: v for k, v in _load_local_rows(monday, slugs, root).items() if k not in rows_by_slug})
+    landing = ""
+    landing_path = root / "public" / "index.html"
+    if landing_path.is_file():
+        landing = landing_path.read_text(encoding="utf-8", errors="replace")
+    return {
+        "monday": monday,
+        "slugs": slugs,
+        "rows_by_slug": rows_by_slug,
+        "table_events": table_events,
+        "articles": articles,
+        "public_dir": str(public_dir) if public_dir.is_dir() else "",
+        "landing_html": landing,
+    }
+
+
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(description="Run sequential publish gates. Step 1 must PASS before later steps run.")
+    p.add_argument("--monday", required=True, help="Issue Monday YYYY-MM-DD")
+    p.add_argument("--step", type=int, default=6, help="Run only through this step (default 6 = all)")
+    p.add_argument("--root", help="Override repo root (tests)")
+    args = p.parse_args(argv)
+    root = pathlib.Path(args.root) if args.root else ROOT
+    ctx = _context_from_disk(args.monday, root)
+    if not ctx["slugs"] or not ctx["rows_by_slug"]:
+        try:
+            from events_weekend import slugs_for_weekend, weekend_events
+            from publish_weekend import discover_slugs, fetch_regatta
+
+            monday = dt.date.fromisoformat(args.monday)
+            if not ctx["table_events"]:
+                ctx["table_events"] = weekend_events(monday)
+            if not ctx["slugs"]:
+                ctx["slugs"] = discover_slugs(monday) or slugs_for_weekend(monday)
+            missing = [s for s in ctx["slugs"] if s not in ctx["rows_by_slug"]]
+            for slug in missing:
+                try:
+                    ctx["rows_by_slug"][slug] = fetch_regatta(slug)
+                except Exception as exc:
+                    ctx.setdefault("fetch_errors", {})[slug] = str(exc)[:180]
+                    ctx["rows_by_slug"][slug] = []
+        except Exception as exc:
+            if not ctx["slugs"]:
+                print(json.dumps({"monday": args.monday, "can_publish": False, "error": str(exc)[:200]}))
+                return 1
+    run = run_gates(ctx, through=max(1, min(args.step, 6)))
+    write_gates(args.monday, run, root=root)
+    print(json.dumps(run.to_dict(), indent=2))
+    return 0 if (run.ok_through(args.step) if args.step < 6 else run.can_publish) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

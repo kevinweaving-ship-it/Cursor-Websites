@@ -20,6 +20,7 @@ from event_rewrite import (
     rewrite_weekend_feature,
 )
 from events_weekend import saturday_sunday, slugs_for_weekend, weekend_events
+from gates import GateError, run_gates, write_gates
 from sailor_mentions import parse_day
 
 UA = {"User-Agent": "SailingRoundupResearch/1.0"}
@@ -126,6 +127,53 @@ def fetch_regatta(slug: str) -> list[dict]:
     return data if isinstance(data, list) else []
 
 
+def fetch_all_regattas(slugs: list[str]) -> tuple[dict[str, list], dict[str, str]]:
+    """Fetch every event's result card before any article work. Gate 1 keys off this."""
+    rows_by_slug: dict[str, list] = {}
+    fetch_errors: dict[str, str] = {}
+
+    def one(slug: str):
+        try:
+            return slug, fetch_regatta(slug), ""
+        except Exception as exc:
+            return slug, [], str(exc)[:180]
+
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        for slug, rows, err in pool.map(one, slugs):
+            rows_by_slug[slug] = rows
+            if err:
+                fetch_errors[slug] = err
+    return rows_by_slug, fetch_errors
+
+
+def _gate_context(monday: dt.date, slugs, rows_by_slug, table_events, fetch_errors=None, articles=None, root=None):
+    root = root or ROOT
+    issue = monday.isoformat()
+    public = root / "public" / "issues" / issue
+    landing = root / "public" / "index.html"
+    return {
+        "monday": issue,
+        "slugs": list(slugs or []),
+        "rows_by_slug": rows_by_slug or {},
+        "table_events": table_events or [],
+        "fetch_errors": fetch_errors or {},
+        "articles": articles or [],
+        "public_dir": str(public) if public.is_dir() else "",
+        "landing_html": landing.read_text(encoding="utf-8", errors="replace") if landing.is_file() else "",
+    }
+
+
+def require_gates(monday: dt.date, ctx: dict, through: int, root=None):
+    """Run gates 1..through. Write gates.json. Raise before the next step on FAIL."""
+    run = run_gates(ctx, through=through)
+    write_gates(monday.isoformat(), run, root=root or ROOT)
+    if not run.ok_through(through):
+        raise GateError(run)
+    return run
+
+
 def sailor_ids(rows: list[dict], limit: int = 8) -> list[str]:
     ids = []
     for row in rows:
@@ -180,51 +228,73 @@ def weekend_feature(issue: str, monday: dt.date, events: list[dict], articles: l
     return rewrite_weekend_feature(issue, monday, events, articles)
 
 
-def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -> dict:
+def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, **inject) -> dict:
+    """Build an issue only after sequential gates pass. Step 1 must PASS before articles exist."""
     if isinstance(monday, str):
         monday = dt.date.fromisoformat(monday)
     if monday.weekday() != 0:
         raise ValueError("Issue date must be a Monday")
+    root = inject.get("root") or ROOT
     issue = monday.isoformat()
-    dest = ROOT / "issues" / issue / "issue.json"
+    dest = root / "issues" / issue / "issue.json"
     logs = []
-    if dest.exists() and not rebuild:
-        data = json.loads(dest.read_text())
-        if enrich:
-            data["articles"] = [enrich_existing(issue, a) for a in data.get("articles") or []]
-            dest.write_text(json.dumps(data, indent=2, ensure_ascii=False))
-        from landing import write_public_index
-        from roundup import render
+    table_events = inject["table_events"] if "table_events" in inject else weekend_events(monday)
+    slugs = inject["slugs"] if "slugs" in inject else discover_slugs(monday)
+    if "rows_by_slug" in inject:
+        rows_by_slug = dict(inject["rows_by_slug"] or {})
+        fetch_errors = dict(inject.get("fetch_errors") or {})
+    else:
+        rows_by_slug, fetch_errors = fetch_all_regattas(slugs)
 
-        render(issue)
-        write_public_index()
-        return {"issue": issue, "action": "enriched", "articles": len(data.get("articles") or [])}
-    table_events = weekend_events(monday)
-    slugs = discover_slugs(monday)
-    articles = []
-    def build_event(pair):
-        index,slug=pair
-        try:
-            rows=fetch_regatta(slug)
-            if not rows:return None,{"event":slug,"status":"skipped_no_api_rows"}
-            article=article_from_regatta(issue,slug,rows,layout=layout_for(index,"regatta_report"))
-            if not article:return None,{"event":slug,"status":"skipped"}
-            return article,{"event":slug,"status":"draft","rows":len(rows)}
-        except Exception as exc:
-            return None,{"event":slug,"status":"error","error":str(exc)[:180]}
-    import concurrent.futures
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        for article,log in pool.map(build_event,enumerate(slugs)):
-            if article:articles.append(article)
-            logs.append(log)
-    failed = [x for x in logs if x["status"] in ("error", "skipped_no_api_rows")]
-    if failed:
-        raise RuntimeError("Edition incomplete: " + json.dumps(failed))
     dest.parent.mkdir(parents=True, exist_ok=True)
     (dest.parent / "sources").mkdir(parents=True, exist_ok=True)
     (dest.parent / "sources" / "events-weekend.json").write_text(
         json.dumps({"monday": issue, "events": table_events, "slugs": slugs}, indent=2, ensure_ascii=False)
     )
+    ctx = _gate_context(monday, slugs, rows_by_slug, table_events, fetch_errors, root=root)
+    require_gates(monday, ctx, through=1, root=root)
+
+    if dest.exists() and not rebuild:
+        data = json.loads(dest.read_text())
+        if enrich:
+            data["articles"] = [enrich_existing(issue, a) for a in data.get("articles") or []]
+            dest.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+        ctx["articles"] = data.get("articles") or []
+        require_gates(monday, ctx, through=3, root=root)
+        from landing import write_public_index
+        from roundup import render
+
+        render(issue)
+        ctx = _gate_context(monday, slugs, rows_by_slug, table_events, fetch_errors, articles=ctx["articles"], root=root)
+        require_gates(monday, ctx, through=6, root=root)
+        write_public_index()
+        return {"issue": issue, "action": "enriched", "articles": len(data.get("articles") or []), "can_publish": True}
+
+    articles = []
+
+    def build_event(pair):
+        index, slug = pair
+        rows = rows_by_slug.get(slug) or []
+        if not rows:
+            return None, {"event": slug, "status": "skipped_no_api_rows"}
+        try:
+            article = article_from_regatta(issue, slug, rows, layout=layout_for(index, "regatta_report"))
+            if not article:
+                return None, {"event": slug, "status": "skipped"}
+            return article, {"event": slug, "status": "draft", "rows": len(rows)}
+        except Exception as exc:
+            return None, {"event": slug, "status": "error", "error": str(exc)[:180]}
+
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        for article, log in pool.map(build_event, enumerate(slugs)):
+            if article:
+                articles.append(article)
+            logs.append(log)
+    failed = [x for x in logs if x["status"] in ("error", "skipped_no_api_rows")]
+    if failed:
+        raise RuntimeError("Edition incomplete: " + json.dumps(failed))
     feature = weekend_feature(issue, monday, table_events, articles)
     data = {
         "schema_version": "1.0",
@@ -237,12 +307,16 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True) -
     }
     dest.write_text(json.dumps(data, indent=2, ensure_ascii=False))
     (dest.parent / "sources" / "build-log.json").write_text(json.dumps(logs, indent=2))
+    ctx["articles"] = data["articles"]
+    require_gates(monday, ctx, through=3, root=root)
     from landing import write_public_index
     from roundup import render
 
     render(issue)
+    ctx = _gate_context(monday, slugs, rows_by_slug, table_events, fetch_errors, articles=data["articles"], root=root)
+    require_gates(monday, ctx, through=6, root=root)
     write_public_index()
-    return {"issue": issue, "action": "created", "articles": len(articles), "events": logs}
+    return {"issue": issue, "action": "created", "articles": len(articles), "events": logs, "can_publish": True}
 
 
 def publish_due(today: dt.date | None = None, backfill: int = 4, rebuild: bool = False) -> list:
