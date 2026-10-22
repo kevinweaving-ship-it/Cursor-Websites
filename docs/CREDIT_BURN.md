@@ -1,10 +1,14 @@
 # Cursor credit burn — what to change
 
-Agents cannot change your plan, model picker, or API keys. Do this on the Mac / dashboard.
+**Target setup:** Codex on the Mac for daily work; Cursor Pro + Auto on Mini for occasional phone. Ultra $200 is not the solution. Full compare, Pro checks, trial: **`docs/MAC_CODEX_VIBE.md`**.
+
+**Kevin’s dashboard (22 Oct 2026):** Cursor Models **91%** used, Other Models **19%** used, reset **3 November**, on-demand **OFF**. Those are two pools. The 91% pool is Mac/Cloud Grok-Composer. When it hits 100%, Cursor Agent stops until reset.
+
+Agents cannot change your plan, model picker, or API keys. Ultra → Pro only after the Mac trial passes.
 
 **Usage (dollar amounts):** [cursor.com/dashboard/spending](https://cursor.com/dashboard/spending) (legacy Pro/Ultra) or [grok.com/dashboard](https://grok.com/dashboard) (X Subscription). This repo has no billing API.
 
-**This Cloud run’s model:** `cursor-grok-4.6-high-fast` (mobile). That is the expensive default.
+**This Cloud run’s model:** `cursor-grok-4.6-high-fast` (mobile). That is the expensive default. Do not continue SailingSA work here.
 
 ## Settings that actually move the bill
 

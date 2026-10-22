@@ -4,7 +4,11 @@ This project uses **split tasks** to avoid agent resource limits, crashes, and C
 
 ## Credit burn (do not skip)
 
-**`docs/CREDIT_BURN.md`** — cheap models only (Auto / Composer). No Max Mode, Claude Opus, Thinking, Best-of-N, Cloud, or parallel subagents unless the user names that in the same message. Search/read only relevant code; focused edits; run checks once; if the same fix fails twice, investigate before retrying. SailingSA stays on This Mac. Humans: Ultra → Pro and BYOK are dashboard/Settings actions, not agent actions. Always-apply rules: `.cursor/rules/credit-burn.mdc`, `.cursor/rules/task-splitting-and-resources.mdc`.
+**Mac daily work uses Codex** (ChatGPT Pro, already paid). Cursor is for occasional phone / Mini + Auto only. Ultra $200 is not the target. Setup and trial: **`docs/MAC_CODEX_VIBE.md`**. Always-apply: `.cursor/rules/credit-burn.mdc`, `.cursor/rules/task-splitting-and-resources.mdc`.
+
+Kevin vibe-codes only. Do **not** ask him to pick a model, classify difficulty, or switch providers. Stay on the default ChatGPT-signed-in Codex model at Standard speed. For a hard task, raise your own reasoning — do not request Fast, Ultrafast, Claude, GLM, or MiniMax. If the same fix fails twice, stop and report the cause. Do not start Cursor Cloud agents. Deploy live only with `bash sailingsa/deploy/deploy-with-key.sh` when this message asked for live.
+
+**`docs/CREDIT_BURN.md`** — no Max Mode, Opus, Thinking, Best-of-N, or parallel subagents unless the user names that model in this message. SailingSA stays on This Mac. Humans: Ultra → Pro only after the Mac trial passes; on-demand stays OFF.
 
 ## SSH / deploy / live — MUST use readme
 

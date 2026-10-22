@@ -5,13 +5,15 @@ alwaysApply: true
 
 # Credit burn (hard)
 
-User already burned months of usage via Max Mode + Claude on mobile. Default cheap.
+Mac daily vibe-coding is **Codex** (existing ChatGPT Pro). Cursor is occasional phone / Mini + Auto only. Ultra $200 is not the target. See `docs/MAC_CODEX_VIBE.md`.
 
-- Prefer Auto / Composer / fast low-cost models. Do not enable Max Mode. Do not switch to Claude Opus, Claude Thinking, Best-of-N, or multi-model runs unless the user names that model in this message.
+Kevin does not classify tasks or switch models. Do not ask him to.
+
+- Prefer Auto / Composer if this session is Cursor. Do not enable Max Mode. Do not switch to Claude Opus, Claude Thinking, Best-of-N, GLM, MiniMax, or multi-model runs unless the user names that model in this message.
 - Do not launch Cloud Agents, background agents, or parallel subagents unless the user asks in this message. Do not spawn summarize/extract/browser subagents for context you can read yourself.
 - Search/read only relevant code. Make focused edits. Run relevant checks once. Avoid unrelated files.
 - If the same fix fails twice, stop retrying and investigate the cause before another attempt.
 - Report briefly. Do not re-read large files or rescan the repo without need.
 - SailingSA / sailingsa.co.za work stays on This Mac. Do not start or continue Cloud for that work unless the user types that they want Cloud in the same message.
 
-Settings the human must change (agents cannot): Cursor Settings → Models (Auto / Composer 2.5); add own OpenAI / Anthropic / Google keys (BYOK does not draw the Cursor pool on individual plans); dashboard Billing Ultra → Pro (downgrade at period end); Spending tab: cap or disable on-demand. Usage: cursor.com/dashboard/spending. See `docs/CREDIT_BURN.md`.
+Settings the human must change (agents cannot): on-demand stays OFF; Ultra → Pro only after the Mac Codex trial in `docs/MAC_CODEX_VIBE.md` passes. Do not add GLM/MiniMax keys. Usage: cursor.com/dashboard/spending.
