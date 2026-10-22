@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261022o";
+  var JS_VER = "20261022p";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var ROSTER_LINES = 4;
@@ -189,19 +189,6 @@
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
       "#macTslGoldPrint{display:none}",
       "#macTslGoldPrint .fleet-results-table{border:none;border-radius:0;width:100%;margin:0}",
-      "@page{size:landscape;margin:8mm}",
-      "@media print{" +
-        "html{-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
-        "body{background:#fff}" +
-        ".site-header,.site-footer,.action-buttons,.back-to-home,.regatta-sa-mode-wrap,.regatta-wc-icons-row,.mac-tsl-live-cards,#macTslMatches,#macTslSchedule,#macTslAdmin,#tslNamePop,#macTslGoldPrint,.tsl-new-team-card,#tslSlotPick{display:none!important}" +
-        ".regatta-page[data-mac-tsl=\"1\"]{overflow:visible!important}" +
-        ".regatta-header-wrap,.header,.class-header,#macTslGoldSheet,#macTslFlightsCard,#macTslTeamsCard{display:block!important}" +
-        "#macTslGoldSheet,#macTslGoldSheet .tsl-gold-right,.regatta-page[data-mac-tsl=\"1\"] .table-wrapper{overflow:visible!important}" +
-        "#macTslFlightsCard.tsl-section-shut .tsl-flight-cards,#macTslTeamsCard.tsl-section-shut .tsl-team-cards{display:grid!important}" +
-        "#macTslFlightsCard .tsl-flight-cards,#macTslTeamsCard .tsl-team-cards{display:grid!important;grid-template-columns:1fr 1fr!important;flex-direction:unset!important}" +
-        "#macTslFlightsCard,#macTslTeamsCard{padding:8px!important}" +
-        "#macTslFlightsCard .tsl-flight-card,#macTslTeamsCard .tsl-team-card{padding:8px!important}" +
-      "}",
       "#macTslFlightsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin:0 0 8px;position:relative;overflow:hidden}",
       "#macTslFlightsCard .fleet-title-row,#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
       "#macTslFlightsCard .tsl-section-head,#macTslTeamsCard .tsl-section-head{display:block;width:100%;text-align:center;font-weight:bold;border:none;background:none;color:#1a2750;font:inherit;cursor:pointer}",
@@ -304,6 +291,24 @@
       "}",
       "@media (orientation: landscape), (min-width: 600px){",
       ".regatta-page[data-mac-tsl=\"1\"] th.tsl-ml-only,.regatta-page[data-mac-tsl=\"1\"] td.tsl-ml-only{display:table-cell}",
+      "}",
+      "@page{size:A4 landscape;margin:8mm}",
+      "@media print{" +
+        "html{-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
+        "body{background:#fff}" +
+        ".site-header,.site-footer,.action-buttons,.back-to-home,.regatta-sa-mode-wrap,.regatta-wc-icons-row,.mac-tsl-live-cards,#macTslMatches,#macTslSchedule,#macTslAdmin,#tslNamePop,.tsl-new-team-card,#tslSlotPick{display:none!important}" +
+        ".regatta-page[data-mac-tsl=\"1\"]{overflow:visible!important}" +
+        ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .header{grid-template-columns:minmax(0,1fr) minmax(0,2.4fr) minmax(0,1fr)!important}" +
+        ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-col,.regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-club-logo-col{height:52px!important}" +
+        ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-img{height:52px!important;max-height:52px!important}" +
+        "#macTslGoldSheet{display:none!important}" +
+        "#macTslGoldPrint{display:block!important;overflow:visible!important;border:2px solid #1a2750;border-radius:10px;background:#fff;width:100%;max-width:100%;margin-top:20px;margin-bottom:20px}" +
+        "#macTslGoldPrint th,#macTslGoldPrint td{font-size:90%}" +
+        "#macTslFlightsCard,#macTslTeamsCard{display:block!important;overflow:visible!important;padding:8px!important}" +
+        "#macTslFlightsCard.tsl-section-shut .tsl-flight-cards,#macTslTeamsCard.tsl-section-shut .tsl-team-cards{display:grid!important}" +
+        "#macTslFlightsCard .tsl-flight-cards,#macTslTeamsCard .tsl-team-cards{display:grid!important;grid-template-columns:1fr 1fr!important;flex-direction:unset!important}" +
+        "#macTslFlightsCard .tsl-flight-card,#macTslTeamsCard .tsl-team-card{padding:8px!important;overflow:visible!important}" +
+        ".regatta-page[data-mac-tsl=\"1\"] .table-wrapper{overflow:visible!important}" +
       "}"
     ].join("");
   }
@@ -1550,6 +1555,9 @@
       } else {
         sheet.removeAttribute("data-tsl-standings-disagreement");
       }
+      var printEl = document.getElementById("macTslGoldPrint");
+      if (printEl && printEl.parentNode) printEl.parentNode.removeChild(printEl);
+      sheet.insertAdjacentHTML("afterend", goldPrintTableHtml());
     }
     requestAnimationFrame(function () {
       layoutGoldSheet();
