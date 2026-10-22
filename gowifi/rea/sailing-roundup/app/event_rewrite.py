@@ -244,6 +244,21 @@ def is_team_racing(row: dict | None = None, slug: str = "", rows: list[dict] | N
     return entry_kind(row, slug=slug, rows=rows) == "team"
 
 
+def ranked_winner(facts: dict) -> str:
+    """The name that may appear in a headline. Team racing is a team, never a sailor list."""
+    identity = facts.get("identity") or ("team" if facts.get("team_racing") else "")
+    team = (facts.get("winner_team") or "").strip()
+    raw = (facts.get("winner") or "").strip()
+    if identity in ("team", "boat"):
+        name = team or raw
+        if _is_roster(name):
+            return team if team and not _is_roster(team) else ""
+        return name
+    if _is_roster(raw):
+        return team if team and not _is_roster(team) else ""
+    return raw
+
+
 def _names(row: dict) -> str:
     return entry_label(row)
 
@@ -375,6 +390,16 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
     winner_name = entry_label(winner, slug=slug)
     winner_team = _team_name(winner) if identity in ("team", "boat") else ""
     winner_sailors = _sailor_roster(winner)
+    winner_label = ranked_winner(
+        {
+            "identity": identity,
+            "team_racing": team,
+            "winner": winner_name,
+            "winner_team": winner_team,
+        }
+    )
+    if not winner_label and not team:
+        winner_label = winner_name
     return {
         "slug": slug,
         "title": title,
@@ -393,7 +418,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "scoring_kind": scoring_kind(first, slug=slug),
         "identity": identity,
         "team_racing": team,
-        "winner": winner_name,
+        "winner": winner_label,
         "winner_class": (winner.get("class_name") or winner.get("class_canonical") or "").strip(),
         "winner_helm": winner_name if identity in ("team", "boat") else (winner.get("helm_name") or "").strip(),
         "winner_crew": ", ".join(winner_sailors) if identity in ("team", "boat") else (winner.get("crew_name") or "").strip(),
@@ -679,7 +704,9 @@ def event_finished(facts: dict, issue: str | None = None) -> bool:
 
 
 def unique_headline(facts: dict, cluster: dict | None = None) -> str:
-    winner = facts["winner"]
+    winner = ranked_winner(facts) or (facts.get("winner") or "").strip()
+    if (facts.get("identity") == "team" or facts.get("team_racing")) and (not winner or _is_roster(winner)):
+        raise ValueError("team racing headline must be a team name, not a sailor roster")
     title = facts["title"]
     venue = facts["club_name"]
     short_venue = venue.replace(" Yacht Club", "").replace(" Sports Club", "").replace(" Club", "")

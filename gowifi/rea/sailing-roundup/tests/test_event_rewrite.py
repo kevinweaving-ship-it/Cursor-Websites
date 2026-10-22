@@ -493,8 +493,24 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(board["rows"][0]["helm"], "RCYCA A")
         self.assertEqual(board["rows"][0]["wins"], "4")
         headline = unique_headline(facts)
-        self.assertIn("RCYCA A", headline)
+        self.assertEqual(
+            headline,
+            "RCYCA A wins SA Sailing WC Team Sailing Event at MAC",
+        )
         self.assertNotIn("Maddison", headline)
+        sailor_facts = dict(
+            facts,
+            winner="Maddison Smit; Tristan Gress; Unam Lubhelwana and Kamva Mgcubhe; Thandokazi Sibanyoni; Alexa Aab",
+            winner_helm="Maddison Smit; Tristan Gress; Unam Lubhelwana",
+            winner_team="RCYCA A",
+        )
+        self.assertEqual(
+            unique_headline(sailor_facts),
+            "RCYCA A wins SA Sailing WC Team Sailing Event at MAC",
+        )
+        bad = dict(sailor_facts, winner_team="")
+        with self.assertRaises(ValueError):
+            unique_headline(bad)
 
     def test_lipton_and_py_and_timed_adapt_identity(self):
         lipton = [

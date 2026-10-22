@@ -137,6 +137,12 @@ class DeskEditor(unittest.TestCase):
         self.assertNotIn("nett points", blob)
         self.assertNotIn("Maddison", blob)
         self.assertEqual(qa(blob, f), [])
+        sailors = "Maddison Smit; Tristan Gress; Unam Lubhelwana and Kamva Mgcubhe; Thandokazi Sibanyoni; Alexa Aab"
+        fixed = " ".join(edit_event(dict(f, winner=sailors, winner_helm=sailors)))
+        self.assertIn("RCYCA A won", fixed)
+        self.assertNotIn("Maddison", fixed)
+        with self.assertRaises(ValueError):
+            edit_event(dict(f, winner=sailors, winner_team="", winner_helm=sailors))
 
     def test_py_overall_names_the_helm_not_a_class_split(self):
         f = facts(

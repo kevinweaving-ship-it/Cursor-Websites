@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from event_rewrite import _agree, _date_span, _heats, entry_label
+from event_rewrite import _agree, _date_span, _heats, _is_roster, entry_label, ranked_winner
 
 GENERIC = re.compile(
     r"exciting weekend|took to the water|action[- ]packed|thrilling display|"
@@ -97,7 +97,9 @@ def photo_line(hero: dict | None, facts: dict) -> str:
 def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
     """Newsroom recap locked to the results card and stored hero."""
     mark = "[1]"
-    winner = facts.get("winner") or "The leader"
+    winner = ranked_winner(facts) or (facts.get("winner") or "The leader")
+    if (facts.get("identity") == "team" or facts.get("team_racing")) and _is_roster(winner):
+        raise ValueError("team racing copy must use the team name, not a sailor roster")
     title = facts.get("title") or "the event"
     venue = facts.get("club_name") or facts.get("club") or "the host club"
     entries = facts.get("entries") or 0

@@ -579,6 +579,13 @@ def gate_story(ctx: dict) -> GateResult:
             ):
                 rec["errors"].append("article quotes another event")
         facts = facts_by_slug.get(slug) or {}
+        headline = article.get("headline") or ""
+        if facts.get("team_racing") or facts.get("identity") == "team":
+            if _is_roster(headline):
+                rec["errors"].append("team racing headline is a sailor roster — winner is the team name")
+            team = (facts.get("winner_team") or facts.get("winner") or "").strip()
+            if team and team != "The leader" and team.lower() not in headline.lower():
+                rec["errors"].append(f"team racing headline is not the team name {team!r}")
         helm = (facts.get("winner_helm") or facts.get("winner") or "").strip()
         token = helm.split()[0] if helm else ""
         if token and token != "The" and token.lower() not in blob.lower():
