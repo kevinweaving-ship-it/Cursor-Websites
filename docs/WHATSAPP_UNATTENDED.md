@@ -29,42 +29,56 @@ It is a **linked device**. Meta can invalidate it; a second copy of the same ses
 
 ## Better system: WhatsApp Cloud API (recommended)
 
-Official **WhatsApp Business Platform / Cloud API** (Meta):
+Official **WhatsApp Business Platform / Cloud API** (Meta) — **paid is OK**; goal is **low and predictable** cost for community / box services, not “free at all costs”.
 
-- Server sends with a **permanent access token** + phone number ID
-- **No Baileys**, no linked-device fight, no QR on the gas phone for routine sends
-- Phone is only needed for **one-time** Business / number setup (or number migration)
+- Server sends with a **permanent access token** + phone number ID  
+- **No Baileys**, no linked-device fight, no QR on the gas phone for routine sends  
+- Phone is only needed for **one-time** Business / number setup (or number migration)  
 - Fits unattended monitoring (disk, Olarm, Tuya, etc.)
+
+### Keep costs down (community boxes)
+
+| Do | Don’t |
+|---|---|
+| Talk to **Meta Cloud API directly** from the VPS (no BSP / Twillio / chat SaaS markup) | Pay a reseller per message on top of Meta |
+| Prefer **utility** templates for alerts (Olarm down, disk, Tuya) | Marketing templates for ops alerts |
+| **One** Business number for Arial/ops alerts; reuse existing `/send` callers | Extra WABA numbers “just in case” |
+| Dedupe / cooldown in `site_watch` / monitor (already the pattern) | Page every admin on every flap |
+| Use the **1 000 free service messages / number / month** when someone has messaged in | Blast free-form outside the 24h window |
+| Keep SailingSA **group archive** on Baileys only if still needed; don’t Cloud-API that traffic | Move high-volume chat into Cloud without a need |
+
+Rough order of magnitude for SA recipients: utility/service is on the order of **cents per delivered message** after free tiers; a quiet monitoring number (tens–low hundreds of alerts/month) stays cheap. Confirm live rates in [Meta WhatsApp pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing) when provisioning Billing Hub (card on file so sends don’t stop after the free tier).
 
 ### Target shape on this box
 
 ```
 monitor / site_watch / alert_watcher
-        → small local sender (Python)
-        → Graph API messages endpoint
-        → recipients (Kevin, …)
+        → small local Python sender (no new SaaS)
+        → Graph API (Cloud API)
+        → few admin recipients
 ```
 
-Keep the existing `POST /send` control shape if useful: implement a thin adapter that speaks Cloud API underneath so cron and watchers need minimal changes.
+Thin adapter behind the existing `POST /send` shape so cron/watchers barely change. **No** paid middleware.
 
 ### What to provision (operator, once)
 
-1. Meta Business Manager + WhatsApp Business account  
-2. Cloud API app: **Phone number ID**, **WhatsApp Business Account ID**, **permanent token**  
-3. Store secrets only in something like `/etc/sailingsa-whatsapp-cloud.env` (mode `0600`), not in git  
-4. Register / migrate the alert numbers you care about (Arial monitoring vs SailingSA event box can be separate WABAs or the same)
+1. Meta Business Manager + WhatsApp Business account (community / org billing)  
+2. Cloud API app: **Phone number ID**, **WABA ID**, **permanent token**  
+3. Secrets only in e.g. `/etc/sailingsa-whatsapp-cloud.env` (`0600`), not in git  
+4. One ops alert number first (Arial/server-monitor). Add a second number only if SailingSA outbound must be separate  
+5. Approve a small set of **utility** templates (disk warning, Olarm offline/online, Tuya fail)
 
 ### Send path (sketch)
 
 `POST https://graph.facebook.com/v21.0/{phone-number-id}/messages`  
-with Bearer token; template messages for outside the 24h session window, plain text inside it.
+Bearer token; **utility template** for cold alerts; free-form only inside an open customer-care window.
 
 ### Cutover (controlled)
 
-1. Implement Cloud sender beside Baileys; feature-flag per channel (`USE_CLOUD_API=1`)  
-2. Dual-run: Cloud for new alerts, Baileys read-only or off  
-3. Disable `arial-whatsapp-poc` / Baileys send once Cloud is proven  
-4. Leave Baileys only if you still need inbound group archive (or replace that later)
+1. Cloud sender beside Baileys; flag `USE_CLOUD_API=1` on Arial/ops only  
+2. Prove disk + Olarm paths; leave Baileys for inbound archive if still required  
+3. Turn off Baileys **send** for ops once Cloud is solid — saves fight risk, not “save Meta fees”  
+4. Skip BSP migration tools unless Meta forces number move
 
 ## Until Cloud API is live
 
