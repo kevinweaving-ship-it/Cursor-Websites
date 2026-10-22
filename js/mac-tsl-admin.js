@@ -3018,6 +3018,16 @@
         if (cell && Number(cell.team_id) === 15) cell.team_id = 17;
       }
     }
+    var adj = src.score_adjust;
+    if (adj && typeof adj === "object") {
+      Object.keys(adj).forEach(function (flKey) {
+        var teams = adj[flKey];
+        if (!teams || typeof teams !== "object") return;
+        if (teams["15"] == null) return;
+        if (teams["17"] == null) teams["17"] = teams["15"];
+        delete teams["15"];
+      });
+    }
     if (state.settings) state.settings.flight_sheet = src;
     return src;
   }

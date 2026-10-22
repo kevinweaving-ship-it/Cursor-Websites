@@ -36,6 +36,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertIn("var ROSTER_LINES = 4", JS)
         self.assertIn("<th>4 Helm</th><th>4 Crew</th>", JS)
         self.assertIn("remapRetiredTeamId", JS)
+        self.assertIn('if (teams["15"] == null) return;', JS)
         self.assertIn("isEventFinal", JS)
         self.assertIn("flightIsEmpty", JS)
         self.assertIn("tsl-flight-cards--one", JS)
