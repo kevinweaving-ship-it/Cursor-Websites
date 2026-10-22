@@ -1,91 +1,57 @@
-# WhatsApp alerts — unattended operation
+# WhatsApp alerts — unattended, **free only**
+
+**Constraint:** community / box services — **no paid WhatsApp** (no Cloud API billing, no BSP, no Twilio, no chat SaaS). Stay on the existing Baileys PoCs on the VPS.
 
 ## Problem
 
-Baileys (linked companion device) **requires a phone once** to pair, and can require the phone again if:
+Baileys is a **linked companion device**. It is free, but:
 
-- another client uses the **same** companion credentials (`connectionReplaced` / 440), or
-- WhatsApp invalidates the companion (`loggedOut` / 401).
+- another client with the **same** companion creds causes `connectionReplaced` (440) and breaks delivery (“Waiting for this message…”, grey ticks);
+- wiping `state/auth` forces phone pairing — unacceptable for an unattended gas phone.
 
-Fighting reconnects or auto-wiping `state/auth` makes delivery worse (“Waiting for this message…”, single grey ticks) and is unsafe for a gas / remote phone that nobody is holding.
+Official Meta Cloud API is **out of scope** here (paid / Billing Hub).
 
-## Current live policy (Arial + SailingSA PoCs)
+## Live policy (Arial + SailingSA PoCs)
 
 On the HostAfrica box (`/opt/arial-whatsapp-poc`, `/opt/sailingsa-whatsapp-poc`):
 
-| Event | Old behaviour (bad for unattended) | New behaviour |
-|---|---|---|
-| `401 loggedOut` | Rename/wipe `auth`, force QR/pairing loop | **Hold** `REAUTH_REQUIRED`, **keep creds**, no auto re-pair |
-| `440 connectionReplaced` | Reconnect every few seconds (fight) | **Hold** `DEGRADED`, retry at most every **30 minutes** |
-| New socket | Could overlap previous socket | Close previous socket before `connect()` |
-
-Node security patch remains: both services run **Node 22.23.4** via systemd drop-ins.
-
-**Never** wipe `state/auth` or force pairing unless an operator is at the phone and explicitly asks.
-
-## Why Baileys cannot be “phone-free forever”
-
-It is a **linked device**. Meta can invalidate it; a second copy of the same session will kick the server every ~minute. That is a product limit, not a systemd bug.
-
-## Better system: WhatsApp Cloud API (recommended)
-
-Official **WhatsApp Business Platform / Cloud API** (Meta) — **paid is OK**; goal is **low and predictable** cost for community / box services, not “free at all costs”.
-
-- Server sends with a **permanent access token** + phone number ID  
-- **No Baileys**, no linked-device fight, no QR on the gas phone for routine sends  
-- Phone is only needed for **one-time** Business / number setup (or number migration)  
-- Fits unattended monitoring (disk, Olarm, Tuya, etc.)
-
-### Keep costs down (community boxes)
-
-| Do | Don’t |
+| Event | Policy |
 |---|---|
-| Talk to **Meta Cloud API directly** from the VPS (no BSP / Twillio / chat SaaS markup) | Pay a reseller per message on top of Meta |
-| Prefer **utility** templates for alerts (Olarm down, disk, Tuya) | Marketing templates for ops alerts |
-| **One** Business number for Arial/ops alerts; reuse existing `/send` callers | Extra WABA numbers “just in case” |
-| Dedupe / cooldown in `site_watch` / monitor (already the pattern) | Page every admin on every flap |
-| Use the **1 000 free service messages / number / month** when someone has messaged in | Blast free-form outside the 24h window |
-| Keep SailingSA **group archive** on Baileys only if still needed; don’t Cloud-API that traffic | Move high-volume chat into Cloud without a need |
+| `401 loggedOut` | **Hold** `REAUTH_REQUIRED`, **keep** `state/auth` — never auto-wipe / auto-pair |
+| `440 connectionReplaced` | **Hold** `DEGRADED`, retry at most every **30 minutes** — do not fight |
+| New socket | Close previous socket before `connect()` |
+| Node | **22.23.4** via systemd drop-ins (security) |
 
-Rough order of magnitude for SA recipients: utility/service is on the order of **cents per delivered message** after free tiers; a quiet monitoring number (tens–low hundreds of alerts/month) stays cheap. Confirm live rates in [Meta WhatsApp pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing) when provisioning Billing Hub (card on file so sends don’t stop after the free tier).
+**Never** delete `state/auth` or force pairing unless someone is at the phone **and** explicitly asks.
 
-### Target shape on this box
+## Free unattended design (what we keep)
 
 ```
 monitor / site_watch / alert_watcher
-        → small local Python sender (no new SaaS)
-        → Graph API (Cloud API)
+        → existing localhost POST /send (Baileys)
         → few admin recipients
 ```
 
-Thin adapter behind the existing `POST /send` shape so cron/watchers barely change. **No** paid middleware.
+No new vendors. No Graph API tokens. No monthly WhatsApp invoice.
 
-### What to provision (operator, once)
+### Rules that keep it free and stable
 
-1. Meta Business Manager + WhatsApp Business account (community / org billing)  
-2. Cloud API app: **Phone number ID**, **WABA ID**, **permanent token**  
-3. Secrets only in e.g. `/etc/sailingsa-whatsapp-cloud.env` (`0600`), not in git  
-4. One ops alert number first (Arial/server-monitor). Add a second number only if SailingSA outbound must be separate  
-5. Approve a small set of **utility** templates (disk warning, Olarm offline/online, Tuya fail)
+1. **One companion only** for the Arial ops number — no WhatsApp Web, no second Baileys, no copied `auth` on a Mac/laptop.  
+2. Gas phone stays powered / on WhatsApp as the **primary**; server is the only linked device.  
+3. When health is `DEGRADED` + `connectionReplaced`: find the other client (phone → Linked devices); do **not** wipe server auth.  
+4. Optional **free** non-WhatsApp backup for “WA down” only (e.g. email via existing Postfix on the box, or a local log + dashboard flag) — still no paid SMS/WA.  
+5. Keep cooldowns / dedupe in monitors so the free session is not hammered.
 
-### Send path (sketch)
+### Honesty limit
 
-`POST https://graph.facebook.com/v21.0/{phone-number-id}/messages`  
-Bearer token; **utility template** for cold alerts; free-form only inside an open customer-care window.
+Free WhatsApp **outbound** without Meta’s paid API means Baileys (or similar unofficial linked-device). Meta can still invalidate a companion; recovery then needs a one-time phone action. The harden above makes that rare and stops the server from making it worse.
 
-### Cutover (controlled)
+## Until the conflict client is gone
 
-1. Cloud sender beside Baileys; flag `USE_CLOUD_API=1` on Arial/ops only  
-2. Prove disk + Olarm paths; leave Baileys for inbound archive if still required  
-3. Turn off Baileys **send** for ops once Cloud is solid — saves fight risk, not “save Meta fees”  
-4. Skip BSP migration tools unless Meta forces number move
-
-## Until Cloud API is live
-
-1. **One** companion only for `076…` / Arial — no WhatsApp Web / second Baileys with copied `auth`  
-2. Do not restart PoCs unless needed; do not delete `state/auth`  
-3. Health: `GET http://127.0.0.1:8009/health` (Arial), `:8012` (SailingSA) with Bearer token  
-4. `DEGRADED` + `connectionReplaced` means another client still owns the session — find and remove that client when someone is next at a phone; do **not** wipe auth from the server  
+1. Do not restart PoCs unless needed; do not delete `state/auth`.  
+2. Health: `GET http://127.0.0.1:8009/health` (Arial), `:8012` (SailingSA) with Bearer token.  
+3. `DEGRADED` = another linked client still owns the session — remove it on the phone when next possible; server will retry on the 30‑minute timer.  
+4. `arial-site-watch` / `arial-whatsapp-watcher` stay off until WA is stably `UP` (avoid sending into a broken session).
 
 ## Related live paths
 
