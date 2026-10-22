@@ -32,7 +32,8 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261022e", JS)
+        self.assertIn("20261022f", JS)
+        self.assertIn('.table-wrapper:not(#macTslGoldSheet) th', JS)
         self.assertIn("var ROSTER_LINES = 4", JS)
         self.assertIn("<th>4 Helm</th><th>4 Crew</th>", JS)
         self.assertIn("remapRetiredTeamId", JS)
@@ -306,6 +307,8 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertIn("wonLast", JS)
         self.assertIn("winner_team_id", JS)
         self.assertIn("syncSheetType", JS)
+        self.assertNotIn("#macTslTeamsCard,#macTslTeamsCard *,#macTslFlightsCard,#macTslFlightsCard *", JS)
+        self.assertNotIn("#macTslFlightsCard th,#macTslFlightsCard td", JS)
         self.assertIn("max-height:16px", JS)
         self.assertIn("max-width:28px", JS)
         self.assertIn("white-space:nowrap", JS)
@@ -330,7 +333,7 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261022e", API)
+        self.assertIn("mac-tsl-admin.js?v=20261022f", API)
         self.assertIn("is_super_admin=_session_can_edit_tsl", API)
         self.assertIn("def _session_can_edit_tsl", API)
 
@@ -382,7 +385,7 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("mac-tsl-live-cards.js?v=20261015c", patch)
         self.assertIn("def _session_can_edit_tsl", patch)
         self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
-        self.assertIn("mac-tsl-admin.js?v=20261022e", patch)
+        self.assertIn("mac-tsl-admin.js?v=20261022f", patch)
         rename = (ROOT / "sailingsa" / "deploy" / "rename_tsl_rcyca_teams.py").read_text(
             encoding="utf-8"
         )
