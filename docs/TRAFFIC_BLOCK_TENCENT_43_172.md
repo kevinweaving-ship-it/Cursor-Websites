@@ -12,8 +12,9 @@
 API already had Tencent `43.128.0.0/14` — that does **not** cover `43.172`.
 
 ## Block applied (live)
-1. **nginx** `deny 43.172.0.0/16` in `/etc/nginx/snippets/sailingsa-swarm-deny.conf`
-2. **API** `_KNOWN_SCANNER_NETS` + `_lean_cloud_nets` include `43.172.0.0/16`
-3. **Quarantine** ~371 IPs `reason=tencent_43_172_swarm`
+1. **iptables** `DROP` `43.172.0.0/16` (INPUT #1; persisted via `iptables-tencent-restore.service`)
+2. **nginx** `deny 43.172.0.0/16` in `/etc/nginx/snippets/sailingsa-swarm-deny.conf`
+3. **API** `_KNOWN_SCANNER_NETS` + `_lean_cloud_nets` include `43.172.0.0/16`
+4. **Quarantine** ~495 IPs `reason=tencent_43_172_swarm`
 
 Scripts: `sailingsa/deploy/patch_block_tencent_43_172.py`, `_remote_apply_tencent_43_172.py`
