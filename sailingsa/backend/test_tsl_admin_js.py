@@ -373,12 +373,13 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("def _session_can_edit_tsl", patch)
         self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
         self.assertIn("mac-tsl-admin.js?v=20261022b", patch)
-        rename = (ROOT / "sailingsa" / "deploy" / "rename_tsl_rcyca_b.py").read_text(
+        rename = (ROOT / "sailingsa" / "deploy" / "rename_tsl_rcyca_teams.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('NEW_NAME = "RCYC Sailing Academy B"', rename)
-        self.assertIn('NEW_ABBREV = "RCYCA B"', rename)
-        self.assertIn("TEAM_ID = 17", rename)
+        self.assertIn('RCYCA_A_NAME = "RCYC Sailing Academy A"', rename)
+        self.assertIn('RCYCA_A_ABBREV = "RCYCA A"', rename)
+        self.assertIn('RCYCA_B_NAME = "RCYC Sailing Academy B"', rename)
+        self.assertIn("IZIVUNGU_ID = 16", rename)
         media = (ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_media.py").read_text(
             encoding="utf-8"
         )
