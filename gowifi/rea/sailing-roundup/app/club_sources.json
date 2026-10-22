@@ -1,0 +1,55 @@
+{
+  "clubs": {
+    "TSC": {
+      "name": "Theewater Sports Club",
+      "website": "https://www.theewater.co.za/",
+      "gallery": "https://www.theewater.co.za/news/gallery/",
+      "facebook": "https://www.facebook.com/theewatersportsclub/",
+      "instagram": "https://www.instagram.com/theewater.sports.club/"
+    },
+    "HMYC": {
+      "name": "Henley Midmar Yacht Club",
+      "code": "HMYC",
+      "slug": "hmyc",
+      "sailingsa_url": "https://sailingsa.co.za/club/hmyc",
+      "website": "https://www.hmyc.org.za/",
+      "facebook": "https://www.facebook.com/henleymidmaryachtclub",
+      "instagram": "https://www.instagram.com/henleymidmaryc",
+      "urls": [
+        {
+          "platform": "website",
+          "url": "https://www.hmyc.org.za/",
+          "locality": "local",
+          "provenance": "https://sailingsa.co.za/club/hmyc"
+        },
+        {
+          "platform": "facebook",
+          "url": "https://www.facebook.com/henleymidmaryachtclub",
+          "locality": "local",
+          "provenance": "https://sailingsa.co.za/club/hmyc"
+        },
+        {
+          "platform": "instagram",
+          "url": "https://www.instagram.com/henleymidmaryc",
+          "locality": "local",
+          "provenance": "https://sailingsa.co.za/club/hmyc"
+        }
+      ],
+      "posts": [
+        {
+          "share_url": "https://www.facebook.com/share/p/1PGpY1pGh1/",
+          "url": "https://www.facebook.com/henleymidmaryachtclub/posts/-dart-18-nationals-final-results-what-a-day-on-the-water-congratulations-to-all-/1633819895206118/",
+          "event_hint": "dart-18-nationals",
+          "role": "host_club_media",
+          "label": "HMYC Dart 18 Nationals final results",
+          "description": "DART 18 NATIONALS – Final results!\n\nWhat a day on the water! Congratulations to all the sailors competing in the Dart 18 Nationals.\n\nOVERALL TOP 3\n1st – Bradley Levin (SYC) – Sail 7951\n2nd – Kyle Boman (TCC) – Sail 2460\n3rd – Bradley Stemmett (VYC) – Sail 3862\n\nHMYC TOP 3\n5th – Kim Phillips – Sail 4665\n7th – Lorrian Wells – Sail 520\n8th – Gregory Dobson – Sail 5179\n\nAnd a special mention to Josh Pretorius, finishing 9th overall for HMYC!\n\nWell done to the entire HMYC fleet — keep pushing!"
+        }
+      ]
+    },
+    "AYC": {
+      "name": "Aeolians Yacht Club",
+      "website": "https://aeolians.co.za/",
+      "facebook": "https://www.facebook.com/AeoliansClub/"
+    }
+  }
+}

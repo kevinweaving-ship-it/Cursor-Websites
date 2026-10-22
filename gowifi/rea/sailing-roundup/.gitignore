@@ -1,0 +1,5 @@
+.builds/
+backups/
+dry-runs/
+data/vision-cache/
+data/roundup.env

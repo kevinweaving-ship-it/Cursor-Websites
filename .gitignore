@@ -296,3 +296,10 @@ api_restore_8001/
 
 # macOS AppleDouble / resource fork files inside tracked dirs
 **/._*
+
+# Generated weekend-roundup editions (published to sailingsa.co.za/sailing-roundup)
+gowifi/rea/sailing-roundup/issues/
+gowifi/rea/sailing-roundup/public/issues/
+gowifi/rea/sailing-roundup/public/latest/
+gowifi/rea/sailing-roundup/public/index.html
+gowifi/rea/sailing-roundup/public/*.json
