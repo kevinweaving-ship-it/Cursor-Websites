@@ -1535,16 +1535,33 @@
 
   var printFoldBackup = null;
 
+  function printTablesReady() {
+    var flights = document.querySelectorAll("#macTslFlightsCard .tsl-flight-card");
+    var teams = document.querySelectorAll("#macTslTeamsCard .tsl-team-card:not(.tsl-new-team-card)");
+    if (flights.length < 15 || teams.length < 6) return false;
+    var i;
+    for (i = 0; i < flights.length; i += 1) {
+      if (flights[i].classList.contains("tsl-flight-shut")) return false;
+      if (!flights[i].querySelector("table.fleet-results-table")) return false;
+    }
+    for (i = 0; i < teams.length; i += 1) {
+      if (!teams[i].querySelector("table.fleet-results-table")) return false;
+    }
+    return true;
+  }
+
   function openAllForPrint() {
     beginPrintMode();
-    if (printFoldBackup) return;
-    printFoldBackup = { flight: printFoldClone(flightFold), section: printFoldClone(sectionFold) };
+    if (!printFoldBackup) {
+      printFoldBackup = { flight: printFoldClone(flightFold), section: printFoldClone(sectionFold) };
+    }
     printFlightNos().forEach(function (n) { flightFold[String(n)] = false; });
     sectionFold.flights = false;
     sectionFold.teams = false;
     insertFlightsCard();
     insertTeamsCard();
     layoutGoldSheet();
+    return printTablesReady();
   }
 
   function restoreAfterPrint() {
@@ -1564,11 +1581,8 @@
   }
 
   function printGoldSheet() {
-    openAllForPrint();
-    requestAnimationFrame(function () {
-      layoutGoldSheet();
-      window.print();
-    });
+    if (!openAllForPrint()) return;
+    window.print();
   }
 
   function bindPrintButton() {
@@ -1578,9 +1592,12 @@
     });
     if (window._tslPrintBound) return;
     window.addEventListener("beforeprint", function () {
-      beginPrintMode();
+      if (printFoldBackup && printTablesReady()) {
+        beginPrintMode();
+        layoutGoldSheet();
+        return;
+      }
       openAllForPrint();
-      layoutGoldSheet();
     });
     window.addEventListener("afterprint", restoreAfterPrint);
     window._tslPrintBound = true;
@@ -4215,4 +4232,5 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
   window.__ssaMacTslAdmin = JS_VER;
+  window.__ssaMacTslPrintPrep = "sync-dom";
 })();
