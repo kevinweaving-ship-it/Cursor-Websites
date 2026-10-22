@@ -2,7 +2,7 @@
 
 **Target setup:** Codex on the Mac for daily work; Cursor Pro + Auto on Mini for occasional phone. Ultra $200 is not the solution. Full compare, Pro checks, trial: **`docs/MAC_CODEX_VIBE.md`**.
 
-**Kevin’s dashboard (22 Oct 2026):** Cursor Models **91%** used, Other Models **19%** used, reset **3 November**, on-demand **OFF**. Those are two pools. The 91% pool is Mac/Cloud Grok-Composer. When it hits 100%, Cursor Agent stops until reset.
+**Kevin’s dashboard (22 Oct 2026):** Cursor Models **91%**, Other Models **19%**, reset **3 November**, on-demand **OFF**. Two pools. When Cursor Models hits 100%, Composer/Grok **overflows into Other Models**. Other Models overflow is on-demand only — OFF means the hard stop is after **both** pools are empty, not at 91→100% Cursor Models. Mini/CLI location does not change the selected model’s bill. See **`docs/MAC_CODEX_VIBE.md`**.
 
 Agents cannot change your plan, model picker, or API keys. Ultra → Pro only after the Mac trial passes.
 

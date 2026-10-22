@@ -1,91 +1,79 @@
-# Mac vibe setup — Codex daily, Cursor Pro after trial
+# Mac cost cut — Codex baseline, OpenCode evaluated
 
-Kevin vibe-codes only. He does not classify tasks or switch models.
-Ultra $200 is not the target. No downgrade until the trial on **This Mac** passes.
+Kevin vibe-codes only. One natural-language workflow. No model picker.
+No purchases. No downgrade until a Mac trial passes.
+This Cloud Linux pod cannot sign into Codex, buy GLM/MiniMax, or expose a phone-reachable OpenCode host.
 
-**This Cloud Linux pod cannot run the Mac steps.** A Darwin/Mini session executes them.
+## Dashboard (Kevin, 22 Oct 2026) — overflow corrected
 
-## Dashboard (Kevin, 22 Oct 2026)
+Two monthly pools. Reset **3 November**. On-demand **OFF**.
 
-These are **two pools**, not shares of one bill:
-
-| Pool | Used | Meaning |
+| Pool | Used | Rule |
 | --- | --- | --- |
-| Cursor Models | **91%** | Grok / Composer / this phone Cloud high-fast path. Almost empty. |
-| Other Models | **19%** | Catalog Claude / GLM / GPT. Mostly unused. |
-| Reset | **3 November** | Both pools refill with the billing cycle. |
-| On-demand | **OFF** | When Cursor Models hits 100%, Cursor Agent **stops** until reset. No overage invoice. |
+| Cursor Models | **91%** | Composer / Grok (including this phone Cloud **high-fast**). |
+| Other Models | **19%** | Catalog third-party at API list price. |
 
-Staying on Ultra does not add pool. It keeps a $200 line while the 91% pool dies.
+**Overflow (dashboard + Cursor staff, Jul 2026):** when Cursor Models hits 100%, further Composer/Grok usage **rolls into the Other Models quota**. Other Models overflow goes to **on-demand only**. On-demand is OFF, so the hard stop is **after Other Models is also empty**, not at Cursor Models 100%.
 
-## One recommended setup
+Remaining Other Models (~81%) is now the overflow tank for the same expensive Cursor models. It is not spare “cheap GLM room” unless someone picks GLM.
 
-**Daily Mac:** ChatGPT Codex signed into the existing ChatGPT Pro subscription (desktop app or `codex` CLI in the repo). Default model. Standard speed. No Fast / Ultrafast.
+**Mini / My Machines does not cut inference.** Tool calls run on the Mini; the **selected model** still bills Cursor at that model’s rate (Fast and max-context still multiply). Location ≠ cheaper tokens. Cursor CLI on Linux is the same: still Cursor usage.
 
-**After-hours phone:** Cursor iOS → My Machines → Kevin - Mac Mini → **Auto**. Rare. On-demand stays OFF.
+## Escalation — verified, not promised
 
-**After trial:** Ultra → **legacy Pro $20**. Do not click until the trial on Mac passes.
-
-Do **not** buy GLM Coding Plan or MiniMax M Plan. Do **not** Override OpenAI Base URL.
-
-## Compare (why Codex)
-
-| | Codex (ChatGPT Pro, already paid) | GLM Coding Plan | MiniMax M Plan | Catalog GLM 5.3 in Cursor |
-| --- | --- | --- | --- | --- |
-| Extra monthly | **$0** | from **$18** (Lite) | **$22 / $55 / $132** (Go / Explore / Build) | $0 extra sub; draws **Other Models** at $1.40 / $4.40 per 1M |
-| Kevin picks models? | No. Stay on default. | One GLM model; no auto-escalate | One Flash model; no auto-escalate | Yes — forbidden |
-| Hard tasks | Codex raises its own reasoning | Same GLM | Same MiniMax | Kevin would tap High/Max |
-| SSH / deploy | Mac host; `deploy-with-key.sh` | Only if wired into an extra agent | Custom Cursor URL (global; can break other keys) | Cursor Other Models; still Ultra burn |
-| iPhone | Codex Remote (optional). Cursor Pro covers occasional Mini+Auto | No Cursor iPhone custom key | No | Manual Cloud pick; max context |
-| Fits “no classify” | **Yes** | Weak | Weak | No |
-
-Catalog GLM would spend the leftover 81% Other Models and still require a picker. After Pro, that pool shrinks. Rejected.
-
-## Pro still covers phone / Mini
-
-Verified against Cursor docs (legacy Pro):
-
-| Need | Pro? | Note |
+| Product | What is verified | What is not |
 | --- | --- | --- |
-| Cursor iOS | Yes | Legacy Pro, Pro+, Ultra |
-| Cloud Agents | Yes | Smaller **Cursor Models** pool than Ultra |
-| Auto | Yes | Start does not have Auto; Pro does |
-| My Machines (Mini worker) | Yes | Tool calls on Mini; **model loop still bills Cursor** |
-| Remote Control | Yes | Legacy Pro with Cloud Agents; Cursor ≥ 3.9.8 |
-| Custom MiniMax/GLM from iPhone | **No** | Desktop Chat only on any plan |
-| Fast / high-fast Cloud | Works, **do not use** | Would empty Pro in days |
+| **Codex desktop “Default”** | Official: Default **combines models and reasoning levels on one slider**. Leave Default; do not pick a named model. Codex **keeps** a model you picked manually. CLI **has no slider**. | No published “hard task → named bigger model” router. Community still asking for that (Sep 2026). |
+| **OpenCode stock** | Pin **one** default in `opencode.json`. Phone/Mac browser talks to that server. Keys live on the **server**, so Cursor iPhone custom-key limits do not apply. | `/models` is **manual**. Stock OpenCode does **not** escalate by task difficulty. Plugins that fail over on 429 or by “category” need classification or extra spend — out of spec. |
+| **Cursor Auto (individual Ultra)** | Auto still picks a model. Individual plans do **not** get Teams Router Cost/Balance/Intelligence. | Not a verified hard-task escalate. Mini+Auto still bills the routed Cursor model. |
+| **GLM / MiniMax alone** | One subscription model. | No difficulty escalate. |
 
-Phone rule after downgrade: Mini + Auto only. Never Cloud. Never Fast. On-demand OFF.
+The only **verified** hands-off combine-models path is **Codex desktop Default**. Use that, not CLI-without-Default, if Kevin must not switch models.
 
-## Monthly cost
+## Compare completed-task cost, retries, allowance, phone
 
-**Now (trial, no downgrade):** Ultra **$200** + existing ChatGPT Pro (**$100 / $200 / $500**, tier not in the dashboard text) + **$0** GLM + **$0** MiniMax.
+Published rates, not Kevin’s invoice. One small Mac edit ≈ 0.05–0.2M tokens (order-of-magnitude).
 
-**After trial passes:** legacy Pro **$20** + same ChatGPT Pro. Save **$180 / month** vs Ultra. No new SKUs.
+| | Extra $/mo | $ / completed small task | Retries | Allowance | Phone |
+| --- | --- | --- | --- | --- | --- |
+| **Codex Default** (ChatGPT Pro, already paid) | **$0** | **$0** extra (uses included). Fast = **2.5×** allowance — leave Standard. | Repo 2-strike. Default may spend more reasoning on the same turn (that is the escalate cost). | ChatGPT Pro weekly; **tier $100/$200/$500 unread**. No 5-hour local cap. **Not measured** against his Ultra-sized month. | ChatGPT iOS **Remote** to the Mac, or Codex Cloud (separate, still ChatGPT allowance). Authenticated. |
+| **OpenCode on a server + GLM Coding Plan** | from **$18** Lite (2k/5h, 10k/week). Pro 12k/5h, 60k/week. Max 28k/5h, 140k/week. Exact Pro/Max $ not on the public overview. | **$0** Cursor. GLM credits. Catalog GLM in Cursor is different: **$1.40 / $4.40** per 1M from Other Models. | 2-strike in AGENTS. Stock OpenCode will **retry the same GLM**. No verified escalate. | Lite is likely **too small** for a user at Ultra 91% in three weeks. Pro/Max might cover; **unproven** on his repos. | Browser → `opencode web` with basic auth (or `opencode pair` cookie). Needs a **reachable authenticated host** (Tailscale / SSH tunnel — not a public open port). Separate `--dir` per project. |
+| **OpenCode + MiniMax M** | **$22 / $55 / $132** (Go / Explore / Build). Explore is their “daily coding” tier. | MiniMax Flash API list ~**$0.15 / $0.60** per 1M if PAYG; M Plan uses subscription credits. | Same GLM story: one model, no difficulty escalate. | Go = light edits. His volume → Explore+ (**$55+**). | Same browser-to-server path. Cursor iPhone key limit **does not apply**. |
+| **Cursor on Mini or Linux CLI** | $0 extra sub | **Same as picker:** Composer $0.50/$2.50; Grok $2/$6; **this run Fast $4/$12**; iOS Cloud = max context (2× / Fast-long 3×). Overflow eats Other Models after Cursor Models 100%. | 2-strike. Auto pick unverified as escalate. | Ultra two pools until 3 Nov, then overflow, then stop (on-demand OFF). | Cursor iOS. **No** custom GLM/MiniMax keys. Still bills the selected model. |
 
-ChatGPT Pro: no 5-hour local cap; weekly limits apply; Fast = **2.5×** included usage — leave Standard. Do not buy extra ChatGPT credits for the trial.
+**Cursor CLI on Linux** is not a cheaper host. It still draws Cursor Models / overflow Other Models.
 
-## Limits the setup enforces
+**Desktop/server agents** (OpenCode, Codex CLI on a box) are **not** blocked by Cursor iPhone custom-key rules. That only helps if a **non-Cursor** key already exists. None purchased this turn.
 
-- Codex: default model, Standard speed, **2 strikes** then stop (this repo `AGENTS.md`).
-- Cursor: on-demand **OFF** (already). After Pro, Auto only on Mini.
-- No Cursor Cloud for SailingSA. No parallel subagents.
-- Deploy only with `bash sailingsa/deploy/deploy-with-key.sh` when the user asked for live in that message.
+**REA** (already on GoWifi box `102.209.119.186`, `/opt/rea`, user `rea`, v6.4.0): stdio MCP, no public port. Cheap path = **`audit_*` only**. `analyze_*` dumps 4–50MB and burns the parent model. Do not install extras. Cloud cannot register Mac MCP (Darwin script). OpenCode/Codex on a box can call the same SSH stdio MCP; still bounded to audit_*.
 
-## Trial (Codex alone — this Ultra Cloud agent does not supervise)
+## One recommended setup (no purchase)
 
-On **This Mac**, Codex does the gate, then one already-authorised live change:
+**Cheapest setup that is actually available and verified for “no model switching”:**
 
-1. `uname` is Darwin.
-2. `codex` is signed into **ChatGPT** (not an API key). `/status` shows Pro.
-3. `bash sailingsa/deploy/codex-mac-trial-gate.sh` — SSH key works; `https://sailingsa.co.za/blank.html` returns 200.
-4. One change Kevin already authorised in that Mac chat. Codex edits, deploys with `deploy-with-key.sh` if live was requested, checks the live URL.
-5. Same fix fails twice → stop. No model picker. No Cursor Cloud. No this agent.
+1. **Mac daily:** ChatGPT **desktop Codex**, picker left on **Default**, Standard speed. Existing ChatGPT Pro. SSH/deploy stay on This Mac (`deploy-with-key.sh`).
+2. **Phone after hours:** ChatGPT iOS → **Remote** to that Mac Codex session (same Default). Not Cursor Cloud. Not Mini-as-a-discount (Mini still bills a Cursor model).
+3. **Cursor:** leave running only if needed for Tab / rare native. Do not start Cloud. On-demand stays OFF so overflow cannot become an invoice after Other Models empties.
+4. **OpenCode+GLM/MiniMax:** evaluated, **not bought**. Config template is in `opencode/`. I cannot finish a live server until Kevin authenticates a **purchase** (GLM/MiniMax key) and a reachable host. Lite GLM is unlikely to cover his month; do not buy on hope.
+5. **Downgrade Ultra → Pro $20:** not yet. Pro still has iOS / Auto / My Machines / Remote Control; those still bill the selected Cursor model. Phone after Pro = Codex Remote first, Cursor Mini+Auto only if Codex is down.
 
-Pass = gate green + that task finished + live URL matches. Then Kevin may click Ultra → Pro at [cursor.com/dashboard/billing](https://cursor.com/dashboard/billing) (takes effect at period end).
+**Why this covers the month better than staying on Cursor Ultra:** every Mac Grok/Composer turn now overflows toward the remaining 81% Other Models. Moving Mac work to already-paid Codex **stops that overflow**. Whether ChatGPT Pro fully replaces Ultra-sized volume is **unproven** until `/status` on the Mac. If a week of Codex Default shows the ChatGPT bar slamming, the next cheapest *candidate* is OpenCode+GLM **Pro** (not Lite) — still a purchase, still no verified difficulty escalate.
 
-## Reversible
+**Do not** use OpenCode with a ChatGPT/Codex provider hoping to save money — that is the same ChatGPT allowance plus another UI.
 
-Repo files: `AGENTS.md`, `.cursor/rules/credit-burn.mdc`, this doc, `sailingsa/deploy/codex-mac-trial-gate.sh`. Revert the PR to undo.
+## Trial (Codex Default, unsupervised by this Cloud agent)
 
-Mac-only (not done from Cloud): Codex ChatGPT login, Cursor leftover chats closed. No GLM/MiniMax keys to remove if we never add them.
+On This Mac, ChatGPT desktop Codex:
+
+1. Darwin. Signed into ChatGPT. Picker = **Default**. `/status` shows Pro.
+2. `bash sailingsa/deploy/codex-mac-trial-gate.sh` — SSH + `blank.html` 200. No deploy.
+3. One already-authorised task in that chat. Live deploy only if that message asked.
+4. Two strikes then stop. No picker. No Cursor Cloud.
+
+Pass = gate green + task done. Then Kevin may click Ultra → Pro.
+
+## What this Cloud session did vs could not
+
+**Did:** correct overflow + Mini billing; verify Codex Default vs OpenCode stock escalate; write this compare; pin OpenCode template (no keys); keep 2-strike in `AGENTS.md`.
+
+**Could not:** ChatGPT login, `/status`, GLM/MiniMax purchase, start `opencode web` on a phone-reachable host, register REA on Darwin, deploy live.
