@@ -370,7 +370,7 @@ def feature(issue,monday,events,articles):
     return {"id":"sailing-"+issue,"type":"feature","headline":"Last Week's Roundup",
         "deck":date_line,"byline":"SailingSA","kicker":"SAILING","published_at":issue,
         "event_id":"sailing-"+issue,"layout":"lead","hero_image":hero,
-        "blocks":blocks,"sources":["https://sailingsa.co.za/api/events"]+[f"https://sailingsa.co.za/regatta/{a['id']}" for a in reports if a.get("id")],
+        "blocks":blocks,"sources":[f"https://sailingsa.co.za/regatta/{a['id']}" for a in reports if a.get("id")],
         "review_status":"rewritten","unlisted_events":missing}
 
 

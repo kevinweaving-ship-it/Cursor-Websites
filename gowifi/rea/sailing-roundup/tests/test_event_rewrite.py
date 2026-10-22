@@ -140,6 +140,9 @@ class RewriteEngine(unittest.TestCase):
         self.assertIn("story-photo-led", html)
         self.assertNotIn("Source info", html)
         self.assertNotIn("Social and media sources", html)
+        self.assertNotIn("Sources", html)
+        self.assertNotIn("/api/", html)
+        self.assertIn('href="https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals"', html)
 
     def test_layouts_differ(self):
         self.assertEqual(layout_for(0, "feature"), "lead")
@@ -647,9 +650,13 @@ class RewriteEngine(unittest.TestCase):
                 "headline": "Last Week's Roundup",
                 "deck": "3–4 October 2026",
                 "published_at": "2026-10-05",
+                "sources": ["https://sailingsa.co.za/api/events"],
                 "blocks": [{"type": "paragraph", "text": "Maximilian Malan won at Lake Deneys."}],
             },
         )
+        self.assertNotIn("/api/", html)
+        self.assertNotIn("Sources", html)
+        self.assertNotIn("Event calendar", html)
         self.assertIn("edition-lead", html)
         self.assertIn("<h1>Last Week&#x27;s Roundup</h1>", html)
         self.assertIn('class="copy"', html)

@@ -201,13 +201,29 @@ def _results_block(block):
     return "".join(html_rows)
 
 
+REGATTA_SLUG = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$")
+
+
+def public_event_url(article: dict) -> str:
+    """Parent event page only. Never an /api/ URL."""
+    if (article.get("type") or "") == "feature":
+        return ""
+    slug = (article.get("event_id") or article.get("id") or "").strip()
+    if REGATTA_SLUG.match(slug):
+        return "https://sailingsa.co.za/regatta/" + slug
+    for block in article.get("blocks") or []:
+        url = str(block.get("source_event_url") or "").strip()
+        if url.startswith("https://sailingsa.co.za/regatta/") and "/api/" not in url:
+            return url
+    url = str(article.get("url") or "").strip()
+    if url.startswith("https://sailingsa.co.za/regatta/") and "/api/" not in url:
+        return url
+    return ""
+
+
 def _cited_paragraph(text: str) -> str:
     escaped = html.escape(text or "")
-    escaped = re.sub(
-        r"\[(\d+)\]",
-        r'<sup class="cite"><a href="#src-\1">\1</a></sup>',
-        escaped,
-    )
+    escaped = re.sub(r"\[(\d+)\]", r'<sup class="cite">\1</sup>', escaped)
     return escaped
 
 
@@ -222,28 +238,8 @@ def _photo_set(images: list[str], media_layout: str = "") -> str:
 
 
 def _sources_block(article):
-    cites = article.get("citations") or [{"url": u} for u in article.get("sources", [])]
-    aid = html.escape(article.get("id") or article.get("event_id") or "edition", quote=True)
-    links = []
-    for index, cite in enumerate(cites, 1):
-        url = cite.get("url") if isinstance(cite, dict) else cite
-        if not url:
-            continue
-        label = (
-            ("Event calendar" if article.get("type") == "feature" else "Full event results")
-            if index == 1
-            else ((cite.get("title") if isinstance(cite, dict) else "") or "Source report")
-        )
-        links.append(
-            f'<li id="{aid}-src-{index}"><a href="{html.escape(url, quote=True)}">{html.escape(label)}</a></li>'
-        )
-    return (
-        '<aside class="source-notes" aria-label="Sources"><span class="sources-label">Sources &amp; results</span><ol class="sources">'
-        + "".join(links)
-        + "</ol></aside>"
-        if links
-        else ""
-    )
+    """Public pages do not list sources. Pipeline sources stay off the page."""
+    return ""
 
 
 def _story_parts(article):
@@ -285,10 +281,17 @@ def _render_story(index, article):
         deck = " · ".join(part.strip() for part in deck.split("·")[2:])
     kicker = html.escape(article.get("kicker") or article.get("class_name") or "")
     title_tag = "h1" if lead else "h2"
+    event_url = "" if lead else public_event_url(article)
+    if event_url:
+        title_html = (
+            f'<{title_tag}><a href="{html.escape(event_url, quote=True)}">{headline}</a></{title_tag}>'
+        )
+    else:
+        title_html = f"<{title_tag}>{headline}</{title_tag}>"
     header = (
         '<header class="story-heading">'
         + ("" if lead else '<p class="kicker">' + kicker + "</p>")
-        + f"<{title_tag}>{headline}</{title_tag}>"
+        + title_html
         + (('<p class="deck">' + html.escape(deck) + "</p>") if deck else "")
     )
     if lead:
