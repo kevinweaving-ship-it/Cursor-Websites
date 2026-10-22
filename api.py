@@ -26882,7 +26882,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261015c" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261022u" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261022v" defer></script>'
             if is_mac_tsl
             else ""
         )
@@ -26901,7 +26901,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style>"
             + (
-                '<style id="mac-tsl-boot-css">@page{size:297mm 210mm;margin:8mm}</style>'
+                '<style id="mac-tsl-boot-css">@page{size:A4 landscape;size:297mm 210mm;margin:8mm}</style>'
                 if is_mac_tsl
                 else ""
             )

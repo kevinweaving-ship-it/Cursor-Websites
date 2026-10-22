@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261022u";
+  var JS_VER = "20261022v";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var ROSTER_LINES = 4;
@@ -281,7 +281,7 @@
       "#macTslTeamsCard #tslPickClub{max-width:12em}",
       "@media (max-width:900px){#macTslTeamsCard .tsl-team-cards,#macTslFlightsCard .tsl-flight-cards{grid-template-columns:1fr}#macTslTeamsCard,#macTslFlightsCard{padding:4px}#macTslTeamsCard .tsl-team-card,#macTslFlightsCard .tsl-flight-card{padding:4px}#macTslTeamsCard .tsl-move{width:14px;height:14px;margin:0 2px 0 0}}",
       "@media (max-width:900px) and (orientation:portrait){#macTslFlightsCard .tsl-flight-cards{display:flex;flex-direction:column-reverse;gap:8px}#macTslFlightsCard .tsl-flight-card .table-wrapper,#macTslTeamsCard .tsl-team-card .table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}#macTslFlightsCard .tsl-flight-card .fleet-results-table,#macTslTeamsCard .tsl-team-card .fleet-results-table{width:max-content;min-width:100%}}",
-      "@page{size:297mm 210mm;margin:8mm}",
+      "@page{size:A4 landscape;size:297mm 210mm;margin:8mm}",
       "@media print{" +
         "html{-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
         "body{background:#fff}" +
@@ -291,9 +291,11 @@
         ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-col,.regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-club-logo-col{height:52px!important}" +
         ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-img{height:52px!important;max-height:52px!important}" +
         "#macTslGoldSheet{display:block!important;overflow:visible!important;position:static!important;left:auto!important}" +
-        "#macTslGoldSheet .tsl-gold-wrap{display:flex!important;width:100%!important}" +
-        "#macTslGoldSheet .tsl-gold-left{overflow:visible!important}" +
-        "#macTslGoldSheet .tsl-gold-right{overflow:visible!important;flex:1 1 auto}" +
+        "#macTslGoldSheet .tsl-gold-wrap{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;width:100%!important}" +
+        "#macTslGoldSheet .tsl-gold-left{overflow:visible!important;min-width:0!important}" +
+        "#macTslGoldSheet .tsl-gold-right{overflow:visible!important;min-width:0!important;flex:none}" +
+        "#macTslGoldSheet table{table-layout:auto!important;width:auto!important;min-width:0!important;max-width:none!important}" +
+        "#macTslGoldSheet th,#macTslGoldSheet td{color:#1a2750!important;visibility:visible!important;opacity:1!important;font-size:8pt!important;width:auto!important;overflow:visible!important}" +
         "#macTslFlightsCard,#macTslTeamsCard{display:block!important;overflow:visible!important;padding:8px!important}" +
         "#macTslFlightsCard.tsl-section-shut .tsl-flight-cards,#macTslTeamsCard.tsl-section-shut .tsl-team-cards{display:grid!important}" +
         "#macTslFlightsCard .tsl-flight-cards,#macTslTeamsCard .tsl-team-cards{display:grid!important;grid-template-columns:1fr 1fr!important;flex-direction:unset!important}" +
@@ -302,6 +304,29 @@
         "#macTslFlightsCard .tsl-flight-card .fleet-results-table,#macTslTeamsCard .tsl-team-card .fleet-results-table{width:100%!important;min-width:0!important}" +
       "}"
     ].join("");
+    forceLandscapePage();
+  }
+
+  function forceLandscapePage() {
+    var css = "@page{size:A4 landscape;size:297mm 210mm;margin:8mm}";
+    var root = document.documentElement;
+    if (root) {
+      root.classList.add("ssa-print-landscape");
+      root.classList.add("ssa-printing");
+    }
+    var compact = document.getElementById("ssa-print-compact");
+    if (compact && compact.textContent) {
+      compact.textContent = compact.textContent
+        .replace(/size:\s*A4\s*portrait/gi, "size: A4 landscape")
+        .replace(/@page\s*\{\s*size:\s*portrait/gi, "@page{size:A4 landscape");
+    }
+    var boot = document.getElementById("mac-tsl-boot-css");
+    if (!boot) {
+      boot = document.createElement("style");
+      boot.id = "mac-tsl-boot-css";
+    }
+    boot.textContent = css;
+    (document.body || document.documentElement).appendChild(boot);
   }
 
   function fleetSection() {
@@ -1503,6 +1528,7 @@
   var printFoldBackup = null;
 
   function openAllForPrint() {
+    forceLandscapePage();
     if (printFoldBackup) return;
     printFoldBackup = { flight: printFoldClone(flightFold), section: printFoldClone(sectionFold) };
     printFlightNos().forEach(function (n) { flightFold[String(n)] = false; });
@@ -1514,6 +1540,11 @@
   }
 
   function restoreAfterPrint() {
+    var root = document.documentElement;
+    if (root) {
+      root.classList.remove("ssa-print-landscape");
+      root.classList.remove("ssa-printing");
+    }
     if (!printFoldBackup) return;
     Object.keys(flightFold).forEach(function (k) { delete flightFold[k]; });
     Object.keys(printFoldBackup.flight).forEach(function (k) { flightFold[k] = printFoldBackup.flight[k]; });
@@ -1539,6 +1570,7 @@
     });
     if (window._tslPrintBound) return;
     window.addEventListener("beforeprint", function () {
+      forceLandscapePage();
       openAllForPrint();
       layoutGoldSheet();
     });
