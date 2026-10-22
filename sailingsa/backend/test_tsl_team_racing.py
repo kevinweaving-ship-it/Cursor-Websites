@@ -18,7 +18,9 @@ from sailingsa.backend.tsl_team_racing import (
     stamp_tsl_final,
     stamp_tsl_provisional,
     validate_roster_boats,
+    _cell,
     _norm_flight_sheet,
+    ROSTER_LINES,
 )
 
 
@@ -43,6 +45,19 @@ class TestRosterRules(unittest.TestCase):
         ]
         self.assertEqual(validate_roster_boats(boats), [])
         self.assertEqual(set(MAC_SEEDED_SAS), {"13516", "21052", "8612", "29414", "13517", "22974"})
+
+    def test_roster_line_four_is_valid_empty_pair(self):
+        self.assertEqual(ROSTER_LINES, 4)
+        boats = [
+            {"boat_no": 1, "helm_sas_id": "13516", "crew_sas_id": "21052"},
+            {"boat_no": 2, "helm_sas_id": "8612", "crew_sas_id": "29414"},
+            {"boat_no": 3, "helm_sas_id": "13517", "crew_sas_id": "22974"},
+            {"boat_no": 4, "helm_sas_id": "", "crew_sas_id": ""},
+        ]
+        self.assertEqual(validate_roster_boats(boats), [])
+        cell = _cell({"colour": "Blue", "team_id": 8, "rank": 1, "boat_no": 4})
+        self.assertEqual(cell["boat_no"], 4)
+        self.assertIsNone(_cell({"colour": "Blue", "team_id": 8, "boat_no": 5})["boat_no"])
 
     def test_missing_membership_not_excluded(self):
         sailor = {"sas_id": "29414", "name": "Thandokazi Sibanyoni", "primary_club": "", "club_1": ""}

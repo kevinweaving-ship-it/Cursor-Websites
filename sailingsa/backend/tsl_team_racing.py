@@ -28,6 +28,7 @@ TSL_BLOCK_SUFFIX = ":tsl"
 CLASS_NAME = "TSL"
 CLASS_ID = 148
 BOATS_PER_TEAM = 3
+ROSTER_LINES = 4
 BOATS_IN_RACE = 6
 COLOURS = ("Blue", "Green")
 PENALTY_CODES = frozenset({"DNS", "DNF", "DSQ", "OCS", "RET", "NSC", "DNE", "BFD"})
@@ -63,7 +64,7 @@ CREATE TABLE IF NOT EXISTS public.tsl_event_teams (
 );
 CREATE TABLE IF NOT EXISTS public.tsl_event_team_boats (
   team_id bigint NOT NULL REFERENCES public.tsl_event_teams(team_id) ON DELETE CASCADE,
-  boat_no smallint NOT NULL CHECK (boat_no BETWEEN 1 AND 3),
+  boat_no smallint NOT NULL CHECK (boat_no BETWEEN 1 AND 4),
   helm_sas_id text,
   crew_sas_id text,
   PRIMARY KEY (team_id, boat_no)
@@ -602,6 +603,43 @@ def ensure_schema(cur) -> None:
     cur.execute(
         "ALTER TABLE public.tsl_event_settings ADD COLUMN IF NOT EXISTS flight_sheet jsonb"
     )
+    cur.execute(
+        """
+        DO $$
+        DECLARE r record;
+        BEGIN
+          FOR r IN
+            SELECT conname FROM pg_constraint
+            WHERE conrelid = 'public.tsl_event_team_boats'::regclass
+              AND contype = 'c'
+              AND pg_get_constraintdef(oid) ILIKE '%boat_no%'
+          LOOP
+            EXECUTE 'ALTER TABLE public.tsl_event_team_boats DROP CONSTRAINT ' || quote_ident(r.conname);
+          END LOOP;
+        END $$
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE public.tsl_event_team_boats
+          ADD CONSTRAINT tsl_event_team_boats_boat_no_check
+          CHECK (boat_no BETWEEN 1 AND 4)
+        """
+    )
+    cur.execute(
+        """
+        INSERT INTO public.tsl_event_team_boats (team_id, boat_no)
+        SELECT t.team_id, n.boat_no
+          FROM public.tsl_event_teams t
+          CROSS JOIN (SELECT 1 AS boat_no UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4) n
+         WHERE t.regatta_id = ANY(%s)
+           AND NOT EXISTS (
+             SELECT 1 FROM public.tsl_event_team_boats b
+              WHERE b.team_id = t.team_id AND b.boat_no = n.boat_no
+           )
+        """,
+        (list(TSL_REGATTA_IDS),),
+    )
 
 
 def _club_row(cur, club_id: int) -> Optional[dict]:
@@ -689,7 +727,7 @@ def _fetch_team_boats(cur, team_id: int) -> list[dict]:
     )
     out = []
     by_no = {int(r["boat_no"]): dict(r) for r in (cur.fetchall() or [])}
-    for n in range(1, BOATS_PER_TEAM + 1):
+    for n in range(1, ROSTER_LINES + 1):
         row = by_no.get(n) or {"boat_no": n, "helm_sas_id": None, "crew_sas_id": None}
         helm = _load_sailor(cur, row.get("helm_sas_id")) if row.get("helm_sas_id") else None
         crew = _load_sailor(cur, row.get("crew_sas_id")) if row.get("crew_sas_id") else None
@@ -1058,7 +1096,7 @@ def upsert_team(cur, regatta_id: str, body: dict, *, actor: str = "super_admin")
         existing_sex = {int(r["boat_no"]): dict(r) for r in (cur.fetchall() or [])}
 
     resolved_boats = []
-    for n in range(1, BOATS_PER_TEAM + 1):
+    for n in range(1, ROSTER_LINES + 1):
         raw = next((b for b in boats_in if int(b.get("boat_no") or 0) == n), {}) or {}
         helm_id = str(raw.get("helm_sas_id") or (raw.get("helm") or {}).get("sas_id") or "").strip()
         crew_id = str(raw.get("crew_sas_id") or (raw.get("crew") or {}).get("sas_id") or "").strip()
@@ -1703,7 +1741,7 @@ def _cell(raw) -> dict:
         boat_no = int(boat_no) if boat_no not in (None, "", 0, "0") else None
     except (TypeError, ValueError):
         boat_no = None
-    if boat_no is not None and boat_no not in (1, 2, 3):
+    if boat_no is not None and boat_no not in tuple(range(1, ROSTER_LINES + 1)):
         boat_no = None
     if not tid:
         boat_no = None
@@ -1978,8 +2016,8 @@ def save_flight_line(
                 bn = int(boat_no) if boat_no not in ("", None, 0, "0") else None
             except (TypeError, ValueError):
                 bn = None
-            if bn is not None and bn not in (1, 2, 3):
-                raise ValueError("Sailor pair must be 1 to 3")
+            if bn is not None and bn not in tuple(range(1, ROSTER_LINES + 1)):
+                raise ValueError("Sailor pair must be 1 to " + str(ROSTER_LINES))
             tid = cell.get("team_id")
             if bn and not tid:
                 raise ValueError("Select a team first")
@@ -2389,7 +2427,7 @@ def register_tsl_routes(
         boat = int(payload.get("boat") or 0)
         role = str(payload.get("role") or "").strip().lower()
         sex = _sex_letter(payload.get("sex"))
-        if boat < 1 or boat > BOATS_PER_TEAM or role not in ("helm", "crew") or sex not in ("M", "F"):
+        if boat < 1 or boat > ROSTER_LINES or role not in ("helm", "crew") or sex not in ("M", "F"):
             raise _HTTP(status_code=400, detail="boat, role, and sex required")
         col = "helm_sex" if role == "helm" else "crew_sex"
         sas_col = "helm_sas_id" if role == "helm" else "crew_sas_id"

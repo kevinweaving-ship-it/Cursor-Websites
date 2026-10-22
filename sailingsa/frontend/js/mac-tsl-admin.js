@@ -9,9 +9,10 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261022b";
+  var JS_VER = "20261022c";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
+  var ROSTER_LINES = 4;
   var FLIGHT_CODE_POINTS = 7;
   var FLIGHT_RANK_CODES = { DNC: 1, DNS: 1, DNF: 1, RET: 1, DSQ: 1, OCS: 1, BFD: 1, UFD: 1, DPI: 1, NSC: 1, DNE: 1 };
   var CSS_ID = "mac-tsl-admin-css";
@@ -431,11 +432,11 @@
 
   function publicTeamsTable() {
     var html = '<div class="table-wrapper"><table class="fleet-results-table"><thead><tr>' +
-      '<th class="club-col">Team</th><th>1 Helm</th><th>1 Crew</th><th>2 Helm</th><th>2 Crew</th><th>3 Helm</th><th>3 Crew</th>' +
+      '<th class="club-col">Team</th><th>1 Helm</th><th>1 Crew</th><th>2 Helm</th><th>2 Crew</th><th>3 Helm</th><th>3 Crew</th><th>4 Helm</th><th>4 Crew</th>' +
       (isSaEdit() ? "<th></th>" : "") +
       "</tr></thead><tbody>";
     if (!(state.teams || []).length) {
-      html += '<tr><td colspan="' + (isSaEdit() ? "8" : "7") + '">No teams registered.</td></tr>';
+      html += '<tr><td colspan="' + (isSaEdit() ? "10" : "9") + '">No teams registered.</td></tr>';
     }
     (state.teams || []).forEach(function (t) { html += teamRowHtml(t); });
     html += "</tbody></table></div>";
@@ -500,10 +501,10 @@
 
   function teamRowHtml(team) {
     team = team || {};
-    var boats = team.boats || [{ boat_no: 1 }, { boat_no: 2 }, { boat_no: 3 }];
+    var boats = team.boats || [{ boat_no: 1 }, { boat_no: 2 }, { boat_no: 3 }, { boat_no: 4 }];
     var code = clubCode(team);
     var cells = "";
-    for (var n = 1; n <= 3; n += 1) {
+    for (var n = 1; n <= ROSTER_LINES; n += 1) {
       var b = boats.filter(function (x) { return Number(x.boat_no) === n; })[0] || { boat_no: n };
       cells += "<td>" + sailorCell(n, "helm", b.helm) + "</td><td>" + sailorCell(n, "crew", b.crew) + "</td>";
     }
@@ -526,7 +527,7 @@
 
   function collectTeam(panel) {
     var boats = [];
-    for (var n = 1; n <= 3; n += 1) {
+    for (var n = 1; n <= ROSTER_LINES; n += 1) {
       var helm = panel.querySelector('input[data-sas-role="helm"][data-boat="' + n + '"]');
       var crew = panel.querySelector('input[data-sas-role="crew"][data-boat="' + n + '"]');
       boats.push({
@@ -641,7 +642,7 @@
   }
   function firstOpenSlotSameRole(team, preferBoat, role) {
     if (!team || !role) return null;
-    if (roleFilled(team, role) >= 3) return null;
+    if (roleFilled(team, role) >= ROSTER_LINES) return null;
     var boats = rosterBoats(team);
     var i = Number(preferBoat) - 1;
     if (boats[i] && slotEmpty(boats[i][role])) return { boat: Number(preferBoat) || (i + 1), role: role };
@@ -1582,7 +1583,7 @@
     var boats = (team && team.boats) || [];
     var out = [];
     var n;
-    for (n = 1; n <= 3; n += 1) {
+    for (n = 1; n <= ROSTER_LINES; n += 1) {
       var b = boats.filter(function (x) { return Number(x.boat_no) === n; })[0] || {};
       var pairFromList = (known.sailors || []).length >= n * 2;
       out.push({
@@ -1604,8 +1605,8 @@
 
   function allowedRoles(team, boatNo, currentRole) {
     var out = [];
-    if (roleFilled(team, "helm", boatNo, currentRole) < 3) out.push("helm");
-    if (roleFilled(team, "crew", boatNo, currentRole) < 3) out.push("crew");
+    if (roleFilled(team, "helm", boatNo, currentRole) < ROSTER_LINES) out.push("helm");
+    if (roleFilled(team, "crew", boatNo, currentRole) < ROSTER_LINES) out.push("crew");
     return out;
   }
 
@@ -2215,7 +2216,7 @@
 
   function newTeamCardHtml() {
     if (!isSaEdit()) return "";
-    var dummy = { team_id: "", boats: [{ boat_no: 1 }, { boat_no: 2 }, { boat_no: 3 }] };
+    var dummy = { team_id: "", boats: [{ boat_no: 1 }, { boat_no: 2 }, { boat_no: 3 }, { boat_no: 4 }] };
     return '<div class="card tsl-team-card tsl-new-team-card" data-team-id="">' +
       '<button type="button" class="tsl-new-team-hit" id="tslNewTeamHead">' +
       '<span class="club-race-step-add" id="tslNewTeam" aria-hidden="true">+</span>' +
@@ -3469,15 +3470,20 @@
     var c = pairPersonFull(pair && pair.crew, "Crew");
     if (h) bits.push(h);
     if (c) bits.push(c);
-    return bits.join(", ") || "—";
+    var names = bits.join(", ") || "—";
+    return pair && pair.boat_no ? ("No " + pair.boat_no + " · " + names) : names;
+  }
+
+  function rosterPairs(team) {
+    return rosterBoats(team).map(function (b, i) {
+      return { boat_no: i + 1, helm: b.helm, crew: b.crew };
+    });
   }
 
   function enteredPairs(team) {
-    var out = [];
-    rosterBoats(team).forEach(function (b, i) {
-      if (pairEntered(b)) out.push({ boat_no: i + 1, helm: b.helm, crew: b.crew });
+    return rosterPairs(team).filter(function (p) {
+      return pairEntered({ helm: p.helm, crew: p.crew });
     });
-    return out;
   }
 
   function usedPairNos(fl, teamId, exceptBow) {
@@ -3494,7 +3500,7 @@
 
   function availablePairs(fl, team, exceptBow) {
     var used = usedPairNos(fl, team && team.team_id, exceptBow);
-    return enteredPairs(team).filter(function (p) { return !used[p.boat_no]; });
+    return rosterPairs(team).filter(function (p) { return !used[p.boat_no]; });
   }
 
   function pairByNo(team, boatNo) {
