@@ -20757,6 +20757,8 @@ async def login(request: Request):
         
         if not username or not password:
             return {"success": False, "error": "Username and password required"}
+        username = str(username).strip()
+        username = {"jsmit6": "4701"}.get(username.lower(), username)
         
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -26877,7 +26879,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261015c" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261018f" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261022a" defer></script>'
             if is_mac_tsl
             else ""
         )

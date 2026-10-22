@@ -32,7 +32,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261018f", JS)
+        self.assertIn("20261022a", JS)
         self.assertIn("grid-template-columns:minmax(0,1fr) minmax(0,2.4fr) minmax(0,1fr)", JS)
         self.assertIn("regatta-header-logo-img{height:52px!important;max-height:52px!important", JS)
         self.assertIn("flightScoreAdjust", JS)
@@ -100,8 +100,12 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertIn("tsl-gold-left", JS)
         self.assertIn("tsl-gold-right", JS)
         self.assertIn("syncGoldRowHeights", JS)
-        self.assertIn("#macTslGoldSheet .tsl-gold-right{flex:1 1 0;min-width:0;overflow-x:auto", JS)
-        self.assertIn(".tsl-gold-right .fleet-results-table{width:100%;min-width:max-content;table-layout:auto}", JS)
+        self.assertIn("#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:hidden;width:max-content;max-width:100%", JS)
+        self.assertIn("#macTslGoldSheet .tsl-gold-right{flex:0 1 auto;min-width:0;overflow-x:auto", JS)
+        self.assertIn(".tsl-gold-right .fleet-results-table{width:max-content;min-width:max-content;table-layout:auto}", JS)
+        self.assertIn(".tsl-gold-right .race-col{min-width:2.6em;width:auto;", JS)
+        self.assertNotIn("width:1%", JS)
+        self.assertNotIn("#macTslGoldSheet .tsl-gold-right{flex:1 1 0;", JS)
         self.assertIn("openFlightRemovePop", JS)
         self.assertIn("Clear this flight", JS)
         self.assertIn("Remove later flights", JS)
@@ -315,7 +319,7 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261018f", API)
+        self.assertIn("mac-tsl-admin.js?v=20261022a", API)
         self.assertIn("is_super_admin=_session_can_edit_tsl", API)
         self.assertIn("def _session_can_edit_tsl", API)
 
@@ -367,7 +371,7 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("mac-tsl-live-cards.js?v=20261015c", patch)
         self.assertIn("def _session_can_edit_tsl", patch)
         self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
-        self.assertIn("mac-tsl-admin.js?v=20261018f", patch)
+        self.assertIn("mac-tsl-admin.js?v=20261022a", patch)
         media = (ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_media.py").read_text(
             encoding="utf-8"
         )

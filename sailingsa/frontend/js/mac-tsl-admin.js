@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261018f";
+  var JS_VER = "20261022a";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var FLIGHT_CODE_POINTS = 7;
@@ -159,18 +159,18 @@
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
       ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet){display:none}",
-      "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:hidden;width:100%;max-width:100%;margin-top:20px;margin-bottom:20px}",
-      "#macTslGoldSheet .tsl-gold-wrap{display:flex;width:100%;max-width:100%;align-items:stretch;min-width:0;box-sizing:border-box}",
+      "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:hidden;width:max-content;max-width:100%;margin-top:20px;margin-bottom:20px}",
+      "#macTslGoldSheet .tsl-gold-wrap{display:flex;width:max-content;max-width:100%;align-items:stretch;min-width:0;box-sizing:border-box}",
       "#macTslGoldSheet .tsl-gold-left{flex:0 0 auto;max-width:none;overflow:visible;min-width:0;position:relative;z-index:1}",
-      "#macTslGoldSheet .tsl-gold-right{flex:1 1 0;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}",
-      "#macTslGoldSheet table{min-width:0}",
-      "#macTslGoldSheet .fleet-results-table{border:none;border-radius:0;margin:0;border-collapse:collapse}",
+      "#macTslGoldSheet .tsl-gold-right{flex:0 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}",
+      "#macTslGoldSheet table{min-width:0;width:max-content}",
+      "#macTslGoldSheet .fleet-results-table{border:none;border-radius:0;margin:0;border-collapse:collapse;width:max-content}",
       "#macTslGoldSheet .tsl-gold-left .fleet-results-table{width:max-content;min-width:0;table-layout:auto}",
-      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{width:100%;min-width:max-content;table-layout:auto}",
+      "#macTslGoldSheet .tsl-gold-right .fleet-results-table{width:max-content;min-width:max-content;table-layout:auto}",
       "#macTslGoldSheet .rank-col,#macTslGoldSheet .tsl-gold-left thead th,#macTslGoldSheet .total-col{white-space:nowrap}",
       "#macTslGoldSheet .tsl-gold-left .club-col{max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
       "#macTslGoldSheet .tsl-gold-left .club-col .rs-club-with-logo{max-width:100%;overflow:hidden}",
-      "#macTslGoldSheet .tsl-gold-right .race-col{min-width:2.6em;width:1%;text-align:center;padding-left:4px;padding-right:4px}",
+      "#macTslGoldSheet .tsl-gold-right .race-col{min-width:2.6em;width:auto;text-align:center;padding-left:4px;padding-right:4px}",
       "#macTslGoldSheet thead tr:first-child th{border-top:none}",
       "#macTslGoldSheet tbody tr:last-child td{border-bottom:none}",
       "#macTslGoldSheet .tsl-gold-left th:first-child,#macTslGoldSheet .tsl-gold-left td:first-child{border-left:none}",
