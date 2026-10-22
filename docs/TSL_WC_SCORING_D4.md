@@ -148,6 +148,6 @@ No 480px layout rewrite. Do not hide Rank / Club/Team / Wins / Total. Do not sta
 ## Code
 
 - `goldBuilt()` / gold headers in `js/mac-tsl-admin.js` and `sailingsa/frontend/js/mac-tsl-admin.js`  
-- Pin `mac-tsl-admin.js?v=20261022p`  
+- Pin `mac-tsl-admin.js?v=20261022q`  
 - `stamp_tsl_final` in `sailingsa/backend/tsl_team_racing.py`  
 - Tests: `sailingsa/backend/test_tsl_admin_js.py`, `sailingsa/backend/test_tsl_team_racing.py`
