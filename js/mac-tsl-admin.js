@@ -300,7 +300,7 @@
         "#macTslFlightsCard,#macTslTeamsCard{display:block!important;overflow:visible!important;padding:8px!important;width:100%!important;max-width:none!important}" +
         "#macTslFlightsCard.tsl-section-shut .tsl-flight-cards,#macTslTeamsCard.tsl-section-shut .tsl-team-cards{display:grid!important}" +
         "#macTslFlightsCard .tsl-flight-cards,#macTslTeamsCard .tsl-team-cards{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;width:100%!important;max-width:none!important;flex-direction:unset!important}" +
-        "#macTslFlightsCard .tsl-flight-card,#macTslTeamsCard .tsl-team-card{padding:8px!important;overflow:visible!important;width:auto!important;max-width:100%!important;min-width:0!important;break-inside:avoid;page-break-inside:avoid}" +
+        "#macTslFlightsCard .tsl-flight-card,#macTslTeamsCard .tsl-team-card{padding:8px!important;overflow:visible!important;width:auto!important;max-width:calc(50vw - 8px)!important;min-width:0!important;justify-self:start;break-inside:avoid;page-break-inside:avoid}" +
         ".regatta-page[data-mac-tsl=\"1\"] .table-wrapper{overflow:visible!important}" +
         "#macTslFlightsCard .tsl-flight-card .fleet-results-table,#macTslTeamsCard .tsl-team-card .fleet-results-table{width:100%!important;min-width:0!important;max-width:none!important}" +
       "}"

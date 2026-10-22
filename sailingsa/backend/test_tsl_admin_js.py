@@ -150,6 +150,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("#macTslGoldSheet table{table-layout:auto!important;width:auto!important", JS)
         self.assertNotIn("font-size:8pt!important", JS)
         self.assertIn("grid-template-columns:repeat(2,minmax(0,1fr))", JS)
+        self.assertIn("max-width:calc(50vw - 8px)!important", JS)
         self.assertIn("break-inside:avoid;page-break-inside:avoid", JS)
         self.assertNotIn("goldPrintTableHtml", JS)
         self.assertNotIn("goldCombinedTableHtml", JS)
