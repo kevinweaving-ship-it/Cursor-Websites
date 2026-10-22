@@ -16,8 +16,8 @@ SLUG = "2026-10-17-mac-tsl-wc-team-sailing"
 MARKER = "TSL_LIVE_PAGE_PDF_v1"
 OLD_BOOT = '<style id="mac-tsl-boot-css">@page{size:297mm 210mm;margin:8mm}</style>'
 NEW_BOOT = '<style id="mac-tsl-boot-css">@page{size:A4 landscape;size:297mm 210mm;margin:8mm}</style>'
-OLD_PIN = "mac-tsl-admin.js?v=20261022w"
-NEW_PIN = "mac-tsl-admin.js?v=20261022x"
+OLD_PIN = "mac-tsl-admin.js?v=20261022x"
+NEW_PIN = "mac-tsl-admin.js?v=20261022y"
 
 REBUILD_ANCHOR = (
     "    rid = str(slug or \"\").strip()\n"
