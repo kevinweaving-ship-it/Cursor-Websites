@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261022i";
+  var JS_VER = "20261022j";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var ROSTER_LINES = 4;
@@ -203,9 +203,19 @@
       "#macTslFlightsCard .tsl-flight-card.tsl-flight-shut{padding-bottom:8px;background:#e8f6ea}",
       "#macTslFlightsCard .tsl-flight-card.tsl-flight-shut .table-wrapper{display:none}",
       "#macTslFlightsCard .tsl-flight-card .table-wrapper{margin:8px 0 0;width:100%;max-width:100%;box-sizing:border-box;overflow:hidden}",
-      "#macTslFlightsCard .tsl-flight-card .fleet-results-table{width:100%;table-layout:auto;box-sizing:border-box;transform-origin:top left}",
+      "#macTslFlightsCard .tsl-flight-card .fleet-results-table{width:100%;table-layout:fixed;box-sizing:border-box;border-collapse:collapse}",
       "#macTslFlightsCard .tsl-flight-card .fleet-results-table th,#macTslFlightsCard .tsl-flight-card .fleet-results-table td,#macTslTeamsCard .tsl-team-card .fleet-results-table th,#macTslTeamsCard .tsl-team-card .fleet-results-table td{padding:2px 4px;line-height:1.2;vertical-align:middle}",
       "#macTslFlightsCard .fleet-results-table th{font-weight:bold}",
+      "#macTslFlightsCard .tsl-flight-card .table-wrapper:not(.tsl-flight-note) .rank-col{width:3.2em}",
+      "#macTslFlightsCard .tsl-flight-card .table-wrapper:not(.tsl-flight-note) th:nth-child(2),#macTslFlightsCard .tsl-flight-card .table-wrapper:not(.tsl-flight-note) td:nth-child(2){width:3.2em;text-align:center}",
+      "#macTslFlightsCard .tsl-flight-card .table-wrapper:not(.tsl-flight-note) th:nth-child(3),#macTslFlightsCard .tsl-flight-card .table-wrapper:not(.tsl-flight-note) td:nth-child(3){width:3.6em;text-align:center}",
+      "#macTslFlightsCard .tsl-flight-card .club-col{width:7.2em}",
+      "#macTslFlightsCard .tsl-flight-card .fleet-results-table th,#macTslFlightsCard .tsl-flight-card .fleet-results-table td{white-space:nowrap}",
+      "#macTslFlightsCard .tsl-flight-card .club-col .tsl-club-mark{display:flex;align-items:center;gap:4px;min-width:0;white-space:nowrap}",
+      "#macTslFlightsCard .tsl-flight-card .club-col .tsl-club-logo{flex:0 0 28px;width:28px;height:16px;display:inline-flex;align-items:center;justify-content:flex-start;overflow:hidden}",
+      "#macTslFlightsCard .tsl-flight-card .club-col .tsl-club-logo img{max-width:28px;max-height:16px;width:auto;height:auto;object-fit:contain;object-position:left center;display:block}",
+      "#macTslFlightsCard .tsl-flight-card .club-col .tsl-club-code{flex:0 0 auto}",
+      "#macTslFlightsCard .tsl-flight-note .fleet-results-table th:not(.club-col),#macTslFlightsCard .tsl-flight-note .fleet-results-table td:not(.club-col){text-align:center}",
       "#macTslFlightsCard .tsl-colour-sq{display:inline-block;width:14px;height:14px;border:1px solid #1a2750;background:#fff;padding:0;margin:0;vertical-align:middle;box-sizing:border-box;cursor:default}",
       "#macTslFlightsCard .tsl-colour-sq.tsl-colour-blue{background:#1d4ed8;border-color:#1d4ed8}",
       "#macTslFlightsCard .tsl-colour-sq.tsl-colour-green{background:#15803d;border-color:#15803d}",
@@ -395,7 +405,9 @@
   }
   function clubCell(team) {
     var code = clubCode(team);
-    return '<span class="rs-club-with-logo">' + logoImg(team && team.club_logo, code) + esc(code) + "</span>";
+    return '<span class="rs-club-with-logo tsl-club-mark">' +
+      '<span class="tsl-club-logo">' + logoImg(team && team.club_logo, code) + "</span>" +
+      '<span class="tsl-club-code">' + esc(code || "—") + "</span></span>";
   }
 
   function consistentName(s) {
