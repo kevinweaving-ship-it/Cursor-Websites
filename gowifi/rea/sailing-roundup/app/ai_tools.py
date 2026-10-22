@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import re
 import urllib.parse
 import urllib.request
 
@@ -191,10 +192,20 @@ def search_images(query: str, environ=None, opener=None, bing_search=None) -> di
     try:
         items = _bing_image_items(query, bing_search=bing_search)
     except Exception as exc:
-        return {"status": "provider_failure", "reason": type(exc).__name__, "items": [], "query": query, "provider": "bing_html"}
+        reason = str(exc) if "search_challenge" in str(exc) else type(exc).__name__
+        status = "access_blocked" if "search_challenge" in str(exc) else "provider_failure"
+        return {"status": status, "reason": reason, "items": [], "query": query, "provider": "bing_html"}
     if not items:
         return {"status": "empty", "reason": "no search results", "items": [], "query": query, "provider": "bing_html"}
-    return {"status": "ok", "items": items, "query": query, "provider": "bing_html"}
+    tokens = [t for t in re.findall(r"[a-z0-9]+", query.lower()) if len(t) > 2 and t not in {"the", "and", "for", "with"}]
+    on_topic = [
+        item
+        for item in items
+        if sum(1 for t in tokens if t in ((item.get("title") or "") + " " + (item.get("source_url") or "")).lower()) >= 2
+    ]
+    if not on_topic:
+        return {"status": "empty", "reason": "no on-topic search results", "items": [], "query": query, "provider": "bing_html"}
+    return {"status": "ok", "items": on_topic, "query": query, "provider": "bing_html"}
 
 
 VISION_VERSION = "1"

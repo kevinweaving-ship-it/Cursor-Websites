@@ -24,7 +24,10 @@ def search(query, kind):
     ) + urllib.parse.quote(query)
     r = requests.get(url, headers=HEADERS, timeout=25)
     r.raise_for_status()
-    soup = BeautifulSoup(r.text, "html.parser")
+    blob = r.text or ""
+    if re.search(r"captcha|unusual traffic|verify you are", blob, re.I):
+        raise RuntimeError("search_challenge")
+    soup = BeautifulSoup(blob, "html.parser")
     out = []
     if kind == "images":
         for tag in soup.select("a.iusc"):

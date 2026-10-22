@@ -155,6 +155,18 @@ class SharedAITools(unittest.TestCase):
         self.assertEqual(bing["status"], "ok")
         self.assertEqual(bing["provider"], "bing_html")
         self.assertEqual(bing["items"][0]["url"], "https://rsa505.org.za/a.jpg")
+        off = search_images(
+            "505 Nationals 2026 photos",
+            environ={},
+            bing_search=lambda q: [{"image_url": "https://example/x.jpg", "source_url": "https://pinterest.com/pin/1", "title": "Inspirerende Afrikaanse Boodskappe"}],
+        )
+        self.assertEqual(off["status"], "empty")
+        blocked = search_images(
+            "505 Nationals 2026 photos",
+            environ={},
+            bing_search=lambda q: (_ for _ in ()).throw(RuntimeError("search_challenge")),
+        )
+        self.assertEqual(blocked["status"], "access_blocked")
 
 
 if __name__ == "__main__":
