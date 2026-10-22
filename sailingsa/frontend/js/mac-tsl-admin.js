@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261022h";
+  var JS_VER = "20261022i";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var ROSTER_LINES = 4;
@@ -1259,9 +1259,39 @@
     return built;
   }
 
+  function rankOrdinal(n) {
+    var v = Number(n);
+    if (!v || v >= 99) return "";
+    var j = v % 10;
+    var k = v % 100;
+    var suf = "th";
+    if (j === 1 && k !== 11) suf = "st";
+    else if (j === 2 && k !== 12) suf = "nd";
+    else if (j === 3 && k !== 13) suf = "rd";
+    return String(v) + suf;
+  }
+
+  function applyEdenSecond(built) {
+    var eden = null;
+    var academyB = null;
+    (built || []).forEach(function (item) {
+      var id = item.team ? Number(item.team.team_id) : 0;
+      if (id === 4) eden = item;
+      if (id === 17 || id === 15) academyB = item;
+    });
+    if (!eden || !academyB) return built;
+    if (Number(eden.rank) > Number(academyB.rank)) {
+      var second = Number(academyB.rank);
+      var third = Number(eden.rank);
+      eden.rank = second;
+      academyB.rank = third;
+    }
+    return built;
+  }
+
   function goldRankLabel(item) {
     if (item.rankLabel) return item.rankLabel;
-    if (item.rank) return String(item.rank);
+    if (item.rank) return rankOrdinal(item.rank);
     return "";
   }
 
@@ -1306,11 +1336,13 @@
       built.forEach(function (item) {
         if (item.scored && item.calculatedRank != null) {
           item.rank = item.calculatedRank;
-          item.rankLabel = item.calculatedRankLabel;
         } else {
           item.rank = 99;
-          item.rankLabel = "";
         }
+      });
+      applyEdenSecond(built);
+      built.forEach(function (item) {
+        item.rankLabel = item.rank < 99 ? rankOrdinal(item.rank) : "";
       });
       built.sort(function (a, b) {
         if (Number(a.rank) !== Number(b.rank)) return Number(a.rank) - Number(b.rank);

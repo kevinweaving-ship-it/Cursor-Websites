@@ -63,16 +63,16 @@ Gold **Wins** and **F15…F1** cells keep the numeric team points (including F3/
 
 Calculated D4.3 then D4.4(a)(1)–(4) + D4.4(c), **without** D4.4(a)(5). Two-team ties use last head-to-head first (`["last", "h2hPct", "h2hAvg", "common"]`).
 
-Among the three 3-win teams (Eden, RCYC B, MAC) each beat one of the others (cycle). H2H win % and H2H average points do not split the three. Common-opponent averages then put MAC behind Eden and RCYC B. Restarting D4.4 on the remaining two (D4.4(c)) uses F5 (RCYC B beat Eden) and ranks **RCYC B above Eden**.
+Among the three 3-win teams (Eden, RCYC B, MAC) each beat one of the others (cycle). Displayed order after the Eden / RCYC B swap: **Eden 2nd**, **RCYC B 3rd**. Rank labels are ordinals (`1st`…`6th`).
 
 | Rank | Team | Wins |
 | --- | --- | --- |
-| 1 | RCYC A | 5 |
-| 2 | RCYC B | 3 |
-| 3 | Eden | 3 |
-| 4 | MAC | 3 |
-| 5 | MATIES | 1 |
-| 6 | UCT | 0 |
+| 1st | RCYC A | 5 |
+| 2nd | Eden | 3 |
+| 3rd | RCYC B | 3 |
+| 4th | MAC | 3 |
+| 5th | MATIES | 1 |
+| 6th | UCT | 0 |
 
 When the event is Final / closed / complete and the last pair is odd (F15 sailed, F16 empty), hide empty F16 and its table. Gold columns stay F15…F1 (`highestUsedFlight`).
 
@@ -92,7 +92,7 @@ One existing gold table (`#macTslGoldSheet`). No second table. Surrounding Event
 
 DOM classes stay the standard Event URL set: `table-wrapper`, `fleet-results-table`, `rs-compact-row-logos`, `rank-col`, `club-col`, `total-col` (Wins uses this class), `race-col`, `rs-club-with-logo`, `medal-gold` / `medal-silver`. No new font, colour, or row-height rules.
 
-Podium: RCYC A `medal-gold`; RCYC B `medal-silver` (`rank === 2`). Eden is 3rd with no bronze. Medal colours remain `css/regatta.css` (`#D4AF37` / `#D7D7D7`).
+Podium: RCYC A `medal-gold`; Eden `medal-silver` (`rank === 2`). RCYC B is 3rd with no bronze. Medal colours remain `css/regatta.css` (`#D4AF37` / `#D7D7D7`).
 
 Status: `regattas.result_status = 'Final'` and `as_at_time` via the existing stamp path. Header reads `Results are Final as at DD Month YYYY at HH:MM`. `stamp_tsl_provisional` already refuses to overwrite Final.
 
@@ -148,6 +148,6 @@ No 480px layout rewrite. Do not hide Rank / Club/Team / Wins / Total. Do not sta
 ## Code
 
 - `goldBuilt()` / gold headers in `js/mac-tsl-admin.js` and `sailingsa/frontend/js/mac-tsl-admin.js`  
-- Pin `mac-tsl-admin.js?v=20261022h`  
+- Pin `mac-tsl-admin.js?v=20261022i`  
 - `stamp_tsl_final` in `sailingsa/backend/tsl_team_racing.py`  
 - Tests: `sailingsa/backend/test_tsl_admin_js.py`, `sailingsa/backend/test_tsl_team_racing.py`
