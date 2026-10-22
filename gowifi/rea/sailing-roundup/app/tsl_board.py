@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Parent TSL Team Racing board from /api/tsl/{slug}/state.
+"""Parent overall results table for TSL Team Racing.
 
-The public /api/regatta card for TSL has team names and empty rank/nett.
-The parent page builds Rank / Club/Team / Wins / Total / F15…F1 in
-mac-tsl-admin.js goldBuilt() from settings.flight_sheet. Gate 1 must hash
-that sheet, never /api/regatta file order.
+The /api/regatta payload is a team list (names, empty Rank/Wins/Total).
+That is a roster, not a leaderboard. The parent overall table is
+Rank / Club/Team / Wins / Total / F15…F1 from settings.flight_sheet
+(goldBuilt() in mac-tsl-admin.js). Gate 1 hashes that table only.
 """
 from __future__ import annotations
 

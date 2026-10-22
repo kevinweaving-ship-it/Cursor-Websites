@@ -14,6 +14,7 @@ from event_rewrite import (
     entry_kind,
     event_finished,
     facts_from_rows,
+    is_scored_result_row,
     is_team_racing,
     layout_for,
     pick_image,
@@ -467,6 +468,8 @@ class RewriteEngine(unittest.TestCase):
         blank = facts_from_rows(slug, rows)
         self.assertIn(blank["winner"], ("", "The leader"))
         self.assertFalse(blank["ranked_rows"])
+        self.assertFalse(any(is_scored_result_row(r) for r in rows))
+        self.assertEqual(class_leaderboards(rows), [])
         rows = apply_parent_tsl_board(rows, state)
         facts = facts_from_rows(slug, rows)
         self.assertTrue(facts["team_racing"])

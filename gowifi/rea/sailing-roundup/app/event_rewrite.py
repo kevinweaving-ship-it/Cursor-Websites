@@ -305,6 +305,36 @@ def _ranked(rows: list[dict]) -> list[dict]:
     return list(rows)
 
 
+def result_score(row: dict) -> str:
+    """Score cell from the overall results table. A name is not a score."""
+    if not row:
+        return ""
+    for key in ("team_wins", "wins", "total_points_raw", "nett_points_raw", "nett"):
+        if row.get(key) not in (None, ""):
+            return str(row[key]).replace(".0", "")
+    time = _row_time(row) or str(row.get("time") or "").strip()
+    if time:
+        return time
+    scores = row.get("race_scores")
+    if isinstance(scores, dict) and any(v not in (None, "") for v in scores.values()):
+        return "races"
+    return ""
+
+
+def is_scored_result_row(row: dict) -> bool:
+    """Overall-results-table row: a place and a score.
+
+    Team / boat / helm names with empty Rank, Wins, Total, Nett, or Time
+    are a roster. That list is not a leaderboard.
+    """
+    pos = _row_rank(row)
+    if pos in (None, ""):
+        pos = row.get("pos")
+    if pos in (None, ""):
+        return False
+    return bool(result_score(row))
+
+
 def _win_count(scores) -> int:
     if not isinstance(scores, dict):
         return 0
@@ -321,7 +351,7 @@ def _win_count(scores) -> int:
 
 def facts_from_rows(slug: str, rows: list[dict]) -> dict:
     first = rows[0]
-    ranked = [r for r in _ranked(rows) if _row_rank(r) not in (None, "")]
+    ranked = [r for r in _ranked(rows) if is_scored_result_row(r)]
     winner = ranked[0] if ranked else {}
     second = ranked[1] if len(ranked) > 1 else {}
     third = ranked[2] if len(ranked) > 2 else {}
@@ -573,8 +603,10 @@ def _overall_fleet_name(rows: list[dict]) -> str:
 
 
 def class_leaderboards(rows: list[dict]) -> list[dict]:
-    """Full parent-URL leaderboard for every class/fleet. All ranks, not a 3-boat podium cut."""
-    ranked = _ranked(rows)
+    """Leaderboard from the parent overall results table only. Roster lines are dropped."""
+    ranked = [r for r in _ranked(rows) if is_scored_result_row(r)]
+    if not ranked:
+        return []
     if _overall_open_board(ranked):
         name = _overall_fleet_name(ranked)
         kind = entry_kind(ranked[0], rows=ranked)

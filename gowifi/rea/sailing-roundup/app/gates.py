@@ -31,7 +31,14 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
-from event_rewrite import class_leaderboards, entry_kind, facts_from_rows, is_chrome_image, _is_roster, _row_rank
+from event_rewrite import (
+    class_leaderboards,
+    entry_kind,
+    facts_from_rows,
+    is_chrome_image,
+    is_scored_result_row,
+    _is_roster,
+)
 from events_weekend import SKIP_NAME, overlaps, parse_day, saturday_sunday
 from desk_editor import is_generic
 from evidence_pipeline import is_scoresheet, other_event_conflict, unlisted_event_names
@@ -142,7 +149,7 @@ def equals_from_facts(facts: dict) -> dict:
         "end": facts.get("end") or "",
         "host": (facts.get("club") or facts.get("club_name") or "").strip(),
         "url": facts.get("url") or results_url(slug),
-        "source": "parent",
+        "source": "parent_overall_table",
         "fleets": [b.get("fleet") or b.get("class") or "" for b in boards],
         "leaderboards": boards,
         "leaderboard": boards[0]["rows"] if boards else [],
@@ -241,10 +248,16 @@ def _check_parent_leaderboards(equals: dict) -> list[str]:
             continue
         if not any((r.get("team") or r.get("boat") or r.get("helm") or r.get("crew")) for r in rows):
             errors.append(f"{name}: leaderboard rows have no {who} names")
-        firsts = [r for r in rows if str(r.get("pos") or "").split(".")[0] == "1"]
+        scored = [r for r in rows if is_scored_result_row(r)]
+        if not scored:
+            errors.append(
+                f"{name}: overall results table is a {who} list — not a scored leaderboard"
+            )
+            continue
+        firsts = [r for r in scored if str(r.get("pos") or "").split(".")[0] == "1"]
         if not firsts:
             errors.append(f"{name}: no {who} in 1st place")
-        elif len(rows) > 2 and len(firsts) == len(rows):
+        elif len(scored) > 2 and len(firsts) == len(scored):
             errors.append(f"{name}: every entry is listed as 1st — leaderboard is not a result")
     return errors
 
@@ -318,9 +331,13 @@ def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: s
 
     kind = facts.get("identity") or entry_kind(rows[0], slug=slug, rows=rows)
     boards = (record.get("equals") or {}).get("leaderboards") or []
-    if kind == "team" and not any(_row_rank(r) not in (None, "") for r in rows):
-        errors.append("team racing has no proven parent sheet ranks — file order is not a standing")
-    if not any(r.get("pos") for b in boards for r in (b.get("rows") or [])):
+    scored_rows = [r for r in rows if is_scored_result_row(r)]
+    scored_board = [r for b in boards for r in (b.get("rows") or []) if is_scored_result_row(r)]
+    if not scored_rows and not scored_board:
+        errors.append(
+            f"parent overall results table is a {kind or 'entry'} list — not a scored leaderboard"
+        )
+    if not any(r.get("pos") for r in scored_board):
         errors.append("leaderboard has no ranked rows")
     if kind in ("team", "boat") and not any(
         (r.get("boat_name") or r.get("team_name") or r.get("club_abbrev") or "").strip() for r in rows

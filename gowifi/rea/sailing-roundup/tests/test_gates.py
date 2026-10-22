@@ -188,7 +188,7 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["equals"]["name"], "420 Nationals")
         self.assertEqual(rec["equals"]["host"], "TSC")
         self.assertEqual(rec["equals"]["url"], rec["url"])
-        self.assertEqual(rec["equals"]["source"], "parent")
+        self.assertEqual(rec["equals"]["source"], "parent_overall_table")
         self.assertEqual(rec["equals"]["fleets"], ["420"])
         self.assertEqual(rec["equals"]["leaderboard"][0]["helm"], "Dale Rae")
         self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
@@ -336,8 +336,18 @@ class EventFactsGate(unittest.TestCase):
         slug = "2026-10-17-mac-tsl-wc-team-sailing"
         rec = check_one_event(monday, slug, tsl_mac_rows())
         self.assertEqual(rec["status"], "fail")
-        self.assertTrue(any("parent sheet" in e or "no ranked rows" in e or "1st place" in e for e in rec["errors"]))
+        self.assertTrue(any("not a scored leaderboard" in e for e in rec["errors"]))
+        self.assertTrue(any("team list" in e for e in rec["errors"]))
         self.assertNotEqual(rec["winner"], "RCYCA A")
+
+    def test_name_list_with_invented_places_is_not_a_leaderboard(self):
+        rows = tsl_mac_rows()
+        for index, row in enumerate(rows, 1):
+            row["rank"] = index
+        rec = check_one_event(dt.date(2026, 10, 19), "2026-10-17-mac-tsl-wc-team-sailing", rows)
+        self.assertEqual(rec["status"], "fail")
+        self.assertTrue(any("not a scored leaderboard" in e for e in rec["errors"]))
+        self.assertEqual(rec["winner"], "The leader")
 
     def test_tsl_team_racing_ranks_from_parent_sheet(self):
         monday = dt.date(2026, 10, 19)
