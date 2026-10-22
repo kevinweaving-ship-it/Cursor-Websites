@@ -164,7 +164,7 @@ TOOLBAR_INSERT = '''        sa_toolbar_script = (
         is_mac_tsl = str(regatta_id) == "2026-10-17-mac-tsl-wc-team-sailing"
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261015c" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261022l" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261022m" defer></script>'
             if is_mac_tsl
             else ""
         )
@@ -397,7 +397,7 @@ def main() -> int:
         f'return "{TSL_CLASS_LOGO}"',
         f'return "{TSL_LOGO}"',
     )
-    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261022l" defer></script>'
+    admin_tag = '<script src="/js/mac-tsl-admin.js?v=20261022m" defer></script>'
     cards_tag = '<script src="/js/mac-tsl-live-cards.js?v=20261015c" defer></script>'
     if "mac-tsl-admin.js?v=20261012a" in text:
         text = text.replace("mac-tsl-admin.js?v=20261012a", "mac-tsl-admin.js?v=20261013g")
@@ -569,50 +569,53 @@ def main() -> int:
         text = text.replace("mac-tsl-admin.js?v=20261018b", "mac-tsl-admin.js?v=20261018d")
         print("pin admin 20261018d")
     if "mac-tsl-admin.js?v=20261018c" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261018c", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261018c", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261018d" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261018d", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261018d", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261018e" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261018e", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261018e", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261018f" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261018f", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261018f", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022a" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022a", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022a", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022b" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022b", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022b", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022c" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022c", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022c", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022d" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022d", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022d", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022e" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022e", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022e", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022f" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022f", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022f", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022g" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022g", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022g", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022h" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022h", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022h", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022i" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022i", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022i", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022j" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022j", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022j", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     if "mac-tsl-admin.js?v=20261022k" in text:
-        text = text.replace("mac-tsl-admin.js?v=20261022k", "mac-tsl-admin.js?v=20261022l")
-        print("pin admin 20261022l")
+        text = text.replace("mac-tsl-admin.js?v=20261022k", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
+    if "mac-tsl-admin.js?v=20261022l" in text:
+        text = text.replace("mac-tsl-admin.js?v=20261022l", "mac-tsl-admin.js?v=20261022m")
+        print("pin admin 20261022m")
     tsl_edit_fn = (
         "def _session_can_edit_tsl(request: Request) -> bool:\n"
         '    """Super Admin or club admin may edit the TSL Event URL."""\n'
