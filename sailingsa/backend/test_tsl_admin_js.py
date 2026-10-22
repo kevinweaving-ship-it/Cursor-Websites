@@ -32,7 +32,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261022v", JS)
+        self.assertIn("20261022w", JS)
         self.assertIn('document.getElementById("macTslGoldSheet")', JS)
         self.assertNotIn("macTslGoldPrint", JS)
         self.assertNotIn("goldPrintTableHtml", JS)
@@ -137,6 +137,8 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertIn("beforeprint", JS)
         self.assertIn("@page{size:A4 landscape;size:297mm 210mm;margin:8mm}", JS)
         self.assertIn("function forceLandscapePage", JS)
+        self.assertIn("function beginPrintMode", JS)
+        self.assertNotIn("forceLandscapePage();\n    var root = document.documentElement;\n    if (root) {\n      root.classList.add(\"ssa-printing\");", JS)
         self.assertIn("ssa-print-compact", JS)
         self.assertIn("size: A4 landscape", JS)
         self.assertIn("ssa-print-landscape", JS)
@@ -370,7 +372,7 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261022v", API)
+        self.assertIn("mac-tsl-admin.js?v=20261022w", API)
         self.assertIn("@page{size:A4 landscape;size:297mm 210mm;margin:8mm}", API)
         self.assertIn('id="mac-tsl-boot-css"', API)
         self.assertIn("is_super_admin=_session_can_edit_tsl", API)
@@ -425,8 +427,9 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("mac-tsl-live-cards.js?v=20261015c", patch)
         self.assertIn("def _session_can_edit_tsl", patch)
         self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
-        self.assertIn("mac-tsl-admin.js?v=20261022v", patch)
-        self.assertIn('mac-tsl-admin.js?v=20261022u", "mac-tsl-admin.js?v=20261022v"', patch)
+        self.assertIn("mac-tsl-admin.js?v=20261022w", patch)
+        self.assertIn('mac-tsl-admin.js?v=20261022u", "mac-tsl-admin.js?v=20261022w"', patch)
+        self.assertIn('mac-tsl-admin.js?v=20261022v", "mac-tsl-admin.js?v=20261022w"', patch)
         pdf_patch = (ROOT / "sailingsa" / "deploy" / "patch_live_mac_tsl_pdf.py").read_text(
             encoding="utf-8"
         )

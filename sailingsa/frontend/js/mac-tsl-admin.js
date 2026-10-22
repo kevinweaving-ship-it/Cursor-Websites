@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261022v";
+  var JS_VER = "20261022w";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var ROSTER_LINES = 4;
@@ -309,11 +309,6 @@
 
   function forceLandscapePage() {
     var css = "@page{size:A4 landscape;size:297mm 210mm;margin:8mm}";
-    var root = document.documentElement;
-    if (root) {
-      root.classList.add("ssa-print-landscape");
-      root.classList.add("ssa-printing");
-    }
     var compact = document.getElementById("ssa-print-compact");
     if (compact && compact.textContent) {
       compact.textContent = compact.textContent
@@ -327,6 +322,15 @@
     }
     boot.textContent = css;
     (document.body || document.documentElement).appendChild(boot);
+  }
+
+  function beginPrintMode() {
+    forceLandscapePage();
+    var root = document.documentElement;
+    if (root) {
+      root.classList.add("ssa-print-landscape");
+      root.classList.add("ssa-printing");
+    }
   }
 
   function fleetSection() {
@@ -1528,7 +1532,7 @@
   var printFoldBackup = null;
 
   function openAllForPrint() {
-    forceLandscapePage();
+    beginPrintMode();
     if (printFoldBackup) return;
     printFoldBackup = { flight: printFoldClone(flightFold), section: printFoldClone(sectionFold) };
     printFlightNos().forEach(function (n) { flightFold[String(n)] = false; });
@@ -1570,7 +1574,7 @@
     });
     if (window._tslPrintBound) return;
     window.addEventListener("beforeprint", function () {
-      forceLandscapePage();
+      beginPrintMode();
       openAllForPrint();
       layoutGoldSheet();
     });
