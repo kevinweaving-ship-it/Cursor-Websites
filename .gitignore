@@ -55,8 +55,11 @@ BU_PAGE_PROOF_*/
 *.BU_*
 *.BROKEN_*
 
-# Cursor/IDE (avoid index bloat)
-.cursor/
+# Cursor/IDE (avoid index bloat). Ignore .cursor contents, then
+# re-include rules so Cloud/Mobile agents see committed .mdc files.
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # Temp outputs / audits (regenerate as needed)
 AUDIT_*.txt

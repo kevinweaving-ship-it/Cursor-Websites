@@ -1,0 +1,17 @@
+---
+description: Keep Cursor credit burn low. Cheap models, focused edits, no Cloud unless asked.
+alwaysApply: true
+---
+
+# Credit burn (hard)
+
+User already burned months of usage via Max Mode + Claude on mobile. Default cheap.
+
+- Prefer Auto / Composer / fast low-cost models. Do not enable Max Mode. Do not switch to Claude Opus, Claude Thinking, Best-of-N, or multi-model runs unless the user names that model in this message.
+- Do not launch Cloud Agents, background agents, or parallel subagents unless the user asks in this message. Do not spawn summarize/extract/browser subagents for context you can read yourself.
+- Search/read only relevant code. Make focused edits. Run relevant checks once. Avoid unrelated files.
+- If the same fix fails twice, stop retrying and investigate the cause before another attempt.
+- Report briefly. Do not re-read large files or rescan the repo without need.
+- SailingSA / sailingsa.co.za work stays on This Mac. Do not start or continue Cloud for that work unless the user types that they want Cloud in the same message.
+
+Settings the human must change (agents cannot): Cursor Settings → Models (Auto / Composer 2.5); add own OpenAI / Anthropic / Google keys (BYOK does not draw the Cursor pool on individual plans); dashboard Billing Ultra → Pro (downgrade at period end); Spending tab: cap or disable on-demand. Usage: cursor.com/dashboard/spending. See `docs/CREDIT_BURN.md`.
