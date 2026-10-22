@@ -16,7 +16,7 @@ Agents cannot change your plan, model picker, or API keys. Ultra → Pro only af
 2. **Downgrade Ultra → Pro:** [cursor.com/dashboard/billing](https://cursor.com/dashboard/billing). Upgrades are immediate; **downgrades apply at period end**. Legacy Ultra is $200/mo; legacy Pro is $20/mo. Pro still includes Cloud Agents — you must stop launching them or Pro will overage.
 3. **Other AI keys (BYOK):** Settings → Models → paste OpenAI / Anthropic / Google / Azure / Bedrock key → Save. On individual plans those requests **do not** draw Cursor included usage; the provider bills you. [Help](https://cursor.com/help/models-and-usage/api-keys). Tab still uses Cursor’s pool.
 4. **Cap overages:** Spending tab → disable on-demand or set a monthly spend limit. Otherwise Pro + Cloud + high-fast still invoices at API rates.
-5. **Mobile:** do not start Cloud Agents. Use This Mac, Composer, Auto. Close other agent chats first.
+5. **Mobile:** do not start Cloud Agents. Codex iOS Remote to the Mac is the cheap phone path. Cursor Mini still bills the selected model.
 
 ## What was eating Cloud usage (281 agents, this environment)
 
