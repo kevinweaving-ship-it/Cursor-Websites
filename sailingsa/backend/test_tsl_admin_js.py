@@ -32,12 +32,17 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261022r", JS)
+        self.assertIn("20261022s", JS)
         self.assertIn('document.getElementById("macTslGoldPrint") || document.getElementById("macTslGoldSheet")', JS)
         self.assertIn("#macTslTeamsCard .tsl-team-card .fleet-results-table{width:100%;table-layout:auto;box-sizing:border-box;transform-origin:top left;font-size:90%}", JS)
         self.assertIn("#macTslTeamsCard .tsl-team-card .fleet-results-table th,#macTslTeamsCard .tsl-team-card .fleet-results-table td{white-space:nowrap;font-size:inherit}", JS)
         self.assertIn("#macTslFlightsCard .tsl-flight-card .fleet-results-table{width:100%;table-layout:auto;box-sizing:border-box;border-collapse:collapse;font-size:90%}", JS)
         self.assertIn("#macTslFlightsCard .tsl-flight-card .table-wrapper{margin:8px 0 0;width:100%;max-width:100%;box-sizing:border-box;overflow:visible}", JS)
+        self.assertIn("border:1px solid #1d294d", JS)
+        self.assertIn("#macTslFlightsCard .tsl-flight-card .club-col{width:1%;text-align:left;white-space:nowrap;overflow:hidden}", JS)
+        self.assertIn("width:auto;max-width:100%;min-width:0;white-space:nowrap", JS)
+        self.assertIn("#macTslFlightsCard .tsl-flight-card .table-wrapper,#macTslTeamsCard .tsl-team-card .table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}", JS)
+        self.assertIn("#macTslFlightsCard .tsl-flight-card .fleet-results-table,#macTslTeamsCard .tsl-team-card .fleet-results-table{width:max-content;min-width:100%}", JS)
         self.assertIn("#macTslFlightsCard .tsl-flight-sail{white-space:nowrap}", JS)
         self.assertIn("#macTslFlightsCard .tsl-flight-card .fleet-results-table th,#macTslFlightsCard .tsl-flight-card .fleet-results-table td{white-space:nowrap;font-size:inherit}", JS)
         self.assertIn("#macTslFlightsCard .tsl-flight-card .table-wrapper:not(.tsl-flight-note) .rank-col{width:1%;white-space:nowrap}", JS)
@@ -358,7 +363,7 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261022r", API)
+        self.assertIn("mac-tsl-admin.js?v=20261022s", API)
         self.assertIn("is_super_admin=_session_can_edit_tsl", API)
         self.assertIn("def _session_can_edit_tsl", API)
 
@@ -410,8 +415,8 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("mac-tsl-live-cards.js?v=20261015c", patch)
         self.assertIn("def _session_can_edit_tsl", patch)
         self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
-        self.assertIn("mac-tsl-admin.js?v=20261022r", patch)
-        self.assertIn('mac-tsl-admin.js?v=20261022q", "mac-tsl-admin.js?v=20261022r"', patch)
+        self.assertIn("mac-tsl-admin.js?v=20261022s", patch)
+        self.assertIn('mac-tsl-admin.js?v=20261022r", "mac-tsl-admin.js?v=20261022s"', patch)
         rename = (ROOT / "sailingsa" / "deploy" / "rename_tsl_rcyca_teams.py").read_text(
             encoding="utf-8"
         )
