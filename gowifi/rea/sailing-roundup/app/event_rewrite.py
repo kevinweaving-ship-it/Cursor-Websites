@@ -53,6 +53,7 @@ SEED_URLS = {
         "https://novanews.co.za/school/hermanus-high-schools-sailors-crowned-national-champions/",
         "https://www.facebook.com/theewatersportsclub/",
         "https://www.facebook.com/share/g/1Jh51CDMew/",
+        "https://www.facebook.com/share/1DGs9FyLwT/",
         "https://www.theewater.co.za/",
     ],
     "2026-09-24-hmyc-dart-18-nationals": [
@@ -1269,8 +1270,40 @@ def website_source_images(url: str) -> list[dict]:
     if soup.title:
         title = soup.title.get_text(" ", strip=True)
     found = []
-    for tag in soup.select('meta[property="og:image"], meta[name="twitter:image"], article img, main img, .gallery img, img'):
-        src = tag.get("content") or tag.get("src") or tag.get("data-src") or ""
+    for tag in soup.select(
+        'meta[property="og:image"], meta[name="twitter:image"], article img, main img, '
+        ".gallery img, figure img, picture source, img, a[href]"
+    ):
+        src = (
+            tag.get("content")
+            or tag.get("src")
+            or tag.get("data-src")
+            or tag.get("data-lazy-src")
+            or tag.get("data-original")
+            or tag.get("data-full")
+            or tag.get("data-large")
+            or tag.get("href")
+            or ""
+        )
+        srcset = tag.get("srcset") or tag.get("data-srcset") or ""
+        if srcset:
+            best = ""
+            best_w = -1
+            for part in srcset.split(","):
+                bits = part.strip().split()
+                if not bits:
+                    continue
+                width = 0
+                if len(bits) > 1 and bits[1].endswith("w"):
+                    try:
+                        width = int(bits[1][:-1])
+                    except ValueError:
+                        width = 0
+                if width >= best_w:
+                    best_w = width
+                    best = bits[0]
+            if best:
+                src = best
         if not src:
             continue
         link = urllib.parse.urljoin(url, src)
@@ -1292,7 +1325,7 @@ def website_source_images(url: str) -> list[dict]:
             continue
         seen.add(item["url"])
         uniq.append(item)
-    return uniq[:16]
+    return uniq[:32]
 
 
 def class_gallery_photo(klass: str) -> dict | None:
@@ -1385,22 +1418,43 @@ def is_chrome_image(url: str = "", title: str = "") -> bool:
     return bool(CHROME_IMAGE.search(f"{url or ''} {title or ''}"))
 
 
-def seed_media_images(facts: dict) -> list[dict]:
-    """Local event photographs checked into data/seed-media/<slug>.<ext>."""
+def seed_media_images(facts: dict, root=None) -> list[dict]:
+    """Local event photographs checked into data/seed-media/<slug>*.<ext>."""
     slug = (facts.get("slug") or "").strip()
     if not slug:
         return []
-    folder = ROOT / "data" / "seed-media"
+    folder = pathlib.Path(root or ROOT) / "data" / "seed-media"
+    if not folder.is_dir():
+        return []
     found = []
-    for ext in (".jpg", ".jpeg", ".png", ".webp"):
-        path = folder / (slug + ext)
-        if not path.is_file():
+    seen = set()
+    for path in sorted(folder.iterdir()):
+        if not path.is_file() or path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
             continue
+        if path.stem != slug and not path.stem.startswith(slug + "-"):
+            continue
+        if str(path) in seen:
+            continue
+        seen.add(str(path))
+        title = facts.get("title") or slug
+        stem = path.stem.lower()
+        if "u17" in stem:
+            title = "420 Nationals U17 boys"
+        elif "overall" in stem:
+            title = "420 Nationals overall winners"
+        elif "boat" in stem:
+            title = "420 Nationals boat"
+        elif "prize" in stem:
+            title = "505 Nationals prizegiving"
+        elif "trophy" in stem:
+            title = "505 Nationals trophy presentation"
+        elif "water" in stem:
+            title = "505 Nationals on-water racing"
         found.append(
             {
                 "url": str(path),
                 "source_url": facts.get("url") or "",
-                "title": facts.get("title") or slug,
+                "title": title,
                 "credit": "Event photography",
                 "local_file": str(path),
                 "seed": True,
@@ -1551,7 +1605,23 @@ def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict |
             return None
     if len(raw) < 8000 or (ctype and not str(ctype).startswith("image") and raw[:3] not in (b"\xff\xd8\xff", b"\x89PN")):
         return None
-    if not image.get("seed") and not _is_event_photograph(raw):
+    if image.get("source_region"):
+        from evidence_pipeline import crop_media_region
+
+        cropped = crop_media_region(
+            raw,
+            image.get("source_region"),
+            inset=16,
+            expected=image.get("source_dimensions"),
+        )
+        if cropped:
+            raw = cropped
+            image = dict(image)
+            image["cropped"] = True
+            ext = ".jpg"
+            filename = slug + suffix + ext
+            dest = dest_dir / filename
+    if not image.get("seed") and not image.get("cropped") and not _is_event_photograph(raw):
         return None
     dest.write_bytes(raw)
     (source_dir / filename).write_bytes(raw)
@@ -1559,11 +1629,15 @@ def download_image(image: dict, issue: str, slug: str, index: int = 0) -> dict |
     out["url"] = "media/" + filename
     out["local_path"] = str(dest)
     out["bytes"] = len(raw)
-    out["digest"] = hashlib.md5(raw + json.dumps(image.get("source_region") or []).encode()).hexdigest()
-    if image.get("source_region"):
+    out["digest"] = hashlib.md5(raw).hexdigest()
+    out["title"] = image.get("title") or image.get("panel_label") or out.get("title")
+    if image.get("source_region") and not image.get("cropped"):
         out["source_region"] = image["source_region"]
         out["source_dimensions"] = image.get("source_dimensions")
-        out["title"] = image.get("title") or image.get("panel_label") or out.get("title")
+    else:
+        out.pop("source_region", None)
+        out.pop("source_dimensions", None)
+        out["cropped"] = True
     return out
 
 

@@ -52,9 +52,9 @@ GENERIC_PHOTO_TOKEN = {
 }
 EDITORIAL_REQUESTS = {
     "2026-09-24-ayc-505-nationals": [
-        {"title": "505 Nationals prizegiving", "prefer": ("prize",), "order": 0},
-        {"title": "505 Nationals on-water racing", "prefer": ("water", "racing"), "order": 1},
-        {"title": "505 Nationals event photograph", "order": 2},
+        {"title": "505 Nationals prizegiving", "prefer": ("prizegiving", "prize"), "order": 0},
+        {"title": "505 Nationals trophy presentation", "prefer": ("trophy",), "order": 1},
+        {"title": "505 Nationals on-water racing", "prefer": ("water", "racing"), "order": 2},
     ],
     "2026-09-25-tsc-420-nationals": [
         {"title": "420 Nationals overall winners", "prefer": ("prize", "winner", "overall", "adult"), "order": 0},
@@ -66,6 +66,20 @@ EDITORIAL_REQUESTS = {
             "user_selected": True,
         },
     ],
+}
+# Size + byte-length fingerprints for recovered event photographs. Not identity claims.
+KNOWN_PHOTO_HINTS = {
+    "2026-09-25-tsc-420-nationals": (
+        {"bytes": 76193, "size": (900, 600), "title": "420 Nationals overall winners"},
+        {"bytes": 54216, "size": (383, 400), "title": "420 Nationals U17 boys"},
+        {
+            "bytes": 206583,
+            "size": (2048, 1366),
+            "title": "420 Nationals boat",
+            "source_page": "https://www.facebook.com/share/1DGs9FyLwT/",
+            "user_selected": True,
+        },
+    ),
 }
 
 
@@ -118,14 +132,23 @@ def images_from_html(url: str, html: str) -> list[dict]:
         )
 
     for tag in soup.select(
-        'meta[property="og:image"], meta[name="twitter:image"], article img, main img, .gallery img, img, source'
+        'meta[property="og:image"], meta[name="twitter:image"], article img, main img, '
+        ".gallery img, figure img, picture source, img, source, a[href]"
     ):
         add(
-            tag.get("content") or tag.get("src") or tag.get("data-src") or tag.get("data-lazy-src") or "",
+            tag.get("content")
+            or tag.get("src")
+            or tag.get("data-src")
+            or tag.get("data-lazy-src")
+            or tag.get("data-original")
+            or tag.get("data-full")
+            or tag.get("data-large")
+            or tag.get("href")
+            or "",
             tag.get("alt") or title,
             tag.get("srcset") or tag.get("data-srcset") or "",
         )
-    return found[:16]
+    return found[:32]
 
 
 def inspect_parent(url: str, html: str | None = None, fetch_html=None) -> dict:
@@ -193,7 +216,7 @@ def _bing_images(query: str) -> list[dict]:
     return search(query, "images")
 
 
-def available_images(facts: dict, parent_images: list[dict], extra=None, search_fn=None) -> list[dict]:
+def available_images(facts: dict, parent_images: list[dict], extra=None, search_fn=None, root=None) -> list[dict]:
     """Parent page first, then seed files, then optional extra/external candidates."""
     out = []
     seen = set()
@@ -210,7 +233,7 @@ def available_images(facts: dict, parent_images: list[dict], extra=None, search_
     for item in extra or []:
         if item.get("verified_previous") or item.get("from_issue"):
             add(item)
-    for item in seed_media_images(facts):
+    for item in seed_media_images(facts, root=root):
         add(item)
     for item in extra or []:
         add(item)
@@ -261,12 +284,15 @@ def score_hero(item: dict, facts: dict, raw: bytes | None = None) -> int:
     if item.get("seed"):
         score += 80
     if raw is not None and not item.get("seed"):
-        if not _is_event_photograph(raw):
-            return -500
         from event_rewrite import _image_size
+        from evidence_pipeline import MEDIA_REGIONS
 
         size = _image_size(raw)
-        if size:
+        if size and any(tuple(spec.get("dimensions") or []) == size for spec in MEDIA_REGIONS.values()):
+            score += 80
+        elif not _is_event_photograph(raw):
+            return -500
+        elif size:
             score += min(size) // 20
     return score
 
@@ -415,7 +441,7 @@ def harvest_requested_page(url: str, facts: dict) -> dict:
 def _collage_panels(slug: str, raw: bytes, item: dict) -> list[dict]:
     """Split a known 505 collage into the approved photograph panels only."""
     from event_rewrite import _image_size
-    from evidence_pipeline import MEDIA_REGIONS
+    from evidence_pipeline import MEDIA_REGIONS, crop_media_region
 
     if "505-nationals" not in (slug or ""):
         return []
@@ -426,20 +452,107 @@ def _collage_panels(slug: str, raw: bytes, item: dict) -> list[dict]:
         if tuple(spec.get("dimensions") or []) != size:
             continue
         out = []
+        inset = int(spec.get("inset") or 16)
         for panel in spec.get("regions") or []:
             if is_scoresheet({"title": panel.get("label") or "", "panel_label": panel.get("label") or ""}):
                 continue
+            cropped = crop_media_region(raw, panel.get("rect"), inset=inset, expected=spec.get("dimensions"))
+            if not cropped:
+                continue
             piece = dict(item)
+            piece.pop("_raw", None)
             piece["title"] = panel.get("label") or item.get("title")
             piece["source_region"] = panel.get("rect")
             piece["source_dimensions"] = spec.get("dimensions")
+            piece["cropped"] = True
             piece["hero_score"] = max(int(item.get("hero_score") or 0), 80)
             piece["verified_previous"] = True
-            piece["content_hash"] = content_hash(raw + json.dumps(panel.get("rect") or []).encode())
-            piece["visual_hash"] = (item.get("visual_hash") or "") + str(panel.get("rect") or "")
+            piece["content_hash"] = content_hash(cropped)
+            piece["visual_hash"] = visual_hash(cropped)
+            piece["_raw"] = cropped
+            piece["credit"] = item.get("credit") or "RSA 505"
             out.append(piece)
         return out
     return []
+
+
+def classify_known_photo(raw: bytes, item: dict, slug: str) -> dict:
+    """Attach recovered roles from file fingerprints. Never infer winners from pixels."""
+    from event_rewrite import _image_size
+
+    scored = dict(item)
+    size = _image_size(raw) if raw else None
+    for hint in KNOWN_PHOTO_HINTS.get(slug) or ():
+        if hint.get("bytes") and len(raw or b"") != hint["bytes"]:
+            continue
+        if hint.get("size") and size != tuple(hint["size"]):
+            continue
+        scored["title"] = hint.get("title") or scored.get("title")
+        if hint.get("source_page"):
+            scored["source_url"] = scored.get("source_url") or hint["source_page"]
+            scored["user_selected"] = bool(hint.get("user_selected"))
+        return scored
+    blob = " ".join(
+        (
+            scored.get("title") or "",
+            scored.get("url") or "",
+            scored.get("local_file") or "",
+            scored.get("source_url") or "",
+        )
+    ).lower()
+    if "1dgs9fylwt" in blob:
+        scored["title"] = "420 Nationals boat"
+        scored["user_selected"] = True
+        scored["source_url"] = scored.get("source_url") or "https://www.facebook.com/share/1DGs9FyLwT/"
+    return scored
+
+
+def recover_known_photos(issue: str, slug: str, root: pathlib.Path) -> list[dict]:
+    """Discovery gap: a photo not in this issue folder may still exist on the box."""
+    out = []
+    seen = set()
+    folders = [
+        root / "data" / "seed-media",
+        root / ".builds",
+        root / "issues" / issue / "media",
+        root / "public" / "issues" / issue / "media",
+    ]
+    for folder in folders:
+        if not folder.is_dir():
+            continue
+        paths = folder.rglob("*") if folder.name == ".builds" else folder.iterdir()
+        for path in paths:
+            if not path.is_file() or path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+                continue
+            if slug not in path.name and not any(
+                token in path.name.lower() for token in ("420", "505", "u17", "overall", "boat")
+            ):
+                continue
+            try:
+                raw = path.read_bytes()
+            except OSError:
+                continue
+            key = (len(raw), content_hash(raw))
+            if key in seen:
+                continue
+            seen.add(key)
+            item = classify_known_photo(
+                raw,
+                {
+                    "url": str(path),
+                    "local_file": str(path),
+                    "source_url": "",
+                    "title": slug,
+                    "credit": "Event photography",
+                    "verified_previous": True,
+                    "seed": True,
+                },
+                slug,
+            )
+            if item.get("title") in {slug, ""} and slug not in path.name:
+                continue
+            out.append(item)
+    return out
 
 
 def _facebook_page_cover(item: dict, requested: str) -> bool:
@@ -585,8 +698,9 @@ def store_on_box(issue: str, slug: str, image: dict, raw: bytes, root: pathlib.P
         "hero_score": image.get("hero_score") or 0,
         "picker": "event_photograph+parent_score",
         "status": "pass",
-        "source_region": image.get("source_region"),
-        "source_dimensions": image.get("source_dimensions"),
+        "source_region": image.get("source_region") if not image.get("cropped") else None,
+        "source_dimensions": image.get("source_dimensions") if not image.get("cropped") else None,
+        "cropped": bool(image.get("cropped")),
         "user_selected": bool(image.get("user_selected")),
         "verified_previous": bool(image.get("verified_previous")),
     }
@@ -637,6 +751,7 @@ def collect_event_hero(
     search_fn=None,
     use_external=False,
     analyze=None,
+    harvest_sources=None,
 ) -> dict:
     root = root or ROOT
     slug = rec.get("slug") or facts.get("slug") or ""
@@ -649,9 +764,15 @@ def collect_event_hero(
         err = (parent.get("error") or "").lower()
         parent_status = "access_blocked" if any(x in err for x in ("403", "401", "blocked")) else "download_failed"
     previous = existing_issue_images(issue, slug, root=root)
+    recovered = recover_known_photos(issue, slug, root=root)
     requested = []
     requested_status = []
-    if use_external:
+    event_pages = []
+    if harvest_sources is None:
+        harvest_sources = use_external
+    if use_external and harvest_sources:
+        from event_rewrite import SEED_URLS
+
         for spec in editorial_requests(slug):
             page = spec.get("source_page") or ""
             if not page:
@@ -662,15 +783,32 @@ def collect_event_hero(
                 item["title"] = spec.get("title") or item.get("title")
                 item["user_selected"] = True
                 requested.append(item)
-    extra_items = list(previous) + list(requested) + list(extra or [])
-    search_status = {"status": "skipped", "queries": []}
+        for page in SEED_URLS.get(slug) or []:
+            if page in {spec.get("source_page") for spec in editorial_requests(slug)}:
+                continue
+            harvested = harvest_requested_page(page, facts)
+            event_pages.append({"source_page": page, "status": harvested.get("status"), "reason": harvested.get("reason")})
+            for item in harvested.get("images") or []:
+                item["from_event_source"] = True
+                item["user_selected"] = False
+                requested.append(item)
+    extra_items = list(previous) + list(recovered) + list(requested) + list(extra or [])
+    search_status = {"status": "skipped", "queries": [], "provider": ""}
     if use_external and search_fn is None:
         from ai_tools import search_images as _search_images
 
         def search_fn(query):
             result = _search_images(query)
             search_status["status"] = result.get("status") or "ok"
-            search_status["queries"].append({"query": query, "status": result.get("status"), "count": len(result.get("items") or [])})
+            search_status["provider"] = result.get("provider") or search_status.get("provider") or ""
+            search_status["queries"].append(
+                {
+                    "query": query,
+                    "status": result.get("status"),
+                    "count": len(result.get("items") or []),
+                    "provider": result.get("provider") or "",
+                }
+            )
             if result.get("status") == "ok":
                 return result.get("items") or []
             return []
@@ -689,6 +827,7 @@ def collect_event_hero(
         parent["images"],
         extra=extra_items,
         search_fn=search_fn,
+        root=root,
     )
     best, ranked = pick_best_hero(available, facts, fetch_bytes=fetch_bytes)
     analyses = {}
@@ -707,6 +846,7 @@ def collect_event_hero(
             gaps.append({"url": item.get("url") or item.get("local_file"), "status": "download_failed"})
             enriched.append(scored)
             continue
+        scored = classify_known_photo(raw, scored, slug)
         scored["content_hash"] = content_hash(raw)
         scored["visual_hash"] = visual_hash(raw)
         scored["_raw"] = raw
@@ -714,9 +854,13 @@ def collect_event_hero(
         if panels:
             enriched.extend(panels)
             continue
+        if _facebook_page_cover(scored, scored.get("source_url") or "") and not scored.get("user_selected"):
+            scored["gap"] = "unrelated"
+            enriched.append(scored)
+            continue
         run_vision = analyze
         if run_vision is None:
-            run_vision = os.getenv("ROUNDUP_USE_VISION") == "1"
+            run_vision = (os.getenv("ROUNDUP_USE_VISION") or "1").strip() != "0"
         if run_vision:
             try:
                 from ai_tools import analyze_image
@@ -760,7 +904,16 @@ def collect_event_hero(
         "gaps": gaps,
         "search_status": search_status,
         "requested": requested_status,
+        "event_pages": event_pages,
     }
+    required_failed = []
+    if use_external and search_status.get("status") not in ("ok", "empty", "skipped"):
+        required_failed.append("search:" + str(search_status.get("status") or "provider_failure"))
+    vision_gaps = [g for g in gaps if (g.get("status") or "") in {"vision_unavailable", "analysis_failed"}]
+    if use_external and (os.getenv("ROUNDUP_USE_VISION") or "1").strip() != "0" and vision_gaps and not analyses:
+        required_failed.append("vision:" + vision_gaps[0].get("status"))
+    pack["enrichment"] = "degraded" if required_failed else "ok"
+    pack["enrichment_failures"] = required_failed
     if not chosen:
         if previous:
             chosen = [dict(item, hero_score=item.get("hero_score") or 80) for item in previous[:4]]
@@ -820,6 +973,9 @@ def _write_media_log(source_dir: pathlib.Path, slug: str, parent: dict, pack: di
                 "gaps": pack.get("gaps") or [],
                 "search_status": pack.get("search_status") or {},
                 "requested": pack.get("requested") or [],
+                "event_pages": pack.get("event_pages") or [],
+                "enrichment": pack.get("enrichment") or "ok",
+                "enrichment_failures": pack.get("enrichment_failures") or [],
                 "preserved_previous": bool(pack.get("preserved_previous")),
             },
             indent=2,
@@ -844,8 +1000,22 @@ def store_roster_heroes(issue: str, events: list[dict], facts_by_slug: dict, roo
         facts.setdefault("fleets", (rec.get("equals") or {}).get("fleets") or [])
         heroes[slug] = collect_event_hero(issue, rec, facts, root=root, **hooks)
     (root / "issues" / issue / "sources").mkdir(parents=True, exist_ok=True)
+    degraded = {
+        slug: {"status": pack.get("search_status"), "failures": pack.get("enrichment_failures"), "gaps": pack.get("gaps")}
+        for slug, pack in heroes.items()
+        if pack.get("enrichment") == "degraded"
+    }
+    enrichment = {
+        "issue": issue,
+        "degraded": bool(degraded),
+        "events": {slug: pack.get("enrichment") for slug, pack in heroes.items()},
+        "failures": degraded,
+    }
     (root / "issues" / issue / "sources" / "weekend-heroes.json").write_text(
-        json.dumps({"issue": issue, "heroes": heroes}, indent=2, ensure_ascii=False) + "\n"
+        json.dumps({"issue": issue, "heroes": heroes, "enrichment": enrichment}, indent=2, ensure_ascii=False) + "\n"
+    )
+    (root / "issues" / issue / "sources" / "enrichment.json").write_text(
+        json.dumps(enrichment, indent=2, ensure_ascii=False) + "\n"
     )
     return heroes
 

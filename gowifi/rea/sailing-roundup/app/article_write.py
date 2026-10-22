@@ -176,7 +176,7 @@ def _image_block(item: dict, facts: dict, rec: dict) -> dict:
         "source_url": item.get("source_url") or facts.get("url") or "",
         "rights_status": "source_attributed",
     }
-    if item.get("source_region"):
+    if item.get("source_region") and not item.get("cropped"):
         block["source_region"] = item["source_region"]
         block["source_dimensions"] = item.get("source_dimensions")
     return block
@@ -310,6 +310,10 @@ def write_issue(issue, monday, roster_events, table_events, facts_by_slug, heroe
         "articles": [lead] + reports,
         "unlisted_events": unlisted_event_names(table_events, covered),
         "needs_external": [a["event_id"] for a in reports if a.get("needs_external")],
+        "enrichment": {
+            slug: ((heroes or {}).get(slug) or {}).get("enrichment")
+            for slug in (a.get("event_id") for a in reports)
+        },
     }
     dest = root / "issues" / issue
     dest.mkdir(parents=True, exist_ok=True)

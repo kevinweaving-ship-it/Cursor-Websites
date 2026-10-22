@@ -643,10 +643,13 @@ class RewriteEngine(unittest.TestCase):
         }
         photos = pick_images({"class_name": "505", "title": "505 Nationals", "start": "2026-09-24", "end": "2026-09-27", "url": source}, cluster)
         regions = {tuple(p["source_region"]) for p in photos}
-        self.assertEqual(regions, {(0, 0, 2160, 1280), (0, 2560, 2160, 1280)})
-        self.assertNotIn((0, 1280, 1080, 1280), regions)
+        self.assertEqual(regions, {(0, 0, 2160, 1280), (0, 1280, 1080, 1280), (0, 2560, 2160, 1280)})
         self.assertNotIn((1080, 1280, 1080, 1280), regions)
         self.assertIn("source-photo-panel", _image_block(photos[0]))
+        cropped = dict(photos[0], cropped=True)
+        cropped.pop("source_region", None)
+        self.assertIn("<img src=", _image_block(cropped))
+        self.assertNotIn("source-photo-panel", _image_block(cropped))
         gallery = _photo_set(["<figure>" + str(i) + "</figure>" for i in range(5)], "paired-then-full")
         self.assertEqual(gallery.count("<figure>"), 4)
 

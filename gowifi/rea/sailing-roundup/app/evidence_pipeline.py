@@ -5,10 +5,43 @@ from bs4 import BeautifulSoup
 
 MEDIA_EXCLUSIONS = {"https://rsa505.org.za/images/20261013_101619-COLLAGE.jpg":"Composite includes a scanned results sheet; only approved photograph panels may be used."}
 # Auto rule: crop real photographs out of a source collage. Score sheets stay out.
+# 2160x3840 collage: top prizegiving, middle-left trophy, middle-right results (exclude), bottom on-water.
 MEDIA_REGIONS={"https://rsa505.org.za/images/20261013_101619-COLLAGE.jpg":{
     "dimensions":[2160,3840],
+    "inset":16,
     "regions":[{"rect":[0,0,2160,1280],"label":"505 Nationals prizegiving"},
-               {"rect":[0,2560,2160,1280],"label":"505 Nationals on-water racing"}]}}
+               {"rect":[0,1280,1080,1280],"label":"505 Nationals trophy presentation"},
+               {"rect":[0,2560,2160,1280],"label":"505 Nationals on-water racing"}],
+    "exclude":[{"rect":[1080,1280,1080,1280],"label":"505 Nationals results sheet"}]}}
+
+
+def crop_media_region(raw: bytes, rect, inset: int = 16, expected=None) -> bytes | None:
+    """Inspect source dimensions, then crop one panel with inset so adjacent panels do not leak."""
+    if not raw or not rect or len(rect) != 4:
+        return None
+    try:
+        from io import BytesIO
+        from PIL import Image
+    except ImportError:
+        return None
+    try:
+        im = Image.open(BytesIO(raw))
+    except Exception:
+        return None
+    width, height = im.size
+    if expected and tuple(expected) != (width, height):
+        return None
+    x, y, w, h = (int(v) for v in rect)
+    pad = max(0, int(inset or 0))
+    left = max(0, min(width, x + pad))
+    top = max(0, min(height, y + pad))
+    right = max(left + 1, min(width, x + w - pad))
+    bottom = max(top + 1, min(height, y + h - pad))
+    if right - left < 32 or bottom - top < 32:
+        return None
+    buf = BytesIO()
+    im.crop((left, top, right, bottom)).convert("RGB").save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
 SCORE_SHEET=re.compile(r"score\s*sheets?|results?\s+sheet|results?\s+paper|scanned results|notice of race|sailing instructions",re.I)
 PAGE_CHROME=re.compile(r"\bfollowers\b|communicate with you|finest sailing venues|like and share|enter now",re.I)
 TRACKING = {"fbclid","gclid","mc_cid","mc_eid"}

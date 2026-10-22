@@ -138,4 +138,10 @@ if ! run_with_retry verify verify_public; then
   exit 1
 fi
 
+ENRICH="$ROOT/issues/$ISSUE/sources/enrichment.json"
+if [ -f "$ENRICH" ] && grep -q '"degraded": true' "$ENRICH"; then
+  alert "Sailing roundup DEGRADED $ISSUE" \
+    "Publication used last verified photographs, but required search/vision enrichment failed. Fallback publish is not successful enrichment. See $ENRICH"
+fi
+
 echo "$(date -Is) monday-job done $ISSUE" | tee -a "$LOG"

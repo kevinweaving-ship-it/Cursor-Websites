@@ -167,7 +167,8 @@ class ParentHero(unittest.TestCase):
     def test_available_images_parent_first(self):
         parent = [{"url": "https://a/parent.jpg", "from_parent": True}]
         extra = [{"url": "https://b/extra.jpg"}]
-        got = available_images(facts(), parent, extra=extra)
+        with tempfile.TemporaryDirectory() as temp:
+            got = available_images(facts(), parent, extra=extra, root=pathlib.Path(temp))
         self.assertEqual(got[0]["url"], "https://a/parent.jpg")
         self.assertEqual([i["url"] for i in got][1:], ["https://b/extra.jpg"])
 
@@ -179,15 +180,30 @@ class ParentHero(unittest.TestCase):
         from parent_hero import _collage_panels
 
         buf = BytesIO()
-        Image.new("RGB", (2160, 3840), (20, 40, 80)).save(buf, format="JPEG", quality=85)
+        im = Image.new("RGB", (2160, 3840), (20, 40, 80))
+        im.paste((200, 40, 40), (0, 0, 2160, 1280))
+        im.paste((40, 180, 40), (0, 1280, 1080, 2560))
+        im.paste((240, 240, 240), (1080, 1280, 2160, 2560))
+        im.paste((40, 80, 200), (0, 2560, 2160, 3840))
+        im.save(buf, format="JPEG", quality=85)
         panels = _collage_panels(
             "2026-09-24-ayc-505-nationals",
             buf.getvalue(),
             {"url": "https://rsa505.org.za/images/20261013_101619-COLLAGE.jpg", "title": "collage", "hero_score": 50},
         )
         labels = [p["title"] for p in panels]
-        self.assertEqual(labels, ["505 Nationals prizegiving", "505 Nationals on-water racing"])
-        self.assertNotIn([0, 1280, 2160, 1280], [p["source_region"] for p in panels])
+        self.assertEqual(
+            labels,
+            [
+                "505 Nationals prizegiving",
+                "505 Nationals trophy presentation",
+                "505 Nationals on-water racing",
+            ],
+        )
+        self.assertNotIn([1080, 1280, 1080, 1280], [p["source_region"] for p in panels])
+        self.assertTrue(all(p.get("cropped") and p.get("_raw") for p in panels))
+        hashes = {p["content_hash"] for p in panels}
+        self.assertEqual(len(hashes), 3)
 
     def test_srcset_and_lazy_images_are_harvested(self):
         html = (
@@ -260,6 +276,59 @@ class ParentHero(unittest.TestCase):
             self.assertEqual(pack["status"], "pass")
             self.assertTrue(pack.get("preserved_previous") or pack.get("images"))
             self.assertTrue((root / "issues" / "2026-09-28" / "media" / f"{SLUG}-hero.jpg").is_file())
+
+    def test_420_recovered_photos_keep_editorial_order(self):
+        from parent_hero import classify_known_photo, apply_editorial_order
+
+        seed = ROOT / "data" / "seed-media"
+        overall = seed / f"{SLUG}-overall.jpg"
+        u17 = seed / f"{SLUG}-u17.jpg"
+        boat = seed / f"{SLUG}-boat.jpg"
+        if not all(p.is_file() for p in (overall, u17, boat)):
+            self.skipTest("420 seed photographs are not checked in")
+        items = []
+        for path in (u17, boat, overall):
+            raw = path.read_bytes()
+            items.append(
+                classify_known_photo(
+                    raw,
+                    {"url": str(path), "local_file": str(path), "title": SLUG, "hero_score": 80, "content_hash": content_hash(raw)},
+                    SLUG,
+                )
+            )
+        titles = [item["title"] for item in apply_editorial_order(items, SLUG)]
+        self.assertEqual(titles[:3], ["420 Nationals overall winners", "420 Nationals U17 boys", "420 Nationals boat"])
+
+    def test_original_asset_href_is_harvested(self):
+        html = (
+            "<html><body><figure>"
+            '<a href="/media/original-on-water.jpg"><img src="/media/tiny-thumb.jpg" alt="on water"></a>'
+            "</figure></body></html>"
+        )
+        found = images_from_html(PARENT, html)
+        urls = " ".join(item["url"] for item in found)
+        self.assertIn("original-on-water.jpg", urls)
+
+    def test_external_search_failure_marks_enrichment_degraded(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            seed = root / "seed.jpg"
+            seed.write_bytes(b"seed-photo-bytes" * 800)
+            pack = collect_event_hero(
+                "2026-09-28",
+                {"slug": SLUG, "url": PARENT, "status": "pass", "name": "420 Nationals"},
+                facts(),
+                root=root,
+                html="<html><body>results only</body></html>",
+                extra=[{"url": str(seed), "local_file": str(seed), "source_url": PARENT, "title": "420 Nationals", "seed": True}],
+                use_external=True,
+                harvest_sources=False,
+                search_fn=lambda q: (_ for _ in ()).throw(RuntimeError("search down")),
+                analyze=lambda *a, **k: {"status": "vision_unavailable", "reason": "no image-capable credentials"},
+            )
+            self.assertEqual(pack["status"], "pass")
+            self.assertEqual(pack.get("enrichment"), "degraded")
+            self.assertTrue(any("vision" in f for f in pack.get("enrichment_failures") or []))
 
 
 if __name__ == "__main__":

@@ -102,7 +102,14 @@ class SharedAITools(unittest.TestCase):
 
         opener = MagicMock(return_value=Response())
         pixels = b"\xff\xd8\xff" + b"photo-bytes" * 20
-        result = analyze_image(pixels, {"title": "420 Nationals"}, environ={"OPENAI_API_KEY": "sk-test"}, opener=opener)
+        with tempfile.TemporaryDirectory() as temp:
+            result = analyze_image(
+                pixels,
+                {"title": "420 Nationals"},
+                environ={"OPENAI_API_KEY": "sk-test"},
+                opener=opener,
+                cache_root=temp,
+            )
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["category"], "on-water")
         payload = json.loads(opener.call_args[0][0].data.decode())
@@ -120,7 +127,7 @@ class SharedAITools(unittest.TestCase):
             def __call__(self, *a, **k):
                 raise TimeoutError("vision down")
 
-        failed = analyze_image(b"pixels", environ={"OPENAI_API_KEY": "sk"}, opener=Boom())
+        failed = analyze_image(b"pixels", environ={"OPENAI_API_KEY": "sk"}, opener=Boom(), retries=1, cache_root="/tmp/does-not-exist-vision")
         self.assertEqual(failed["status"], "analysis_failed")
         self.assertNotIn("official", failed.get("reason", "").lower())
 
@@ -136,10 +143,18 @@ class SharedAITools(unittest.TestCase):
                 return json.dumps({"images_results": []}).encode()
 
         opener = MagicMock(return_value=Empty())
-        result = search_images("420 Nationals 2026 photos", environ={"SERPAPI_API_KEY": "k"}, opener=opener)
+        result = search_images("420 Nationals 2026 photos", environ={"SERPAPI_API_KEY": "k"}, opener=opener, bing_search=lambda q: [])
         self.assertEqual(result["status"], "empty")
-        none = search_images("x", environ={})
+        none = search_images("x", environ={}, bing_search=lambda q: (_ for _ in ()).throw(RuntimeError("bing down")))
         self.assertEqual(none["status"], "provider_failure")
+        bing = search_images(
+            "505 Nationals 2026 photos",
+            environ={},
+            bing_search=lambda q: [{"image_url": "https://rsa505.org.za/a.jpg", "source_url": "https://rsa505.org.za/", "title": "505 Nationals"}],
+        )
+        self.assertEqual(bing["status"], "ok")
+        self.assertEqual(bing["provider"], "bing_html")
+        self.assertEqual(bing["items"][0]["url"], "https://rsa505.org.za/a.jpg")
 
 
 if __name__ == "__main__":
