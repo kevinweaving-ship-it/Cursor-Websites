@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261022g";
+  var JS_VER = "20261022h";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var ROSTER_LINES = 4;
@@ -4077,32 +4077,13 @@
     var wraps = [];
     if (teamRoot) wraps = wraps.concat(Array.prototype.slice.call(teamRoot.querySelectorAll(".tsl-team-card .table-wrapper")));
     if (flightRoot) wraps = wraps.concat(Array.prototype.slice.call(flightRoot.querySelectorAll(".tsl-flight-card .table-wrapper")));
-    if (!wraps.length) return;
-    var boxes = [];
-    var maxNeed = 0;
-    var minAvail = 0;
-    for (var i = 0; i < wraps.length; i += 1) {
+    var i;
+    for (i = 0; i < wraps.length; i += 1) {
       var wrap = wraps[i];
       var table = wrap.querySelector("table");
       if (!table) continue;
       table.style.transform = "none";
       wrap.style.height = "";
-      boxes.push({ wrap: wrap, table: table });
-      if (table.scrollWidth > maxNeed) maxNeed = table.scrollWidth;
-      var avail = wrap.clientWidth;
-      if (avail > 0 && (!minAvail || avail < minAvail)) minAvail = avail;
-    }
-    if (!maxNeed || !minAvail) return;
-    var scale = maxNeed > minAvail ? minAvail / maxNeed : 1;
-    for (var j = 0; j < boxes.length; j += 1) {
-      var box = boxes[j];
-      if (scale < 0.999) {
-        box.table.style.transform = "scale(" + scale + ")";
-        box.wrap.style.height = Math.ceil(box.table.offsetHeight * scale) + "px";
-      } else {
-        box.table.style.transform = "none";
-        box.wrap.style.height = "";
-      }
     }
   }
 
