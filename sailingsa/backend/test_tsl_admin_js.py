@@ -32,7 +32,9 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("Physical boats", JS)
         self.assertNotIn("sail_number", JS)
         self.assertNotIn("club-score-edit.js", JS)
-        self.assertIn("20261022m", JS)
+        self.assertIn("20261022n", JS)
+        self.assertIn("#macTslTeamsCard .tsl-team-card .fleet-results-table{width:100%;table-layout:auto;box-sizing:border-box;transform-origin:top left;font-size:90%}", JS)
+        self.assertIn("#macTslTeamsCard .tsl-team-card .fleet-results-table th,#macTslTeamsCard .tsl-team-card .fleet-results-table td{white-space:nowrap;font-size:inherit}", JS)
         self.assertIn("#macTslFlightsCard .tsl-flight-card .fleet-results-table{width:100%;table-layout:auto;box-sizing:border-box;border-collapse:collapse;font-size:90%}", JS)
         self.assertIn("#macTslFlightsCard .tsl-flight-card .table-wrapper{margin:8px 0 0;width:100%;max-width:100%;box-sizing:border-box;overflow:visible}", JS)
         self.assertIn("#macTslFlightsCard .tsl-flight-sail{white-space:nowrap}", JS)
@@ -349,7 +351,7 @@ class TestTslAdminContract(unittest.TestCase):
     def test_api_mount_is_additive(self):
         self.assertIn("TSL_TEAM_RACING_ROUTES_v1", API)
         self.assertIn("register_tsl_routes", API)
-        self.assertIn("mac-tsl-admin.js?v=20261022m", API)
+        self.assertIn("mac-tsl-admin.js?v=20261022n", API)
         self.assertIn("is_super_admin=_session_can_edit_tsl", API)
         self.assertIn("def _session_can_edit_tsl", API)
 
@@ -401,8 +403,8 @@ class TestTslLiveCardsStd(unittest.TestCase):
         self.assertIn("mac-tsl-live-cards.js?v=20261015c", patch)
         self.assertIn("def _session_can_edit_tsl", patch)
         self.assertIn("is_super_admin=_session_can_edit_tsl,", patch)
-        self.assertIn("mac-tsl-admin.js?v=20261022m", patch)
-        self.assertIn('mac-tsl-admin.js?v=20261022l", "mac-tsl-admin.js?v=20261022m"', patch)
+        self.assertIn("mac-tsl-admin.js?v=20261022n", patch)
+        self.assertIn('mac-tsl-admin.js?v=20261022m", "mac-tsl-admin.js?v=20261022n"', patch)
         rename = (ROOT / "sailingsa" / "deploy" / "rename_tsl_rcyca_teams.py").read_text(
             encoding="utf-8"
         )
