@@ -40,7 +40,7 @@ Accumulated race points are **never** the primary overall ranking criterion.
 
 ---
 
-## Recorded (published) standings — authoritative
+## Recorded scoresheet (wins)
 
 Officials’ scoresheet after 15 races (Score = wins, Position as printed). Joint second is **unresolved on the sheet**. Do not claim D4.4 established it.
 
@@ -55,26 +55,26 @@ Officials’ scoresheet after 15 races (Score = wins, Position as printed). Join
 
 Wins sum to 15. Each team sailed 5 races (equal, so D4.3 uses wins, not win %).
 
-Gold table **Rank** and row order use this recorded list. **Wins** replaces the old accumulated-points Total. **F15…F1** cells keep the numeric team points (including F3/F4 audited 15s).
+Gold **Wins** and **F15…F1** cells keep the numeric team points (including F3/F4 audited 15s). Officials’ sheet is the source of those scores. **Rank** is calculated from D4.3 wins; a two-team overall tie is broken by the last race those two sailed against each other (winner above loser).
 
 ---
 
-## Calculated standings — separate, not displayed as Rank
+## Calculated standings — displayed Rank
 
-Calculated D4.3 then D4.4(a)(1)–(4) + D4.4(c), **without** D4.4(a)(5):
+Calculated D4.3 then D4.4(a)(1)–(4) + D4.4(c), **without** D4.4(a)(5). Two-team ties use last head-to-head first (`["last", "h2hPct", "h2hAvg", "common"]`).
 
-Among the three 3-win teams (Eden, RCYC B, MAC) each beat one of the others (cycle). H2H win % and H2H average points do not split the three. Common-opponent averages then put MAC behind Eden and RCYC B. Restarting D4.4 on the remaining two (D4.4(c)) uses F5 (RCYC B beat Eden) and would rank **RCYC B above Eden**.
+Among the three 3-win teams (Eden, RCYC B, MAC) each beat one of the others (cycle). H2H win % and H2H average points do not split the three. Common-opponent averages then put MAC behind Eden and RCYC B. Restarting D4.4 on the remaining two (D4.4(c)) uses F5 (RCYC B beat Eden) and ranks **RCYC B above Eden**.
 
-| Calculated rank | Team | vs recorded |
+| Rank | Team | Wins |
 | --- | --- | --- |
-| 1 | RCYC A | same |
-| 2 | RCYC B | recorded **=2** |
-| 3 | Eden | recorded **=2** |
-| 4 | MAC | same |
-| 5 | MATIES | same |
-| 6 | UCT | same |
+| 1 | RCYC A | 5 |
+| 2 | RCYC B | 3 |
+| 3 | Eden | 3 |
+| 4 | MAC | 3 |
+| 5 | MATIES | 1 |
+| 6 | UCT | 0 |
 
-**Disagreement:** officials published Eden and RCYC B as joint second and did not place B above Eden. Calculated D4.4 would split that pair. The gold Rank column follows the **recorded** sheet. The gold wrapper sets `data-tsl-standings-disagreement="1"` and `window.__ssaMacTslStandingDisagreement` when labels differ. No second table. No fleet-header note.
+When the event is Final / closed / complete and the last pair is odd (F15 sailed, F16 empty), hide empty F16 and its table. Gold columns stay F15…F1 (`highestUsedFlight`).
 
 ---
 
@@ -84,7 +84,7 @@ One existing gold table (`#macTslGoldSheet`). No second table. Surrounding Event
 
 | Column | Before (error) | After (final) |
 | --- | --- | --- |
-| Rank | 1–6 from lowest point-sum | Published: 1, =2, =2, 4, 5, 6 |
+| Rank | 1–6 from lowest point-sum | D4.3 wins; last H2H splits a 2-team tie |
 | Club | Club | **Club/Team** (label only) |
 | Wins | (was Total = point-sum) | race wins 5 / 3 / 3 / 3 / 1 / 0 |
 | Total | — | sum of recorded flight scores including F3/F4 `score_adjust`: A 34, Eden 50, B 50, MAC 51, UCT 65, MATIES 67 |
@@ -92,7 +92,7 @@ One existing gold table (`#macTslGoldSheet`). No second table. Surrounding Event
 
 DOM classes stay the standard Event URL set: `table-wrapper`, `fleet-results-table`, `rs-compact-row-logos`, `rank-col`, `club-col`, `total-col` (Wins uses this class), `race-col`, `rs-club-with-logo`, `medal-gold` / `medal-silver`. No new font, colour, or row-height rules.
 
-Podium: RCYC A `medal-gold`; Eden and RCYC B both `medal-silver` (`rank === 2`). **No** `medal-bronze` row (published order has no 3rd). Medal colours remain `css/regatta.css` (`#D4AF37` / `#D7D7D7`).
+Podium: RCYC A `medal-gold`; RCYC B `medal-silver` (`rank === 2`). Eden is 3rd with no bronze. Medal colours remain `css/regatta.css` (`#D4AF37` / `#D7D7D7`).
 
 Status: `regattas.result_status = 'Final'` and `as_at_time` via the existing stamp path. Header reads `Results are Final as at DD Month YYYY at HH:MM`. `stamp_tsl_provisional` already refuses to overwrite Final.
 
@@ -107,7 +107,7 @@ No roster edits. No invented penalties. `score_adjust` and all 15 flight grids s
 | `css/regatta.css` th/td 8px, 1px `#1d294d` borders, system-ui, `#1a2750` | yes | none |
 | `#macTslGoldSheet` 2px wrapper (already matches `.header` / `.class-header`) | yes | none |
 | Split pane `.tsl-gold-left` + `.tsl-gold-right` overflow-x | yes | left headers nowrap so `Club/Team` and `Wins` do not wrap |
-| `goldBuilt()` wins + published ranks | yes | header labels only |
+| `goldBuilt()` D4.3 wins + last H2H for 2-team ties | yes | header labels only |
 | `goldItemMedal` | gold 1, silver 2 | never bronze |
 | Flight note table `Team \| B1… \| Total \| W/L` | yes | not the gold table |
 | Master header / nav / wind / media | yes | none |
@@ -122,7 +122,7 @@ Live: `.tsl-gold-left` was **413px** with `overflow:hidden` while the left table
 
 - Left pane `flex: 0 0 auto; max-width: none; overflow: visible`. Left table `width: max-content` so Rank | Club/Team | Wins | **Total** size to content and are never clipped. Club names still ellipsis via existing `.club-col` max-width.
 - Move **Total** from the scroll pane onto the locked left table (user: keep Rank | Club/Team | Wins | Total visible).
-- Right pane `flex: 1 1 0; min-width: 0; overflow-x: auto`. Right table `width: 100%; min-width: max-content`. Drop `race-col` **max-width**. Keep `min-width: 2.6em` (no scale/squeeze). Extra width is shared by F columns; if 15× min-width exceeds the pane, swipe left (F15 is already first).
+- Right pane `flex: 1 1 0; min-width: 0; overflow-x: auto`. Right table `width: 100%; min-width: max-content`. Drop `race-col` **max-width**. Keep `min-width: 2.2em` (no scale/squeeze). Extra width is shared by F columns; if 15× min-width exceeds the pane, swipe left (F15 is already first).
 - Join: keep right first-cell `border-left: none` so the left last-cell right border is the shared gridline. Outer 2px `#macTslGoldSheet` border unchanged. `syncGoldRowHeights` unchanged.
 - Gold sheet `width: 100%` of the fleet block; page padding (16px / 12px at ≤768) is the equal left/right inset. No extra white strip.
 
@@ -134,7 +134,7 @@ Do not change scores, ranks, logos, fonts, medals, or cards above/below.
 
 ## Mobile ≤480px impact
 
-Portrait uses the existing split: locked left Rank | Club/Team | Wins | **Total**; remaining width is `.tsl-gold-right` with `overflow-x: auto` and `-webkit-overflow-scrolling: touch`. Columns are newest-first (`goldRaceNos` reverses, F15 after Total). Swipe left reveals older flights. No 54%/58%/62% left cap (that clipped the 431px table inside 413px). Club names ellipsis at `club-col` max-width 6.4em. Race columns keep `min-width: 2.6em` (no 2.1em squeeze).
+Portrait uses the existing split: locked left Rank | Club/Team | Wins | **Total**; remaining width is `.tsl-gold-right` with `overflow-x: auto` and `-webkit-overflow-scrolling: touch`. Columns are newest-first (`goldRaceNos` reverses, F15 after Total). Swipe left reveals older flights. No 54%/58%/62% left cap (that clipped the 431px table inside 413px). Club names ellipsis at `club-col` max-width 6.4em. Race columns keep `min-width: 2.2em` (no 2.1em squeeze). Gold thead/td are `font-size:90%` so F1 also fits on Mac/PC.
 
 - `Club/Team` is longer than `Club`; left thead `white-space: nowrap` so the label stays one line.
 - `Wins` is a single digit; **Total** is two digits — both stay on the locked pane.
@@ -148,6 +148,6 @@ No 480px layout rewrite. Do not hide Rank / Club/Team / Wins / Total. Do not sta
 ## Code
 
 - `goldBuilt()` / gold headers in `js/mac-tsl-admin.js` and `sailingsa/frontend/js/mac-tsl-admin.js`  
-- Pin `mac-tsl-admin.js?v=20261022c`  
+- Pin `mac-tsl-admin.js?v=20261022d`  
 - `stamp_tsl_final` in `sailingsa/backend/tsl_team_racing.py`  
 - Tests: `sailingsa/backend/test_tsl_admin_js.py`, `sailingsa/backend/test_tsl_team_racing.py`
