@@ -29,7 +29,14 @@ from event_rewrite import (
     _wiki_url,
 )
 from tsl_board import apply_parent_tsl_board
-from roundup import _image_block, _layout_name, _render_story, newspaper_css
+from roundup import (
+    _image_block,
+    _layout_name,
+    _render_story,
+    newspaper_css,
+    public_html_banned,
+    strip_public_sources,
+)
 
 
 def sample_rows():
@@ -142,7 +149,11 @@ class RewriteEngine(unittest.TestCase):
         self.assertNotIn("Social and media sources", html)
         self.assertNotIn("Sources", html)
         self.assertNotIn("/api/", html)
+        self.assertNotIn("Event calendar", html)
+        self.assertNotIn("Source report", html)
         self.assertIn('href="https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals"', html)
+        self.assertIn(">Results</a>", html)
+        self.assertEqual(public_html_banned(html), [])
 
     def test_layouts_differ(self):
         self.assertEqual(layout_for(0, "feature"), "lead")
@@ -657,6 +668,22 @@ class RewriteEngine(unittest.TestCase):
         self.assertNotIn("/api/", html)
         self.assertNotIn("Sources", html)
         self.assertNotIn("Event calendar", html)
+        self.assertNotIn("Source report", html)
+        self.assertNotIn(">Results</a>", html)
+        self.assertEqual(public_html_banned(html), [])
+        dirty = (
+            html
+            + '<aside class="source-notes"><span class="sources-label">Sources &amp; results</span>'
+            + '<ol class="sources"><li><a href="https://sailingsa.co.za/api/events">Event calendar</a></li>'
+            + '<li><a href="https://example.com/x">Source report</a></li>'
+            + '<li><a href="https://example.com/y">Source report</a></li></ol></aside>'
+        )
+        clean = strip_public_sources(dirty)
+        self.assertNotIn("Sources", clean)
+        self.assertNotIn("Event calendar", clean)
+        self.assertNotIn("Source report", clean)
+        self.assertNotIn("/api/", clean)
+        self.assertEqual(public_html_banned(clean), [])
         self.assertIn("edition-lead", html)
         self.assertIn("<h1>Last Week&#x27;s Roundup</h1>", html)
         self.assertIn('class="copy"', html)

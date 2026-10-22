@@ -611,6 +611,9 @@ def gate_render(ctx: dict) -> GateResult:
         errors.append("missing edition-lead")
     if not re.search(r"<h1\b", html_text, re.I):
         errors.append("missing h1")
+    from roundup import public_html_banned
+
+    errors.extend(public_html_banned(html_text))
     if "<figure" not in html_text and _reports(ctx):
         images = [
             b

@@ -202,6 +202,36 @@ def _results_block(block):
 
 
 REGATTA_SLUG = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$")
+SOURCE_ASIDE = re.compile(r'<aside[^>]*class="[^"]*source-notes[^"]*"[\s\S]*?</aside>', re.I)
+SOURCE_LIST = re.compile(r'<ol[^>]*class="[^"]*sources[^"]*"[\s\S]*?</ol>', re.I)
+API_HREF = re.compile(r'<a[^>]+href="[^"]*/api/[^"]*"[^>]*>[\s\S]*?</a>', re.I)
+BANNED_PUBLIC_COPY = (
+    "Sources & results",
+    "Sources &amp; results",
+    "Event calendar",
+    "Source report",
+)
+
+
+def public_html_banned(html_text: str) -> list[str]:
+    """What must never appear on a public roundup page."""
+    text = html_text or ""
+    errors = []
+    if "/api/" in text:
+        errors.append("public HTML exposes an /api/ URL")
+    for phrase in BANNED_PUBLIC_COPY:
+        if phrase.lower() in text.lower():
+            errors.append(f"public HTML still has {phrase}")
+    return errors
+
+
+def strip_public_sources(html_text: str) -> str:
+    """Remove Sources & results / Event calendar / Source report /api/ links from any edition."""
+    text = html_text or ""
+    text = SOURCE_ASIDE.sub("", text)
+    text = SOURCE_LIST.sub("", text)
+    text = API_HREF.sub("", text)
+    return text
 
 
 def public_event_url(article: dict) -> str:
@@ -235,11 +265,6 @@ def _photo_set(images: list[str], media_layout: str = "") -> str:
     if media_layout == "paired-then-full":
         cls += " paired-then-full"
     return "<div class='" + cls + "'>" + "".join(images) + "</div>"
-
-
-def _sources_block(article):
-    """Public pages do not list sources. Pipeline sources stay off the page."""
-    return ""
 
 
 def _story_parts(article):
@@ -282,16 +307,18 @@ def _render_story(index, article):
     kicker = html.escape(article.get("kicker") or article.get("class_name") or "")
     title_tag = "h1" if lead else "h2"
     event_url = "" if lead else public_event_url(article)
+    results = ""
     if event_url:
-        title_html = (
-            f'<{title_tag}><a href="{html.escape(event_url, quote=True)}">{headline}</a></{title_tag}>'
-        )
+        href = html.escape(event_url, quote=True)
+        title_html = f'<{title_tag}><a href="{href}">{headline}</a></{title_tag}>'
+        results = f'<p><a href="{href}">Results</a></p>'
     else:
         title_html = f"<{title_tag}>{headline}</{title_tag}>"
     header = (
         '<header class="story-heading">'
         + ("" if lead else '<p class="kicker">' + kicker + "</p>")
         + title_html
+        + results
         + (('<p class="deck">' + html.escape(deck) + "</p>") if deck else "")
     )
     if lead:
@@ -310,8 +337,8 @@ def _render_story(index, article):
     header += "</header>"
     copy = "".join(paras)
     photos = _photo_set(images, article.get("media_layout") or ("paired-then-full" if len(images) > 1 else ""))
-    content = header + photos + '<div class="copy">' + copy + "</div>" + "".join(board) + _sources_block(article)
-    return (
+    content = header + photos + '<div class="copy">' + copy + "</div>" + "".join(board)
+    return strip_public_sources(
         f'<article class="story story-{layout} {"edition-lead" if lead else "event-story"}" id="{aid}">'
         + content
         + "</article>"
@@ -439,7 +466,7 @@ def render(issue):
         + "".join(stories)
         + "</section></main></body></html>"
     )
-    page = apply_single_image_center_css(page)
+    page = strip_public_sources(apply_single_image_center_css(page))
     (out / "index.html").write_text(page)
     browser = next(
         (
