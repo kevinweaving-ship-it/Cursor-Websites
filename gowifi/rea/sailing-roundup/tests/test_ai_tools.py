@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from ai_tools import available, chat, load_env, writer_name
+from ai_tools import analyze_image, available, chat, load_env, search_images, writer_name
 
 
 class SharedAITools(unittest.TestCase):
@@ -71,6 +71,75 @@ class SharedAITools(unittest.TestCase):
         text, provider = chat("sys", "user", environ={})
         self.assertEqual(text, "")
         self.assertEqual(provider, "official")
+
+    def test_analyze_image_sends_pixels_and_never_uses_chat(self):
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {
+                        "choices": [
+                            {
+                                "message": {
+                                    "content": json.dumps(
+                                        {
+                                            "description": "boats on water",
+                                            "category": "on-water",
+                                            "role": "lead",
+                                            "relevance": 0.9,
+                                        }
+                                    )
+                                }
+                            }
+                        ]
+                    }
+                ).encode()
+
+        opener = MagicMock(return_value=Response())
+        pixels = b"\xff\xd8\xff" + b"photo-bytes" * 20
+        result = analyze_image(pixels, {"title": "420 Nationals"}, environ={"OPENAI_API_KEY": "sk-test"}, opener=opener)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["category"], "on-water")
+        payload = json.loads(opener.call_args[0][0].data.decode())
+        content = payload["messages"][1]["content"]
+        self.assertTrue(any(part.get("type") == "image_url" for part in content))
+        self.assertIn("data:image/jpeg;base64,", json.dumps(content))
+        self.assertNotEqual(payload["model"], "gpt-4o-mini")
+
+    def test_analyze_image_does_not_fall_back_to_text_chat(self):
+        empty = analyze_image(b"", environ={"OPENAI_API_KEY": ""})
+        self.assertEqual(empty["status"], "download_failed")
+        missing = analyze_image(b"pixels", environ={})
+        self.assertEqual(missing["status"], "vision_unavailable")
+        class Boom:
+            def __call__(self, *a, **k):
+                raise TimeoutError("vision down")
+
+        failed = analyze_image(b"pixels", environ={"OPENAI_API_KEY": "sk"}, opener=Boom())
+        self.assertEqual(failed["status"], "analysis_failed")
+        self.assertNotIn("official", failed.get("reason", "").lower())
+
+    def test_search_images_reports_empty_and_blocked(self):
+        class Empty:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return json.dumps({"images_results": []}).encode()
+
+        opener = MagicMock(return_value=Empty())
+        result = search_images("420 Nationals 2026 photos", environ={"SERPAPI_API_KEY": "k"}, opener=opener)
+        self.assertEqual(result["status"], "empty")
+        none = search_images("x", environ={})
+        self.assertEqual(none["status"], "provider_failure")
 
 
 if __name__ == "__main__":

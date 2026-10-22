@@ -40,7 +40,7 @@ from event_rewrite import (
     _is_roster,
 )
 from events_weekend import SKIP_NAME, overlaps, parse_day, saturday_sunday
-from desk_editor import is_generic
+from desk_editor import is_generic, week_fact_from_report, week_lead_errors
 from evidence_pipeline import is_scoresheet, other_event_conflict, unlisted_event_names
 
 SLUG_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$")
@@ -545,14 +545,17 @@ def gate_story(ctx: dict) -> GateResult:
             errors.append("feature lead is a headline list, not a story")
         if is_generic(blob):
             errors.append("feature lead is generic filler, not desk copy")
+        cards = [a.get("week_fact") or week_fact_from_report(a) for a in reports]
+        covered = {a.get("event_id") or a.get("id") or "" for a in reports}
+        unlisted = unlisted_event_names(ctx.get("table_events") or [], covered)
+        errors.extend("feature lead: " + err for err in week_lead_errors(blob, cards, unlisted))
         for rec in (ctx.get("roster") or {}).get("events") or []:
             if rec.get("status") != "pass":
                 continue
             name = ((rec.get("equals") or {}).get("name") or rec.get("name") or "").strip()
             if name and name.lower() not in blob.lower():
                 errors.append(f"feature lead does not name scored event {name}")
-        covered = {a.get("event_id") or a.get("id") or "" for a in reports}
-        for name in unlisted_event_names(ctx.get("table_events") or [], covered):
+        for name in unlisted:
             if name.lower() not in blob.lower():
                 errors.append(f"feature lead does not name {name} (happened, no results card)")
     vals = [_report_entries(a, facts_by_slug.get(a.get("event_id") or a.get("id") or "") or {}) for a in reports]

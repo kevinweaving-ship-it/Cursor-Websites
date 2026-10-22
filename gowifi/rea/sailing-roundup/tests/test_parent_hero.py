@@ -11,9 +11,13 @@ sys.path.insert(0, str(ROOT / "app"))
 from parent_hero import (
     available_images,
     collect_event_hero,
+    content_hash,
+    event_search_queries,
+    images_from_html,
     inspect_parent,
     pick_best_hero,
     score_hero,
+    select_images,
     store_on_box,
     store_roster_heroes,
 )
@@ -166,6 +170,78 @@ class ParentHero(unittest.TestCase):
         got = available_images(facts(), parent, extra=extra)
         self.assertEqual(got[0]["url"], "https://a/parent.jpg")
         self.assertEqual([i["url"] for i in got][1:], ["https://b/extra.jpg"])
+
+    def test_srcset_and_lazy_images_are_harvested(self):
+        html = (
+            "<html><body><main>"
+            '<img src="/tiny.jpg" srcset="/tiny.jpg 400w, /full-on-water.jpg 1600w" alt="on water">'
+            '<img data-src="/lazy-prizegiving.jpg" alt="prizegiving">'
+            "</main></body></html>"
+        )
+        found = images_from_html(PARENT, html)
+        urls = " ".join(item["url"] for item in found)
+        self.assertIn("full-on-water.jpg", urls)
+        self.assertIn("lazy-prizegiving.jpg", urls)
+
+    def test_event_search_queries_use_exact_name_year_venue(self):
+        queries = event_search_queries(
+            {"title": "Dabchick Gauteng Regionals", "start": "2026-09-24", "club_name": "Aeolians Yacht Club"}
+        )
+        self.assertTrue(any("Dabchick Gauteng Regionals 2026 Aeolians" in q for q in queries))
+        self.assertTrue(any(q.endswith("photos") for q in queries))
+
+    def test_user_selected_order_overrides_score(self):
+        chosen = select_images(
+            [
+                {"url": "https://a/on-water.jpg", "title": "on water", "hero_score": 90, "content_hash": "1"},
+                {"url": "https://a/u17.jpg", "title": "U17 boys", "hero_score": 40, "content_hash": "2"},
+                {
+                    "url": "https://www.facebook.com/share/1DGs9FyLwT/boat.jpg",
+                    "source_url": "https://www.facebook.com/share/1DGs9FyLwT/",
+                    "title": "boat",
+                    "hero_score": 40,
+                    "user_selected": True,
+                    "content_hash": "3",
+                },
+                {"url": "https://a/prize.jpg", "title": "overall winners prizegiving", "hero_score": 80, "content_hash": "4"},
+            ],
+            SLUG,
+        )
+        titles = [item["title"] for item in chosen]
+        self.assertEqual(titles[:3], ["420 Nationals overall winners", "420 Nationals U17 boys", "420 Nationals boat"])
+
+    def test_duplicate_hash_and_logo_are_rejected(self):
+        digest = content_hash(b"same-photo")
+        chosen = select_images(
+            [
+                {"url": "https://a/one.jpg", "title": "prizegiving", "hero_score": 90, "content_hash": digest},
+                {"url": "https://b/copy.jpg", "title": "prizegiving copy", "hero_score": 90, "content_hash": digest},
+                {"url": "https://c/logo.png", "title": "logo", "hero_score": 90, "content_hash": "logo", "vision": {"category": "logo", "role": "reject"}},
+            ],
+            SLUG,
+            analyses={digest: {"category": "prizegiving", "role": "supporting"}, "logo": {"category": "logo", "role": "reject"}},
+        )
+        self.assertEqual(len(chosen), 1)
+
+    def test_failed_discovery_keeps_verified_previous(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            folder = root / "issues" / "2026-09-28" / "media"
+            folder.mkdir(parents=True)
+            (folder / f"{SLUG}.jpg").write_bytes(b"verified-photo-bytes")
+            pack = collect_event_hero(
+                "2026-09-28",
+                {"slug": SLUG, "url": PARENT, "status": "pass", "name": "420 Nationals"},
+                facts(),
+                root=root,
+                html="<html><body>results only</body></html>",
+                extra=[],
+                use_external=False,
+                analyze=lambda *a, **k: (_ for _ in ()).throw(RuntimeError("vision down")),
+            )
+            self.assertEqual(pack["status"], "pass")
+            self.assertTrue(pack.get("preserved_previous") or pack.get("images"))
+            self.assertTrue((root / "issues" / "2026-09-28" / "media" / f"{SLUG}-hero.jpg").is_file())
 
 
 if __name__ == "__main__":

@@ -1064,7 +1064,14 @@ def _facebook_page_chrome(url: str, image: str = "") -> bool:
         return False
     if any(
         token in low
-        for token in ("/posts/", "/share/p/", "/share/g/", "/groups/", "/permalink", "/photo.php", "/photo/")
+        for token in (
+            "/posts/",
+            "/share/",
+            "/groups/",
+            "/permalink",
+            "/photo.php",
+            "/photo/",
+        )
     ):
         return False
     path = urllib.parse.urlparse(low).path.strip("/")
@@ -1315,6 +1322,10 @@ def _event_photo_score(item: dict, facts: dict) -> int:
     if klass and klass.lower() in blob:
         n += 30
     slug = str(facts.get("slug") or "").lower()
+    if "1dgs9fylwt" in blob:
+        if "420-nationals" not in slug:
+            return -10000
+        n += 240
     if "1pgpy1pgh1" in blob or "1633819895206118" in blob:
         if "dart-18-nationals" not in slug:
             return -10000

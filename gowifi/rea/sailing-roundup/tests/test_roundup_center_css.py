@@ -20,6 +20,10 @@ class SingleImageCenterCss(unittest.TestCase):
         self.assertIn("justify-self:center", css)
         self.assertIn(".photo-set:not(.pair):not(.paired-then-full)", css)
         self.assertIn(".edition-lead figure{justify-self:center", css.replace("\n", ""))
+        self.assertIn("overflow-x:hidden", css)
+        self.assertIn("object-fit:contain", css)
+        self.assertIn("figure:last-child:nth-child(odd){grid-column:1/-1}", css.replace("\n", "").replace(" ", ""))
+        self.assertIn("@media (max-width:699px)", css)
 
     def test_apply_is_idempotent_and_injects_before_style_close(self):
         page = "<style>.edition-lead figure{aspect-ratio:16/9;max-height:220px}</style><h1>Lead</h1>"

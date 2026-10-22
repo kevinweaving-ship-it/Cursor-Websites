@@ -217,36 +217,227 @@ def _and_join(parts: list[str]) -> str:
     return ", ".join(parts[:-1]) + " and " + parts[-1]
 
 
+TALLY_COPY = re.compile(
+    r"\b\d+\s+scored events?\b|the weekend was led by|also posting results",
+    re.I,
+)
+HYPE_COPY = re.compile(
+    r"\b(heartbreak|miracle|unbelievable|thriller|dramatic finish|fairy[- ]tale)\b",
+    re.I,
+)
+HEADLINE_TAKEN = re.compile(
+    r"^(.+?)\s+(?:won by|dominated by|swept by|taken by|led by)\s+(.+)$",
+    re.I,
+)
+HEADLINE_WINS = re.compile(
+    r"^(.+?)\s+(?:wins?|won|dominates?|dominated|sweeps?|swept|takes?)\s+(.+)$",
+    re.I,
+)
+SWEEP_CLAIM = re.compile(r"won all (\d+) races", re.I)
+
+
+def _short_venue(venue: str) -> str:
+    return (
+        (venue or "")
+        .replace(" Yacht Club", "")
+        .replace(" Sports Club", "")
+        .replace(" Club", "")
+        .strip()
+    )
+
+
+def week_fact_card(facts: dict, rec: dict | None = None) -> dict:
+    """Structured, source-backed card for the week lead. Not a headline string."""
+    chosen = angle(facts)
+    winner = ranked_winner(facts) or (facts.get("winner") or "").strip()
+    title = (facts.get("title") or (rec or {}).get("name") or "").strip()
+    venue = (facts.get("club_name") or facts.get("club") or "").strip()
+    races = int(facts.get("races") or 0)
+    wins = int(facts.get("winner_wins") or 0)
+    heats = _heats(facts.get("winner_scores"))
+    if heats and races and len(heats) == races:
+        wins = sum(1 for h in heats if h.get("win"))
+    provisional = chosen == "provisional" or (facts.get("status") or "").lower() == "provisional"
+    sweep = bool(races and wins == races)
+    return {
+        "id": facts.get("slug") or (rec or {}).get("slug") or "",
+        "name": title,
+        "class_name": facts.get("class_name") or "",
+        "venue": venue,
+        "short_venue": _short_venue(venue) or (facts.get("club") or "").strip(),
+        "club": facts.get("club") or "",
+        "start": facts.get("start") or "",
+        "end": facts.get("end") or "",
+        "winner": winner,
+        "status": "provisional" if provisional else "final",
+        "tied_first": bool(facts.get("tied_first")),
+        "winner_wins": wins,
+        "races": races,
+        "sweep": sweep,
+        "angle": chosen,
+        "entries": facts.get("entries") or 0,
+    }
+
+
+def week_fact_from_report(report: dict) -> dict:
+    if isinstance(report.get("week_fact"), dict) and report["week_fact"].get("name"):
+        return dict(report["week_fact"])
+    headline = (report.get("headline") or "").strip().rstrip(".")
+    name = (report.get("event_title") or "").strip()
+    winner = ""
+    venue = ""
+    deck = report.get("deck") or ""
+    if " @ " in deck:
+        venue = deck.split(" @ ", 1)[1].split("·")[0].strip()
+    elif deck:
+        for bit in (p.strip() for p in deck.split("·")):
+            if re.search(r"club|lake|yacht|midmar|aeolians|theewater|deneys|henley", bit, re.I):
+                venue = bit
+                break
+    taken = HEADLINE_TAKEN.match(headline)
+    wins = HEADLINE_WINS.match(headline)
+    if taken:
+        name = name or taken.group(1).strip()
+        winner = taken.group(2).strip()
+    elif wins:
+        winner = wins.group(1).strip()
+        name = name or wins.group(2).strip()
+    name = re.sub(r"\s+20\d{2}\b", "", name).strip()
+    name = re.sub(r"\s+at\s+.+$", "", name).strip()
+    winner = re.sub(r"\s+after a points tie.*$", "", winner, flags=re.I).strip()
+    winner = re.sub(r"\s+at\s+.+$", "", winner).strip()
+    winner = re.sub(r"\s+-\s+[A-Z0-9]{2,6}$", "", winner).strip()
+    if not name:
+        name = headline or "the event"
+    return {
+        "id": report.get("event_id") or report.get("id") or "",
+        "name": name,
+        "class_name": report.get("class_name") or "",
+        "venue": venue,
+        "short_venue": _short_venue(venue),
+        "club": report.get("club") or "",
+        "start": report.get("start_date") or "",
+        "end": report.get("end_date") or "",
+        "winner": winner,
+        "status": "final",
+        "tied_first": "tie" in headline.lower(),
+        "winner_wins": 0,
+        "races": 0,
+        "sweep": "sweep" in headline.lower(),
+        "angle": "win",
+        "entries": report.get("entries") or 0,
+    }
+
+
+def _significance(card: dict) -> tuple:
+    order = {"tie": 0, "sweep": 1, "dominate": 2, "win": 3, "consistency": 4, "provisional": 5}
+    return (order.get(card.get("angle") or "", 9), -int(card.get("entries") or 0))
+
+
+def _event_phrase(card: dict, *, include_venue: bool = True, also: bool = False) -> str:
+    name = card.get("name") or "the event"
+    winner = (card.get("winner") or "").strip()
+    venue = (card.get("short_venue") or card.get("venue") or "").strip()
+    at = f" at {venue}" if include_venue and venue else ""
+    if (card.get("status") or "") == "provisional":
+        if winner:
+            return f"{winner} led the provisional {name} standings{at}"
+        return f"the published {name} standings remained provisional{at}"
+    if card.get("tied_first"):
+        if also and winner:
+            return f"{winner} also took the {name} after a points tie"
+        return f"A points tie settled the {name}{at}"
+    if card.get("sweep") and card.get("races"):
+        verb = "also won" if also else "won"
+        return f"{winner} {verb} all {card['races']} races in the {name}" + ("" if also else at)
+    if card.get("sweep") and winner:
+        return f"{winner} {'also swept' if also else 'swept'} the {name}" + ("" if also else at)
+    if winner:
+        return f"{winner} {'also won' if also else 'won'} the {name}{at}"
+    return f"the {name} was decided{at}"
+
+
+def _group_sentence(cards: list[dict]) -> str:
+    cards = list(cards)
+    venue = (cards[0].get("short_venue") or cards[0].get("venue") or "").strip()
+    if len(cards) == 1:
+        return _event_phrase(cards[0], include_venue=True).rstrip(".") + "."
+    first, rest = cards[0], cards[1:]
+    if first.get("tied_first"):
+        extras = [_event_phrase(card, include_venue=False, also=True) for card in rest]
+        return (
+            f"A points tie settled the {first.get('name')} at {venue}, where "
+            + _and_join(extras)
+            + "."
+        )
+    head = _event_phrase(first, include_venue=True)
+    extras = [_event_phrase(card, include_venue=False, also=True) for card in rest]
+    return head + ", where " + _and_join(extras) + "."
+
+
+def week_lead_errors(text: str, cards: list[dict], unlisted: list[str] | None = None) -> list[str]:
+    """Accept a week lead only if it stays inside the locked event facts."""
+    errors = []
+    blob = text or ""
+    low = blob.lower()
+    if is_generic(blob) or HYPE_COPY.search(blob):
+        errors.append("generic filler or invented drama")
+    if TALLY_COPY.search(blob):
+        errors.append("tally or headline-list copy")
+    parts = re.split(r"(?=Other events in the past week were)", blob, flags=re.I)
+    scored_blob = (parts[0] if parts else blob).strip()
+    unlisted_blob = " ".join(parts[1:]).strip() if len(parts) > 1 else ""
+    for card in cards or []:
+        name = (card.get("name") or "").strip()
+        if name and name.lower() not in low:
+            errors.append(f"missing exact event name {name!r}")
+        if (card.get("status") or "") == "provisional":
+            if "provisional" not in low:
+                errors.append(f"{name} is provisional but the lead is not")
+            if name and re.search(rf"\bwon the {re.escape(name)}\b", scored_blob, re.I):
+                errors.append(f"{name} treated as a final win")
+    for raw in unlisted or []:
+        name = (raw or "").strip()
+        if name and name.lower() not in low:
+            errors.append(f"unlisted event {name!r} missing")
+        if name and name.lower() in scored_blob.lower() and re.search(
+            rf"{re.escape(name)}.{{0,40}}\b(won|results|leaderboard)\b", scored_blob, re.I
+        ):
+            errors.append(f"unlisted event {name!r} implied to have results")
+    if (unlisted or []) and not unlisted_blob:
+        errors.append("unlisted events must stay in a separate paragraph")
+    for match in SWEEP_CLAIM.finditer(blob):
+        claimed = int(match.group(1))
+        if not any(card.get("sweep") and int(card.get("races") or 0) == claimed for card in cards or []):
+            errors.append(f"unsupported sweep of {claimed} races")
+    return errors
+
+
 def edit_week(date_line: str, reports: list[dict], unlisted: list[str]) -> list[str]:
-    """Week lead: count scored events, name them, then name the rest of the week.
+    """Week lead from structured facts. Never a tally of headlines.
 
     Weekend dates live in the feature deck. Do not repeat them here.
+    Lead order may follow venue / sporting significance, not fleet size.
     """
     del date_line
-    n = len(reports)
-    if not reports:
+    cards = [week_fact_from_report(report) for report in reports or []]
+    cards = [card for card in cards if card.get("name")]
+    if not cards:
         return ["No scored results were published."]
-    count = "1 scored event." if n == 1 else f"{n} scored events."
-    if n == 1:
-        lead = reports[0]
-        text = count + " " + (lead.get("headline") or "Weekend racing").rstrip(".")
-        deck = (lead.get("deck") or "").strip()
-        if deck and deck.lower() not in text.lower():
-            text += ". " + deck.rstrip(".")
-        text += "."
-        paragraphs = [text]
-    else:
-        biggest = reports[0]
-        others = [r.get("headline") or r.get("event_id") or "another event" for r in reports[1:]]
-        text = (
-            count
-            + " The weekend was led by "
-            + (biggest.get("headline") or "the largest scored fleet").rstrip(".")
-        )
-        if others:
-            text += ", with " + _and_join(others) + " also posting results"
-        text += "."
-        paragraphs = [text]
+    groups: dict[str, list[dict]] = {}
+    for card in cards:
+        key = (card.get("short_venue") or card.get("venue") or card.get("id") or card.get("name") or "").strip()
+        groups.setdefault(key or card.get("name") or "event", []).append(card)
+    for group in groups.values():
+        group.sort(key=_significance)
+    ordered = sorted(groups.items(), key=lambda item: _significance(item[1][0]))
+    sentences = [_group_sentence(group) for _, group in ordered]
+    if len(sentences) >= 2 and (ordered[-1][1][0].get("status") == "provisional"):
+        last = sentences.pop().rstrip(".")
+        if last[:2] in {"A ", "a "} or last.startswith("The ") or last.startswith("the "):
+            last = last[0].lower() + last[1:]
+        sentences[-1] = sentences[-1].rstrip(".") + ", while " + last + "."
+    paragraphs = [" ".join(sentences)]
     if unlisted:
         paragraphs.append("Other events in the past week were " + _and_join(unlisted) + ".")
     return paragraphs

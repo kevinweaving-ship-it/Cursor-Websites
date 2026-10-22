@@ -18,7 +18,15 @@ sys.path.insert(0, str(ROOT / "app"))
 import os
 
 from ai_tools import available as ai_available, chat as ai_chat, load_env
-from desk_editor import edit_event, is_generic, photo_caption, qa
+from desk_editor import (
+    edit_event,
+    is_generic,
+    photo_caption,
+    qa,
+    week_fact_card,
+    week_fact_from_report,
+    week_lead_errors,
+)
 from event_rewrite import (
     citation_index,
     deck_from_facts,
@@ -86,27 +94,92 @@ def _system_prompt() -> str:
     )
 
 
+def _week_system_prompt() -> str:
+    return (
+        "You are a newspaper sports editor writing the introduction to Last Week's Roundup. "
+        "Use only the structured event facts. Group by venue or sporting significance. "
+        "Do not tally events. Do not paste headlines. Do not invent conditions, drama, "
+        "identities, or results. Provisional standings stay provisional. "
+        "Name every scored event exactly. Unlisted events go in a separate paragraph "
+        "and must not be described as having published results."
+    )
+
+
+def _week_accepts(text: str, facts: dict) -> bool:
+    cards = list(facts.get("week_cards") or [])
+    unlisted = list(facts.get("unlisted") or [])
+    return bool(text) and not week_lead_errors(text, cards, unlisted)
+
+
 def polish_copy(kind: str, context: dict, facts: dict, draft: str, polish=None) -> tuple[str | None, str]:
     """Optional extra pass. The desk draft is the article unless this stays locked and specific."""
+    week = kind == "week feature" or bool(facts.get("week_cards"))
     if polish is not None:
         text = polish(kind, context, facts, draft)
-        if text and _locked(text, facts) and not is_generic(text) and not qa(text, facts):
+        if not text:
+            return None, "desk"
+        if week:
+            return (text.strip(), "injected") if _week_accepts(text, facts) else (None, "desk")
+        if _locked(text, facts) and not is_generic(text) and not qa(text, facts):
             return text.strip(), "injected"
         return None, "desk"
     if os.getenv("ROUNDUP_USE_AI") != "1":
         return None, "desk"
     load_env()
+    prompt = _week_system_prompt() if week else _system_prompt()
     user = kind + "\n" + json.dumps({"context": context, "draft": draft}, ensure_ascii=False)
-    text, provider = ai_chat(_system_prompt(), user)
-    if not text or not _locked(text, facts) or is_generic(text) or qa(text, facts):
+    text, provider = ai_chat(prompt, user)
+    if not text:
         return None, "desk"
-    return text.strip(), provider
+    if week:
+        return (text.strip(), provider) if _week_accepts(text, facts) else (None, "desk")
+    if _locked(text, facts) and not is_generic(text) and not qa(text, facts):
+        return text.strip(), provider
+    return None, "desk"
 
 
 def ai_polish(kind: str, context: dict, facts: dict, draft: str) -> str | None:
     """Optional AI call. Must keep the locked facts or it is discarded."""
     text, _provider = polish_copy(kind, context, facts, draft)
     return text
+
+
+def _article_images(hero: dict | None) -> list[dict]:
+    """Up to four stored photographs. Never invent fillers for empty slots."""
+    if not hero:
+        return []
+    images = [item for item in (hero.get("images") or []) if isinstance(item, dict)]
+    if not images and hero.get("status") == "pass" and (hero.get("local_path") or hero.get("url")):
+        images = [hero]
+    out = []
+    seen = set()
+    for item in images:
+        if (item.get("status") or "pass") not in ("pass", "ok", ""):
+            continue
+        path = item.get("local_path") or item.get("url") or ""
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        out.append(item)
+        if len(out) >= 4:
+            break
+    return out
+
+
+def _image_block(item: dict, facts: dict, rec: dict) -> dict:
+    block = {
+        "type": "image",
+        "url": item.get("local_path") or item.get("url") or "",
+        "alt": item.get("title") or facts.get("title") or rec.get("name") or "",
+        "caption": photo_caption(item, facts),
+        "credit": item.get("credit") or "Event photography",
+        "source_url": item.get("source_url") or facts.get("url") or "",
+        "rights_status": "source_attributed",
+    }
+    if item.get("source_region"):
+        block["source_region"] = item["source_region"]
+        block["source_dimensions"] = item.get("source_dimensions")
+    return block
 
 
 def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, layout: str = "classic", polish=None) -> dict:
@@ -119,24 +192,14 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
     if polished:
         paras = [p.strip() for p in re.split(r"\n{2,}", polished) if p.strip()] or paras
     paras = [strip_cite_marks(p) for p in paras]
-    blocks = []
-    if hero and hero.get("status") == "pass" and hero.get("local_path"):
-        blocks.append(
-            {
-                "type": "image",
-                "url": hero["local_path"],
-                "alt": facts.get("title") or rec.get("name") or "",
-                "caption": photo_caption(hero, facts),
-                "credit": "Event photography",
-                "source_url": hero.get("source_url") or facts.get("url") or "",
-                "rights_status": "source_attributed",
-            }
-        )
+    images = _article_images(hero)
+    blocks = [_image_block(item, facts, rec) for item in images]
     for text in paras:
         blocks.append({"type": "paragraph", "text": text})
     cols, table = facts.get("leaderboard") or ([], [])
     blocks.append({"type": "results", "source_event_url": facts.get("url") or "", "columns": cols, "rows": table, "as_of": issue})
     third_party = False
+    first = images[0] if images else None
     return {
         "id": facts.get("slug") or rec.get("slug"),
         "type": "regatta_report",
@@ -153,8 +216,13 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
         "event_id": facts.get("slug") or rec.get("slug"),
         "layout": layout,
         "entries": facts.get("entries") or 0,
-        "hero_image": {"url": hero.get("local_path"), "source_url": hero.get("source_url"), "rights_status": "source_attributed"}
-        if hero and hero.get("local_path")
+        "media_layout": "paired-then-full" if len(images) > 1 else "",
+        "hero_image": {
+            "url": first.get("local_path") or first.get("url"),
+            "source_url": first.get("source_url"),
+            "rights_status": "source_attributed",
+        }
+        if first
         else None,
         "blocks": blocks,
         "sources": [c["url"] for c in cites],
@@ -167,6 +235,7 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
         "class_name": facts.get("class_name") or "",
         "start_date": facts.get("start") or "",
         "end_date": facts.get("end") or "",
+        "week_fact": week_fact_card(facts, rec),
     }
 
 
@@ -174,36 +243,37 @@ def write_week_feature(issue, monday, table_events, reports, polish=None) -> dic
     monday = _as_monday(monday)
     art = feature(issue, monday, table_events, reports)
     sat, sun = saturday_sunday(monday)
-    must = [r.get("headline") or "" for r in reports] + list(art.get("unlisted_events") or [])
+    cards = [week_fact_from_report(report) for report in reports or []]
+    unlisted = list(art.get("unlisted_events") or [])
     lock = {
         "title": "Last Week's Roundup",
-        "winner": (reports[0].get("headline") or "") if reports else "Last Week",
-        "winner_helm": "",
+        "week_cards": cards,
+        "unlisted": unlisted,
     }
-    draft = " ".join(b.get("text") or "" for b in art.get("blocks") or [] if b.get("type") == "paragraph")
+    draft = "\n\n".join(
+        b.get("text") or "" for b in art.get("blocks") or [] if b.get("type") == "paragraph"
+    )
     polished, writer = polish_copy(
         "week feature",
-        {"deck": art.get("deck"), "unlisted": art.get("unlisted_events"), "scored": must},
+        {
+            "deck": art.get("deck"),
+            "unlisted": unlisted,
+            "events": cards,
+        },
         lock,
         draft,
         polish=polish,
     )
-    if polished:
-        blob = polished.lower()
-        named = all(
-            any(part.lower() in blob for part in (n, n.split()[0] if n else "") if part)
-            for n in must
-            if n
+    if polished and not week_lead_errors(polished, cards, unlisted):
+        art["blocks"] = [b for b in art.get("blocks") or [] if b.get("type") != "paragraph"]
+        art["blocks"].extend(
+            {"type": "paragraph", "text": strip_cite_marks(p.strip())}
+            for p in re.split(r"\n{2,}", polished)
+            if p.strip()
         )
-        if named:
-            art["blocks"] = [b for b in art.get("blocks") or [] if b.get("type") != "paragraph"]
-            art["blocks"].extend(
-                {"type": "paragraph", "text": strip_cite_marks(p.strip())}
-                for p in re.split(r"\n{2,}", polished)
-                if p.strip()
-            )
     art["weekend"] = [sat.isoformat(), sun.isoformat()]
     art["ai_writer"] = writer if polished else "desk"
+    art["week_cards"] = cards
     return art
 
 

@@ -6,7 +6,16 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from desk_editor import angle, edit_event, edit_week, is_generic, photo_caption, qa
+from desk_editor import (
+    angle,
+    edit_event,
+    edit_week,
+    is_generic,
+    photo_caption,
+    qa,
+    week_fact_card,
+    week_lead_errors,
+)
 from gates import run_gates
 
 SLUG = "2026-09-25-tsc-420-nationals"
@@ -214,14 +223,114 @@ class DeskEditor(unittest.TestCase):
         ]
         paras = edit_week("26–27 September 2026", reports, ["Agulhas Race", "Lipton Cup Practice"])
         blob = " ".join(paras)
-        self.assertIn("4 scored events.", blob)
-        self.assertIn("was led by Dale Rae wins 420 Nationals", blob)
+        self.assertNotIn("4 scored events.", blob)
+        self.assertNotIn("was led by", blob)
+        self.assertNotIn("also posting results", blob)
+        self.assertIn("420 Nationals", blob)
         self.assertIn("Other events in the past week were", blob)
         self.assertIn("Agulhas Race", blob)
         self.assertIn("Lipton Cup Practice", blob)
         self.assertNotIn("26–27 September", blob)
         self.assertNotIn("results card", blob)
         self.assertNotIn("Last week's roundup covers", blob)
+        self.assertGreaterEqual(len(paras), 2)
+
+    def test_week_lead_uses_facts_not_a_tally(self):
+        reports = [
+            {
+                "week_fact": {
+                    "id": "2026-09-24-ayc-505-nationals",
+                    "name": "505 Nationals",
+                    "venue": "Aeolians Yacht Club",
+                    "short_venue": "Aeolians",
+                    "winner": "Peter Funke and Thomas Funke",
+                    "status": "final",
+                    "tied_first": True,
+                    "angle": "tie",
+                    "sweep": False,
+                    "races": 8,
+                    "entries": 7,
+                }
+            },
+            {
+                "week_fact": {
+                    "id": "2026-09-24-ayc-dabchick-gauteng-regionals",
+                    "name": "Dabchick Gauteng Regionals",
+                    "venue": "Aeolians Yacht Club",
+                    "short_venue": "Aeolians",
+                    "winner": "Dylan Hall",
+                    "status": "final",
+                    "tied_first": False,
+                    "angle": "sweep",
+                    "sweep": True,
+                    "races": 12,
+                    "entries": 17,
+                }
+            },
+            {
+                "week_fact": {
+                    "id": "2026-09-25-tsc-420-nationals",
+                    "name": "420 Nationals",
+                    "venue": "Theewater Sports Club",
+                    "short_venue": "Theewater",
+                    "winner": "Dale Rae and James Rae",
+                    "status": "final",
+                    "tied_first": False,
+                    "angle": "dominate",
+                    "sweep": False,
+                    "races": 8,
+                    "entries": 16,
+                }
+            },
+            {
+                "week_fact": {
+                    "id": "2026-09-24-hmyc-dart-18-nationals",
+                    "name": "Dart 18 Nationals",
+                    "venue": "Henley Midmar Yacht Club",
+                    "short_venue": "Henley Midmar",
+                    "winner": "Bradley Levin",
+                    "status": "provisional",
+                    "tied_first": False,
+                    "angle": "provisional",
+                    "sweep": False,
+                    "races": 7,
+                    "entries": 38,
+                }
+            },
+        ]
+        paras = edit_week("26–27 September 2026", reports, ["FBYC Spring Regatta"])
+        blob = " ".join(paras)
+        self.assertTrue(blob.startswith("A points tie settled the 505 Nationals at Aeolians"))
+        self.assertIn("Dabchick Gauteng Regionals", blob)
+        self.assertIn("Dylan Hall", blob)
+        self.assertIn("all 12 races", blob)
+        self.assertIn("Dale Rae and James Rae won the 420 Nationals at Theewater", blob)
+        self.assertIn("Bradley Levin led the provisional Dart 18 Nationals standings at Henley Midmar", blob)
+        self.assertNotIn("scored event", blob)
+        self.assertNotIn("also posting results", blob)
+        self.assertEqual(paras[-1], "Other events in the past week were FBYC Spring Regatta.")
+        self.assertEqual(week_lead_errors(blob, [r["week_fact"] for r in reports], ["FBYC Spring Regatta"]), [])
+        self.assertTrue(week_lead_errors("4 scored events. The weekend was led by 505 Nationals.", [r["week_fact"] for r in reports], []))
+
+    def test_week_lead_zero_and_one_event(self):
+        self.assertEqual(edit_week("26–27 September 2026", [], []), ["No scored results were published."])
+        one = edit_week(
+            "26–27 September 2026",
+            [
+                {
+                    "week_fact": {
+                        "name": "420 Nationals",
+                        "short_venue": "Theewater",
+                        "winner": "Dale Rae and James Rae",
+                        "status": "final",
+                        "angle": "win",
+                    }
+                }
+            ],
+            [],
+        )
+        self.assertEqual(one, ["Dale Rae and James Rae won the 420 Nationals at Theewater."])
+        self.assertNotIn("1 scored event", " ".join(one))
 
     def test_generic_story_fails_the_gate(self):
         import tempfile

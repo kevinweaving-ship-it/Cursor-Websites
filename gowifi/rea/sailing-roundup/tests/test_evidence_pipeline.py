@@ -138,8 +138,8 @@ class EvidenceRegression(unittest.TestCase):
   self.assertNotIn("Instructor Course",blob)
   self.assertEqual(art["unlisted_events"],["Agulhas Race","Lipton Cup Practice"])
   self.assertEqual(unlisted_event_names(events,{a["event_id"] for a in reports}),["Agulhas Race","Lipton Cup Practice"])
-  self.assertLess(blob.index("420 Nationals"),blob.index("Free State Youth"))
-  self.assertLess(blob.index("Free State Youth"),blob.index("Mirror Regionals"))
+  self.assertNotIn("scored events",blob)
+  self.assertNotIn("also posting results",blob)
  def test_multi_event_feature_lists_each_event_and_has_no_week_hero(self):
   from evidence_pipeline import feature
   import datetime as dt

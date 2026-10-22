@@ -29,7 +29,7 @@ MOBILE = {
     "Accept": "text/html",
 }
 
-SHARE_RE = re.compile(r"facebook\.com/share/(?P<kind>[pvg])/(?P<id>[A-Za-z0-9]+)", re.I)
+SHARE_RE = re.compile(r"facebook\.com/share/(?:(?P<kind>[pvg])/)?(?P<id>[A-Za-z0-9]+)", re.I)
 GROUP_RE = re.compile(r"facebook\.com/groups/(?P<id>\d+)", re.I)
 PAGE_RE = re.compile(r"facebook\.com/(?P<slug>[A-Za-z0-9.]+)/?(?:$|[?#])", re.I)
 POST_PAGE_RE = re.compile(r"facebook\.com/(?P<slug>[A-Za-z0-9.]+)/posts/", re.I)
@@ -124,10 +124,13 @@ def resolve_facebook_url(url: str) -> dict:
         out["page_id"] = group.group("id")
         out["canonical_url"] = f"https://www.facebook.com/groups/{out['page_id']}/"
     elif share:
-        out["kind"] = {"g": "facebook_group", "p": "facebook_page", "v": "facebook_video"}.get(
-            share.group("kind").lower(), "facebook"
+        kind = (share.group("kind") or "").lower()
+        out["kind"] = {"g": "facebook_group", "p": "facebook_page", "v": "facebook_video"}.get(kind, "facebook")
+        out["share_url"] = (
+            f"https://www.facebook.com/share/{kind}/{share.group('id')}/"
+            if kind
+            else f"https://www.facebook.com/share/{share.group('id')}/"
         )
-        out["share_url"] = f"https://www.facebook.com/share/{share.group('kind')}/{share.group('id')}/"
 
     html = ""
     final = original

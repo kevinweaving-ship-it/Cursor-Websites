@@ -370,7 +370,7 @@ def newspaper_css():
 :root{--ink:#1e293b;--navy:#001f3f;--muted:#334155;--paper:#f5f7fa;--card:#fff}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:18px/1.6 'Source Serif 4',Georgia,serif}
-.paper{max-width:860px;margin:0 auto;background:var(--card)}
+.paper{max-width:860px;margin:0 auto;background:var(--card);overflow-x:hidden}
 .masthead{display:flex;align-items:center;gap:16px;background:var(--navy);color:#fff;padding:14px 28px}
 .masthead a{display:flex;align-items:center}
 .ssa-logo{height:52px;width:auto;display:block}
@@ -397,14 +397,14 @@ h2{font:700 32px/1.2 'Playfair Display',Georgia,serif;margin:0 0 10px;color:var(
 .split{display:grid;grid-template-columns:1fr;gap:16px}
 .compact-row{display:grid;grid-template-columns:1fr;gap:16px}
 figure{margin:0 auto 14px;text-align:center}
-figure img,.source-photo-panel{width:100%;height:auto;display:block;margin-left:auto;margin-right:auto}
+figure img,.source-photo-panel{width:100%;max-width:100%;height:auto;display:block;margin-left:auto;margin-right:auto;object-fit:contain}
 .photo-set{display:grid;grid-template-columns:1fr;gap:12px;margin:0 auto 14px;justify-items:center}
 .photo-set:not(.pair):not(.paired-then-full){justify-items:center}
 .photo-set:not(.pair):not(.paired-then-full) figure{justify-self:center;margin-left:auto;margin-right:auto;width:auto;max-width:100%}
-.photo-set.pair{grid-template-columns:1fr}
+.photo-set.pair,.photo-set.paired-then-full{grid-template-columns:1fr}
 .edition-lead .photo-set{justify-items:center}
 .edition-lead figure{justify-self:center;margin-left:auto;margin-right:auto}
-.story-photo-led figure img{max-height:480px;object-fit:cover}
+.story-photo-led figure img{max-height:none;object-fit:contain}
 .story-classic figure{float:none;width:auto;max-width:100%;margin:0 auto 14px}
 figcaption{font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#64748b;padding-top:6px}
 .cite{font-size:11px;line-height:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -419,14 +419,18 @@ figcaption{font:12px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .board tr:nth-child(odd) td{background:#f8fafc}
 .board tr:first-child td{font-weight:700}
 @media (min-width:700px){
-  .photo-set.pair{grid-template-columns:1fr 1fr}
+  .photo-set.pair,.photo-set.paired-then-full{grid-template-columns:1fr 1fr}
+  .photo-set.paired-then-full figure:last-child:nth-child(odd){grid-column:1/-1}
+}
+@media (max-width:699px){
+  .photo-set.pair,.photo-set.paired-then-full{grid-template-columns:1fr}
+  .photo-set.paired-then-full figure:last-child{grid-column:auto}
 }
 @media (max-width:860px){
   .edition-grid{display:flex;flex-direction:column;padding:0 16px 48px}
   .masthead{padding:12px 16px}
   .lead-grid,.split,.compact-row{grid-template-columns:1fr}
   .cols-2,.cols-3{column-count:1}
-  .photo-set.pair{grid-template-columns:1fr}
   .story-classic figure{float:none;width:100%;margin:0 auto 10px}
   .masthead h1{font-size:26px}
   .ssa-logo{height:40px}

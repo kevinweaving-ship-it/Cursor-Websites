@@ -10,7 +10,14 @@ from unittest.mock import patch
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from article_write import ai_polish, media_note, raw_context, write_event_article, write_issue
+from article_write import (
+    ai_polish,
+    media_note,
+    polish_copy,
+    raw_context,
+    write_event_article,
+    write_issue,
+)
 from event_rewrite import facts_from_rows
 from gates import run_gates
 from publish_weekend import publish
@@ -125,6 +132,26 @@ class ArticleWrite(unittest.TestCase):
         self.assertIn("420 Nationals", cap)
         self.assertEqual(article["sources"][0], facts["url"])
 
+    def test_article_keeps_up_to_four_stored_images(self):
+        rec, facts = roster_event(SLUG, sample_rows())
+        hero = {
+            "status": "pass",
+            "local_path": "media/hero.jpg",
+            "source_url": facts["url"],
+            "title": "overall winners",
+            "images": [
+                {"status": "pass", "local_path": "media/a.jpg", "title": "overall winners", "source_url": facts["url"]},
+                {"status": "pass", "local_path": "media/b.jpg", "title": "U17 boys", "source_url": facts["url"]},
+                {"status": "pass", "local_path": "media/c.jpg", "title": "boat", "source_url": "https://www.facebook.com/share/1DGs9FyLwT/"},
+                {"status": "reject", "local_path": "media/sheet.jpg", "title": "results sheet"},
+            ],
+        }
+        article = write_event_article("2026-09-28", rec, facts, hero, polish=lambda *a, **k: None)
+        images = [b for b in article["blocks"] if b.get("type") == "image"]
+        self.assertEqual([b["url"] for b in images], ["media/a.jpg", "media/b.jpg", "media/c.jpg"])
+        self.assertEqual(article["media_layout"], "paired-then-full")
+        self.assertTrue(any(b.get("type") == "results" for b in article["blocks"]))
+
     def test_polish_discarded_when_winner_or_title_missing(self):
         rec, facts = roster_event(SLUG, sample_rows())
         article = write_event_article(
@@ -222,6 +249,62 @@ class ArticleWrite(unittest.TestCase):
             self.assertEqual(run.step(3).status, "pass", run.summary())
             self.assertTrue(all(e.get("needs_external") for e in run.step(3).events))
             self.assertTrue(all(not e.get("third_party") for e in run.step(3).events))
+            self.assertNotIn("scored event", blob)
+            self.assertNotIn("also posting results", blob)
+            self.assertIn("week_fact", reports[0])
+
+    def test_week_polish_rejects_tally_and_keeps_desk_narrative(self):
+        cards = [
+            {
+                "name": "505 Nationals",
+                "winner": "Peter Funke",
+                "short_venue": "Aeolians",
+                "status": "final",
+                "tied_first": True,
+                "angle": "tie",
+            },
+            {
+                "name": "Dabchick Gauteng Regionals",
+                "winner": "Dylan Hall",
+                "short_venue": "Aeolians",
+                "status": "final",
+                "sweep": True,
+                "races": 12,
+                "angle": "sweep",
+            },
+        ]
+        facts = {"week_cards": cards, "unlisted": []}
+        text, writer = polish_copy(
+            "week feature",
+            {"events": cards},
+            facts,
+            "desk draft",
+            polish=lambda *a, **k: "4 scored events. The weekend was led by 505 Nationals.",
+        )
+        self.assertIsNone(text)
+        self.assertEqual(writer, "desk")
+        good = (
+            "A points tie settled the 505 Nationals at Aeolians, where Dylan Hall "
+            "also won all 12 races in the Dabchick Gauteng Regionals."
+        )
+        text, writer = polish_copy(
+            "week feature",
+            {"events": cards},
+            facts,
+            "desk draft",
+            polish=lambda *a, **k: good,
+        )
+        self.assertEqual(text, good)
+        self.assertEqual(writer, "injected")
+
+    def test_week_polish_api_failure_keeps_desk_narrative(self):
+        cards = [{"name": "420 Nationals", "winner": "Dale Rae", "short_venue": "Theewater", "status": "final"}]
+        facts = {"week_cards": cards, "unlisted": []}
+        with patch.dict("os.environ", {"ROUNDUP_USE_AI": "1", "OPENAI_API_KEY": "sk", "PERPLEXITY_API_KEY": ""}, clear=False):
+            with patch("article_write.ai_chat", return_value=("", "official")):
+                text, writer = polish_copy("week feature", {"events": cards}, facts, "Dale Rae won the 420 Nationals at Theewater.")
+        self.assertIsNone(text)
+        self.assertEqual(writer, "desk")
 
 
 class PublishStopsAfterStory(unittest.TestCase):
