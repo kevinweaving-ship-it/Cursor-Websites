@@ -24531,6 +24531,25 @@ def _render_result_sheet_fleet(
     scoring_system = fleet.get("scoring_system") or "Appendix A"
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
 
+    if str(regatta_id or "").strip() == MAC_TSL_WC_2026_REGATTA_SLUG:
+        class_logo_src = _class_logo_url_from_fleet_name(class_canonical or fleet_label or fname)
+        class_logo_col = ""
+        if class_logo_src:
+            class_logo_col = (
+                f'<div class="class-header-logo-col">'
+                f'<img src="{html_module.escape(class_logo_src)}" alt="" class="class-header-logo-img" '
+                'loading="lazy" decoding="async" />'
+                f"</div>"
+            )
+        return (
+            f'<div class="fleet-section">'
+            f'<div class="class-header">'
+            f"{class_logo_col}"
+            f'<div class="class-header-text-col"><div class="fleet-title-row">{fleet_header_html}</div>'
+            f'<div class="sailed-line">{html_module.escape(sailed_line)}</div></div></div>'
+            f"</div>"
+        )
+
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():
             return True
@@ -24560,9 +24579,6 @@ def _render_result_sheet_fleet(
     show_hull = _optional_col_visible("hull", has_hull_no)
     show_crew_col = _optional_col_visible("crew", has_crew)
     show_races = bool(race_columns)
-    is_mac_tsl = str(regatta_id or "").strip() == MAC_TSL_WC_2026_REGATTA_SLUG
-    if is_mac_tsl:
-        show_boat = True
 
     thead = ""
     if _pref_on("rank"):
@@ -24574,14 +24590,14 @@ def _render_result_sheet_fleet(
     if _pref_on("sail_no"):
         thead += '<th class="sail-col">Sail No</th>'
     if show_boat:
-        thead += "<th>Team</th>" if is_mac_tsl else "<th>Boat Name</th>"
+        thead += "<th>Boat Name</th>"
     if show_jib:
         thead += "<th>Jib No</th>"
     if show_bow:
         thead += "<th>Bow No</th>"
     if show_hull:
         thead += "<th>Hull No</th>"
-    if _pref_on("club") and not is_mac_tsl:
+    if _pref_on("club"):
         thead += '<th class="club-col">Club</th>'
     if _pref_on("helm"):
         thead += '<th class="helm-col">Helm</th>'
@@ -24732,20 +24748,7 @@ def _render_result_sheet_fleet(
             row_html += f'<td class="sail-col">{_wc_cell(sail_str, sail_raw, "sail_number", None, 32)}</td>'
         if show_boat:
             bn = str(r.get("boat_name") or "")
-            if is_mac_tsl:
-                code = re.sub(r"[^\w\-]", "", (club_raw or "").strip())
-                logo = (
-                    f'<img class="rs-club-row-logo-sm" src="/api/club-logo/{html_module.escape(code)}" alt="" loading="lazy" decoding="async">'
-                    if code
-                    else ""
-                )
-                team_html = (
-                    f'<span class="rs-club-with-logo tsl-team-club">{logo}'
-                    f"<span>{html_module.escape(bn)}</span></span>"
-                )
-                row_html += f'<td>{_wc_cell(team_html, bn, "boat_name", None, 120)}</td>'
-            else:
-                row_html += f'<td>{_wc_cell(html_module.escape(bn), bn, "boat_name", None, 120)}</td>'
+            row_html += f'<td>{_wc_cell(html_module.escape(bn), bn, "boat_name", None, 120)}</td>'
         if show_jib:
             jv = str(r.get("jib_no") or "")
             row_html += f'<td>{_wc_cell(html_module.escape(jv), jv, "jib_no", None, 32)}</td>'
@@ -24755,7 +24758,7 @@ def _render_result_sheet_fleet(
         if show_hull:
             hv = str(r.get("hull_no") or "")
             row_html += f'<td>{_wc_cell(html_module.escape(hv), hv, "hull_no", None, 32)}</td>'
-        if _pref_on("club") and not is_mac_tsl:
+        if _pref_on("club"):
             row_html += f'<td class="club-col">{_wc_cell(club_link_html, club_raw, "club_code", None, 32, "club", club_xin)}</td>'
         if _pref_on("helm"):
             row_html += f'<td class="helm-col">{_wc_cell(helm_str, helm_raw or "", "helm_name", None, 120, "helm", helm_xin)}</td>'
@@ -26879,7 +26882,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         mac_tsl_js = (
             '<script src="/js/mac-tsl-live-cards.js?v=20261015c" defer></script>'
-            '<script src="/js/mac-tsl-admin.js?v=20261022t" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261022u" defer></script>'
             if is_mac_tsl
             else ""
         )
@@ -26896,7 +26899,13 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
-            f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
+            f"<style>{_RESULT_SHEET_CSS}</style>"
+            + (
+                '<style id="mac-tsl-boot-css">@page{size:297mm 210mm;margin:8mm}</style>'
+                if is_mac_tsl
+                else ""
+            )
+            + "</head><body>"
             f"<div{page_attrs}>{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}{mac_tsl_js}"
             "</body></html>"
         )

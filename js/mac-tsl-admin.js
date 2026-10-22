@@ -9,7 +9,7 @@
   window.__SSA_MAC_TSL_ADMIN__ = true;
 
   var RID = "2026-10-17-mac-tsl-wc-team-sailing";
-  var JS_VER = "20261022t";
+  var JS_VER = "20261022u";
   var MAX_FLIGHTS = 28;
   var FLIGHT_BOATS = 6;
   var ROSTER_LINES = 4;
@@ -160,7 +160,6 @@
       ".club-race-step.tsl-mstep,#tslMPlus,#tslMMinus,#tslAddTeam{display:none!important}",
       ".tsl-blue{color:#1d4ed8}",
       ".tsl-green{color:#15803d}",
-      ".regatta-page[data-mac-tsl=\"1\"] .fleet-section:not(#macTslAdmin):not(#macTslSchedule):not(#macTslMatches)>.table-wrapper:not(#macTslGoldSheet):not(#macTslGoldPrint){display:none}",
       "#macTslGoldSheet{border:2px solid #1a2750;border-radius:10px;background:#fff;box-sizing:border-box;overflow:hidden;width:100%;max-width:100%;margin-top:20px;margin-bottom:20px}",
       "#macTslGoldSheet .tsl-gold-wrap{display:flex;width:100%;max-width:100%;align-items:stretch;min-width:0;box-sizing:border-box}",
       "#macTslGoldSheet .tsl-gold-left{flex:0 0 auto;max-width:none;overflow:visible;min-width:0;position:relative;z-index:1}",
@@ -187,8 +186,6 @@
       "@media (max-width:768px){#macTslGoldSheet{margin-top:12px;margin-bottom:12px}#macTslGoldSheet .tsl-gold-left .club-col{max-width:7.2em}}",
       "@media (max-width:480px){#macTslGoldSheet .tsl-gold-left .club-col{max-width:6.4em}}",
       "@media (orientation:landscape) and (max-height:600px){#macTslGoldSheet{margin-top:6px;margin-bottom:6px}}",
-      "#macTslGoldPrint{display:none}",
-      "#macTslGoldPrint .fleet-results-table{border:none;border-radius:0;width:100%;margin:0}",
       "#macTslFlightsCard{border:2px solid #1a2750;border-radius:8px;background:#fff;box-sizing:border-box;width:100%;max-width:100%;padding:8px;margin:0 0 8px;position:relative;overflow:hidden}",
       "#macTslFlightsCard .fleet-title-row,#macTslTeamsCard .fleet-title-row{margin:0 0 8px;padding:0;font-weight:bold}",
       "#macTslFlightsCard .tsl-section-head,#macTslTeamsCard .tsl-section-head{display:block;width:100%;text-align:center;font-weight:bold;border:none;background:none;color:#1a2750;font:inherit;cursor:pointer}",
@@ -284,14 +281,6 @@
       "#macTslTeamsCard #tslPickClub{max-width:12em}",
       "@media (max-width:900px){#macTslTeamsCard .tsl-team-cards,#macTslFlightsCard .tsl-flight-cards{grid-template-columns:1fr}#macTslTeamsCard,#macTslFlightsCard{padding:4px}#macTslTeamsCard .tsl-team-card,#macTslFlightsCard .tsl-flight-card{padding:4px}#macTslTeamsCard .tsl-move{width:14px;height:14px;margin:0 2px 0 0}}",
       "@media (max-width:900px) and (orientation:portrait){#macTslFlightsCard .tsl-flight-cards{display:flex;flex-direction:column-reverse;gap:8px}#macTslFlightsCard .tsl-flight-card .table-wrapper,#macTslTeamsCard .tsl-team-card .table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}#macTslFlightsCard .tsl-flight-card .fleet-results-table,#macTslTeamsCard .tsl-team-card .fleet-results-table{width:max-content;min-width:100%}}",
-      ".regatta-page[data-mac-tsl=\"1\"] th.tsl-hide-mp,.regatta-page[data-mac-tsl=\"1\"] td.tsl-hide-mp{display:none}",
-      ".regatta-page[data-mac-tsl=\"1\"] .tsl-col-wins,.regatta-page[data-mac-tsl=\"1\"] .tsl-mcol{text-align:center;font-weight:bold}",
-      "@media (max-width: 480px) and (orientation: portrait){",
-      ".regatta-page[data-mac-tsl=\"1\"] th.tsl-ml-only,.regatta-page[data-mac-tsl=\"1\"] td.tsl-ml-only{display:none!important}",
-      "}",
-      "@media (orientation: landscape), (min-width: 600px){",
-      ".regatta-page[data-mac-tsl=\"1\"] th.tsl-ml-only,.regatta-page[data-mac-tsl=\"1\"] td.tsl-ml-only{display:table-cell}",
-      "}",
       "@page{size:297mm 210mm;margin:8mm}",
       "@media print{" +
         "html{-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
@@ -301,14 +290,16 @@
         ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .header{grid-template-columns:minmax(0,1fr) minmax(0,2.4fr) minmax(0,1fr)!important}" +
         ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-col,.regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-club-logo-col{height:52px!important}" +
         ".regatta-page[data-mac-tsl=\"1\"]>.regatta-header-wrap .regatta-header-logo-img{height:52px!important;max-height:52px!important}" +
-        "#macTslGoldSheet{display:none!important}" +
-        ".regatta-page[data-mac-tsl=\"1\"] .fleet-section>.table-wrapper#macTslGoldPrint,#macTslGoldPrint{display:block!important;overflow:visible!important;border:2px solid #1a2750;border-radius:10px;background:#fff;width:100%;max-width:100%;margin-top:20px;margin-bottom:20px;position:static!important;left:auto!important}" +
-        "#macTslGoldPrint th,#macTslGoldPrint td{font-size:90%}" +
+        "#macTslGoldSheet{display:block!important;overflow:visible!important;position:static!important;left:auto!important}" +
+        "#macTslGoldSheet .tsl-gold-wrap{display:flex!important;width:100%!important}" +
+        "#macTslGoldSheet .tsl-gold-left{overflow:visible!important}" +
+        "#macTslGoldSheet .tsl-gold-right{overflow:visible!important;flex:1 1 auto}" +
         "#macTslFlightsCard,#macTslTeamsCard{display:block!important;overflow:visible!important;padding:8px!important}" +
         "#macTslFlightsCard.tsl-section-shut .tsl-flight-cards,#macTslTeamsCard.tsl-section-shut .tsl-team-cards{display:grid!important}" +
         "#macTslFlightsCard .tsl-flight-cards,#macTslTeamsCard .tsl-team-cards{display:grid!important;grid-template-columns:1fr 1fr!important;flex-direction:unset!important}" +
-        "#macTslFlightsCard .tsl-flight-card,#macTslTeamsCard .tsl-team-card{padding:8px!important;overflow:visible!important}" +
+        "#macTslFlightsCard .tsl-flight-card,#macTslTeamsCard .tsl-team-card{padding:8px!important;overflow:visible!important;break-inside:avoid;page-break-inside:avoid}" +
         ".regatta-page[data-mac-tsl=\"1\"] .table-wrapper{overflow:visible!important}" +
+        "#macTslFlightsCard .tsl-flight-card .fleet-results-table,#macTslTeamsCard .tsl-team-card .fleet-results-table{width:100%!important;min-width:0!important}" +
       "}"
     ].join("");
   }
@@ -317,17 +308,6 @@
     return document.querySelector(".regatta-page[data-mac-tsl=\"1\"] .fleet-section") ||
       document.querySelector(".regatta-page .fleet-section") ||
       document.querySelector(".regatta-page");
-  }
-  function resultsTable() {
-    var sec = firstFleet() || fleetSection();
-    if (!sec) return null;
-    var tables = sec.querySelectorAll("table.fleet-results-table, table");
-    for (var i = 0; i < tables.length; i += 1) {
-      if (tables[i].id === "tslGoldTable" || tables[i].id === "tslGoldPrintTable") continue;
-      if (tables[i].closest && tables[i].closest("#macTslGoldSheet,#macTslGoldPrint")) continue;
-      return tables[i];
-    }
-    return null;
   }
   function knownFor(team) {
     var name = (team && (team.team_name || team.club_abbrev)) || "";
@@ -901,9 +881,6 @@
     line.textContent = goldSailedLine();
   }
 
-  function headerLabel(th) {
-    return String(th.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
-  }
   function goldRaceRows() {
     var rows = [];
     (state.teams || []).forEach(function (t) {
@@ -914,16 +891,6 @@
         team_id: t.team_id
       });
     });
-    if (rows.length) return rows;
-    var table = resultsTable();
-    if (table && table.tBodies[0]) {
-      Array.prototype.forEach.call(table.tBodies[0].rows, function (tr) {
-        var logo = tr.querySelector(".rs-club-with-logo");
-        var img = logo && logo.querySelector("img");
-        var code = logo ? String(logo.textContent || "").replace(/\s+/g, " ").trim() : "";
-        rows.push({ code: code, logo: img ? (img.getAttribute("src") || "") : "" });
-      });
-    }
     return rows;
   }
 
@@ -1411,35 +1378,6 @@
     return '<td class="total-col">' + (item.scored ? String(item.points) : "") + "</td>";
   }
 
-  function goldCombinedTableHtml(wrapId, tableId, extraClass) {
-    var model = goldBuilt();
-    var heads = '<th class="rank-col">Rank</th><th class="club-col">Club/Team</th><th class="total-col">Wins</th>' +
-      '<th class="total-col">Total</th>' +
-      goldRaceHeads(model.raceNos);
-    var body = "";
-    model.built.forEach(function (item) {
-      var medal = goldItemMedal(model.anyDone, item);
-      var trClass = medal ? ' class="' + medal + '"' : "";
-      body += "<tr" + trClass + ">" +
-        '<td class="rank-col">' + esc(goldRankLabel(item)) + "</td>" +
-        '<td class="club-col"><span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) + esc(item.row.name || item.row.code) + "</span></td>" +
-        '<td class="total-col">' + (item.scored ? String(item.wins) : "") + "</td>" +
-        goldPointsCell(item) +
-        goldRaceCells(item) +
-        "</tr>";
-    });
-    if (!body) {
-      body = '<tr><td class="rank-col"></td><td class="club-col"></td><td class="total-col"></td><td class="total-col"></td><td class="race-col"></td></tr>';
-    }
-    return (
-      '<div class="table-wrapper' + (extraClass ? " " + extraClass : "") + '" id="' + wrapId + '">' +
-        '<table class="fleet-results-table rs-compact-row-logos" id="' + tableId + '">' +
-          "<thead><tr>" + heads + "</tr></thead><tbody>" + body + "</tbody>" +
-        "</table>" +
-      "</div>"
-    );
-  }
-
   function goldClubCell(item) {
     return '<span class="rs-club-with-logo">' + logoImg(item.row.logo, item.row.code) +
       esc(item.row.name || item.row.code) + "</span>";
@@ -1479,10 +1417,6 @@
 
   function goldRaceTableHtml() {
     return goldSplitTableHtml();
-  }
-
-  function goldPrintTableHtml() {
-    return goldCombinedTableHtml("macTslGoldPrint", "tslGoldPrintTable", "tsl-print-only");
   }
 
   function goldTableRows(table) {
@@ -1527,26 +1461,14 @@
     scrollGoldToLatest();
   }
 
-  function removeProvResults() {
-    var el = document.getElementById("macTslProvResults");
-    if (el && el.parentNode) el.parentNode.removeChild(el);
-  }
-
   function insertGoldRaceTable() {
     var sec = firstFleet();
     if (!sec) return;
-    removeProvResults();
     var html = goldRaceTableHtml();
     var existing = document.getElementById("macTslGoldSheet");
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
     var hdr = sec.querySelector(".class-header");
-    var orig = null;
-    Array.prototype.forEach.call(sec.children, function (el) {
-      if (orig) return;
-      if (el.classList && el.classList.contains("table-wrapper") && el.id !== "macTslGoldSheet") orig = el;
-    });
-    if (orig) orig.insertAdjacentHTML("beforebegin", html);
-    else if (hdr) hdr.insertAdjacentHTML("afterend", html);
+    if (hdr) hdr.insertAdjacentHTML("afterend", html);
     else sec.insertAdjacentHTML("beforeend", html);
     var sheet = document.getElementById("macTslGoldSheet");
     if (sheet) {
@@ -1555,11 +1477,6 @@
       } else {
         sheet.removeAttribute("data-tsl-standings-disagreement");
       }
-      var printEl = document.getElementById("macTslGoldPrint");
-      if (printEl && printEl.parentNode) printEl.parentNode.removeChild(printEl);
-      sheet.insertAdjacentHTML("afterend", goldPrintTableHtml());
-      printEl = document.getElementById("macTslGoldPrint");
-      if (printEl) printEl.classList.remove("table-wrapper");
     }
     requestAnimationFrame(function () {
       layoutGoldSheet();
@@ -3976,7 +3893,7 @@
   }
 
   function insertFlightsCard() {
-    var gold = document.getElementById("macTslGoldPrint") || document.getElementById("macTslGoldSheet");
+    var gold = document.getElementById("macTslGoldSheet");
     if (!gold || !gold.parentNode) return;
     var card = document.getElementById("macTslFlightsCard");
     if (!card) {
@@ -4173,154 +4090,6 @@
     }
   }
 
-  function applyStandingsTable() {
-    var table = resultsTable();
-    if (!table) return;
-    var thead = table.tHead && table.tHead.rows[0];
-    if (!thead) return;
-    var hideNames = {
-      class: 1, "sail no": 1, sailno: 1, total: 1, nett: 1, jib: 1, bow: 1, hull: 1,
-      discards: 1, "to count": 1, colour: 1, club: 1, helm: 1, crew: 1, helms: 1, crews: 1
-    };
-    var mlNames = { losses: 1, "win %": 1, played: 1, matches: 1 };
-    Array.prototype.forEach.call(thead.cells, function (th) {
-      var lab = headerLabel(th);
-      if (hideNames[lab]) th.classList.add("tsl-hide-mp");
-      if (mlNames[lab]) th.classList.add("tsl-ml-only");
-      if (lab === "boat name") th.textContent = "Team";
-      if (lab === "wins") th.textContent = "W";
-      var rm = lab.match(/^r(\d+)$/);
-      var fm = lab.match(/^f(\d+)$/);
-      if (rm) th.textContent = "F" + rm[1];
-      if (fm) th.textContent = "F" + fm[1];
-    });
-    var matchNos = (state.matches || []).map(function (m) { return Number(m.match_no); });
-    matchNos.forEach(function (n) {
-      var label = "m" + n;
-      var found = false;
-      Array.prototype.forEach.call(thead.cells, function (th) {
-        if (headerLabel(th) === label || headerLabel(th) === ("r" + n) || headerLabel(th) === ("f" + n)) found = true;
-      });
-      if (!found) {
-        var th = document.createElement("th");
-        th.className = "tsl-mcol";
-        th.textContent = "M" + n;
-        var winsTh = Array.prototype.filter.call(thead.cells, function (c) { return headerLabel(c) === "w" || headerLabel(c) === "wins"; })[0];
-        if (winsTh) thead.insertBefore(th, winsTh);
-        else thead.appendChild(th);
-        Array.prototype.forEach.call(table.tBodies[0] ? table.tBodies[0].rows : [], function (tr) {
-          var td = document.createElement("td");
-          td.className = "tsl-mcol";
-          td.textContent = "—";
-          if (winsTh) tr.insertBefore(td, tr.cells[winsTh.cellIndex]);
-          else tr.appendChild(td);
-        });
-      }
-    });
-    var hasWins = Array.prototype.some.call(thead.cells, function (th) {
-      var lab = headerLabel(th);
-      return lab === "w" || lab === "wins";
-    });
-    if (!hasWins) {
-      var wth = document.createElement("th");
-      wth.className = "tsl-col-wins";
-      wth.textContent = "W";
-      thead.appendChild(wth);
-      Array.prototype.forEach.call(table.tBodies[0] ? table.tBodies[0].rows : [], function (tr) {
-        var td = document.createElement("td");
-        td.className = "tsl-col-wins";
-        td.textContent = "0";
-        tr.appendChild(td);
-      });
-    }
-    var hasPlayed = Array.prototype.some.call(thead.cells, function (th) { return headerLabel(th) === "played" || headerLabel(th) === "matches"; });
-    if (!hasPlayed) {
-      var pth = document.createElement("th");
-      pth.className = "tsl-ml-only";
-      pth.textContent = "Played";
-      thead.appendChild(pth);
-      Array.prototype.forEach.call(table.tBodies[0] ? table.tBodies[0].rows : [], function (tr) {
-        var td = document.createElement("td");
-        td.className = "tsl-ml-only";
-        td.textContent = "0";
-        tr.appendChild(td);
-      });
-    }
-    var hasLoss = Array.prototype.some.call(thead.cells, function (th) { return headerLabel(th) === "losses"; });
-    if (!hasLoss) {
-      var lth = document.createElement("th");
-      lth.className = "tsl-ml-only";
-      lth.textContent = "Losses";
-      thead.appendChild(lth);
-      Array.prototype.forEach.call(table.tBodies[0] ? table.tBodies[0].rows : [], function (tr) {
-        var a = document.createElement("td");
-        a.className = "tsl-ml-only tsl-loss";
-        a.textContent = "0";
-        tr.appendChild(a);
-      });
-    }
-    Array.prototype.forEach.call(thead.cells, function (th, i) {
-      Array.prototype.forEach.call(table.tBodies[0] ? table.tBodies[0].rows : [], function (tr) {
-        if (!tr.cells[i]) return;
-        if (th.classList.contains("tsl-hide-mp")) tr.cells[i].classList.add("tsl-hide-mp");
-        if (th.classList.contains("tsl-ml-only")) tr.cells[i].classList.add("tsl-ml-only");
-      });
-    });
-    var idx = {};
-    Array.prototype.forEach.call(thead.cells, function (th, i) { idx[headerLabel(th)] = i; });
-    var body = table.tBodies[0];
-    if (!body) return;
-    Array.prototype.forEach.call(body.rows, function (tr) {
-      var nameCell = tr.cells[idx.team] || tr.cells[idx["boat name"]];
-      var clubCell = tr.cells[idx.club];
-      var name = nameCell ? String(nameCell.textContent || "").replace(/\s+/g, " ").trim() : "";
-      var club = clubCell ? String(clubCell.textContent || "").replace(/\s+/g, " ").trim() : "";
-      var row = (state.standings || []).filter(function (s) {
-        return String(s.team_name || "").trim() === name || String(s.club_abbrev || "") === club || String(s.club_abbrev || "") === name;
-      })[0];
-      if (nameCell) {
-        var code = (row && row.club_abbrev) || club || "";
-        var existing = nameCell.querySelector(".rs-club-with-logo");
-        if (existing) {
-          var keep = existing.querySelector("img");
-          existing.innerHTML = "";
-          if (keep) existing.appendChild(keep);
-          existing.appendChild(document.createTextNode(code || name));
-        } else if (!nameCell.querySelector(".tsl-team-club")) {
-          var wrap = document.createElement("span");
-          wrap.className = "rs-club-with-logo tsl-team-club";
-          if (clubCell && clubCell.querySelector("img")) {
-            var img = clubCell.querySelector("img").cloneNode(true);
-            img.className = "rs-club-row-logo-sm";
-            img.alt = "";
-            wrap.appendChild(img);
-          } else if (row && row.club_logo) {
-            var img2 = document.createElement("img");
-            img2.className = "rs-club-row-logo-sm";
-            img2.src = row.club_logo;
-            img2.alt = "";
-            wrap.appendChild(img2);
-          }
-          wrap.appendChild(document.createTextNode(code || name));
-          nameCell.innerHTML = "";
-          nameCell.appendChild(wrap);
-        }
-        nameCell.classList.add("club-col");
-      }
-      if (!row) return;
-      if (idx.rank != null && tr.cells[idx.rank]) tr.cells[idx.rank].textContent = row.rank || "";
-      var wIdx = idx.w != null ? idx.w : idx.wins;
-      if (wIdx != null && tr.cells[wIdx]) tr.cells[wIdx].textContent = row.wins;
-      if (idx.played != null && tr.cells[idx.played]) tr.cells[idx.played].textContent = row.matches_played;
-      if (idx.matches != null && tr.cells[idx.matches]) tr.cells[idx.matches].textContent = row.matches_played;
-      if (idx.losses != null && tr.cells[idx.losses]) tr.cells[idx.losses].textContent = row.losses;
-      Object.keys(row.cells || {}).forEach(function (k) {
-        var i2 = idx[k.toLowerCase()] != null ? idx[k.toLowerCase()] : idx["r" + k.slice(1)];
-        if (i2 != null && tr.cells[i2]) tr.cells[i2].textContent = row.cells[k];
-      });
-    });
-  }
-
   function ensureRoots() {
     var page = document.querySelector(".regatta-page");
     if (!page) return;
@@ -4343,8 +4112,6 @@
   function renderAll() {
     tidyFleetHeader();
     injectMButtons();
-    applyStandingsTable();
-    removeProvResults();
     insertGoldRaceTable();
     insertFlightsCard();
     insertTeamsCard();
@@ -4382,7 +4149,6 @@
     if (!onThisEvent()) return;
     injectCss();
     ensureRoots();
-    removeProvResults();
     bindPrintButton();
     loadState().catch(function () { renderAll(); });
     var tog = document.getElementById("regattaSaEditToggle");
