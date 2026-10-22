@@ -151,6 +151,9 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
                 elif scoring and not klass:
                     klass = scoring
             fleet = f" in a {entries}-boat{(' ' + klass) if klass else ''} fleet" if entries else ""
+        wins = facts.get("winner_wins")
+        if identity == "team" and wins:
+            bits = [f"{wins} race {'win' if int(wins) == 1 else 'wins'}"] + [b for b in bits if "races" not in b]
         if bits:
             lead += ", scoring " + " across ".join(bits) + fleet + f". {mark}"
         else:

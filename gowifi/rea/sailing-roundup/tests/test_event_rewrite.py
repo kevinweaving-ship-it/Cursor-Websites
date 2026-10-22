@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import pathlib
 import sys
 import unittest
@@ -26,6 +27,7 @@ from event_rewrite import (
     _keep_cluster_item,
     _wiki_url,
 )
+from tsl_board import apply_parent_tsl_board
 from roundup import _image_block, _layout_name, _render_story, newspaper_css
 
 
@@ -431,8 +433,10 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(photos, [])
         self.assertFalse(_keep_cluster_item({"url": dart_photo["source_url"], "title": dart_photo["title"], "body": dart_photo["title"] + " Bradley Levin Kyle Boman at Henley Midmar Yacht Club 2026."}, facts))
 
-    def test_tsl_facts_use_team_standings(self):
+    def test_tsl_facts_use_parent_flight_sheet_not_file_order(self):
         slug = "2026-10-17-mac-tsl-wc-team-sailing"
+        fixture = pathlib.Path(__file__).resolve().parent / "fixtures" / "mac-tsl-state.json"
+        state = json.loads(fixture.read_text())
         rows = [
             {
                 "event_name": "SA Sailing WC Team Sailing Event",
@@ -442,44 +446,51 @@ class RewriteEngine(unittest.TestCase):
                 "start_date": "2026-10-17",
                 "end_date": "2026-10-18",
                 "scoring_system": "Team Racing",
-                "entries_total": 8,
+                "entries_total": 7,
+                "result_id": result_id,
                 "rank": None,
                 "helm_name": helm,
                 "crew_name": crew,
                 "boat_name": boat,
             }
-            for boat, helm, crew in (
-                ("MAC", "Maddison Smit; Tristan Gress", "Kamva Mgcubhe"),
-                ("MATIES", "Corben Smith", "Chiara Fruet"),
-                ("Eden District", "Christian Cilliers", ""),
-                ("RCYCA A", "Hayden Miller", ""),
-                ("University of Cape Town Yacht Club", "Jessie Basson", ""),
-                ("RCYCA B", "", ""),
-                ("izivungu", "", ""),
-                ("RCYC Sailing Academy", "", ""),
+            for boat, helm, crew, result_id in (
+                ("MAC", "Maddison Smit; Tristan Gress", "Kamva Mgcubhe", 21336),
+                ("MATIES", "Corben Smith", "Chiara Fruet", 21337),
+                ("Eden District", "Christian Cilliers", "", 21338),
+                ("RCYCA A", "Hayden Miller", "", 21342),
+                ("University of Cape Town Yacht Club", "Jessie Basson", "", 21346),
+                ("izivungu", "", "", 21368),
+                ("RCYC Sailing Academy", "", "", 21369),
             )
         ]
         self.assertTrue(is_team_racing(rows[0], slug=slug, rows=rows))
+        blank = facts_from_rows(slug, rows)
+        self.assertIn(blank["winner"], ("", "The leader"))
+        self.assertFalse(blank["ranked_rows"])
+        rows = apply_parent_tsl_board(rows, state)
         facts = facts_from_rows(slug, rows)
         self.assertTrue(facts["team_racing"])
         self.assertEqual(facts["scoring_system"], "Team Racing")
-        self.assertEqual(facts["winner"], "MAC")
-        self.assertEqual(facts["winner_helm"], "MAC")
-        self.assertEqual(facts["winner_team"], "MAC")
-        self.assertEqual(facts["second"], "MATIES")
-        self.assertEqual(facts["third"], "Eden District")
+        self.assertEqual(facts["winner"], "RCYCA A")
+        self.assertEqual(facts["winner_helm"], "RCYCA A")
+        self.assertEqual(facts["winner_team"], "RCYCA A")
+        self.assertEqual(facts["winner_wins"], 4)
+        self.assertEqual(facts["second"], "Eden District")
+        self.assertEqual(facts["third"], "MAC")
         self.assertNotIn("Maddison Smit", facts["winner"])
         cols, table = facts["leaderboard"]
-        self.assertEqual(cols, ["Pos", "Team", "Sailors"])
+        self.assertEqual(cols, ["Pos", "Team", "Wins", "Total"])
         self.assertEqual([row[0] for row in table], ["1", "2", "3"])
-        self.assertEqual(table[0][1], "MAC")
+        self.assertEqual(table[0][1], "RCYCA A")
+        self.assertEqual(table[0][2], "4")
+        self.assertEqual(table[0][3], "34")
         board = facts["class_leaderboards"][0]
         self.assertTrue(board["team_racing"])
-        self.assertEqual([row["pos"] for row in board["rows"]], [str(i) for i in range(1, 9)])
-        self.assertEqual(board["rows"][0]["helm"], "MAC")
+        self.assertEqual([row["pos"] for row in board["rows"]], ["1", "2", "3", "4", "5"])
+        self.assertEqual(board["rows"][0]["helm"], "RCYCA A")
+        self.assertEqual(board["rows"][0]["wins"], "4")
         headline = unique_headline(facts)
-        self.assertIn("MAC", headline)
-        self.assertIn("wins", headline)
+        self.assertIn("RCYCA A", headline)
         self.assertNotIn("Maddison", headline)
 
     def test_lipton_and_py_and_timed_adapt_identity(self):

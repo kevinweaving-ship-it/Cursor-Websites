@@ -31,7 +31,7 @@ UA = {
 FB_UA = {"User-Agent": "facebookexternalhit/1.1"}
 LEADERBOARD_LIMIT = 3
 LEADERBOARD_COLS = ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"]
-TEAM_LEADERBOARD_COLS = ["Pos", "Team", "Sailors"]
+TEAM_LEADERBOARD_COLS = ["Pos", "Team", "Wins", "Total"]
 BOAT_LEADERBOARD_COLS = ["Pos", "Boat", "Helm", "Club", "Time"]
 HELM_LEADERBOARD_COLS = ["Pos", "Helm", "Club", "Sail No", "Nett"]
 GENERIC_FLEET = {"", "open", "overall", "all", "fleet"}
@@ -266,8 +266,25 @@ def _has_identity(row: dict) -> bool:
     return entry_label(row) not in ("", "The leader")
 
 
+def _time_seconds(row: dict) -> float | None:
+    raw = _row_time(row)
+    if not raw:
+        return None
+    parts = [p for p in re.split(r"[:.]", raw.replace(",", "")) if p != ""]
+    if not parts or not all(p.isdigit() for p in parts):
+        return None
+    nums = [int(p) for p in parts]
+    if len(nums) == 3:
+        return nums[0] * 3600 + nums[1] * 60 + nums[2]
+    if len(nums) == 2:
+        return nums[0] * 60 + nums[1]
+    if len(nums) == 1:
+        return float(nums[0])
+    return None
+
+
 def _ranked(rows: list[dict]) -> list[dict]:
-    """1st–X for any scoring system. Missing rank column uses published file order."""
+    """1st–X from a proven rank or finish time. File order is not a standing."""
     if not rows:
         return []
     have = [r for r in rows if _row_rank(r) not in (None, "")]
@@ -275,13 +292,16 @@ def _ranked(rows: list[dict]) -> list[dict]:
         out = [dict(r) for r in have]
         out.sort(key=lambda r: int(float(str(r.get("rank") or r.get("team_rank") or r.get("position") or 999))) if str(_row_rank(r)).replace(".", "", 1).isdigit() else 999)
         return out
-    if all(_has_identity(r) for r in rows):
-        out = []
-        for index, raw in enumerate(rows):
-            row = dict(raw)
-            row["rank"] = index + 1
-            out.append(row)
+    timed = [(r, _time_seconds(r)) for r in rows]
+    if timed and all(sec is not None for _, sec in timed):
+        out = [dict(r) for r, _ in sorted(timed, key=lambda item: item[1])]
+        for index, row in enumerate(out, 1):
+            row["rank"] = index
         return out
+    if len(rows) == 1 and _has_identity(rows[0]):
+        row = dict(rows[0])
+        row["rank"] = 1
+        return [row]
     return list(rows)
 
 
@@ -301,8 +321,8 @@ def _win_count(scores) -> int:
 
 def facts_from_rows(slug: str, rows: list[dict]) -> dict:
     first = rows[0]
-    ranked = _ranked(rows)
-    winner = ranked[0]
+    ranked = [r for r in _ranked(rows) if _row_rank(r) not in (None, "")]
+    winner = ranked[0] if ranked else {}
     second = ranked[1] if len(ranked) > 1 else {}
     third = ranked[2] if len(ranked) > 2 else {}
     races = _intish(first.get("races_sailed")) or len(winner.get("race_scores") or {})
@@ -351,7 +371,7 @@ def facts_from_rows(slug: str, rows: list[dict]) -> dict:
         "winner_time": _row_time(winner),
         "winner_club": (winner.get("club_abbrev") or winner.get("club_raw") or "").strip(),
         "winner_nett": "" if winner_nett in (None, "") else str(winner_nett).replace(".0", ""),
-        "winner_wins": _win_count(winner.get("race_scores")),
+        "winner_wins": _intish(winner.get("team_wins")) or _win_count(winner.get("race_scores")),
         "winner_scores": winner.get("race_scores") or {},
         "second_scores": second.get("race_scores") or {},
         "second_wins": _win_count(second.get("race_scores")),
@@ -402,11 +422,16 @@ def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[
     if kind == "team":
         for row in rows[:limit]:
             rank = _row_rank(row)
+            wins = row.get("team_wins")
+            total = row.get("total_points_raw")
+            if total in (None, ""):
+                total = row.get("nett_points_raw")
             table.append(
                 [
                     "" if rank in (None, "") else str(rank).replace(".0", ""),
                     entry_label(row),
-                    ", ".join(_sailor_roster(row)),
+                    "" if wins in (None, "") else str(wins).replace(".0", ""),
+                    "" if total in (None, "") else str(total).replace(".0", ""),
                 ]
             )
         return list(TEAM_LEADERBOARD_COLS), table
@@ -477,13 +502,18 @@ def _board_entry(row: dict) -> dict:
     label = entry_label(row)
     club = (row.get("club_abbrev") or row.get("club_raw") or "").strip()
     if kind == "team":
+        wins = row.get("team_wins")
+        total = row.get("total_points_raw")
+        if total in (None, ""):
+            total = row.get("nett_points_raw")
         return {
             "pos": pos,
             "helm": label,
-            "crew": ", ".join(_sailor_roster(row)),
+            "crew": "",
             "club": club,
             "sail": "",
-            "nett": "",
+            "nett": "" if total in (None, "") else str(total).replace(".0", ""),
+            "wins": "" if wins in (None, "") else str(wins).replace(".0", ""),
             "time": _row_time(row),
             "boat": boat,
             "team": label,

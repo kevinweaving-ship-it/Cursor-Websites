@@ -125,7 +125,12 @@ def discover_slugs(monday: dt.date) -> list[str]:
 
 def fetch_regatta(slug: str) -> list[dict]:
     data = fetch_json("https://sailingsa.co.za/api/regatta/" + slug)
-    return data if isinstance(data, list) else []
+    rows = data if isinstance(data, list) else []
+    if not rows:
+        return []
+    from tsl_board import overlay_tsl_rows
+
+    return overlay_tsl_rows(slug, rows, fetch_json=fetch_json)
 
 
 def fetch_all_regattas(slugs: list[str]) -> tuple[dict[str, list], dict[str, str]]:

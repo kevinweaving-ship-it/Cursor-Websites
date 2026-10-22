@@ -11,6 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from event_rewrite import facts_from_rows
+from tsl_board import apply_parent_tsl_board
 from gates import (
     GateError,
     check_one_event,
@@ -27,19 +28,18 @@ SLUG = "2026-09-25-tsc-420-nationals"
 
 
 def tsl_mac_rows():
-    """SA Sailing WC Team Sailing — TSL ranks teams; sailor rank/nett stay empty."""
+    """SA Sailing WC Team Sailing — /api/regatta has teams, rank/nett stay empty."""
     teams = (
-        ("MAC", "MAC", "Maddison Smit; Tristan Gress; Unam Lubhelwana", "Kamva Mgcubhe; Thandokazi Sibanyoni; Alexa Aab"),
-        ("MATIES", "USYC", "Corben Smith; Robyn Roselli; Conrad Holm", "Chiara Fruet"),
-        ("Eden District", "EDYC", "Christian Cilliers; Arthur Watson; Lulonke Lenks", ""),
-        ("RCYCA A", "RCYC", "Hayden Miller; Aphendule Mqwalaseli; Sesona Ntsaluba", ""),
-        ("University of Cape Town Yacht Club", "UCTYC", "Jessie Basson; Rebecca Hall; Eric Leach", ""),
-        ("RCYCA B", "RCYC", "", ""),
-        ("izivungu", "IZV", "", ""),
-        ("RCYC Sailing Academy", "RCYC", "", ""),
+        ("MAC", "MAC", "Maddison Smit; Tristan Gress; Unam Lubhelwana", "Kamva Mgcubhe; Thandokazi Sibanyoni; Alexa Aab", 21336),
+        ("MATIES", "USYC", "Corben Smith; Robyn Roselli; Conrad Holm", "Chiara Fruet", 21337),
+        ("Eden District", "EDYC", "Christian Cilliers; Arthur Watson; Lulonke Lenks", "", 21338),
+        ("RCYCA A", "RCYC", "Hayden Miller; Aphendule Mqwalaseli; Sesona Ntsaluba", "", 21342),
+        ("University of Cape Town Yacht Club", "UCTYC", "Jessie Basson; Rebecca Hall; Eric Leach", "", 21346),
+        ("izivungu", "IZV", "", "", 21368),
+        ("RCYC Sailing Academy", "RCYC", "", "", 21369),
     )
     rows = []
-    for boat, club, helm, crew in teams:
+    for boat, club, helm, crew, result_id in teams:
         rows.append(
             {
                 "event_name": "SA Sailing WC Team Sailing Event",
@@ -52,8 +52,9 @@ def tsl_mac_rows():
                 "end_date": "2026-10-18",
                 "result_status": "Final",
                 "races_sailed": 0,
-                "entries_total": 8,
+                "entries_total": 7,
                 "scoring_system": "Team Racing",
+                "result_id": result_id,
                 "rank": None,
                 "nett_points_raw": None,
                 "total_points_raw": None,
@@ -330,30 +331,39 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["status"], "fail")
         self.assertTrue(any("course/meeting" in e for e in rec["errors"]))
 
-    def test_tsl_team_racing_ranks_teams_not_sailors(self):
+    def test_tsl_file_order_without_parent_sheet_fails(self):
         monday = dt.date(2026, 10, 19)
         slug = "2026-10-17-mac-tsl-wc-team-sailing"
         rec = check_one_event(monday, slug, tsl_mac_rows())
+        self.assertEqual(rec["status"], "fail")
+        self.assertTrue(any("parent sheet" in e or "no ranked rows" in e or "1st place" in e for e in rec["errors"]))
+        self.assertNotEqual(rec["winner"], "RCYCA A")
+
+    def test_tsl_team_racing_ranks_from_parent_sheet(self):
+        monday = dt.date(2026, 10, 19)
+        slug = "2026-10-17-mac-tsl-wc-team-sailing"
+        fixture = pathlib.Path(__file__).resolve().parent / "fixtures" / "mac-tsl-state.json"
+        state = json.loads(fixture.read_text())
+        rows = apply_parent_tsl_board(tsl_mac_rows(), state)
+        rec = check_one_event(monday, slug, rows)
         self.assertEqual(rec["status"], "pass", rec["errors"])
         self.assertEqual(rec["name"], "SA Sailing WC Team Sailing Event")
-        self.assertEqual(rec["winner"], "MAC")
+        self.assertEqual(rec["winner"], "RCYCA A")
         self.assertTrue(rec["equals"]["team_racing"])
         self.assertEqual(rec["equals"]["scoring_system"], "Team Racing")
         self.assertEqual(rec["equals"]["fleets"], ["TSL"])
         board = rec["equals"]["leaderboard"]
-        self.assertEqual([row["pos"] for row in board], ["1", "2", "3", "4", "5", "6", "7", "8"])
+        self.assertEqual([row["pos"] for row in board], ["1", "2", "3", "4", "5"])
         self.assertEqual([row["helm"] for row in board], [
+            "RCYCA A",
+            "Eden District",
             "MAC",
             "MATIES",
-            "Eden District",
-            "RCYCA A",
             "University of Cape Town Yacht Club",
-            "RCYCA B",
-            "izivungu",
-            "RCYC Sailing Academy",
         ])
-        self.assertEqual(board[0]["team"], "MAC")
-        self.assertIn("Maddison Smit", board[0]["crew"])
+        self.assertEqual(board[0]["team"], "RCYCA A")
+        self.assertEqual(board[0]["wins"], "4")
+        self.assertEqual(board[0]["nett"], "34")
         self.assertFalse(any("no ranked rows" in e for e in rec["errors"]))
         self.assertFalse(any("1st place" in e for e in rec["errors"]))
 

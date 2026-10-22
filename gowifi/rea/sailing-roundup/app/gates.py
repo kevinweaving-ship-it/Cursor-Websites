@@ -31,7 +31,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
-from event_rewrite import class_leaderboards, entry_kind, facts_from_rows, is_chrome_image, _is_roster
+from event_rewrite import class_leaderboards, entry_kind, facts_from_rows, is_chrome_image, _is_roster, _row_rank
 from events_weekend import SKIP_NAME, overlaps, parse_day, saturday_sunday
 from desk_editor import is_generic
 from evidence_pipeline import is_scoresheet, other_event_conflict, unlisted_event_names
@@ -318,6 +318,8 @@ def check_one_event(monday: dt.date, slug: str, rows: list[dict], fetch_error: s
 
     kind = facts.get("identity") or entry_kind(rows[0], slug=slug, rows=rows)
     boards = (record.get("equals") or {}).get("leaderboards") or []
+    if kind == "team" and not any(_row_rank(r) not in (None, "") for r in rows):
+        errors.append("team racing has no proven parent sheet ranks — file order is not a standing")
     if not any(r.get("pos") for b in boards for r in (b.get("rows") or [])):
         errors.append("leaderboard has no ranked rows")
     if kind in ("team", "boat") and not any(

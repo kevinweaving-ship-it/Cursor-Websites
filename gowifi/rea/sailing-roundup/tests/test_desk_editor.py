@@ -115,24 +115,25 @@ class DeskEditor(unittest.TestCase):
             club_name="MAC",
             start="2026-10-17",
             end="2026-10-18",
-            entries=8,
-            races=0,
-            winner="MAC",
-            winner_helm="MAC",
-            winner_team="MAC",
+            entries=7,
+            races=15,
+            winner="RCYCA A",
+            winner_helm="RCYCA A",
+            winner_team="RCYCA A",
+            winner_wins=4,
             winner_nett="",
-            second="MATIES",
+            second="Eden District",
             second_nett="",
-            third="Eden District",
+            third="MAC",
             third_nett="",
             team_racing=True,
             scoring_system="Team Racing",
         )
         blob = " ".join(edit_event(f))
-        self.assertIn("MAC won the SA Sailing WC Team Sailing Event", blob)
-        self.assertIn("8-team TSL field", blob)
-        self.assertIn("MATIES finished second", blob)
-        self.assertIn("Eden District finished third", blob)
+        self.assertIn("RCYCA A won the SA Sailing WC Team Sailing Event", blob)
+        self.assertIn("7-team TSL field", blob)
+        self.assertIn("Eden District finished second", blob)
+        self.assertIn("MAC finished third", blob)
         self.assertNotIn("nett points", blob)
         self.assertNotIn("Maddison", blob)
         self.assertEqual(qa(blob, f), [])
