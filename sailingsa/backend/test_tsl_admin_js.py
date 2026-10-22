@@ -153,7 +153,7 @@ class TestTslAdminContract(unittest.TestCase):
         self.assertNotIn("max-width:calc(50vw - 8px)!important", JS)
         self.assertIn("justify-self:stretch!important", JS)
         self.assertIn("#macTslFlightsCard .tsl-flight-card,#macTslTeamsCard .tsl-team-card{display:block!important;padding:8px!important;overflow:visible!important;box-sizing:border-box!important;width:100%!important;max-width:none!important", JS)
-        self.assertIn("#macTslFlightsCard,#macTslTeamsCard{display:block!important;overflow:visible!important;padding:8px!important;width:100%!important;max-width:none!important;height:auto!important;min-height:0!important;break-inside:auto!important;page-break-inside:auto!important", JS)
+        self.assertIn("#macTslFlightsCard,#macTslTeamsCard{display:contents!important}", JS)
         self.assertIn("break-inside:avoid;page-break-inside:avoid", JS)
         self.assertNotIn("goldPrintTableHtml", JS)
         self.assertNotIn("goldCombinedTableHtml", JS)
