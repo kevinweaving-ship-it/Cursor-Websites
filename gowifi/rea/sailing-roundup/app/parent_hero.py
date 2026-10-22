@@ -412,6 +412,36 @@ def harvest_requested_page(url: str, facts: dict) -> dict:
     return {"status": "ok", "images": kept, "source_page": url}
 
 
+def _collage_panels(slug: str, raw: bytes, item: dict) -> list[dict]:
+    """Split a known 505 collage into the approved photograph panels only."""
+    from event_rewrite import _image_size
+    from evidence_pipeline import MEDIA_REGIONS
+
+    if "505-nationals" not in (slug or ""):
+        return []
+    size = _image_size(raw)
+    if not size:
+        return []
+    for spec in MEDIA_REGIONS.values():
+        if tuple(spec.get("dimensions") or []) != size:
+            continue
+        out = []
+        for panel in spec.get("regions") or []:
+            if is_scoresheet({"title": panel.get("label") or "", "panel_label": panel.get("label") or ""}):
+                continue
+            piece = dict(item)
+            piece["title"] = panel.get("label") or item.get("title")
+            piece["source_region"] = panel.get("rect")
+            piece["source_dimensions"] = spec.get("dimensions")
+            piece["hero_score"] = max(int(item.get("hero_score") or 0), 80)
+            piece["verified_previous"] = True
+            piece["content_hash"] = content_hash(raw + json.dumps(panel.get("rect") or []).encode())
+            piece["visual_hash"] = (item.get("visual_hash") or "") + str(panel.get("rect") or "")
+            out.append(piece)
+        return out
+    return []
+
+
 def _facebook_page_cover(item: dict, requested: str) -> bool:
     from event_rewrite import _facebook_page_chrome
 
@@ -680,6 +710,10 @@ def collect_event_hero(
         scored["content_hash"] = content_hash(raw)
         scored["visual_hash"] = visual_hash(raw)
         scored["_raw"] = raw
+        panels = _collage_panels(slug, raw, scored)
+        if panels:
+            enriched.extend(panels)
+            continue
         run_vision = analyze
         if run_vision is None:
             run_vision = os.getenv("ROUNDUP_USE_VISION") == "1"

@@ -171,6 +171,24 @@ class ParentHero(unittest.TestCase):
         self.assertEqual(got[0]["url"], "https://a/parent.jpg")
         self.assertEqual([i["url"] for i in got][1:], ["https://b/extra.jpg"])
 
+    def test_505_collage_keeps_photo_panels_only(self):
+        from io import BytesIO
+
+        from PIL import Image
+
+        from parent_hero import _collage_panels
+
+        buf = BytesIO()
+        Image.new("RGB", (2160, 3840), (20, 40, 80)).save(buf, format="JPEG", quality=85)
+        panels = _collage_panels(
+            "2026-09-24-ayc-505-nationals",
+            buf.getvalue(),
+            {"url": "https://rsa505.org.za/images/20261013_101619-COLLAGE.jpg", "title": "collage", "hero_score": 50},
+        )
+        labels = [p["title"] for p in panels]
+        self.assertEqual(labels, ["505 Nationals prizegiving", "505 Nationals on-water racing"])
+        self.assertNotIn([0, 1280, 2160, 1280], [p["source_region"] for p in panels])
+
     def test_srcset_and_lazy_images_are_harvested(self):
         html = (
             "<html><body><main>"
