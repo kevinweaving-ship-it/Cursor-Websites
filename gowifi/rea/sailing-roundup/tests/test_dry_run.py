@@ -72,7 +72,7 @@ class DryRunHelpers(unittest.TestCase):
                                 "event_id": "2026-10-17-pyc-kzn-mirror-regionals",
                                 "blocks": [
                                     {"type": "image", "url": "media/hero.jpg", "caption": "Prizegiving."},
-                                    {"type": "paragraph", "text": "Pat Helm won at Point Yacht Club [1]."},
+                                    {"type": "paragraph", "text": "Pat Helm won at Point Yacht Club."},
                                 ],
                             },
                         ],

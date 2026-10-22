@@ -114,7 +114,7 @@ class ArticleWrite(unittest.TestCase):
         blob = " ".join(b.get("text") or "" for b in article["blocks"] if b.get("type") == "paragraph")
         self.assertIn("Dale Rae", blob)
         self.assertIn("420 Nationals", blob)
-        self.assertIn("[1]", blob)
+        self.assertNotIn("[1]", blob)
         self.assertTrue(any(b.get("type") == "image" for b in article["blocks"]))
         self.assertTrue(any(b.get("type") == "results" for b in article["blocks"]))
         self.assertFalse(article["third_party"])

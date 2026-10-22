@@ -146,7 +146,7 @@ def passing_article(slug=SLUG):
         "blocks": [
             {
                 "type": "paragraph",
-                "text": "Dale Rae and James Rae won the 420 Nationals at Theewater Sports Club on 10 nett points [1].",
+                "text": "Dale Rae and James Rae won the 420 Nationals at Theewater Sports Club on 10 nett points.",
             },
             {
                 "type": "image",
@@ -191,7 +191,7 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["equals"]["source"], "parent_overall_table")
         self.assertEqual(rec["equals"]["fleets"], ["420"])
         self.assertEqual(rec["equals"]["leaderboard"][0]["helm"], "Dale Rae")
-        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1st", "2nd", "3rd"])
         self.assertEqual(len(rec["equals"]["leaderboards"][0]["rows"]), 3)
         self.assertTrue(rec["checksum"])
         self.assertEqual(rec["find_externally"]["need"], ["photos", "news", "social"])
@@ -262,7 +262,7 @@ class EventFactsGate(unittest.TestCase):
         fifth["nett_points_raw"] = 50
         rec = check_one_event(MONDAY, SLUG, rows + [extra, fifth])
         self.assertEqual(rec["status"], "pass", rec["errors"])
-        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3", "4", "5"])
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1st", "2nd", "3rd", "4th", "5th"])
         self.assertEqual(rec["equals"]["leaderboard"][-1]["helm"], "Fifth Helm")
 
     def test_each_class_gets_its_own_full_leaderboard(self):
@@ -309,7 +309,7 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(fleets, ["Dabchick", "Optimist A", "Optimist B"])
         by_fleet = {b["fleet"]: b["rows"] for b in rec["equals"]["leaderboards"]}
         self.assertEqual([r["helm"] for r in by_fleet["Dabchick"]], ["Maximilian Malan", "Ethan Biagio"])
-        self.assertEqual(by_fleet["Optimist A"][0]["pos"], "1")
+        self.assertEqual(by_fleet["Optimist A"][0]["pos"], "1st")
         self.assertEqual(by_fleet["Optimist B"][0]["helm"], "Danny Coetzer")
 
     def test_fleet_racing_keeps_fleet_names(self):
@@ -363,7 +363,7 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["equals"]["scoring_system"], "Team Racing")
         self.assertEqual(rec["equals"]["fleets"], ["TSL"])
         board = rec["equals"]["leaderboard"]
-        self.assertEqual([row["pos"] for row in board], ["1", "2", "3", "4", "5"])
+        self.assertEqual([row["pos"] for row in board], ["1st", "2nd", "3rd", "4th", "5th"])
         self.assertEqual([row["helm"] for row in board], [
             "RCYCA A",
             "Eden District",
@@ -415,7 +415,7 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["winner"], "HYC")
         self.assertEqual(rec["equals"]["identity"], "boat")
         self.assertEqual([row["helm"] for row in rec["equals"]["leaderboard"]], ["HYC", "RCYC", "UCTYC"])
-        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1st", "2nd", "3rd"])
 
     def test_py_handicap_ranks_boats(self):
         rows = [
@@ -444,7 +444,7 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["winner"], "Chinook")
         self.assertEqual(rec["equals"]["identity"], "boat")
         self.assertEqual(rec["equals"]["scoring_system"], "PY")
-        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1st", "2nd", "3rd"])
         self.assertEqual(rec["equals"]["leaderboard"][0]["boat"], "Chinook")
 
     def test_timed_race_ranks_from_finish_order(self):
@@ -473,7 +473,7 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["status"], "pass", rec["errors"])
         self.assertEqual(rec["winner"], "Orion")
         self.assertEqual(rec["equals"]["identity"], "boat")
-        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3"])
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1st", "2nd", "3rd"])
 
     def test_py_mixed_fleet_is_one_overall_board(self):
         monday = dt.date(2026, 10, 12)
@@ -505,7 +505,7 @@ class EventFactsGate(unittest.TestCase):
         self.assertEqual(rec["winner"], "Lorrian Wells")
         self.assertEqual(rec["equals"]["identity"], "helm")
         self.assertEqual(rec["equals"]["fleets"], ["PY"])
-        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1", "2", "3", "4"])
+        self.assertEqual([row["pos"] for row in rec["equals"]["leaderboard"]], ["1st", "2nd", "3rd", "4th"])
         self.assertEqual(rec["equals"]["leaderboard"][0]["helm"], "Lorrian Wells")
         self.assertFalse(any("1st place" in e for e in rec["errors"]))
 
@@ -731,7 +731,7 @@ class SequentialGates(unittest.TestCase):
         small["blocks"] = [
             {
                 "type": "paragraph",
-                "text": "Bradley Levin won the Dart 18 Nationals at Henley Midmar Yacht Club [1].",
+                "text": "Bradley Levin won the Dart 18 Nationals at Henley Midmar Yacht Club.",
             }
         ]
         small["citations"] = [{"n": 1, "url": "https://sailingsa.co.za/regatta/" + dart}]

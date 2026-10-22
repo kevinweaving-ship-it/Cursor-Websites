@@ -248,9 +248,9 @@ def source_notes(cluster,facts,index):
                 if len(names)>=2 and re.search(r"1st|first|champion|won",paragraph,re.I):
                     key=tuple(names[:2])
                     if key not in seen:
-                        notes.append(f"{' and '.join(names[:2])} also won the under-17 title, according to the published report. [{cite}]");seen.add(key)
+                        notes.append(f"{' and '.join(names[:2])} also won the under-17 title, according to the published report.");seen.add(key)
         if facts.get("tied_first") and re.search(r"won the tie break by winning the last race",body,re.I):
-            notes.append(f"The class report attributes the title tie-break to {facts['winner']} winning the final race. [{cite}]")
+            notes.append(f"The class report attributes the title tie-break to {facts['winner']} winning the final race.")
         # Host club placing mentions are checked against the official rank and sailor name.
         rows=facts.get("ranked_rows",[])
         home=[]
@@ -262,13 +262,13 @@ def source_notes(cluster,facts,index):
                     if str(row.get("club_abbrev") or row.get("club_raw") or "").upper()==str(facts.get("club","")).upper():
                         home.append(f"{name} ({rank}{'th' if int(rank)%100 in (11,12,13) else {1:'st',2:'nd',3:'rd'}.get(int(rank)%10,'th')})")
         if home:
-            sentence=f"The host club's report also highlighted {', '.join(dict.fromkeys(home))}. [{cite}]"
+            sentence=f"The host club's report also highlighted {', '.join(dict.fromkeys(home))}."
             if sentence not in notes:notes.append(sentence)
     return notes[:3]
 
 def recap(facts,cluster,index):
-    from event_rewrite import _heats,_date_span
-    mark="[1]";winner=facts["winner"];singular=" and " not in winner;subject="He" if singular else "They"
+    from event_rewrite import _heats,_date_span,strip_cite_marks
+    winner=facts["winner"];singular=" and " not in winner;subject="He" if singular else "They"
     verb="finished" if facts.get("status","").lower()=="provisional" else "won"
     title=facts["title"];venue=facts["club_name"];entries=facts.get("entries",0);races=facts.get("races",0)
     classes=[c for c in (facts.get("classes") or []) if c]
@@ -277,20 +277,20 @@ def recap(facts,cluster,index):
         opening=f"{winner} finished first in the published {title} standings at {venue}"
     else:opening=f"{winner} won the {title} at {venue}"
     if facts.get("mixed_class") and classes:
-        opening+=f", taking the {klass or classes[0]} fleet on {facts['winner_nett']} nett points across {races} races. {entries} boats raced in {', '.join(classes)}. {mark}"
+        opening+=f", taking the {klass or classes[0]} fleet on {facts['winner_nett']} nett points across {races} races. {entries} boats raced in {', '.join(classes)}."
     else:
-        opening+=f", scoring {facts['winner_nett']} nett points across {races} races in a {entries}-boat fleet. {mark}"
+        opening+=f", scoring {facts['winner_nett']} nett points across {races} races in a {entries}-boat fleet."
     paragraphs=[opening]
     heats=_heats(facts.get("winner_scores"))
     wins=sum(h.get("win",False) for h in heats)
     if heats and len(heats)==races:
-        if wins==races:paragraphs.append(f"{winner} won every race in the series, held on {_date_span(facts['start'],facts['end'])}. {mark}")
-        elif wins:paragraphs.append(f"{winner} recorded {wins} race {'win' if wins==1 else 'wins'} during the series, held on {_date_span(facts['start'],facts['end'])}. {mark}")
-        else:paragraphs.append(f"{winner} topped the overall standings without winning an individual race. {mark}")
+        if wins==races:paragraphs.append(f"{winner} won every race in the series, held on {_date_span(facts['start'],facts['end'])}.")
+        elif wins:paragraphs.append(f"{winner} recorded {wins} race {'win' if wins==1 else 'wins'} during the series, held on {_date_span(facts['start'],facts['end'])}.")
+        else:paragraphs.append(f"{winner} topped the overall standings without winning an individual race.")
         late=heats[-4:];late_wins=sum(h.get("win",False) for h in late)
         if wins!=races and len(late)==4 and late_wins>=3:
             ending=" and won the final race" if late_wins < 4 and heats[-1].get("win") else ""
-            paragraphs.append(f"{winner} won {late_wins} of the final four races{ending}. {mark}")
+            paragraphs.append(f"{winner} won {late_wins} of the final four races{ending}.")
     if facts.get("mixed_class") and facts.get("ranked_rows"):
         by={}
         for row in facts["ranked_rows"]:
@@ -303,20 +303,20 @@ def recap(facts,cluster,index):
                 n=(row.get("helm_name") or "").strip()
                 if n:names.append(n)
             if names:bits.append(f"{key} 1–{len(names)} {', '.join(names)}")
-        if bits:paragraphs.append("; ".join(bits)+f" {mark}")
+        if bits:paragraphs.append("; ".join(bits))
     else:
         podium=[]
         if facts.get("second"):
             podium.append(f"{facts['second']} finished second on {facts['second_nett']} nett points.")
         if facts.get("third"):
             podium.append(f"{facts['third']} finished third on {facts['third_nett']} nett points.")
-        if podium:paragraphs.append(" ".join(podium)+" "+mark)
+        if podium:paragraphs.append(" ".join(podium))
     if facts.get("tied_first"):
-        paragraphs.append(f"The top two crews were level on nett points; the official results rank {winner} first. {mark}")
+        paragraphs.append(f"The top two crews were level on nett points; the official results rank {winner} first.")
     paragraphs.extend(source_notes(cluster,facts,index))
     if facts.get("status","").lower()=="provisional":
-        paragraphs.append(f"The published results remain provisional. {mark}")
-    return paragraphs
+        paragraphs.append("The published results remain provisional.")
+    return [strip_cite_marks(p) for p in paragraphs]
 
 def _article_entries(article):
     if article.get("entries"):

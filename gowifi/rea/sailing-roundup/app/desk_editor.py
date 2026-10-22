@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from event_rewrite import _agree, _date_span, _heats, _is_roster, entry_label, ranked_winner
+from event_rewrite import _agree, _date_span, _heats, _is_roster, entry_label, ranked_winner, strip_cite_marks
 
 GENERIC = re.compile(
     r"exciting weekend|took to the water|action[- ]packed|thrilling display|"
@@ -91,12 +91,11 @@ def photo_line(hero: dict | None, facts: dict) -> str:
         return ""
     if not PHOTO_DETAIL.search(title):
         return ""
-    return f"The photograph with this report is {title.rstrip('.')}. [1]"
+    return f"The photograph with this report is {title.rstrip('.')}."
 
 
 def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
     """Newsroom recap locked to the results card and stored hero."""
-    mark = "[1]"
     winner = ranked_winner(facts) or (facts.get("winner") or "The leader")
     if (facts.get("identity") == "team" or facts.get("team_racing")) and _is_roster(winner):
         raise ValueError("team racing copy must use the team name, not a sailor roster")
@@ -131,7 +130,7 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
             lead += f" on {nett} nett points"
         if races:
             lead += f" across {races} races"
-        lead += f". {entries} boats raced in {', '.join(classes)}. {mark}"
+        lead += f". {entries} boats raced in {', '.join(classes)}."
     else:
         bits = []
         identity = facts.get("identity") or ("team" if facts.get("team_racing") else "")
@@ -157,13 +156,13 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
         if identity == "team" and wins:
             bits = [f"{wins} race {'win' if int(wins) == 1 else 'wins'}"] + [b for b in bits if "races" not in b]
         if bits:
-            lead += ", scoring " + " across ".join(bits) + fleet + f". {mark}"
+            lead += ", scoring " + " across ".join(bits) + fleet + "."
         else:
-            lead += f"{fleet}. {mark}" if fleet else f". {mark}"
+            lead += f"{fleet}." if fleet else "."
     paragraphs = [lead]
     if chosen == "tie":
         paragraphs.append(
-            f"The top two crews were level on nett points; the official results rank {winner} first. {mark}"
+            f"The top two crews were level on nett points; the official results rank {winner} first."
         )
     if facts.get("mixed_class") and facts.get("ranked_rows") and not facts.get("overall"):
         by = {}
@@ -177,7 +176,7 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
             if names:
                 bits.append(f"{key} 1–{len(names)} {', '.join(names)}")
         if bits:
-            paragraphs.append("; ".join(bits) + f" {mark}")
+            paragraphs.append("; ".join(bits))
     else:
         podium = []
         gap = _margin(facts)
@@ -198,13 +197,13 @@ def edit_event(facts: dict, hero: dict | None = None) -> list[str]:
                 third += f" on {nett3} nett points"
             podium.append(third + ".")
         if podium:
-            paragraphs.append(" ".join(podium) + " " + mark)
+            paragraphs.append(" ".join(podium))
     if (facts.get("status") or "").lower() == "provisional":
-        paragraphs.append(f"The published results remain provisional. {mark}")
+        paragraphs.append("The published results remain provisional.")
     extra = photo_line(hero, facts)
     if extra:
         paragraphs.append(extra)
-    return [p for p in paragraphs if p and not is_generic(p)]
+    return [strip_cite_marks(p) for p in paragraphs if p and not is_generic(p)]
 
 
 def _and_join(parts: list[str]) -> str:
@@ -219,32 +218,37 @@ def _and_join(parts: list[str]) -> str:
 
 
 def edit_week(date_line: str, reports: list[dict], unlisted: list[str]) -> list[str]:
-    """Week lead: name every scored event and the same-period events still without results."""
+    """Week lead: count scored events, name them, then name the rest of the week.
+
+    Weekend dates live in the feature deck. Do not repeat them here.
+    """
+    del date_line
+    n = len(reports)
     if not reports:
-        return [f"No scored results were published for the weekend of {date_line}."]
-    if len(reports) == 1:
+        return ["No scored results were published."]
+    count = "1 scored event." if n == 1 else f"{n} scored events."
+    if n == 1:
         lead = reports[0]
-        text = (lead.get("headline") or "Weekend racing").rstrip(".")
+        text = count + " " + (lead.get("headline") or "Weekend racing").rstrip(".")
         deck = (lead.get("deck") or "").strip()
         if deck and deck.lower() not in text.lower():
             text += ". " + deck.rstrip(".")
-        text += f". The result was posted for {date_line}."
+        text += "."
         paragraphs = [text]
     else:
         biggest = reports[0]
         others = [r.get("headline") or r.get("event_id") or "another event" for r in reports[1:]]
-        text = f"The weekend of {date_line} was led by {(biggest.get('headline') or 'the largest scored fleet').rstrip('.')}"
+        text = (
+            count
+            + " The weekend was led by "
+            + (biggest.get("headline") or "the largest scored fleet").rstrip(".")
+        )
         if others:
             text += ", with " + _and_join(others) + " also posting results"
         text += "."
         paragraphs = [text]
     if unlisted:
-        paragraphs.append(
-            _and_join(unlisted)
-            + " also took place in the same period; "
-            + ("that event does" if len(unlisted) == 1 else "those events do")
-            + " not yet have a published results card."
-        )
+        paragraphs.append("Other events in the past week were " + _and_join(unlisted) + ".")
     return paragraphs
 
 

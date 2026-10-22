@@ -51,7 +51,7 @@ class DeskEditor(unittest.TestCase):
         self.assertIn("16-boat 420 fleet", blob)
         self.assertIn("Howard Leoto", blob)
         self.assertIn("10 points behind", blob)
-        self.assertIn("[1]", blob)
+        self.assertNotIn("[1]", blob)
         self.assertFalse(is_generic(blob))
         self.assertEqual(qa(blob, facts()), [])
 
@@ -214,9 +214,13 @@ class DeskEditor(unittest.TestCase):
         ]
         paras = edit_week("26–27 September 2026", reports, ["Agulhas Race", "Lipton Cup Practice"])
         blob = " ".join(paras)
+        self.assertIn("4 scored events.", blob)
         self.assertIn("was led by Dale Rae wins 420 Nationals", blob)
+        self.assertIn("Other events in the past week were", blob)
         self.assertIn("Agulhas Race", blob)
         self.assertIn("Lipton Cup Practice", blob)
+        self.assertNotIn("26–27 September", blob)
+        self.assertNotIn("results card", blob)
         self.assertNotIn("Last week's roundup covers", blob)
 
     def test_generic_story_fails_the_gate(self):
@@ -281,7 +285,7 @@ class DeskEditor(unittest.TestCase):
                     "blocks": [
                         {
                             "type": "paragraph",
-                            "text": "Dale Rae won the 420 Nationals in an exciting weekend of sailing [1].",
+                            "text": "Dale Rae won the 420 Nationals in an exciting weekend of sailing.",
                         }
                     ],
                 },

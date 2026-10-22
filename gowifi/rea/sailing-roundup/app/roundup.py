@@ -210,7 +210,11 @@ BANNED_PUBLIC_COPY = (
     "Sources &amp; results",
     "Event calendar",
     "Source report",
+    "By SailingSA",
+    "1st, 2nd, 3rd",
 )
+CITE_SUP = re.compile(r'<sup[^>]*class="[^"]*cite[^"]*"[^>]*>\s*\d+\s*</sup>', re.I)
+CITE_MARK = re.compile(r"\[\d+\]")
 
 
 def public_html_banned(html_text: str) -> list[str]:
@@ -219,6 +223,8 @@ def public_html_banned(html_text: str) -> list[str]:
     errors = []
     if "/api/" in text:
         errors.append("public HTML exposes an /api/ URL")
+    if CITE_MARK.search(text) or 'class="cite"' in text:
+        errors.append("public HTML still has cite marks")
     for phrase in BANNED_PUBLIC_COPY:
         if phrase.lower() in text.lower():
             errors.append(f"public HTML still has {phrase}")
@@ -231,6 +237,7 @@ def strip_public_sources(html_text: str) -> str:
     text = SOURCE_ASIDE.sub("", text)
     text = SOURCE_LIST.sub("", text)
     text = API_HREF.sub("", text)
+    text = CITE_SUP.sub("", text)
     return text
 
 
@@ -251,10 +258,34 @@ def public_event_url(article: dict) -> str:
     return ""
 
 
+def full_results_label(article: dict) -> str:
+    """{Event} {year} · Full Results — the only public results click."""
+    title = (article.get("event_title") or "").strip()
+    if not title:
+        deck = article.get("deck") or ""
+        if " @ " in deck:
+            title = deck.split(" @ ", 1)[0].strip()
+    if not title:
+        title = (article.get("class_name") or "Event").strip()
+    year = ""
+    for key in ("start_date", "end_date", "published_at"):
+        val = str(article.get(key) or "")
+        if len(val) >= 4 and val[:4].isdigit():
+            year = val[:4]
+            break
+    if not year:
+        slug = str(article.get("event_id") or article.get("id") or "")
+        if len(slug) >= 4 and slug[:4].isdigit():
+            year = slug[:4]
+    if year and year not in title:
+        title = f"{title} {year}"
+    return f"{title} · Full Results"
+
+
 def _cited_paragraph(text: str) -> str:
-    escaped = html.escape(text or "")
-    escaped = re.sub(r"\[(\d+)\]", r'<sup class="cite">\1</sup>', escaped)
-    return escaped
+    cleaned = CITE_MARK.sub("", text or "")
+    cleaned = re.sub(r" +", " ", cleaned).replace(" .", ".").strip()
+    return html.escape(cleaned)
 
 
 def _photo_set(images: list[str], media_layout: str = "") -> str:
@@ -278,7 +309,10 @@ def _story_parts(article):
         elif kind == "paragraph":
             paras.append("<p>" + _cited_paragraph(block.get("text") or "") + "</p>")
         elif kind == "heading":
-            board.append("<h3 class='board-label'>" + html.escape(block.get("text") or "Leaderboard") + "</h3>")
+            label = (block.get("text") or "").strip()
+            if label.lower().rstrip(".") == "1st, 2nd, 3rd":
+                continue
+            board.append("<h3 class='board-label'>" + html.escape(label or "Leaderboard") + "</h3>")
         elif kind == "results":
             board.append(_results_block(block))
     if paras:
@@ -302,38 +336,23 @@ def _render_story(index, article):
     headline = html.escape(article.get("headline") or "")
     lead = article.get("type") == "feature"
     deck = article.get("deck") or ""
-    if not lead and "·" in deck:
-        deck = " · ".join(part.strip() for part in deck.split("·")[2:])
     kicker = html.escape(article.get("kicker") or article.get("class_name") or "")
     title_tag = "h1" if lead else "h2"
     event_url = "" if lead else public_event_url(article)
-    results = ""
     if event_url:
         href = html.escape(event_url, quote=True)
         title_html = f'<{title_tag}><a href="{href}">{headline}</a></{title_tag}>'
-        results = f'<p><a href="{href}">Results</a></p>'
     else:
         title_html = f"<{title_tag}>{headline}</{title_tag}>"
     header = (
         '<header class="story-heading">'
         + ("" if lead else '<p class="kicker">' + kicker + "</p>")
         + title_html
-        + results
         + (('<p class="deck">' + html.escape(deck) + "</p>") if deck else "")
     )
-    if lead:
-        date = article.get("published_at") or ""
-        try:
-            date = dt.date.fromisoformat(date).strftime("%-d %B %Y")
-        except ValueError:
-            pass
-        header += (
-            '<p class="byline">By '
-            + html.escape(article.get("byline") or "SailingSA")
-            + '<span aria-hidden="true"> · </span>Published '
-            + html.escape(date)
-            + "</p>"
-        )
+    if event_url:
+        href = html.escape(event_url, quote=True)
+        header += f'<p><a href="{href}">{html.escape(full_results_label(article))}</a></p>'
     header += "</header>"
     copy = "".join(paras)
     photos = _photo_set(images, article.get("media_layout") or ("paired-then-full" if len(images) > 1 else ""))

@@ -98,9 +98,10 @@ class RewriteEngine(unittest.TestCase):
         headline = unique_headline(facts)
         self.assertNotEqual(headline, "420 Nationals")
         self.assertIn("Dale Rae", headline)
-        self.assertIn("dominate", headline)
+        self.assertTrue(headline.startswith("420 Nationals"))
+        self.assertIn("dominated by", headline)
         solo = dict(facts, winner="Dylan Hall", winner_wins=12, races=12, tied_first=False, status="Final")
-        self.assertIn("sweeps", unique_headline(solo))
+        self.assertIn("swept by", unique_headline(solo))
         cluster = {
             "articles": [
                 {
@@ -139,9 +140,9 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(kinds.count("results"), 1)
         self.assertTrue(all(b.get("type") != "video" for b in article["blocks"]))
         results = next(b for b in article["blocks"] if b["type"] == "results")
-        self.assertEqual(results["columns"], ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"])
+        self.assertEqual(results["columns"], ["Rank", "Helm", "Crew", "Club", "Sail No", "Nett"])
         self.assertEqual(len(results["rows"]), 3)
-        self.assertEqual([r[0] for r in results["rows"]], ["1", "2", "3"])
+        self.assertEqual([r[0] for r in results["rows"]], ["1st", "2nd", "3rd"])
         self.assertNotIn("source_info", article)
         html = _render_story(1, article)
         self.assertIn("story-photo-led", html)
@@ -152,7 +153,12 @@ class RewriteEngine(unittest.TestCase):
         self.assertNotIn("Event calendar", html)
         self.assertNotIn("Source report", html)
         self.assertIn('href="https://sailingsa.co.za/regatta/2026-09-25-tsc-420-nationals"', html)
-        self.assertIn(">Results</a>", html)
+        self.assertIn("420 Nationals 2026 · Full Results", html)
+        self.assertNotIn(">Results</a>", html)
+        self.assertNotIn("By SailingSA", html)
+        self.assertNotIn("1st, 2nd, 3rd", html)
+        self.assertNotIn("[1]", html)
+        self.assertIn("420 Nationals @ Theewater Sports Club · 16 entries", html)
         self.assertEqual(public_html_banned(html), [])
 
     def test_layouts_differ(self):
@@ -265,8 +271,8 @@ class RewriteEngine(unittest.TestCase):
         self.assertNotIn("day 2 of", " ".join(paras).lower())
         self.assertTrue(event_finished(facts, "2026-09-28"))
         live = dict(facts, finished=False, status="Provisional")
-        self.assertIn("lead", unique_headline(live))
-        self.assertTrue(any("[1]" in p or "[2]" in p for p in paras))
+        self.assertIn("led by", unique_headline(live))
+        self.assertFalse(any("[1]" in p or "[2]" in p for p in paras))
 
     def test_event_photos_not_wiki_and_more_than_one(self):
         facts = facts_from_rows("2026-09-24-hmyc-dart-18-nationals", sample_rows())
@@ -424,7 +430,7 @@ class RewriteEngine(unittest.TestCase):
         self.assertIn("ILCA 7", facts["classes"])
         self.assertEqual(len(facts["class_leaderboards"]), 1)
         board = facts["class_leaderboards"][0]
-        self.assertEqual([r["pos"] for r in board["rows"]], ["1", "2", "3"])
+        self.assertEqual([r["pos"] for r in board["rows"]], ["1st", "2nd", "3rd"])
         self.assertEqual(board["rows"][0]["helm"], "Lorrian Wells")
         self.assertEqual(len(facts["leaderboard"][1]), 3)
         dart_photo = {
@@ -496,20 +502,20 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(facts["third"], "MAC")
         self.assertNotIn("Maddison Smit", facts["winner"])
         cols, table = facts["leaderboard"]
-        self.assertEqual(cols, ["Pos", "Team", "Wins", "Total"])
-        self.assertEqual([row[0] for row in table], ["1", "2", "3"])
+        self.assertEqual(cols, ["Rank", "Team", "Wins", "Total"])
+        self.assertEqual([row[0] for row in table], ["1st", "2nd", "3rd"])
         self.assertEqual(table[0][1], "RCYCA A")
         self.assertEqual(table[0][2], "4")
         self.assertEqual(table[0][3], "34")
         board = facts["class_leaderboards"][0]
         self.assertTrue(board["team_racing"])
-        self.assertEqual([row["pos"] for row in board["rows"]], ["1", "2", "3", "4", "5"])
+        self.assertEqual([row["pos"] for row in board["rows"]], ["1st", "2nd", "3rd", "4th", "5th"])
         self.assertEqual(board["rows"][0]["helm"], "RCYCA A")
         self.assertEqual(board["rows"][0]["wins"], "4")
         headline = unique_headline(facts)
         self.assertEqual(
             headline,
-            "RCYCA A wins SA Sailing WC Team Sailing Event at MAC",
+            "SA Sailing WC Team Sailing Event 2026 won by RCYCA A at MAC",
         )
         self.assertNotIn("Maddison", headline)
         sailor_facts = dict(
@@ -520,7 +526,7 @@ class RewriteEngine(unittest.TestCase):
         )
         self.assertEqual(
             unique_headline(sailor_facts),
-            "RCYCA A wins SA Sailing WC Team Sailing Event at MAC",
+            "SA Sailing WC Team Sailing Event 2026 won by RCYCA A at MAC",
         )
         bad = dict(sailor_facts, winner_team="")
         with self.assertRaises(ValueError):
@@ -559,7 +565,7 @@ class RewriteEngine(unittest.TestCase):
         self.assertEqual(facts["winner"], "HYC")
         self.assertEqual(facts["second"], "RCYC")
         self.assertNotIn("David Rae", facts["winner"])
-        self.assertEqual(facts["leaderboard"][0], ["Pos", "Boat", "Helm", "Club", "Time"])
+        self.assertEqual(facts["leaderboard"][0], ["Rank", "Boat", "Helm", "Club", "Time"])
 
         py = [
             {
@@ -620,7 +626,7 @@ class RewriteEngine(unittest.TestCase):
             extra["nett_points_raw"] = pos * 10
             rows.append(extra)
         facts = facts_from_rows("2026-09-25-tsc-420-nationals", rows)
-        self.assertEqual([r["pos"] for r in facts["class_leaderboards"][0]["rows"]], ["1", "2", "3", "4", "5"])
+        self.assertEqual([r["pos"] for r in facts["class_leaderboards"][0]["rows"]], ["1st", "2nd", "3rd", "4th", "5th"])
         self.assertEqual(len(facts["leaderboard"][1]), 3)
         self.assertEqual(class_leaderboards(rows)[0]["fleet"], "420")
 

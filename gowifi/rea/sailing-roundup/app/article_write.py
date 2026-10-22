@@ -24,6 +24,7 @@ from event_rewrite import (
     deck_from_facts,
     facts_from_rows,
     layout_for,
+    strip_cite_marks,
     unique_headline,
 )
 from evidence_pipeline import feature, unlisted_event_names
@@ -80,7 +81,7 @@ def _locked(text: str, facts: dict) -> bool:
 def _system_prompt() -> str:
     return (
         "You are a newspaper sports editor. Rewrite only from the supplied facts. "
-        "Do not invent sailors, scores, clubs, or colour. Keep citations like [1]. "
+        "Do not invent sailors, scores, clubs, or colour. "
         "No generic phrases. No 'exciting weekend'. Specific names, venue, points."
     )
 
@@ -117,8 +118,7 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
     polished, writer = polish_copy("event article", ctx, facts, " ".join(paras), polish=polish)
     if polished:
         paras = [p.strip() for p in re.split(r"\n{2,}", polished) if p.strip()] or paras
-        if not any("[1]" in p for p in paras):
-            paras[0] = paras[0].rstrip(".") + " [1]."
+    paras = [strip_cite_marks(p) for p in paras]
     blocks = []
     if hero and hero.get("status") == "pass" and hero.get("local_path"):
         blocks.append(
@@ -135,7 +135,6 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
     for text in paras:
         blocks.append({"type": "paragraph", "text": text})
     cols, table = facts.get("leaderboard") or ([], [])
-    blocks.append({"type": "heading", "text": "1st, 2nd, 3rd"})
     blocks.append({"type": "results", "source_event_url": facts.get("url") or "", "columns": cols, "rows": table, "as_of": issue})
     third_party = False
     return {
@@ -143,6 +142,7 @@ def write_event_article(issue: str, rec: dict, facts: dict, hero: dict | None, l
         "type": "regatta_report",
         "headline": unique_headline(facts),
         "deck": deck_from_facts(facts),
+        "event_title": facts.get("title") or "",
         "byline": "SailingSA",
         "kicker": (
             (" / ".join(facts.get("classes") or []) if facts.get("mixed_class") else (facts.get("class_name") or "Regatta")).upper()
@@ -198,7 +198,9 @@ def write_week_feature(issue, monday, table_events, reports, polish=None) -> dic
         if named:
             art["blocks"] = [b for b in art.get("blocks") or [] if b.get("type") != "paragraph"]
             art["blocks"].extend(
-                {"type": "paragraph", "text": p.strip()} for p in re.split(r"\n{2,}", polished) if p.strip()
+                {"type": "paragraph", "text": strip_cite_marks(p.strip())}
+                for p in re.split(r"\n{2,}", polished)
+                if p.strip()
             )
     art["weekend"] = [sat.isoformat(), sun.isoformat()]
     art["ai_writer"] = writer if polished else "desk"

@@ -254,7 +254,11 @@ def _check_parent_leaderboards(equals: dict) -> list[str]:
                 f"{name}: overall results table is a {who} list — not a scored leaderboard"
             )
             continue
-        firsts = [r for r in scored if str(r.get("pos") or "").split(".")[0] == "1"]
+        firsts = [
+            r
+            for r in scored
+            if str(r.get("pos") or "").strip().lower().split(".")[0] in {"1", "1st"}
+        ]
         if not firsts:
             errors.append(f"{name}: no {who} in 1st place")
         elif len(scored) > 2 and len(firsts) == len(scored):
@@ -567,11 +571,9 @@ def gate_story(ctx: dict) -> GateResult:
         }
         if not paras:
             rec["errors"].append("no written paragraphs")
-        citations = {x.get("n") for x in (article.get("citations") or []) if x.get("n") is not None}
         for text in paras:
-            refs = {int(x) for x in re.findall(r"\[(\d+)\]", text)}
-            if not refs or (citations and not refs <= citations):
-                rec["errors"].append("untraceable paragraph")
+            if re.search(r"\[\d+\]", text):
+                rec["errors"].append("cite marks in public copy")
             if other_event_conflict(
                 {"url": "", "title": "", "body": text},
                 {"slug": slug, "title": article.get("headline") or slug},

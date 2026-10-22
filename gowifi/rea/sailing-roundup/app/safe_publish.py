@@ -23,7 +23,6 @@ def validate(root,issue):
         cluster=json.loads((root/"issues"/issue/"sources"/(a["event_id"]+"-cluster.json")).read_text())
         if any(not s.get("verification",{}).get("accepted") for s in cluster["articles"]):raise ValueError("Unverified source")
         if len(a.get("citations",[]))!=len({x["url"].rstrip("/") for x in a.get("citations",[])}):raise ValueError("Duplicate citations")
-        citations={x["n"] for x in a.get("citations",[])}
         from evidence_pipeline import other_event_conflict
         facts={"slug":a.get("event_id") or a.get("id") or "","title":a.get("class_name") and "" or "","event_name":a.get("headline") or ""}
         slug=str(facts["slug"])
@@ -32,8 +31,7 @@ def validate(root,issue):
                 raise ValueError("Citation belongs to another event")
         for b in a["blocks"]:
             if b["type"]=="paragraph":
-                refs=[int(x) for x in re.findall(r"\[(\d+)\]",b["text"])]
-                if not refs or not set(refs)<=citations:raise ValueError("Untraceable paragraph")
+                if re.search(r"\[\d+\]",b.get("text") or ""):raise ValueError("Cite marks in public copy")
                 if other_event_conflict({"url":"","title":"","body":b.get("text") or ""}, {"slug":slug,"title":a.get("headline") or slug}, require_identity=False):
                     raise ValueError("Article quotes another event")
             if b["type"]=="results" and len(b["rows"])>3:raise ValueError("Article table must be podium only")

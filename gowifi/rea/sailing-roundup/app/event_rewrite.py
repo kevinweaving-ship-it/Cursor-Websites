@@ -8,8 +8,8 @@ and Sportradar/United Robots box-score recaps:
   scrape the event's own primary sources (club, class, host Facebook, local
   news) → keep only items about THIS event → write one article locked to
   those texts and the results card (RAG: no fact that is not in a source) →
-  inline citations → photographs from those same sources (podium and on the
-  water are both valid; more than one photo is allowed) → 1st/2nd/3rd.
+  photographs from those same sources (podium and on the water are both
+  valid; more than one photo is allowed) → Rank / 1st / 2nd / 3rd.
 
 Wikimedia / Wikipedia is never a source. A 1954 stock boat is not a source.
 Paid APIs are optional. No login-wall bypass.
@@ -30,10 +30,10 @@ UA = {
 }
 FB_UA = {"User-Agent": "facebookexternalhit/1.1"}
 LEADERBOARD_LIMIT = 3
-LEADERBOARD_COLS = ["Pos", "Helm", "Crew", "Club", "Sail No", "Nett"]
-TEAM_LEADERBOARD_COLS = ["Pos", "Team", "Wins", "Total"]
-BOAT_LEADERBOARD_COLS = ["Pos", "Boat", "Helm", "Club", "Time"]
-HELM_LEADERBOARD_COLS = ["Pos", "Helm", "Club", "Sail No", "Nett"]
+LEADERBOARD_COLS = ["Rank", "Helm", "Crew", "Club", "Sail No", "Nett"]
+TEAM_LEADERBOARD_COLS = ["Rank", "Team", "Wins", "Total"]
+BOAT_LEADERBOARD_COLS = ["Rank", "Boat", "Helm", "Club", "Time"]
+HELM_LEADERBOARD_COLS = ["Rank", "Helm", "Club", "Sail No", "Nett"]
 GENERIC_FLEET = {"", "open", "overall", "all", "fleet"}
 TEAM_SCORING = re.compile(r"team\s+(racing|sailing)|\btsl\b", re.I)
 TEAM_CLASS = {"tsl", "team sailing", "team racing", "team sailing league"}
@@ -138,6 +138,51 @@ def _row_rank(row: dict):
         if row.get(key) not in (None, ""):
             return row.get(key)
     return None
+
+
+def _rank_label(rank) -> str:
+    """Public Rank cell: 1st / 2nd / 3rd, never a bare 1 / 2 / 3."""
+    if rank in (None, ""):
+        return ""
+    raw = str(rank).replace(".0", "").strip()
+    if re.search(r"(?i)(st|nd|rd|th)$", raw):
+        return raw
+    try:
+        n = int(float(raw))
+    except ValueError:
+        return raw
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+CITE_MARKS = re.compile(r"\s*\[\d+\]")
+
+
+def strip_cite_marks(text: str) -> str:
+    """Public copy is not a thesis. The Event URL is the only citation."""
+    cleaned = CITE_MARKS.sub("", text or "")
+    return re.sub(r" +", " ", cleaned).replace(" .", ".").strip()
+
+
+def event_year(facts: dict) -> str:
+    start = str(facts.get("start") or facts.get("start_date") or "")
+    if len(start) >= 4 and start[:4].isdigit():
+        return start[:4]
+    slug = str(facts.get("slug") or "")
+    if len(slug) >= 4 and slug[:4].isdigit():
+        return slug[:4]
+    return ""
+
+
+def event_title_with_year(facts: dict) -> str:
+    title = (facts.get("title") or "").strip()
+    year = event_year(facts)
+    if year and year not in title:
+        title = f"{title} {year}".strip()
+    return title
 
 
 def _row_time(row: dict) -> str:
@@ -483,7 +528,7 @@ def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[
                 total = row.get("nett_points_raw")
             table.append(
                 [
-                    "" if rank in (None, "") else str(rank).replace(".0", ""),
+                    _rank_label(rank),
                     entry_label(row),
                     "" if wins in (None, "") else str(wins).replace(".0", ""),
                     "" if total in (None, "") else str(total).replace(".0", ""),
@@ -495,7 +540,7 @@ def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[
             rank = _row_rank(row)
             table.append(
                 [
-                    "" if rank in (None, "") else str(rank).replace(".0", ""),
+                    _rank_label(rank),
                     entry_label(row),
                     (row.get("helm_name") or "").strip(),
                     str(row.get("club_abbrev") or row.get("club_raw") or ""),
@@ -513,7 +558,7 @@ def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[
             rank = _row_rank(row)
             table.append(
                 [
-                    "" if rank in (None, "") else str(rank).replace(".0", ""),
+                    _rank_label(rank),
                     (row.get("helm_name") or "").strip(),
                     str(row.get("club_abbrev") or row.get("club_raw") or ""),
                     str(row.get("sail_number") or ""),
@@ -523,10 +568,9 @@ def leaderboard(rows: list[dict], limit: int = LEADERBOARD_LIMIT) -> tuple[list[
         return list(HELM_LEADERBOARD_COLS), table
     for row in rows[:limit]:
         rank = _row_rank(row)
-        pos = "" if rank in (None, "") else str(rank).replace(".0", "")
         table.append(
             [
-                pos,
+                _rank_label(rank),
                 str(row.get("helm_name") or ""),
                 str(row.get("crew_name") or ""),
                 str(row.get("club_abbrev") or row.get("club_raw") or ""),
@@ -553,7 +597,7 @@ def _board_entry(row: dict) -> dict:
     boat = _team_name(row)
     helm = (row.get("helm_name") or "").strip()
     rank = _row_rank(row)
-    pos = "" if rank in (None, "") else str(rank).replace(".0", "")
+    pos = _rank_label(rank)
     label = entry_label(row)
     club = (row.get("club_abbrev") or row.get("club_raw") or "").strip()
     if kind == "team":
@@ -704,24 +748,29 @@ def event_finished(facts: dict, issue: str | None = None) -> bool:
 
 
 def unique_headline(facts: dict, cluster: dict | None = None) -> str:
+    """Event first, always. Winner is the team / boat / helm on the parent table."""
     winner = ranked_winner(facts) or (facts.get("winner") or "").strip()
     if (facts.get("identity") == "team" or facts.get("team_racing")) and (not winner or _is_roster(winner)):
         raise ValueError("team racing headline must be a team name, not a sailor roster")
-    title = facts["title"]
+    title = event_title_with_year(facts)
     venue = facts["club_name"]
     short_venue = venue.replace(" Yacht Club", "").replace(" Sports Club", "").replace(" Club", "")
+    club = (facts.get("club") or "").strip()
+    tail = f" at {short_venue}"
+    if club and club.upper() != short_venue.upper() and club.upper() not in short_venue.upper():
+        tail += f" - {club}"
     finished = event_finished(facts)
     if facts.get("tied_first") and facts.get("second"):
-        return f"{winner} {_agree(winner, 'take', 'takes')} {title} after a points tie at {short_venue}"
+        return f"{title} taken by {winner} after a points tie{tail}"
     if facts.get("winner_wins") and facts["winner_wins"] >= max(3, int(facts.get("races") or 0) // 2):
         if facts["winner_wins"] == int(facts.get("races") or 0) and (facts.get("races") or 0) >= 6:
-            return f"{winner} {_agree(winner, 'sweep', 'sweeps')} {title} at {short_venue}"
-        return f"{winner} {_agree(winner, 'dominate', 'dominates')} {title} at {short_venue}"
+            return f"{title} swept by {winner}{tail}"
+        return f"{title} dominated by {winner}{tail}"
     # Live "leads" only while the event is still racing. After it ends, they won.
     if (facts.get("status") or "").lower() == "provisional" and not finished:
         fleet = f"{facts['entries']}-boat " if facts.get("entries") else ""
-        return f"{winner} {_agree(winner, 'lead', 'leads')} {fleet}{title} at {short_venue}"
-    return f"{winner} {_agree(winner, 'win', 'wins')} {title} at {short_venue}"
+        return f"{fleet}{title} led by {winner}{tail}".strip()
+    return f"{title} won by {winner}{tail}"
 
 
 def _date_span(start: str, end: str) -> str:
@@ -825,9 +874,10 @@ def rewrite_paragraphs(facts, cluster=None, index=None):
 
 
 def deck_from_facts(facts: dict) -> str:
-    bits = [facts["winner"], facts["title"], facts["club_name"]]
-    if facts.get("winner_nett"):
-        bits.append(f"{facts['winner_nett']} nett")
+    """{event} @ {host club} · {N} entries. Nett stays on the table."""
+    event = (facts.get("title") or "Event").strip()
+    club = (facts.get("club_name") or facts.get("club") or "").strip()
+    bits = [f"{event} @ {club}" if club else event]
     if facts.get("entries"):
         bits.append(f"{facts['entries']} entries")
     return " · ".join(bits)
@@ -1551,8 +1601,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
             block["source_dimensions"] = local.get("source_dimensions")
         blocks.append(block)
     for text in paras:
-        blocks.append({"type": "paragraph", "text": text})
-    blocks.append({"type": "heading", "text": "1st, 2nd, 3rd"})
+        blocks.append({"type": "paragraph", "text": strip_cite_marks(text)})
     blocks.append(
         {
             "type": "results",
@@ -1572,6 +1621,7 @@ def rewrite_event(issue: str, facts: dict, pack: dict | None = None, cluster: di
         "type": "regatta_report",
         "headline": headline,
         "deck": deck_from_facts(facts),
+        "event_title": facts.get("title") or "",
         "byline": "SailingSA",
         "kicker": (
             (
