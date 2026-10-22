@@ -242,7 +242,7 @@ class ParentHero(unittest.TestCase):
             SLUG,
         )
         titles = [item["title"] for item in chosen]
-        self.assertEqual(titles[:3], ["420 Nationals overall winners", "420 Nationals U17 boys", "420 Nationals boat"])
+        self.assertEqual(titles, ["420 Nationals overall winners", "420 Nationals U17 boys", "420 Nationals boat"])
 
     def test_duplicate_hash_and_logo_are_rejected(self):
         digest = content_hash(b"same-photo")

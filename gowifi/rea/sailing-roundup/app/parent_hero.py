@@ -603,6 +603,17 @@ def apply_editorial_order(chosen: list[dict], slug: str) -> list[dict]:
         item["title"] = spec.get("title") or item.get("title")
         item["user_selected"] = bool(spec.get("user_selected") or item.get("user_selected"))
         ordered.append(item)
+    if requests:
+        needed = max(0, len(requests) - len(ordered))
+        for idx, item in enumerate(chosen):
+            if needed <= 0:
+                break
+            if idx in used:
+                continue
+            if item.get("seed") or item.get("verified_previous") or item.get("user_selected"):
+                ordered.append(item)
+                needed -= 1
+        return ordered[:4]
     for idx, item in enumerate(chosen):
         if idx in used:
             continue
