@@ -1356,8 +1356,11 @@
                     showError(data.error || 'Could not reset password');
                     return;
                 }
-                showSection('initialChoice');
+                if (data.session || data.session_token) {
+                    try { localStorage.setItem('session', data.session || data.session_token); } catch (eSess) {}
+                }
                 hideError();
+                window.location.replace(data.return_to || '/login.html');
             } catch (err) {
                 showError('Could not reset password');
             }

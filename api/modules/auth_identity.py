@@ -12,10 +12,12 @@ import hmac
 import os
 import re
 import secrets
+import threading
 import time
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional, Tuple
+from urllib.parse import urlparse
 
 PROOF_TTL_SEC = 15 * 60
 CHALLENGE_TTL_SEC = 10 * 60
@@ -25,6 +27,13 @@ MAX_ATTEMPTS = 5
 MAX_RESENDS = 3
 RESEND_COOLDOWN_SEC = 45
 PIN_LEN = 6
+CLAIM_PIN_LEN = 4
+ALLOWED_RETURN_HOSTS = {
+    "sailingsa.co.za",
+    "www.sailingsa.co.za",
+    "timadvisor.co.za",
+    "www.timadvisor.co.za",
+}
 
 OWNERSHIP_SELF = "self"
 OWNERSHIP_GUARDIAN = "guardian"
@@ -152,6 +161,7 @@ class MemoryStore:
     """Shared-process store for tests; SQL adapter uses the same method names."""
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self.proofs: Dict[str, IdentityProof] = {}
         self.challenges: Dict[str, Challenge] = {}
         self.remembers: Dict[str, RememberedDevice] = {}
@@ -198,6 +208,46 @@ class MemoryStore:
 
     def get_contact(self, account_key: str) -> Optional[Dict[str, Any]]:
         return self.contacts.get(account_key)
+
+    def consume_pin(self, challenge_id: str, pin: str, worker_id: str = "") -> Challenge:
+        pin_hash = hash_secret(re.sub(r"\D", "", str(pin)))
+        with self._lock:
+            ch = self.challenges.get(challenge_id)
+            if not ch:
+                raise ValueError("Unknown challenge")
+            if ch.consumed_at:
+                raise ValueError("PIN already used")
+            if ch.expires_at <= _now():
+                raise ValueError("PIN expired")
+            if ch.attempts >= MAX_ATTEMPTS:
+                raise ValueError("Too many attempts")
+            if worker_id:
+                ch.worker_id = worker_id
+            if ch.code_hash != pin_hash:
+                ch.attempts += 1
+                raise ValueError("Incorrect PIN")
+            ch.attempts += 1
+            ch.consumed_at = _now()
+            ch.confirm_pending = False
+            return ch
+
+    def consume_link(self, raw_token: str) -> Challenge:
+        link_hash = hash_secret(raw_token)
+        with self._lock:
+            ch = None
+            for item in self.challenges.values():
+                if item.link_hash == link_hash:
+                    ch = item
+                    break
+            if not ch:
+                raise ValueError("Unknown verification link")
+            if ch.consumed_at:
+                raise ValueError("Verification link already used")
+            if ch.expires_at <= _now():
+                raise ValueError("Verification link expired")
+            ch.consumed_at = _now()
+            ch.confirm_pending = False
+            return ch
 
 
 STORE: Any = MemoryStore()
@@ -559,6 +609,106 @@ class SqlStore:
             raise
         return row
 
+    def consume_pin(self, challenge_id: str, pin: str, worker_id: str = "") -> Challenge:
+        pin_hash = hash_secret(re.sub(r"\D", "", str(pin)))
+        cols = self._CH_COLS
+        conn, cur = self._ctx()
+        try:
+            cur.execute(
+                """
+                UPDATE public.auth_challenges
+                SET consumed_at = NOW(), confirm_pending = FALSE,
+                    attempts = attempts + 1,
+                    worker_id = COALESCE(NULLIF(%s, ''), worker_id)
+                WHERE id = %s
+                  AND consumed_at IS NULL
+                  AND expires_at > NOW()
+                  AND attempts < %s
+                  AND code_hash = %s
+                RETURNING """
+                + ", ".join(cols),
+                (worker_id, challenge_id, MAX_ATTEMPTS, pin_hash),
+            )
+            row = _row_map(cur.fetchone(), cols)
+            if row:
+                self._done(conn, cur, True)
+                return self._challenge_from_row(row)
+            cur.execute(
+                """
+                UPDATE public.auth_challenges
+                SET attempts = attempts + 1,
+                    worker_id = COALESCE(NULLIF(%s, ''), worker_id)
+                WHERE id = %s
+                  AND consumed_at IS NULL
+                  AND expires_at > NOW()
+                  AND attempts < %s
+                RETURNING """
+                + ", ".join(cols),
+                (worker_id, challenge_id, MAX_ATTEMPTS),
+            )
+            fail = _row_map(cur.fetchone(), cols)
+            if fail:
+                self._done(conn, cur, True)
+                raise ValueError("Incorrect PIN")
+            cur.execute(
+                "SELECT " + ", ".join(cols) + " FROM public.auth_challenges WHERE id = %s",
+                (challenge_id,),
+            )
+            found = _row_map(cur.fetchone(), cols)
+            self._done(conn, cur, True)
+        except ValueError:
+            raise
+        except Exception:
+            self._done(conn, cur, False)
+            raise
+        if not found:
+            raise ValueError("Unknown challenge")
+        ch = self._challenge_from_row(found)
+        if ch.consumed_at:
+            raise ValueError("PIN already used")
+        if ch.expires_at <= _now():
+            raise ValueError("PIN expired")
+        if ch.attempts >= MAX_ATTEMPTS:
+            raise ValueError("Too many attempts")
+        raise ValueError("Incorrect PIN")
+
+    def consume_link(self, raw_token: str) -> Challenge:
+        cols = self._CH_COLS
+        conn, cur = self._ctx()
+        try:
+            cur.execute(
+                """
+                UPDATE public.auth_challenges
+                SET consumed_at = NOW(), confirm_pending = FALSE
+                WHERE link_hash = %s
+                  AND consumed_at IS NULL
+                  AND expires_at > NOW()
+                RETURNING """
+                + ", ".join(cols),
+                (hash_secret(raw_token),),
+            )
+            row = _row_map(cur.fetchone(), cols)
+            if row:
+                self._done(conn, cur, True)
+                return self._challenge_from_row(row)
+            cur.execute(
+                "SELECT " + ", ".join(cols) + " FROM public.auth_challenges WHERE link_hash = %s LIMIT 1",
+                (hash_secret(raw_token),),
+            )
+            found = _row_map(cur.fetchone(), cols)
+            self._done(conn, cur, True)
+        except Exception:
+            self._done(conn, cur, False)
+            raise
+        if not found:
+            raise ValueError("Unknown verification link")
+        ch = self._challenge_from_row(found)
+        if ch.consumed_at:
+            raise ValueError("Verification link already used")
+        if ch.expires_at <= _now():
+            raise ValueError("Verification link expired")
+        raise ValueError("Verification link already used")
+
 
 def bind_sql_factory(connect: Callable, release: Optional[Callable] = None) -> SqlStore:
     """Point STORE at Postgres so proofs/PINs survive worker hops."""
@@ -654,6 +804,7 @@ def issue_pin_challenge(
     destination: str,
     account_hint: str = "",
     worker_id: str = "",
+    pin_len: int = PIN_LEN,
 ) -> Tuple[str, str]:
     dest = destination.strip().lower() if channel == "email" else normalize_phone(destination)
     if channel == "email" and "@" not in dest:
@@ -667,7 +818,12 @@ def issue_pin_challenge(
         raise ValueError("Wait a moment before sending another code")
     if existing and existing.resends >= MAX_RESENDS:
         raise ValueError("Too many resends")
-    pin = f"{secrets.randbelow(10 ** PIN_LEN):0{PIN_LEN}d}"
+    digits = int(pin_len) if pin_len else PIN_LEN
+    if digits < 4:
+        digits = 4
+    if digits > 8:
+        digits = 8
+    pin = f"{secrets.randbelow(10 ** digits):0{digits}d}"
     cid = new_token(12)
     if existing:
         existing.resends += 1
@@ -727,6 +883,8 @@ def preview_link_challenge(store: Any, raw_token: str) -> Challenge:
 
 
 def confirm_link_challenge(store: Any, raw_token: str) -> Challenge:
+    if hasattr(store, "consume_link"):
+        return store.consume_link(raw_token)
     ch = preview_link_challenge(store, raw_token)
     ch.consumed_at = _now()
     ch.confirm_pending = False
@@ -734,8 +892,26 @@ def confirm_link_challenge(store: Any, raw_token: str) -> Challenge:
     return ch
 
 
-def verify_pin(store: Any, challenge_id: str, pin: str, worker_id: str = "") -> Challenge:
-    ch = store.get_challenge(challenge_id)
+def verify_pin(
+    store: Any,
+    challenge_id: str,
+    pin: str,
+    worker_id: str = "",
+    purpose: str = "",
+    destination: str = "",
+) -> Challenge:
+    cid = str(challenge_id or "").strip()
+    if not cid and purpose and destination:
+        dest = destination.strip().lower() if purpose and "@" in str(destination) else normalize_phone(destination)
+        if "@" in str(destination):
+            dest = str(destination).strip().lower()
+        open_ch = store.find_open_challenge(purpose, dest)
+        if not open_ch:
+            raise ValueError("Unknown challenge")
+        cid = open_ch.id
+    if hasattr(store, "consume_pin"):
+        return store.consume_pin(cid, pin, worker_id)
+    ch = store.get_challenge(cid)
     if not ch:
         raise ValueError("Unknown challenge")
     if ch.consumed_at:
@@ -753,6 +929,76 @@ def verify_pin(store: Any, challenge_id: str, pin: str, worker_id: str = "") -> 
     ch.consumed_at = _now()
     store.put_challenge(ch)
     return ch
+
+
+def safe_return_url(value: Any, default: str = "/") -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return default
+    if raw.startswith("/") and not raw.startswith("//"):
+        return raw
+    try:
+        parsed = urlparse(raw)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme in {"http", "https"} and host in ALLOWED_RETURN_HOSTS:
+            return raw
+    except Exception:
+        return default
+    return default
+
+
+@dataclass
+class CompletionIntent:
+    purpose: str
+    channel: str
+    destination: str
+    ownership: str
+    sailor_sas_id: str
+    attach_sailor: bool
+    create_session: bool
+    save_contact: bool
+    find_existing_only: bool
+    login_method: str
+    return_to: str
+    provenance: str
+
+
+def completion_intent(
+    ch: Challenge,
+    *,
+    relationship: Any = "",
+    sas_id: Any = "",
+    return_to: Any = "",
+) -> CompletionIntent:
+    purpose = str(ch.purpose or "").strip() or "login"
+    if purpose == "claim":
+        rel = relationship or "self"
+    elif purpose in {"login", "recovery"}:
+        rel = relationship or "pending"
+    else:
+        rel = relationship or "pending"
+    ownership, sid = resolve_signup_identity(rel, sas_id or ch.account_hint)
+    attach = purpose == "claim" and account_writes_sas(ownership)
+    method = "whatsapp" if ch.channel == "whatsapp" else "email"
+    if purpose == "recovery":
+        method = method
+    default_return = "/"
+    if attach and sid:
+        default_return = f"/sailor/s-{sid}"
+    return CompletionIntent(
+        purpose=purpose,
+        channel=ch.channel,
+        destination=ch.destination,
+        ownership=ownership,
+        sailor_sas_id=sid if purpose == "claim" else "",
+        attach_sailor=attach,
+        create_session=True,
+        save_contact=True,
+        find_existing_only=purpose in {"login", "recovery"},
+        login_method=method,
+        return_to=safe_return_url(return_to, default_return),
+        provenance=f"{purpose}_{ch.channel}",
+    )
 
 
 def issue_remembered_device(

@@ -18,17 +18,25 @@
   <script>
     const params = new URLSearchParams(location.search);
     const token = params.get("token") || "";
+    const returnTo = params.get("returnTo") || "";
     document.getElementById("confirmBtn").onclick = async function () {
       const status = document.getElementById("status");
       status.textContent = "Confirming…";
       try {
         const res = await fetch("/auth/verify-link/confirm", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: token })
+          body: JSON.stringify({ token: token, returnTo: returnTo })
         });
         const data = await res.json();
-        status.textContent = data.ok ? "Verified. You can close this page." : (data.error || "Could not verify");
+        if (data.ok) {
+          status.textContent = "Verified. Taking you back…";
+          const dest = data.return_to || returnTo || "/";
+          window.location.replace(dest);
+        } else {
+          status.textContent = data.error || "Could not verify";
+        }
       } catch (e) {
         status.textContent = "Could not verify";
       }

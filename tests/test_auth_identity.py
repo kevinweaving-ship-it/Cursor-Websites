@@ -213,3 +213,82 @@ def test_sql_store_roundtrip_helpers():
     mapped = auth._row_map(("a", "b"), ("one", "two"))
     assert mapped == {"one": "a", "two": "b"}
     assert auth._row_map(None, ("one",)) is None
+
+
+def test_simultaneous_pin_replay_only_one_wins():
+    store = MemoryStore()
+    cid, pin = auth.issue_pin_challenge(
+        store, purpose="login", channel="email", destination="ann@b.co.za"
+    )
+    results = []
+
+    def worker():
+        try:
+            results.append(("ok", auth.verify_pin(store, cid, pin, worker_id="w")))
+        except ValueError as e:
+            results.append(("err", str(e)))
+
+    threads = [__import__("threading").Thread(target=worker) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    oks = [r for r in results if r[0] == "ok"]
+    errs = [r for r in results if r[0] == "err"]
+    assert len(oks) == 1
+    assert len(errs) == 7
+    assert all("already used" in e[1] for e in errs)
+
+
+def test_simultaneous_link_confirm_only_one_wins():
+    store = MemoryStore()
+    _cid, raw = auth.issue_link_challenge(
+        store, purpose="email_verify", channel="email", destination="ann@b.co.za"
+    )
+    results = []
+
+    def worker():
+        try:
+            results.append(("ok", auth.confirm_link_challenge(store, raw)))
+        except ValueError as e:
+            results.append(("err", str(e)))
+
+    threads = [__import__("threading").Thread(target=worker) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sum(1 for r in results if r[0] == "ok") == 1
+    assert sum(1 for r in results if r[0] == "err") == 7
+
+
+def test_completion_intent_separates_ownership():
+    store = MemoryStore()
+    cid, pin = auth.issue_pin_challenge(
+        store, purpose="claim", channel="whatsapp", destination="0821234567",
+        account_hint="4701", pin_len=4,
+    )
+    assert len(pin) == 4
+    ch = auth.verify_pin(store, "", pin, purpose="claim", destination="0821234567")
+    claim = auth.completion_intent(ch, relationship="self", sas_id="4701", return_to="https://evil.example/phish")
+    assert claim.attach_sailor is True
+    assert claim.sailor_sas_id == "4701"
+    assert claim.return_to == "/sailor/s-4701"
+    guardian = auth.completion_intent(ch, relationship="guardian", sas_id="4701", return_to="/sailor/ann")
+    assert guardian.attach_sailor is False
+    assert guardian.return_to == "/sailor/ann"
+    login_cid, login_pin = auth.issue_pin_challenge(
+        store, purpose="login", channel="email", destination="ann@b.co.za"
+    )
+    login_ch = auth.verify_pin(store, login_cid, login_pin)
+    login = auth.completion_intent(login_ch, sas_id="4701", return_to="https://sailingsa.co.za/blank.html")
+    assert login.find_existing_only is True
+    assert login.attach_sailor is False
+    assert login.return_to == "https://sailingsa.co.za/blank.html"
+
+
+def test_safe_return_url():
+    assert auth.safe_return_url("https://evil.test/") == "/"
+    assert auth.safe_return_url("//evil.test") == "/"
+    assert auth.safe_return_url("/login.html?x=1") == "/login.html?x=1"
+    assert auth.safe_return_url("https://sailingsa.co.za/regatta/x") == "https://sailingsa.co.za/regatta/x"
