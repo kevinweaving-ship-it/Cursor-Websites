@@ -90,9 +90,42 @@ def test_olarm_power_fault_and_event_tabs():
     assert arial_api.is_noise_olarm_event(
         {"eventAction": "zones_idle", "eventState": "alert", "eventMsg": "System Idle for 60 minutes"}
     )
-    assert arial_api.is_noise_olarm_event(
-        {"eventAction": "device", "eventState": "online", "eventMsg": "Olarm Device ONLINE"}
+    assert not arial_api.is_noise_olarm_event(
+        {"eventAction": "device", "eventState": "offline", "eventMsg": "OFFLINE - Arial - Hansekop"}
     )
+    assert arial_api.classify_olarm_event(
+        {"eventAction": "device", "eventState": "offline", "eventMsg": "OFFLINE - Arial - Hansekop"}
+    ) == "power"
+    offline = arial_api.format_olarm_event(
+        {"eventAction": "device", "eventState": "offline", "eventMsg": "OFFLINE - Arial - Hansekop", "eventTime": 1792553052772},
+        arial_api.enrich_device(SAMPLE),
+    )
+    assert offline["title"] == "Olarm Offline"
+    assert offline["tab"] == "power"
+
+
+def test_clip_energy_days_drops_hours_after_last_reading():
+    days = [{
+        "ymd": "2026-10-21",
+        "hours": [1.06, 1.05, 1.05, 1.05, 1.05, 0.28] + [None] * 18,
+        "estimated": [False] * 24,
+        "totalKwh": 5.54,
+        "hoursWithData": 6,
+    }]
+    # Last real sample 12 Oct 11:37 SAST — today's invented bars must vanish.
+    clipped = arial_api._clip_energy_days(days, 1791797832.324)
+    assert clipped[0]["hoursWithData"] == 0
+    assert clipped[0]["totalKwh"] is None
+    assert all(v is None for v in clipped[0]["hours"])
+
+
+def test_offline_panel_does_not_confirm_ac_or_battery():
+    dead = json.loads(json.dumps(SAMPLE))
+    dead["deviceStatus"] = "offline"
+    out = arial_api.enrich_device(dead)
+    assert out["arialPower"]["acOk"] is None
+    assert out["arialPower"]["batteryOk"] is None
+    assert out["arialPower"]["confirmed"] is False
     assert not arial_api.is_noise_olarm_event(
         {"eventAction": "zone_alarm", "eventState": "alarm", "eventMsg": "ZONE 1 IN ALARM - Zone 1 - Front Door"}
     )
@@ -107,6 +140,7 @@ def test_activity_card_markup_and_zone_labels():
     assert "function panelIssues(" in js
     assert 'out.push("Power Failure")' in js
     assert 'out.push("Low Battery")' in js
+    assert 'out.push("Olarm Offline")' in js
     assert 'data-tab="all"' in html
     assert 'data-tab="zones"' in html
     assert 'data-tab="areas"' in html
@@ -126,6 +160,17 @@ def test_activity_card_markup_and_zone_labels():
     assert "border: 1.6px solid #6a7378;" in css.split(".arial-below .card {", 1)[1].split("}", 1)[0]
     assert 'id="arial-breaker"' in html
     assert "Hansekop Main Breaker" in html
+    assert 'id="breaker-link-ago"' in html
+    assert 'id="breaker-last-link"' in html
+    assert html.count('class="breaker-on-dot"') == 1
+    assert "app.js?v=271" in html
+    assert "arial.css?v=234" in html
+    assert "function panelConfirmable" in js
+    assert "last reading is not live" in js
+    assert 'wNow.textContent = "Today —"' in js
+    assert "breakerLastReportAt = ms;" in js
+    assert "Never Date.now()-age" in js or "Server last-reading is the only clock" in js
+    assert ".pw-dot.unknown" in css
     assert 'class="breaker-dials"' in html
     assert 'id="breaker-spark"' not in html  # sparkline removed; day chart is the history
     assert 'class="breaker-info"' in html
@@ -799,7 +844,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=234" in html
+    assert "app.js?v=271" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():

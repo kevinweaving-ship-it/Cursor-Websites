@@ -84,8 +84,9 @@ _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
 ZONE_EVENT_ACTIONS = {"zone", "zone_watch"}
 AREA_EVENT_ACTIONS = {"area"}
 ALARM_EVENT_ACTIONS = {"zone_alarm", "s_alm", "s_alm_f", "s_alm_m"}
-NOISE_EVENT_ACTIONS = {"zones_idle", "device", "heartbeat"}
+NOISE_EVENT_ACTIONS = {"zones_idle", "heartbeat"}
 POWER_EVENT_ACTIONS = {"power", "ac", "mains", "battery"}
+DEVICE_EVENT_ACTIONS = {"device"}
 ALARM_EVENT_STATES = {"alarm", "emergency", "panic", "fire", "medical"}
 
 # Site of this API instance. A second instance (e.g. Voelklip / HOME) runs the same code with these env vars set.
@@ -841,6 +842,7 @@ async def arial_meter_ingest(request: Request):
         if reading["online"] and all(reading.get(k) is None for k in ("v", "a", "w", "kwh")):
             raise ValueError("no readings")
         src = str(payload.get("src") or "lan")[:16]
+        reason = str(payload.get("reason") or "").strip().lower()
         history: list[dict[str, Any]] = []
         raw_hist = payload.get("history")
         if raw_hist is not None:
@@ -853,7 +855,7 @@ async def arial_meter_ingest(request: Request):
                 history.append(pt)
     except ValueError as exc:
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
-    used = _meter_apply(device, reading, history)
+    used = 0 if reason == "heartbeat" else _meter_apply(device, reading, history)
     latest = {
         "device": device,
         "ts": reading["ts"],
@@ -923,7 +925,10 @@ def _sharing_health() -> dict[str, Any] | None:
     h = _sharing_get("/health")
     if not h:
         return None
-    return {k: h.get(k) for k in ("ok", "mqttConnected", "meterOnline", "meterLastReportAgeS", "meterStale", "authFailed", "tokenExpiresInS")}
+    return {k: h.get(k) for k in (
+        "ok", "mqttConnected", "meterOnline", "meterLastReportAgeS", "meterLastReadingAt",
+        "lastReadingAt", "meterStale", "authFailed", "tokenExpiresInS",
+    )}
 
 
 def _sharing_probe(out: dict[str, Any]) -> dict[str, Any]:
@@ -985,8 +990,27 @@ def tuya_probe(device_id: str | None = None) -> dict[str, Any]:
         return out
     if TUYA_SHARING:
         # No fresh sharing push: report the stale link honestly; never fall back to Cloud.
-        out.update({"configured": True, "source": "sharing", "tuyaMsg": "sharing link stale",
-                    "hint": "tuya-sharing worker has no fresh meter report (MQTT/session stale or meter offline)."})
+        # Do not attach the last V/A/W rows as current status — that is what made the card look live.
+        last = _meter_load() if is_meter else None
+        last_ts = last.get("ts") if isinstance(last, dict) else None
+        out.update({
+            "configured": True,
+            "source": "sharing",
+            "tuyaMsg": "sharing link stale",
+            "hint": "tuya-sharing worker has no fresh meter report (MQTT/session stale or meter offline).",
+            "tokenOk": False,
+            "deviceOk": False,
+            "ok": False,
+            "status": None,
+            "readingTs": last_ts,
+            "lastReading": None if not last else {
+                "ts": last.get("ts"),
+                "v": last.get("v"),
+                "a": last.get("a"),
+                "w": last.get("w"),
+                "receivedAt": last.get("receivedAt"),
+            },
+        })
         out["sharing"] = _sharing_health()
         return out
     if is_meter:
@@ -1230,6 +1254,68 @@ def _energy_days_from_bins(device: str, now: float | None = None) -> list[dict[s
         _energy_load()
         hours = dict(_energy_bins.get(device) or {})
     return _energy_shape_days(hours, ts)
+
+
+def _clip_energy_days(days: list[dict[str, Any]], last_ts: float | None) -> list[dict[str, Any]]:
+    """Drop hourly bins after the last real meter timestamp. Heartbeat echoes must not invent later hours."""
+    if not last_ts:
+        return days
+    try:
+        last_local = datetime.fromtimestamp(float(last_ts), tz=timezone.utc).astimezone(_SAST)
+    except (TypeError, ValueError, OSError, OverflowError):
+        return days
+    last_key = last_local.strftime("%Y%m%d%H")
+    out: list[dict[str, Any]] = []
+    for day in days:
+        ymd = str(day.get("ymd") or "").replace("-", "")
+        hours = list(day.get("hours") or [None] * 24)
+        est = list(day.get("estimated") or [False] * 24)
+        while len(hours) < 24:
+            hours.append(None)
+            est.append(False)
+        for h in range(24):
+            if f"{ymd}{h:02d}" > last_key or (h < len(est) and est[h]):
+                hours[h] = None
+                if h < len(est):
+                    est[h] = False
+        have = [v for v in hours if v is not None]
+        row = dict(day)
+        row["hours"] = hours[:24]
+        row["estimated"] = est[:24]
+        row["totalKwh"] = round(sum(have), 3) if have else None
+        row["hoursWithData"] = len(have)
+        out.append(row)
+    return out
+
+
+def _meter_last_ts() -> float | None:
+    latest = _meter_load()
+    if latest:
+        try:
+            ts = float(latest.get("ts") or 0)
+        except (TypeError, ValueError):
+            ts = 0.0
+        if ts > 1e12:
+            ts /= 1000.0
+        if ts > 1e9:
+            return ts
+    h = _sharing_health() or {}
+    for key in ("meterLastReadingAt", "lastReadingAt"):
+        try:
+            ts = float(h.get(key) or 0)
+        except (TypeError, ValueError):
+            ts = 0.0
+        if ts > 1e12:
+            ts /= 1000.0
+        if ts > 1e9:
+            return ts
+    try:
+        age = float(h.get("meterLastReportAgeS"))
+    except (TypeError, ValueError):
+        age = None
+    if age is not None and age >= 0:
+        return time.time() - age
+    return None
 
 
 _energy_est_cache: dict[str, Any] = {"at": 0.0, "keys": set()}
@@ -1735,12 +1821,14 @@ def tuya_energy(device_id: str | None = None) -> dict[str, Any]:
     if device == TUYA_MAINS_METER_ID and creds["client_id"] and creds["secret"]:
         _ensure_energy_sampler(device)
     latest = _meter_fresh(now) if device == TUYA_MAINS_METER_ID else None
+    last_ts = _meter_last_ts()
     if latest is not None:
         # Fresh persisted reading: bins already hold the sampled data; no Cloud statistics call from browsers.
         src = str(latest.get("src") or "sampled")
         out["source"] = f"{src}-sampled"
-        out["days"] = _energy_days_from_bins(device, now)
+        out["days"] = _clip_energy_days(_energy_days_from_bins(device, now), last_ts)
         out.update(_energy_analysis(device, out["days"], now))
+        out["lastReadingTs"] = last_ts
         out["debug"] = {
             "latest": {"ageS": round(now - float(latest.get("receivedAt") or 0), 1), "readingTs": latest.get("ts"), "src": src},
             "sampler": _meter_sampler_state(),
@@ -1751,9 +1839,17 @@ def tuya_energy(device_id: str | None = None) -> dict[str, Any]:
         return out
     if TUYA_SHARING:
         out["source"] = "sharing-stale"
-        out["days"] = _energy_days_from_bins(device, now)
-        out.update(_energy_analysis(device, out["days"], now))
-        out["debug"] = {"sharing": _sharing_health()}
+        out["days"] = _clip_energy_days(_energy_days_from_bins(device, now), last_ts)
+        analysis = _energy_analysis(device, out["days"], now)
+        power = dict(analysis.get("power") or {})
+        power["online"] = False
+        power["stale"] = True
+        analysis["power"] = power
+        analysis["recentKw"] = None
+        analysis["flag"] = "stale"
+        out.update(analysis)
+        out["lastReadingTs"] = last_ts
+        out["debug"] = {"sharing": _sharing_health(), "lastReadingTs": last_ts}
         out["ok"] = True
         return out
     if creds["client_id"] and creds["secret"]:
@@ -2363,10 +2459,17 @@ def enrich_device(device: dict[str, Any]) -> dict[str, Any]:
     out["arialCountdown"] = countdown
     out["arialExitDelay"] = _profile_exit_delay(profile)
     out["arialPower"] = arial_power(state)
-    try:
-        out["arialPower"].update(_ac_track(bool(out["arialPower"].get("acOk"))))
-    except Exception:
-        pass
+    if str(out.get("deviceStatus") or "").strip().lower() != "online":
+        # Frozen last snapshot is not a confirmation. Heartbeat lost → AC/battery unknown.
+        out["arialPower"]["acOk"] = None
+        out["arialPower"]["batteryOk"] = None
+        out["arialPower"]["confirmed"] = False
+    else:
+        out["arialPower"]["confirmed"] = True
+        try:
+            out["arialPower"].update(_ac_track(bool(out["arialPower"].get("acOk"))))
+        except Exception:
+            pass
     if _last_keypad:
         out["arialActor"] = dict(_last_keypad)
     return out
@@ -2461,7 +2564,7 @@ def classify_olarm_event(event: dict[str, Any] | None) -> str:
     action = str(event.get("eventAction") or "").strip().lower()
     state = str(event.get("eventState") or "").strip().lower()
     msg = str(event.get("eventMsg") or "").strip().lower()
-    if action in POWER_EVENT_ACTIONS or "power" in msg or "battery" in msg or "mains" in msg:
+    if action in POWER_EVENT_ACTIONS or action in DEVICE_EVENT_ACTIONS or "power" in msg or "battery" in msg or "mains" in msg:
         return "power"
     if action in ALARM_EVENT_ACTIONS or state in {"alarm", "emergency", "panic", "fire", "medical"} or "in alarm" in msg or msg.startswith("alarm"):
         return "zones"
@@ -2479,8 +2582,6 @@ def is_noise_olarm_event(event: dict[str, Any] | None) -> bool:
     if action in NOISE_EVENT_ACTIONS:
         return True
     if "system idle" in msg or "idle for" in msg:
-        return True
-    if "olarm device" in msg and ("online" in msg or "offline" in msg):
         return True
     return False
 
@@ -2513,6 +2614,8 @@ def _event_state_label(state: str) -> str:
         "fail": "FAILURE",
         "restore": "RESTORE",
         "low": "LOW",
+        "offline": "OFFLINE",
+        "online": "ONLINE",
     }
     return mapping.get(raw.lower(), raw.upper()) if raw else ""
 
@@ -2988,7 +3091,9 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
     if not label:
         label = msg or action or "Event"
     state_lab = _event_state_label(str(event.get("eventState") or ""))
-    if tab == "power" and msg:
+    if action.lower() in DEVICE_EVENT_ACTIONS:
+        label = "Olarm Offline" if str(event.get("eventState") or "").lower() == "offline" else "Olarm Online"
+    elif tab == "power" and msg:
         label = msg
     time_s, date_s = _sa_stamp(event.get("eventTime"))
     actor = _arial_event_actor(tab, event, device)
