@@ -453,7 +453,7 @@
         var dev = (lastData && lastData.devices || []).filter(function (x) { return x.id === gangDev; })[0]; if (!dev) return;
         var user = window.arialUser; if (!user || !user.code) { if (typeof window.arialRejectNeedLogin === "function") window.arialRejectNeedLogin(); return; }
         var codes = gangCodes(dev);
-        codes.forEach(function (c) { pend[dev.id + ":" + c] = { on: want, until: Date.now() + 8000 }; dev.status[c] = want; });
+        codes.forEach(function (c) { pend[dev.id + ":" + c] = { on: want, until: Date.now() + 25000 }; dev.status[c] = want; });
         renderGangPop();
         fetch(API + "/tuya/switch", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code: user.code, device_id: dev.id, switch: "all", value: want }) })
@@ -479,7 +479,7 @@
           var user = window.arialUser;
           if (!user || !user.code) { if (typeof window.arialRejectNeedLogin === "function") window.arialRejectNeedLogin(); return; }
           var dev = mb.getAttribute("data-dev"), codes = (mb.getAttribute("data-codes") || "").split(",").filter(Boolean), want = mb.getAttribute("data-any") !== "1";
-          codes.forEach(function (c) { pend[dev + ":" + c] = { on: want, until: Date.now() + 8000 }; });
+          codes.forEach(function (c) { pend[dev + ":" + c] = { on: want, until: Date.now() + 25000 }; });
           mb.classList.toggle("on", want); mb.setAttribute("data-any", want ? "1" : "0"); mb.classList.add("pending");
           var tile = mb.closest(".hs-light"); if (tile) { tile.classList.toggle("allon", want); tile.classList.remove("mixed"); var stEl = tile.querySelector(".st"); if (stEl) stEl.textContent = want ? "ON" : "OFF"; }
           fetch(API + "/tuya/switch", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
@@ -496,14 +496,15 @@
         var user = window.arialUser;
         if (!user || !user.code) { if (typeof window.arialRejectNeedLogin === "function") window.arialRejectNeedLogin(); return; }
         var want = b.getAttribute("data-on") !== "1";
-        pend[b.getAttribute("data-dev") + ":" + b.getAttribute("data-sw")] = { on: want, until: Date.now() + 8000 };
+        pend[b.getAttribute("data-dev") + ":" + b.getAttribute("data-sw")] = { on: want, until: Date.now() + 25000 };
         b.classList.toggle("on", want); b.setAttribute("data-on", want ? "1" : "0"); b.classList.add("pending");
         var stx = b.querySelector(".light-state"); if (stx) stx.textContent = want ? "ON" : "OFF";
         fetch(API + "/tuya/switch", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code: user.code, device_id: b.getAttribute("data-dev"), switch: b.getAttribute("data-sw"), value: want }) })
-          .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.detail || "failed"); }); })
+          .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.detail || "failed"); return j; }); })
+          .then(function () { pend[b.getAttribute("data-dev") + ":" + b.getAttribute("data-sw")] = { on: want, until: Date.now() + 25000 }; })
           .catch(function () { delete pend[b.getAttribute("data-dev") + ":" + b.getAttribute("data-sw")]; b.classList.toggle("on", !want); b.setAttribute("data-on", want ? "0" : "1"); })
-          .then(function () { b.classList.remove("pending"); setTimeout(poll, 1200); });
+          .then(function () { b.classList.remove("pending"); setTimeout(poll, 2500); });
       }
       // Unassigned credential slot: long-press the "last unlock" tile to name it (keypad login required).
       var holdT = null;
