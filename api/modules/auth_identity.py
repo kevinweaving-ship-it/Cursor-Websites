@@ -28,6 +28,8 @@ MAX_RESENDS = 3
 RESEND_COOLDOWN_SEC = 45
 PIN_LEN = 6
 CLAIM_PIN_LEN = 4
+MIN_PASSWORD_LEN = 7
+PUBLIC_SAS_PREFIX = "PUB_"
 ALLOWED_RETURN_HOSTS = {
     "sailingsa.co.za",
     "www.sailingsa.co.za",
@@ -90,9 +92,21 @@ def phone_intl(local10: str) -> str:
 
 def is_real_sas_id(sas_id: Any) -> bool:
     s = str(sas_id or "").strip()
-    if not s or s.startswith("FB_") or s.startswith("TMP_") or s.startswith("PUB_"):
+    if not s or s.startswith("FB_") or s.startswith("TMP_") or s.startswith(PUBLIC_SAS_PREFIX):
         return False
     return s.isdigit()
+
+
+def new_public_sas_id() -> str:
+    """Placeholder key for a general-public account. Not a sailor SAS ID."""
+    return PUBLIC_SAS_PREFIX + secrets.token_hex(8)
+
+
+def valid_new_password(password: Any) -> Tuple[bool, str]:
+    raw = str(password or "")
+    if len(raw) < MIN_PASSWORD_LEN:
+        return False, f"Password must be at least {MIN_PASSWORD_LEN} characters"
+    return True, raw
 
 
 def classify_ownership(relationship: Any, sas_id: Any) -> str:
@@ -209,23 +223,57 @@ class MemoryStore:
     def get_contact(self, account_key: str) -> Optional[Dict[str, Any]]:
         return self.contacts.get(account_key)
 
-    def consume_pin(self, challenge_id: str, pin: str, worker_id: str = "") -> Challenge:
+    def consume_proof(self, token_hash: str) -> IdentityProof:
+        with self._lock:
+            proof = self.proofs.get(token_hash)
+            if not proof:
+                raise ValueError("Unknown or expired identity proof")
+            if proof.used_at:
+                raise ValueError("Identity proof already used")
+            if proof.expires_at <= _now():
+                raise ValueError("Identity proof expired")
+            proof.used_at = _now()
+            return proof
+
+    def _pin_precheck(self, challenge_id: str, pin: str, worker_id: str = "", expected_purpose: str = "") -> Challenge:
         pin_hash = hash_secret(re.sub(r"\D", "", str(pin)))
+        ch = self.challenges.get(challenge_id)
+        if not ch:
+            raise ValueError("Unknown challenge")
+        if expected_purpose and ch.purpose != expected_purpose:
+            raise ValueError("Wrong verification purpose")
+        if ch.consumed_at:
+            raise ValueError("PIN already used")
+        if ch.expires_at <= _now():
+            raise ValueError("PIN expired")
+        if ch.attempts >= MAX_ATTEMPTS:
+            raise ValueError("Too many attempts")
+        if worker_id:
+            ch.worker_id = worker_id
+        if ch.code_hash != pin_hash:
+            ch.attempts += 1
+            raise ValueError("Incorrect PIN")
+        return ch
+
+    def match_pin(self, challenge_id: str, pin: str, worker_id: str = "", expected_purpose: str = "") -> Challenge:
+        with self._lock:
+            return self._pin_precheck(challenge_id, pin, worker_id, expected_purpose)
+
+    def consume_matched(self, challenge_id: str) -> Challenge:
         with self._lock:
             ch = self.challenges.get(challenge_id)
             if not ch:
                 raise ValueError("Unknown challenge")
             if ch.consumed_at:
                 raise ValueError("PIN already used")
-            if ch.expires_at <= _now():
-                raise ValueError("PIN expired")
-            if ch.attempts >= MAX_ATTEMPTS:
-                raise ValueError("Too many attempts")
-            if worker_id:
-                ch.worker_id = worker_id
-            if ch.code_hash != pin_hash:
-                ch.attempts += 1
-                raise ValueError("Incorrect PIN")
+            ch.attempts += 1
+            ch.consumed_at = _now()
+            ch.confirm_pending = False
+            return ch
+
+    def consume_pin(self, challenge_id: str, pin: str, worker_id: str = "", expected_purpose: str = "") -> Challenge:
+        with self._lock:
+            ch = self._pin_precheck(challenge_id, pin, worker_id, expected_purpose)
             ch.attempts += 1
             ch.consumed_at = _now()
             ch.confirm_pending = False
@@ -384,6 +432,64 @@ class SqlStore:
             expires_at=_from_dt(row.get("expires_at")),
             used_at=_from_dt(row.get("used_at")),
         )
+
+    def consume_proof(self, token_hash: str) -> IdentityProof:
+        cols = (
+            "token_hash",
+            "provider",
+            "provider_id",
+            "email",
+            "email_verified",
+            "first_name",
+            "last_name",
+            "full_name",
+            "picture",
+            "expires_at",
+            "used_at",
+        )
+        conn, cur = self._ctx()
+        try:
+            cur.execute(
+                """
+                UPDATE public.auth_identity_proofs
+                SET used_at = NOW()
+                WHERE token_hash = %s
+                  AND used_at IS NULL
+                  AND expires_at > NOW()
+                RETURNING """
+                + ", ".join(cols),
+                (token_hash,),
+            )
+            row = _row_map(cur.fetchone(), cols)
+            if row:
+                self._done(conn, cur, True)
+                return IdentityProof(
+                    token_hash=row["token_hash"],
+                    provider=row["provider"],
+                    provider_id=row["provider_id"],
+                    email=row.get("email") or "",
+                    email_verified=bool(row.get("email_verified")),
+                    first_name=row.get("first_name") or "",
+                    last_name=row.get("last_name") or "",
+                    full_name=row.get("full_name") or "",
+                    picture=row.get("picture") or "",
+                    expires_at=_from_dt(row.get("expires_at")),
+                    used_at=_from_dt(row.get("used_at")),
+                )
+            cur.execute(
+                "SELECT " + ", ".join(cols) + " FROM public.auth_identity_proofs WHERE token_hash = %s",
+                (token_hash,),
+            )
+            found = _row_map(cur.fetchone(), cols)
+            self._done(conn, cur, True)
+        except Exception:
+            self._done(conn, cur, False)
+            raise
+        if not found:
+            raise ValueError("Unknown or expired identity proof")
+        if found.get("used_at"):
+            raise ValueError("Identity proof already used")
+        raise ValueError("Identity proof expired")
 
     def _challenge_from_row(self, row: Optional[Dict[str, Any]]) -> Optional[Challenge]:
         if not row:
@@ -609,9 +715,85 @@ class SqlStore:
             raise
         return row
 
-    def consume_pin(self, challenge_id: str, pin: str, worker_id: str = "") -> Challenge:
+    def match_pin(self, challenge_id: str, pin: str, worker_id: str = "", expected_purpose: str = "") -> Challenge:
         pin_hash = hash_secret(re.sub(r"\D", "", str(pin)))
         cols = self._CH_COLS
+        conn, cur = self._ctx()
+        try:
+            cur.execute(
+                "SELECT " + ", ".join(cols) + " FROM public.auth_challenges WHERE id = %s",
+                (challenge_id,),
+            )
+            found = _row_map(cur.fetchone(), cols)
+            if not found:
+                self._done(conn, cur, True)
+                raise ValueError("Unknown challenge")
+            ch = self._challenge_from_row(found)
+            if expected_purpose and ch.purpose != expected_purpose:
+                self._done(conn, cur, True)
+                raise ValueError("Wrong verification purpose")
+            if ch.consumed_at:
+                self._done(conn, cur, True)
+                raise ValueError("PIN already used")
+            if ch.expires_at <= _now():
+                self._done(conn, cur, True)
+                raise ValueError("PIN expired")
+            if ch.attempts >= MAX_ATTEMPTS:
+                self._done(conn, cur, True)
+                raise ValueError("Too many attempts")
+            if ch.code_hash != pin_hash:
+                cur.execute(
+                    """
+                    UPDATE public.auth_challenges
+                    SET attempts = attempts + 1,
+                        worker_id = COALESCE(NULLIF(%s, ''), worker_id)
+                    WHERE id = %s AND consumed_at IS NULL
+                    """,
+                    (worker_id, challenge_id),
+                )
+                self._done(conn, cur, True)
+                raise ValueError("Incorrect PIN")
+            if worker_id:
+                cur.execute(
+                    "UPDATE public.auth_challenges SET worker_id = %s WHERE id = %s",
+                    (worker_id, challenge_id),
+                )
+                ch.worker_id = worker_id
+            self._done(conn, cur, True)
+            return ch
+        except ValueError:
+            raise
+        except Exception:
+            self._done(conn, cur, False)
+            raise
+
+    def consume_matched(self, challenge_id: str) -> Challenge:
+        cols = self._CH_COLS
+        conn, cur = self._ctx()
+        try:
+            cur.execute(
+                """
+                UPDATE public.auth_challenges
+                SET consumed_at = NOW(), confirm_pending = FALSE, attempts = attempts + 1
+                WHERE id = %s AND consumed_at IS NULL AND expires_at > NOW()
+                RETURNING """
+                + ", ".join(cols),
+                (challenge_id,),
+            )
+            row = _row_map(cur.fetchone(), cols)
+            self._done(conn, cur, True)
+        except Exception:
+            self._done(conn, cur, False)
+            raise
+        if not row:
+            raise ValueError("PIN already used")
+        return self._challenge_from_row(row)
+
+    def consume_pin(self, challenge_id: str, pin: str, worker_id: str = "", expected_purpose: str = "") -> Challenge:
+        pin_hash = hash_secret(re.sub(r"\D", "", str(pin)))
+        cols = self._CH_COLS
+        purpose_sql = " AND purpose = %s" if expected_purpose else ""
+        purpose_args = (expected_purpose,) if expected_purpose else ()
         conn, cur = self._ctx()
         try:
             cur.execute(
@@ -624,15 +806,26 @@ class SqlStore:
                   AND consumed_at IS NULL
                   AND expires_at > NOW()
                   AND attempts < %s
-                  AND code_hash = %s
+                  AND code_hash = %s"""
+                + purpose_sql
+                + """
                 RETURNING """
                 + ", ".join(cols),
-                (worker_id, challenge_id, MAX_ATTEMPTS, pin_hash),
+                (worker_id, challenge_id, MAX_ATTEMPTS, pin_hash) + purpose_args,
             )
             row = _row_map(cur.fetchone(), cols)
             if row:
                 self._done(conn, cur, True)
                 return self._challenge_from_row(row)
+            if expected_purpose:
+                cur.execute(
+                    "SELECT " + ", ".join(cols) + " FROM public.auth_challenges WHERE id = %s",
+                    (challenge_id,),
+                )
+                maybe = _row_map(cur.fetchone(), cols)
+                if maybe and str(maybe.get("purpose") or "") != expected_purpose:
+                    self._done(conn, cur, True)
+                    raise ValueError("Wrong verification purpose")
             cur.execute(
                 """
                 UPDATE public.auth_challenges
@@ -775,7 +968,10 @@ def issue_identity_proof(store: Any, provider: str, profile: Dict[str, Any]) -> 
 def consume_identity_proof(store: Any, token: str) -> IdentityProof:
     if not token:
         raise ValueError("Missing identity proof")
-    proof = store.get_proof(hash_secret(token))
+    token_hash = hash_secret(token)
+    if hasattr(store, "consume_proof"):
+        return store.consume_proof(token_hash)
+    proof = store.get_proof(token_hash)
     if not proof:
         raise ValueError("Unknown or expired identity proof")
     if proof.used_at:
@@ -892,6 +1088,63 @@ def confirm_link_challenge(store: Any, raw_token: str) -> Challenge:
     return ch
 
 
+def _resolve_challenge_id(store: Any, challenge_id: str, purpose: str, destination: str) -> str:
+    cid = str(challenge_id or "").strip()
+    if cid:
+        return cid
+    if purpose and destination:
+        dest = destination.strip().lower() if "@" in str(destination) else normalize_phone(destination)
+        if "@" in str(destination):
+            dest = str(destination).strip().lower()
+        open_ch = store.find_open_challenge(purpose, dest)
+        if not open_ch:
+            raise ValueError("Unknown challenge")
+        return open_ch.id
+    raise ValueError("Unknown challenge")
+
+
+def match_pin(
+    store: Any,
+    challenge_id: str,
+    pin: str,
+    worker_id: str = "",
+    purpose: str = "",
+    destination: str = "",
+    expected_purpose: str = "",
+) -> Challenge:
+    cid = _resolve_challenge_id(store, challenge_id, purpose or expected_purpose, destination)
+    want = expected_purpose or purpose
+    if hasattr(store, "match_pin"):
+        return store.match_pin(cid, pin, worker_id, expected_purpose=want)
+    if hasattr(store, "consume_pin"):
+        ch = store.get_challenge(cid)
+        if not ch:
+            raise ValueError("Unknown challenge")
+        if want and ch.purpose != want:
+            raise ValueError("Wrong verification purpose")
+        if ch.consumed_at:
+            raise ValueError("PIN already used")
+        if hash_secret(re.sub(r"\D", "", str(pin))) != ch.code_hash:
+            ch.attempts += 1
+            store.put_challenge(ch)
+            raise ValueError("Incorrect PIN")
+        return ch
+    raise ValueError("Unknown challenge")
+
+
+def consume_matched(store: Any, challenge_id: str) -> Challenge:
+    if hasattr(store, "consume_matched"):
+        return store.consume_matched(challenge_id)
+    ch = store.get_challenge(challenge_id)
+    if not ch:
+        raise ValueError("Unknown challenge")
+    if ch.consumed_at:
+        raise ValueError("PIN already used")
+    ch.consumed_at = _now()
+    store.put_challenge(ch)
+    return ch
+
+
 def verify_pin(
     store: Any,
     challenge_id: str,
@@ -899,21 +1152,17 @@ def verify_pin(
     worker_id: str = "",
     purpose: str = "",
     destination: str = "",
+    expected_purpose: str = "",
 ) -> Challenge:
-    cid = str(challenge_id or "").strip()
-    if not cid and purpose and destination:
-        dest = destination.strip().lower() if purpose and "@" in str(destination) else normalize_phone(destination)
-        if "@" in str(destination):
-            dest = str(destination).strip().lower()
-        open_ch = store.find_open_challenge(purpose, dest)
-        if not open_ch:
-            raise ValueError("Unknown challenge")
-        cid = open_ch.id
+    cid = _resolve_challenge_id(store, challenge_id, purpose or expected_purpose, destination)
+    want = expected_purpose or purpose
     if hasattr(store, "consume_pin"):
-        return store.consume_pin(cid, pin, worker_id)
+        return store.consume_pin(cid, pin, worker_id, expected_purpose=want)
     ch = store.get_challenge(cid)
     if not ch:
         raise ValueError("Unknown challenge")
+    if want and ch.purpose != want:
+        raise ValueError("Wrong verification purpose")
     if ch.consumed_at:
         raise ValueError("PIN already used")
     if ch.expires_at <= _now():
@@ -929,6 +1178,19 @@ def verify_pin(
     ch.consumed_at = _now()
     store.put_challenge(ch)
     return ch
+
+
+def bind_recovery_account(ch: Challenge, account_id: Any, destination: str) -> None:
+    if str(ch.purpose or "") != "recovery":
+        raise ValueError("Wrong verification purpose")
+    dest = str(destination or "").strip().lower()
+    if ch.channel == "email":
+        dest = dest.lower()
+    if str(ch.destination or "") != dest:
+        raise ValueError("Recovery code is not for this account")
+    hint = str(ch.account_hint or "").strip()
+    if hint and str(account_id) != hint:
+        raise ValueError("Recovery code is not for this account")
 
 
 def safe_return_url(value: Any, default: str = "/") -> str:
@@ -958,6 +1220,7 @@ class CompletionIntent:
     create_session: bool
     save_contact: bool
     find_existing_only: bool
+    create_public_account: bool
     login_method: str
     return_to: str
     provenance: str
@@ -995,6 +1258,7 @@ def completion_intent(
         create_session=True,
         save_contact=True,
         find_existing_only=purpose in {"login", "recovery"},
+        create_public_account=ownership == OWNERSHIP_PUBLIC and purpose not in {"login", "recovery", "claim"},
         login_method=method,
         return_to=safe_return_url(return_to, default_return),
         provenance=f"{purpose}_{ch.channel}",

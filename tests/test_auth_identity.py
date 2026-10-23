@@ -313,3 +313,45 @@ def test_remember_logout_yes_then_no():
     assert auth.logout_choice(store, raw, keep_remember=False) == "cleared"
     with pytest.raises(ValueError):
         auth.recognise_remembered_device(store, raw)
+
+
+def test_wrong_purpose_and_password_before_consume():
+    store = MemoryStore()
+    cid, pin = auth.issue_pin_challenge(
+        store, purpose="login", channel="email", destination="ann@b.co.za"
+    )
+    with pytest.raises(ValueError, match="Wrong verification purpose"):
+        auth.match_pin(store, cid, pin, expected_purpose="recovery")
+    assert not store.get_challenge(cid).consumed_at
+    ok, _ = auth.valid_new_password("123")
+    assert ok is False
+    rec_cid, rec_pin = auth.issue_pin_challenge(
+        store, purpose="recovery", channel="email", destination="ann@b.co.za", account_hint="9"
+    )
+    ch = auth.match_pin(store, rec_cid, rec_pin, expected_purpose="recovery")
+    auth.bind_recovery_account(ch, "9", "ann@b.co.za")
+    assert not store.get_challenge(rec_cid).consumed_at
+    auth.consume_matched(store, rec_cid)
+    assert store.get_challenge(rec_cid).consumed_at
+
+
+def test_memory_concurrent_proof_replay():
+    store = MemoryStore()
+    token = auth.issue_identity_proof(
+        store, "facebook", {"provider_id": "fb-1", "email": "a@b.co.za"}
+    )
+    results = []
+
+    def worker():
+        try:
+            results.append(("ok", auth.consume_identity_proof(store, token)))
+        except ValueError as e:
+            results.append(("err", str(e)))
+
+    threads = [__import__("threading").Thread(target=worker) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sum(1 for r in results if r[0] == "ok") == 1
+    assert sum(1 for r in results if r[0] == "err") == 7
