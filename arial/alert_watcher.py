@@ -305,7 +305,9 @@ def compose(cfg, row, act_power):
         from urllib.parse import quote
         ac = (act_power or {}).get("acOk")
         ev_url = (f"{cfg['clip_page']}?t={int(float(row['at']) // 1000)}&ev={quote(str(row.get('activity') or ''))}"
-                  f"&s={quote(str(row.get('state') or '').upper())}&p={'ok' if ac is True else 'fail' if ac is False else ''}")
+                  f"&s={quote(str(row.get('state') or '').upper())}&p={'ok' if ac is True else 'fail' if ac is False else ''}"
+                  f"&u={quote(str(row.get('actor') or row.get('olarmUser') or ''))}"
+                  f"&src={quote(str(row.get('via') or ''))}")
         # One link only. The JPEG card is the replay/live tap target; two URLs looked like a duplicate message.
         links = f"\u25B6 Replay: {ev_url}"
     return f"{cfg.get('label')} {when}\n{act_line}\n{power_line(cfg, act_power)}\n{links}".rstrip()
@@ -361,7 +363,9 @@ def prebuild_clips(cfg, at_ms):
 def event_urls(cfg, row, power):
     from urllib.parse import quote
     base = (f"{cfg['clip_page']}?t={int(float(row['at']) // 1000)}&ev={quote(str(row.get('activity') or ''))}"
-            f"&s={quote(str(row.get('state') or '').upper())}&p={power}")
+            f"&s={quote(str(row.get('state') or '').upper())}&p={power}"
+            f"&u={quote(str(row.get('actor') or row.get('olarmUser') or ''))}"
+            f"&src={quote(str(row.get('via') or ''))}")
     return base, base + "&live=1"
 
 

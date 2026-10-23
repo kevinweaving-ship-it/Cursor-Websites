@@ -2616,6 +2616,10 @@ def _event_state_label(state: str) -> str:
         "low": "LOW",
         "offline": "OFFLINE",
         "online": "ONLINE",
+        "bypass_on": "BYPASS",
+        "bypass_off": "UNBYPASS",
+        "bypass": "BYPASS",
+        "unbypass": "UNBYPASS",
     }
     return mapping.get(raw.lower(), raw.upper()) if raw else ""
 
@@ -2702,6 +2706,24 @@ def _map_our_actor(raw: str) -> str:
     if "comnet" in s:
         return "Comnet"
     return ""
+
+
+def _olarm_app_user(event: dict[str, Any] | None) -> str:
+    """Name Olarm sent for an App / cloud action (userFullname). Empty when the panel had no user."""
+    ev = event or {}
+    for key in ("userFullname", "userName", "user"):
+        name = str(ev.get(key) or "").strip()
+        if name:
+            return name
+    return ""
+
+
+def _is_bypass_event(event: dict[str, Any] | None) -> bool:
+    ev = event or {}
+    blob = " ".join(
+        str(ev.get(k) or "") for k in ("eventAction", "action", "eventState", "state", "eventMsg", "msg", "title")
+    ).lower()
+    return "bypass" in blob
 
 
 def is_skip_activity_event(event: dict[str, Any] | None) -> bool:
@@ -2837,18 +2859,11 @@ def _remember_keypad(code: str, cmd: str, num: int = 1) -> dict[str, Any]:
     return _last_keypad
 
 
-def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] | None) -> str:
-    """Credit the logged-in keypad user (Pingoa / Amoroc / Onguard / Comnet). Never Olarm userFullname."""
-    if tab != "areas":
+def _keypad_matched_label(event: dict[str, Any], device: dict[str, Any] | None, want_cmds: set[str]) -> str:
+    """Closest keypad press of the wanted command within the match window."""
+    if not want_cmds:
         return ""
     _load_keypad_log()
-    state = _area_state_token(str(event.get("eventState") or event.get("state") or ""))
-    want_arm = state in {"arm", "stay", "sleep", "countdown"}
-    want_disarm = state == "disarm"
-    if not want_arm and not want_disarm:
-        return _map_our_actor(
-            str(event.get("userFullname") or event.get("userName") or event.get("user") or "")
-        )
     ev_ms = _event_time_ms(event)
     if not ev_ms:
         try:
@@ -2868,10 +2883,7 @@ def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] |
     for row in reversed(rows):
         if not isinstance(row, dict):
             continue
-        cmd = str(row.get("action") or "")
-        if want_arm and cmd not in {"area-arm", "area-stay", "area-sleep"}:
-            continue
-        if want_disarm and cmd != "area-disarm":
+        if str(row.get("action") or "") not in want_cmds:
             continue
         try:
             kp_ms = int(float(row.get("at") or 0) * 1000)
@@ -2887,15 +2899,48 @@ def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] |
         if best_dt is None or score < best_dt:
             best = row
             best_dt = score
-    if best:
-        label = _map_our_actor(str(best.get("from") or best.get("label") or best.get("name") or ""))
-        if not label:
-            label = str(best.get("from") or best.get("label") or "").strip()
-        if label in KEYPAD_ACTORS:
-            return label
-    return _map_our_actor(
-        str(event.get("userFullname") or event.get("userName") or event.get("user") or "")
-    )
+    if not best:
+        return ""
+    label = _map_our_actor(str(best.get("from") or best.get("label") or best.get("name") or ""))
+    if not label:
+        label = str(best.get("from") or best.get("label") or "").strip()
+    return label if label in KEYPAD_ACTORS else ""
+
+
+def _arial_event_credit(tab: str, event: dict[str, Any], device: dict[str, Any] | None) -> tuple[str, str]:
+    """Who did this and how: keypad match → contractor + Remote; else Olarm App user + App."""
+    app_user = _olarm_app_user(event)
+    state = _area_state_token(str(event.get("eventState") or event.get("state") or ""))
+    want_arm = state in {"arm", "stay", "sleep", "countdown"}
+    want_disarm = state == "disarm"
+    if tab == "areas":
+        cmds: set[str] = set()
+        if want_arm:
+            cmds = {"area-arm", "area-stay", "area-sleep"}
+        elif want_disarm:
+            cmds = {"area-disarm"}
+        who = _keypad_matched_label(event, device, cmds)
+        if who:
+            return who, "Remote"
+        if app_user:
+            return app_user, "App"
+        if want_arm:
+            return "", "Auto"
+        if want_disarm:
+            return "", "Panel"
+        return "", ""
+    if _is_bypass_event(event):
+        who = _keypad_matched_label(event, device, {"zone-bypass", "zone-unbypass"})
+        if who:
+            return who, "Remote"
+        if app_user:
+            return app_user, "App"
+    return "", ""
+
+
+def _arial_event_actor(tab: str, event: dict[str, Any], device: dict[str, Any] | None) -> str:
+    """Keypad contractor when a press matches; otherwise the Olarm App user on arm/disarm/bypass."""
+    return _arial_event_credit(tab, event, device)[0]
 
 
 def _matching_press_ms(state_token: str, ev_ms: int) -> int:
@@ -2927,22 +2972,32 @@ def _stamp_activity_actors(bundle: dict[str, Any] | None) -> dict[str, Any]:
     device = _stale_panel() if isinstance(_stale_panel(), dict) else None
     rows = [r for r in (bundle.get("events") or []) if isinstance(r, dict) and not is_skip_activity_event(r)]
     for row in rows:
-        if str(row.get("tab") or "") != "areas":
+        tab = str(row.get("tab") or "")
+        if tab != "areas" and not _is_bypass_event(
+            {"eventAction": row.get("action"), "eventState": row.get("state"), "eventMsg": row.get("msg") or row.get("title")}
+        ):
             continue
-        actor = _arial_event_actor(
-            "areas",
-            {
-                "eventState": _area_state_token(str(row.get("state") or "")),
-                "eventTime": row.get("at"),
-                "at": row.get("at"),
-            },
-            device,
-        )
-        if not actor:
-            continue
-        row["actor"] = actor
-        row["via"] = _activity_via(actor) or row.get("via") or ""
-        row["activity"] = _activity_line(str(row.get("title") or ""), str(row.get("state") or ""), actor, str(row.get("via") or ""))
+        credit_event = {
+            "eventState": _area_state_token(str(row.get("state") or "")) or str(row.get("state") or ""),
+            "eventTime": row.get("at"),
+            "at": row.get("at"),
+            "eventAction": str(row.get("action") or ""),
+            "eventMsg": str(row.get("msg") or row.get("title") or ""),
+            "userFullname": str(row.get("olarmUser") or "").strip(),
+        }
+        actor, via = _arial_event_credit(tab, credit_event, device)
+        if via == "Remote" and actor:
+            row["actor"] = actor
+            row["via"] = "Remote"
+        elif actor and not row.get("actor"):
+            row["actor"] = actor
+            row["via"] = via or row.get("via") or "App"
+        elif via and not row.get("via"):
+            row["via"] = via
+        who = str(row.get("actor") or "").strip()
+        src = str(row.get("via") or "").strip()
+        if who or src:
+            row["activity"] = _activity_line(str(row.get("title") or ""), str(row.get("state") or ""), who, src)
         press_ms = _matching_press_ms(_area_state_token(str(row.get("state") or "")), _event_time_ms({"eventTime": row.get("at")}))
         if press_ms and not row.get("confirmedAt"):   # idempotent: cached bundles are re-stamped on every request
             row["confirmedAt"] = row.get("at")
@@ -3096,16 +3151,7 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
     elif tab == "power" and msg:
         label = msg
     time_s, date_s = _sa_stamp(event.get("eventTime"))
-    actor = _arial_event_actor(tab, event, device)
-    via = _activity_via(actor)
-    if not actor and tab == "areas" and str(event.get("eventState") or "").lower() in {"arm", "disarm", "stay", "sleep"}:
-        # No keypad user matched: it came from the Olarm app / panel. Show the source, never the Olarm account name.
-        if str(event.get("userFullname") or "").strip():
-            via = "App"
-        elif str(event.get("eventState") or "").lower() in {"arm", "stay", "sleep"}:
-            via = "Auto"      # no user at all: the panel's own auto-arm schedule
-        else:
-            via = "Panel"     # disarmed at the physical panel keypad
+    actor, via = _arial_event_credit(tab, event, device)
     activity = _activity_line(label, state_lab, actor, via)
     return {
         "tab": tab,

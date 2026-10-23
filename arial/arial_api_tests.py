@@ -485,8 +485,10 @@ def test_area_arm_uses_pingoa_not_olarm_user(tmp_path, monkeypatch):
         },
         {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
     )
-    assert mapped["actor"] == "Pingoa"
-    assert "Marc" not in mapped["activity"]
+    assert mapped["actor"] == "Marc"
+    assert mapped["via"] == "App"
+    assert "Marc" in mapped["activity"]
+    assert mapped["activity"].endswith("· App")
     stray = arial_api.format_olarm_event(
         {
             "eventAction": "area",
@@ -498,8 +500,8 @@ def test_area_arm_uses_pingoa_not_olarm_user(tmp_path, monkeypatch):
         },
         {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
     )
-    assert stray["actor"] == ""
-    assert "Kevin" not in stray["activity"]
+    assert stray["actor"] == "Kevin"
+    assert "Kevin" in stray["activity"]
     assert stray["via"] == "App"
     assert stray["activity"].endswith("· App")
 
@@ -561,7 +563,10 @@ def test_olarm_app_disarm_arrives_as_notready():
     )
     assert row["state"] == "DISARMED"
     assert row["tab"] == "areas"
-    assert "Kevin" not in row["activity"]
+    assert row["actor"] == "Kevin"
+    assert row["via"] == "App"
+    assert "Kevin" in row["activity"]
+    assert row["activity"].endswith("· App")
     assert not arial_api.is_skip_activity_event(
         {"eventAction": "area", "eventState": "notready", "eventMsg": "DISARMED - Area 1 - Facility Building"}
     )
@@ -662,6 +667,51 @@ def test_comnet_pin_2640_and_logo(tmp_path, monkeypatch):
     assert "Kevin" not in row["activity"]
     assert arial_api._activity_via("Comnet") == "Remote"
     assert arial_api._map_our_actor("Comnet") == "Comnet"
+
+
+def test_olarm_app_bypass_shows_user(tmp_path, monkeypatch):
+    _reset_keypad_log(monkeypatch, tmp_path)
+    row = arial_api.format_olarm_event(
+        {
+            "eventAction": "zone_bypass",
+            "eventState": "bypass_on",
+            "eventNum": 8,
+            "eventMsg": "BYPASS ON - Zone 8 - Garage PIR",
+            "eventTime": int(time.time() * 1000),
+            "userFullname": "Kevin",
+        },
+        {"arialZones": [{"num": 8, "label": "Garage PIR"}]},
+    )
+    assert row["tab"] == "zones"
+    assert row["state"] == "BYPASS"
+    assert row["actor"] == "Kevin"
+    assert row["via"] == "App"
+    assert "Kevin" in row["activity"]
+    assert row["activity"].endswith("· App")
+    off = arial_api.format_olarm_event(
+        {
+            "eventAction": "zone_bypass",
+            "eventState": "bypass_off",
+            "eventNum": 8,
+            "eventMsg": "BYPASS OFF - Zone 8 - Garage PIR",
+            "eventTime": int(time.time() * 1000),
+            "userFullname": "Birgitta",
+        },
+        {"arialZones": [{"num": 8, "label": "Garage PIR"}]},
+    )
+    assert off["actor"] == "Birgitta" and off["via"] == "App"
+    assert "Birgitta" in off["activity"]
+
+
+def test_clip_page_keypad_opens_alarm_home():
+    html = (Path(__file__).resolve().parent / "voelklip" / "clip" / "index.html").read_text(encoding="utf-8")
+    assert 'id="keypad-top"' in html
+    assert 'id="keypad-ev"' in html
+    assert html.count('href="/voelklip/"') >= 2
+    assert "Open keypad" in html
+    assert "d-user" in html
+    assert 'q.get("u")' in html
+    assert 'q.get("src")' in html
 
 
 def test_breaker_energy_bins_and_endpoint(tmp_path, monkeypatch):
@@ -772,14 +822,14 @@ def test_kevin_pin_6114(tmp_path, monkeypatch):
         {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
     )
     assert row["actor"] == "Kevin" and row["via"] == "Remote"
-    # An Olarm-side "Kevin" with no keypad action behind it still shows no name.
+    # Olarm App arm by Kevin (no keypad press) must still show the user, sourced as App.
     _reset_keypad_log(monkeypatch, tmp_path)
     stray = arial_api.format_olarm_event(
         {"eventAction": "area", "eventState": "arm", "eventNum": 1, "eventMsg": "ARMED - Area 1 - Facility Building",
          "eventTime": int(time.time() * 1000), "userFullname": "Kevin"},
         {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
     )
-    assert stray["actor"] == "" and "Kevin" not in stray["activity"]
+    assert stray["actor"] == "Kevin" and stray["via"] == "App" and "Kevin" in stray["activity"]
 
 
 def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):

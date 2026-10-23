@@ -11,7 +11,11 @@
       body{margin:0;background:#e9edf3;font:14px Arial,Helvetica,sans-serif;color:#1e293b}
       .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:#0f2747;color:#fff}
       .top b{font-size:16px;letter-spacing:.3px}
+      .top-right{display:flex;align-items:center;gap:10px;margin-left:auto}
       .top .stamp{font-size:12px;opacity:.9}
+      .keypad-link{display:inline-flex;align-items:center;gap:5px;color:#fff;text-decoration:none;font:700 12px Arial,Helvetica,sans-serif;min-height:44px;padding:0 4px}
+      .keypad-link svg{width:22px;height:22px;flex:0 0 22px}
+      .ev .keypad-link{color:#0f2747;align-self:flex-start;margin-left:auto;flex:0 0 auto}
       .wrap{max-width:480px;margin:0 auto;padding:10px}
       .back{display:inline-block;margin:0 0 8px;color:#1d4ed8;text-decoration:none;font-weight:600;min-height:44px;line-height:44px}
       .card{background:#fff;border-radius:12px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
@@ -49,7 +53,7 @@
     </style>
 </head>
 <body>
-    <div class="top"><b>Voelklip</b><span class="stamp" id="top-stamp"></span></div>
+    <div class="top"><b>Voelklip</b><span class="top-right"><span class="stamp" id="top-stamp"></span><a class="keypad-link" id="keypad-top" href="/voelklip/" title="Open keypad" aria-label="Open keypad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="8" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1" fill="currentColor" stroke="none"/></svg><span>Keypad</span></a></span></div>
     <div class="wrap">
         <a class="back" href="/voelklip/">&larr; Back to Activity</a>
         <div class="card" id="cams">
@@ -60,6 +64,7 @@
                     <div class="ev-line" id="ev-line"></div>
                     <div class="ev-power"><span class="plug" id="plug" aria-hidden="true">&#x1F50C;</span><span id="power-text">Alarm mains: &hellip;</span></div>
                 </div>
+                <a class="keypad-link" id="keypad-ev" href="/voelklip/" title="Open keypad" aria-label="Open keypad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="8" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1" fill="currentColor" stroke="none"/></svg><span>Keypad</span></a>
             </div>
             <h2 id="grid-title">Event clip (&minus;5s / +15s)</h2>
             <div class="grid" id="grid">
@@ -108,8 +113,10 @@ var ALARM_ICONS = { disarmed: '<svg class="tb ev-tb" viewBox="0 0 24 24" fill="n
       var parts = ev.split("\u00b7").map(function (s) { return s.trim(); });
       document.getElementById("d-when").textContent = dt ? fmt({ day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "";
       document.getElementById("d-event").textContent = parts[0] || ev;
-      document.getElementById("d-user").textContent = parts[1] || "";
-      document.getElementById("d-source").textContent = parts[2] || "";
+      document.getElementById("d-user").textContent = q.get("u") || parts[1] || "";
+      document.getElementById("d-source").textContent = q.get("src") || parts[2] || "";
+      var home = (location.pathname.replace(/\/clip\/?.*$/, "/") || "/voelklip/");
+      ["keypad-top", "keypad-ev"].forEach(function (id) { var a = document.getElementById(id); if (a) a.setAttribute("href", home); });
       document.title = "Voelklip \u00b7 " + (parts[0] || "Event");
       function setPower(ok, atEvent) {
         var plug = document.getElementById("plug"); plug.className = "plug " + (ok === null ? "" : ok ? "ok" : "bad");
