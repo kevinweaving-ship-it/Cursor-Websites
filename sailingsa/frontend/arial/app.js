@@ -2396,12 +2396,13 @@
         var below = document.querySelector(".arial-below");
         if (below) below.hidden = !on;
         var breakerCard = document.getElementById("arial-breaker");
-        if (breakerCard) breakerCard.hidden = !SITE_TUYA;
+        var showBreaker = SITE_TUYA && SITE_ID === "hansekop" && !!breakerCard;
+        if (breakerCard) breakerCard.hidden = !showBreaker;
         if (on) {
             restoreActivityStore();
             loadActivity();
             // Card is display:none until login, so charts can only size themselves now.
-            if (SITE_TUYA) {
+            if (showBreaker) {
                 initBreakerCharts();
                 Object.keys(breakerCharts).forEach(function (k) { breakerCharts[k].resize(); });
                 loadBreaker();
