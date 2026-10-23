@@ -23,6 +23,17 @@ def test_olarm_offline_from_panel():
     assert sw.olarm_offline(None) is True
 
 
+def test_olarm_down_ignores_api_blip_when_heartbeat_is_fresh():
+    now = 1792753140.0
+    online = {"device": {"deviceStatus": "online", "deviceTimestamp": (now - 20) * 1000}}
+    assert sw.olarm_down(online, now - 20, now) is False
+    assert sw.olarm_down({"device": {"deviceStatus": "offline"}}, now - 20, now) is True
+    # Local API restart / connection refused, last seen 1 minute ago — not dead.
+    assert sw.olarm_down(None, now - 60, now) is False
+    assert sw.olarm_down(None, now - 4 * 60, now) is True
+    assert sw.olarm_down(None, 0, now) is False
+
+
 def test_tuya_last_reading_prefers_last_reading_ts():
     probe = {
         "lastReading": {"ts": 1791797832.324},

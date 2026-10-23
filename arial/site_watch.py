@@ -30,6 +30,7 @@ ADMIN_LOG = os.getenv("WA_ADMIN_LOG", "/var/www/sailingsa/data/whatsapp_log.json
 POLL_S = float(os.getenv("SITE_WATCH_POLL_S", "20"))
 CONFIRM = int(os.getenv("SITE_WATCH_CONFIRM", "3"))
 NAG_S = float(os.getenv("SITE_WATCH_NAG_S", str(2 * 60 * 60)))
+OLARM_GRACE_S = float(os.getenv("SITE_WATCH_OLARM_GRACE_S", str(3 * 60)))
 TUYA_STALE_S = float(os.getenv("TUYA_SHARING_STALE_S") or os.getenv("SITE_WATCH_TUYA_STALE_S") or "180")
 SMS_URL = os.getenv("ARIAL_SMS_URL", "").strip()
 SMS_TOKEN = os.getenv("ARIAL_SMS_TOKEN", "").strip()
@@ -176,6 +177,24 @@ def olarm_offline(panel: dict | None) -> bool:
     return True
 
 
+def olarm_down(panel: dict | None, last_seen: float, now: float, grace_s: float = OLARM_GRACE_S) -> bool:
+    """True only for an explicit Olarm offline, or a heartbeat older than grace.
+
+    A refused/restarted local API is not a dead panel — that is what sent
+    Voelklip Offline at 12:59 while the communicator was up (last seen 12:58).
+    """
+    if panel:
+        device = panel.get("device") if isinstance(panel.get("device"), dict) else panel
+        status = str(device.get("deviceStatus") or panel.get("deviceStatus") or "").strip().lower()
+        if status == "online":
+            return False
+        if status:
+            return True
+    if not last_seen:
+        return False
+    return (now - float(last_seen)) > grace_s
+
+
 def olarm_last_seen(panel: dict | None) -> float:
     if not panel:
         return 0.0
@@ -295,7 +314,7 @@ def check_olarm(site: str, cfg: dict, watch: dict) -> None:
     if last_seen:
         st["last_seen"] = last_seen
     now = time.time()
-    edge = _edge(st, olarm_offline(panel), now)
+    edge = _edge(st, olarm_down(panel, last_seen, now), now)
     if edge == "down" or edge == "nag":
         if deliver(cfg, site, "olarm-offline", compose_olarm(cfg, "down", last_seen)):
             mark_sent(st, now)
