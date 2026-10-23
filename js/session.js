@@ -1340,7 +1340,9 @@ async function handleLogout() {
             console.log('[DEBUG] handleLogout: User chose not to enable auto-login, clearing credentials');
             sailingSetAutoLoginDisabledOnce();
             localStorage.removeItem('saved_username');
+            localStorage.removeItem('saved_email');
             localStorage.removeItem('saved_password');
+            localStorage.removeItem('ssa_id_passwords');
             localStorage.removeItem('remember_credentials');
             localStorage.removeItem('saved_login_method');
             
@@ -1371,7 +1373,9 @@ async function handleLogout() {
         
         // Clear stored credentials on error
         localStorage.removeItem('saved_username');
+        localStorage.removeItem('saved_email');
         localStorage.removeItem('saved_password');
+        localStorage.removeItem('ssa_id_passwords');
         localStorage.removeItem('remember_credentials');
         
         // Clear user info display on error too

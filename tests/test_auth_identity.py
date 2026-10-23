@@ -300,6 +300,10 @@ def test_login_hash_opens_recovery_and_signup_forgot_password():
     signup = (root / "signup.html").read_text(encoding="utf-8")
     assert "=== 'recovery'" in login
     assert "showSection('recoverySection')" in login
+    assert 'id="recentUsernames"' in login
+    assert 'id="recentEmails"' in login
+    assert "clearLoginFields()" in login
+    assert "emailInput.value = savedEmail" not in login
     assert "coming soon" not in signup
     assert "window.location.href = '/login.html#recovery'" in signup
     assert "showSection('initialChoice')" in signup
