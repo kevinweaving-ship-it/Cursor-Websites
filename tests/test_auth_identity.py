@@ -292,3 +292,24 @@ def test_safe_return_url():
     assert auth.safe_return_url("//evil.test") == "/"
     assert auth.safe_return_url("/login.html?x=1") == "/login.html?x=1"
     assert auth.safe_return_url("https://sailingsa.co.za/regatta/x") == "https://sailingsa.co.za/regatta/x"
+
+
+def test_login_hash_opens_recovery_and_signup_forgot_password():
+    root = Path(__file__).resolve().parents[1]
+    login = (root / "login.html").read_text(encoding="utf-8")
+    signup = (root / "signup.html").read_text(encoding="utf-8")
+    assert "=== 'recovery'" in login
+    assert "showSection('recoverySection')" in login
+    assert "coming soon" not in signup
+    assert "window.location.href = '/login.html#recovery'" in signup
+    assert "showSection('initialChoice')" in signup
+
+
+def test_remember_logout_yes_then_no():
+    store = MemoryStore()
+    raw = auth.issue_remembered_device(store, 44, sas_id="", login_method="email")
+    assert auth.logout_choice(store, raw, keep_remember=True) == "kept"
+    assert auth.recognise_remembered_device(store, raw).account_id == 44
+    assert auth.logout_choice(store, raw, keep_remember=False) == "cleared"
+    with pytest.raises(ValueError):
+        auth.recognise_remembered_device(store, raw)

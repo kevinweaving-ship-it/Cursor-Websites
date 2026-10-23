@@ -2493,8 +2493,7 @@
 
         function handleForgotPassword(e) {
             e.preventDefault();
-            // TODO: Implement forgot password flow
-            showError('Password reset functionality coming soon. Please contact support.');
+            window.location.href = '/login.html#recovery';
         }
 
         function showConfirmProfile() {
@@ -2508,7 +2507,7 @@
         }
 
         function showVerificationOptions() {
-            showSection('verificationOptions');
+            showSection('initialChoice');
         }
 
         function showLoading() {

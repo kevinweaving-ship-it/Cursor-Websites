@@ -1087,12 +1087,28 @@
             } catch (e) {}
             // Load stored credentials and auto-populate
             loadStoredCredentials();
+
+            var openRecovery = false;
+            try {
+                openRecovery = ((window.location.hash || '').replace(/^#/, '') === 'recovery');
+            } catch (eHash) {}
+            if (openRecovery) {
+                showSection('recoverySection');
+                return;
+            }
             
             // Check for existing session
             await checkExistingSession();
             
             // Try auto-login if credentials are stored and no valid session
             await tryAutoLogin();
+        });
+        window.addEventListener('hashchange', function() {
+            try {
+                if ((window.location.hash || '').replace(/^#/, '') === 'recovery') {
+                    showSection('recoverySection');
+                }
+            } catch (eHashChange) {}
         });
         
         // Toggle password visibility
