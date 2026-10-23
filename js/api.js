@@ -555,7 +555,8 @@ async function loginWithUsernamePassword(identifier, password) {
         method: 'POST',
         body: JSON.stringify({
             email: identifier,
-            password: password
+            password: password,
+            remember: true
         })
     });
 }

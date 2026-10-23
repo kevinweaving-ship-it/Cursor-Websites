@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Confirm verification — SailingSA</title>
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1 class="section-title">Confirm verification</h1>
+      <p>This link is not used until you confirm. Email and chat scanners cannot verify it by opening the page.</p>
+      <p id="status"></p>
+      <button type="button" class="btn-login btn-primary" id="confirmBtn">Confirm</button>
+    </div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token") || "";
+    const returnTo = params.get("returnTo") || "";
+    document.getElementById("confirmBtn").onclick = async function () {
+      const status = document.getElementById("status");
+      status.textContent = "Confirming…";
+      try {
+        const res = await fetch("/auth/verify-link/confirm", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: token, returnTo: returnTo })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          status.textContent = "Verified. Taking you back…";
+          const dest = data.return_to || returnTo || "/";
+          window.location.replace(dest);
+        } else {
+          status.textContent = data.error || "Could not verify";
+        }
+      } catch (e) {
+        status.textContent = "Could not verify";
+      }
+    };
+  </script>
+</body>
+</html>
