@@ -90,9 +90,42 @@ def test_olarm_power_fault_and_event_tabs():
     assert arial_api.is_noise_olarm_event(
         {"eventAction": "zones_idle", "eventState": "alert", "eventMsg": "System Idle for 60 minutes"}
     )
-    assert arial_api.is_noise_olarm_event(
-        {"eventAction": "device", "eventState": "online", "eventMsg": "Olarm Device ONLINE"}
+    assert not arial_api.is_noise_olarm_event(
+        {"eventAction": "device", "eventState": "offline", "eventMsg": "OFFLINE - Arial - Hansekop"}
     )
+    assert arial_api.classify_olarm_event(
+        {"eventAction": "device", "eventState": "offline", "eventMsg": "OFFLINE - Arial - Hansekop"}
+    ) == "power"
+    offline = arial_api.format_olarm_event(
+        {"eventAction": "device", "eventState": "offline", "eventMsg": "OFFLINE - Arial - Hansekop", "eventTime": 1792553052772},
+        arial_api.enrich_device(SAMPLE),
+    )
+    assert offline["title"] == "Olarm Offline"
+    assert offline["tab"] == "power"
+
+
+def test_clip_energy_days_drops_hours_after_last_reading():
+    days = [{
+        "ymd": "2026-10-21",
+        "hours": [1.06, 1.05, 1.05, 1.05, 1.05, 0.28] + [None] * 18,
+        "estimated": [False] * 24,
+        "totalKwh": 5.54,
+        "hoursWithData": 6,
+    }]
+    # Last real sample 12 Oct 11:37 SAST — today's invented bars must vanish.
+    clipped = arial_api._clip_energy_days(days, 1791797832.324)
+    assert clipped[0]["hoursWithData"] == 0
+    assert clipped[0]["totalKwh"] is None
+    assert all(v is None for v in clipped[0]["hours"])
+
+
+def test_offline_panel_does_not_confirm_ac_or_battery():
+    dead = json.loads(json.dumps(SAMPLE))
+    dead["deviceStatus"] = "offline"
+    out = arial_api.enrich_device(dead)
+    assert out["arialPower"]["acOk"] is None
+    assert out["arialPower"]["batteryOk"] is None
+    assert out["arialPower"]["confirmed"] is False
     assert not arial_api.is_noise_olarm_event(
         {"eventAction": "zone_alarm", "eventState": "alarm", "eventMsg": "ZONE 1 IN ALARM - Zone 1 - Front Door"}
     )
@@ -107,6 +140,7 @@ def test_activity_card_markup_and_zone_labels():
     assert "function panelIssues(" in js
     assert 'out.push("Power Failure")' in js
     assert 'out.push("Low Battery")' in js
+    assert 'out.push("Olarm Offline")' in js
     assert 'data-tab="all"' in html
     assert 'data-tab="zones"' in html
     assert 'data-tab="areas"' in html
@@ -126,6 +160,17 @@ def test_activity_card_markup_and_zone_labels():
     assert "border: 1.6px solid #6a7378;" in css.split(".arial-below .card {", 1)[1].split("}", 1)[0]
     assert 'id="arial-breaker"' in html
     assert "Hansekop Main Breaker" in html
+    assert 'id="breaker-link-ago"' in html
+    assert 'id="breaker-last-link"' in html
+    assert html.count('class="breaker-on-dot"') == 1
+    assert "app.js?v=271" in html
+    assert "arial.css?v=234" in html
+    assert "function panelConfirmable" in js
+    assert "last reading is not live" in js
+    assert 'wNow.textContent = "Today —"' in js
+    assert "breakerLastReportAt = ms;" in js
+    assert "Never Date.now()-age" in js or "Server last-reading is the only clock" in js
+    assert ".pw-dot.unknown" in css
     assert 'class="breaker-dials"' in html
     assert 'id="breaker-spark"' not in html  # sparkline removed; day chart is the history
     assert 'class="breaker-info"' in html
@@ -440,8 +485,10 @@ def test_area_arm_uses_pingoa_not_olarm_user(tmp_path, monkeypatch):
         },
         {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
     )
-    assert mapped["actor"] == "Pingoa"
-    assert "Marc" not in mapped["activity"]
+    assert mapped["actor"] == "Marc"
+    assert mapped["via"] == "App"
+    assert "Marc" in mapped["activity"]
+    assert mapped["activity"].endswith("· App")
     stray = arial_api.format_olarm_event(
         {
             "eventAction": "area",
@@ -453,8 +500,8 @@ def test_area_arm_uses_pingoa_not_olarm_user(tmp_path, monkeypatch):
         },
         {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
     )
-    assert stray["actor"] == ""
-    assert "Kevin" not in stray["activity"]
+    assert stray["actor"] == "Kevin"
+    assert "Kevin" in stray["activity"]
     assert stray["via"] == "App"
     assert stray["activity"].endswith("· App")
 
@@ -516,7 +563,10 @@ def test_olarm_app_disarm_arrives_as_notready():
     )
     assert row["state"] == "DISARMED"
     assert row["tab"] == "areas"
-    assert "Kevin" not in row["activity"]
+    assert row["actor"] == "Kevin"
+    assert row["via"] == "App"
+    assert "Kevin" in row["activity"]
+    assert row["activity"].endswith("· App")
     assert not arial_api.is_skip_activity_event(
         {"eventAction": "area", "eventState": "notready", "eventMsg": "DISARMED - Area 1 - Facility Building"}
     )
@@ -617,6 +667,51 @@ def test_comnet_pin_2640_and_logo(tmp_path, monkeypatch):
     assert "Kevin" not in row["activity"]
     assert arial_api._activity_via("Comnet") == "Remote"
     assert arial_api._map_our_actor("Comnet") == "Comnet"
+
+
+def test_olarm_app_bypass_shows_user(tmp_path, monkeypatch):
+    _reset_keypad_log(monkeypatch, tmp_path)
+    row = arial_api.format_olarm_event(
+        {
+            "eventAction": "zone_bypass",
+            "eventState": "bypass_on",
+            "eventNum": 8,
+            "eventMsg": "BYPASS ON - Zone 8 - Garage PIR",
+            "eventTime": int(time.time() * 1000),
+            "userFullname": "Kevin",
+        },
+        {"arialZones": [{"num": 8, "label": "Garage PIR"}]},
+    )
+    assert row["tab"] == "zones"
+    assert row["state"] == "BYPASS"
+    assert row["actor"] == "Kevin"
+    assert row["via"] == "App"
+    assert "Kevin" in row["activity"]
+    assert row["activity"].endswith("· App")
+    off = arial_api.format_olarm_event(
+        {
+            "eventAction": "zone_bypass",
+            "eventState": "bypass_off",
+            "eventNum": 8,
+            "eventMsg": "BYPASS OFF - Zone 8 - Garage PIR",
+            "eventTime": int(time.time() * 1000),
+            "userFullname": "Birgitta",
+        },
+        {"arialZones": [{"num": 8, "label": "Garage PIR"}]},
+    )
+    assert off["actor"] == "Birgitta" and off["via"] == "App"
+    assert "Birgitta" in off["activity"]
+
+
+def test_clip_page_keypad_opens_alarm_home():
+    html = (Path(__file__).resolve().parent / "voelklip" / "clip" / "index.html").read_text(encoding="utf-8")
+    assert 'id="keypad-top"' in html
+    assert 'id="keypad-ev"' in html
+    assert html.count('href="/voelklip/"') >= 2
+    assert "Open keypad" in html
+    assert "d-user" in html
+    assert 'q.get("u")' in html
+    assert 'q.get("src")' in html
 
 
 def test_breaker_energy_bins_and_endpoint(tmp_path, monkeypatch):
@@ -727,14 +822,14 @@ def test_kevin_pin_6114(tmp_path, monkeypatch):
         {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
     )
     assert row["actor"] == "Kevin" and row["via"] == "Remote"
-    # An Olarm-side "Kevin" with no keypad action behind it still shows no name.
+    # Olarm App arm by Kevin (no keypad press) must still show the user, sourced as App.
     _reset_keypad_log(monkeypatch, tmp_path)
     stray = arial_api.format_olarm_event(
         {"eventAction": "area", "eventState": "arm", "eventNum": 1, "eventMsg": "ARMED - Area 1 - Facility Building",
          "eventTime": int(time.time() * 1000), "userFullname": "Kevin"},
         {"arialAreas": [{"num": 1, "label": "Facility Building"}]},
     )
-    assert stray["actor"] == "" and "Kevin" not in stray["activity"]
+    assert stray["actor"] == "Kevin" and stray["via"] == "App" and "Kevin" in stray["activity"]
 
 
 def test_olarm_poll_acks_until_newer_record(tmp_path, monkeypatch):
@@ -799,7 +894,7 @@ def test_activity_keeps_30_day_store_and_checksums_on_login():
     assert 'prependActivity("DISARMED")' in js
     assert "setInterval(loadActivity, 3000)" in js
     assert "restoreActivityStore();" in js
-    assert "app.js?v=234" in html
+    assert "app.js?v=271" in html
 
 
 def test_activity_armed_once_remote_no_countdown_or_notready():

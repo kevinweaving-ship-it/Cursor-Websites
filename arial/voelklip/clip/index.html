@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
+    <meta name="robots" content="noindex,nofollow">
+    <meta http-equiv="Cache-Control" content="no-store">
+    <title>Voelklip · Event</title>
+    <style>
+      *{box-sizing:border-box}
+      body{margin:0;background:#e9edf3;font:14px Arial,Helvetica,sans-serif;color:#1e293b}
+      .top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:#0f2747;color:#fff}
+      .top b{font-size:16px;letter-spacing:.3px}
+      .top-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+      .top .stamp{font-size:12px;opacity:.9}
+      .keypad-link{display:inline-flex;align-items:center;gap:5px;color:#fff;text-decoration:none;font:700 12px Arial,Helvetica,sans-serif;min-height:44px;padding:0 4px}
+      .keypad-link svg{width:22px;height:22px;flex:0 0 22px}
+      .ev .keypad-link{color:#0f2747;align-self:flex-start;margin-left:auto;flex:0 0 auto}
+      .wrap{max-width:480px;margin:0 auto;padding:10px}
+      .back{display:inline-block;margin:0 0 8px;color:#1d4ed8;text-decoration:none;font-weight:600;min-height:44px;line-height:44px}
+      .card{background:#fff;border-radius:12px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+      .ev{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:#eef2f7;font-weight:600;font-size:12px}
+      .ev-icon{flex:0 0 40px;width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#dcfce7}
+      .ev.armed .ev-icon{background:#dbeafe}.ev.alarm .ev-icon{background:#fee2e2}
+      .ev-text{min-width:0;flex:1;line-height:1.35}
+      .ev-stamp{font-weight:700;font-size:13px}
+      .ev-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .ev-line .st{color:#15803d}.ev.armed .ev-line .st{color:#1d4ed8}.ev.alarm .ev-line .st{color:#dc2626}
+      .ev-power{font-weight:500;color:#334155;display:flex;align-items:center;gap:4px}
+      .plug{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border-radius:4px;font-size:11px;color:#fff;background:#94a3b8}
+      .plug.ok{background:#16a34a}.plug.bad{background:#dc2626}
+      h2{font-size:13px;margin:10px 2px 6px;color:#0f2747}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+      .cell{position:relative;aspect-ratio:16/9;background:#000;border-radius:6px;overflow:hidden;cursor:pointer}
+      .cell.big{grid-column:1/-1;order:-1}
+      .cell video,.cell video-stream,.cell img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background:#000}
+      .cell video-stream .mode{display:none!important}
+      .cap{position:absolute;top:3px;left:5px;z-index:2;font:600 11px Arial;color:#fff;text-shadow:0 1px 2px #000;background:rgba(0,0,0,.4);padding:1px 6px;border-radius:4px}
+      .msg{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;font:600 12px Arial;color:#fff;background:#111;text-align:center;padding:6px}
+      .spin{width:18px;height:18px;flex:0 0 18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-right:8px}
+      @keyframes spin{to{transform:rotate(360deg)}}
+      .play{position:absolute;right:5px;bottom:5px;z-index:2;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.85);color:#1e293b;font-size:10px;line-height:24px;text-align:center}
+      .live .play{display:none}
+      .live-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:48px;margin:8px 0 0;padding:6px 12px;border:0;border-radius:8px;background:#1d6fe0;color:#fff;font:700 15px Arial;cursor:pointer;line-height:1.2}
+      .live-btn small{font:500 11px Arial;opacity:.9}
+      .live .live-btn{background:#15803d}
+      table{width:100%;border-collapse:collapse;font-size:13px}
+      td{padding:7px 4px;border-bottom:1px solid #e5e7eb}td:first-child{color:#64748b;width:38%}
+      .note{font-size:11px;color:#64748b;margin:6px 2px}
+          .ev-tb{width:22px;height:22px;color:#15803d}
+      .ev-armed .ev-tb,.ev-armed .ev-tb{color:#1d4ed8}
+      .ev-alarm .ev-tb{color:#dc2626}
+    </style>
+</head>
+<body>
+    <div class="top"><b>Voelklip</b><span class="top-right"><span class="stamp" id="top-stamp"></span><a class="keypad-link" id="keypad-top" href="/voelklip/" title="Open keypad" aria-label="Open keypad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="8" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1" fill="currentColor" stroke="none"/></svg><span>Keypad</span></a></span></div>
+    <div class="wrap">
+        <a class="back" href="/voelklip/">&larr; Back to Activity</a>
+        <div class="card" id="cams">
+            <div class="ev" id="ev">
+                <span class="ev-icon" id="ev-icon" aria-hidden="true"></span>
+                <div class="ev-text">
+                    <div class="ev-stamp" id="ev-stamp"></div>
+                    <div class="ev-line" id="ev-line"></div>
+                    <div class="ev-power"><span class="plug" id="plug" aria-hidden="true">&#x1F50C;</span><span id="power-text">Alarm mains: &hellip;</span></div>
+                </div>
+                <a class="keypad-link" id="keypad-ev" href="/voelklip/" title="Open keypad" aria-label="Open keypad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="8" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1" fill="currentColor" stroke="none"/></svg><span>Keypad</span></a>
+            </div>
+            <h2 id="grid-title">Event clip (&minus;5s / +15s)</h2>
+            <div class="grid" id="grid">
+                <div class="cell" data-cam="garage"><span class="cap">Garage</span></div>
+                <div class="cell" data-cam="workshop"><span class="cap">Workshop</span></div>
+                <div class="cell" data-cam="pool"><span class="cap">Pool</span></div>
+                <div class="cell" data-cam="driveway"><span class="cap">Driveway</span></div>
+            </div>
+            <button type="button" class="live-btn" id="live-btn"><span>&#x1F3A5; LIVE</span><small id="live-sub">View all 4 cameras live</small></button>
+            <button type="button" class="live-btn" id="event-btn" style="background:#334155;margin-top:6px;display:none"><span>Event clip</span><small>Back to −5s / +15s replay</small></button>
+            <p class="note" id="note"></p>
+        </div>
+        <div class="card" style="margin-top:10px">
+            <h2 style="margin-top:0">Event details</h2>
+            <table>
+                <tr><td>Date / Time</td><td id="d-when"></td></tr>
+                <tr><td>Event</td><td id="d-event"></td></tr>
+                <tr><td>User</td><td id="d-user"></td></tr>
+                <tr><td>Source</td><td id="d-source"></td></tr>
+                <tr><td>Alarm mains</td><td id="d-power"></td></tr>
+            </table>
+        </div>
+    </div>
+    <script>
+    (async function () {
+      var q = new URLSearchParams(location.search);
+      var t = Number(q.get("t")) || 0; if (t > 10000000000) t = Math.round(t / 1000);   // seconds
+      var ev = q.get("ev") || "", state = (q.get("s") || "").toUpperCase(), p0 = q.get("p") || "";
+      var PRE = 5, POST = 15, CLIP = "https://aerialnet.co.za/voelklip/hik/clip", WARM = "https://aerialnet.co.za/voelklip/hik/warm", CAM = "https://aerialnet.co.za/voelklip/cam/";
+      var live = false, liveTimer = null, warmTimer = null;
+      var grid = document.getElementById("grid"), box = document.getElementById("cams");
+
+      // ---- header + details ----
+      var dt = t ? new Date(t * 1000) : null;
+      function fmt(o) { return dt ? dt.toLocaleString("en-GB", Object.assign({ timeZone: "Africa/Johannesburg" }, o)) : ""; }
+      var stamp = dt ? fmt({ day: "2-digit", month: "short", year: "2-digit" }).replace(/ /g, " ") + " \u00b7 " + fmt({ hour: "2-digit", minute: "2-digit", hour12: false }) : "";
+      var alarm = /ALARM|PANIC|FIRE|EMERGENCY/.test(state) || /alarm/i.test(ev);
+      if (!state) state = /DISARMED/.test(ev) ? "DISARMED" : /ARMED/.test(ev) ? "ARMED" : "";
+var ALARM_ICONS = { disarmed: '<svg class="tb ev-tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2l0 -6" /> <path d="M11 16a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /> <path d="M8 11v-5a4 4 0 0 1 8 0" /></svg>', armed: '<svg class="tb ev-tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6" /> <path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /> <path d="M8 11v-4a4 4 0 1 1 8 0v4" /></svg>', alarm: '<svg class="tb ev-tb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5a2 2 0 0 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" /> <path d="M9 17v1a3 3 0 0 0 6 0v-1" /> <path d="M21 6.727a11.05 11.05 0 0 0 -2.794 -3.727" /> <path d="M3 6.727a11.05 11.05 0 0 1 2.792 -3.727" /></svg>' };
+      var evEl = document.getElementById("ev"); evEl.className = "ev " + (alarm ? "alarm" : state === "ARMED" ? "armed" : "disarmed");
+      document.getElementById("ev-icon").innerHTML = alarm ? ALARM_ICONS.alarm : state === "ARMED" ? ALARM_ICONS.armed : ALARM_ICONS.disarmed;
+      document.getElementById("ev-stamp").textContent = stamp; document.getElementById("top-stamp").textContent = stamp;
+      var line = document.getElementById("ev-line"), i = state ? ev.indexOf(state) : -1;
+      if (i >= 0) { line.appendChild(document.createTextNode(ev.slice(0, i))); var b = document.createElement("b"); b.className = "st"; b.textContent = state; line.appendChild(b); line.appendChild(document.createTextNode(ev.slice(i + state.length))); }
+      else line.textContent = ev;
+      var parts = ev.split("\u00b7").map(function (s) { return s.trim(); });
+      document.getElementById("d-when").textContent = dt ? fmt({ day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "";
+      document.getElementById("d-event").textContent = parts[0] || ev;
+      document.getElementById("d-user").textContent = q.get("u") || parts[1] || "";
+      document.getElementById("d-source").textContent = q.get("src") || parts[2] || "";
+      var home = (location.pathname.replace(/\/clip\/?.*$/, "/") || "/voelklip/");
+      ["keypad-top", "keypad-ev"].forEach(function (id) { var a = document.getElementById(id); if (a) a.setAttribute("href", home); });
+      document.title = "Voelklip \u00b7 " + (parts[0] || "Event");
+      function setPower(ok, atEvent) {
+        var plug = document.getElementById("plug"); plug.className = "plug " + (ok === null ? "" : ok ? "ok" : "bad");
+        var txt = ok === null ? "unknown" : ok ? "Power OK" : "A/C FAILURE (alarm on battery)";
+        document.getElementById("power-text").textContent = "Alarm mains: " + txt + (atEvent ? "" : " (now)");
+        document.getElementById("d-power").textContent = txt;
+      }
+      setPower(p0 === "ok" ? true : p0 === "fail" ? false : null, true);
+      fetch("/api/voelklip/panel", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
+        var p = d && d.device && d.device.arialPower; if (p && typeof p.acOk === "boolean" && !p0) setPower(p.acOk, false);
+      }).catch(function () {});
+
+      // ---- event clips (all four cameras, same window as the dashboard) ----
+      function setMsg(cell, m) { var el = cell.querySelector(".msg"); if (!el) { el = document.createElement("div"); el.className = "msg"; cell.appendChild(el); } if (el.__iv) { clearInterval(el.__iv); el.__iv = null; } el.textContent = m; }
+      function setLoading(cell, tSec) {
+        var el = cell.querySelector(".msg"); if (!el) { el = document.createElement("div"); el.className = "msg"; cell.appendChild(el); }
+        if (el.__iv) clearInterval(el.__iv);
+        el.textContent = ""; var sp = document.createElement("span"); sp.className = "spin"; el.appendChild(sp);
+        var lab = document.createElement("span"); el.appendChild(lab); var t0 = Date.now();
+        function tick() {
+          if (!el.isConnected) { clearInterval(el.__iv); return; }
+          var left = (tSec + POST + 5) * 1000 - Date.now(), e = Math.round((Date.now() - t0) / 1000);
+          lab.textContent = left > 0 ? "Recording \u2014 first part in a moment, full clip in " + Math.ceil(left / 1000) + "s" : "Preparing clip\u2026 " + (e > 1 ? e + "s" : "");
+        }
+        tick(); el.__iv = setInterval(tick, 500);
+      }
+      function loadClip(cell, cam, attempt) {
+        var url = CLIP + "?cam=" + cam + "&t=" + t + "&pre=" + PRE + "&post=" + POST;
+        if (!cell.querySelector("video")) setLoading(cell, t);
+        fetch(url, { mode: "cors", cache: "no-store", headers: { Range: "bytes=0-0" } }).then(function (r) {
+          if (r.status === 425) { if (!live && attempt < 12) setTimeout(function () { if (!live) loadClip(cell, cam, attempt + 1); }, 3000); return; }
+          if (r.status >= 400) { setMsg(cell, r.status === 404 ? "No footage for this time" : "Replay unavailable"); return; }
+          var partial = r.headers.get("X-Clip-Partial") === "1";
+          var v = cell.querySelector("video"), resumeAt = 0;
+          if (v) { resumeAt = v.duration && isFinite(v.duration) ? v.duration : 0; }
+          else {
+            v = document.createElement("video"); v.muted = true; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto";
+            cell.appendChild(v); var badge = document.createElement("span"); badge.className = "play"; badge.textContent = "\u25B6"; cell.appendChild(badge);
+            v.addEventListener("loadeddata", function () { var m = cell.querySelector(".msg"); if (m) { if (m.__iv) clearInterval(m.__iv); m.remove(); } });
+            v.addEventListener("error", function () { setMsg(cell, "Replay failed to play"); });
+          }
+          v.loop = !partial;
+          v.onended = partial ? function () { if (!live) loadClip(cell, cam, 0); } : null;
+          v.src = url + (partial ? "&_=" + Date.now() : "");
+          if (resumeAt) v.addEventListener("loadedmetadata", function once() { v.removeEventListener("loadedmetadata", once); try { v.currentTime = Math.min(resumeAt, Math.max(0, v.duration - 0.2)); } catch (e) {} });
+          v.play().catch(function () {});
+        }).catch(function () { setMsg(cell, "Replay unavailable"); });
+      }
+      function clearCells() { grid.querySelectorAll(".cell > :not(.cap)").forEach(function (el) { el.remove(); }); grid.querySelectorAll(".cell.big").forEach(function (c) { c.classList.remove("big"); }); }
+      function showClips() {
+        live = false; box.classList.remove("live"); clearCells();
+        if (liveTimer) { clearTimeout(liveTimer); liveTimer = null; } if (warmTimer) { clearInterval(warmTimer); warmTimer = null; }
+        document.getElementById("grid-title").textContent = "Event clip (\u22125s / +15s)";
+        document.getElementById("live-sub").textContent = "View all 4 cameras live";
+        document.getElementById("event-btn").style.display = "none";
+        document.getElementById("live-btn").style.display = "";
+        document.getElementById("note").textContent = t ? "" : "No event time in this link.";
+        if (!t) { grid.querySelectorAll(".cell").forEach(function (c) { setMsg(c, "No event time"); }); return; }
+        grid.querySelectorAll(".cell").forEach(function (c) { loadClip(c, c.getAttribute("data-cam"), 0); });
+      }
+
+      // LIVE uses MSE through /voelklip/cam/ (nginx → go2rtc). WebRTC is not public on this box
+      // (8555 is localhost-only), so webrtc-first mode never got frames and the old 60s timer
+      // then swapped the grid back to the event MP4 — that looked like “live is the event clip”.
+      var streamsReady = false;
+      async function showLive() {
+        if (!streamsReady) { try { await import(CAM + "video-stream.js"); streamsReady = true; } catch (e) { document.getElementById("note").textContent = "Live player failed to load."; return; } }
+        live = true; box.classList.add("live"); clearCells();
+        document.getElementById("grid-title").textContent = "LIVE";
+        document.getElementById("live-sub").textContent = "Live now \u00b7 tap Event clip to go back";
+        document.getElementById("event-btn").style.display = "";
+        document.getElementById("live-btn").style.display = "none";
+        document.getElementById("note").textContent = "";
+        function warm() { fetch(WARM, { mode: "cors", cache: "no-store" }).catch(function () {}); }
+        warm(); if (warmTimer) clearInterval(warmTimer); warmTimer = setInterval(warm, 45000);
+        grid.querySelectorAll(".cell").forEach(function (cell) {
+          var el = document.createElement("video-stream"); el.mode = "mse"; el.background = false;
+          el.src = new URL("api/ws?src=" + cell.getAttribute("data-cam"), CAM); cell.appendChild(el);
+        });
+        if (liveTimer) { clearTimeout(liveTimer); liveTimer = null; }
+      }
+      document.getElementById("live-btn").addEventListener("click", function () { showLive(); });
+      document.getElementById("event-btn").addEventListener("click", function () { showClips(); });
+      grid.addEventListener("click", function (e) {
+        var cell = e.target.closest(".cell"); if (!cell) return;
+        var big = cell.classList.contains("big"); grid.querySelectorAll(".cell.big").forEach(function (c) { c.classList.remove("big"); });
+        if (!big) cell.classList.add("big");
+      });
+      if (q.get("live") === "1") showLive(); else showClips();
+    })();
+    </script>
+</body>
+</html>

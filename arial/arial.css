@@ -961,6 +961,12 @@ html, body {
     color: #DC143C;
 }
 
+.pw-dot.ok { color: #15803d; }
+.pw-dot.fail,
+.pw-dot.low { color: #DC143C; }
+.pw-dot.onbatt { color: #d97706; }
+.pw-dot.unknown { color: #94a3b8; }
+
 .arial-below .tabs {
     display: flex;
     flex-wrap: nowrap;

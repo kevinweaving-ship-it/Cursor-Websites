@@ -315,24 +315,33 @@
         return out;
     }
 
+    function panelConfirmable(device) {
+        return String((device && device.deviceStatus) || "").toLowerCase() === "online";
+    }
+
     function powerAcOk(device) {
+        if (!panelConfirmable(device)) return null;
         var p = (device && device.arialPower) || {};
         if (typeof p.acOk === "boolean") return p.acOk;
         var raw = ((device && device.deviceState) || {}).powerAC;
-        return !raw || String(raw).toLowerCase() === "ok";
+        if (raw == null || raw === "") return null;
+        return String(raw).toLowerCase() === "ok";
     }
 
     function powerBatteryOk(device) {
+        if (!panelConfirmable(device)) return null;
         var p = (device && device.arialPower) || {};
         if (typeof p.batteryOk === "boolean") return p.batteryOk;
         var raw = ((device && device.deviceState) || {}).powerBattery;
-        return !raw || String(raw).toLowerCase() === "ok";
+        if (raw == null || raw === "") return null;
+        return String(raw).toLowerCase() === "ok";
     }
 
     function panelIssues(device) {
         var out = openZoneIssues(device);
-        if (!powerAcOk(device)) out.push("Power Failure");
-        if (!powerBatteryOk(device)) out.push("Low Battery");
+        if (powerAcOk(device) === false) out.push("Power Failure");
+        if (powerBatteryOk(device) === false) out.push("Low Battery");
+        if (!panelConfirmable(device)) out.push("Olarm Offline");
         return out;
     }
 
@@ -430,7 +439,7 @@
 
     function setLed(el, mode) {
         if (!el) return;
-        var kind = el.classList.contains("ac") ? "led ac" : "led status";
+        var kind = el.classList.contains("ac") ? "led ac" : el.classList.contains("link") ? "led link" : "led status";
         el.className = kind + (mode ? " " + mode : "");
     }
 
@@ -563,7 +572,13 @@
         var st = String((areas[idx] && areas[idx].state) || "").toLowerCase();
         var o = areaOverride[idx + 1];
         if (!o) return st;
-        if (Date.now() > o.until) { delete areaOverride[idx + 1]; return st; }
+        if (Date.now() > o.until) {
+            // Panel never confirmed what was asked: say so once, then show what the panel actually reports.
+            delete areaOverride[idx + 1];
+            var want = o.state === "disarm" ? "disarm" : "arm", got = (st === "arm" || st === "stay" || st === "sleep") ? "arm" : st;
+            if (want !== got && st) setWelcome("Panel did not confirm \u2014 showing actual status", 4000);
+            return st;
+        }
         var armedNow = st === "arm" || st === "stay" || st === "sleep";
         if (o.state === "disarm" && (st === "disarm" || st === "notready")) { delete areaOverride[idx + 1]; return st; }
         if (o.state === "countdown" && armedNow) { delete areaOverride[idx + 1]; return st; }
@@ -629,7 +644,16 @@
             syncArmToggle();
             return;
         }
-        setLed(document.getElementById("led-ac"), powerAcOk(device) ? "on" : "flash");
+        var ac = powerAcOk(device);
+        setLed(document.getElementById("led-ac"), ac === true ? "on" : (ac === false ? "flash" : ""));
+        // LINK LED: Olarm unit <-> cloud. Blue = online (WiFi, SIM fallback), red flash = unit offline, grey = unknown.
+        var linkLed = document.getElementById("led-link");
+        if (linkLed) {
+            var ds = String((device && device.deviceStatus) || "").toLowerCase();
+            setLed(linkLed, ds === "online" ? "on" : ds ? "flash" : "");
+            var pc = String((device && device.deviceState && device.deviceState.panelComms) || "").toLowerCase();
+            linkLed.title = "Olarm link: " + (ds || "unknown") + (device && device.deviceType ? " \u00b7 " + device.deviceType : "") + (pc && pc !== "unknown" ? " \u00b7 panel comms " + pc : "") + " \u00b7 WiFi / SIM fallback";
+        }
         if (isMultiArea(device)) {
             applyMultiAreaLcd(device);
             return;
@@ -782,9 +806,38 @@
         }
     }
 
+    function applyAcFailure(power) {
+        // "A/C FAILURE  dd Mon yyyy HH:MM" above the system status while the panel reports mains lost.
+        var host = document.getElementById("lcd-2");
+        if (!host) return;
+        var el = document.getElementById("lcd-acfail");
+        var acOk = !power || power.acOk !== false;
+        if (acOk) { if (el) el.hidden = true; return; }
+        if (!el) {
+            el = document.createElement("span");
+            el.id = "lcd-acfail";
+            host.insertBefore(el, host.firstChild);
+        }
+        var when = "";
+        var t = Number(power.acFailSince) || 0;
+        if (t) {
+            if (t < 10000000000) t *= 1000;
+            var d = new Date(t);
+            var opts = { timeZone: "Africa/Johannesburg" };
+            var parts = new Intl.DateTimeFormat("en-GB", Object.assign({ day: "2-digit", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }, opts)).formatToParts(d);
+            var g = {}; parts.forEach(function (x) { g[x.type] = x.value; });
+            var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            when = " " + g.hour + ":" + g.minute + " \u00b7 " + g.day + " " + MON[Number(g.month) - 1] + " " + g.year;
+        }
+        el.textContent = "A/C FAILURE" + when;
+        el.title = t ? "Mains failed at " + when.trim() : "Mains failure (start time not recorded)";
+        el.hidden = false;
+    }
+
     function applyPanelDevice(hanse) {
         if (!hanse) return;
         trackRemoteAreaChanges(hanse);
+        applyAcFailure(hanse.arialPower);
         var siteEl = document.getElementById("lcd-site");
         if (siteEl) siteEl.textContent = siteName(hanse);
         window.arialDevice = hanse;
@@ -1050,10 +1103,22 @@
         var el = document.getElementById("activity-power");
         if (!el) return;
         power = power || {};
-        var acOk = power.acOk !== false;
-        var batOk = power.batteryOk !== false;
-        el.textContent = (acOk ? "●" : "○") + " AC  " + (batOk ? "●" : "○") + " Bat";
-        el.classList.toggle("fault", !acOk || !batOk);
+        var confirmed = power.confirmed !== false && panelConfirmable(window.arialDevice);
+        var acOk = confirmed && typeof power.acOk === "boolean" ? power.acOk : null;
+        var batOk = confirmed && typeof power.batteryOk === "boolean" ? power.batteryOk : null;
+        alarmAcOk = acOk;
+        // Unknown when Olarm is offline — last snapshot is not a confirmation.
+        var acCls = acOk === true ? "ok" : (acOk === false ? "fail" : "unknown");
+        var batCls = batOk === false ? "low" : (acOk === false && batOk === true ? "onbatt" : (batOk === true ? "ok" : "unknown"));
+        el.textContent = "";
+        var a = document.createElement("span"); a.className = "pw-dot ac " + acCls; a.textContent = "\u25CF";
+        a.title = acOk === true ? "Mains power present" : (acOk === false ? "Mains (A/C) failure" : "AC unknown — Olarm not reporting");
+        var b = document.createElement("span"); b.className = "pw-dot bat " + batCls; b.textContent = "\u25CF";
+        b.title = batOk === false ? "Battery low" : (acOk === false && batOk === true ? "Running on battery" : (batOk === true ? "Battery normal" : "Battery unknown — Olarm not reporting"));
+        el.appendChild(a); el.appendChild(document.createTextNode(" AC  "));
+        el.appendChild(b); el.appendChild(document.createTextNode(" Bat"));
+        el.classList.remove("fault");
+        refreshBreakerLinkLostView();
     }
 
     function shortStamp(r) {
@@ -1062,10 +1127,73 @@
         return (d ? d + " · " : "") + (r.time || "");
     }
 
+    var waRows = null, waLoading = false, waTimer = null;
+    function loadWhatsapp() {
+        if (waLoading) return;
+        waLoading = true;
+        fetch(API + "/whatsapp/log?limit=120", { credentials: "same-origin", cache: "no-store" })
+            .then(function (r) { return r.json(); })
+            .then(function (d) { waRows = (d && d.rows) || []; })
+            .catch(function () { waRows = waRows || []; })
+            .then(function () { waLoading = false; if (activityTab === "whatsapp") renderActivity(); });
+    }
+    function waAckLabel(r) {
+        var a = r.acks || [];
+        if (r.dir === "in") return "";
+        if (!r.ok) return "\u2716";
+        if (a.indexOf("READ") !== -1) return "\u2713\u2713 read";
+        if (a.indexOf("DELIVERY_ACK") !== -1) return "\u2713\u2713";
+        if (a.indexOf("SERVER_ACK") !== -1 || a.indexOf("INITIAL") !== -1) return "\u2713";
+        return "\u2026";
+    }
+    function waLine(r) {
+        var who = r.dir === "in" ? ("\u2190 " + (r.from || r.number || "?")) : ("\u2192 " + (r.to || r.number || "?"));
+        var body = String(r.text || "").split("\n").filter(function (s) { return s && !/^https?:\/\//.test(s); });
+        var summary = body.length > 1 ? body[1] : (body[0] || (r.kind || ""));
+        if (r.dir === "in") summary = (r.kind === "reply" ? "asked " : "") + (body[0] || r.kind || "");
+        return who + " \u00b7 " + summary + (r.error ? " \u00b7 FAILED: " + r.error : "");
+    }
+    function renderWhatsapp(body, more) {
+        body.textContent = "";
+        if (waRows === null) {
+            var li = document.createElement("li"); li.className = "activity-empty"; li.textContent = "Loading WhatsApp log\u2026"; body.appendChild(li);
+            loadWhatsapp();
+            if (more) more.hidden = true;
+            return;
+        }
+        var rows = waRows, show = activityExpanded ? rows : rows.slice(0, ACTIVITY_PREVIEW), i;
+        if (!show.length) {
+            var empty = document.createElement("li"); empty.className = "activity-empty"; empty.textContent = "No WhatsApp messages yet"; body.appendChild(empty);
+        }
+        for (i = 0; i < show.length; i += 1) {
+            var r = show[i];
+            var row = document.createElement("li");
+            row.className = "activity-row " + (r.dir === "in" ? "wa-in" : r.ok ? "wa-out" : "wa-fail");
+            if (i > 0 && show[i - 1].date && r.date && show[i - 1].date !== r.date) row.classList.add("day-break");
+            var mark = document.createElement("span"); mark.className = "activity-mark"; mark.setAttribute("aria-hidden", "true");
+            var t = document.createElement("span"); t.className = "activity-time"; t.textContent = shortStamp(r);
+            var line = document.createElement("span"); line.className = "activity-text"; line.textContent = waLine(r);
+            line.title = (r.date ? r.date + " " + r.time + "\n" : "") + (r.dir === "in" ? "From " : "To ") + (r.to || r.from || "") + " " + (r.number || "") + "\n" + (r.text || "");
+            row.appendChild(mark); row.appendChild(t); row.appendChild(line);
+            var ack = waAckLabel(r);
+            if (ack) { var a = document.createElement("span"); a.className = "wa-acks" + (/read/.test(ack) ? " read" : ""); a.textContent = ack; a.title = (r.acks || []).join(", "); row.appendChild(a); }
+            body.appendChild(row);
+        }
+        if (more) {
+            if (rows.length > ACTIVITY_PREVIEW) {
+                more.hidden = false;
+                more.setAttribute("aria-expanded", activityExpanded ? "true" : "false");
+                var lab = more.querySelector(".activity-more-label");
+                if (lab) lab.textContent = activityExpanded ? "Less" : "More";
+            } else more.hidden = true;
+        }
+    }
+
     function renderActivity() {
         var body = document.getElementById("arial-activity-body");
         var more = document.getElementById("activity-more");
         if (!body) return;
+        if (activityTab === "whatsapp") { renderWhatsapp(body, more); return; }
         activityRows = tidyActivity(activityRows);
         var rows = activityRows.filter(function (r) { return !skipActivityRow(r); });
         if (activityTab !== "all") {
@@ -1087,6 +1215,7 @@
                 var r = show[i];
                 var row = document.createElement("li");
                 row.className = "activity-row";
+                if (i > 0 && show[i - 1].date && r.date && show[i - 1].date !== r.date) row.classList.add("day-break");   // thin rule between days
                 var mark = document.createElement("span");
                 mark.className = "activity-mark " + activityMark(r);
                 mark.setAttribute("aria-hidden", "true");
@@ -1174,6 +1303,10 @@
     var BREAKER_HIST_MS = 15 * 60 * 1000;
     var breakerHist = [];
     var breakerEnergy = { hidden: false, last: null, midnightYmd: "", midnightAddEle: null };
+    var breakerSnap = { v: null, a: null, w: null, at: null };
+    var breakerLinkLost = false;
+    var breakerLastReportAt = null;
+    var breakerLinkAgoTick = null;
 
     function saYmdNow() {
         return new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Johannesburg" });
@@ -1199,6 +1332,18 @@
             if (isFinite(Number(raw.lastAddEle))) breakerEnergy.last = Number(raw.lastAddEle);
             breakerEnergy.midnightYmd = String(raw.midnightYmd || "");
             if (isFinite(Number(raw.midnightAddEle))) breakerEnergy.midnightAddEle = Number(raw.midnightAddEle);
+            if (isFinite(Number(raw.lastReportAt))) breakerLastReportAt = Number(raw.lastReportAt);
+            if (raw.snap && typeof raw.snap === "object") {
+                var sv = Number(raw.snap.v);
+                var sa = Number(raw.snap.a);
+                var sw = Number(raw.snap.w);
+                breakerSnap = {
+                    v: isFinite(sv) ? sv : null,
+                    a: isFinite(sa) ? sa : null,
+                    w: isFinite(sw) ? sw : null,
+                    at: Number(raw.snap.at) || null
+                };
+            }
         } catch (e) {}
     }
 
@@ -1209,7 +1354,9 @@
                 energyHidden: breakerEnergy.hidden,
                 lastAddEle: breakerEnergy.last,
                 midnightYmd: breakerEnergy.midnightYmd,
-                midnightAddEle: breakerEnergy.midnightAddEle
+                midnightAddEle: breakerEnergy.midnightAddEle,
+                lastReportAt: breakerLastReportAt,
+                snap: breakerSnap
             }));
         } catch (e) {}
     }
@@ -1452,7 +1599,9 @@
         var d = breakerEnergyData;
         if (rangeEl) {
             var pw = d && d.power;
-            if (pw && pw.sinceRestoreS != null) {
+            if (breakerLinkLost || (d && (d.source === "sharing-stale" || (pw && pw.stale)))) {
+                rangeEl.textContent = "Since restore —";
+            } else if (pw && pw.sinceRestoreS != null && pw.online !== false) {
                 var since = pw.sinceRestoreS + Math.floor((Date.now() - breakerDayTick) / 1000);
                 rangeEl.textContent = "Since restore " + sinceLabel(since);
             } else {
@@ -1461,7 +1610,11 @@
         }
         if (wNow) {
             var today = d && d.days && d.days[0];
-            wNow.textContent = today && today.totalKwh != null ? "Today " + fmtKwhShort(today.totalKwh) : "Today —";
+            if (breakerLinkLost || (d && d.source === "sharing-stale")) {
+                wNow.textContent = "Today —";
+            } else {
+                wNow.textContent = today && today.totalKwh != null ? "Today " + fmtKwhShort(today.totalKwh) : "Today —";
+            }
         }
         if (!flag || !flagText) return;
         var f = d && d.flag ? d.flag : "learning";
@@ -1546,14 +1699,207 @@
         if (row) row.hidden = false;
     }
 
-    function setBreakerOn(text, fault) {
+    // LED cross-check: green only when the meter is reporting AND the alarm panel reports mains present.
+    // Meter silent + alarm mains OK  -> connection issue (amber), cannot be an outage.
+    // Meter silent + alarm mains FAIL -> power outage (red).
+    function setBreakerOn(text, fault, warn, title) {
         var stateEl = document.getElementById("breaker-state");
         var label = document.getElementById("breaker-on-label");
         if (label) label.textContent = text;
         if (!stateEl) return;
-        stateEl.classList.toggle("fault", !!fault);
-        stateEl.classList.toggle("is-on", text === "ON" && !fault);
+        stateEl.classList.toggle("fault", !!fault && !warn);
+        stateEl.classList.toggle("warn", !!warn);
+        stateEl.classList.toggle("is-on", text === "ON" && !fault && !warn);
         stateEl.classList.toggle("is-off", text === "OFF");
+        stateEl.title = title || "";
+        if (text !== "No link" && text !== "Power out") setBreakerLastLink("");
+    }
+
+    function noteBreakerLink(data, freeze) {
+        var last = data && data.lastReading;
+        var sh = (data && data.sharing) || ((data && data.debug && data.debug.sharing) || {});
+        var at = Number((last && last.ts) != null ? last.ts
+            : (data && data.lastReadingTs != null ? data.lastReadingTs
+            : (sh.meterLastReadingAt != null ? sh.meterLastReadingAt : data && data.readingTs)));
+        if (isFinite(at) && at > 1e12) at = at / 1000;
+        if (!(isFinite(at) && at > 1e9)) return;
+        var ms = at * 1000;
+        // Server last-reading is the only clock. Freeze must not keep an invented localStorage date
+        // (that painted 18 Oct while bins still showed 05:00).
+        breakerLastReportAt = ms;
+        saveBreakerStore();
+    }
+
+    function breakerLinkAgoLabel(seconds) {
+        var s = Math.max(0, Math.floor(seconds));
+        var d = Math.floor(s / 86400);
+        var h = Math.floor((s % 86400) / 3600);
+        var m = Math.floor((s % 3600) / 60);
+        var sec = s % 60;
+        function pad(n) { return (n < 10 ? "0" : "") + n; }
+        if (d) return d + "d " + h + "h";
+        if (h) return h + "h " + m + "m";
+        return m + "m " + pad(sec) + "s";
+    }
+
+    function stopBreakerLinkAgoTick() {
+        if (breakerLinkAgoTick) {
+            clearInterval(breakerLinkAgoTick);
+            breakerLinkAgoTick = null;
+        }
+    }
+
+    function paintBreakerLastLink(show) {
+        var timeEl = document.getElementById("breaker-last-link");
+        var agoEl = document.getElementById("breaker-link-ago");
+        if (!show || !breakerLastReportAt) {
+            if (timeEl) { timeEl.textContent = ""; timeEl.hidden = true; }
+            if (agoEl) { agoEl.textContent = ""; agoEl.hidden = true; }
+            stopBreakerLinkAgoTick();
+            return;
+        }
+        if (timeEl) {
+            timeEl.textContent = breakerLastLinkStamp();
+            timeEl.hidden = false;
+        }
+        if (agoEl) {
+            agoEl.textContent = breakerLinkAgoLabel((Date.now() - breakerLastReportAt) / 1000);
+            agoEl.title = "Running time since last meter link";
+            agoEl.hidden = false;
+        }
+        if (!breakerLinkAgoTick) {
+            breakerLinkAgoTick = setInterval(function () {
+                if (!breakerLastReportAt) { stopBreakerLinkAgoTick(); return; }
+                var el = document.getElementById("breaker-link-ago");
+                if (el) el.textContent = breakerLinkAgoLabel((Date.now() - breakerLastReportAt) / 1000);
+            }, 1000);
+        }
+    }
+
+    function setBreakerLastLink(text) {
+        paintBreakerLastLink(!!text);
+    }
+
+    function breakerLastLinkStamp() {
+        if (!breakerLastReportAt) return "";
+        var d = new Date(breakerLastReportAt);
+        var date = d.toLocaleDateString("en-GB", { timeZone: "Africa/Johannesburg", day: "2-digit", month: "short", year: "2-digit" });
+        var time = d.toLocaleTimeString("en-GB", { timeZone: "Africa/Johannesburg", hour: "2-digit", minute: "2-digit", hour12: false });
+        return date + " · " + time;
+    }
+
+    var alarmAcOk = null; // last Olarm mains state seen by the activity/panel feed (true/false/null=unknown)
+
+    // Eskom (calc) » Tuya meter register « since restore. Each segment only shows when its value exists.
+    function setBreakerMeterSeg(id, label, kwh, suffix, digits) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (kwh == null || !isFinite(kwh)) { el.hidden = true; return; }
+        var txt = typeof digits === "number"
+            ? kwh.toFixed(digits)
+            : (kwh >= 1000 ? kwh.toFixed(1) : (kwh >= 100 ? kwh.toFixed(2) : kwh.toFixed(3)));
+        el.textContent = "";
+        if (label) { var l = document.createElement("i"); l.textContent = label + " "; el.appendChild(l); }
+        el.appendChild(document.createTextNode(txt + (suffix || " kWh")));
+        el.hidden = false;
+    }
+
+    var breakerMeterBase = null; // {life, since, eskom, at} from the last server value change
+
+    function renderBreakerMeter() {
+        var b = breakerMeterBase;
+        if (!b) return;
+        // Between server updates, advance only from a live reading. Never invent kWh while the link is down.
+        var w = (!breakerLinkLost && breakerLatestWatts != null && isFinite(breakerLatestWatts)) ? breakerLatestWatts : 0;
+        var add = w * Math.min(Math.max(Date.now() - b.at, 0), 15 * 60000) / 3600000 / 1000;
+        // Sync: Eskom == photo. Then it clicks: photo + Tuya kWh since that sync.
+        setBreakerMeterSeg("breaker-eskom", "Eskom", b.eskom != null ? b.eskom + add : null, " kWh", 3);
+        setBreakerMeterSeg("breaker-used", "Used", b.used != null ? b.used + add : null, " kWh", 3);
+        setBreakerMeterSeg("breaker-restore", "", b.since != null ? b.since + add : null, " since restore");
+        var days = (b.restoreAt && isFinite(b.restoreAt))
+            ? Math.max(1 / 86400, (Date.now() / 1000 - b.restoreAt) / 86400)
+            : b.monthDays;
+        var avgPd = (b.since != null && days > 0) ? (b.since + add) / days : null;
+        setBreakerMeterSeg("breaker-avg-pd", "Avg/pd", avgPd, " kWh", 2);
+        var avgEl = document.getElementById("breaker-avg-pd");
+        if (avgEl) {
+            avgEl.title = b.monthLabel || ("kWh since restore / elapsed days (" + (days ? days.toFixed(4) : "") + " d)");
+        }
+    }
+
+    function setBreakerMeter(map) {
+        map = map || {};
+        var life = typeof map.meter_kwh === "number" ? map.meter_kwh : null;
+        var since = typeof map.meter_since_restore_kwh === "number" ? map.meter_since_restore_kwh : null;
+        var eskom = typeof map.eskom_kwh === "number" ? map.eskom_kwh : null;
+        var match = typeof map.eskom_match_kwh === "number" ? map.eskom_match_kwh : null;
+        var used = typeof map.eskom_used_since_match_kwh === "number" ? map.eskom_used_since_match_kwh : null;
+        var monthKwh = typeof map.month_kwh === "number" ? map.month_kwh : null;
+        var monthDays = typeof map.month_days === "number" ? map.month_days : 0;
+        var monthLabel = typeof map.month_label === "string" ? map.month_label : "";
+        var restoreAt = typeof map.restore_at === "number" ? map.restore_at : null;
+        var b = breakerMeterBase;
+        if (!b || b.life !== life || b.since !== since || b.eskom !== eskom || b.match !== match || b.used !== used || b.monthKwh !== monthKwh || b.monthDays !== monthDays || b.restoreAt !== restoreAt) {
+            breakerMeterBase = { life: life, since: since, eskom: eskom, match: match, used: used, monthKwh: monthKwh, monthDays: monthDays, monthLabel: monthLabel, restoreAt: restoreAt, at: Date.now() };
+        }
+        renderBreakerMeter();
+        if (!setBreakerMeter._tick) setBreakerMeter._tick = setInterval(renderBreakerMeter, 250);
+    }
+
+    function setBreakerReadingsFlash(on) {
+        var card = document.getElementById("arial-breaker");
+        if (card) card.classList.toggle("link-lost", !!on);
+        var ids = ["breaker-v", "breaker-a", "breaker-w"];
+        var i;
+        for (i = 0; i < ids.length; i += 1) {
+            var el = document.getElementById(ids[i]);
+            if (el) el.classList.toggle("link-lost", !!on);
+        }
+    }
+
+    function rememberBreakerSnap(volts, amps, watts) {
+        if (volts == null && amps == null && watts == null) return;
+        breakerSnap = { v: volts, a: amps, w: watts, at: Date.now() };
+    }
+
+    function applyBreakerSnapshot(zero) {
+        var vEl = document.getElementById("breaker-v");
+        var aEl = document.getElementById("breaker-a");
+        var wEl = document.getElementById("breaker-w");
+        // No live confirmation: never paint last V/A/W as current green gauges.
+        if (vEl) vEl.textContent = "—";
+        if (aEl) aEl.textContent = "—";
+        if (wEl) wEl.textContent = "—";
+        setBreakerGauge("v", null, 200, 255);
+        setBreakerGauge("a", null, 0, 20);
+        setBreakerGauge("w", null, 0, 4600);
+        breakerLatestWatts = null;
+        setBreakerReadingsFlash(true);
+    }
+
+    function refreshBreakerLinkLostView() {
+        if (!breakerLinkLost) return;
+        var ac = alarmAcOk;
+        applyBreakerSnapshot(ac === false);
+        if (ac === false) {
+            setBreakerOn("Power out", true, false, "Meter silent and alarm panel reports mains (A/C) failure");
+        } else {
+            setBreakerOn("No link", false, true, "Meter not reporting — last reading is not live");
+        }
+        setBreakerLastLink(breakerLastLinkStamp());
+    }
+
+    function breakerNoLink(data) {
+        noteBreakerLink(data, true);
+        breakerLinkLost = true;
+        var ac = alarmAcOk;
+        if (ac === false) {
+            setBreakerOn("Power out", true, false, "Meter silent and alarm panel reports mains (A/C) failure");
+        } else {
+            setBreakerOn("No link", false, true, "Meter not reporting — last reading is not live");
+        }
+        applyBreakerSnapshot(true);
+        setBreakerLastLink(breakerLastLinkStamp());
     }
 
     var breakerFailStreak = 0;
@@ -1575,6 +1921,8 @@
             breakerFailStreak = 0;
         }
         function blankGauges() {
+            breakerLinkLost = false;
+            setBreakerReadingsFlash(false);
             setBreakerGauge("v", null, 0, 1);
             setBreakerGauge("a", null, 0, 1);
             setBreakerGauge("w", null, 0, 1);
@@ -1589,16 +1937,21 @@
             blankGauges();
             return;
         }
-        if (!data.tokenOk) {
-            setBreakerOn("No token", true);
-            blankGauges();
+        if (!data.tokenOk || !data.deviceOk) {
+            var staleRows = Array.isArray(data.status) ? data.status : [];
+            var stale = {};
+            var si;
+            for (si = 0; si < staleRows.length; si += 1) {
+                if (staleRows[si] && staleRows[si].code) stale[staleRows[si].code] = staleRows[si].value;
+            }
+            var sv = breakerScale("cur_voltage", stale.cur_voltage);
+            var sa = breakerScale("cur_current", stale.cur_current);
+            var sw = breakerScale("cur_power", stale.cur_power);
+            if (sv != null || sa != null || sw != null) rememberBreakerSnap(sv, sa, sw);
+            breakerNoLink(data);
             return;
         }
-        if (!data.deviceOk) {
-            setBreakerOn("No link", true);
-            blankGauges();
-            return;
-        }
+        noteBreakerLink(data);
         var rows = Array.isArray(data.status) ? data.status : [];
         var map = {};
         var i;
@@ -1609,7 +1962,14 @@
         var volts = breakerScale("cur_voltage", map.cur_voltage);
         var amps = breakerScale("cur_current", map.cur_current);
         var watts = breakerScale("cur_power", map.cur_power);
-        setBreakerOn(on ? "ON" : "OFF", !on);
+        var ac = alarmAcOk !== null ? alarmAcOk : powerAcOk(window.arialDevice);
+        if (!on) setBreakerOn("OFF", true, false, "Breaker reports OFF");
+        else if (ac === false) setBreakerOn("ON", false, true, "Meter reporting but alarm panel reports mains (A/C) failure");
+        else setBreakerOn("ON", false, false, "Meter reporting and alarm panel has mains");
+        setBreakerMeter(map);
+        breakerLinkLost = false;
+        setBreakerReadingsFlash(false);
+        rememberBreakerSnap(volts, amps, watts);
         if (vEl) vEl.textContent = volts != null ? volts.toFixed(1) : "—";
         if (aEl) aEl.textContent = amps != null ? amps.toFixed(2) : "—";
         if (wEl) wEl.textContent = watts != null ? String(Math.round(watts)) : "—";
@@ -1676,6 +2036,7 @@
             var data = await res.json();
             breakerDayTick = Date.now();
             breakerEnergyData = data || null;
+            if (data && !breakerLinkLost) noteBreakerLink(data);
             breakerDays = data && Array.isArray(data.days) ? data.days : [];
             if (breakerDayIdx > breakerDays.length - 1) breakerDayIdx = 0;
             renderBreakerDay();
@@ -1705,7 +2066,8 @@
         for (j = 0; j < bars.length; j += 1) bars[j].classList.toggle("hot", Number(bars[j].getAttribute("data-hour")) === hour);
         var h2 = String(hour).padStart(2, "0");
         var h3 = String(hour + 1).padStart(2, "0");
-        tip.textContent = h2 + ":00–" + h3 + ":00 · " + (val == null ? "no data" : fmtKwhShort(val) + breakerBandText(val, breakerAvgKwh(day)));
+        var est = !!(day.estimated && day.estimated[hour]);
+        tip.textContent = h2 + ":00–" + h3 + ":00 · " + (val == null ? "no data" : (est ? "~" + fmtKwhShort(val) + " estimated (link was down; spread from meter register)" : fmtKwhShort(val) + breakerBandText(val, breakerAvgKwh(day))));
         tip.hidden = false;
         var rect = chart.getBoundingClientRect();
         var x = ((hour + 0.5) / 24) * rect.width;
@@ -1807,7 +2169,8 @@
             var h = Math.max(3.5, Math.min(1, v / max) * 56);
             var bar = document.createElementNS(ns, "rect");
             var isNow = breakerDayIdx === 0 && i === nowHour;
-            bar.setAttribute("class", "bar " + breakerBandClass(isNow ? null : v, avg) + (isNow ? " now" : ""));
+            var isEst = !!(day.estimated && day.estimated[i]);
+            bar.setAttribute("class", "bar " + (isEst ? "est" : breakerBandClass(isNow ? null : v, avg)) + (isNow ? " now" : ""));
             bar.setAttribute("x", (i * slotW + 1.2).toFixed(2));
             bar.setAttribute("y", (59 - h).toFixed(2));
             bar.setAttribute("width", (slotW - 2.4).toFixed(2));
@@ -1879,6 +2242,8 @@
                 var btn = this;
                 var t = btn.getAttribute("data-tab") || "all";
                 activityTab = t;
+                if (waTimer) { clearInterval(waTimer); waTimer = null; }
+                if (t === "whatsapp") { loadWhatsapp(); waTimer = setInterval(loadWhatsapp, 30000); }
                 var j;
                 for (j = 0; j < tabs.length; j += 1) {
                     var on = tabs[j] === btn;
@@ -1966,15 +2331,45 @@
     var pinOk = null;
     var pin = "";
     var lcdHold = null;
+    var LOGIN_ONLY = /(?:\?|&)login=1(?:&|$)/.test(location.search);
     var CODES = {
-        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=43", code: "7302" },
-        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102" },
-        "7777": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "7777" },
-        "2640": { name: "Comnet", from: "Comnet", logo: "/arial/users/comnet.png?v=1", code: "2640" },
-        "6114": { name: "Kevin", from: "Kevin", logo: null, code: "6114" },
-        "2525": { name: "Bugsy", from: "Bugsy", logo: null, code: "2525" },
-        "1111": { name: "Tim", from: "Tim", logo: null, code: "1111" }
+        "7302": { name: "Marc", from: "Pingoa", logo: "/arial/users/pingoa.png?v=43", code: "7302", url: "/users/pingoa/" },
+        "7102": { name: "Amoroc", from: "Amoroc", logo: "/arial/users/amoroc.png?v=43", code: "7102", url: "/users/amoroc/" },
+        "9876": { name: "Onguard", from: "Onguard", logo: "/arial/users/onguard.png?v=1", code: "9876", url: "/users/onguard/" },
+        "2640": { name: "Comnet", from: "Comnet", logo: "/arial/users/comnet.png?v=1", code: "2640", url: "/users/comnet/" },
+        "6114": { name: "Kevin", from: "Kevin", logo: null, code: "6114", url: "/users/kevin/" },
+        "2525": { name: "Bugsy", from: "Bugsy", logo: null, code: "2525", url: "/users/bugsy/" },
+        "1111": { name: "Tim", from: "Tim", logo: null, code: "1111", url: "/users/tim/" },
+        "0843": { name: "Annette", from: "Annette", logo: null, code: "0843", url: "/users/annette/" },
+        "0765": { name: "Jenny", from: "Jenny", logo: "/arial/users/jenny.png?v=2", code: "0765", url: "/users/jenny/" }
     };
+    if (LOGIN_ONLY) {
+        document.documentElement.classList.add("login-only");
+        var loginStyle = document.createElement("style");
+        loginStyle.textContent = ".login-only .arial-below,.login-only .lights-pop{display:none!important}";
+        document.head.appendChild(loginStyle);
+    }
+    function userPage(user) {
+        return (user && user.url) || "/";
+    }
+    function leaveForUser(user) {
+        if (!LOGIN_ONLY || !user) return;
+        var url = userPage(user);
+        setTimeout(function () {
+            try {
+                if (window.top && window.top !== window) window.top.location.href = url;
+                else location.href = url;
+            } catch (e) {
+                location.href = url;
+            }
+        }, 400);
+    }
+    // Per-site keypad users (mirrors ARIAL_KEYPAD_USERS on the API): a PIN not assigned to this alarm is rejected at login.
+    var SITE_USERS = Array.isArray(CFG.keypadUsers) && CFG.keypadUsers.length ? CFG.keypadUsers.map(function (n) { return String(n).toLowerCase(); }) : null;
+    function userAllowedHere(u) {
+        if (!u || !SITE_USERS) return !!u;
+        return SITE_USERS.indexOf(String(u.name || "").toLowerCase()) !== -1 || SITE_USERS.indexOf(String(u.from || "").toLowerCase()) !== -1;
+    }
 
     function resolvedUser(user) {
         if (!user) return null;
@@ -1983,9 +2378,10 @@
         if (/^kevin$/i.test(String(user.name || user.from || ""))) return CODES["6114"];
         if (/^bugsy$/i.test(String(user.name || user.from || ""))) return CODES["2525"];
         if (/^tim$/i.test(String(user.name || user.from || ""))) return CODES["1111"];
-        if (/onguard/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7777"];
+        if (/onguard/i.test(String(user.name || user.from || user.logo || ""))) return CODES["9876"];
         if (/aerial/i.test(String(user.logo || user.name || ""))) return CODES["7102"];
         if (/amoroc/i.test(String(user.name || user.from || user.logo || ""))) return CODES["7102"];
+        if (/^jenny$/i.test(String(user.name || user.from || ""))) return CODES["0765"];
         return user;
     }
 
@@ -2000,12 +2396,13 @@
         var below = document.querySelector(".arial-below");
         if (below) below.hidden = !on;
         var breakerCard = document.getElementById("arial-breaker");
-        if (breakerCard) breakerCard.hidden = !SITE_TUYA;
+        var showBreaker = SITE_TUYA && SITE_ID === "hansekop" && !!breakerCard;
+        if (breakerCard) breakerCard.hidden = !showBreaker;
         if (on) {
             restoreActivityStore();
             loadActivity();
             // Card is display:none until login, so charts can only size themselves now.
-            if (SITE_TUYA) {
+            if (showBreaker) {
                 initBreakerCharts();
                 Object.keys(breakerCharts).forEach(function (k) { breakerCharts[k].resize(); });
                 loadBreaker();
@@ -2016,9 +2413,22 @@
         }
     }
 
+    function tellHeader() {
+        try {
+            if (!window.parent || window.parent === window) return;
+            var user = window.arialUser;
+            window.parent.postMessage({
+                type: "arial-user",
+                user: user ? { name: user.name || "", from: user.from || "", url: user.url || "" } : null
+            }, window.location.origin);
+        } catch (e) {}
+    }
+
     function logOut() {
         window.arialUser = null;
         pin = "";
+        try { localStorage.removeItem(siteKey("arialUser")); } catch (e) {}
+        try { sessionStorage.removeItem(siteKey("arialUser")); } catch (e) {}
         try { localStorage.removeItem("arialUser"); } catch (e) {}
         try { sessionStorage.removeItem("arialUser"); } catch (e) {}
         try { localStorage.removeItem(siteKey("arialSite")); } catch (e) {}
@@ -2026,16 +2436,22 @@
         showUserLogo(null);
         setPadLoggedIn(false);
         setWelcome("");
+        tellHeader();
         loadStatus();
     }
 
     function setLoggedIn(user) {
         user = resolvedUser(user);
         window.arialUser = user;
-        try { localStorage.setItem("arialUser", JSON.stringify(user)); } catch (e) {}
-        try { sessionStorage.removeItem("arialUser"); } catch (e) {}
+        try { localStorage.setItem(siteKey("arialUser"), JSON.stringify(user)); } catch (e) {}
+        try { sessionStorage.removeItem(siteKey("arialUser")); } catch (e) {}
         showUserLogo(user);
         setPadLoggedIn(!!(user && user.code));
+        tellHeader();
+        if (LOGIN_ONLY) {
+            leaveForUser(user);
+            return;
+        }
         if (window.arialDevice) applyLeds(window.arialDevice);
     }
 
@@ -2481,6 +2897,7 @@
     function submitPin() {
         var user = CODES[pin];
         pin = "";
+        if (user && !LOGIN_ONLY && !userAllowedHere(user)) user = null;   // valid PIN elsewhere, but not assigned to this alarm
         if (user) {
             loadPinOkBuffer();
             setTimeout(pinAccepted, 1000);
@@ -2600,6 +3017,8 @@
             setWelcome("");
         }, 2200);
     }
+
+    window.arialRejectNeedLogin = rejectNeedLogin;
 
     function requireLogin() {
         if (isLoggedIn()) return true;
@@ -2749,6 +3168,17 @@
         areaPending[num] = p;
     }
 
+    function armedAreaNums() {
+        var areas = window.arialDevice && Array.isArray(window.arialDevice.arialAreas) ? window.arialDevice.arialAreas : [];
+        var nums = [];
+        var i;
+        for (i = 0; i < areas.length && i < AREA_KEYS.length; i += 1) {
+            var st = effectiveAreaState(i, areas);
+            if (st === "arm" || st === "stay" || st === "sleep" || st === "countdown" || areaPending[i + 1]) nums.push(i + 1);
+        }
+        return nums;
+    }
+
     function toggleArea(num) {
         if (!requireLogin()) return;
         var areas = window.arialDevice && Array.isArray(window.arialDevice.arialAreas) ? window.arialDevice.arialAreas : [];
@@ -2791,9 +3221,14 @@
             return;
         }
         if (multiArea && key === "TOGGLE") {
-            // Multi-partition panel: the lock has no function for now; each area key is its own lock.
-            beep();
+            // The padlock is DISARM while any partition is armed, and ARM for the house when none are.
+            if (!isLoggedIn()) { rejectNeedLogin(); saveClick(key); return; }
+            var armedNums = armedAreaNums();
+            if (!armedNums.length && panelLooksArmed(window.arialDevice)) armedNums = [1];
+            if (armedNums.length) armedNums.forEach(function (n) { toggleArea(n); });
+            else toggleArea(1);
             saveClick(key);
+            if (typeof window.onArialKey === "function") window.onArialKey(key);
             return;
         }
         var isArmed = panelLooksArmed(window.arialDevice);
@@ -2828,7 +3263,8 @@
             setWelcome("");
         } else if (key === "ENTER") {
             if (pin) submitPin();
-        } else if (key === "TOGGLE") {
+        } else if (key === "TOGGLE" || key === "ARM" || key === "FORCE") {
+            // single-area sites: ARM / FORCE keys arm (or disarm when armed), same as the padlock
             if (isArmed) doDisarm();
             else doArm();
         } else if (key === "UP" || key === "LOGOUT") {
@@ -2850,6 +3286,28 @@
 
     // ---- LIGHTS key (was STAY): tap = popup, hold = all lights on ----
     var LIGHTS_DEVICE = "bf7f4a91ef39b11261xcua";
+    // Per-site multi-device lights (Voelklip rooms): CFG.lights = [{id, name, gangs}]. Buttons are keyed
+    // "<deviceId>:<switch_n>" and read through /tuya/lights_multi; Hansekop keeps its single x4 switch.
+    var MULTI_LIGHTS = Array.isArray(CFG.lights) && CFG.lights.length ? CFG.lights : null;
+    var LIGHTS_ENABLED = SITE_TUYA || !!MULTI_LIGHTS;
+    function buildMultiGrid() {
+        var grid = document.getElementById("lights-grid");
+        if (!grid || !MULTI_LIGHTS || grid.getAttribute("data-multi") === "1") return;
+        grid.textContent = "";
+        grid.setAttribute("data-multi", "1");
+        MULTI_LIGHTS.forEach(function (d) {
+            var gangs = Math.max(1, Number(d.gangs) || 1), g;
+            for (g = 1; g <= gangs; g += 1) {
+                var b = document.createElement("button");
+                b.type = "button"; b.className = "light-btn"; b.setAttribute("data-switch", d.id + ":switch_" + g);
+                var ic = document.createElement("span"); ic.className = "light-icon"; ic.setAttribute("aria-hidden", "true");
+                var nm = document.createElement("span"); nm.className = "light-name"; nm.textContent = d.name + (gangs > 1 ? " " + g : "");
+                var st = document.createElement("span"); st.className = "light-state"; st.textContent = "\u2014";
+                b.appendChild(ic); b.appendChild(nm); b.appendChild(st);
+                grid.appendChild(b);
+            }
+        });
+    }
     var LIGHTS_HOLD_MS = 650;
     var lightsPress = null;
     var lightsPoll = null;
@@ -2876,7 +3334,11 @@
             if (st) st.textContent = on == null ? "—" : on ? "ON" : "OFF";
         }
         if (note) {
-            if (data && data.online === false) { note.textContent = "Switch offline"; note.classList.add("fault"); }
+            if (data && data.online === false && !MULTI_LIGHTS) { note.textContent = "Switch offline"; note.classList.add("fault"); }
+            else if (data && MULTI_LIGHTS && data.ok && Array.isArray(data.devices) && data.devices.some(function (d) { return d.online === false; })) {
+                var off = data.devices.filter(function (d) { return d.online === false; }).map(function (d) { return d.name || d.deviceId; });
+                note.textContent = "Offline: " + off.join(", "); note.classList.add("fault");
+            }
             else if (data && !data.ok) { note.textContent = data.tuyaMsg || "No link"; note.classList.add("fault"); }
             else { note.textContent = ""; note.classList.remove("fault"); }
         }
@@ -2886,7 +3348,9 @@
         if (loadLights._busy) return;
         loadLights._busy = true;
         try {
-            var res = await fetch(API + "/tuya/lights?device_id=" + LIGHTS_DEVICE, { credentials: "same-origin", cache: "no-store" });
+            var url = MULTI_LIGHTS ? API + "/tuya/lights_multi?ids=" + MULTI_LIGHTS.map(function (d) { return d.id; }).join(",")
+                                   : API + "/tuya/lights?device_id=" + LIGHTS_DEVICE;
+            var res = await fetch(url, { credentials: "same-origin", cache: "no-store" });
             renderLights(await res.json());
         } catch (e) {
             renderLights({ ok: false, tuyaMsg: "No link", switches: [] });
@@ -2901,7 +3365,25 @@
         var sel = target === "all" ? "#lights-grid .light-btn" : '#lights-grid .light-btn[data-switch="' + target + '"]';
         var btns = document.querySelectorAll(sel);
         var i;
-        for (i = 0; i < btns.length; i += 1) btns[i].classList.add("pending");
+        if (MULTI_LIGHTS) {
+            // "<deviceId>:<switch_n>" -> that device/gang; "all" -> every configured device, one call each.
+            var jobs = target === "all" ? MULTI_LIGHTS.map(function (d) { return { device_id: d.id, sw: "all" }; })
+                                        : [{ device_id: target.split(":")[0], sw: target.split(":")[1] || "switch_1" }];
+            var failed = null;
+            for (i = 0; i < jobs.length; i += 1) {
+                try {
+                    var r2 = await fetch(API + "/tuya/switch", {
+                        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ code: user.code, device_id: jobs[i].device_id, switch: jobs[i].sw, value: !!value })
+                    });
+                    if (!r2.ok) { var d2 = await r2.json().catch(function () { return {}; }); failed = (d2 && d2.detail) || "Switch failed"; }
+                } catch (e) { failed = "No link"; }
+            }
+            for (i = 0; i < btns.length; i += 1) btns[i].classList.remove("pending");
+            if (failed) renderLights({ ok: false, tuyaMsg: failed, switches: [] });
+            loadLights();
+            return;
+        }
         try {
             var res = await fetch(API + "/tuya/switch", {
                 method: "POST",
@@ -2922,17 +3404,16 @@
         }
     }
 
-    // Site PGM key (e.g. garage door motor): CFG.pgm = { label, num, cmd } turns the LIGHTS key into a 1s pulse.
-    // Stateless — like an RF 433 MHz remote. Do not show open/close/half-open; the PGM does not know door position.
+    // Site PGM key (e.g. garage door motor): CFG.pgm = { label, num, cmd } turns the LIGHTS key into a pulse button.
     var PGM = CFG.pgm && CFG.pgm.num ? CFG.pgm : null;
     if (PGM) {
         var pgmLab = document.querySelector('.hot[data-key="STAY"] .key-label');
         if (pgmLab) pgmLab.textContent = String(PGM.label || "PGM").toUpperCase();
-        var pgmKeyInit = document.querySelector('.hot[data-key="STAY"]');
-        if (pgmKeyInit) pgmKeyInit.setAttribute("aria-label", PGM.label || "PGM");
+        var pgmKey = document.querySelector('.hot[data-key="STAY"]'); if (pgmKey) pgmKey.setAttribute("aria-label", PGM.label || "PGM");
     }
     var pgmBusy = false;
     function pulsePgm() {
+        // Stateless 1s pulse, like an RF remote. Do not show open/close/half-open.
         if (!isLoggedIn()) { rejectNeedLogin(); return; }
         if (pgmBusy) return; pgmBusy = true;
         var pgmKey = document.querySelector('.hot[data-key="STAY"]');
@@ -2947,13 +3428,13 @@
             else { pgmBusy = false; if (pgmKey) pgmKey.classList.remove("light-pending"); }
         });
     }
-
     function openLights() {
         if (!isLoggedIn()) { rejectNeedLogin(); return; }
-        if (PGM && !SITE_TUYA) { pulsePgm(); return; }
-        if (!SITE_TUYA) { setWelcome("No lights here", 1800); return; }
+        if (PGM && !LIGHTS_ENABLED) { pulsePgm(); return; }
+        if (!LIGHTS_ENABLED) { setWelcome("No lights here", 1800); return; }
         var pop = document.getElementById("lights-pop");
         if (!pop) return;
+        buildMultiGrid();
         pop.hidden = false;
         openLights._at = Date.now();
         loadLights();
@@ -2984,7 +3465,14 @@
             var btn = ev.target.closest(".light-btn");
             if (!btn) return;
             var code = btn.getAttribute("data-switch");
-            setLight(code, !(lightsState[code] === true));
+            var next = !(lightsState[code] === true);
+            // Optimistic: reflect the tap instantly (no status delay); poll/response reconciles.
+            lightsState[code] = next;
+            btn.classList.remove("unknown", "pending");
+            btn.classList.toggle("on", next);
+            var stEl = btn.querySelector(".light-state");
+            if (stEl) stEl.textContent = next ? "ON" : "OFF";
+            setLight(code, next);
         });
         document.addEventListener("keydown", function (ev) {
             if (ev.key === "Escape" && lightsOpen()) closeLights();
@@ -3017,7 +3505,8 @@
         lab.classList.add("two-line");
         lab.textContent = "";
         var l1 = document.createElement("span"); l1.className = "kl-1"; l1.textContent = String(SINGLE_LIGHT.label || "Lights").toUpperCase();
-        var l2 = document.createElement("span"); l2.className = "kl-2"; l2.textContent = singleLightOn == null ? "…" : (singleLightOn ? "On" : "Off");
+        // Label = the ACTION a tap performs: lights on -> "TURN OFF"; lights off -> just the name (tap turns them on).
+        var l2 = document.createElement("span"); l2.className = "kl-2"; l2.textContent = singleLightOn == null ? "…" : (singleLightOn ? "Turn off" : ""); if (!l2.textContent) l2.hidden = true;
         lab.appendChild(l1); lab.appendChild(l2);
         var key = lab.closest(".hot");
         if (key) {
@@ -3030,8 +3519,10 @@
         }
     }
 
+    var singleLightBusy = false, singleLightHold = 0;   // in-flight guard + short poll hold after a command
     async function loadSingleLight() {
         if (!SINGLE_LIGHT || loadSingleLight._busy) return;
+        if (singleLightBusy || Date.now() < singleLightHold) return;   // don't let a stale poll undo the tap
         loadSingleLight._busy = true;
         try {
             var devices = {};
@@ -3055,9 +3546,14 @@
     async function toggleSingleLight() {
         if (!isLoggedIn()) { rejectNeedLogin(); return; }
         var user = window.arialUser;
+        if (singleLightBusy) return;                        // one command per tap; extra taps while sending are ignored
         var want = !(singleLightOn === true);
         var key = document.querySelector('.hot[data-key="STAY"]');
         if (key) key.classList.add("light-pending");
+        // Optimistic: show the requested state at once (tap = on, tap = off); the device reply reconciles below.
+        singleLightBusy = true; singleLightHold = Date.now() + 4000;
+        singleLightOn = want; renderSingleLight();
+        SINGLE_LIGHT.targets.forEach(function (t) { singleLightStates[t.device + "|" + t.code] = want; });
         try {
             await Promise.all(SINGLE_LIGHT.targets.map(function (t) {
                 return fetch(String(SINGLE_LIGHT.api || API) + "/tuya/switch", {
@@ -3072,6 +3568,7 @@
             }));
             recomputeSingleLight();
         } finally {
+            singleLightBusy = false;
             if (key) key.classList.remove("light-pending");
             renderSingleLight();
         }
@@ -3090,8 +3587,8 @@
         lightsPress.timer = setTimeout(function () {
             lightsPress.fired = true;
             if (!isLoggedIn()) { rejectNeedLogin(); return; }
-            if (PGM && !SITE_TUYA) { return; }   // PGM key: tap only (handled on release), no hold action
-            if (!SITE_TUYA) { setWelcome("No lights here", 1800); return; }
+            if (PGM && !LIGHTS_ENABLED) { return; }   // PGM key: tap only (handled on release), no hold action
+            if (!LIGHTS_ENABLED) { setWelcome("No lights here", 1800); return; }
             openLights();
             setLight("all", true);
         }, LIGHTS_HOLD_MS);
@@ -3161,19 +3658,23 @@
     setPadLoggedIn(false);
 
     try {
-        var saved = JSON.parse(localStorage.getItem("arialUser") || "null");
+        var saved = JSON.parse(localStorage.getItem(siteKey("arialUser")) || "null");
+        if (!saved) saved = JSON.parse(sessionStorage.getItem(siteKey("arialUser")) || "null");
+        if (!saved) saved = JSON.parse(localStorage.getItem("arialUser") || "null");
         if (!saved) saved = JSON.parse(sessionStorage.getItem("arialUser") || "null");
+        if (saved && !userAllowedHere(saved)) saved = null;
         if (saved) {
             if (/comnet/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "2640";
             if (/^kevin$/i.test(String(saved.name || saved.from || ""))) saved.code = "6114";
             if (/^bugsy$/i.test(String(saved.name || saved.from || ""))) saved.code = "2525";
             if (/^tim$/i.test(String(saved.name || saved.from || ""))) saved.code = "1111";
-            if (/onguard/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "7777";
+            if (/onguard/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "9876";
             if (!saved.code && /aerial/i.test(String(saved.logo || saved.name || ""))) saved.code = "7102";
             if (/aerial/i.test(String(saved.logo || ""))) saved.code = saved.code || "7102";
             if (!saved.code && saved.name === "Marc") saved.code = "7302";
             if (/amoroc/i.test(String(saved.name || saved.from || saved.logo || ""))) saved.code = "7102";
-            if (saved.code && CODES[saved.code]) setLoggedIn(CODES[saved.code]);
+            if (/^jenny$/i.test(String(saved.name || saved.from || ""))) saved.code = "0765";
+            if (saved.code && CODES[saved.code] && userAllowedHere(CODES[saved.code])) setLoggedIn(CODES[saved.code]);
         }
     } catch (e) {}
 
@@ -3278,4 +3779,9 @@
         if (!(armPending || localExitLeft() > 0 || panelIsExiting(window.arialDevice))) return;
         showArming(localExitLeft());
     }, 250);
+    window.addEventListener("message", function (ev) {
+        if (ev.origin !== window.location.origin) return;
+        var data = ev.data || {};
+        if (data.type === "arial-logout") logOut();
+    });
 })();
