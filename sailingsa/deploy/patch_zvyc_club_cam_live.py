@@ -111,6 +111,28 @@ def main() -> int:
         text = text.replace(anchor, anchor + inject, 1)
         changed = True
 
+    prepend = (
+        '        if \'id="zvyc-club-cam"\' not in (mm_card or "") and (\n'
+        '            "zvyc" in str(regatta_id or "").lower()\n'
+        '            or str(_host_code_logo or "").strip().upper() == "ZVYC"\n'
+        '        ):\n'
+        '            mm_card = _zvyc_event_cam_card_html() + (mm_card or "")\n'
+        '            mm_card_script = (\n'
+        '                \'<script src="/js/zvyc-club-cam.js?v=zvycam1" defer></script>\'\n'
+        '                + (mm_card_script or "")\n'
+        '            )\n'
+    )
+    if 'id="zvyc-club-cam"\' not in (mm_card or "")' not in text:
+        banner = '        banner_top = _wc_regatta_source_banner_html(str(regatta_id), position="top")\n'
+        marker = (
+            '            mm_card_script = \'<script src="/js/zvyc-club-cam.js?v=zvycam1" defer></script>\'\n'
+            + banner
+        )
+        if marker not in text:
+            raise SystemExit("missing cape prepend banner anchor")
+        text = text.replace(marker, marker.replace(banner, prepend + banner), 1)
+        changed = True
+
     if '@app.get("/api/club-cam/zvyc")' not in text:
         anchor = (
             '@app.get("/api/club-cam/hmyc")\n'
