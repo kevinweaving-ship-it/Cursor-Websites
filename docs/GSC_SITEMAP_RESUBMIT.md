@@ -12,7 +12,19 @@ Indexing → Sitemaps → Add:
 | `https://sailingsa.co.za/sitemap-roundups.xml` | **Not in GSC yet** — hub + `/latest/` + every Monday issue |
 | `https://sailingsa.co.za/sitemap-news.xml` | **Not in GSC yet** — last 48 hours only |
 
-The live OAuth token is `webmasters.readonly`. API cannot PUT those feeds or press **Request indexing**. A Search Console owner must submit the two new feeds once (or add a service-account owner with Indexing API for `request_google_index.py --until-quota`).
+Tried from both boxes 24 Oct 2026 12:20 SAST:
+
+| Path | Result |
+| --- | --- |
+| Sitemap PUT (`webmasters` write) | **403** insufficient scopes — live token is `webmasters.readonly` |
+| Indexing API `URL_UPDATED` | **403** same token has no `auth/indexing` |
+| `google.com/ping?sitemap=` | **404** (Google removed this in 2023) |
+| URL Inspection of 36 priority URLs | **200** — this is the write we do have. Does **not** press Request indexing |
+| Live Chrome profile `/root/gsc-oauth-chrome` | Not signed in (NID/OTZ/GAPS only). GSC bounced to accounts.google.com |
+| Mac Mini worker `43e56b9a-…` | Connected, idle, approved. Two Task placements still booted on Linux |
+| SSH to last home IP `41.71.67.74` | Port 22 closed |
+
+`/sailing-roundup/` and `/` are already **Submitted and indexed** (last crawl 24 Oct 2026 08:54 SAST). `/sailing-roundup/latest/` and 23 older issues are still **Unknown**. `/sailors` is still **Crawled - currently not indexed** (25 Sep 2026 18:31 SAST). `/home` is still listed indexed from 22 Oct — Google has not recrawled the new 301 yet.
 
 ## Errors Google actually raised (24 Oct 2026, Africa/Johannesburg)
 
