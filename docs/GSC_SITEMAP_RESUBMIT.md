@@ -18,7 +18,7 @@ The live OAuth token is `webmasters.readonly`. API cannot PUT those feeds or pre
 
 Pulled from URL Inspection on `sc-domain:sailingsa.co.za`. Each row is fixed on the site so the next crawl can clear it. GSC will not flip the status until Google recrawls.
 
-| GSC finding | Cause | Fix (verified live 24 Oct 2026 10:10 SAST) |
+| GSC finding | Cause | Fix (verified live 24 Oct 2026 12:10 SAST) |
 | --- | --- | --- |
 | Events rich result **ERROR**: missing `startDate`, `location` on `/sailing-roundup/issues/2026-10-19/` | `NewsArticle.about[]` emitted a bare `SportsEvent` | Live JSON-LD now has `startDate` + `location` (ZA) + `endDate` on both 10-19 events |
 | `userCanonical` missing on hub / recent issues | Tags added after last crawl | Live HTML has `<!-- ssa-gsc -->` canonical + robots. Recrawl will pick them up |
