@@ -153,6 +153,14 @@ def write_public_index() -> dict:
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         "<title>The Weekend Roundup — SailingSA</title>"
+    )
+    try:
+        from seo_head import hub_head
+
+        page += hub_head(latest["issue_id"] if latest else None)
+    except Exception:
+        pass
+    page += (
         '<style>@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap");'
         ":root{--ink:#172b3a;--navy:#001f3f;--muted:#697078;--paper:#f2f0eb;--rule:#d9d7d1;--accent:#8b6c43}"
         "body{margin:0;color:var(--ink);background:var(--paper);font:18px/1.6 'Source Serif 4',Georgia,serif}"
@@ -182,7 +190,25 @@ def write_public_index() -> dict:
         src = ROOT / "public" / "issues" / latest["issue_id"] / "index.html"
         pdf = ROOT / "public" / "issues" / latest["issue_id"] / "edition.pdf"
         if src.exists():
-            (latest_dir / "index.html").write_text(src.read_text())
+            html_text = src.read_text()
+            try:
+                from seo_head import inject_seo_head, issue_head
+
+                data = {}
+                issue_json = src.parent / "issue.json"
+                if issue_json.exists():
+                    data = json.loads(issue_json.read_text())
+                html_text = inject_seo_head(
+                    html_text,
+                    issue_head(
+                        latest["issue_id"],
+                        data,
+                        canonical=f"{PUBLIC_BASE}/issues/{latest['issue_id']}/",
+                    ),
+                )
+            except Exception:
+                pass
+            (latest_dir / "index.html").write_text(html_text)
         if pdf.exists():
             (latest_dir / "edition.pdf").write_bytes(pdf.read_bytes())
     return {"issues": len(issues), "latest": latest["issue_id"] if latest else None, "feed": str(public / "feed.json")}

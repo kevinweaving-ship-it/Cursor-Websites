@@ -367,7 +367,8 @@ Google (automatic — no Search Console click after the first submit):
 | `/sitemap-news.xml` | First-party issue URLs from the last **48 hours** only (`news:news`) |
 | `/sitemap.xml` | Index lists both child sitemaps |
 | `/robots.txt` | `Sitemap:` lines for `sitemap.xml`, `sitemap-roundups.xml`, `sitemap-news.xml` |
-| Issue HTML | NewsArticle JSON-LD |
+| Issue HTML | Self-canonical (apex, trailing slash), `index,follow`, Open Graph, NewsArticle JSON-LD |
+| `/sailing-roundup/latest/` | Canonical **to the newest issue URL** so GSC does not treat it as a duplicate |
 | `/regatta/{id}` | SportsEvent (sport Sailing) — already on the results card |
 
 Monday publish (`publish-to-sailingsa.sh`) rewrites the two child sitemaps at `/var/www/sailingsa/`, patches the index + robots, and pings `https://www.google.com/ping?sitemap=`. The daily cron (`refresh-sitemap-cron.sh` → `utils.sitemap_builder`) writes the same files so a new Monday is not deleted overnight. Indexing API `URL_UPDATED` is optional (`--notify-google` / `GOOGLE_INDEXING_SA_JSON`) and fires for the hub, `/latest/`, and the new issue. Failure must not block publish.

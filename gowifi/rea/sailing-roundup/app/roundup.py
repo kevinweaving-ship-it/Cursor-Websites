@@ -400,11 +400,16 @@ def render(issue):
         + "</style>"
     )
     try:
-        from news_schema import news_article_script
+        from seo_head import issue_head
 
-        page += news_article_script(issue, data)
+        page += issue_head(issue, data)
     except Exception:
-        pass
+        try:
+            from news_schema import news_article_script
+
+            page += news_article_script(issue, data)
+        except Exception:
+            pass
     page += (
         "</head><body>"
         + GOLD_HEADER

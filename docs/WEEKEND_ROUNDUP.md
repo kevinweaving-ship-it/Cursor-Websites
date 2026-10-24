@@ -44,7 +44,8 @@ Landing recency rules stay as they are. Historical issues are archive URLs for G
 | `/sitemap-roundups.xml` | Hub + `/latest/` + all issue URLs (historical). `changefreq` weekly so Google recrawls most Mondays |
 | `/sitemap.xml` | Index lists both |
 | `/robots.txt` | `Sitemap:` lines for the index and both child sitemaps |
-| Issue HTML | `NewsArticle` JSON-LD (`datePublished`, `headline`, `author`) |
+| Issue HTML | Self-canonical, `index,follow`, Open Graph, `NewsArticle` JSON-LD (`datePublished`, `headline`, `author`) |
+| `/sailing-roundup/latest/` | Canonical to the newest issue URL |
 | `/regatta/{id}` | `SportsEvent` — sport Sailing, yacht-club location, podium competitors |
 
 Monday publish and the daily sitemap cron rewrite those files and ping Google. Submit **https://sailingsa.co.za/sitemap.xml** (or the two child sitemaps) once in Google Search Console; new Monday URLs are then discovered automatically.

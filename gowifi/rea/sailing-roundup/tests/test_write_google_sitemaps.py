@@ -90,6 +90,7 @@ class WriteGoogleSitemapsTests(unittest.TestCase):
         self.assertIn(f"{BASE}/sitemap-news.xml", index)
         self.assertIn(f"{BASE}/sitemap-core.xml", index)
         self.assertIn("Disallow: /api/", robots)
+        self.assertIn("Disallow: /sailing-roundup/archive.json", robots)
         self.assertIn(f"Sitemap: {BASE}/sitemap-roundups.xml", robots)
         self.assertIn(f"Sitemap: {BASE}/sitemap-news.xml", robots)
 

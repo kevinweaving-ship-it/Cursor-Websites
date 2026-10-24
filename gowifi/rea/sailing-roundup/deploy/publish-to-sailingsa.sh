@@ -15,6 +15,7 @@ ISSUE="${2:-}"
 SRC="$(cd "$SRC" && pwd)"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SITEMAP_WRITER="$HERE/../app/write_google_sitemaps.py"
+# seo_head.py + news_schema.py must sit next to the writer so live PYTHONPATH works.
 
 if [ -z "$ISSUE" ]; then
   ISSUE="$(ls -1 "$SRC/issues" 2>/dev/null | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | sort | tail -1 || true)"
@@ -222,8 +223,13 @@ echo "published remote issue $ISSUE"
 REMOTE
 
 if [ -f "$SITEMAP_WRITER" ]; then
-  rsync -az -e "$RSYNC_RSH" "$SITEMAP_WRITER" "$DEST_HOST:/tmp/write_google_sitemaps.py" || true
-  "${SSH[@]}" "$DEST_HOST" "python3 /tmp/write_google_sitemaps.py --web-root /var/www/sailingsa" \
+  "${SSH[@]}" "$DEST_HOST" "mkdir -p /tmp/roundup-gsc" || true
+  rsync -az -e "$RSYNC_RSH" \
+    "$SITEMAP_WRITER" \
+    "$HERE/../app/seo_head.py" \
+    "$HERE/../app/news_schema.py" \
+    "$DEST_HOST:/tmp/roundup-gsc/" || true
+  "${SSH[@]}" "$DEST_HOST" "python3 /tmp/roundup-gsc/write_google_sitemaps.py --web-root /var/www/sailingsa" \
     || echo "google sitemap refresh failed (issue still published)" >&2
 fi
 

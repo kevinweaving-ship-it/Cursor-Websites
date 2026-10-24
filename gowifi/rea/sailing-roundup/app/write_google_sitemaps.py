@@ -191,6 +191,10 @@ def ensure_index(index_path: pathlib.Path, today: str | None = None) -> None:
 
 def ensure_robots(robots_path: pathlib.Path) -> None:
     lines = [
+        "Disallow: /sailing-roundup/archive.json",
+        "Disallow: /sailing-roundup/feed.json",
+        "Disallow: /sailing-roundup/cards.json",
+        "Disallow: /sailing-roundup/latest.json",
         f"Sitemap: {BASE}/sitemap.xml",
         f"Sitemap: {BASE}/sitemap-roundups.xml",
         f"Sitemap: {BASE}/sitemap-news.xml",
@@ -227,6 +231,13 @@ def write_web_root(web_root: pathlib.Path | str, *, ping: bool = True) -> dict:
     (root / "sitemap-news.xml").write_text(news_xml(news), encoding="utf-8")
     ensure_index(root / "sitemap.xml")
     ensure_robots(root / "robots.txt")
+    seo = {}
+    try:
+        from seo_head import patch_web_root
+
+        seo = patch_web_root(root)
+    except Exception as exc:
+        seo = {"ok": False, "error": str(exc)[:180]}
     pings = []
     if ping:
         for name in ("sitemap.xml", "sitemap-roundups.xml", "sitemap-news.xml"):
@@ -237,6 +248,7 @@ def write_web_root(web_root: pathlib.Path | str, *, ping: bool = True) -> dict:
         "roundup_urls": len(entries),
         "news_urls": len(news),
         "urls": [u for u, _ in entries],
+        "seo": seo,
         "google_ping": pings,
     }
 
