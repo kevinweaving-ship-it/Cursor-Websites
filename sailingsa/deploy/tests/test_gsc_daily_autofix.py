@@ -74,6 +74,18 @@ class AutofixDecide(unittest.TestCase):
     def test_few_five_xx_no_restart(self):
         self.assertEqual(decide([], five_xx=2), [])
 
+    def test_canonical_after_large_style(self):
+        spec = {
+            "id": "hub_canonical",
+            "url": "https://sailingsa.co.za/sailing-roundup/",
+            "want_status": 200,
+            "has_canonical": True,
+            "fix": "seo",
+        }
+        body = b"<style>" + (b"x" * 200000) + b'</style><!-- ssa-gsc --><link rel="canonical" href="https://sailingsa.co.za/sailing-roundup/">'
+        row = evaluate_row(spec, {"status": 200, "location": "", "body": body})
+        self.assertTrue(row["ok"])
+
 
 if __name__ == "__main__":
     unittest.main()

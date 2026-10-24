@@ -86,7 +86,7 @@ def first_hop(url: str, timeout: int = 20) -> dict[str, Any]:
     opener = urllib.request.build_opener(_NoRedirect())
     try:
         with opener.open(req, timeout=timeout) as resp:
-            body = resp.read(80_000)
+            body = resp.read(500_000)
             headers = {k.lower(): v for k, v in resp.headers.items()}
             return {
                 "status": resp.status,
@@ -97,7 +97,7 @@ def first_hop(url: str, timeout: int = 20) -> dict[str, Any]:
     except urllib.error.HTTPError as exc:
         body = b""
         try:
-            body = exc.read(80_000)
+            body = exc.read(500_000)
         except Exception:
             pass
         headers = {k.lower(): v for k, v in (exc.headers.items() if exc.headers else [])}
