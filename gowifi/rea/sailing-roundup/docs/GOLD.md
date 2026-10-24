@@ -356,16 +356,21 @@ Homepage `#landing-top-card` loads `/sailing-roundup/feed.json`, then each issue
 | 16:9, max-height ~220px, `object-fit: cover`, full bleed | Gold hero height. No black side bars. No sky-locked crop. |
 | Headline clamp 28–40px | Do not crunch with viewport `cqw` fitters |
 
-Google:
+Google (automatic — no Search Console click after the first submit):
 
 | File | Rule |
 | --- | --- |
-| `/sitemap-news.xml` | First-party roundup URLs from the last **48 hours** only |
-| `/sitemap-roundups.xml` | All issue URLs (historical depth) |
+| `/sailing-roundup/` | Hub. Always in `/sitemap-roundups.xml`. `changefreq` weekly, `lastmod` = newest Monday |
+| `/sailing-roundup/latest/` | Child of the hub. Same weekly signal |
+| `/sailing-roundup/issues/YYYY-MM-DD/` | Every published Monday HTML. Example: `/sailing-roundup/issues/2026-10-19/` |
+| `/sitemap-roundups.xml` | Hub + `/latest/` + **all** issue URLs (historical depth) |
+| `/sitemap-news.xml` | First-party issue URLs from the last **48 hours** only (`news:news`) |
+| `/sitemap.xml` | Index lists both child sitemaps |
+| `/robots.txt` | `Sitemap:` lines for `sitemap.xml`, `sitemap-roundups.xml`, `sitemap-news.xml` |
 | Issue HTML | NewsArticle JSON-LD |
 | `/regatta/{id}` | SportsEvent (sport Sailing) — already on the results card |
 
-Indexing API `URL_UPDATED` is optional (`--notify-google` / `GOOGLE_INDEXING_SA_JSON`). Failure must not block publish.
+Monday publish (`publish-to-sailingsa.sh`) rewrites the two child sitemaps at `/var/www/sailingsa/`, patches the index + robots, and pings `https://www.google.com/ping?sitemap=`. The daily cron (`refresh-sitemap-cron.sh` → `utils.sitemap_builder`) writes the same files so a new Monday is not deleted overnight. Indexing API `URL_UPDATED` is optional (`--notify-google` / `GOOGLE_INDEXING_SA_JSON`) and fires for the hub, `/latest/`, and the new issue. Failure must not block publish.
 
 Historical issues are **archive URLs**. They are not injected into `/api/news/latest`.
 
@@ -383,6 +388,7 @@ sailing-roundup.timer
                 events table → results API → cluster → recap → AI polish
                 → photos → issue.json → HTML/PDF → feed.json
         → deploy/publish-to-sailingsa.sh public YYYY-MM-DD
+        → write_google_sitemaps.py --web-root /var/www/sailingsa
         → curl live HTML / issue.json / edition.pdf
 ```
 
@@ -446,7 +452,7 @@ A new `https://sailingsa.co.za/sailing-roundup/issues/YYYY-MM-DD/` is Gold when 
 7. Weekend hero on the lead, `feed.json`, and NewsArticle is that photograph (or empty — never a logo).
 8. Homepage newest card is this Monday, full-bleed 16:9, tappable to this URL, no peek of the next card.
 9. HTML, `issue.json`, `edition.pdf` all 200. Other issue URLs unchanged.
-10. `/sitemap-news.xml` lists this URL only if it is inside 48 hours.
+10. `/sitemap-roundups.xml` lists the hub, `/latest/`, and this URL. `/sitemap-news.xml` lists this URL only if it is inside 48 hours. `robots.txt` names both child sitemaps.
 
 If any item fails, the job alerts and last-good stays. A human does not open the HTML to “fix the card.”
 

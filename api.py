@@ -27083,7 +27083,8 @@ def _roundup_published_issues() -> list:
             if not re.match(r"^\d{4}-\d{2}-\d{2}$", name):
                 continue
             path = os.path.join(root, name, "issue.json")
-            if not os.path.isfile(path):
+            html = os.path.join(root, name, "index.html")
+            if not os.path.isfile(path) and not os.path.isfile(html):
                 continue
             try:
                 with open(path, encoding="utf-8") as fh:
@@ -27168,10 +27169,13 @@ def _build_news_sitemap_xml() -> str:
 def _build_roundup_sitemap_xml() -> str:
     base = _canonical_base_url().rstrip("/")
     entries = [(item["url"].replace(base, "", 1) or "/", item["lastmod"]) for item in _roundup_published_issues()]
+    last = max((e[1] for e in entries), default=datetime.utcnow().strftime("%Y-%m-%d"))
+    prefix = []
     if not any(p == "/sailing-roundup/" for p, _ in entries):
-        last = max((e[1] for e in entries), default=datetime.utcnow().strftime("%Y-%m-%d"))
-        entries.insert(0, ("/sailing-roundup/", last))
-    return _build_urlset_from_entries(entries)
+        prefix.append(("/sailing-roundup/", last))
+    if not any(p == "/sailing-roundup/latest/" for p, _ in entries):
+        prefix.append(("/sailing-roundup/latest/", last))
+    return _build_urlset_from_entries(prefix + entries)
 
 
 def _build_urlset_from_entries(entries: list) -> str:
@@ -27190,6 +27194,7 @@ def _build_urlset_from_entries(entries: list) -> str:
         lines.append("  <url>")
         lines.append(f"    <loc>{_sitemap_escape_loc(loc)}</loc>")
         lines.append(f"    <lastmod>{lastmod}</lastmod>")
+        lines.append("    <changefreq>weekly</changefreq>")
         lines.append("  </url>")
     lines.append("</urlset>")
     return "\n".join(lines)
@@ -27259,6 +27264,7 @@ def serve_robots_txt():
     base = _canonical_base_url()
     body = (
         f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n"
+        f"Sitemap: {base}/sitemap-roundups.xml\n"
         f"Sitemap: {base}/sitemap-news.xml\n"
     )
     return Response(content=body, media_type="text/plain", headers={"Cache-Control": "public, max-age=3600"})

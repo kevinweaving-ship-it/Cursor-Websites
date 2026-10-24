@@ -66,4 +66,16 @@ def notify_url_updated(url: str) -> dict[str, Any]:
 
 
 def notify_issue(monday: str) -> dict[str, Any]:
-    return notify_url_updated(issue_url(monday))
+    """Tell Google the hub, /latest/, and this Monday URL changed."""
+    urls = [
+        "https://sailingsa.co.za/sailing-roundup/",
+        "https://sailingsa.co.za/sailing-roundup/latest/",
+        issue_url(monday),
+    ]
+    results = [notify_url_updated(url) for url in urls]
+    return {
+        "ok": any(r.get("ok") for r in results),
+        "url": issue_url(monday),
+        "skipped": all(r.get("skipped") for r in results),
+        "results": results,
+    }

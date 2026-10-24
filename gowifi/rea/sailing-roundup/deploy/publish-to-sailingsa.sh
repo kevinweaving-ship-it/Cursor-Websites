@@ -13,6 +13,8 @@ SRC="${1:-}"
 ISSUE="${2:-}"
 [ -n "$SRC" ] && [ -d "$SRC" ] || usage
 SRC="$(cd "$SRC" && pwd)"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+SITEMAP_WRITER="$HERE/../app/write_google_sitemaps.py"
 
 if [ -z "$ISSUE" ]; then
   ISSUE="$(ls -1 "$SRC/issues" 2>/dev/null | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | sort | tail -1 || true)"
@@ -95,6 +97,18 @@ publish_landing() {
   fi
 }
 
+refresh_google_sitemaps() {
+  # Exception: Google needs hub + issue URLs at the web-root sitemap, not only
+  # under /sailing-roundup/. Failure here must never undo a published issue.
+  local web_root="$1"
+  if [ ! -f "$SITEMAP_WRITER" ]; then
+    echo "google sitemap writer missing: $SITEMAP_WRITER" >&2
+    return 0
+  fi
+  python3 "$SITEMAP_WRITER" --web-root "$web_root" || echo "google sitemap refresh failed (issue still published)" >&2
+  return 0
+}
+
 fix_perms() {
   local live_root="$1"
   local issue="$2"
@@ -112,6 +126,7 @@ if [ -d /var/www/sailingsa ]; then
   promote_issue "$DEST_DIR" "$SRC/issues/$ISSUE" "$ISSUE"
   publish_landing "$DEST_DIR" "$SRC"
   fix_perms "$DEST_DIR" "$ISSUE"
+  refresh_google_sitemaps /var/www/sailingsa
   echo "published local issue $ISSUE -> $DEST_DIR/issues/$ISSUE"
   exit 0
 fi
@@ -205,5 +220,11 @@ find "$LIVE" -type d -exec chmod 755 {} \;
 find "$LIVE" -type f -exec chmod 644 {} \;
 echo "published remote issue $ISSUE"
 REMOTE
+
+if [ -f "$SITEMAP_WRITER" ]; then
+  rsync -az -e "$RSYNC_RSH" "$SITEMAP_WRITER" "$DEST_HOST:/tmp/write_google_sitemaps.py" || true
+  "${SSH[@]}" "$DEST_HOST" "python3 /tmp/write_google_sitemaps.py --web-root /var/www/sailingsa" \
+    || echo "google sitemap refresh failed (issue still published)" >&2
+fi
 
 echo "published $DEST_HOST:$DEST_DIR/issues/$ISSUE"

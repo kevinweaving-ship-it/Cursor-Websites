@@ -41,12 +41,13 @@ Landing recency rules stay as they are. Historical issues are archive URLs for G
 | File | Rule |
 | --- | --- |
 | `/sitemap-news.xml` | First-party roundup URLs from the last **48 hours** only (`news:news`, `news:publication_date`, `news:title`) |
-| `/sitemap-roundups.xml` | All issue URLs (historical) |
+| `/sitemap-roundups.xml` | Hub + `/latest/` + all issue URLs (historical). `changefreq` weekly so Google recrawls most Mondays |
 | `/sitemap.xml` | Index lists both |
+| `/robots.txt` | `Sitemap:` lines for the index and both child sitemaps |
 | Issue HTML | `NewsArticle` JSON-LD (`datePublished`, `headline`, `author`) |
 | `/regatta/{id}` | `SportsEvent` — sport Sailing, yacht-club location, podium competitors |
 
-Submit **https://sailingsa.co.za/sitemap-news.xml** once in Google Search Console.
+Monday publish and the daily sitemap cron rewrite those files and ping Google. Submit **https://sailingsa.co.za/sitemap.xml** (or the two child sitemaps) once in Google Search Console; new Monday URLs are then discovered automatically.
 
 Indexing API (`URL_UPDATED`) is optional: `--notify-google` or `GOOGLE_INDEXING_SA_JSON`. Google documents that API for JobPosting / livestream; failures must not block publish.
 

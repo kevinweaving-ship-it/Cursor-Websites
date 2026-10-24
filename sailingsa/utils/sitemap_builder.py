@@ -7,11 +7,12 @@ No current_date. No parse timestamps.
 from __future__ import annotations
 
 import glob
+import json
 import os
 import re
 import logging
-from datetime import datetime, timezone
-from urllib.parse import urlsplit, urlunsplit
+from datetime import datetime, timedelta, timezone
+from urllib.parse import quote, urlsplit, urlunsplit
 from typing import Any
 
 import psycopg2.extras  # RealDictCursor for dict-like rows
@@ -284,39 +285,124 @@ def _chunk_filenames(stem: str, n: int, max_per: int) -> list[str]:
     return [f"{stem}-part{i + 1:05d}.xml" for i in range(n_parts)]
 
 
-def _fetch_roundup_entries(out_dir: str, base_url: str) -> list[tuple[str, str]]:
-    """Weekend-roundup issue URLs from published issue.json folders."""
-    candidates = [
+def _roundup_issue_roots(out_dir: str) -> list[str]:
+    return [
+        os.path.join(os.path.abspath(out_dir or "."), "sailing-roundup", "issues"),
         os.path.join(os.path.dirname(os.path.abspath(out_dir or ".")), "sailing-roundup", "issues"),
         "/var/www/sailingsa/sailing-roundup/issues",
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "gowifi", "rea", "sailing-roundup", "public", "issues"),
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "..",
+            "gowifi",
+            "rea",
+            "sailing-roundup",
+            "public",
+            "issues",
+        ),
     ]
-    entries: list[tuple[str, str]] = []
+
+
+def _fetch_roundup_issue_items(out_dir: str) -> list[dict]:
+    """Published Monday issues: {monday, path, lastmod, title}."""
+    items: list[dict] = []
     seen: set[str] = set()
-    for root in candidates:
+    for root in _roundup_issue_roots(out_dir):
         root = os.path.abspath(root)
         if not os.path.isdir(root):
             continue
         try:
-            names = sorted(os.listdir(root))
+            names = sorted(os.listdir(root), reverse=True)
         except OSError:
             continue
         for name in names:
             if not re.match(r"^\d{4}-\d{2}-\d{2}$", name):
                 continue
-            if not os.path.isfile(os.path.join(root, name, "issue.json")):
+            json_path = os.path.join(root, name, "issue.json")
+            html_path = os.path.join(root, name, "index.html")
+            if not os.path.isfile(json_path) and not os.path.isfile(html_path):
                 continue
-            path = f"/sailing-roundup/issues/{name}/"
-            if path in seen:
+            if name in seen:
                 continue
-            seen.add(path)
-            entries.append((path, name))
-        if entries:
+            seen.add(name)
+            title = "South African Sailing — The Weekend Roundup"
+            lastmod = name
+            if os.path.isfile(json_path):
+                try:
+                    with open(json_path, encoding="utf-8") as fh:
+                        data = json.load(fh)
+                    title = (data.get("title") or title).strip()
+                    lastmod = (str(data.get("edition_date") or name))[:10]
+                except Exception:
+                    pass
+            items.append(
+                {
+                    "monday": name,
+                    "path": f"/sailing-roundup/issues/{name}/",
+                    "lastmod": lastmod,
+                    "title": f"{title} — {name}",
+                }
+            )
+        if items:
             break
-    last = _max_lastmod(entries) if entries else "2000-01-01"
-    if "/sailing-roundup/" not in seen:
-        entries.insert(0, ("/sailing-roundup/", last))
+    return items
+
+
+def _fetch_roundup_entries(out_dir: str, base_url: str) -> list[tuple[str, str]]:
+    """Hub + /latest/ + every published Monday issue URL."""
+    del base_url
+    items = _fetch_roundup_issue_items(out_dir)
+    last = _max_lastmod([(i["path"], i["lastmod"]) for i in items]) if items else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    entries = [("/sailing-roundup/", last), ("/sailing-roundup/latest/", last)]
+    entries.extend((i["path"], i["lastmod"]) for i in items)
     return entries
+
+
+def _build_news_urlset_xml(base_url: str, items: list[dict], now: datetime | None = None) -> tuple[str, int]:
+    """Google News sitemap: issue URLs from the last 48 hours only."""
+    base = (base_url or BASE_URL_DEFAULT).rstrip("/")
+    now = now or datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=48)
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+        'xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">',
+    ]
+    count = 0
+    for item in items:
+        try:
+            pub_dt = datetime.fromisoformat(item["lastmod"]).replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+        if pub_dt < cutoff - timedelta(hours=20):
+            continue
+        loc = f"{base}{item['path']}"
+        pub = item["lastmod"]
+        lines.append("  <url>")
+        lines.append(f"    <loc>{_escape_loc(loc)}</loc>")
+        lines.append("    <news:news>")
+        lines.append("      <news:publication>")
+        lines.append("        <news:name>SailingSA</news:name>")
+        lines.append("        <news:language>en</news:language>")
+        lines.append("      </news:publication>")
+        lines.append(f"      <news:publication_date>{pub}T06:00:00+02:00</news:publication_date>")
+        lines.append(f"      <news:title>{_escape_loc(item.get('title') or 'Weekend Sailing Roundup')}</news:title>")
+        lines.append("    </news:news>")
+        lines.append("  </url>")
+        count += 1
+    lines.append("</urlset>")
+    return "\n".join(lines) + "\n", count
+
+
+def _ping_google(sitemap_url: str) -> None:
+    try:
+        from urllib.request import Request, urlopen
+
+        url = "https://www.google.com/ping?sitemap=" + quote(sitemap_url, safe="")
+        req = Request(url, headers={"User-Agent": "SailingSA-Sitemap/1.0"})
+        urlopen(req, timeout=10).read(64)
+    except Exception as exc:
+        LOG.info("sitemap_builder: google ping skipped: %s", exc)
 
 
 def _remove_stale_sitemaps(out_dir: str, keep_basenames: set[str]) -> None:
@@ -466,9 +552,11 @@ def build_sitemap(
     write_chunked("sitemap-clubs", club_entries)
     write_chunked("sitemap-sailors", sailor_entries)
     write_chunked("sitemap-roundups", _fetch_roundup_entries(out_dir, base_url))
-    # Dynamic /sitemap-news.xml is served by the API (48h only). Do not overwrite or delete it.
+    news_xml, news_count = _build_news_urlset_xml(base_url, _fetch_roundup_issue_items(out_dir))
+    _atomic_write(os.path.join(out_dir, "sitemap-news.xml"), news_xml)
     written_names.add("sitemap-news.xml")
     written_names.add("sitemap-core.xml")
+    by_file["sitemap-news.xml"] = news_count
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     index_rows.append((f"{base}/sitemap-news.xml", today))
 
@@ -492,6 +580,9 @@ def build_sitemap(
         len(by_file),
         total_urls,
     )
+    if os.environ.get("SITEMAP_PING_GOOGLE", "1") not in ("0", "false", "no"):
+        for name in ("sitemap.xml", "sitemap-roundups.xml", "sitemap-news.xml"):
+            _ping_google(f"{base}/{name}")
 
     return {
         "ok": True,

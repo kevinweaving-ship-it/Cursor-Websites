@@ -34,6 +34,9 @@ copy at `/opt/sailing-roundup` is disabled and masked so it cannot publish.
    SailingSA, validates HTML/JSON/PDF, keeps last-good, then directory-renames
    into `issues/<issue>/`. Landing files (`index.html`, `latest.json`,
    `feed.json`, `cards.json`) are overwritten without `--delete` of other issues.
+   After promote it runs `app/write_google_sitemaps.py --web-root /var/www/sailingsa`
+   so `/sitemap-roundups.xml`, `/sitemap-news.xml`, the sitemap index, and
+   `robots.txt` list the new Monday URL. Sitemap failure never rolls back the issue.
 3. `run-monday.sh` curls
    `https://sailingsa.co.za/sailing-roundup/issues/<issue>/` plus `issue.json`
    and `edition.pdf` and checks the rebuilt HTML.
