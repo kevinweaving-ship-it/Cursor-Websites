@@ -27,3 +27,12 @@ systemctl restart sailingsa-api
 ```
 
 Without `WU_API_KEY`, Agromet + Wind2Speed still ingest; all `weather_underground` stations stay empty.
+
+## WU dashboard autofix
+
+`weather_wu_discover.py` scrapes `https://www.wunderground.com/dashboard/pws/{STATION}` for the
+browser `apiKey` + observation URLs when `api.weather.com` returns 401 (WU site key rotation).
+
+- Used by `weather_hyc.py` (`/api/weather/hyc/history`) and `weather_pws.wu_api_key()`.
+- Cache: `/var/www/sailingsa/data/wu_discover_cache.json` (6h TTL; re-scrapes on 401).
+- Club ingest timer pulls HYC IOVERS2 + full PWS catalog every 5 minutes.

@@ -148,6 +148,59 @@ def ingest_wind2speed() -> dict:
         return {"ok": False, "source": "wind2speed", "err": str(e)[:200]}
 
 
+
+def ingest_hyc_iovers2() -> dict:
+    """HYC venue WU PWS via dashboard autofix → weather_store."""
+    import sys
+    from datetime import datetime, timezone
+    sys.path.insert(0, "/var/www/sailingsa/api")
+    import weather_hyc as hyc
+    from sailingsa.backend.weather_store import _connect, get_station, insert_observation, mark_station_ingest
+    payload = hyc.fetch_hyc_history(hours=6)
+    if not payload.get("ok"):
+        return {"ok": False, "source": "hyc", "err": payload.get("err")}
+    conn = _connect()
+    try:
+        st = get_station(conn, "pws-iovers2")
+        if not st:
+            return {"ok": False, "source": "hyc", "err": "station_missing"}
+        station_id = int(st["id"])
+        n = 0
+        for row in payload.get("readings") or []:
+            obs = row.get("observed_at")
+            if not obs:
+                continue
+            if isinstance(obs, str):
+                txt = obs.replace("Z", "+00:00")
+                try:
+                    observed = datetime.fromisoformat(txt)
+                except ValueError:
+                    continue
+                if observed.tzinfo is None:
+                    observed = observed.replace(tzinfo=timezone.utc)
+            else:
+                observed = obs
+            fields = {
+                "wind_kt": row.get("wind_kt"),
+                "wind_avg_kt": row.get("wind_avg_kt"),
+                "wind_gust_kt": row.get("wind_gust_kt"),
+                "wind_dir_deg": row.get("wind_dir_deg"),
+                "wind_dir_avg_deg": row.get("wind_dir_avg_deg"),
+                "temp_c": row.get("temp_c"),
+                "humidity_pct": row.get("humidity_pct"),
+                "latitude": -34.409,
+                "longitude": 19.349,
+            }
+            n += insert_observation(station_id, observed, fields, {"provider": "weather_underground", "source": "hyc_autofix", "key_source": payload.get("key_source")}, row, period_sec=int(row.get("period_sec") or 60))
+        try:
+            mark_station_ingest("pws-iovers2")
+        except Exception:
+            pass
+        return {"ok": True, "source": "hyc", "inserted": n, "readings": payload.get("count"), "key_source": payload.get("key_source")}
+    finally:
+        conn.close()
+
+
 def ingest_pws() -> dict:
     try:
         from sailingsa.backend import weather_pws
@@ -165,7 +218,7 @@ def ingest_pws() -> dict:
 
 def main() -> int:
     results = []
-    for fn in (ingest_agromet, ingest_wind2speed, ingest_pws):
+    for fn in (ingest_agromet, ingest_hyc_iovers2, ingest_wind2speed, ingest_pws):
         try:
             results.append(fn())
         except Exception as e:
