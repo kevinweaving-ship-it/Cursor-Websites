@@ -1,0 +1,14 @@
+[Unit]
+Description=Ingest club weather (Agromet/HMYC, Wind2Speed/ZVYC, WU PWS when keyed)
+After=network-online.target postgresql.service sailingsa-api.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sailingsa
+Environment=PYTHONPATH=/var/www/sailingsa:/var/www/sailingsa/api
+EnvironmentFile=-/etc/sailingsa/weather.env
+ExecStart=/var/www/sailingsa/api/venv/bin/python /opt/sailingsa-weather-ingest/ingest_club_weather.py
+Nice=10

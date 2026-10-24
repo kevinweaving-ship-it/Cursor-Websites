@@ -1,0 +1,12 @@
+[Unit]
+Description=Club weather ingest every 5 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=sailingsa-club-weather-ingest.service
+
+[Install]
+WantedBy=timers.target
