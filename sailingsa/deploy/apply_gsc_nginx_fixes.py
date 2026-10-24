@@ -3,6 +3,9 @@
 
 Reads a sailingsa site file on stdin, writes the patched file to stdout.
 
+Live nginx serves `/etc/nginx/sites-enabled/sailingsa` (not a symlink). That
+file is `chattr +i` — clear the immutable bit before replacing it.
+
 Apply with: python3 apply_gsc_nginx_fixes.py < site.conf > site.conf.new
 
 - Split https://www.sailingsa.co.za onto its own 443 server (301 to apex).

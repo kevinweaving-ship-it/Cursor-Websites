@@ -45,17 +45,28 @@ scp_file "$project_root/gowifi/rea/sailing-roundup/app/write_google_sitemaps.py"
 puts "Backup + apply nginx + surgical API + re-patch issue heads..."
 set rc [ssh_cmd {bash -lc 'set -euo pipefail
 TS=$(date +%Y%m%d_%H%M%S)
-NG=$(ls /etc/nginx/sites-available/sailingsa /etc/nginx/sites-enabled/sailingsa /etc/nginx/sites-enabled/timadvisor 2>/dev/null | head -1)
-test -n "$NG"
-cp -a "$NG" "/root/nginx-gsc-${TS}.bak"
+# Live nginx reads sites-enabled/sailingsa (a real file, not a symlink). Both that
+# file and api.py are chattr +i.
+NG=/etc/nginx/sites-enabled/sailingsa
+test -f "$NG"
+mkdir -p /root/gsc-backups
+cp -a "$NG" "/root/gsc-backups/nginx-enabled-sailingsa-${TS}.bak"
 python3 /tmp/apply_gsc_nginx_fixes.py < "$NG" > "/tmp/sailingsa.gsc.new"
+chattr -i "$NG"
 cp "/tmp/sailingsa.gsc.new" "$NG"
-nginx -t
+if ! nginx -t; then
+  cp -a "/root/gsc-backups/nginx-enabled-sailingsa-${TS}.bak" "$NG"
+  chattr +i "$NG"
+  exit 1
+fi
 systemctl reload nginx
+chattr +i "$NG"
 API=/var/www/sailingsa/api/api.py
 if [ -f "$API" ]; then
-  cp -a "$API" "/root/api.py.gsc-${TS}.bak"
+  cp -a "$API" "/root/gsc-backups/api.py.gsc-${TS}.bak"
+  chattr -i "$API"
   python3 /tmp/live_patch_gsc_api.py "$API" | tee /tmp/gsc-api-patch.out
+  chattr +i "$API"
   if grep -q PATCHED /tmp/gsc-api-patch.out; then
     systemctl restart sailingsa-api
     sleep 2

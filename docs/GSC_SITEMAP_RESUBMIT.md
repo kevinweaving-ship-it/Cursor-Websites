@@ -18,16 +18,18 @@ The live OAuth token is `webmasters.readonly`. API cannot PUT those feeds or pre
 
 Pulled from URL Inspection on `sc-domain:sailingsa.co.za`. Each row is fixed on the site so the next crawl can clear it. GSC will not flip the status until Google recrawls.
 
-| GSC finding | Cause | Fix |
+| GSC finding | Cause | Fix (verified live 24 Oct 2026 10:10 SAST) |
 | --- | --- | --- |
-| Events rich result **ERROR**: missing `startDate`, `location` on `/sailing-roundup/issues/2026-10-19/` | `NewsArticle.about[]` emitted a bare `SportsEvent` | `app/news_schema.py` only emits SportsEvent when `name` + `startDate` + `location` are present; issue heads re-patched |
-| `userCanonical` missing on hub / recent issues | Tags added after last crawl | Live HTML now has `<!-- ssa-gsc -->` canonical + robots. Recrawl will pick them up |
-| `https://www.sailingsa.co.za/sailing-roundup/` and www issue URLs **200 duplicate** | www shared the apex 443 `server` block | Dedicated www 443 server **301** to `https://sailingsa.co.za$request_uri` |
-| `/home` **200 duplicate** of `/` | Static homepage copy, JS even blocked the redirect | nginx `location = /home` **301** to `/` |
-| `…/regatta/class/podium/podium.html?regatta_id=` **200 soft-404** | Empty query still served the podium shell | nginx + API **301** to `/events` when `regatta_id` is empty |
-| `/sailors` crawled, **currently not indexed** | Title was the single word `Sailors` | Title is now `South African Sailors \| SailingSA`; robots `index, follow`. Google still decides whether to index |
+| Events rich result **ERROR**: missing `startDate`, `location` on `/sailing-roundup/issues/2026-10-19/` | `NewsArticle.about[]` emitted a bare `SportsEvent` | Live JSON-LD now has `startDate` + `location` (ZA) + `endDate` on both 10-19 events |
+| `userCanonical` missing on hub / recent issues | Tags added after last crawl | Live HTML has `<!-- ssa-gsc -->` canonical + robots. Recrawl will pick them up |
+| `https://www.sailingsa.co.za/sailing-roundup/` and www issue URLs **200 duplicate** | www shared the apex 443 `server` block | www 443 now **301** to the same path on `https://sailingsa.co.za` |
+| `/home` **200 duplicate** of `/` | nginx served `/home.html` | `location = /home` and `/home/` **301** to `/` |
+| `…/regatta/class/podium/podium.html?regatta_id=` **200 soft-404** | Empty query served the podium shell | Apex **301** to `/events`. Valid `?regatta_id=…` still 200 |
+| `/sailors` crawled, **currently not indexed** | Title was the single word `Sailors` | Title/H1 is now `South African Sailors`. Google still decides whether to index |
 | Child sitemaps “not a submitted or known sitemap” | Only the index was added in GSC | Files are 200. Owner must submit `sitemap-roundups.xml` and `sitemap-news.xml` |
 | `/sailing-roundup/latest/` + 23 older issues **Unknown** | Never fetched | Listed in `sitemap-roundups.xml`. Submit that feed (or Request indexing on `/latest/` first) |
+
+Live nginx: `/etc/nginx/sites-enabled/sailingsa` is a **real file** (not a symlink to `sites-available`). Both that file and `/var/www/sailingsa/api/api.py` are `chattr +i`. Apply with `apply-gsc-fixes-live.exp` (clears/restores the immutable bit).
 
 Not bugs: `www` homepage already 301s to apex; sitemap.xml itself is “Crawled - currently not indexed” (expected for a sitemap file); JSON feeds are `Disallow` in robots.
 
