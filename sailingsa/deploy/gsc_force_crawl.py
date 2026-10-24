@@ -78,6 +78,9 @@ for feed in (
 urls = [
     "https://sailingsa.co.za/sailing-roundup/latest/",
     "https://sailingsa.co.za/sailing-roundup/",
+    "https://sailingsa.co.za/sitemap-roundups.xml",
+    "https://sailingsa.co.za/sitemap-news.xml",
+    "https://sailingsa.co.za/sitemap.xml",
     "https://sailingsa.co.za/sailing-roundup/issues/2026-10-19/",
     "https://sailingsa.co.za/sailing-roundup/issues/2026-10-12/",
     "https://sailingsa.co.za/sailing-roundup/issues/2026-10-05/",
