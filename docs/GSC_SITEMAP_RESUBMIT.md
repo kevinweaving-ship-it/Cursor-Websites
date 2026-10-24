@@ -1,40 +1,44 @@
-# Google Search Console — SailingSA sitemaps
+# Google Search Console — SailingSA
 
-Property: **https://sailingsa.co.za** (apex). `www` should 301 here (`nginx-sailingsa-www-redirect-443.conf`).
+Property (live): **`sc-domain:sailingsa.co.za`** — not the URL-prefix `https://sailingsa.co.za/`.
 
-## Submit once
+## Submit once (write access)
 
-1. Open [Google Search Console](https://search.google.com/search-console) → property **https://sailingsa.co.za**.
-2. Indexing → Sitemaps → add:
+Indexing → Sitemaps → Add:
 
-| Sitemap | What Google gets |
+| Feed | Why |
 | --- | --- |
-| `sitemap.xml` | Index of all child urlsets |
-| `sitemap-roundups.xml` | Hub + `/latest/` + every `/sailing-roundup/issues/YYYY-MM-DD/` |
-| `sitemap-news.xml` | Issues from the last 48 hours only (`news:news`) |
+| `https://sailingsa.co.za/sitemap.xml` | Already submitted 20 Sep 2026; last fetched 23 Oct 2026 01:15 SAST |
+| `https://sailingsa.co.za/sitemap-roundups.xml` | **Not in GSC yet** — hub + `/latest/` + every Monday issue |
+| `https://sailingsa.co.za/sitemap-news.xml` | **Not in GSC yet** — last 48 hours only |
 
-New Monday issues are added automatically (Monday publish + daily cron + Google ping). Do not submit each issue URL by hand.
+The live OAuth token is `webmasters.readonly`. API cannot PUT those feeds or press **Request indexing**. A Search Console owner must submit the two new feeds once (or add a service-account owner with Indexing API for `request_google_index.py --until-quota`).
 
-## Live files Google must fetch as XML
+## Inspection 24 Oct 2026 (Africa/Johannesburg)
 
-- https://sailingsa.co.za/sitemap.xml
-- https://sailingsa.co.za/sitemap-roundups.xml
-- https://sailingsa.co.za/sitemap-news.xml
-- https://sailingsa.co.za/robots.txt
+36 URL Inspections. Google did **not** hit the daily inspect cap (that cap is ~2000).
 
-`sitemap-classes.xml`, `sitemap-clubs.xml`, `sitemap-core.xml`, `sitemap-regattas.xml`, `sitemap-sailors.xml` stay in the index.
+**Already indexed (PASS)**
 
-If a child sitemap 404s as `application/json`, nginx is proxying a missing file to the API. Write the file to `/var/www/sailingsa/` and keep `nginx-sitemap-children.conf` in front of `location /`.
+| URL | Last crawl (SAST) |
+| --- | --- |
+| `/` | Sat 24 Oct 2026 08:54 |
+| `/sailing-roundup/` | Sat 24 Oct 2026 08:54 |
+| `/sailing-roundup/issues/2026-10-19/` | Wed 21 Oct 2026 04:27 |
+| `/sailing-roundup/issues/2026-10-12/` | Wed 21 Oct 2026 04:27 |
+| `/sailing-roundup/issues/2026-10-05/` | Wed 21 Oct 2026 04:27 |
+| `/sailing-roundup/issues/2026-09-28/` | Wed 21 Oct 2026 04:25 |
+| `/about` `/stats` `/events` `/classes` `/clubs` | indexed |
 
-## Issue pages
+**Unknown to Google — ask indexing (priority order)**
 
-Each `https://sailingsa.co.za/sailing-roundup/issues/YYYY-MM-DD/` must have:
+1. `https://sailingsa.co.za/sailing-roundup/latest/`
+2. Older issue URLs from `2026-09-21` back to `2025-12-01` (23 pages)
+3. `/sailors` — crawled 25 Sep 2026 18:31 SAST, **currently not indexed**
 
-- `<link rel="canonical">` to itself (apex, trailing slash)
-- `<meta name="robots" content="index, follow">`
-- `og:title` / `og:url` / `og:image` when a photograph exists
-- `NewsArticle` JSON-LD (`datePublished`, `headline`, `publisher`)
+GSC UI **Request indexing** is a small daily cap (about 10–20 URLs). Use it on `/latest/` first, then the newest unknown issues. Submitting `sitemap-roundups.xml` covers all of them without burning the per-URL cap.
 
-`/sailing-roundup/latest/` canonicals to the newest issue so GSC does not treat it as a duplicate.
+## Automation
 
-JSON feeds (`feed.json`, `archive.json`, `cards.json`, `latest.json`) are `Disallow` in robots — they are not HTML locs.
+- Live files: `write_google_sitemaps.py` on Monday publish + daily cron
+- Optional Indexing API: `GOOGLE_INDEXING_SA_JSON` + `python3 app/request_google_index.py --until-quota` (stops when Google returns quota exhausted). Needs a service account that **owns** `sc-domain:sailingsa.co.za`.
