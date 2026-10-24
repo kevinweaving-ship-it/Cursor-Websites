@@ -1,0 +1,89 @@
+#!/usr/bin/expect -f
+# Surgical live apply of Search Console crawl fixes. Does NOT zip the frontend.
+set timeout 180
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+set project_root [file normalize "$script_dir/../.."]
+
+proc scp_file {src dest} {
+    global password user server
+    spawn scp -o StrictHostKeyChecking=no $src ${user}@${server}:$dest
+    expect {
+        "password:" { send "$password\r"; expect eof }
+        eof {}
+        timeout { puts "ERROR: scp timeout $src"; exit 1 }
+    }
+    wait
+}
+
+proc ssh_cmd {cmd} {
+    global password user server
+    spawn ssh -o StrictHostKeyChecking=no ${user}@${server} $cmd
+    expect {
+        "password:" { send "$password\r" }
+        timeout { puts "ERROR: ssh timeout"; exit 1 }
+    }
+    expect eof
+    lassign [wait] pid spawnid os_error value
+    return $value
+}
+
+puts "Uploading GSC fix scripts..."
+set mkdir_rc [ssh_cmd {mkdir -p /tmp/roundup-gsc}]
+if {$mkdir_rc != 0} {
+    puts "ERROR: mkdir /tmp/roundup-gsc failed"
+    exit 1
+}
+scp_file "$script_dir/apply_gsc_nginx_fixes.py" /tmp/apply_gsc_nginx_fixes.py
+scp_file "$script_dir/live_patch_gsc_api.py" /tmp/live_patch_gsc_api.py
+scp_file "$project_root/gowifi/rea/sailing-roundup/app/news_schema.py" /tmp/roundup-gsc/news_schema.py
+scp_file "$project_root/gowifi/rea/sailing-roundup/app/seo_head.py" /tmp/roundup-gsc/seo_head.py
+scp_file "$project_root/gowifi/rea/sailing-roundup/app/write_google_sitemaps.py" /tmp/roundup-gsc/write_google_sitemaps.py
+
+puts "Backup + apply nginx + surgical API + re-patch issue heads..."
+set rc [ssh_cmd {bash -lc 'set -euo pipefail
+TS=$(date +%Y%m%d_%H%M%S)
+# Live nginx reads sites-enabled/sailingsa (a real file, not a symlink). Both that
+# file and api.py are chattr +i.
+NG=/etc/nginx/sites-enabled/sailingsa
+test -f "$NG"
+mkdir -p /root/gsc-backups
+cp -a "$NG" "/root/gsc-backups/nginx-enabled-sailingsa-${TS}.bak"
+python3 /tmp/apply_gsc_nginx_fixes.py < "$NG" > "/tmp/sailingsa.gsc.new"
+chattr -i "$NG"
+cp "/tmp/sailingsa.gsc.new" "$NG"
+if ! nginx -t; then
+  cp -a "/root/gsc-backups/nginx-enabled-sailingsa-${TS}.bak" "$NG"
+  chattr +i "$NG"
+  exit 1
+fi
+systemctl reload nginx
+chattr +i "$NG"
+API=/var/www/sailingsa/api/api.py
+if [ -f "$API" ]; then
+  cp -a "$API" "/root/gsc-backups/api.py.gsc-${TS}.bak"
+  chattr -i "$API"
+  python3 /tmp/live_patch_gsc_api.py "$API" | tee /tmp/gsc-api-patch.out
+  chattr +i "$API"
+  if grep -q PATCHED /tmp/gsc-api-patch.out; then
+    systemctl restart sailingsa-api
+    sleep 2
+    systemctl is-active sailingsa-api
+  fi
+fi
+mkdir -p /tmp/roundup-gsc
+cd /tmp/roundup-gsc
+PYTHONPATH=/tmp/roundup-gsc python3 - <<PY
+from pathlib import Path
+from seo_head import patch_web_root
+print(patch_web_root(Path("/var/www/sailingsa")))
+PY
+echo GSC_LIVE_OK
+'}]
+if {$rc != 0} {
+    puts "ERROR: live apply failed"
+    exit 1
+}
+puts "Live GSC apply finished"
