@@ -69,6 +69,8 @@ GSC UI **Request indexing** (~10–20/day) and sitemap PUT need a signed-in Mac 
 
 ## Automation
 
-- Live files: `write_google_sitemaps.py` on Monday publish + daily cron
-- Live apply: `expect sailingsa/deploy/apply-gsc-fixes-live.exp` (nginx www/`/home`/empty-podium + surgical API + re-patch issue JSON-LD)
-- Optional Indexing API: `GOOGLE_INDEXING_SA_JSON` + `python3 app/request_google_index.py --until-quota` (stops when Google returns quota exhausted). Needs a service account that **owns** `sc-domain:sailingsa.co.za`.
+**One daily GSC tool:** `/etc/cron.d/sailingsa_gsc_daily` → `/usr/local/sbin/sailingsa-gsc-daily` at 09:00 Africa/Johannesburg → `python3 -m sailingsa.tools.gsc_daily.run_server_daily`. It inspects, classifies, and applies the known remediations (`autofix.py`). Do not add a second fixer cron. `--no-fix` collects only.
+
+- Sitemap *files*: Monday publish `write_google_sitemaps.py` + `/etc/cron.d/sailingsa_sitemap_refresh` every 15 minutes (writer, not a second GSC checker)
+- Manual live apply if cron is down: `expect sailingsa/deploy/apply-gsc-fixes-live.exp`
+- Optional Indexing API: `GOOGLE_INDEXING_SA_JSON` + `python3 app/request_google_index.py --until-quota`. Needs a service account that **owns** `sc-domain:sailingsa.co.za`.
