@@ -371,7 +371,7 @@ Google (automatic — no Search Console click after the first submit):
 | `/sailing-roundup/latest/` | Canonical **to the newest issue URL** so GSC does not treat it as a duplicate |
 | `/regatta/{id}` | SportsEvent (sport Sailing) — already on the results card |
 
-Monday publish (`publish-to-sailingsa.sh`) rewrites the two child sitemaps at `/var/www/sailingsa/`, patches the index + robots, and pings `https://www.google.com/ping?sitemap=`. The daily cron (`refresh-sitemap-cron.sh` → `utils.sitemap_builder`) writes the same files so a new Monday is not deleted overnight. Indexing API `URL_UPDATED` is optional (`--notify-google` / `GOOGLE_INDEXING_SA_JSON`) and fires for the hub, `/latest/`, and the new issue. Failure must not block publish.
+Monday publish (`publish-to-sailingsa.sh`) rewrites the two child sitemaps at `/var/www/sailingsa/`, patches the index + robots, and pings `https://www.google.com/ping?sitemap=`. The daily cron (`refresh-sitemap-cron.sh` → `utils.sitemap_builder`) writes the same files so a new Monday is not deleted overnight. Indexing API `URL_UPDATED` is optional (`--notify-google` / `GOOGLE_INDEXING_SA_JSON`) and fires for the hub, `/latest/`, and the new issue. Failure must not block publish. A traction day can burn the daily quota on purpose: `python3 app/request_google_index.py --until-quota` (roundup URLs first, then high-traffic site pages, stop when Google returns quota exhausted).
 
 Historical issues are **archive URLs**. They are not injected into `/api/news/latest`.
 
