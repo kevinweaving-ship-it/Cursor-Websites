@@ -77,6 +77,24 @@ def main() -> int:
         text = text.replace(old_script, new_script)
         changed = True
 
+    old_club = (
+        r'<script src=\"/js/live-cam-sources.js?v=clubwx18\" defer></script>'
+        r'<script src=\"/js/club-live-media.js?v=clubwx22\" defer></script>'
+    )
+    new_club = (
+        r'<script src=\"/js/live-cam-sources.js?v=clubwx23\" defer></script>'
+        r'<script src=\"/js/club-live-media.js?v=clubwx23\" defer></script>'
+    )
+    if old_club in text:
+        text = text.replace(old_club, new_club)
+        changed = True
+    if "/css/mm-lipton-reels.css?v=clubwx22" in text:
+        text = text.replace(
+            "/css/mm-lipton-reels.css?v=clubwx22",
+            "/css/mm-lipton-reels.css?v=clubwx23",
+        )
+        changed = True
+
     inject = (
         '        elif _zvyc_event_wants_club_cam(str(regatta_id), _host_code_logo):\n'
         '            mm_card = _zvyc_event_cam_card_html()\n'
