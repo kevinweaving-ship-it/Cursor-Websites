@@ -14,6 +14,23 @@ Indexing → Sitemaps → Add:
 
 The live OAuth token is `webmasters.readonly`. API cannot PUT those feeds or press **Request indexing**. A Search Console owner must submit the two new feeds once (or add a service-account owner with Indexing API for `request_google_index.py --until-quota`).
 
+## Errors Google actually raised (24 Oct 2026, Africa/Johannesburg)
+
+Pulled from URL Inspection on `sc-domain:sailingsa.co.za`. Each row is fixed on the site so the next crawl can clear it. GSC will not flip the status until Google recrawls.
+
+| GSC finding | Cause | Fix |
+| --- | --- | --- |
+| Events rich result **ERROR**: missing `startDate`, `location` on `/sailing-roundup/issues/2026-10-19/` | `NewsArticle.about[]` emitted a bare `SportsEvent` | `app/news_schema.py` only emits SportsEvent when `name` + `startDate` + `location` are present; issue heads re-patched |
+| `userCanonical` missing on hub / recent issues | Tags added after last crawl | Live HTML now has `<!-- ssa-gsc -->` canonical + robots. Recrawl will pick them up |
+| `https://www.sailingsa.co.za/sailing-roundup/` and www issue URLs **200 duplicate** | www shared the apex 443 `server` block | Dedicated www 443 server **301** to `https://sailingsa.co.za$request_uri` |
+| `/home` **200 duplicate** of `/` | Static homepage copy, JS even blocked the redirect | nginx `location = /home` **301** to `/` |
+| `…/regatta/class/podium/podium.html?regatta_id=` **200 soft-404** | Empty query still served the podium shell | nginx + API **301** to `/events` when `regatta_id` is empty |
+| `/sailors` crawled, **currently not indexed** | Title was the single word `Sailors` | Title is now `South African Sailors \| SailingSA`; robots `index, follow`. Google still decides whether to index |
+| Child sitemaps “not a submitted or known sitemap” | Only the index was added in GSC | Files are 200. Owner must submit `sitemap-roundups.xml` and `sitemap-news.xml` |
+| `/sailing-roundup/latest/` + 23 older issues **Unknown** | Never fetched | Listed in `sitemap-roundups.xml`. Submit that feed (or Request indexing on `/latest/` first) |
+
+Not bugs: `www` homepage already 301s to apex; sitemap.xml itself is “Crawled - currently not indexed” (expected for a sitemap file); JSON feeds are `Disallow` in robots.
+
 ## Inspection 24 Oct 2026 (Africa/Johannesburg)
 
 36 URL Inspections. Google did **not** hit the daily inspect cap (that cap is ~2000).
@@ -34,11 +51,12 @@ The live OAuth token is `webmasters.readonly`. API cannot PUT those feeds or pre
 
 1. `https://sailingsa.co.za/sailing-roundup/latest/`
 2. Older issue URLs from `2026-09-21` back to `2025-12-01` (23 pages)
-3. `/sailors` — crawled 25 Sep 2026 18:31 SAST, **currently not indexed**
+3. `/sailors` — recrawl after the title fix
 
 GSC UI **Request indexing** is a small daily cap (about 10–20 URLs). Use it on `/latest/` first, then the newest unknown issues. Submitting `sitemap-roundups.xml` covers all of them without burning the per-URL cap.
 
 ## Automation
 
 - Live files: `write_google_sitemaps.py` on Monday publish + daily cron
+- Live apply: `expect sailingsa/deploy/apply-gsc-fixes-live.exp` (nginx www/`/home`/empty-podium + surgical API + re-patch issue JSON-LD)
 - Optional Indexing API: `GOOGLE_INDEXING_SA_JSON` + `python3 app/request_google_index.py --until-quota` (stops when Google returns quota exhausted). Needs a service account that **owns** `sc-domain:sailingsa.co.za`.

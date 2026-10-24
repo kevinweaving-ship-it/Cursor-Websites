@@ -327,6 +327,9 @@ class YearBackfill(unittest.TestCase):
         self.assertEqual(payload["author"]["name"], "SailingSA")
         self.assertEqual(payload["about"][0]["@type"], "SportsEvent")
         self.assertEqual(payload["about"][0]["sport"], "Sailing")
+        self.assertEqual(payload["about"][0]["startDate"], "2026-09-25")
+        self.assertEqual(payload["about"][0]["location"]["name"], "TSC")
+        self.assertEqual(payload["about"][0]["location"]["address"]["addressCountry"], "ZA")
 
 
 if __name__ == "__main__":

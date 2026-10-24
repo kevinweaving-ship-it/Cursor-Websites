@@ -305,7 +305,7 @@ The public HTML/PDF must **not** dump `source_info` or social caption lists.
 - Citations become `<sup class="cite"><a href="#slug-src-n">n</a></sup>`.
 - Event URL(s) immediately under every event H2: `<p class="event-url"><a href="https://sailingsa.co.za/regatta/{slug}">https://sailingsa.co.za/regatta/{slug}</a></p>`. Gold 09-28 lists all four: 505, Dabchick, Dart 18, 420. A story with no `/regatta/` slug publishes without a fake link. `roundup._article_event_urls` collects every `/regatta/` URL from results blocks, sources, citations, and the event id — all of them must render as clickable lines under that headline.
 - 505 source-region crops stay SVG `source-photo-panel` viewBoxes on `*-source.jpg`. Re-render must not flatten those panels into a full collage `<img>`.
-- NewsArticle JSON-LD (`app/news_schema.py`): `datePublished` Monday 06:00 SAST, `headline`, `author`, `image` = weekend hero, `about` = SportsEvent per scored slug.
+- NewsArticle JSON-LD (`app/news_schema.py`): `datePublished` Monday 06:00 SAST, `headline`, `author`, `image` = weekend hero, `about` = SportsEvent per scored slug. Each SportsEvent must include Google’s Events required fields (`name`, `startDate`, `location`). If a report has no dated slug or venue, omit that `about` item — incomplete SportsEvent markup is a Search Console ERROR.
 - PDF: headless Chromium, A3, same HTML.
 
 `landing.write_public_index()` then writes:
