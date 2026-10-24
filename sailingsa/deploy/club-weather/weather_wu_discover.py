@@ -2,11 +2,18 @@
 
 WU rotates the browser apiKey embedded in https://www.wunderground.com/dashboard/pws/{STATION}.
 The old hardcoded web key (e1f10a…) now 401s while the station is still CONNECTED on the site.
-This module watches that page, extracts a working key + endpoint paths, and caches them so
-club weather keeps updating without a manual code change when WU redesigns the dashboard.
+
+This module:
+  1. Knows exactly which scrape fields club weather needs (REQUIRED_SCRAPE).
+  2. Watches the dashboard HTML fingerprint for site redesigns.
+  3. Auto-fixes on 401/403, empty observations, or fingerprint change by
+     re-scraping keys + observation endpoint paths and probing until one works.
+  4. Caches a working key so ingest (every 5 min) and /api/weather/hyc keep updating
+     without a manual code change when WU redesigns the dashboard.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -26,8 +33,47 @@ CURRENT_PATH = "https://api.weather.com/v2/pws/observations/current"
 DAY_PATH = "https://api.weather.com/v2/pws/observations/all/1day"
 CACHE_ENV = "WU_DISCOVER_CACHE"
 DEFAULT_CACHE = Path("/var/www/sailingsa/data/wu_discover_cache.json")
+# Keep a working key this long if probes still succeed.
 CACHE_TTL_SEC = 6 * 3600
+# Even with a working key, re-check the dashboard HTML this often so site
+# redesigns are caught before the next hard 401.
+WATCH_INTERVAL_SEC = 30 * 60
 PROBE_STATION = "IOVERS2"
+
+# Contract: what club weather must obtain from the WU site / API.
+# If WU renames these, scrape patterns + probes below must be updated once;
+# runtime autofix handles key/URL rotation within this contract.
+REQUIRED_SCRAPE: dict[str, Any] = {
+    "dashboard_url": "https://www.wunderground.com/dashboard/pws/{STATION}",
+    "api_key": {
+        "where": "dashboard HTML (apiKey=… / \"apiKey\":\"…\" / PWS observation URLs)",
+        "purpose": "authorize api.weather.com PWS observations",
+    },
+    "endpoints": {
+        "current": CURRENT_PATH,
+        "day": DAY_PATH,
+    },
+    "query": {
+        "stationId": "{STATION}",
+        "format": "json",
+        "units": "m",
+        "numericPrecision": "decimal",
+        "apiKey": "{discovered}",
+    },
+    "observation_fields": [
+        "obsTimeUtc",
+        "winddir",
+        "humidity",
+        "metric.windSpeed",
+        "metric.windGust",
+        "metric.temp",
+        # imperial fallback used when metric block absent
+        "imperial.windSpeed",
+        "imperial.windGust",
+        "imperial.temp",
+    ],
+    "club_output_units": "knots (converted from mph or km/h)",
+}
 
 _mem: dict[str, Any] = {"at": 0.0, "data": None}
 
@@ -71,6 +117,23 @@ def _save_cache(data: dict[str, Any]) -> None:
     _mem["data"] = data
 
 
+def _fingerprint(text: str, keys: list[str], current: str, day: str) -> str:
+    """Stable-ish digest of how the dashboard exposes keys/endpoints."""
+    script_srcs = sorted(set(re.findall(r'src="(/[^"]+\.js)"', text)))[:40]
+    blob = json.dumps(
+        {
+            "keys": sorted(keys)[:12],
+            "current": current,
+            "day": day,
+            "scripts": script_srcs,
+            "has_next": "__NEXT_DATA__" in text,
+            "bytes": len(text),
+        },
+        sort_keys=True,
+    )
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:24]
+
+
 def scrape_dashboard_keys(station_id: str = PROBE_STATION) -> dict[str, Any]:
     """Pull apiKeys and PWS URLs from the public WU dashboard HTML."""
     sid = (station_id or PROBE_STATION).strip().upper() or PROBE_STATION
@@ -85,10 +148,18 @@ def scrape_dashboard_keys(station_id: str = PROBE_STATION) -> dict[str, Any]:
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         text = resp.read().decode("utf-8", "replace")
+
     keys = set(re.findall(r"apiKey=([A-Za-z0-9]{20,})", text, flags=re.I))
     keys |= set(re.findall(r'"apiKey"\s*:\s*"([A-Za-z0-9]{20,})"', text))
     keys |= set(re.findall(r"'apiKey'\s*:\s*'([A-Za-z0-9]{20,})'", text))
-    # Prefer keys that already appear on working PWS observation URLs in the page.
+    # Next.js / embedded JSON blobs often hold the browser key after redesigns.
+    for m in re.finditer(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', text, flags=re.I | re.S):
+        keys |= set(re.findall(r'"apiKey"\s*:\s*"([A-Za-z0-9]{20,})"', m.group(1)))
+    for m in re.finditer(r'<script[^>]+type="application/json"[^>]*>(.*?)</script>', text, flags=re.I | re.S):
+        chunk = m.group(1)
+        if "apiKey" in chunk or "weather.com" in chunk:
+            keys |= set(re.findall(r'"apiKey"\s*:\s*"([A-Za-z0-9]{20,})"', chunk))
+
     urls = sorted(set(re.findall(r"https://api\.weather\.com[^\"'\s<>]+", text)))
     preferred: list[str] = []
     current = CURRENT_PATH
@@ -103,20 +174,23 @@ def scrape_dashboard_keys(station_id: str = PROBE_STATION) -> dict[str, Any]:
             current = u.split("?", 1)[0]
         elif "/observations/all/1day" in u:
             day = u.split("?", 1)[0]
-    # Probe PWS-bound keys first (ff90…), then any other browser key found in HTML.
+
+    # Prefer keys already bound to PWS observation URLs (e.g. ff90…), then others.
     ordered: list[str] = []
     for k in preferred + sorted(keys):
         if k not in ordered:
             ordered.append(k)
-    keys = ordered
+    fp = _fingerprint(text, ordered, current, day)
     return {
         "station_id": sid,
         "dashboard": url,
-        "keys": list(keys),
+        "keys": list(ordered),
         "current_path": current,
         "day_path": day,
         "scraped_at": time.time(),
         "html_bytes": len(text),
+        "fingerprint": fp,
+        "required": list(REQUIRED_SCRAPE["observation_fields"]),
     }
 
 
@@ -148,7 +222,7 @@ def _probe_key(api_key: str, station_id: str, current_path: str) -> bool:
 
 
 def discover_credentials(station_id: str = PROBE_STATION, force: bool = False) -> dict[str, Any]:
-    """Return {api_key, current_path, day_path, source, scraped_at} or {}."""
+    """Return {api_key, current_path, day_path, source, scraped_at, fingerprint} or {}."""
     sid = (station_id or PROBE_STATION).strip().upper() or PROBE_STATION
     cache = _load_cache()
     age = time.time() - float(cache.get("scraped_at") or 0)
@@ -176,6 +250,8 @@ def discover_credentials(station_id: str = PROBE_STATION, force: bool = False) -
             "keys_found": len(scraped.get("keys") or []),
             "dashboard": scraped.get("dashboard"),
             "scraped_at": scraped.get("scraped_at"),
+            "fingerprint": scraped.get("fingerprint"),
+            "required": REQUIRED_SCRAPE,
         }
 
     out = {
@@ -188,9 +264,79 @@ def discover_credentials(station_id: str = PROBE_STATION, force: bool = False) -
         "scraped_at": scraped.get("scraped_at") or time.time(),
         "station_id": sid,
         "html_bytes": scraped.get("html_bytes"),
+        "fingerprint": scraped.get("fingerprint"),
+        "watched_at": time.time(),
     }
     _save_cache(out)
     return out
+
+
+def watch_site_and_autofix(station_id: str = PROBE_STATION) -> dict[str, Any]:
+    """Proactive watcher for ingest timer / health checks.
+
+    Every call:
+      - Probes the cached key against the current observations endpoint.
+      - Periodically re-scrapes the dashboard fingerprint; if the site changed
+        (or the key fails), rediscovers a working apiKey + paths automatically.
+    """
+    sid = (station_id or PROBE_STATION).strip().upper() or PROBE_STATION
+    cache = _load_cache()
+    now = time.time()
+    key = str(cache.get("api_key") or "")
+    current = str(cache.get("current_path") or CURRENT_PATH)
+    watched_age = now - float(cache.get("watched_at") or cache.get("scraped_at") or 0)
+
+    if key and _probe_key(key, sid, current):
+        if watched_age < WATCH_INTERVAL_SEC:
+            out = dict(cache)
+            out["ok"] = True
+            out["watch"] = "probe_ok"
+            out["source"] = out.get("source") or "cache"
+            return out
+        # Soft watch: re-scrape HTML; keep key unless fingerprint/endpoints moved
+        # or the scraped key set no longer includes ours.
+        try:
+            scraped = scrape_dashboard_keys(sid)
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
+            out = dict(cache)
+            out["ok"] = True
+            out["watch"] = "scrape_soft_fail"
+            out["watch_err"] = str(exc)[:160]
+            out["watched_at"] = now
+            _save_cache({k: v for k, v in out.items() if k not in ("watch", "watch_err")})
+            return out
+        old_fp = str(cache.get("fingerprint") or "")
+        new_fp = str(scraped.get("fingerprint") or "")
+        keys = list(scraped.get("keys") or [])
+        path_changed = (
+            str(scraped.get("current_path") or CURRENT_PATH) != current
+            or str(scraped.get("day_path") or DAY_PATH) != str(cache.get("day_path") or DAY_PATH)
+        )
+        key_still_listed = (not keys) or (key in keys)
+        if old_fp and new_fp and old_fp != new_fp and (path_changed or not key_still_listed):
+            disc = discover_credentials(sid, force=True)
+            disc["watch"] = "fingerprint_changed_refixed"
+            return disc
+        # Key still works; refresh fingerprint/watch timestamp.
+        cache = dict(cache)
+        cache["fingerprint"] = new_fp or old_fp
+        cache["watched_at"] = now
+        cache["html_bytes"] = scraped.get("html_bytes") or cache.get("html_bytes")
+        if scraped.get("current_path"):
+            cache["current_path"] = scraped["current_path"]
+        if scraped.get("day_path"):
+            cache["day_path"] = scraped["day_path"]
+        _save_cache(cache)
+        out = dict(cache)
+        out["ok"] = True
+        out["watch"] = "soft_ok"
+        out["source"] = out.get("source") or "cache"
+        return out
+
+    # Hard path: missing/dead key → full rediscover.
+    disc = discover_credentials(sid, force=True)
+    disc["watch"] = "probe_failed_refixed" if key else "no_cache_discover"
+    return disc
 
 
 def working_api_key(
@@ -245,7 +391,7 @@ def fetch_with_autofix(
     hours: int = 12,
     units: str = "m",
 ) -> dict[str, Any]:
-    """Current + 1-day observations. On 401, re-scrape dashboard and retry once."""
+    """Current + 1-day observations. On 401/403, re-scrape dashboard and retry once."""
     sid = (station_id or PROBE_STATION).strip().upper()
     key, source = working_api_key(env_key, sid, force_refresh=False)
     disc = _load_cache() if source != "env" else {}

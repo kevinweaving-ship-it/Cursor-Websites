@@ -26,13 +26,23 @@ systemctl enable --now hikpoc-go2rtc sailingsa-club-weather-ingest.timer
 systemctl restart sailingsa-api
 ```
 
-Without `WU_API_KEY`, Agromet + Wind2Speed still ingest; all `weather_underground` stations stay empty.
+Without a working WU key, Agromet + Wind2Speed still ingest. WU PWS (HYC IOVERS2 and catalog)
+auto-discovers the browser key from the live dashboard when env keys are missing or rotated.
 
-## WU dashboard autofix
+## WU site watch + autofix
 
-`weather_wu_discover.py` scrapes `https://www.wunderground.com/dashboard/pws/{STATION}` for the
-browser `apiKey` + observation URLs when `api.weather.com` returns 401 (WU site key rotation).
+`weather_wu_discover.py` knows the scrape contract (`REQUIRED_SCRAPE`): dashboard URL, browser
+`apiKey`, current/1-day observation endpoints, and observation fields (`obsTimeUtc`, wind, temp…).
 
-- Used by `weather_hyc.py` (`/api/weather/hyc/history`) and `weather_pws.wu_api_key()`.
-- Cache: `/var/www/sailingsa/data/wu_discover_cache.json` (6h TTL; re-scrapes on 401).
-- Club ingest timer pulls HYC IOVERS2 + full PWS catalog every 5 minutes.
+| Trigger | Action |
+|---------|--------|
+| Missing / dead key | Scrape dashboard → probe keys → cache working one |
+| API 401/403 mid-fetch | Re-scrape + retry once (`fetch_with_autofix`) |
+| Every ingest (5 min) | Probe cached key (`watch_site_and_autofix`) |
+| Every 30 min soft watch | Re-fetch dashboard HTML fingerprint; rediscover if site redesign changed keys/paths |
+
+- Used by `weather_hyc.py` (`/api/weather/hyc/history`), `weather_pws.wu_api_key()`, and
+  `ingest_club_weather.py` (watch runs first each cycle).
+- Cache: `/var/www/sailingsa/data/wu_discover_cache.json`
+- Install modules into `/var/www/sailingsa/api/` (`weather_wu_discover.py`, `weather_hyc.py`) and
+  ingest into `/opt/sailingsa-weather-ingest/`.

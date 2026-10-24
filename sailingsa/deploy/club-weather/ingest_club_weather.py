@@ -216,8 +216,30 @@ def ingest_pws() -> dict:
         return {"ok": False, "source": "pws", "err": str(e)[:200]}
 
 
+def watch_wu_site() -> dict:
+    """Every ingest cycle: probe WU key + soft-watch dashboard for site redesigns."""
+    try:
+        import weather_wu_discover as wu_disc
+    except Exception as e:
+        return {"ok": False, "source": "wu_watch", "err": f"import:{e}"}
+    try:
+        out = wu_disc.watch_site_and_autofix("IOVERS2")
+        return {
+            "ok": bool(out.get("ok")),
+            "source": "wu_watch",
+            "watch": out.get("watch"),
+            "key_source": out.get("source"),
+            "fingerprint": out.get("fingerprint"),
+            "err": out.get("err"),
+        }
+    except Exception as e:
+        return {"ok": False, "source": "wu_watch", "err": str(e)[:200]}
+
+
 def main() -> int:
     results = []
+    # Watch/autofix first so HYC + PWS ingest use a fresh working browser key.
+    results.append(watch_wu_site())
     for fn in (ingest_agromet, ingest_hyc_iovers2, ingest_wind2speed, ingest_pws):
         try:
             results.append(fn())
@@ -225,9 +247,10 @@ def main() -> int:
             results.append({"ok": False, "source": getattr(fn, "__name__", "?"), "err": str(e)[:200]})
     print(json.dumps({"ok": any(r.get("ok") for r in results), "results": results}, default=str))
     # exit 0 if at least one non-pws source worked, or pws worked
-    good = [r for r in results if r.get("ok") and r.get("source") != "pws"]
+    good = [r for r in results if r.get("ok") and r.get("source") not in ("pws", "wu_watch")]
     pws = next((r for r in results if r.get("source") == "pws"), {})
-    if good or pws.get("ok"):
+    watch = next((r for r in results if r.get("source") == "wu_watch"), {})
+    if good or pws.get("ok") or watch.get("ok"):
         return 0
     return 1
 
