@@ -1,6 +1,7 @@
 #!/bin/bash
 # Root-owned forced-command helper. Accepts only activate|status.
 # Invoked by sshd via authorized_keys command= ; never a shell.
+# Executes only root-controlled paths under /usr/local.
 set -euo pipefail
 if [ "$(id -u)" -ne 0 ]; then
   echo "denied" >&2
@@ -14,10 +15,14 @@ else
   echo "denied: only activate|status" >&2
   exit 2
 fi
+
+ACTIVATE=/usr/local/sbin/sailing-roundup-activate-daily-timer
 # Exact tokens only; no extra words, paths, or shell metacharacters.
 case "$op" in
   activate)
-    exec /opt/rea/work/sailing-roundup/deploy/activate-daily-timer.sh
+    [ -x "$ACTIVATE" ] || { echo "denied: helper not installed" >&2; exit 2; }
+    [ "$(stat -c '%u:%g' "$ACTIVATE")" = "0:0" ] || { echo "denied: activate not root-owned" >&2; exit 2; }
+    exec "$ACTIVATE"
     ;;
   status)
     systemctl is-enabled sailing-roundup.timer
