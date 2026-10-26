@@ -22,9 +22,15 @@ install -d -m 750 -o rea-ops -g rea-ops "$PREFIX" "$PREFIX/bin" "$PREFIX/etc" "$
 install -m 755 -o root -g rea-ops "$SRC_DIR/rea_ops.py" "$PREFIX/bin/ops-agent"
 install -m 755 -o root -g root "$SRC_DIR/ops_helper.py" /usr/local/sbin/rea-ops-helper
 install -m 640 -o root -g rea-ops "$SRC_DIR/etc/ops.sailingsa.json" "$PREFIX/etc/ops.json"
-if [ -f "$SRC_DIR/etc/probe.sql" ]; then
-  install -m 640 -o rea-ops -g rea-ops "$SRC_DIR/etc/probe.sql" "$PREFIX/stage/migrations/probe.sql"
-fi
+cat >"$PREFIX/stage/migrations/probe.sql" <<'SQL'
+CREATE TABLE IF NOT EXISTS rea_ops.probe (id int PRIMARY KEY, note text);
+DELETE FROM rea_ops.probe;
+INSERT INTO rea_ops.probe VALUES (1, 'rea-ops-handover');
+SELECT note FROM rea_ops.probe;
+DELETE FROM rea_ops.probe;
+SQL
+chown rea-ops:rea-ops "$PREFIX/stage/migrations/probe.sql"
+chmod 640 "$PREFIX/stage/migrations/probe.sql"
 
 # ACLs: keep www-data ownership, let rea-ops read/write application trees.
 # Some live files are immutable (chattr +i, e.g. api.py). Skip those.
