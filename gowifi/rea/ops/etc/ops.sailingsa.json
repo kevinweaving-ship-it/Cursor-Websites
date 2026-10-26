@@ -47,6 +47,7 @@
   "run_allowlist": [
     ["python3", "-m", "py_compile"],
     ["python3", "-m", "compileall"],
+    ["sha256sum"],
     ["nginx", "-t"],
     ["git", "status"],
     ["git", "diff"],

@@ -13,7 +13,7 @@ SRC_DIR="${1:-}"
 }
 
 PREFIX=/opt/rea/ops
-install -d -m 755 -o rea -g rea "$PREFIX" "$PREFIX/bin" "$PREFIX/etc" "$PREFIX/audit" "$PREFIX/stage" "$PREFIX/backups" "$PREFIX/jobs"
+install -d -m 755 -o rea -g rea "$PREFIX" "$PREFIX/bin" "$PREFIX/etc" "$PREFIX/audit" "$PREFIX/stage" "$PREFIX/stage/github" "$PREFIX/stage/migrations" "$PREFIX/stage/aerialnet" "$PREFIX/backups" "$PREFIX/jobs"
 install -m 755 -o rea -g rea "$SRC_DIR/rea_ops.py" "$PREFIX/bin/rea-ops"
 install -m 755 -o rea -g rea "$SRC_DIR/rea_ops.py" "$PREFIX/bin/rea_ops.py"
 install -m 755 -o rea -g rea "$SRC_DIR/ops_mcp_server.py" "$PREFIX/bin/ops-mcp"
@@ -91,6 +91,19 @@ fi
 sudo -u rea -H ssh-keyscan -H 127.0.0.1 >> /opt/rea/.ssh/known_hosts 2>/dev/null || true
 chown rea:rea /opt/rea/.ssh/known_hosts
 chmod 600 /opt/rea/.ssh/known_hosts
+
+# REA GitHub deploy key (public half only is shown). Write access still
+# requires a human to add the key on GitHub; Cursor cannot.
+GH_KEY=/opt/rea/.ssh/id_rea_github
+if [ ! -f "$GH_KEY" ]; then
+  sudo -u rea -H ssh-keygen -t ed25519 -f "$GH_KEY" -N "" -C "rea-ops-github@gowifi" >/dev/null
+fi
+chmod 600 "$GH_KEY"
+chown rea:rea "$GH_KEY" "$GH_KEY.pub"
+# Optional gh CLI for API fallback after a token is added by a human.
+if ! command -v gh >/dev/null 2>&1; then
+  apt-get install -y gh >/dev/null 2>&1 || true
+fi
 
 # SailingSA ops SSH alias.
 SSH_CFG=/opt/rea/.ssh/config
@@ -173,3 +186,4 @@ systemctl is-active openai-rea-tunnel.service
 
 echo "GOWIFI_OPS_INSTALLED"
 echo "PUBKEY=$(tr -d '\n' < /opt/rea/.ssh/id_rea_sailingsa.pub)"
+echo "GITHUB_PUBKEY=$(tr -d '\n' < /opt/rea/.ssh/id_rea_github.pub)"

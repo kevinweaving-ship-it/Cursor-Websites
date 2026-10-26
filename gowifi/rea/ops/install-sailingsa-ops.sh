@@ -18,10 +18,13 @@ id rea-ops >/dev/null 2>&1 || useradd --system --home "$PREFIX" --shell /bin/sh 
 usermod -s /bin/sh rea-ops
 usermod -aG adm,systemd-journal,www-data rea-ops || true
 
-install -d -m 750 -o rea-ops -g rea-ops "$PREFIX" "$PREFIX/bin" "$PREFIX/etc" "$PREFIX/audit" "$PREFIX/stage" "$PREFIX/backups" "$PREFIX/jobs" "$PREFIX/.ssh"
+install -d -m 750 -o rea-ops -g rea-ops "$PREFIX" "$PREFIX/bin" "$PREFIX/etc" "$PREFIX/audit" "$PREFIX/stage" "$PREFIX/stage/github" "$PREFIX/stage/migrations" "$PREFIX/backups" "$PREFIX/jobs" "$PREFIX/.ssh"
 install -m 755 -o root -g rea-ops "$SRC_DIR/rea_ops.py" "$PREFIX/bin/ops-agent"
 install -m 755 -o root -g root "$SRC_DIR/ops_helper.py" /usr/local/sbin/rea-ops-helper
 install -m 640 -o root -g rea-ops "$SRC_DIR/etc/ops.sailingsa.json" "$PREFIX/etc/ops.json"
+if [ -f "$SRC_DIR/etc/probe.sql" ]; then
+  install -m 640 -o rea-ops -g rea-ops "$SRC_DIR/etc/probe.sql" "$PREFIX/stage/migrations/probe.sql"
+fi
 
 # ACLs: keep www-data ownership, let rea-ops read/write application trees.
 # Some live files are immutable (chattr +i, e.g. api.py). Skip those.
@@ -93,6 +96,16 @@ if p.is_file():
     print("SA_INSPECT_JSON_OK")
 PY
 
+if [ ! -f "$PREFIX/.ssh/id_rea_github" ]; then
+  sudo -u rea-ops -H ssh-keygen -t ed25519 -f "$PREFIX/.ssh/id_rea_github" -N "" -C "rea-ops-github@sailingsa" >/dev/null
+fi
+chmod 600 "$PREFIX/.ssh/id_rea_github"
+chown rea-ops:rea-ops "$PREFIX/.ssh/id_rea_github" "$PREFIX/.ssh/id_rea_github.pub"
+if ! command -v gh >/dev/null 2>&1; then
+  apt-get install -y gh >/dev/null 2>&1 || true
+fi
+
 sudo -u rea-ops git config --global --add safe.directory /var/www/sailingsa || true
 sudo -u rea-ops git config --global --add safe.directory /var/www/timadvisor || true
 echo "SAILINGSA_OPS_INSTALLED"
+echo "GITHUB_PUBKEY=$(tr -d '\n' < "$PREFIX/.ssh/id_rea_github.pub")"

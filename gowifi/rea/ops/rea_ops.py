@@ -207,10 +207,11 @@ def read_file(cfg: dict[str, Any], raw: str, offset: int = 0, length: int = 1200
 
 
 def write_file(cfg: dict[str, Any], raw: str, content: str, mode: str = "replace") -> dict[str, Any]:
+    raw_bytes: bytes | None = None
     if content.startswith("b64:"):
         import base64
 
-        content = base64.b64decode(content[4:]).decode("utf-8")
+        raw_bytes = base64.b64decode(content[4:])
     path = real_path(raw)
     reason = path_denied(cfg, path, write=True)
     if reason:
@@ -220,19 +221,30 @@ def write_file(cfg: dict[str, Any], raw: str, content: str, mode: str = "replace
     path.parent.mkdir(parents=True, exist_ok=True)
     existed = path.exists()
     old_stat = path.stat() if existed else None
-    if mode == "append" and existed:
-        with path.open("a", encoding="utf-8") as fh:
-            fh.write(content)
+    binary_ext = {".zip", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".woff", ".woff2", ".bin", ".part"}
+    if raw_bytes is not None and (path.suffix.lower() in binary_ext or mode == "binary"):
+        if mode == "append" and existed:
+            with path.open("ab") as fh:
+                fh.write(raw_bytes)
+        else:
+            path.write_bytes(raw_bytes)
+        nbytes = len(raw_bytes)
     else:
-        path.write_text(content, encoding="utf-8")
+        text = raw_bytes.decode("utf-8") if raw_bytes is not None else content
+        if mode == "append" and existed:
+            with path.open("a", encoding="utf-8") as fh:
+                fh.write(text)
+        else:
+            path.write_text(text, encoding="utf-8")
+        nbytes = len(text)
     if old_stat is not None:
         os.chmod(path, stat.S_IMODE(old_stat.st_mode))
         try:
             os.chown(path, old_stat.st_uid, old_stat.st_gid)
         except PermissionError:
             pass
-    audit(cfg, {"op": "write_file", "path": str(path), "bytes": len(content), "uid": os.geteuid()})
-    return ok(path=str(path), bytes=len(content), existed=existed)
+    audit(cfg, {"op": "write_file", "path": str(path), "bytes": nbytes, "uid": os.geteuid()})
+    return ok(path=str(path), bytes=nbytes, existed=existed)
 
 
 def list_dir(cfg: dict[str, Any], raw: str, limit: int = 80) -> dict[str, Any]:
@@ -379,15 +391,35 @@ def git_op(cfg: dict[str, Any], root: str, action: str, extra: list[str] | None 
 def run_check(cfg: dict[str, Any], argv: list[str]) -> dict[str, Any]:
     if not argv:
         return fail("empty_command", "")
+    extra = [
+        ["python3", "-m", "compileall"],
+        ["/usr/bin/sleep"],
+        ["sha256sum"],
+        ["unzip", "-l"],
+    ]
     allowed = False
-    for prefix in cfg.get("run_allowlist", []):
+    for prefix in list(cfg.get("run_allowlist", [])) + extra:
         if argv[: len(prefix)] == prefix:
             allowed = True
             break
     if not allowed:
         return fail("command_denied", " ".join(argv[:6]))
+    skip_bins = {
+        "python3",
+        "node",
+        "nginx",
+        "git",
+        "sha256sum",
+        "unzip",
+        "/usr/bin/sleep",
+        "/usr/bin/sha256sum",
+        "/usr/bin/unzip",
+        "/usr/bin/git",
+        "/usr/bin/python3",
+        "/opt/arial-whatsapp-poc/node/bin/node",
+    }
     for item in argv:
-        if item.startswith("-") or item in {"python3", "node", "nginx", "git"}:
+        if item.startswith("-") or item in skip_bins:
             continue
         if item.startswith("/"):
             reason = path_denied(cfg, real_path(item))
@@ -482,6 +514,239 @@ def jobs_status(cfg: dict[str, Any], job_id: str) -> dict[str, Any]:
     return ok(job_id=job_id, pid=pid, running=running, status=status, log=log)
 
 
+def assemble_file(cfg: dict[str, Any], dest: str, parts: int) -> dict[str, Any]:
+    path = real_path(dest)
+    reason = path_denied(cfg, path, write=True)
+    if reason:
+        return fail("path_denied", reason, path=str(path))
+    n = max(1, min(int(parts), 80))
+    chunks = []
+    for i in range(n):
+        part = Path(str(path) + f".part{i:03d}")
+        if not part.is_file():
+            return fail("missing_part", str(part))
+        chunks.append(part.read_bytes())
+    path.write_bytes(b"".join(chunks))
+    for i in range(n):
+        Path(str(path) + f".part{i:03d}").unlink(missing_ok=True)
+    return ok(path=str(path), bytes=path.stat().st_size, parts=n)
+
+
+def transfer(cfg: dict[str, Any], action: str, src: str, dest: str) -> dict[str, Any]:
+    if action == "copy":
+        sp = real_path(src)
+        dp = real_path(dest)
+        if path_denied(cfg, sp) or path_denied(cfg, dp, write=True):
+            return fail("path_denied", "copy")
+        if not sp.is_file():
+            return fail("not_file", str(sp))
+        dp.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(sp, dp)
+        return ok(src=str(sp), dest=str(dp), bytes=dp.stat().st_size)
+    if action == "to-sailingsa":
+        if cfg.get("host_id") != "gowifi":
+            return fail("wrong_host", "push from GoWifi")
+        sp = real_path(src)
+        if path_denied(cfg, sp):
+            return fail("path_denied", src)
+        if not sp.is_file():
+            return fail("not_file", str(sp))
+        dest_path = dest or f"/opt/rea-ops/stage/{sp.name}"
+        if not dest_path.startswith("/opt/rea-ops/stage/"):
+            return fail("path_denied", dest_path)
+        import base64
+
+        data = sp.read_bytes()
+        if len(data) > 6_000_000:
+            return fail("too_large", "max 6MB via ops_transfer")
+        chunk = 45_000
+        sa = load_config("/opt/rea/ops/etc/ops.sailingsa.client.json")
+        if len(data) <= chunk:
+            payload = "b64:" + base64.b64encode(data).decode("ascii")
+            return helper_call(sa, ["write-file", dest_path, payload], timeout=60)
+        parts = 0
+        for i in range(0, len(data), chunk):
+            payload = "b64:" + base64.b64encode(data[i : i + chunk]).decode("ascii")
+            part = f"{dest_path}.part{parts:03d}"
+            result = helper_call(sa, ["write-file", part, payload], timeout=60)
+            if not result.get("ok"):
+                return result
+            parts += 1
+        return helper_call(sa, ["assemble", dest_path, str(parts)], timeout=60)
+    return fail("transfer_denied", action)
+
+
+def deploy(cfg: dict[str, Any], kind: str) -> dict[str, Any]:
+    allowed = {
+        "plan-api",
+        "api",
+        "static",
+        "static-clean",
+        "frontend",
+        "whatsapp-code",
+        "aerialnet",
+        "stage-api",
+    }
+    if kind not in allowed:
+        return fail("deploy_denied", kind)
+    if kind == "stage-api":
+        return helper_call(cfg, ["stage-api"], timeout=60)
+    return helper_call(cfg, ["deploy", kind], timeout=150)
+
+
+def health(cfg: dict[str, Any], name: str) -> dict[str, Any]:
+    if name not in {"sailingsa-api", "whatsapp", "nginx"}:
+        return fail("health_denied", name)
+    if name == "nginx":
+        return helper_call(cfg, ["nginx", "test"])
+    return helper_call(cfg, ["health", name])
+
+
+def migrate(cfg: dict[str, Any], schema: str) -> dict[str, Any]:
+    if schema != "rea_ops":
+        return fail(
+            "migrate_denied",
+            schema,
+            note="Only rea_ops probe migrations auto-run. Stage public SQL under /opt/rea-ops/stage/migrations/ for review.",
+        )
+    return helper_call(cfg, ["migrate", "rea_ops"], timeout=40)
+
+
+def deps(cfg: dict[str, Any], kind: str, root: str) -> dict[str, Any]:
+    path = real_path(root)
+    if path_denied(cfg, path):
+        return fail("path_denied", str(path))
+    if kind == "py-compile":
+        return run_check(cfg, ["python3", "-m", "compileall", "-q", str(path)])
+    if kind == "py-file":
+        return run_check(cfg, ["python3", "-m", "py_compile", str(path)])
+    if kind == "node-check":
+        node = "/opt/arial-whatsapp-poc/node/bin/node" if Path("/opt/arial-whatsapp-poc/node/bin/node").is_file() else "node"
+        return run_check(cfg, [node, "--check", str(path)])
+    if kind == "pip-stage":
+        req = path / "requirements.txt" if path.is_dir() else path
+        if path_denied(cfg, req):
+            return fail("path_denied", str(req))
+        venv = Path(cfg.get("stage_dir", "/tmp")) / "venv"
+        if not venv.is_dir():
+            proc = run(["python3", "-m", "venv", str(venv)], timeout=60)
+            if proc.returncode != 0:
+                return fail("venv_failed", redact(proc.stderr[-600:]))
+        pip = str(venv / "bin" / "pip")
+        proc = run([pip, "install", "-q", "-r", str(req)], timeout=120)
+        return ok(exit=proc.returncode, stdout=redact(proc.stdout)[-2000:], stderr=redact(proc.stderr)[-2000:], venv=str(venv))
+    return fail("deps_denied", kind)
+
+
+def github_key_path(cfg: dict[str, Any]) -> Path:
+    if cfg.get("host_id") == "sailingsa":
+        return Path("/opt/rea-ops/.ssh/id_rea_github")
+    return Path("/opt/rea/.ssh/id_rea_github")
+
+
+def gh_op(cfg: dict[str, Any], action: str, extra: list[str] | None = None) -> dict[str, Any]:
+    extra = extra or []
+    key = github_key_path(cfg)
+    pub = Path(str(key) + ".pub")
+    repo = extra[0] if extra else "https://github.com/kevinweaving-ship-it/Cursor-Websites.git"
+    if action == "status":
+        fingerprint = ""
+        pubkey = ""
+        if pub.is_file():
+            pubkey = pub.read_text(encoding="utf-8").strip()
+            proc = run(["ssh-keygen", "-lf", str(pub)])
+            fingerprint = proc.stdout.strip()
+        gh_bin = shutil.which("gh")
+        return ok(
+            key_exists=key.is_file(),
+            pub_exists=pub.is_file(),
+            fingerprint=fingerprint,
+            public_key=pubkey,
+            gh_cli=gh_bin or "",
+            note="ChatGPT GitHub connector is UNVERIFIED from this box. Add this public key as a write deploy key, or use ChatGPT's GitHub connector after refresh.",
+        )
+    if action == "keygen":
+        key.parent.mkdir(parents=True, exist_ok=True)
+        if not key.is_file():
+            proc = run(["ssh-keygen", "-t", "ed25519", "-f", str(key), "-N", "", "-C", "rea-ops-github"], timeout=20)
+            if proc.returncode != 0:
+                return fail("keygen_failed", redact(proc.stderr[-400:]))
+            os.chmod(key, 0o600)
+        return gh_op(cfg, "status")
+    if action == "clone":
+        dest = Path(cfg.get("stage_dir", "/tmp")) / "github" / "Cursor-Websites"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if (dest / ".git").exists():
+            proc = run(["git", "-C", str(dest), "fetch", "--depth", "1", "origin", "main"], timeout=60)
+            return ok(path=str(dest), action="fetch", exit=proc.returncode, output=redact((proc.stdout + proc.stderr)[-1500:]))
+        proc = run(["git", "clone", "--depth", "1", repo, str(dest)], timeout=90)
+        return ok(path=str(dest), action="clone", exit=proc.returncode, output=redact((proc.stdout + proc.stderr)[-1500:]))
+    if action == "probe-push":
+        dest = Path(cfg.get("stage_dir", "/tmp")) / "github" / "Cursor-Websites"
+        if not (dest / ".git").exists():
+            return fail("not_cloned", str(dest))
+        branch = extra[0] if extra and extra[0].startswith("cursor/") else "cursor/rea-ops-probe-c1ba"
+        run(["git", "-C", str(dest), "checkout", "-B", branch], timeout=20)
+        marker = dest / "gowifi/rea/ops/.rea-github-probe"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("probe\n", encoding="utf-8")
+        run(["git", "-C", str(dest), "add", "--", "gowifi/rea/ops/.rea-github-probe"], timeout=20)
+        run(
+            [
+                "git",
+                "-C",
+                str(dest),
+                "-c",
+                "user.email=rea-ops@localhost",
+                "-c",
+                "user.name=REA ops",
+                "commit",
+                "-m",
+                "REA github probe (do not merge)",
+            ],
+            timeout=20,
+        )
+        env_ssh = f"ssh -i {key} -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+        # Prefer SSH remote for the deploy-key path; HTTPS clone has no write creds.
+        run(["git", "-C", str(dest), "remote", "remove", "rea-ssh"], timeout=10)
+        run(
+            [
+                "git",
+                "-C",
+                str(dest),
+                "remote",
+                "add",
+                "rea-ssh",
+                "git@github.com:kevinweaving-ship-it/Cursor-Websites.git",
+            ],
+            timeout=10,
+        )
+        proc = subprocess.run(
+            ["git", "-C", str(dest), "push", "-u", "rea-ssh", branch],
+            capture_output=True,
+            text=True,
+            timeout=40,
+            env={**os.environ, "GIT_SSH_COMMAND": env_ssh, "HOME": os.environ.get("HOME", "/opt/rea")},
+        )
+        out = redact((proc.stdout or "") + "\n" + (proc.stderr or ""))
+        # Clean local probe file regardless of push result.
+        if marker.exists():
+            marker.unlink()
+        run(["git", "-C", str(dest), "checkout", "--", "gowifi/rea/ops/.rea-github-probe"], timeout=10)
+        if proc.returncode != 0:
+            return fail(
+                "git_push_unavailable",
+                out[-800:],
+                branch=branch,
+                note="Expected until a write deploy key is added for this REA public key. ChatGPT GitHub connector remains UNVERIFIED.",
+            )
+        return ok(action="probe-push", branch=branch, output=out[-800:], note="Push succeeded. Delete the throwaway branch after review.")
+    if action == "whoami":
+        proc = run(["git", "ls-remote", "https://github.com/kevinweaving-ship-it/Cursor-Websites.git", "HEAD"], timeout=30)
+        return ok(exit=proc.returncode, output=redact((proc.stdout + proc.stderr)[-800:]), note="HTTPS clone/ls-remote only. Write needs deploy key or ChatGPT GitHub connector.")
+    return fail("gh_denied", action)
+
+
 def jobs_cancel(cfg: dict[str, Any], job_id: str) -> dict[str, Any]:
     if not SAFE_TOKEN.match(job_id):
         return fail("job_denied", job_id)
@@ -542,6 +807,24 @@ def dispatch(cfg: dict[str, Any], argv: list[str]) -> dict[str, Any]:
         return jobs_status(cfg, args[0])
     if op == "jobs-cancel":
         return jobs_cancel(cfg, args[0])
+    if op == "deploy":
+        return deploy(cfg, args[0] if args else "")
+    if op == "stage-api":
+        return deploy(cfg, "stage-api")
+    if op == "health":
+        return health(cfg, args[0] if args else "")
+    if op == "preflight":
+        return helper_call(cfg, ["preflight", args[0]])
+    if op == "migrate":
+        return migrate(cfg, args[0] if args else "")
+    if op == "deps":
+        return deps(cfg, args[0] if args else "", args[1] if len(args) > 1 else cfg.get("stage_dir", "/tmp"))
+    if op == "transfer":
+        return transfer(cfg, args[0] if args else "", args[1] if len(args) > 1 else "", args[2] if len(args) > 2 else "")
+    if op == "assemble":
+        return assemble_file(cfg, args[0], int(args[1]) if len(args) > 1 else 0)
+    if op == "gh":
+        return gh_op(cfg, args[0] if args else "status", args[1:])
     return fail("unknown_op", op)
 
 

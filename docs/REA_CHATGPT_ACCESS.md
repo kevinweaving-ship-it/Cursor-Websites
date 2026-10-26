@@ -48,13 +48,32 @@ process. Privileged work uses:
   The mobile app cannot add connectors.
 - OpenAI safety may still block `capture_process_scenario`. Use `ops_*`.
 - Tunnel deadline ~120s. Long jobs: `ops_jobs` start then poll.
-- GitHub push/PR: neither box has `gh` or a working git remote credential.
-  Local git on `/var/www/sailingsa` works; publish/PR still needs Cursor,
-  Mac `gh`, or the ChatGPT GitHub connector (previously 403).
+- GitHub write: REA has its own ed25519 key
+  (`/opt/rea/.ssh/id_rea_github` on GoWifi, `/opt/rea-ops/.ssh/id_rea_github`
+  on SailingSA). HTTPS clone of the public repo works. Push stays
+  unavailable until a human adds the printed public key as a **write
+  deploy key** on `kevinweaving-ship-it/Cursor-Websites` (or another repo).
+  Cursor cannot add that key (403). The ChatGPT GitHub connector is
+  **UNVERIFIED** from this server path — confirm PR create in ChatGPT
+  after connector refresh. `gh` may be installed as a CLI fallback; it
+  still needs a human-provided token (`gh auth login`) and must never
+  receive Cursor’s token.
 - Visual browser checks of the public site: REA `capture_browser_scenario`
   with `/opt/chromium/chrome`, or Cursor browser tools.
 - WhatsApp delay root-cause: access is enabled; investigation is left to
   ChatGPT + REA.
+
+## Deploy path ChatGPT should use
+
+1. `ops_deploy` `stage-api` / `plan-api` then `api` on `sailingsa`
+   (wraps `/root/deploy_api_verified.sh`, restores `chattr +i` if it was set).
+2. Frontend: write or `ops_transfer` a zip to `/opt/rea-ops/stage/frontend.zip`,
+   then `ops_deploy` `frontend` (excludes `data/hub_hero.json`).
+3. Harmless static probe: write `rea-ops-probe.html` to stage, `static`,
+   `ops_http_check`, then `static-clean`.
+4. Services: `ops_health` / `ops_service` `status` first. `nginx` reload
+   is allowed after `nginx -t`. Do not restart `arial-whatsapp-poc` while UP.
+5. Long work: `ops_jobs` start → status → cancel.
 
 ## Denied on purpose
 

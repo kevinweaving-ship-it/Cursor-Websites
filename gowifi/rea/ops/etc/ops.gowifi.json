@@ -55,12 +55,19 @@
     "sailing-roundup.timer",
     "nginx",
     "certbot.timer",
-    "rea-inspect-discover.timer"
+    "rea-inspect-discover.timer",
+    "aerialnet-hansekop-api",
+    "aerialnet-voelklip-api",
+    "arial-site-watch",
+    "tuya-sharing"
   ],
   "units_control": [
     "arial-whatsapp-poc",
     "arial-whatsapp-watcher",
-    "nginx"
+    "nginx",
+    "aerialnet-hansekop-api",
+    "aerialnet-voelklip-api",
+    "arial-site-watch"
   ],
   "owners": {
     "/opt/arial-whatsapp-poc": "wapoc:wapoc",
@@ -69,13 +76,15 @@
   },
   "run_allowlist": [
     ["python3", "-m", "py_compile"],
+    ["python3", "-m", "compileall"],
     ["node", "--check"],
     ["/opt/arial-whatsapp-poc/node/bin/node", "--check"],
     ["nginx", "-t"],
     ["git", "status"],
     ["git", "diff"],
     ["git", "log"],
-    ["git", "rev-parse"]
+    ["git", "rev-parse"],
+    ["sha256sum"]
   ],
   "http_allow_hosts": [
     "127.0.0.1",

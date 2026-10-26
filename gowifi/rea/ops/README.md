@@ -37,3 +37,15 @@ plugin and start a new chat.
 ## Recovery
 
 See `docs/REA_CHATGPT_ACCESS.md`.
+
+## Sync after code changes
+
+On each box, as root:
+
+```bash
+bash /path/to/gowifi/rea/ops/sync-ops.sh /path/to/gowifi/rea/ops
+```
+
+This copies binaries/config only. It restarts `openai-rea-tunnel` on
+GoWifi so ChatGPT rediscovers tools. It does not restart WhatsApp or
+`sailingsa-api`. Then refresh the ChatGPT connector.
