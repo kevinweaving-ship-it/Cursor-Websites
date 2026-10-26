@@ -32,7 +32,7 @@ TOOLS = [
     {"name": "ops_read_file", "description": "Read one allowlisted application file. Secrets are redacted. Auth/session files are denied.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "path": {"type": "string"}, "offset": {"type": "integer", "default": 0}, "length": {"type": "integer", "default": 120000}}, "required": ["target", "path"]}, "annotations": RO},
     {"name": "ops_write_file", "description": "Write one allowlisted application file. Does not touch secrets, nginx private keys, or WhatsApp auth state.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "path": {"type": "string"}, "content": {"type": "string"}}, "required": ["target", "path", "content"]}, "annotations": RW},
     {"name": "ops_logs", "description": "Read allowlisted journal units or log files.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "unit": {"type": "string"}, "lines": {"type": "integer", "default": 80}}, "required": ["target", "unit"]}, "annotations": RO},
-    {"name": "ops_service", "description": "status, restart, or reload an allowlisted unit. Prefer status. Do not restart merely to prove access.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "action": {"type": "string", "enum": ["status", "restart", "reload"]}, "unit": {"type": "string"}}, "required": ["target", "action", "unit"]}, "annotations": RW},
+    {"name": "ops_service", "description": "status, can-control, restart, or reload an allowlisted unit. Prefer status or can-control. Do not restart merely to prove access.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "action": {"type": "string", "enum": ["status", "can-control", "restart", "reload"]}, "unit": {"type": "string"}}, "required": ["target", "action", "unit"]}, "annotations": RW},
     {"name": "ops_nginx", "description": "nginx -t or reload on the selected box.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "action": {"type": "string", "enum": ["test", "reload"]}}, "required": ["target", "action"]}, "annotations": RW},
     {"name": "ops_db", "description": "Application database query (SELECT) or constrained DML. DDL and GRANT are denied. Use schema rea_ops / database rea_ops for probes.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "mode": {"type": "string", "enum": ["query", "exec"]}, "sql": {"type": "string"}}, "required": ["target", "mode", "sql"]}, "annotations": RW},
     {"name": "ops_run", "description": "Run an allowlisted build/check/test command such as python3 -m py_compile or node --check.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "argv": {"type": "array", "items": {"type": "string"}}}, "required": ["target", "argv"]}, "annotations": RO},
@@ -42,7 +42,7 @@ TOOLS = [
     {"name": "ops_http_check", "description": "GET-only HTTP check against an allowlisted local or public hostname.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "url": {"type": "string"}}, "required": ["target", "url"]}, "annotations": RO},
     {"name": "ops_jobs", "description": "Start, poll, or cancel a long-running allowlisted command. Tunnel deadline is ~120s so poll by job_id.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "action": {"type": "string", "enum": ["start", "status", "cancel"]}, "argv": {"type": "array", "items": {"type": "string"}}, "job_id": {"type": "string"}}, "required": ["target", "action"]}, "annotations": RW},
     {"name": "ops_health", "description": "Health of sailingsa-api, WhatsApp UP state, or nginx -t. Does not send messages or restart.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "name": {"type": "string", "enum": ["sailingsa-api", "whatsapp", "nginx"]}}, "required": ["target", "name"]}, "annotations": RO},
-    {"name": "ops_deploy", "description": "Existing deploy workflow: plan-api, stage-api, api (wraps /root/deploy_api_verified.sh), static probe, frontend zip (excludes hub_hero.json), whatsapp-code, aerialnet. Destructive kinds are explicit.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "kind": {"type": "string", "enum": ["plan-api", "stage-api", "api", "static", "static-clean", "frontend", "whatsapp-code", "aerialnet"]}}, "required": ["target", "kind"]}, "annotations": RW},
+    {"name": "ops_deploy", "description": "Deploy workflow. api requires approved_sha256 matching the staged file and still honours the live Gold lock. api-dry and frontend-sandbox never publish to production. frontend excludes hub_hero.json and blocks zip-slip.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "kind": {"type": "string", "enum": ["plan-api", "stage-api", "api", "api-dry", "static", "static-clean", "frontend", "frontend-sandbox", "whatsapp-code", "aerialnet"]}, "approved_sha256": {"type": "string"}}, "required": ["target", "kind"]}, "annotations": RW},
     {"name": "ops_migrate", "description": "Auto-run only rea_ops probe SQL. Public schema DDL is denied and must stay staged for review.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "schema": {"type": "string", "enum": ["rea_ops"]}}, "required": ["target", "schema"]}, "annotations": RW},
     {"name": "ops_deps", "description": "Compile/check or install Python deps into a stage venv. Does not mutate system site-packages.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "kind": {"type": "string", "enum": ["py-compile", "py-file", "node-check", "pip-stage"]}, "root": {"type": "string"}}, "required": ["target", "kind", "root"]}, "annotations": RO},
     {"name": "ops_transfer", "description": "Copy an allowlisted file on the same box, or push a staged file from GoWifi to /opt/rea-ops/stage on SailingSA.", "inputSchema": {"type": "object", "additionalProperties": False, "properties": {"target": TARGET, "action": {"type": "string", "enum": ["copy", "to-sailingsa"]}, "src": {"type": "string"}, "dest": {"type": "string"}}, "required": ["target", "action", "src"]}, "annotations": RW},
@@ -92,6 +92,8 @@ def handle(name: str, args: dict[str, Any]) -> dict[str, Any]:
     if name == "ops_logs":
         return call_target(target, ["journal", args["unit"], str(args.get("lines") or 80)])
     if name == "ops_service":
+        if args["action"] == "can-control":
+            return call_target(target, ["can-control", args["unit"]])
         return call_target(target, [args["action"], args["unit"]])
     if name == "ops_nginx":
         return call_target(target, ["nginx", args["action"]])
@@ -118,7 +120,10 @@ def handle(name: str, args: dict[str, Any]) -> dict[str, Any]:
     if name == "ops_health":
         return call_target(target, ["health", args["name"]])
     if name == "ops_deploy":
-        return call_target(target, ["deploy", args["kind"]])
+        argv = ["deploy", args["kind"]]
+        if args.get("approved_sha256"):
+            argv.append(args["approved_sha256"])
+        return call_target(target, argv)
     if name == "ops_migrate":
         return call_target(target, ["migrate", args["schema"]])
     if name == "ops_deps":

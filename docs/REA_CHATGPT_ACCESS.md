@@ -69,9 +69,12 @@ process. Privileged work uses:
 ## Deploy path ChatGPT should use
 
 1. `ops_deploy` `stage-api` / `plan-api` then `api` on `sailingsa`.
-   Wraps the **live** `/root/deploy_api_verified.sh`, which currently
-   refuses any `api.py` that is not the Master/Gold hash. Restore
-   `chattr +i` if it was set. Do not bypass that Gold check.
+   The live Gold lock still blocks the old ~1.4MB repo API and known
+   stale hashes. A new revision also needs `approved_sha256` equal to
+   the staged file. That sets `ALLOW_API_REPLACE=1` for the existing
+   script only after the gate. Same hash as live is refused so
+   production is not restarted for a no-op. Use `api-dry` to exercise
+   the path without replacing live `api.py`.
 2. Frontend: write or `ops_transfer` a zip to `/opt/rea-ops/stage/frontend.zip`,
    then `ops_deploy` `frontend` (excludes `data/hub_hero.json`).
 3. Harmless static probe: write `rea-ops-probe.html` to stage, `static`,

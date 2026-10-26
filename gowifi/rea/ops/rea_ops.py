@@ -609,13 +609,15 @@ def transfer(cfg: dict[str, Any], action: str, src: str, dest: str) -> dict[str,
     return fail("transfer_denied", action)
 
 
-def deploy(cfg: dict[str, Any], kind: str) -> dict[str, Any]:
+def deploy(cfg: dict[str, Any], kind: str, approved: str = "") -> dict[str, Any]:
     allowed = {
         "plan-api",
         "api",
+        "api-dry",
         "static",
         "static-clean",
         "frontend",
+        "frontend-sandbox",
         "whatsapp-code",
         "aerialnet",
         "stage-api",
@@ -624,7 +626,10 @@ def deploy(cfg: dict[str, Any], kind: str) -> dict[str, Any]:
         return fail("deploy_denied", kind)
     if kind == "stage-api":
         return helper_call(cfg, ["stage-api"], timeout=60)
-    return helper_call(cfg, ["deploy", kind], timeout=150)
+    argv = ["deploy", kind]
+    if approved:
+        argv.append(approved)
+    return helper_call(cfg, argv, timeout=150)
 
 
 def health(cfg: dict[str, Any], name: str) -> dict[str, Any]:
@@ -827,6 +832,8 @@ def dispatch(cfg: dict[str, Any], argv: list[str]) -> dict[str, Any]:
         return service_status(cfg, args[0])
     if op in {"restart", "reload"}:
         return service_control(cfg, op, args[0])
+    if op == "can-control":
+        return helper_call(cfg, ["can-control", args[0] if args else ""])
     if op == "journal":
         return journal(cfg, args[0], int(args[1]) if len(args) > 1 else 80)
     if op == "nginx":
@@ -856,7 +863,7 @@ def dispatch(cfg: dict[str, Any], argv: list[str]) -> dict[str, Any]:
     if op == "jobs-cancel":
         return jobs_cancel(cfg, args[0])
     if op == "deploy":
-        return deploy(cfg, args[0] if args else "")
+        return deploy(cfg, args[0] if args else "", args[1] if len(args) > 1 else "")
     if op == "stage-api":
         return deploy(cfg, "stage-api")
     if op == "health":

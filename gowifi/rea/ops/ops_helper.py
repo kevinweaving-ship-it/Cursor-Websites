@@ -46,6 +46,17 @@ SA_STATUS = {"sailingsa-api", "nginx", "postgresql", "certbot.timer"}
 SA_CONTROL = {"sailingsa-api", "nginx"}
 API_LIVE = Path("/var/www/sailingsa/api/api.py")
 API_HELPER = Path("/var/www/sailingsa/api/regatta_host_code.py")
+# Live /root/backups/API_MASTER_GOLD/refuse_stale_incoming_api.sh
+# Purpose: block the old ~1.4MB GitHub/repo EVENTS/SAILORS api.py.
+GOLD_HASH = "9c1eea9a2bebfd02125c8eb5c133b776fd0cf06ca67e066a09a293f77857d32b"
+GOLD_MIN_BYTES = 3900000
+STALE_HASHES = {
+    "3c7d67404338f7bedbde33f865616c8e509af13aa184a8f193db8d8da3b6b584",
+    "8788a6cd32407dc1bd4faab4a108140451d48e0ccd6ffe63ceb4d098946331ca",
+    "cf6356c72d6b8a66d1ec200b4e8d3aabe998f837adbfa594fb57f0c334b8ad75",
+}
+SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
+FRONTEND_EXCLUDES = {"data/hub_hero.json"}
 BACKUP_TARGETS = {
     "gowifi-whatsapp": ["/opt/arial-whatsapp-poc"],
     "gowifi-aerialnet": ["/opt/aerialnet-arial"],
@@ -58,6 +69,8 @@ BACKUP_TARGETS = {
     ],
     "gowifi-ops-stage": ["/opt/rea/ops/stage"],
     "sailingsa-ops-stage": ["/opt/rea-ops/stage"],
+    "sailingsa-frontend-sandbox": ["/opt/rea-ops/stage/frontend-sandbox/www"],
+    "sailingsa-api-sandbox": ["/opt/rea-ops/stage/api-sandbox/api.py"],
 }
 
 
@@ -359,28 +372,156 @@ def _apply_sailingsa_acl(path: Path) -> None:
     run(["setfacl", "-m", "u:rea-ops:rwX", str(path)])
 
 
-def op_deploy(kind: str) -> dict[str, Any]:
+def _sha256(path: Path) -> str:
+    return subprocess.check_output(["sha256sum", str(path)], text=True).split()[0]
+
+
+def _snapshot_live_api() -> dict[str, Any]:
+    incoming = Path("/root/incoming/api.py")
+    return {
+        "live_hash": _sha256(API_LIVE) if API_LIVE.is_file() else "",
+        "live_mtime": API_LIVE.stat().st_mtime if API_LIVE.is_file() else 0,
+        "live_immutable": _is_immutable(API_LIVE),
+        "incoming_hash": _sha256(incoming) if incoming.is_file() else "",
+        "incoming_mtime": incoming.stat().st_mtime if incoming.is_file() else 0,
+        "pid": run(["systemctl", "show", "-p", "MainPID", "--value", "sailingsa-api"]).stdout.strip(),
+    }
+
+
+def _api_gate(stage: Path, approved: str) -> dict[str, Any]:
+    if not stage.is_file():
+        return {"ok": False, "error": "missing_stage", "mutated": False, "restarted": False}
+    digest = _sha256(stage)
+    size = stage.stat().st_size
+    base = {"sha256": digest, "bytes": size, "mutated": False, "restarted": False}
+    if size < GOLD_MIN_BYTES:
+        return {**base, "ok": False, "error": "stale_size", "note": "Gold lock: repo/stale api.py is under 3.9MB."}
+    if digest in STALE_HASHES:
+        return {**base, "ok": False, "error": "stale_hash", "note": "Gold lock: known stale GitHub/repo api.py."}
+    if not approved:
+        return {**base, "ok": False, "error": "approval_required", "note": "Pass approved_sha256 equal to the staged file hash."}
+    if not SHA256_RE.match(approved) or approved != digest:
+        return {**base, "ok": False, "error": "approval_mismatch", "note": "approved_sha256 must match the staged file."}
+    compile_proc = subprocess.run(["python3", "-m", "py_compile", str(stage)], capture_output=True, text=True)
+    if compile_proc.returncode != 0:
+        return {**base, "ok": False, "error": "compile_failed", "log": (compile_proc.stderr or "")[-800:]}
+    extra = Path("/root/backups/API_MASTER_GOLD/approved_revisions")
+    if extra.is_file():
+        listed = {ln.strip() for ln in extra.read_text(encoding="utf-8").splitlines() if SHA256_RE.match(ln.strip())}
+        if digest != GOLD_HASH and digest not in listed:
+            return {**base, "ok": False, "error": "not_in_approved_revisions"}
+    return {**base, "ok": True, "gold": digest == GOLD_HASH, "allow_replace": digest != GOLD_HASH}
+
+
+def _safe_unzip(zpath: Path, dest: Path) -> dict[str, Any]:
+    import zipfile
+
+    dest = dest.resolve()
+    dest.mkdir(parents=True, exist_ok=True)
+    extracted: list[str] = []
+    skipped: list[str] = []
+    rejected: list[str] = []
+    with zipfile.ZipFile(zpath) as zf:
+        for info in zf.infolist():
+            name = info.filename.replace("\\", "/")
+            if name.endswith("/"):
+                continue
+            if name in FRONTEND_EXCLUDES or name.endswith(".bak") or name.endswith(".md"):
+                skipped.append(name)
+                continue
+            if name.startswith("/") or ".." in Path(name).parts:
+                rejected.append(name)
+                continue
+            target = (dest / name).resolve()
+            if dest not in target.parents and target != dest:
+                rejected.append(name)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(info) as src, target.open("wb") as out:
+                shutil.copyfileobj(src, out)
+            extracted.append(name)
+    return {"extracted": extracted, "skipped": skipped, "rejected": rejected}
+
+
+def _own_tree(path: Path, user: str, group: str) -> None:
+    if not path.exists():
+        return
+    run(["chown", "-R", f"{user}:{group}", str(path)])
+
+
+def op_can_control(unit: str) -> dict[str, Any]:
+    if not UNIT_RE.match(unit):
+        return {"ok": False, "error": "unit_denied", "unit": unit, "tested": "permission_only"}
+    status_ok = unit in allowed_units(False)
+    control_ok = unit in allowed_units(True)
+    poc_guard = unit == "arial-whatsapp-poc"
+    return {
+        "ok": status_ok,
+        "unit": unit,
+        "can_status": status_ok,
+        "can_control": control_ok and not poc_guard,
+        "poc_guard": poc_guard,
+        "tested": "permission_only",
+        "note": "No restart was executed.",
+    }
+
+
+def _write_frontend_fixture(zpath: Path) -> None:
+    import zipfile
+
+    zpath.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zpath, "w") as zf:
+        zf.writestr("index.html", "<!doctype html><title>sandbox</title><p>ok</p>\n")
+        zf.writestr("data/hub_hero.json", '{"do_not_overwrite":true}\n')
+        zf.writestr("data/ok.json", '{"keep":true}\n')
+        zf.writestr("../evil.txt", "traversal\n")
+        zf.writestr("notes.md", "skip me\n")
+        zf.writestr("backup.bak", "skip me\n")
+
+
+def op_deploy(kind: str, approved: str = "") -> dict[str, Any]:
     if kind == "plan-api":
         incoming = Path("/opt/rea-ops/stage/api.py")
         live = API_LIVE
+        staged = Path("/opt/rea-ops/stage/api.py")
+        live_hash = _sha256(live) if live.is_file() else ""
+        staged_hash = _sha256(staged) if staged.is_file() else ""
         return {
             "ok": True,
             "kind": "api",
-            "stage_exists": incoming.is_file(),
+            "stage_exists": staged.is_file(),
             "live_exists": live.is_file(),
             "immutable": _is_immutable(live),
+            "live_sha256": live_hash,
+            "staged_sha256": staged_hash,
+            "gold_sha256": GOLD_HASH,
+            "gold_min_bytes": GOLD_MIN_BYTES,
             "script": "/root/deploy_api_verified.sh",
-            "note": "Existing script copies incoming→live, clears chattr +i, restarts sailingsa-api. Helper restores +i when it was set.",
+            "note": "Gold lock blocks stale/repo api.py. A named approved_sha256 is required to install a new revision. ALLOW_API_REPLACE is set only after that gate.",
         }
     if kind == "api":
         if host_id() != "sailingsa":
-            return {"ok": False, "error": "wrong_host"}
+            return {"ok": False, "error": "wrong_host", "mutated": False, "restarted": False}
         stage = Path("/opt/rea-ops/stage/api.py")
-        if not stage.is_file():
-            return {"ok": False, "error": "missing_stage", "path": str(stage)}
+        before = _snapshot_live_api()
+        gate = _api_gate(stage, approved)
+        if not gate.get("ok"):
+            after = _snapshot_live_api()
+            gate["unchanged"] = after == before
+            return gate
+        if gate["sha256"] == before["live_hash"]:
+            return {
+                "ok": True,
+                "error": "same_revision",
+                "note": "Staged file matches live api.py. Refusing a no-op replace so production is not restarted for testing.",
+                "sha256": gate["sha256"],
+                "mutated": False,
+                "restarted": False,
+                "unchanged": True,
+            }
         pre = op_preflight("sailingsa-api")
         if pre.get("busy"):
-            return {"ok": False, "error": "unit_busy", "preflight": pre}
+            return {"ok": False, "error": "unit_busy", "preflight": pre, "mutated": False, "restarted": False}
         backup = op_backup("sailingsa-api")
         was_immutable = _is_immutable(API_LIVE)
         incoming = Path("/root/incoming/api.py")
@@ -389,36 +530,74 @@ def op_deploy(kind: str) -> dict[str, Any]:
         helper = Path("/opt/rea-ops/stage/regatta_host_code.py")
         if helper.is_file():
             shutil.copy2(helper, Path("/root/incoming/regatta_host_code.py"))
-        proc = subprocess.run(["/root/deploy_api_verified.sh"], capture_output=True, text=True, timeout=90)
+        env = os.environ.copy()
+        if gate.get("allow_replace"):
+            env["ALLOW_API_REPLACE"] = "1"
+        proc = subprocess.run(["/root/deploy_api_verified.sh"], capture_output=True, text=True, timeout=90, env=env)
+        after = _snapshot_live_api()
+        mutated = after["live_hash"] != before["live_hash"]
+        restarted = after["pid"] != before["pid"]
         if API_LIVE.is_file() and _is_immutable(API_LIVE):
             _chattr(API_LIVE, False)
-        try:
-            _restore_owner(API_LIVE, "www-data", "www-data")
-        except PermissionError:
-            pass
+        _restore_owner(API_LIVE, "www-data", "www-data")
         _apply_sailingsa_acl(API_LIVE)
         if was_immutable and API_LIVE.is_file():
             _chattr(API_LIVE, True)
         health = op_health("sailingsa-api")
         payload = {
-            "ok": proc.returncode == 0 and health.get("ok") is True,
+            "ok": proc.returncode == 0 and health.get("ok") is True and mutated,
             "exit": proc.returncode,
             "log": (proc.stdout + proc.stderr)[-4000:],
             "health": health,
             "backup": backup,
             "immutable_restored": was_immutable,
+            "mutated": mutated,
+            "restarted": restarted,
+            "sha256": gate["sha256"],
         }
-        log_text = payload["log"]
-        refused = "REFUSED" in log_text or "Only Master/Gold" in log_text
-        if refused:
-            payload["ok"] = True
-            payload["note"] = "Existing Gold-hash safeguard refused the incoming file. Live api.py was not replaced."
+        refused = "REFUSED" in payload["log"] or "Only Master/Gold" in payload["log"]
+        if refused or not mutated:
+            payload["ok"] = not mutated
+            payload["note"] = "Deploy refused or live file unchanged. No recovery restart."
+            payload["restarted"] = restarted
             return payload
-        if not payload["ok"] and backup.get("ok") and not health.get("ok"):
+        if not payload["ok"] and backup.get("ok"):
             payload["recovery"] = op_rollback(backup["backup_id"])
             run(["systemctl", "restart", "sailingsa-api"])
             payload["recovery_health"] = op_health("sailingsa-api")
+            payload["recovered"] = True
         return payload
+    if kind == "api-dry":
+        if host_id() != "sailingsa":
+            return {"ok": False, "error": "wrong_host"}
+        stage = Path("/opt/rea-ops/stage/api.py")
+        gate = _api_gate(stage, approved)
+        if not gate.get("ok"):
+            return gate
+        before = _snapshot_live_api()
+        sandbox = Path("/opt/rea-ops/stage/api-sandbox")
+        sandbox.mkdir(parents=True, exist_ok=True)
+        dest = sandbox / "api.py"
+        if dest.exists():
+            dest.unlink()
+        shutil.copy2(stage, dest)
+        backup = op_backup("sailingsa-api-sandbox")
+        dest.write_text(dest.read_text(encoding="utf-8", errors="replace") + "\n# rea-dry\n", encoding="utf-8")
+        restored = op_rollback(backup["backup_id"]) if backup.get("ok") else {"ok": False}
+        after = _snapshot_live_api()
+        compile_proc = subprocess.run(["python3", "-m", "py_compile", str(dest)], capture_output=True, text=True)
+        return {
+            "ok": after == before and restored.get("ok") is True and compile_proc.returncode == 0,
+            "kind": "api-dry",
+            "gate": {k: gate.get(k) for k in ("sha256", "bytes", "gold", "allow_replace")},
+            "live_unchanged": after == before,
+            "sandbox": str(dest),
+            "backup": backup,
+            "rollback": restored,
+            "mutated": False,
+            "restarted": False,
+            "note": "Validated against /opt/rea-ops/stage/api-sandbox only. Production api.py was not replaced.",
+        }
     if kind == "static":
         src = Path("/opt/rea-ops/stage/rea-ops-probe.html")
         dest = Path("/var/www/sailingsa/rea-ops-probe.html")
@@ -440,16 +619,58 @@ def op_deploy(kind: str) -> dict[str, Any]:
             return {"ok": False, "error": "missing_stage", "path": str(zpath)}
         web = Path("/var/www/sailingsa")
         backup = op_backup("sailingsa-frontend-core")
-        proc = subprocess.run(
-            ["unzip", "-o", str(zpath), "-x", "data/hub_hero.json", "*.bak", "*.md", "-d", str(web)],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        # Match existing deploy-with-key.sh owner, then restore REA ACL.
-        run(["chown", "-R", "www-data:www-data", str(web)])
+        unzipped = _safe_unzip(zpath, web)
+        _own_tree(web, "www-data", "www-data")
         _apply_sailingsa_acl(web)
-        return {"ok": proc.returncode == 0, "backup": backup, "log": (proc.stdout + proc.stderr)[-2000:]}
+        return {"ok": True, "backup": backup, "unzip": unzipped, "note": "Production frontend deploy. Prefer frontend-sandbox for tests."}
+    if kind == "frontend-sandbox":
+        if host_id() != "sailingsa":
+            return {"ok": False, "error": "wrong_host"}
+        root = Path("/opt/rea-ops/stage/frontend-sandbox")
+        www = root / "www"
+        zpath = root / "fixture.zip"
+        if www.exists():
+            shutil.rmtree(www)
+        www.mkdir(parents=True, exist_ok=True)
+        (www / "data").mkdir(parents=True, exist_ok=True)
+        (www / "data" / "hub_hero.json").write_text('{"live":true}\n', encoding="utf-8")
+        (www / "keep.txt").write_text("before\n", encoding="utf-8")
+        _write_frontend_fixture(zpath)
+        backup = op_backup("sailingsa-frontend-sandbox")
+        unzipped = _safe_unzip(zpath, www)
+        try:
+            _own_tree(www, "www-data", "www-data")
+        except Exception:
+            pass
+        hero = (www / "data" / "hub_hero.json").read_text(encoding="utf-8")
+        evil = Path("/opt/rea-ops/stage/evil.txt")
+        ok_json = (www / "data" / "ok.json").is_file()
+        index = (www / "index.html").is_file()
+        notes = (www / "notes.md").exists()
+        bak = (www / "backup.bak").exists()
+        rollback = op_rollback(backup["backup_id"]) if backup.get("ok") else {"ok": False}
+        hero_after = (www / "data" / "hub_hero.json").read_text(encoding="utf-8") if (www / "data" / "hub_hero.json").is_file() else ""
+        return {
+            "ok": (
+                hero.startswith('{"live":true}')
+                and not evil.exists()
+                and ok_json
+                and index
+                and not notes
+                and not bak
+                and "../evil.txt" in unzipped.get("rejected", [])
+                and "data/hub_hero.json" in unzipped.get("skipped", [])
+                and rollback.get("ok") is True
+                and hero_after.startswith('{"live":true}')
+            ),
+            "unzip": unzipped,
+            "backup": backup,
+            "rollback": rollback,
+            "hero_preserved": hero.startswith('{"live":true}'),
+            "traversal_blocked": not evil.exists(),
+            "mutated_production": Path("/var/www/sailingsa/rea-ops-probe.html").exists() is False,
+            "note": "Isolated under /opt/rea-ops/stage/frontend-sandbox. Production web root was not published to.",
+        }
     if kind == "whatsapp-code":
         staged = list(Path("/opt/rea/ops/stage").glob("*.py")) + list(Path("/opt/rea/ops/stage").glob("*.js"))
         copied = []
@@ -526,7 +747,9 @@ def dispatch(tokens: list[str]) -> dict[str, Any]:
     if op == "stage-api":
         return op_stage_live_api()
     if op == "deploy" and args:
-        return op_deploy(args[0])
+        return op_deploy(args[0], args[1] if len(args) > 1 else "")
+    if op == "can-control" and args:
+        return op_can_control(args[0])
     if op == "migrate" and args:
         return op_migrate(args[0])
     return {"ok": False, "error": "denied", "op": op}

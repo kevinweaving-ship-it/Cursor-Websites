@@ -30,12 +30,14 @@ Tunnel deadline is about 120 seconds. Use `ops_jobs` for longer work.
 
 | kind | Box | What it does |
 | --- | --- | --- |
-| `plan-api` | SailingSA | Shows whether stage/live exist and the live `chattr` state |
+| `plan-api` | SailingSA | Live/staged/Gold hashes and whether a named revision would be allowed |
 | `stage-api` | SailingSA | Copies live `api.py` into `/opt/rea-ops/stage` |
-| `api` | SailingSA | Wraps live `/root/deploy_api_verified.sh` (backup, incoming, Gold-hash guard, restart, health, restore `+i`) |
+| `api` | SailingSA | Requires `approved_sha256` matching the staged file. Still honours the live Gold lock (size, known-stale hashes). Sets `ALLOW_API_REPLACE=1` only after that gate. Same-hash as live is a no-op (no restart). Recovery restart only if live actually changed and health failed. |
+| `api-dry` | SailingSA | Same gate, then copy/compile/rollback under `/opt/rea-ops/stage/api-sandbox` only |
 | `static` | SailingSA | Publishes `/opt/rea-ops/stage/rea-ops-probe.html` |
 | `static-clean` | SailingSA | Removes the probe file |
-| `frontend` | SailingSA | Unzips staged zip, excludes `data/hub_hero.json` |
+| `frontend` | SailingSA | Safe unzip to the live web root, excludes `data/hub_hero.json`, blocks `..` paths |
+| `frontend-sandbox` | SailingSA | Fixture ZIP extract under `/opt/rea-ops/stage/frontend-sandbox` (exclusions, zip-slip, ownership, rollback) |
 | `whatsapp-code` | GoWifi | Copies staged `.py`/`.js` over existing WhatsApp files. Does not restart. |
 | `aerialnet` | GoWifi | Copies staged aerialnet files. Does not restart. |
 
