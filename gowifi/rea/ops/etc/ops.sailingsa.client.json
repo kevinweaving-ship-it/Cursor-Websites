@@ -1,0 +1,38 @@
+{
+  "host_id": "sailingsa",
+  "identity": "rea",
+  "audit_log": "/opt/rea/ops/audit/ops-sailingsa.jsonl",
+  "helper": {
+    "kind": "remote-user-ssh",
+    "alias": "sailingsa-ops"
+  },
+  "allow_read_paths": [
+    "/var/www/sailingsa",
+    "/var/www/timadvisor",
+    "/etc/nginx",
+    "/var/log/nginx",
+    "/opt/rea-ops"
+  ],
+  "allow_write_paths": [
+    "/var/www/sailingsa",
+    "/var/www/timadvisor",
+    "/opt/rea-ops/stage"
+  ],
+  "units_status": [
+    "sailingsa-api",
+    "nginx",
+    "postgresql",
+    "certbot.timer"
+  ],
+  "units_control": [
+    "sailingsa-api",
+    "nginx"
+  ],
+  "http_allow_hosts": [
+    "127.0.0.1",
+    "localhost",
+    "sailingsa.co.za",
+    "www.sailingsa.co.za",
+    "timadvisor.co.za"
+  ]
+}
