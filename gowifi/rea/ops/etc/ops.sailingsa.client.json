@@ -11,7 +11,10 @@
     "/var/www/timadvisor",
     "/etc/nginx",
     "/var/log/nginx",
-    "/opt/rea-ops"
+    "/opt/rea-ops",
+    "/opt/arial-whatsapp-poc",
+    "/opt/sailingsa-whatsapp-poc",
+    "/etc/systemd/system"
   ],
   "allow_write_paths": [
     "/var/www/sailingsa",
@@ -22,11 +25,27 @@
     "sailingsa-api",
     "nginx",
     "postgresql",
-    "certbot.timer"
+    "certbot.timer",
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "arial-api",
+    "arial-bing",
+    "arial-stanford",
+    "arial-voelklip",
+    "arial-site-watch",
+    "event-whatsapp-ingest",
+    "sailingsa-whatsapp-poc"
   ],
   "units_control": [
     "sailingsa-api",
     "nginx"
+  ],
+  "units_stop": [
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "arial-api",
+    "arial-voelklip",
+    "arial-site-watch"
   ],
   "http_allow_hosts": [
     "127.0.0.1",

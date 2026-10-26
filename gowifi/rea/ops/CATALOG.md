@@ -41,4 +41,23 @@ Tunnel deadline is about 120 seconds. Use `ops_jobs` for longer work.
 | `whatsapp-code` | GoWifi | Copies staged `.py`/`.js` over existing WhatsApp files. Does not restart. |
 | `aerialnet` | GoWifi | Copies staged aerialnet files. Does not restart. |
 
-`arial-whatsapp-poc` restart is denied while the live session is UP.
+`arial-whatsapp-poc` restart is denied on GoWifi while the live session is UP.
+
+## Arial leftover lifecycle (SailingSA)
+
+ChatGPT / REA CLI (as `rea` via `ssh sailingsa-ops`):
+
+```text
+ssh -o BatchMode=yes sailingsa-ops inspect-arial
+ssh -o BatchMode=yes sailingsa-ops status arial-whatsapp-poc
+ssh -o BatchMode=yes sailingsa-ops journal arial-whatsapp-poc 80
+ssh -o BatchMode=yes sailingsa-ops status sailingsa-whatsapp-poc
+ssh -o BatchMode=yes sailingsa-ops retarget-ingest
+ssh -o BatchMode=yes sailingsa-ops backup sailingsa-arial-leftover
+ssh -o BatchMode=yes sailingsa-ops stop arial-whatsapp-poc
+ssh -o BatchMode=yes sailingsa-ops disable arial-whatsapp-poc
+ssh -o BatchMode=yes sailingsa-ops decommission arial-whatsapp-poc
+```
+
+Protected (denied): `sailingsa-whatsapp-poc`, `event-whatsapp-ingest`.
+Bing/Stanford stay running until a GoWifi install is verified. Auth/session dirs are never copied.

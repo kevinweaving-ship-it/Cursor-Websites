@@ -14,7 +14,10 @@
     "/etc/nginx",
     "/var/log/nginx",
     "/opt/rea-ops",
-    "/etc/cron.d"
+    "/opt/arial-whatsapp-poc",
+    "/opt/sailingsa-whatsapp-poc",
+    "/etc/cron.d",
+    "/etc/systemd/system"
   ],
   "allow_write_paths": [
     "/var/www/sailingsa",
@@ -27,18 +30,38 @@
     "/var/lib/postgresql",
     "/etc/sailingsa/",
     "/etc/sailingsa-",
-    "/etc/systemd/system/sailingsa-api.service"
+    "/etc/systemd/system/sailingsa-api.service",
+    "/state/auth",
+    "/state/event-whatsapp",
+    "/etc/arial-whatsapp-poc.env",
+    "/etc/sailingsa-whatsapp-poc.env"
   ],
   "deny_name_regex": "(\\.env$|\\.pem$|\\.key$|authorized_keys|^id_|password|secret|credential|runtime\\.key)",
   "units_status": [
     "sailingsa-api",
     "nginx",
     "postgresql",
-    "certbot.timer"
+    "certbot.timer",
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "arial-api",
+    "arial-bing",
+    "arial-stanford",
+    "arial-voelklip",
+    "arial-site-watch",
+    "event-whatsapp-ingest",
+    "sailingsa-whatsapp-poc"
   ],
   "units_control": [
     "sailingsa-api",
     "nginx"
+  ],
+  "units_stop": [
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "arial-api",
+    "arial-voelklip",
+    "arial-site-watch"
   ],
   "owners": {
     "/var/www/sailingsa": "www-data:www-data",

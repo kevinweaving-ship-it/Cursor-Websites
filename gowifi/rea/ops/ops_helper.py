@@ -42,8 +42,37 @@ GOWIFI_CONTROL = {
     "aerialnet-voelklip-api",
     "arial-site-watch",
 }
-SA_STATUS = {"sailingsa-api", "nginx", "postgresql", "certbot.timer"}
+SA_STATUS = {
+    "sailingsa-api",
+    "nginx",
+    "postgresql",
+    "certbot.timer",
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "arial-api",
+    "arial-bing",
+    "arial-stanford",
+    "arial-voelklip",
+    "arial-site-watch",
+    "event-whatsapp-ingest",
+    "sailingsa-whatsapp-poc",
+}
 SA_CONTROL = {"sailingsa-api", "nginx"}
+# Leftover Arial stack on SailingSA. Bing/Stanford stay up until migrated.
+SA_STOP = {
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "arial-api",
+    "arial-voelklip",
+    "arial-site-watch",
+}
+PROTECTED_UNITS = {
+    "sailingsa-whatsapp-poc",
+    "event-whatsapp-ingest",
+    "sailingsa-api",
+    "postgresql",
+    "openai-rea-tunnel",
+}
 API_LIVE = Path("/var/www/sailingsa/api/api.py")
 API_HELPER = Path("/var/www/sailingsa/api/regatta_host_code.py")
 # Live /root/backups/API_MASTER_GOLD/refuse_stale_incoming_api.sh
@@ -71,6 +100,7 @@ BACKUP_TARGETS = {
     "sailingsa-ops-stage": ["/opt/rea-ops/stage"],
     "sailingsa-frontend-sandbox": ["/opt/rea-ops/stage/frontend-sandbox/www"],
     "sailingsa-api-sandbox": ["/opt/rea-ops/stage/api-sandbox/api.py"],
+    "sailingsa-arial-leftover": ["/opt/arial-whatsapp-poc"],
 }
 
 
@@ -155,16 +185,34 @@ def op_preflight(unit: str) -> dict[str, Any]:
     }
 
 
+def stop_units() -> set[str]:
+    if host_id() == "sailingsa":
+        return SA_STOP
+    return set()
+
+
 def op_control(action: str, unit: str) -> dict[str, Any]:
-    if action not in {"restart", "reload"}:
+    if action not in {"restart", "reload", "stop", "disable", "enable"}:
         return {"ok": False, "error": "action_denied"}
-    if not UNIT_RE.match(unit) or unit not in allowed_units(True):
+    if not UNIT_RE.match(unit):
         return {"ok": False, "error": "unit_denied", "unit": unit}
-    pre = op_preflight(unit)
-    if pre.get("busy"):
+    if unit in PROTECTED_UNITS and action in {"restart", "stop", "disable"}:
+        return {"ok": False, "error": "protected_unit", "unit": unit, "note": "sailingsa-whatsapp-poc, event ingest, and API/DB are protected."}
+    if action in {"stop", "disable"}:
+        if unit not in stop_units():
+            return {"ok": False, "error": "unit_denied", "unit": unit, "note": "stop/disable only for confirmed leftover Arial units on SailingSA."}
+        if host_id() == "gowifi" and unit == "arial-whatsapp-poc":
+            return {"ok": False, "error": "whatsapp_poc_guard", "note": "GoWifi Arial gateway is the live unique-number session. Do not stop it."}
+    elif action in {"restart", "reload"}:
+        if unit not in allowed_units(True):
+            return {"ok": False, "error": "unit_denied", "unit": unit}
+        if unit == "arial-whatsapp-poc":
+            return {"ok": False, "error": "whatsapp_poc_guard", "note": "poc restart is denied while the live session is UP. Use status/health only."}
+    if action == "enable" and unit not in stop_units() | allowed_units(True):
+        return {"ok": False, "error": "unit_denied", "unit": unit}
+    pre = op_preflight(unit) if unit in allowed_units(False) else {"busy": False}
+    if pre.get("busy") and action in {"restart", "reload", "stop"}:
         return {"ok": False, "error": "unit_busy", "preflight": pre}
-    if unit == "arial-whatsapp-poc":
-        return {"ok": False, "error": "whatsapp_poc_guard", "note": "poc restart is denied while the live session is UP. Use status/health only."}
     if unit == "nginx" and action == "reload":
         test = run(["nginx", "-t"])
         if test.returncode != 0:
@@ -175,7 +223,7 @@ def op_control(action: str, unit: str) -> dict[str, Any]:
     health = {}
     if unit == "sailingsa-api":
         health = op_health("sailingsa-api")
-    if unit == "arial-whatsapp-watcher":
+    if unit == "arial-whatsapp-watcher" and host_id() == "gowifi":
         health = op_health("whatsapp")
     return {"ok": proc.returncode == 0, "unit": unit, "action": action, "stderr": proc.stderr[-400:], "health": health}
 
@@ -454,12 +502,15 @@ def op_can_control(unit: str) -> dict[str, Any]:
         return {"ok": False, "error": "unit_denied", "unit": unit, "tested": "permission_only"}
     status_ok = unit in allowed_units(False)
     control_ok = unit in allowed_units(True)
-    poc_guard = unit == "arial-whatsapp-poc"
+    can_stop = unit in stop_units() and unit not in PROTECTED_UNITS
+    poc_guard = unit == "arial-whatsapp-poc" and host_id() == "gowifi"
     return {
         "ok": status_ok,
         "unit": unit,
         "can_status": status_ok,
         "can_control": control_ok and not poc_guard,
+        "can_stop": can_stop and not poc_guard,
+        "protected": unit in PROTECTED_UNITS,
         "poc_guard": poc_guard,
         "tested": "permission_only",
         "note": "No restart was executed.",
@@ -700,6 +751,81 @@ def op_deploy(kind: str, approved: str = "") -> dict[str, Any]:
     return {"ok": False, "error": "deploy_denied", "kind": kind}
 
 
+def op_decommission(unit: str) -> dict[str, Any]:
+    if host_id() != "sailingsa" or unit not in SA_STOP:
+        return {"ok": False, "error": "unit_denied", "unit": unit, "note": "Decommission is leftover Arial units on SailingSA only."}
+    if unit in PROTECTED_UNITS:
+        return {"ok": False, "error": "protected_unit", "unit": unit}
+    backup = op_backup("sailingsa-arial-leftover") if unit.startswith("arial-whatsapp") else {"ok": True, "skipped": True}
+    stopped = op_control("stop", unit)
+    disabled = op_control("disable", unit)
+    return {
+        "ok": stopped.get("ok") is True and disabled.get("ok") is True,
+        "unit": unit,
+        "backup": backup,
+        "stopped": stopped,
+        "disabled": disabled,
+        "deleted": False,
+        "auth_copied": False,
+        "note": "Stopped and disabled. Tree and auth were not deleted or copied.",
+    }
+
+
+def op_inspect_arial() -> dict[str, Any]:
+    units = sorted(allowed_units(False) | (SA_STATUS if host_id() == "sailingsa" else GOWIFI_STATUS))
+    rows = []
+    for unit in units:
+        if not any(x in unit for x in ("arial", "whatsapp", "bing", "stanford", "voelklip", "hansekop", "tuya", "ingest")):
+            continue
+        show = run(["systemctl", "show", unit, "-p", "ActiveState", "-p", "UnitFileState", "-p", "FragmentPath", "-p", "Description", "-p", "After", "-p", "Wants", "-p", "MainPID"])
+        rows.append({"unit": unit, "show": show.stdout.strip()[:600], "can_stop": unit in stop_units()})
+    nginx_hits = []
+    nginx = Path("/etc/nginx/sites-enabled")
+    if nginx.is_dir():
+        for p in nginx.iterdir():
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            if any(s in text for s in ("/api/bing/", "/api/stanford/", "/api/arial", "8004", "8005", "8006", "8003")):
+                nginx_hits.append(p.name)
+    return {
+        "ok": True,
+        "host": host_id(),
+        "units": rows,
+        "nginx_sites": nginx_hits,
+        "protected": sorted(PROTECTED_UNITS),
+        "stop_allow": sorted(stop_units()),
+        "note": "Bing/Stanford remain live on SailingSA until a GoWifi install is verified. Do not copy WhatsApp auth.",
+    }
+
+
+def op_retarget_ingest() -> dict[str, Any]:
+    if host_id() != "sailingsa":
+        return {"ok": False, "error": "wrong_host"}
+    unit = Path("/etc/systemd/system/event-whatsapp-ingest.service")
+    if not unit.is_file():
+        return {"ok": False, "error": "missing_unit"}
+    text = unit.read_text(encoding="utf-8")
+    backup = Path("/opt/rea-ops/backups") / f"event-whatsapp-ingest.service.{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+    backup.parent.mkdir(parents=True, exist_ok=True)
+    backup.write_text(text, encoding="utf-8")
+    new = text.replace("arial-whatsapp-poc.service", "sailingsa-whatsapp-poc.service")
+    if "sailingsa-whatsapp-poc.service" not in new:
+        return {"ok": False, "error": "retarget_failed"}
+    unit.write_text(new, encoding="utf-8")
+    run(["systemctl", "daemon-reload"])
+    # Do not restart ingest or WhatsApp.
+    after = run(["systemctl", "show", "event-whatsapp-ingest", "-p", "After", "-p", "Wants", "-p", "ActiveState"])
+    return {
+        "ok": "sailingsa-whatsapp-poc.service" in after.stdout and "arial-whatsapp-poc.service" not in after.stdout,
+        "backup": str(backup),
+        "show": after.stdout.strip(),
+        "restarted": False,
+        "note": "Caller retargeted to sailingsa-whatsapp-poc. Ingest was not restarted. Leftover inbox files were left in place.",
+    }
+
+
 def op_migrate(schema: str) -> dict[str, Any]:
     if schema != "rea_ops":
         return {"ok": False, "error": "migrate_denied", "note": "Only rea_ops probe migrations are auto-run. Public DDL stays file-staged for review."}
@@ -730,8 +856,14 @@ def dispatch(tokens: list[str]) -> dict[str, Any]:
         return op_status(args[0])
     if op == "journal" and args:
         return op_journal(args[0], args[1] if len(args) > 1 else "80")
-    if op in {"restart", "reload"} and args:
+    if op in {"restart", "reload", "stop", "disable", "enable"} and args:
         return op_control(op, args[0])
+    if op == "decommission" and args:
+        return op_decommission(args[0])
+    if op == "inspect-arial":
+        return op_inspect_arial()
+    if op == "retarget-ingest":
+        return op_retarget_ingest()
     if op == "nginx" and args:
         return op_nginx(args[0])
     if op == "backup" and args:

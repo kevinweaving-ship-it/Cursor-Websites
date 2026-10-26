@@ -832,8 +832,14 @@ def dispatch(cfg: dict[str, Any], argv: list[str]) -> dict[str, Any]:
         return service_status(cfg, args[0])
     if op in {"restart", "reload"}:
         return service_control(cfg, op, args[0])
+    if op in {"stop", "disable", "enable", "decommission"}:
+        return helper_call(cfg, [op, args[0] if args else ""])
     if op == "can-control":
         return helper_call(cfg, ["can-control", args[0] if args else ""])
+    if op == "inspect-arial":
+        return helper_call(cfg, ["inspect-arial"])
+    if op == "retarget-ingest":
+        return helper_call(cfg, ["retarget-ingest"], timeout=40)
     if op == "journal":
         return journal(cfg, args[0], int(args[1]) if len(args) > 1 else 80)
     if op == "nginx":
