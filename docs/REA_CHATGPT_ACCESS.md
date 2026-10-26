@@ -48,16 +48,19 @@ process. Privileged work uses:
   The mobile app cannot add connectors.
 - OpenAI safety may still block `capture_process_scenario`. Use `ops_*`.
 - Tunnel deadline ~120s. Long jobs: `ops_jobs` start then poll.
-- GitHub write: REA has its own ed25519 key
-  (`/opt/rea/.ssh/id_rea_github` on GoWifi, `/opt/rea-ops/.ssh/id_rea_github`
-  on SailingSA). HTTPS clone of the public repo works. Push stays
-  unavailable until a human adds the printed public key as a **write
-  deploy key** on `kevinweaving-ship-it/Cursor-Websites` (or another repo).
-  Cursor cannot add that key (403). The ChatGPT GitHub connector is
-  **UNVERIFIED** from this server path — confirm PR create in ChatGPT
+- GitHub write: REA has its own ed25519 keys. HTTPS clone of the public
+  repo works. Push stays unavailable until a human adds a **write deploy
+  key**. Cursor cannot add that key (403). The ChatGPT GitHub connector
+  is **UNVERIFIED** from this server path — confirm PR create in ChatGPT
   after connector refresh. `gh` may be installed as a CLI fallback; it
   still needs a human-provided token (`gh auth login`) and must never
   receive Cursor’s token.
+
+  GoWifi (`/opt/rea/.ssh/id_rea_github.pub`):
+  `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIZUbaqtPqcweuv3PR+IO5t+XJH0A8DKpNl81OIhSkNP rea-ops-github@gowifi`
+
+  SailingSA (`/opt/rea-ops/.ssh/id_rea_github.pub`):
+  `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKKpToPKDJLUM1HQ810tF6iPgduZEU4CbvutALEQQf6b rea-ops-github@sailingsa`
 - Visual browser checks of the public site: REA `capture_browser_scenario`
   with `/opt/chromium/chrome`, or Cursor browser tools.
 - WhatsApp delay root-cause: access is enabled; investigation is left to
@@ -65,8 +68,10 @@ process. Privileged work uses:
 
 ## Deploy path ChatGPT should use
 
-1. `ops_deploy` `stage-api` / `plan-api` then `api` on `sailingsa`
-   (wraps `/root/deploy_api_verified.sh`, restores `chattr +i` if it was set).
+1. `ops_deploy` `stage-api` / `plan-api` then `api` on `sailingsa`.
+   Wraps the **live** `/root/deploy_api_verified.sh`, which currently
+   refuses any `api.py` that is not the Master/Gold hash. Restore
+   `chattr +i` if it was set. Do not bypass that Gold check.
 2. Frontend: write or `ops_transfer` a zip to `/opt/rea-ops/stage/frontend.zip`,
    then `ops_deploy` `frontend` (excludes `data/hub_hero.json`).
 3. Harmless static probe: write `rea-ops-probe.html` to stage, `static`,

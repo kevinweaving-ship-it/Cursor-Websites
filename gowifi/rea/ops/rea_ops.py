@@ -477,26 +477,61 @@ def whatsapp_status(cfg: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _command_allowed(cfg: dict[str, Any], argv: list[str]) -> dict[str, Any]:
+    if not argv:
+        return fail("empty_command", "")
+    extra = [
+        ["python3", "-m", "compileall"],
+        ["/usr/bin/sleep"],
+        ["sha256sum"],
+        ["unzip", "-l"],
+    ]
+    allowed = False
+    for prefix in list(cfg.get("run_allowlist", [])) + extra:
+        if argv[: len(prefix)] == prefix:
+            allowed = True
+            break
+    if not allowed:
+        return fail("command_denied", " ".join(argv[:6]))
+    return ok()
+
+
 def jobs_start(cfg: dict[str, Any], argv: list[str], timeout: int = 90) -> dict[str, Any]:
-    check = run_check(cfg, argv)
-    if not check.get("ok") and check.get("error") == "command_denied":
+    check = _command_allowed(cfg, argv)
+    if not check.get("ok"):
         return check
     jobs = Path(cfg["jobs_dir"])
     jobs.mkdir(parents=True, exist_ok=True)
-    job_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    job_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     job_dir = jobs / job_id
     job_dir.mkdir()
     (job_dir / "cmd.json").write_text(json.dumps(argv), encoding="utf-8")
     log = job_dir / "log.txt"
-    proc = subprocess.Popen(argv, stdout=log.open("w"), stderr=subprocess.STDOUT)
+    proc = subprocess.Popen(argv, stdout=log.open("w"), stderr=subprocess.STDOUT, start_new_session=True)
     (job_dir / "pid").write_text(str(proc.pid), encoding="utf-8")
-    try:
-        proc.wait(timeout=min(int(timeout), 600))
+    time.sleep(0.2)
+    if proc.poll() is not None:
         (job_dir / "status").write_text(str(proc.returncode), encoding="utf-8")
         return ok(job_id=job_id, exit=proc.returncode, log=redact(log.read_text(encoding="utf-8", errors="replace")[-4000:]))
-    except subprocess.TimeoutExpired:
-        (job_dir / "status").write_text("running", encoding="utf-8")
-        return ok(job_id=job_id, running=True, pid=proc.pid, note="poll with jobs-status; tunnel may expire at ~120s")
+    (job_dir / "status").write_text("running", encoding="utf-8")
+    return ok(job_id=job_id, running=True, pid=proc.pid, note="poll with jobs-status; tunnel may expire at ~120s")
+
+
+def _pid_running(pid: str) -> bool:
+    if not pid.isdigit():
+        return False
+    try:
+        os.kill(int(pid), 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    stat = Path(f"/proc/{pid}/status")
+    if stat.is_file():
+        for line in stat.read_text(encoding="utf-8", errors="replace").splitlines():
+            if line.startswith("State:") and "zombie" in line.lower():
+                return False
+    return Path(f"/proc/{pid}").exists()
 
 
 def jobs_status(cfg: dict[str, Any], job_id: str) -> dict[str, Any]:
@@ -506,9 +541,7 @@ def jobs_status(cfg: dict[str, Any], job_id: str) -> dict[str, Any]:
     if not job_dir.is_dir():
         return fail("missing_job", job_id)
     pid = (job_dir / "pid").read_text(encoding="utf-8").strip() if (job_dir / "pid").is_file() else ""
-    running = False
-    if pid.isdigit():
-        running = Path(f"/proc/{pid}").exists()
+    running = _pid_running(pid)
     status = (job_dir / "status").read_text(encoding="utf-8").strip() if (job_dir / "status").is_file() else "unknown"
     log = redact((job_dir / "log.txt").read_text(encoding="utf-8", errors="replace")[-4000:]) if (job_dir / "log.txt").is_file() else ""
     return ok(job_id=job_id, pid=pid, running=running, status=status, log=log)
@@ -676,11 +709,20 @@ def gh_op(cfg: dict[str, Any], action: str, extra: list[str] | None = None) -> d
     if action == "clone":
         dest = Path(cfg.get("stage_dir", "/tmp")) / "github" / "Cursor-Websites"
         dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists() and not (dest / ".git").exists():
+            shutil.rmtree(dest, ignore_errors=True)
         if (dest / ".git").exists():
-            proc = run(["git", "-C", str(dest), "fetch", "--depth", "1", "origin", "main"], timeout=60)
-            return ok(path=str(dest), action="fetch", exit=proc.returncode, output=redact((proc.stdout + proc.stderr)[-1500:]))
+            proc = run(["git", "-C", str(dest), "remote", "-v"], timeout=20)
+            ls = run(["git", "-C", str(dest), "rev-parse", "--abbrev-ref", "HEAD"], timeout=20)
+            return ok(path=str(dest), action="existing", exit=0, output=redact((proc.stdout + ls.stdout + proc.stderr)[-1500:]))
         proc = run(["git", "clone", "--depth", "1", repo, str(dest)], timeout=90)
-        return ok(path=str(dest), action="clone", exit=proc.returncode, output=redact((proc.stdout + proc.stderr)[-1500:]))
+        return {
+            "ok": proc.returncode == 0,
+            "path": str(dest),
+            "action": "clone",
+            "exit": proc.returncode,
+            "output": redact((proc.stdout or "") + "\n" + (proc.stderr or ""))[-1500:],
+        }
     if action == "probe-push":
         dest = Path(cfg.get("stage_dir", "/tmp")) / "github" / "Cursor-Websites"
         if not (dest / ".git").exists():
@@ -755,13 +797,19 @@ def jobs_cancel(cfg: dict[str, Any], job_id: str) -> dict[str, Any]:
     if not pid_path.is_file():
         return fail("missing_job", job_id)
     pid = pid_path.read_text(encoding="utf-8").strip()
-    if pid.isdigit() and Path(f"/proc/{pid}").exists():
-        os.kill(int(pid), 15)
+    if _pid_running(pid):
+        try:
+            os.killpg(int(pid), 15)
+        except ProcessLookupError:
+            os.kill(int(pid), 15)
         time.sleep(0.4)
-        if Path(f"/proc/{pid}").exists():
-            os.kill(int(pid), 9)
+        if _pid_running(pid):
+            try:
+                os.killpg(int(pid), 9)
+            except ProcessLookupError:
+                os.kill(int(pid), 9)
         (job_dir / "status").write_text("cancelled", encoding="utf-8")
-        return ok(job_id=job_id, cancelled=True, pid=pid)
+        return ok(job_id=job_id, cancelled=True, pid=pid, running=_pid_running(pid))
     return ok(job_id=job_id, cancelled=False, note="not running")
 
 

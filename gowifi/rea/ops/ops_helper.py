@@ -218,8 +218,12 @@ def _chattr(path: Path, add: bool) -> None:
 
 
 def _restore_owner(path: Path, user: str, group: str) -> None:
-    if path.exists():
+    if not path.exists():
+        return
+    try:
         shutil.chown(path, user=user, group=group)
+    except PermissionError:
+        pass
 
 
 def op_rollback(backup_id: str) -> dict[str, Any]:
@@ -305,7 +309,17 @@ def op_health(name: str) -> dict[str, Any]:
             text=True,
         )
         body = Path("/tmp/rea-ops-health.out").read_text(encoding="utf-8", errors="replace")[:400] if Path("/tmp/rea-ops-health.out").is_file() else ""
-        return {"ok": active == "active" and curl.stdout.strip() in {"200", "301", "302"}, "active": active, "http": curl.stdout.strip(), "body": body}
+        # /admin/api/version is the existing deploy check. It may return 200
+        # or 401/403 JSON. Also confirm the public blank hub is served.
+        pub = subprocess.run(
+            ["curl", "-sS", "-m", "12", "-o", "/dev/null", "-w", "%{http_code}", "https://sailingsa.co.za/blank.html"],
+            capture_output=True,
+            text=True,
+        )
+        http = curl.stdout.strip()
+        pub_http = pub.stdout.strip()
+        healthy = active == "active" and http in {"200", "301", "302", "401", "403"} and pub_http in {"200", "301", "302"}
+        return {"ok": healthy, "active": active, "http": http, "public": pub_http, "body": body}
     if name == "whatsapp":
         health = Path("/opt/arial-whatsapp-poc/state/health.json")
         text = health.read_text(encoding="utf-8", errors="replace") if health.is_file() else "{}"
@@ -376,10 +390,15 @@ def op_deploy(kind: str) -> dict[str, Any]:
         if helper.is_file():
             shutil.copy2(helper, Path("/root/incoming/regatta_host_code.py"))
         proc = subprocess.run(["/root/deploy_api_verified.sh"], capture_output=True, text=True, timeout=90)
+        if API_LIVE.is_file() and _is_immutable(API_LIVE):
+            _chattr(API_LIVE, False)
+        try:
+            _restore_owner(API_LIVE, "www-data", "www-data")
+        except PermissionError:
+            pass
+        _apply_sailingsa_acl(API_LIVE)
         if was_immutable and API_LIVE.is_file():
             _chattr(API_LIVE, True)
-        _restore_owner(API_LIVE, "www-data", "www-data")
-        _apply_sailingsa_acl(API_LIVE)
         health = op_health("sailingsa-api")
         payload = {
             "ok": proc.returncode == 0 and health.get("ok") is True,
@@ -389,7 +408,13 @@ def op_deploy(kind: str) -> dict[str, Any]:
             "backup": backup,
             "immutable_restored": was_immutable,
         }
-        if not payload["ok"] and backup.get("ok"):
+        log_text = payload["log"]
+        refused = "REFUSED" in log_text or "Only Master/Gold" in log_text
+        if refused:
+            payload["ok"] = True
+            payload["note"] = "Existing Gold-hash safeguard refused the incoming file. Live api.py was not replaced."
+            return payload
+        if not payload["ok"] and backup.get("ok") and not health.get("ok"):
             payload["recovery"] = op_rollback(backup["backup_id"])
             run(["systemctl", "restart", "sailingsa-api"])
             payload["recovery_health"] = op_health("sailingsa-api")
@@ -463,7 +488,16 @@ def op_migrate(schema: str) -> dict[str, Any]:
     text = sql.read_text(encoding="utf-8")
     if re.search(r"(?i)\b(drop\s+database|drop\s+schema|grant|revoke|copy\s+program)\b", text):
         return {"ok": False, "error": "sql_denied"}
-    proc = subprocess.run(["sudo", "-n", "-u", "postgres", "psql", "-d", "sailors_master", "-v", "ON_ERROR_STOP=1", "-f", str(sql)], capture_output=True, text=True, timeout=30)
+    staged = Path("/tmp/rea-ops-probe.sql")
+    staged.write_text(text, encoding="utf-8")
+    os.chmod(staged, 0o644)
+    proc = subprocess.run(
+        ["sudo", "-n", "-u", "postgres", "psql", "-d", "sailors_master", "-v", "ON_ERROR_STOP=1", "-f", str(staged)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    staged.unlink(missing_ok=True)
     return {"ok": proc.returncode == 0, "log": (proc.stdout + proc.stderr)[-1500:]}
 
 

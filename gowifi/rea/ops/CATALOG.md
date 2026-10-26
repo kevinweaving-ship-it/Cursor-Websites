@@ -32,7 +32,7 @@ Tunnel deadline is about 120 seconds. Use `ops_jobs` for longer work.
 | --- | --- | --- |
 | `plan-api` | SailingSA | Shows whether stage/live exist and the live `chattr` state |
 | `stage-api` | SailingSA | Copies live `api.py` into `/opt/rea-ops/stage` |
-| `api` | SailingSA | Wraps `/root/deploy_api_verified.sh` (backup, incoming, restart, health, restore `+i`) |
+| `api` | SailingSA | Wraps live `/root/deploy_api_verified.sh` (backup, incoming, Gold-hash guard, restart, health, restore `+i`) |
 | `static` | SailingSA | Publishes `/opt/rea-ops/stage/rea-ops-probe.html` |
 | `static-clean` | SailingSA | Removes the probe file |
 | `frontend` | SailingSA | Unzips staged zip, excludes `data/hub_hero.json` |
