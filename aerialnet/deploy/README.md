@@ -1,15 +1,19 @@
-# Aerialnet keypad duplicate (Hansekop + Voëlklip)
+# Aerialnet keypad (Hansekop + Voëlklip)
 
-Test / audit copies of the live SailingSA keypads, on the GoWifi / Aerialnet box.
+Alarm / Olarm / Tuya / keypad WhatsApp live on the GoWifi / Aerialnet box only.
 
-| Live gold (leave on Sailing) | Aerialnet copy |
+| Old Sailing URL | Now |
 |---|---|
-| https://sailingsa.co.za/arial/ | https://aerialnet.co.za/hansekop/ |
-| https://sailingsa.co.za/voelklip/ | https://aerialnet.co.za/voelklip/ |
+| https://sailingsa.co.za/arial/ | 302 → https://aerialnet.co.za/hansekop/ |
+| https://sailingsa.co.za/voelklip/ | 302 → https://aerialnet.co.za/voelklip/ |
+| https://sailingsa.co.za/stanford/ | 410 (not moved) |
+| https://sailingsa.co.za/bing/ | 410 (not moved) |
 
-Hansekop Olarm + Tuya run on the GoWifi box (`:8003`, `tuya-sharing` `:8007`). Keypad nginx lives in Mail-in-a-Box’s extra file `/home/user-data/www/aerialnet.co.za.conf` (same pattern as `gowifi.co.za.conf`). Mail owns `local.conf` and may rewrite it; it **includes** the extra file, so keypad APIs survive a mail rebuild. Do not patch `local.conf`. Alarm WhatsApp (Baileys) also runs on this box; Sailing must not keep the same number logged in. The keypad WhatsApp tab reads `/var/www/aerialnet/data/whatsapp_log.jsonl` (wapoc must be able to write that file).
+Sailing WhatsApp is **SailingSA + Tim Advisor only** (`sailingsa-whatsapp-poc` + event ingest). Alarm number and keypad APIs are masked on Sailing.
 
-Sailing `/arial/` still serves the old keypad API; its Tuya sharing worker is stopped, so the SSA breaker is stale. Voëlklip home cams stay on Sailing (`sailingsa.co.za:8443` / `:8444`) until hikpoc is copied.
+Hansekop Olarm + Tuya run on the GoWifi box (`:8003`, `tuya-sharing` `:8007`). Keypad nginx lives in Mail-in-a-Box’s extra file `/home/user-data/www/aerialnet.co.za.conf` (same pattern as `gowifi.co.za.conf`). Mail owns `local.conf` and may rewrite it; it **includes** the extra file, so keypad APIs survive a mail rebuild. Do not patch `local.conf`. Alarm WhatsApp (Baileys) also runs on this box. The keypad WhatsApp tab reads `/var/www/aerialnet/data/whatsapp_log.jsonl` (wapoc must be able to write that file).
+
+Voëlklip home cams may still stream from Sailing (`sailingsa.co.za:8443` / `:8444`) until hikpoc is copied.
 
 The Aerialnet landing header has **User Login**, which opens the Hansekop keypad (`/hansekop/`).
 
