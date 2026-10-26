@@ -43,6 +43,26 @@ Tunnel deadline is about 120 seconds. Use `ops_jobs` for longer work.
 
 `arial-whatsapp-poc` restart is denied on GoWifi while the live session is UP.
 
+## Safe management interface (ChatGPT / REA process tool)
+
+No connector refresh required. Call as `rea` (NoNewPrivileges). This is
+not a general root shell. Tokens are validated; destructive and
+lockout-prone operations stay blocked.
+
+```text
+/opt/rea/ops/bin/rea-admin gowifi -- capabilities
+/opt/rea/ops/bin/rea-admin gowifi -- status arial-whatsapp-poc
+/opt/rea/ops/bin/rea-admin sailingsa -- capabilities
+/opt/rea/ops/bin/rea-admin sailingsa -- inspect-arial
+/opt/rea/ops/bin/rea-admin sailingsa -- status sailingsa-whatsapp-poc
+/opt/rea/ops/bin/rea-admin sailingsa -- can-control arial-whatsapp-poc
+/opt/rea/ops/bin/rea-admin sailingsa -- nginx test
+```
+
+Authenticated localhost/root ForceCommand on GoWifi; `ssh sailingsa-ops`
+ForceCommand on SailingSA. Private keys stay on the boxes. `exec-b64`,
+`sudo ALL`, and extra root SSH aliases are not installed.
+
 ## Arial leftover lifecycle (SailingSA)
 
 ChatGPT / REA CLI (as `rea` via `ssh sailingsa-ops`):

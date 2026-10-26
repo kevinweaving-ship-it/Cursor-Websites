@@ -14,6 +14,7 @@ if [ -d /opt/rea/ops/bin ]; then
   install -m 755 -o rea -g rea "$SRC_DIR/rea_ops.py" /opt/rea/ops/bin/rea-ops
   install -m 755 -o rea -g rea "$SRC_DIR/rea_ops.py" /opt/rea/ops/bin/rea_ops.py
   install -m 755 -o rea -g rea "$SRC_DIR/ops_mcp_server.py" /opt/rea/ops/bin/ops-mcp
+  install -m 755 -o rea -g rea "$SRC_DIR/rea_admin.py" /opt/rea/ops/bin/rea-admin
   install -m 644 -o rea -g rea "$SRC_DIR/etc/ops.gowifi.json" /opt/rea/ops/etc/ops.json
   install -m 644 -o rea -g rea "$SRC_DIR/etc/ops.sailingsa.client.json" /opt/rea/ops/etc/ops.sailingsa.client.json
   install -m 755 -o root -g root "$SRC_DIR/ops_helper.py" /usr/local/sbin/rea-ops-helper

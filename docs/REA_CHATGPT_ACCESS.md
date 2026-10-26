@@ -83,8 +83,36 @@ process. Privileged work uses:
    is allowed after `nginx -t`. Do not restart `arial-whatsapp-poc` while UP.
 5. Long work: `ops_jobs` start → status → cancel.
 
+## Safe management interface
+
+No connector refresh is required if ChatGPT can already run
+`capture_process_scenario`. Exact invocations:
+
+```text
+/opt/rea/ops/bin/rea-admin gowifi -- capabilities
+/opt/rea/ops/bin/rea-admin gowifi -- status arial-whatsapp-poc
+/opt/rea/ops/bin/rea-admin sailingsa -- inspect-arial
+/opt/rea/ops/bin/rea-admin sailingsa -- status sailingsa-whatsapp-poc
+/opt/rea/ops/bin/rea-admin sailingsa -- can-control arial-whatsapp-poc
+```
+
+The helper accepts only exact verbs. `exec-b64` and a general root shell
+are denied. nginx may be reloaded after `nginx -t`. Essential units
+(ssh, nginx, postgresql, the live WhatsApp gateways, sailingsa-api,
+openai-rea-tunnel) cannot be stopped or restarted as an access test.
+
+## Independent recovery
+
+Both boxes keep their existing hosting recovery console and provider
+backups. REA ops backups under `/opt/rea/ops/backups` and
+`/opt/rea-ops/backups` are restorable copies; restoration is not claimed
+tested unless a restore was actually run. This access install does not
+change hosting-console credentials.
+
 ## Denied on purpose
 
 `/root/secrets`, `/root/gowifi-upp`, Mail-in-a-Box mail data, TLS private
 keys, `/opt/arial-whatsapp-poc/state/auth`, `/etc/arial-whatsapp-poc.env`,
-unrestricted root, public extra services, `chmod 777`.
+unrestricted root, public extra services, `chmod 777`, disk/boot/firewall
+changes, destructive database DDL, SSH/auth changes, and bulk system
+deletes. Those need a separate explicit authorization and a reviewed plan.

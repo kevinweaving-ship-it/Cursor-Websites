@@ -34,7 +34,11 @@
     "/state/auth",
     "/state/event-whatsapp",
     "/etc/arial-whatsapp-poc.env",
-    "/etc/sailingsa-whatsapp-poc.env"
+    "/etc/sailingsa-whatsapp-poc.env",
+    "/root/.ssh",
+    "/etc/ssh",
+    "/etc/sudoers",
+    "/boot/"
   ],
   "deny_name_regex": "(\\.env$|\\.pem$|\\.key$|authorized_keys|^id_|password|secret|credential|runtime\\.key)",
   "units_status": [

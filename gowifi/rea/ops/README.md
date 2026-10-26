@@ -2,7 +2,9 @@
 
 Gives ChatGPT + REA scoped operational access on both boxes without
 unrestricted root. The existing isolated REA 6.4.0 install and
-`rea-ro` inspect path stay in place.
+`rea-ro` inspect path stay in place. A later request for a general
+root shell was superseded: `rea-admin` only forwards validated helper
+verbs through the existing ForceCommand path.
 
 ```text
 ChatGPT

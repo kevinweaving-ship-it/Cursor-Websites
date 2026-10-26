@@ -72,7 +72,25 @@ PROTECTED_UNITS = {
     "sailingsa-api",
     "postgresql",
     "openai-rea-tunnel",
+    "nginx",
+    "ssh",
+    "sshd",
+    "ssh.service",
+    "sshd.service",
 }
+BLOCKED_UNATTENDED = [
+    "unrestricted root shell or exec-b64",
+    "disk, partition, or boot changes",
+    "filesystem format or wipe",
+    "bulk deletion of system trees",
+    "destructive database DDL outside rea_ops probe",
+    "root, SSH, or authentication changes",
+    "firewall or routing changes",
+    "disabling unrelated essential services",
+    "WhatsApp send or auth/session copy",
+    "replacing live api.py without approved_sha256 plus Gold lock",
+    "restart of healthy WhatsApp or sailingsa-api as an access test",
+]
 API_LIVE = Path("/var/www/sailingsa/api/api.py")
 API_HELPER = Path("/var/www/sailingsa/api/regatta_host_code.py")
 # Live /root/backups/API_MASTER_GOLD/refuse_stale_incoming_api.sh
@@ -197,7 +215,12 @@ def op_control(action: str, unit: str) -> dict[str, Any]:
     if not UNIT_RE.match(unit):
         return {"ok": False, "error": "unit_denied", "unit": unit}
     if unit in PROTECTED_UNITS and action in {"restart", "stop", "disable"}:
-        return {"ok": False, "error": "protected_unit", "unit": unit, "note": "sailingsa-whatsapp-poc, event ingest, and API/DB are protected."}
+        return {
+            "ok": False,
+            "error": "protected_unit",
+            "unit": unit,
+            "note": "Essential or protected units allow status/journal and nginx reload only. No unattended stop/restart.",
+        }
     if action in {"stop", "disable"}:
         if unit not in stop_units():
             return {"ok": False, "error": "unit_denied", "unit": unit, "note": "stop/disable only for confirmed leftover Arial units on SailingSA."}
@@ -848,6 +871,43 @@ def op_migrate(schema: str) -> dict[str, Any]:
     return {"ok": proc.returncode == 0, "log": (proc.stdout + proc.stderr)[-1500:]}
 
 
+def op_capabilities() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "host": host_id(),
+        "euid": os.geteuid(),
+        "interface": "rea-ops-helper",
+        "allowed_ops": [
+            "status",
+            "journal",
+            "can-control",
+            "inspect-arial",
+            "retarget-ingest",
+            "nginx test|reload",
+            "backup",
+            "rollback",
+            "inventory",
+            "health",
+            "preflight",
+            "stage-api",
+            "deploy",
+            "migrate",
+            "stop",
+            "disable",
+            "decommission",
+            "capabilities",
+        ],
+        "status_units": sorted(allowed_units(False)),
+        "control_units": sorted(allowed_units(True)),
+        "stop_units": sorted(stop_units()),
+        "protected_units": sorted(PROTECTED_UNITS),
+        "blocked_unattended": BLOCKED_UNATTENDED,
+        "gold_lock": True,
+        "general_root_shell": False,
+        "note": "Authenticated ForceCommand helper. Arguments are validated. No unrestricted root shell.",
+    }
+
+
 def dispatch(tokens: list[str]) -> dict[str, Any]:
     if not tokens:
         return {"ok": False, "error": "empty"}
@@ -884,6 +944,10 @@ def dispatch(tokens: list[str]) -> dict[str, Any]:
         return op_can_control(args[0])
     if op == "migrate" and args:
         return op_migrate(args[0])
+    if op == "capabilities":
+        return op_capabilities()
+    if op in {"exec-b64", "admin", "bash", "sh", "sudo"}:
+        return {"ok": False, "error": "denied_unrestricted_shell", "op": op}
     return {"ok": False, "error": "denied", "op": op}
 
 
@@ -891,10 +955,11 @@ def main() -> int:
     raw = os.environ.get("SSH_ORIGINAL_COMMAND")
     if raw is None:
         raw = " ".join(sys.argv[1:])
-    # Exact tokens only; no metacharacters.
+    tokens = (raw or "").split()
+    if tokens and tokens[0] in {"exec-b64", "admin"}:
+        return emit({"ok": False, "error": "denied_unrestricted_shell", "op": tokens[0]})
     if re.search(r"[^A-Za-z0-9_.:@/=+\s,-]", raw or ""):
         return emit({"ok": False, "error": "invalid_chars"})
-    tokens = (raw or "").split()
     return emit(dispatch(tokens))
 
 

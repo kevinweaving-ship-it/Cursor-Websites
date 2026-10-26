@@ -43,8 +43,12 @@
     "/etc/arial-whatsapp-poc.env",
     "/root/secrets",
     "/root/gowifi-upp",
+    "/root/.ssh",
     "/home/user-data/ssl",
-    "/etc/ssl/private"
+    "/etc/ssl/private",
+    "/etc/ssh",
+    "/etc/sudoers",
+    "/boot/"
   ],
   "deny_name_regex": "(\\.env$|\\.pem$|\\.key$|authorized_keys|^id_|password|secret|credential|runtime\\.key)",
   "units_status": [

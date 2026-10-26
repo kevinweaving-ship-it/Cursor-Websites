@@ -886,6 +886,28 @@ def dispatch(cfg: dict[str, Any], argv: list[str]) -> dict[str, Any]:
         return assemble_file(cfg, args[0], int(args[1]) if len(args) > 1 else 0)
     if op == "gh":
         return gh_op(cfg, args[0] if args else "status", args[1:])
+    if op == "capabilities":
+        helper_caps = helper_call(cfg, ["capabilities"])
+        return ok(
+            interface="rea-ops",
+            helper=helper_caps,
+            blocked=[
+                "unrestricted root shell or exec-b64",
+                "disk, partition, or boot changes",
+                "filesystem format or wipe",
+                "bulk deletion of system trees",
+                "destructive database DDL outside rea_ops probe",
+                "root, SSH, or authentication changes",
+                "firewall or routing changes",
+                "disabling unrelated essential services",
+                "WhatsApp send or auth/session copy",
+                "replacing live api.py without approved_sha256 plus Gold lock",
+                "restart of healthy WhatsApp or sailingsa-api as an access test",
+            ],
+            general_root_shell=False,
+        )
+    if op in {"admin", "exec-b64", "bash", "sh", "sudo"}:
+        return fail("denied_unrestricted_shell", op)
     return fail("unknown_op", op)
 
 
