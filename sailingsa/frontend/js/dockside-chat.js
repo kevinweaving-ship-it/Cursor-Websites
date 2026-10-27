@@ -85,6 +85,48 @@
         try { sessionStorage.removeItem(DRAFT_KEY); } catch (err) {}
     }
 
+    function guardComposer(inputs, keepValue) {
+        var nodes = [];
+        (inputs || []).forEach(function (input) {
+            if (input && nodes.indexOf(input) < 0) nodes.push(input);
+        });
+        var generation = 0;
+        function stop() { generation += 1; }
+        nodes.forEach(function (input) {
+            input.setAttribute("autocomplete", "off");
+            input.setAttribute("autocorrect", "off");
+            if (input.getAttribute("name")) input.removeAttribute("name");
+            if (typeof keepValue !== "function") {
+                input.readOnly = true;
+                function unlock() { input.readOnly = false; }
+                input.addEventListener("pointerdown", unlock);
+                input.addEventListener("touchstart", unlock);
+                input.addEventListener("focus", unlock);
+            }
+            input.addEventListener("keydown", function (event) {
+                if (event.isTrusted) stop();
+            });
+            input.addEventListener("beforeinput", function (event) {
+                if (event.isTrusted) stop();
+            });
+        });
+        function write() {
+            var gen = generation;
+            [0, 60, 250, 800].forEach(function (ms) {
+                window.setTimeout(function () {
+                    if (gen !== generation) return;
+                    nodes.forEach(function (input) {
+                        var next = typeof keepValue === "function" ? (keepValue(input) || "") : "";
+                        if (input.value !== next) input.value = next;
+                    });
+                }, ms);
+            });
+        }
+        window.addEventListener("pageshow", write);
+        write();
+        return stop;
+    }
+
     function api(path, options) {
         options = options || {};
         options.credentials = "same-origin";
@@ -407,19 +449,17 @@
         var topicId = null;
         var postsById = {};
         var resumedDraft = takeResumeDraft();
-        function emptyLandingComposer() {
-            if (field) field.value = "";
-            if (startBody) startBody.value = "";
-        }
+        var stopLandingGuard = function () {};
         if (!resumedDraft) {
             clearDraft();
-            emptyLandingComposer();
+            stopLandingGuard = guardComposer([field, startBody]);
+        } else {
+            stopLandingGuard = guardComposer([field, startBody], function (input) {
+                if (resumedDraft.kind === "topic" && input === startBody) return resumedDraft.body || "";
+                if (resumedDraft.kind === "comment" && !resumedDraft.parent_post_id && input === field) return resumedDraft.body || "";
+                return "";
+            });
         }
-        window.addEventListener("pageshow", function () {
-            if (resumedDraft) return;
-            emptyLandingComposer();
-            window.setTimeout(emptyLandingComposer, 0);
-        });
 
         function fit() {
             fitDocksideCard(root);
@@ -649,7 +689,6 @@
                 return;
             }
             paintTopic(data.topic);
-            if (!resumedDraft && field) field.value = "";
             var commentDraft = resumedDraft;
             if (commentDraft && commentDraft.kind === "comment" && (!commentDraft.topic_id || commentDraft.topic_id === topicId)) {
                 if (commentDraft.parent_post_id) {
@@ -657,7 +696,10 @@
                     var target = postsById[commentDraft.parent_post_id];
                     if (mount && target) {
                         var input = openInline(target, mount, mount.classList.contains("dockside-comment"));
-                        if (input) input.value = commentDraft.body || "";
+                        if (input) {
+                            input.value = commentDraft.body || "";
+                            guardComposer([input], function () { return commentDraft.body || ""; });
+                        }
                     }
                 } else if (field) {
                     field.value = commentDraft.body || "";
@@ -700,6 +742,11 @@
                         return;
                     }
                     clearDraft();
+                    resumedDraft = null;
+                    stopLandingGuard();
+                    if (field) field.value = "";
+                    if (startBody) startBody.value = "";
+                    stopLandingGuard = guardComposer([field, startBody]);
                     paintTopic(data);
                 });
             });
@@ -724,10 +771,13 @@
                     return;
                 }
                 clearDraft();
+                resumedDraft = null;
+                stopLandingGuard();
                 if (field) {
                     field.value = "";
                     field.placeholder = "Write a comment";
                 }
+                stopLandingGuard = guardComposer([field, startBody]);
                 paintTopic(data.topic);
             });
         }
@@ -786,19 +836,11 @@
                 history.replaceState(null, "", clean.pathname + (cleaned ? "?" + cleaned : "") + clean.hash);
             }
         } catch (err) {}
-        function emptyPageComposer() {
-            newBody.value = "";
-            if (searchInput) searchInput.value = "";
-        }
-        if (!resumedDraft) {
-            clearDraft();
-            emptyPageComposer();
-        }
-        window.addEventListener("pageshow", function () {
-            if (resumedDraft) return;
-            emptyPageComposer();
-            window.setTimeout(emptyPageComposer, 0);
-        });
+        var stopPageGuard = function () {};
+        if (!resumedDraft) clearDraft();
+        stopPageGuard = guardComposer([newBody], resumedDraft && resumedDraft.kind === "topic"
+            ? function () { return resumedDraft.body || ""; }
+            : null);
 
         function paintPageAvatar() {
             if (!pageAvatar) return;
@@ -1099,7 +1141,9 @@
                 }
                 clearDraft();
                 resumedDraft = null;
+                stopPageGuard();
                 newBody.value = "";
+                stopPageGuard = guardComposer([newBody]);
                 loadFeed();
                 loadNotes();
             });
@@ -1112,6 +1156,8 @@
             draftApplied = true;
             if (draft.kind === "topic") {
                 newBody.value = draft.body || "";
+                stopPageGuard();
+                stopPageGuard = guardComposer([newBody], function () { return draft.body || ""; });
                 return;
             }
             if (draft.kind !== "comment" || !draft.topic_id || !draft.parent_post_id) return;
@@ -1124,7 +1170,10 @@
                 post_id: draft.parent_post_id,
                 author: { display_name: nameNode ? nameNode.textContent : "sailor" }
             }, mount);
-            if (input) input.value = draft.body || "";
+            if (input) {
+                input.value = draft.body || "";
+                guardComposer([input], function () { return draft.body || ""; });
+            }
         }
 
         paintPageAvatar();
