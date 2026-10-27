@@ -776,7 +776,7 @@
         var newError = document.getElementById("dockside-new-error");
         var notes = document.getElementById("dockside-notes");
         var pageAvatar = document.getElementById("dockside-page-avatar");
-        if (!feed || !searchInput || !newForm || !newBody) return;
+        if (!feed || !newForm || !newBody) return;
         var resumedDraft = takeResumeDraft();
         try {
             var clean = new URL(window.location.href);
@@ -788,7 +788,7 @@
         } catch (err) {}
         function emptyPageComposer() {
             newBody.value = "";
-            searchInput.value = "";
+            if (searchInput) searchInput.value = "";
         }
         if (!resumedDraft) {
             clearDraft();
@@ -1058,16 +1058,19 @@
             });
         }
 
-        document.getElementById("dockside-search-form").addEventListener("submit", function (event) {
-            event.preventDefault();
-            q = (searchInput.value || "").trim();
-            loadFeed();
-        });
-        searchInput.addEventListener("input", function () {
-            q = (searchInput.value || "").trim();
-            if (q.length === 1) return;
-            loadFeed();
-        });
+        var searchForm = document.getElementById("dockside-search-form");
+        if (searchForm && searchInput) {
+            searchForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                q = (searchInput.value || "").trim();
+                loadFeed();
+            });
+            searchInput.addEventListener("input", function () {
+                q = (searchInput.value || "").trim();
+                if (q.length === 1) return;
+                loadFeed();
+            });
+        }
 
         newForm.addEventListener("submit", function (event) {
             event.preventDefault();
