@@ -180,16 +180,22 @@ if [[ "$pages_ok" != 1 ]]; then
   bash "$BAK/ROLLBACK.sh"
   exit 1
 fi
-if ! curl -fsS "https://sailingsa.co.za/login.html" | grep -q "auth_returnTo"; then
+login_file="$(mktemp)"
+if ! curl -fsS --max-time 30 "https://sailingsa.co.za/login.html" -o "$login_file" || ! grep -q "auth_returnTo" "$login_file"; then
   echo "STOP_LOGIN_CHECK"
+  rm -f "$login_file"
   bash "$BAK/ROLLBACK.sh"
   exit 1
 fi
-if ! curl -fsS "https://sailingsa.co.za/dockside.html" | grep -q 'id="dockside-page"'; then
+rm -f "$login_file"
+discuss_file="$(mktemp)"
+if ! curl -fsS --max-time 30 "https://sailingsa.co.za/dockside.html" -o "$discuss_file" || ! grep -q 'id="dockside-page"' "$discuss_file"; then
   echo "STOP_DISCUSSIONS_CHECK"
+  rm -f "$discuss_file"
   bash "$BAK/ROLLBACK.sh"
   exit 1
 fi
+rm -f "$discuss_file"
 session_code="$(curl -s -o /tmp/dockside-session.json -w '%{http_code}' https://sailingsa.co.za/auth/session)"
 if [[ "$session_code" != "200" ]] || ! grep -q '"valid"' /tmp/dockside-session.json; then
   echo "STOP_SESSION_CHECK"
