@@ -1,0 +1,30 @@
+#!/bin/bash
+# REA-side controller. No sudo. Talks only to localhost forced-command helper.
+set -euo pipefail
+if [ "$#" -ne 1 ]; then
+  echo "usage: $0 activate|status|run-now" >&2
+  exit 2
+fi
+op="$1"
+case "$op" in
+  activate|status|run-now) ;;
+  *)
+    echo "usage: $0 activate|status|run-now" >&2
+    exit 2
+    ;;
+esac
+KEY=/opt/rea/.ssh/id_sailing_roundup_timer
+exec /usr/bin/ssh \
+  -n -T \
+  -i "$KEY" \
+  -o BatchMode=yes \
+  -o IdentitiesOnly=yes \
+  -o PreferredAuthentications=publickey \
+  -o PasswordAuthentication=no \
+  -o KbdInteractiveAuthentication=no \
+  -o RequestTTY=no \
+  -o StrictHostKeyChecking=yes \
+  -o UserKnownHostsFile=/opt/rea/.ssh/known_hosts \
+  -o GlobalKnownHostsFile=/dev/null \
+  -o AddressFamily=inet \
+  root@127.0.0.1 "$op"

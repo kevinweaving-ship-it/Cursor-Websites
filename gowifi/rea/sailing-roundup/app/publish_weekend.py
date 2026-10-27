@@ -313,6 +313,8 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
         root=root,
         polish=polish,
     )
+    from verified_context import attach_verified_context
+    data = attach_verified_context(issue, data, table_events, locals().get("excluded") or [], root=root)
     data["updated_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
     dest.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     reports = [a for a in data.get("articles") or [] if a.get("type") == "regatta_report"]
