@@ -1,15 +1,44 @@
 <section id="dockside-landing" class="dockside-landing" aria-label="Dockside Chat" data-dockside-card="1">
     <div class="dockside-head">
-        <h2 class="dockside-kicker">Dockside Chat</h2>
+        <div class="dockside-brand">
+            <svg class="dockside-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="#001f3f" d="M5 3.5h14a2.5 2.5 0 0 1 2.5 2.5v8.2a2.5 2.5 0 0 1-2.5 2.5H9.2L4.2 21v-4.3H5A2.5 2.5 0 0 1 2.5 14.2V6A2.5 2.5 0 0 1 5 3.5z"/>
+            </svg>
+            <div class="dockside-titles">
+                <h2 class="dockside-kicker">Dockside Chat</h2>
+                <p class="dockside-sub">Sailors on the dock</p>
+            </div>
+        </div>
         <a class="dockside-viewall" href="/dockside.html">View all</a>
     </div>
-    <p class="dockside-subject" id="dockside-subject"></p>
-    <div class="dockside-scroll" id="dockside-scroll" tabindex="0"></div>
-    <form class="dockside-compose" id="dockside-reply-form" action="/dockside.html" method="get">
-        <label class="dockside-sr" for="dockside-reply-body">Comment</label>
-        <textarea id="dockside-reply-body" maxlength="2000" rows="2" placeholder="Comment on this topic"></textarea>
-        <button type="submit">Comment</button>
-    </form>
+    <div id="dockside-topic" hidden>
+        <h3 class="dockside-subject" id="dockside-subject"></h3>
+        <div class="dockside-op" id="dockside-original"></div>
+        <div class="dockside-scroll" id="dockside-scroll" tabindex="0"></div>
+        <form class="dockside-compose" id="dockside-reply-form" action="/dockside.html" method="get" hidden>
+            <span class="dockside-avatar dockside-avatar--me" id="dockside-me-avatar" aria-hidden="true"></span>
+            <label class="dockside-sr" for="dockside-reply-body">Comment</label>
+            <input id="dockside-reply-body" type="text" maxlength="2000" placeholder="Write a comment" autocomplete="off">
+            <button type="submit" aria-label="Send">
+                <svg class="dockside-send" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ff5a00" d="M3.2 11.2 20.5 3.4c.7-.3 1.4.4 1.1 1.1l-7.8 17.3c-.3.8-1.5.7-1.7-.1l-1.6-6.1-6.1-1.6c-.8-.2-.9-1.4-.2-1.8z"/></svg>
+            </button>
+        </form>
+    </div>
+    <div id="dockside-empty" class="dockside-invite">
+        <p>No discussion yet.</p>
+        <button type="button" id="dockside-start-open">Start a discussion</button>
+        <form id="dockside-start-form" class="dockside-start" hidden>
+            <label class="dockside-sr" for="dockside-start-subject">Subject</label>
+            <input id="dockside-start-subject" type="text" maxlength="120" placeholder="Subject" autocomplete="off">
+            <div class="dockside-compose">
+                <label class="dockside-sr" for="dockside-start-body">First post</label>
+                <input id="dockside-start-body" type="text" maxlength="2000" placeholder="First post" autocomplete="off">
+                <button type="submit" aria-label="Send">
+                    <svg class="dockside-send" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ff5a00" d="M3.2 11.2 20.5 3.4c.7-.3 1.4.4 1.1 1.1l-7.8 17.3c-.3.8-1.5.7-1.7-.1l-1.6-6.1-6.1-1.6c-.8-.2-.9-1.4-.2-1.8z"/></svg>
+                </button>
+            </div>
+        </form>
+    </div>
 </section>
-<link rel="stylesheet" href="/css/dockside-chat.css?v=dockside1">
-<script src="/js/dockside-chat.js?v=dockside1" defer></script>
+<link rel="stylesheet" href="/css/dockside-chat.css?v=dockside2">
+<script src="/js/dockside-chat.js?v=dockside2" defer></script>

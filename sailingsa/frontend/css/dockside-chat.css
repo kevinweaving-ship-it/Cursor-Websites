@@ -14,13 +14,13 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    height: 280px;
+    height: auto;
     margin: 10px 0;
-    padding: 8px 10px 10px;
+    padding: 12px;
     background: #fff;
-    border: 2px solid #8aa2c6;
-    border-radius: 6px;
-    box-shadow: 0 2px 3px rgba(15, 23, 42, 0.06);
+    border: 0;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
     color: #172b3a;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     overflow: hidden;
@@ -63,6 +63,267 @@
     font-size: 14px;
     font-weight: 700;
     text-decoration: none;
+}
+
+#dockside-landing .dockside-head {
+    min-height: 0;
+    align-items: center;
+}
+
+#dockside-landing .dockside-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+#dockside-landing .dockside-icon {
+    display: block;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+}
+
+#dockside-landing .dockside-titles {
+    min-width: 0;
+}
+
+#dockside-landing .dockside-kicker {
+    font-size: 16px;
+    line-height: 1.15;
+}
+
+#dockside-landing .dockside-sub {
+    margin: 1px 0 0;
+    color: #98a2b3;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+#dockside-landing .dockside-viewall {
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 0;
+    color: #ff5a00;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#dockside-landing [hidden] {
+    display: none !important;
+}
+
+#dockside-landing .dockside-subject {
+    margin: 6px 0 4px;
+    padding: 0;
+    border: 0;
+    color: #001f3f;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#dockside-landing .dockside-op {
+    margin: 0 0 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e6ebf1;
+}
+
+#dockside-landing .dockside-op .dockside-body {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+#dockside-landing .dockside-scroll {
+    flex: 1 1 auto;
+    max-height: 320px;
+    min-height: 0;
+}
+
+#dockside-landing .dockside-meta {
+    display: block;
+}
+
+#dockside-landing .dockside-name,
+#dockside-landing .dockside-time {
+    display: inline;
+}
+
+#dockside-landing .dockside-op .dockside-comment,
+#dockside-landing .dockside-op .dockside-person {
+    margin: 0;
+}
+
+#dockside-landing .dockside-person {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+#dockside-landing .dockside-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 50%;
+    background: #001f3f;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    overflow: hidden;
+}
+
+#dockside-landing .dockside-avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#dockside-landing .dockside-name {
+    color: #001f3f;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+#dockside-landing .dockside-time {
+    margin-left: 6px;
+    color: #98a2b3;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+#dockside-landing .dockside-body {
+    margin: 1px 0 0;
+    color: #344054;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+#dockside-landing .dockside-mini {
+    min-width: 0;
+    min-height: 0;
+    margin: 2px 0 0;
+    padding: 0;
+    background: transparent;
+    color: #65676b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+#dockside-landing .dockside-reply {
+    margin: 6px 0 0 14px;
+    padding-left: 8px;
+    border-left: 2px solid #e4e7ec;
+}
+
+#dockside-landing .dockside-comment {
+    margin: 0 0 8px;
+}
+
+#dockside-landing .dockside-compose {
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    margin-top: 8px;
+    padding: 0 4px 0 4px;
+    background: #f0f2f5;
+    border-radius: 999px;
+}
+
+#dockside-landing .dockside-compose input,
+#dockside-landing .dockside-start > input[type="text"] {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    height: 32px;
+    border: 0;
+    border-radius: 0;
+    padding: 0 4px;
+    background: transparent;
+    font-size: 13px;
+}
+
+#dockside-landing .dockside-start > input[type="text"] {
+    height: 34px;
+    margin-bottom: 6px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: #f0f2f5;
+}
+
+#dockside-landing .dockside-avatar--me {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+    font-size: 9px;
+}
+
+#dockside-landing .dockside-compose button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    background: transparent;
+}
+
+#dockside-landing .dockside-send {
+    display: block;
+    width: 22px;
+    height: 22px;
+}
+
+#dockside-landing .dockside-invite {
+    padding-top: 2px;
+}
+
+#dockside-landing .dockside-invite p {
+    margin: 0;
+    color: #667085;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+#dockside-landing .dockside-start-open,
+#dockside-start-open {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #ff5a00;
+    font: 800 14px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    cursor: pointer;
+}
+
+#dockside-landing .dockside-start {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+#dockside-landing .dockside-error {
+    margin: 4px 0 0;
+    font-size: 12px;
 }
 
 .dockside-subject {
@@ -280,11 +541,11 @@ screen and (max-width: 1023px) and (orientation: landscape) {
         left: 0;
         top: calc(100% + 12px);
         width: 100%;
-        height: 280px;
+        height: auto;
         margin: 0;
         z-index: 4;
     }
     #landing-top-row {
-        margin-bottom: 292px;
+        margin-bottom: var(--dockside-space, 148px);
     }
 }

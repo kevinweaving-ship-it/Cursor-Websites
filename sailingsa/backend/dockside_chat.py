@@ -89,13 +89,30 @@ def _profile_url(slug):
     return None
 
 
+def _photo_url(path):
+    if not path:
+        return None
+    text = str(path).strip()
+    if not text or ".." in text or text.startswith("/api/club-logo/"):
+        return None
+    if text.startswith("https://sailingsa.co.za/"):
+        return text
+    if text.startswith("/") and "://" not in text:
+        return text
+    if re.match(r"^[A-Za-z0-9_./-]+$", text):
+        return "/" + text.lstrip("/")
+    return None
+
+
 def _author(row) -> dict:
     name = (row.get("display_name") or row.get("sas_id") or "").strip()
+    photo = _photo_url(row.get("profile_picture_path")) or _photo_url(row.get("profile_photo_path"))
     return {
         "account_id": row.get("created_by") or row.get("account_id"),
         "sas_id": row.get("sas_id"),
         "display_name": name,
         "profile_url": _profile_url(row.get("slug")),
+        "photo_url": photo,
     }
 
 
@@ -318,18 +335,19 @@ def _posts(cur, topic_id: int):
     cur.execute(
         """
         SELECT p.post_id, p.parent_post_id, p.body, p.created_at, p.created_by,
-               ua.sas_id,
+               ua.sas_id, ua.profile_picture_path,
                COALESCE(
                    NULLIF(TRIM(ua.full_name), ''),
                    NULLIF(TRIM(CONCAT_WS(' ', sp.first_name, sp.last_name)), ''),
                    NULLIF(TRIM(sp.full_name), ''),
                    ua.sas_id
                ) AS display_name,
-               NULLIF(TRIM(sp.ssl_profile_slug), '') AS slug
+               NULLIF(TRIM(sp.ssl_profile_slug), '') AS slug,
+               sp.profile_photo_path
         FROM public.dockside_posts p
         JOIN public.user_accounts ua ON ua.account_id = p.created_by
         LEFT JOIN LATERAL (
-            SELECT first_name, last_name, full_name, ssl_profile_slug
+            SELECT first_name, last_name, full_name, ssl_profile_slug, profile_photo_path
             FROM public.sas_id_personal
             WHERE sa_sailing_id = ua.sas_id
             ORDER BY id NULLS LAST

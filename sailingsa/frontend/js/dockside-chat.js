@@ -21,12 +21,31 @@
         }
     }
 
+    function shortWhen(iso) {
+        if (!iso) return "";
+        var then = new Date(iso).getTime();
+        if (!then) return "";
+        var mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+        if (mins < 1) return "now";
+        if (mins < 60) return mins + "m";
+        var hours = Math.round(mins / 60);
+        if (hours < 36) return hours + "h";
+        var days = Math.round(hours / 24);
+        if (days < 7) return days + "d";
+        return when(iso);
+    }
+
     function goLogin(draft) {
         if (draft) {
             try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (err) {}
         }
-        var ret = (location.pathname || "/") + (location.search || "") + (location.hash || "");
-        location.href = "/login.html?returnTo=" + encodeURIComponent(ret);
+        try { sessionStorage.setItem("auth_returnTo", window.location.href); } catch (err) {}
+        var headerBtn = document.getElementById("blank69HubSignInOnly");
+        if (headerBtn) {
+            headerBtn.click();
+            return;
+        }
+        window.location.href = (window.location.origin || "") + "/login.html";
     }
 
     function readDraft() {
@@ -57,17 +76,105 @@
         });
     }
 
-    function authorNode(author) {
+    function authorNode(author, card) {
         var name = (author && author.display_name) || "Sailor";
+        var node;
         if (author && author.profile_url) {
-            var link = document.createElement("a");
-            link.href = author.profile_url;
-            link.textContent = name;
-            return link;
+            node = document.createElement("a");
+            node.href = author.profile_url;
+        } else {
+            node = document.createElement("span");
         }
-        var span = document.createElement("span");
-        span.textContent = name;
-        return span;
+        node.textContent = name;
+        if (card) node.className = "dockside-name";
+        return node;
+    }
+
+    function initials(author) {
+        var name = ((author && author.display_name) || "").replace(/[^A-Za-z\s]/g, " ").trim();
+        var parts = name.split(/\s+/).filter(Boolean);
+        if (!parts.length) return "S";
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+
+    function avatarNode(author) {
+        var wrap = document.createElement("span");
+        wrap.className = "dockside-avatar";
+        wrap.setAttribute("aria-hidden", "true");
+        function paintInitials() {
+            wrap.textContent = initials(author);
+        }
+        if (author && author.photo_url) {
+            var img = document.createElement("img");
+            img.alt = "";
+            img.src = author.photo_url;
+            img.addEventListener("error", function () {
+                img.remove();
+                paintInitials();
+            });
+            wrap.appendChild(img);
+            return wrap;
+        }
+        paintInitials();
+        return wrap;
+    }
+
+    function cardPost(post, replies, onReply) {
+        var wrap = document.createElement("article");
+        wrap.className = "dockside-comment";
+        var row = document.createElement("div");
+        row.className = "dockside-person";
+        row.appendChild(avatarNode(post.author));
+        var text = document.createElement("div");
+        var meta = document.createElement("div");
+        meta.className = "dockside-meta";
+        meta.appendChild(authorNode(post.author, true));
+        var time = document.createElement("time");
+        time.className = "dockside-time";
+        time.dateTime = post.created_at || "";
+        time.textContent = "· " + shortWhen(post.created_at);
+        meta.appendChild(time);
+        var body = document.createElement("p");
+        body.className = "dockside-body";
+        body.textContent = post.body || "";
+        text.appendChild(meta);
+        text.appendChild(body);
+        if (onReply) {
+            var replyBtn = document.createElement("button");
+            replyBtn.type = "button";
+            replyBtn.className = "dockside-mini";
+            replyBtn.textContent = "Reply";
+            replyBtn.addEventListener("click", function () { onReply(post); });
+            text.appendChild(replyBtn);
+        }
+        row.appendChild(text);
+        wrap.appendChild(row);
+        (replies || []).forEach(function (reply) {
+            var item = document.createElement("div");
+            item.className = "dockside-reply";
+            var replyRow = document.createElement("div");
+            replyRow.className = "dockside-person";
+            replyRow.appendChild(avatarNode(reply.author));
+            var replyText = document.createElement("div");
+            var replyMeta = document.createElement("div");
+            replyMeta.className = "dockside-meta";
+            replyMeta.appendChild(authorNode(reply.author, true));
+            var replyTime = document.createElement("time");
+            replyTime.className = "dockside-time";
+            replyTime.dateTime = reply.created_at || "";
+            replyTime.textContent = "· " + shortWhen(reply.created_at);
+            replyMeta.appendChild(replyTime);
+            var replyBody = document.createElement("p");
+            replyBody.className = "dockside-body";
+            replyBody.textContent = reply.body || "";
+            replyText.appendChild(replyMeta);
+            replyText.appendChild(replyBody);
+            replyRow.appendChild(replyText);
+            item.appendChild(replyRow);
+            wrap.appendChild(item);
+        });
+        return wrap;
     }
 
     function postNode(post, replies, onReply, full) {
@@ -75,7 +182,7 @@
         wrap.className = "dockside-comment";
         var meta = document.createElement("div");
         meta.className = "dockside-meta";
-        meta.appendChild(authorNode(post.author));
+        meta.appendChild(authorNode(post.author, false));
         var time = document.createElement("time");
         time.dateTime = post.created_at || "";
         time.textContent = when(post.created_at);
@@ -128,7 +235,7 @@
             item.className = "dockside-reply";
             var replyMeta = document.createElement("div");
             replyMeta.className = "dockside-meta";
-            replyMeta.appendChild(authorNode(reply.author));
+            replyMeta.appendChild(authorNode(reply.author, false));
             var replyTime = document.createElement("time");
             replyTime.dateTime = reply.created_at || "";
             replyTime.textContent = when(reply.created_at);
@@ -143,7 +250,7 @@
         return wrap;
     }
 
-    function renderPosts(posts, mount, onReply, full) {
+    function renderPosts(posts, mount, onReply, full, card) {
         mount.textContent = "";
         var byParent = {};
         (posts || []).forEach(function (post) {
@@ -160,93 +267,273 @@
             return;
         }
         comments.forEach(function (comment) {
-            mount.appendChild(postNode(comment, byParent[comment.post_id] || [], onReply, full));
+            mount.appendChild(card
+                ? cardPost(comment, byParent[comment.post_id] || [], onReply)
+                : postNode(comment, byParent[comment.post_id] || [], onReply, full));
         });
         mount.scrollTop = mount.scrollHeight;
     }
 
+    function fitDocksideCard(root) {
+        var row = document.getElementById("landing-top-row");
+        if (!row || !root) return;
+        var wide = window.matchMedia("(min-width: 1024px), (max-width: 1023px) and (orientation: landscape)").matches;
+        if (!wide) {
+            row.style.removeProperty("--dockside-space");
+            return;
+        }
+        row.style.setProperty("--dockside-space", (root.offsetHeight + 12) + "px");
+    }
+
     function bootLanding() {
         var root = document.getElementById("dockside-landing");
-        if (!root) return;
+        var topicBox = document.getElementById("dockside-topic");
         var subjectEl = document.getElementById("dockside-subject");
+        var originalEl = document.getElementById("dockside-original");
         var scroll = document.getElementById("dockside-scroll");
         var form = document.getElementById("dockside-reply-form");
         var field = document.getElementById("dockside-reply-body");
+        var emptyBox = document.getElementById("dockside-empty");
+        var startOpen = document.getElementById("dockside-start-open");
+        var startForm = document.getElementById("dockside-start-form");
+        var startSubject = document.getElementById("dockside-start-subject");
+        var startBody = document.getElementById("dockside-start-body");
+        var meAvatar = document.getElementById("dockside-me-avatar");
+        if (!root || !topicBox || !originalEl || !scroll) return;
         var topicId = null;
         var parentId = null;
 
-        function setTarget(post) {
-            parentId = post ? post.post_id : null;
-            if (field) {
-                field.placeholder = post ? "Reply" : "Comment on this topic";
-                field.focus();
-            }
+        function fit() {
+            fitDocksideCard(root);
         }
 
+        function paintMe() {
+            if (!meAvatar) return;
+            meAvatar.textContent = "";
+            if (!me.signed_in) return;
+            var author = me;
+            if (author && author.photo_url) {
+                var img = document.createElement("img");
+                img.alt = "";
+                img.src = author.photo_url;
+                img.addEventListener("error", function () {
+                    img.remove();
+                    meAvatar.textContent = initials(author);
+                });
+                meAvatar.appendChild(img);
+                return;
+            }
+            meAvatar.textContent = initials(author);
+        }
+
+        function setTarget(post) {
+            parentId = post ? post.post_id : null;
+            if (!field) return;
+            var name = post && post.author && post.author.display_name;
+            field.placeholder = name ? ("Reply to " + name) : "Write a comment";
+            field.focus();
+        }
+
+        function showStart(open) {
+            if (startOpen) startOpen.hidden = !!open;
+            if (startForm) startForm.hidden = !open;
+            fit();
+        }
+
+        function noteError(mount, message) {
+            if (!mount) return;
+            var old = mount.querySelector(".dockside-error");
+            if (old) old.remove();
+            var err = document.createElement("p");
+            err.className = "dockside-error";
+            err.textContent = message;
+            mount.appendChild(err);
+        }
+
+        function splitThread(posts) {
+            var list = (posts || []).slice().sort(function (a, b) {
+                var at = String(a.created_at || "");
+                var bt = String(b.created_at || "");
+                if (at < bt) return -1;
+                if (at > bt) return 1;
+                return (a.post_id || 0) - (b.post_id || 0);
+            });
+            var byId = {};
+            list.forEach(function (post) { byId[post.post_id] = post; });
+            var originalPost = null;
+            list.forEach(function (post) {
+                if (!originalPost && !post.parent_post_id) originalPost = post;
+            });
+            function displayRoot(post) {
+                var cur = post;
+                var guard = 0;
+                while (cur && cur.parent_post_id && guard < 6) {
+                    guard += 1;
+                    var parent = byId[cur.parent_post_id];
+                    if (!parent) break;
+                    if (originalPost && parent.post_id === originalPost.post_id) return cur;
+                    if (!parent.parent_post_id) return parent;
+                    cur = parent;
+                }
+                return cur;
+            }
+            var roots = [];
+            var replies = {};
+            list.forEach(function (post) {
+                if (originalPost && post.post_id === originalPost.post_id) return;
+                var rootPost = displayRoot(post);
+                if (!rootPost) return;
+                if (rootPost.post_id === post.post_id) {
+                    roots.push(post);
+                    return;
+                }
+                if (!replies[rootPost.post_id]) replies[rootPost.post_id] = [];
+                replies[rootPost.post_id].push(post);
+            });
+            return { originalPost: originalPost, roots: roots, replies: replies };
+        }
+
+        function paintTopic(topic) {
+            topicId = topic.topic_id;
+            if (emptyBox) emptyBox.hidden = true;
+            topicBox.hidden = false;
+            if (form) form.hidden = false;
+            subjectEl.textContent = topic.subject || "";
+            var parts = splitThread(topic.posts);
+            originalEl.textContent = "";
+            scroll.textContent = "";
+            if (parts.originalPost) originalEl.appendChild(cardPost(parts.originalPost, [], setTarget));
+            parts.roots.forEach(function (comment) {
+                scroll.appendChild(cardPost(comment, parts.replies[comment.post_id] || [], setTarget));
+            });
+            showLatestTwo(scroll);
+            paintMe();
+            fit();
+        }
+
+        function showLatestTwo(scroll) {
+            var nodes = scroll.querySelectorAll(":scope > .dockside-comment");
+            scroll.style.maxHeight = "";
+            if (!nodes.length) return;
+            if (nodes.length <= 2) {
+                scroll.scrollTop = 0;
+                return;
+            }
+            var start = nodes[nodes.length - 2];
+            var last = nodes[nodes.length - 1];
+            var height = last.getBoundingClientRect().bottom - start.getBoundingClientRect().top;
+            scroll.style.maxHeight = Math.ceil(height + 4) + "px";
+            scroll.scrollTop = start.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
+        }
+
+        function showEmpty(message) {
+            topicId = null;
+            topicBox.hidden = true;
+            if (form) form.hidden = true;
+            if (emptyBox) emptyBox.hidden = false;
+            var line = emptyBox ? emptyBox.querySelector("p") : null;
+            if (line) line.textContent = message || "No discussion yet.";
+            showStart(false);
+            fit();
+        }
+
+        paintMe();
         api("/api/dockside/current").then(function (data) {
             if (!data || data._status !== 200) {
-                subjectEl.textContent = "Dockside Chat is unavailable";
+                showEmpty("Dockside Chat is unavailable.");
+                if (startOpen) startOpen.hidden = true;
                 return;
             }
-            var topic = data.topic;
-            if (!topic) {
-                subjectEl.textContent = "No discussion yet";
-                scroll.textContent = "";
-                var empty = document.createElement("p");
-                empty.className = "dockside-empty";
-                empty.textContent = "No comments yet.";
-                scroll.appendChild(empty);
-                if (form) form.hidden = true;
+            if (!data.topic) {
+                showEmpty("No discussion yet.");
+                var draft = readDraft();
+                if (draft && draft.kind === "topic") {
+                    if (startSubject) startSubject.value = draft.subject || "";
+                    if (startBody) startBody.value = draft.body || "";
+                    showStart(true);
+                }
                 return;
             }
-            topicId = topic.topic_id;
-            subjectEl.textContent = topic.subject || "";
-            renderPosts(topic.posts, scroll, setTarget, false);
-            var draft = readDraft();
-            if (draft && draft.kind === "comment" && field && (!draft.topic_id || draft.topic_id === topicId)) {
-                field.value = draft.body || "";
-                parentId = draft.parent_post_id || null;
+            paintTopic(data.topic);
+            var commentDraft = readDraft();
+            if (commentDraft && commentDraft.kind === "comment" && field && (!commentDraft.topic_id || commentDraft.topic_id === topicId)) {
+                field.value = commentDraft.body || "";
+                parentId = commentDraft.parent_post_id || null;
+                if (parentId) field.placeholder = "Reply";
             }
         }).catch(function () {
-            subjectEl.textContent = "Dockside Chat is unavailable";
+            showEmpty("Dockside Chat is unavailable.");
+            if (startOpen) startOpen.hidden = true;
         });
 
-        if (!form) return;
-        form.addEventListener("submit", function (event) {
-            event.preventDefault();
-            var body = (field.value || "").trim();
-            if (!body) return;
-            var draft = { kind: "comment", topic_id: topicId, parent_post_id: parentId, body: body };
-            if (!me.signed_in) {
-                goLogin(draft);
-                return;
-            }
-            if (!topicId) {
-                location.href = "/dockside.html#new";
-                return;
-            }
-            api("/api/dockside/topics/" + topicId + "/posts", {
-                method: "POST",
-                body: JSON.stringify({ body: body, parent_post_id: parentId })
-            }).then(function (data) {
-                if (data._status === 401) {
+        if (startOpen) {
+            startOpen.addEventListener("click", function () {
+                showStart(true);
+                if (startSubject) startSubject.focus();
+            });
+        }
+        if (startForm) {
+            startForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                var subject = ((startSubject && startSubject.value) || "").trim();
+                var body = ((startBody && startBody.value) || "").trim();
+                if (subject.length < 3 || !body) {
+                    noteError(startForm, subject.length < 3 ? "Subject needs at least 3 characters." : "Write the first post.");
+                    return;
+                }
+                var draft = { kind: "topic", subject: subject, body: body };
+                if (!me.signed_in) {
                     goLogin(draft);
                     return;
                 }
-                if (data._status !== 200) {
-                    var err = document.createElement("p");
-                    err.className = "dockside-error";
-                    err.textContent = data.detail || "Comment was not saved";
-                    scroll.appendChild(err);
+                api("/api/dockside/topics", {
+                    method: "POST",
+                    body: JSON.stringify({ subject: subject, body: body })
+                }).then(function (data) {
+                    if (data._status === 401) {
+                        goLogin(draft);
+                        return;
+                    }
+                    if (!data || data._status !== 200 || !data.topic_id) {
+                        noteError(startForm, (data && data.detail) || "Discussion was not saved");
+                        return;
+                    }
+                    clearDraft();
+                    paintTopic(data);
+                });
+            });
+        }
+        if (form && field) {
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+                var body = (field.value || "").trim();
+                if (!body || !topicId) return;
+                var draft = { kind: "comment", topic_id: topicId, parent_post_id: parentId, body: body };
+                if (!me.signed_in) {
+                    goLogin(draft);
                     return;
                 }
-                clearDraft();
-                field.value = "";
-                parentId = null;
-                field.placeholder = "Comment on this topic";
-                if (data.topic) renderPosts(data.topic.posts, scroll, setTarget, false);
+                api("/api/dockside/topics/" + topicId + "/posts", {
+                    method: "POST",
+                    body: JSON.stringify({ body: body, parent_post_id: parentId })
+                }).then(function (data) {
+                    if (data._status === 401) {
+                        goLogin(draft);
+                        return;
+                    }
+                    if (!data || data._status !== 200 || !data.topic) {
+                        noteError(scroll, (data && data.detail) || "Comment was not saved");
+                        return;
+                    }
+                    clearDraft();
+                    field.value = "";
+                    parentId = null;
+                    field.placeholder = "Write a comment";
+                    paintTopic(data.topic);
+                });
             });
-        });
+        }
+        window.addEventListener("resize", fit);
     }
 
     function params() {
