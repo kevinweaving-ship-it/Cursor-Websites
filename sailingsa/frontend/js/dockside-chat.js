@@ -93,7 +93,7 @@
             display_name: "Admin",
             avatar_text: "SA",
             profile_url: null,
-            photo_url: null
+            photo_url: "/favicon.ico"
         };
     }
 
