@@ -231,6 +231,41 @@ def enrich_existing(issue: str, article: dict) -> dict:
     return article
 
 
+def edition_headline(data: dict) -> str:
+    """Name every event in the edition. Scored results lead; other events are not left out of the title."""
+    feature = next((a for a in data.get("articles") or [] if a.get("type") == "feature"), {})
+    def ident(name: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", re.sub(r"\b20\d{2}\b", "", str(name or "").lower()))
+    names: list[str] = []
+    seen: list[str] = []
+    def add(name) -> None:
+        name = re.sub(r"\s+", " ", str(name or "")).strip()
+        key = ident(name)
+        if not key:
+            return
+        for old in seen:
+            if key == old or key in old or old in key:
+                return
+        seen.append(key)
+        names.append(name)
+    for card in feature.get("week_cards") or []:
+        add((card or {}).get("name"))
+    for article in data.get("articles") or []:
+        if article.get("type") not in {"regatta_report", "brief"}:
+            continue
+        fact = article.get("week_fact") or {}
+        add(fact.get("name") or article.get("event_title"))
+    for name in feature.get("unlisted_events") or []:
+        add(name)
+    if not names:
+        return feature.get("editorial_headline") or "South African sailing this week"
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return ", ".join(names[:-1]) + " and " + names[-1]
+
+
 def weekend_feature(issue: str, monday: dt.date, events: list[dict], articles: list[dict], polish=None) -> dict:
     reports = [a for a in (articles or []) if a.get("type") == "regatta_report"]
     return write_week_feature(issue, monday, events, reports, polish=polish)
@@ -315,6 +350,9 @@ def publish(monday: str | dt.date, rebuild: bool = False, enrich: bool = True, *
     )
     from verified_context import attach_verified_context
     data = attach_verified_context(issue, data, table_events, locals().get("excluded") or [], root=root)
+    feature = next((a for a in data.get("articles") or [] if a.get("type") == "feature"), None)
+    if feature:
+        feature["editorial_headline"] = edition_headline(data)
     data["updated_at"] = dt.datetime.now(dt.timezone.utc).isoformat()
     dest.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     reports = [a for a in data.get("articles") or [] if a.get("type") == "regatta_report"]
