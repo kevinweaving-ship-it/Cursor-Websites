@@ -546,6 +546,6 @@ screen and (max-width: 1023px) and (orientation: landscape) {
         z-index: 4;
     }
     #landing-top-row {
-        margin-bottom: var(--dockside-space, 148px);
+        margin-bottom: var(--dockside-space, 180px);
     }
 }

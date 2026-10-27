@@ -282,7 +282,7 @@
             row.style.removeProperty("--dockside-space");
             return;
         }
-        row.style.setProperty("--dockside-space", (root.offsetHeight + 12) + "px");
+        row.style.setProperty("--dockside-space", (root.offsetHeight + 28) + "px");
     }
 
     function bootLanding() {
@@ -534,6 +534,8 @@
             });
         }
         window.addEventListener("resize", fit);
+        window.addEventListener("load", fit);
+        window.requestAnimationFrame(function () { window.requestAnimationFrame(fit); });
     }
 
     function params() {
