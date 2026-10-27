@@ -35,10 +35,28 @@
         return when(iso);
     }
 
+    function rememberDraftForAuth(draft) {
+        try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (err) {}
+        try {
+            var url = new URL(window.location.href);
+            url.searchParams.set("dockside_resume", "1");
+            history.replaceState(null, "", url.pathname + url.search + url.hash);
+        } catch (err2) {}
+    }
+
+    function takeResumeDraft() {
+        var url;
+        try { url = new URL(window.location.href); } catch (err) { return null; }
+        if (url.searchParams.get("dockside_resume") !== "1") return null;
+        var draft = readDraft();
+        url.searchParams.delete("dockside_resume");
+        var next = url.searchParams.toString();
+        history.replaceState(null, "", url.pathname + (next ? "?" + next : "") + url.hash);
+        return draft;
+    }
+
     function goLogin(draft) {
-        if (draft) {
-            try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (err) {}
-        }
+        if (draft) rememberDraftForAuth(draft);
         if (typeof sailingHandleHeaderSignUp === "function") {
             sailingHandleHeaderSignUp();
             return;
@@ -388,6 +406,20 @@
         if (!root || !topicBox || !originalEl || !scroll) return;
         var topicId = null;
         var postsById = {};
+        var resumedDraft = takeResumeDraft();
+        function emptyLandingComposer() {
+            if (field) field.value = "";
+            if (startBody) startBody.value = "";
+        }
+        if (!resumedDraft) {
+            clearDraft();
+            emptyLandingComposer();
+        }
+        window.addEventListener("pageshow", function () {
+            if (resumedDraft) return;
+            emptyLandingComposer();
+            window.setTimeout(emptyLandingComposer, 0);
+        });
 
         function fit() {
             fitDocksideCard(root);
@@ -609,16 +641,16 @@
             }
             if (!data.topic) {
                 showEmpty("No discussion yet.");
-                var draft = readDraft();
-                if (draft && draft.kind === "topic") {
-                    if (startSubject) startSubject.value = draft.subject || "";
-                    if (startBody) startBody.value = draft.body || "";
+                if (resumedDraft && resumedDraft.kind === "topic") {
+                    if (startSubject) startSubject.value = resumedDraft.subject || "";
+                    if (startBody) startBody.value = resumedDraft.body || "";
                     showStart(true);
                 }
                 return;
             }
             paintTopic(data.topic);
-            var commentDraft = readDraft();
+            if (!resumedDraft && field) field.value = "";
+            var commentDraft = resumedDraft;
             if (commentDraft && commentDraft.kind === "comment" && (!commentDraft.topic_id || commentDraft.topic_id === topicId)) {
                 if (commentDraft.parent_post_id) {
                     var mount = root.querySelector('[data-post-id="' + commentDraft.parent_post_id + '"]');
@@ -735,7 +767,7 @@
         var stored = savedSort();
         var sort = search.get("sort") || (stored && stored.sort) || "updated";
         var dir = search.get("dir") || (stored && stored.dir) || "desc";
-        var q = search.get("q") || "";
+        var q = "";
         var topic = search.get("topic") || "";
         var searchInput = document.getElementById("dockside-search");
         var feed = document.getElementById("dockside-feed");
@@ -745,14 +777,28 @@
         var notes = document.getElementById("dockside-notes");
         var pageAvatar = document.getElementById("dockside-page-avatar");
         if (!feed || !searchInput || !newForm || !newBody) return;
-        if (searchInput) searchInput.value = q;
-
-        function writeUrl() {
-            var next = new URLSearchParams();
-            if (q) next.set("q", q);
-            if (topic) next.set("topic", topic);
-            history.replaceState(null, "", location.pathname + (next.toString() ? "?" + next.toString() : ""));
+        var resumedDraft = takeResumeDraft();
+        try {
+            var clean = new URL(window.location.href);
+            if (clean.searchParams.has("q")) {
+                clean.searchParams.delete("q");
+                var cleaned = clean.searchParams.toString();
+                history.replaceState(null, "", clean.pathname + (cleaned ? "?" + cleaned : "") + clean.hash);
+            }
+        } catch (err) {}
+        function emptyPageComposer() {
+            newBody.value = "";
+            searchInput.value = "";
         }
+        if (!resumedDraft) {
+            clearDraft();
+            emptyPageComposer();
+        }
+        window.addEventListener("pageshow", function () {
+            if (resumedDraft) return;
+            emptyPageComposer();
+            window.setTimeout(emptyPageComposer, 0);
+        });
 
         function paintPageAvatar() {
             if (!pageAvatar) return;
@@ -917,6 +963,7 @@
                     return;
                 }
                 clearDraft();
+                resumedDraft = null;
                 loadFeed();
                 loadNotes();
             });
@@ -1014,13 +1061,11 @@
         document.getElementById("dockside-search-form").addEventListener("submit", function (event) {
             event.preventDefault();
             q = (searchInput.value || "").trim();
-            writeUrl();
             loadFeed();
         });
         searchInput.addEventListener("input", function () {
             q = (searchInput.value || "").trim();
             if (q.length === 1) return;
-            writeUrl();
             loadFeed();
         });
 
@@ -1050,17 +1095,18 @@
                     return;
                 }
                 clearDraft();
+                resumedDraft = null;
                 newBody.value = "";
-                topic = String(data.topic_id);
-                writeUrl();
                 loadFeed();
                 loadNotes();
             });
         });
 
+        var draftApplied = false;
         function restoreDraft() {
-            var draft = readDraft();
-            if (!draft) return;
+            var draft = resumedDraft;
+            if (draftApplied || !draft) return;
+            draftApplied = true;
             if (draft.kind === "topic") {
                 newBody.value = draft.body || "";
                 return;
@@ -1079,7 +1125,6 @@
         }
 
         paintPageAvatar();
-        writeUrl();
         loadFeed();
         loadNotes();
     }
