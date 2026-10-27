@@ -1,0 +1,290 @@
+/* Dockside Chat. Compact landing card plus the discussions page. */
+.dockside-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+#dockside-landing {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    height: 280px;
+    margin: 10px 0;
+    padding: 8px 10px 10px;
+    background: #fff;
+    border: 2px solid #8aa2c6;
+    border-radius: 6px;
+    box-shadow: 0 2px 3px rgba(15, 23, 42, 0.06);
+    color: #172b3a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow: hidden;
+}
+
+.dockside-head,
+.dockside-page-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 44px;
+}
+
+.dockside-kicker,
+#dockside-page h1 {
+    margin: 0;
+    color: #001f3f;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.dockside-viewall,
+.dockside-back a,
+.dockside-sort button,
+.dockside-compose button,
+.dockside-new button,
+.dockside-topic-row,
+.dockside-mini,
+.dockside-note a {
+    min-height: 44px;
+}
+
+.dockside-viewall,
+.dockside-back a {
+    display: inline-flex;
+    align-items: center;
+    color: #0b3a75;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.dockside-subject {
+    margin: 0 0 4px;
+    color: #001f3f;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dockside-scroll,
+#dockside-thread-posts {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.dockside-comment,
+.dockside-reply {
+    margin: 0 0 6px;
+}
+
+.dockside-reply {
+    margin-left: 12px;
+    padding-left: 8px;
+    border-left: 2px solid #d5deea;
+}
+
+.dockside-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: baseline;
+    color: #697078;
+    font-size: 11px;
+    line-height: 1.3;
+}
+
+.dockside-meta a {
+    color: #0b3a75;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.dockside-body {
+    margin: 1px 0 0;
+    color: #172b3a;
+    font-size: 13px;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.dockside-empty,
+.dockside-error {
+    margin: 4px 0;
+    color: #697078;
+    font-size: 13px;
+}
+
+.dockside-compose,
+.dockside-inline-reply,
+.dockside-new {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+    margin-top: 6px;
+}
+
+#dockside-search-form {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.dockside-compose textarea,
+.dockside-inline-reply textarea,
+.dockside-new input,
+.dockside-new textarea,
+
+#dockside-search {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 8px;
+    border: 1px solid #8aa2c6;
+    border-radius: 4px;
+    color: #172b3a;
+    font: 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #fff;
+}
+
+.dockside-compose textarea {
+    height: 44px;
+    resize: none;
+}
+
+.dockside-compose button,
+.dockside-new button,
+.dockside-sort button,
+.dockside-mini,
+#dockside-search-form button {
+    box-sizing: border-box;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 4px;
+    background: #001f3f;
+    color: #fff;
+    font: 700 14px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    cursor: pointer;
+}
+
+.dockside-mini {
+    background: transparent;
+    color: #0b3a75;
+    padding: 0 6px;
+}
+
+.dockside-topic-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    margin: 0 0 4px;
+    padding: 8px 10px;
+    border: 1px solid #d5deea;
+    border-radius: 4px;
+    background: #fff;
+    color: #001f3f;
+    text-align: left;
+    font: 600 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    cursor: pointer;
+}
+
+.dockside-topic-row small {
+    color: #697078;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dockside-sort {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.dockside-sort button.is-active {
+    outline: 2px solid #8aa2c6;
+}
+
+#dockside-page {
+    box-sizing: border-box;
+    max-width: 720px;
+    margin: 12px auto 32px;
+    padding: 12px;
+}
+
+.dockside-new {
+    flex-direction: column;
+    margin-top: 16px;
+}
+
+.dockside-note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 44px;
+    margin: 0 0 6px;
+    padding: 6px 0;
+    border-bottom: 1px solid #e4ebf3;
+    color: #172b3a;
+    font-size: 14px;
+}
+
+.dockside-note a {
+    display: inline-flex;
+    align-items: center;
+    color: #0b3a75;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+#dockside-notify-panel {
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    z-index: 100001;
+    box-sizing: border-box;
+    width: min(320px, calc(100vw - 16px));
+    max-height: 50vh;
+    overflow: auto;
+    padding: 8px;
+    background: #fff;
+    border: 2px solid #8aa2c6;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+    color: #172b3a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@media screen and (min-width: 1024px),
+screen and (max-width: 1023px) and (orientation: landscape) {
+    #landing-top-row > #dockside-landing {
+        position: absolute;
+        left: 0;
+        top: calc(100% + 12px);
+        width: 100%;
+        height: 280px;
+        margin: 0;
+        z-index: 4;
+    }
+    #landing-top-row {
+        margin-bottom: 292px;
+    }
+}
