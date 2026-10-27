@@ -40,13 +40,13 @@ def main() -> None:
         except DocksideError as exc:
             assert exc.status == 401, exc.detail
         try:
-            create_topic(conn, A, "No", "body text")
-            raise SystemExit("short subject accepted")
+            create_topic(conn, A, None, " ")
+            raise SystemExit("empty comment accepted")
         except DocksideError as exc:
             assert exc.status == 400, exc.detail
         conn.rollback()
 
-        created = create_topic(conn, A, "Race start line", "Who is on the line")
+        created = create_topic(conn, A, None, "Who is on the line")
         topic_id = created["topic_id"]
         first_id = created["posts"][0]["post_id"]
         notes = list_notifications(conn, A)

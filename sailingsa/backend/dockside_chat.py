@@ -195,6 +195,14 @@ def apply_schema(conn) -> None:
             CONSTRAINT dockside_reports_reason_chk CHECK (char_length(reason) BETWEEN 3 AND 500),
             CONSTRAINT dockside_reports_status_chk CHECK (status IN ('open', 'closed'))
         );
+        CREATE TABLE IF NOT EXISTS public.dockside_reactions (
+            post_id bigint NOT NULL REFERENCES public.dockside_posts(post_id) ON DELETE CASCADE,
+            account_id bigint NOT NULL REFERENCES public.user_accounts(account_id) ON DELETE CASCADE,
+            kind text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (post_id, account_id, kind),
+            CONSTRAINT dockside_reactions_kind_chk CHECK (kind IN ('up', 'heart', 'down'))
+        );
         CREATE INDEX IF NOT EXISTS dockside_topics_updated_idx
             ON public.dockside_topics (updated_at DESC) WHERE status = 'open';
         DELETE FROM public.dockside_notifications n
@@ -356,7 +364,46 @@ def _open_topic(cur, topic_id: int):
     return row
 
 
-def _posts(cur, topic_id: int):
+def _empty_reactions():
+    return {"counts": {"up": 0, "heart": 0, "down": 0}, "mine": []}
+
+
+def _attach_reactions(cur, posts, account_id):
+    ids = [post["post_id"] for post in posts]
+    counts = {}
+    mine = {}
+    if ids:
+        cur.execute(
+            """
+            SELECT post_id, kind, COUNT(*) AS n
+            FROM public.dockside_reactions
+            WHERE post_id = ANY(%s)
+            GROUP BY post_id, kind
+            """,
+            (ids,),
+        )
+        for row in cur.fetchall():
+            bucket = counts.setdefault(row["post_id"], {"up": 0, "heart": 0, "down": 0})
+            bucket[row["kind"]] = int(row["n"])
+        if account_id:
+            cur.execute(
+                """
+                SELECT post_id, kind
+                FROM public.dockside_reactions
+                WHERE account_id = %s AND post_id = ANY(%s)
+                """,
+                (account_id, ids),
+            )
+            for row in cur.fetchall():
+                mine.setdefault(row["post_id"], []).append(row["kind"])
+    for post in posts:
+        base = {"up": 0, "heart": 0, "down": 0}
+        base.update(counts.get(post["post_id"], {}))
+        post["reactions"] = {"counts": base, "mine": mine.get(post["post_id"], [])}
+    return posts
+
+
+def _posts(cur, topic_id: int, account_id=None):
     cur.execute(
         """
         SELECT p.post_id, p.parent_post_id, p.body, p.created_at, p.created_by,
@@ -394,9 +441,10 @@ def _posts(cur, topic_id: int):
                 "body": row["body"],
                 "created_at": _iso(row["created_at"]),
                 "author": _author(row),
+                "reactions": _empty_reactions(),
             }
         )
-    return out
+    return _attach_reactions(cur, out, account_id)
 
 
 def _topic_json(row, posts, following=None):
@@ -410,10 +458,19 @@ def _topic_json(row, posts, following=None):
     }
 
 
+def _stored_subject(body: str) -> str:
+    text = re.sub(r"\s+", " ", body).strip()
+    if len(text) > 120:
+        text = text[:117].rstrip() + "..."
+    if len(text) < 3:
+        text = (text + "...")[:3]
+    return text
+
+
 def create_topic(conn, account, subject, body) -> dict:
     account = _require(account)
-    subject = _clean_subject(subject)
     body = _clean_body(body)
+    subject = _stored_subject(body)
     cur = _cur(conn)
     _rate_limit(cur, account["account_id"])
     cur.execute(
@@ -437,7 +494,7 @@ def create_topic(conn, account, subject, body) -> dict:
     _follow(cur, topic["topic_id"], account["account_id"], False)
     _notify(cur, topic["topic_id"], post_id, account["account_id"])
     cur.close()
-    return _topic_json(topic, _posts(_cur(conn), topic["topic_id"]), {"muted": False})
+    return _topic_json(topic, _posts(_cur(conn), topic["topic_id"], account["account_id"]), {"muted": False})
 
 
 def add_post(conn, account, topic_id: int, body, parent_post_id) -> dict:
@@ -497,7 +554,7 @@ def add_post(conn, account, topic_id: int, body, parent_post_id) -> dict:
     return {
         "post_id": post_id,
         "notified": notified,
-        "topic": _topic_json(fresh, _posts(_cur(conn), topic_id)),
+        "topic": _topic_json(fresh, _posts(_cur(conn), topic_id, account["account_id"])),
     }
 
 
@@ -513,6 +570,15 @@ def list_topics(conn, q: str, sort: str, direction: str, limit: int = 50) -> dic
     cur.execute(
         f"""
         SELECT t.topic_id, t.subject, t.created_at, t.updated_at,
+               (
+                   SELECT p.body
+                   FROM public.dockside_posts p
+                   WHERE p.topic_id = t.topic_id
+                     AND p.status = 'visible'
+                     AND p.parent_post_id IS NULL
+                   ORDER BY p.created_at ASC, p.post_id ASC
+                   LIMIT 1
+               ) AS opening,
                (
                    SELECT COUNT(*)
                    FROM public.dockside_posts p
@@ -544,6 +610,7 @@ def list_topics(conn, q: str, sort: str, direction: str, limit: int = 50) -> dic
             {
                 "topic_id": row["topic_id"],
                 "subject": row["subject"],
+                "opening": (row.get("opening") or "")[:160],
                 "created_at": _iso(row["created_at"]),
                 "updated_at": _iso(row["updated_at"]),
                 "comment_count": int(row["comment_count"]),
@@ -571,12 +638,12 @@ def get_topic(conn, topic_id: int, account=None) -> dict:
         row = cur.fetchone()
         if row:
             following = {"muted": bool(row["muted"])}
-    posts = _posts(cur, topic_id)
+    posts = _posts(cur, topic_id, account["account_id"] if account else None)
     cur.close()
     return _topic_json(topic, posts, following)
 
 
-def current_topic(conn) -> dict:
+def current_topic(conn, account=None) -> dict:
     cur = _cur(conn)
     cur.execute(
         """
@@ -591,7 +658,8 @@ def current_topic(conn) -> dict:
     if not topic:
         cur.close()
         return {"topic": None}
-    payload = _topic_json(topic, _posts(cur, topic["topic_id"]))
+    viewer = account["account_id"] if account else None
+    payload = _topic_json(topic, _posts(cur, topic["topic_id"], viewer))
     cur.close()
     return {"topic": payload}
 
@@ -796,6 +864,48 @@ def moderate(conn, account, post_id, topic_id, action: str) -> dict:
     return {"ok": True, "action": action}
 
 
+def set_reaction(conn, account, post_id: int, kind: str) -> dict:
+    account = _require(account)
+    if kind not in ("up", "heart", "down"):
+        raise DocksideError(400, "Reaction is invalid")
+    cur = _cur(conn)
+    cur.execute(
+        """
+        SELECT post_id FROM public.dockside_posts
+        WHERE post_id = %s AND status = 'visible'
+        """,
+        (int(post_id),),
+    )
+    if not cur.fetchone():
+        raise DocksideError(404, "Comment not found")
+    cur.execute(
+        """
+        SELECT kind FROM public.dockside_reactions
+        WHERE post_id = %s AND account_id = %s AND kind = %s
+        """,
+        (int(post_id), account["account_id"], kind),
+    )
+    if cur.fetchone():
+        cur.execute(
+            """
+            DELETE FROM public.dockside_reactions
+            WHERE post_id = %s AND account_id = %s AND kind = %s
+            """,
+            (int(post_id), account["account_id"], kind),
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO public.dockside_reactions (post_id, account_id, kind)
+            VALUES (%s, %s, %s)
+            """,
+            (int(post_id), account["account_id"], kind),
+        )
+    reactions = _attach_reactions(cur, [{"post_id": int(post_id)}], account["account_id"])[0]["reactions"]
+    cur.close()
+    return {"post_id": int(post_id), "reactions": reactions}
+
+
 def _json_body(payload):
     if not isinstance(payload, dict):
         raise DocksideError(400, "Expected a JSON object")
@@ -859,8 +969,11 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
         return _run(handler)
 
     @app.get("/api/dockside/current")
-    def dockside_current():
-        return _run(lambda conn: current_topic(conn))
+    def dockside_current(request: Request):
+        def handler(conn):
+            return current_topic(conn, session_account(conn, _token(request)))
+
+        return _run(handler)
 
     @app.get("/api/dockside/topics")
     def dockside_topics(request: Request):
@@ -902,6 +1015,20 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 topic_id,
                 payload.get("body"),
                 payload.get("parent_post_id"),
+            )
+
+        return _run(handler)
+
+    @app.post("/api/dockside/posts/{post_id}/react")
+    async def dockside_react(post_id: int, request: Request):
+        payload = _json_body(await request.json())
+
+        def handler(conn):
+            return set_reaction(
+                conn,
+                session_account(conn, _token(request)),
+                post_id,
+                payload.get("kind"),
             )
 
         return _run(handler)

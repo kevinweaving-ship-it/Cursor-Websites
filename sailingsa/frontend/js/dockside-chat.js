@@ -159,8 +159,8 @@
         body.textContent = post.body || "";
         text.appendChild(meta);
         text.appendChild(body);
+        text.appendChild(actionRow(post, onReply ? replyButton(function () { onReply(post, wrap, true); }) : null));
         wrap.dataset.postId = String(post.post_id);
-        if (onReply) text.appendChild(replyButton(function () { onReply(post, wrap, true); }));
         row.appendChild(text);
         wrap.appendChild(row);
         (replies || []).forEach(function (reply) {
@@ -184,12 +184,65 @@
             replyBody.textContent = reply.body || "";
             replyText.appendChild(replyMeta);
             replyText.appendChild(replyBody);
-            if (onReply) replyText.appendChild(replyButton(function () { onReply(reply, item, false); }));
+            replyText.appendChild(actionRow(reply, onReply ? replyButton(function () { onReply(reply, item, false); }) : null));
             replyRow.appendChild(replyText);
             item.appendChild(replyRow);
             wrap.appendChild(item);
         });
         return wrap;
+    }
+
+    function commentAsName() {
+        if (!me.signed_in) return "";
+        var author = presentAuthor(me);
+        return (author && author.display_name) || "sailor";
+    }
+
+    function reactionBar(post) {
+        var bar = document.createElement("span");
+        bar.className = "dockside-reacts";
+        function paint() {
+            bar.textContent = "";
+            var counts = (post.reactions && post.reactions.counts) || {};
+            var mine = (post.reactions && post.reactions.mine) || [];
+            [["up", "👍"], ["heart", "❤️"], ["down", "👎"]].forEach(function (pair) {
+                var button = document.createElement("button");
+                button.type = "button";
+                var count = counts[pair[0]] || 0;
+                button.textContent = count ? (pair[1] + " " + count) : pair[1];
+                if (mine.indexOf(pair[0]) >= 0) button.className = "is-mine";
+                button.addEventListener("click", function () {
+                    if (!me.signed_in) {
+                        goLogin(null);
+                        return;
+                    }
+                    api("/api/dockside/posts/" + post.post_id + "/react", {
+                        method: "POST",
+                        body: JSON.stringify({ kind: pair[0] })
+                    }).then(function (data) {
+                        if (!data || data._status === 401) {
+                            goLogin(null);
+                            return;
+                        }
+                        if (data._status === 200 && data.reactions) {
+                            post.reactions = data.reactions;
+                            paint();
+                        }
+                    });
+                });
+                bar.appendChild(button);
+            });
+        }
+        paint();
+        return bar;
+    }
+
+    function actionRow(post, replyControl) {
+        var actions = document.createElement("div");
+        actions.className = "dockside-actions";
+        actions.appendChild(reactionBar(post));
+        if (replyControl) actions.appendChild(replyControl);
+        return actions;
     }
 
     function replyButton(onClick) {
@@ -351,6 +404,7 @@
                 return;
             }
             meAvatar.textContent = initials(author);
+            setCommentPlaceholder();
         }
 
         function meFace() {
@@ -372,6 +426,12 @@
             }
             face.textContent = initials(author);
             return face;
+        }
+
+        function setCommentPlaceholder() {
+            if (!field) return;
+            var name = commentAsName();
+            field.placeholder = name ? ("Comment as " + name) : "Write a comment";
         }
 
         function revealInline(hold) {
@@ -397,7 +457,7 @@
             if (existing) existing.remove();
             var shown = presentAuthor(post.author);
             var hold = document.createElement("div");
-            hold.className = "dockside-inline-hold" + (indented ? " dockside-reply" : "");
+            hold.className = "dockside-inline-hold" + (indented ? " is-under-comment" : "");
             hold.dataset.forPost = String(post.post_id);
             var inline = document.createElement("form");
             inline.className = "dockside-inline-reply";
@@ -411,8 +471,8 @@
             input.autocomplete = "off";
             var button = document.createElement("button");
             button.type = "submit";
-            button.setAttribute("aria-label", "Send reply");
-            button.innerHTML = '<svg class="dockside-send" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ff5a00" d="M3.2 11.2 20.5 3.4c.7-.3 1.4.4 1.1 1.1l-7.8 17.3c-.3.8-1.5.7-1.7-.1l-1.6-6.1-6.1-1.6c-.8-.2-.9-1.4-.2-1.8z"/></svg>';
+            button.className = "dockside-post";
+            button.textContent = "Post";
             inline.appendChild(meFace());
             inline.appendChild(input);
             inline.appendChild(button);
@@ -492,7 +552,8 @@
             if (emptyBox) emptyBox.hidden = true;
             topicBox.hidden = false;
             if (form) form.hidden = false;
-            subjectEl.textContent = topic.subject || "";
+            if (subjectEl) subjectEl.hidden = true;
+            setCommentPlaceholder();
             var parts = splitThread(topic.posts);
             originalEl.textContent = "";
             scroll.textContent = "";
@@ -578,20 +639,19 @@
         if (startForm) {
             startForm.addEventListener("submit", function (event) {
                 event.preventDefault();
-                var subject = ((startSubject && startSubject.value) || "").trim();
                 var body = ((startBody && startBody.value) || "").trim();
-                if (subject.length < 3 || !body) {
-                    noteError(startForm, subject.length < 3 ? "Subject needs at least 3 characters." : "Write the first post.");
+                if (!body) {
+                    noteError(startForm, "Write the first post.");
                     return;
                 }
-                var draft = { kind: "topic", subject: subject, body: body };
+                var draft = { kind: "topic", body: body };
                 if (!me.signed_in) {
                     goLogin(draft);
                     return;
                 }
                 api("/api/dockside/topics", {
                     method: "POST",
-                    body: JSON.stringify({ subject: subject, body: body })
+                    body: JSON.stringify({ body: body })
                 }).then(function (data) {
                     if (data._status === 401) {
                         goLogin(draft);
@@ -747,7 +807,7 @@
                     button.type = "button";
                     button.className = "dockside-topic-row";
                     var label = document.createElement("span");
-                    label.textContent = row.subject || "";
+                    label.textContent = row.opening || row.subject || "";
                     var meta = document.createElement("small");
                     meta.textContent = String(row.comment_count || 0) + " · " + when(row.updated_at);
                     button.appendChild(label);
@@ -773,7 +833,7 @@
                     return;
                 }
                 thread.hidden = false;
-                threadSubject.textContent = data.subject || "";
+                if (threadSubject) threadSubject.hidden = true;
                 var muted = data.following && data.following.muted;
                 muteBtn.hidden = !me.signed_in;
                 muteBtn.textContent = muted ? "Unmute" : "Mute";
@@ -868,16 +928,19 @@
         newForm.addEventListener("submit", function (event) {
             event.preventDefault();
             newError.textContent = "";
-            var subject = (newSubject.value || "").trim();
             var body = (newBody.value || "").trim();
-            var draft = { kind: "topic", subject: subject, body: body };
+            if (!body) {
+                newError.textContent = "Write the first post.";
+                return;
+            }
+            var draft = { kind: "topic", body: body };
             if (!me.signed_in) {
                 goLogin(draft);
                 return;
             }
             api("/api/dockside/topics", {
                 method: "POST",
-                body: JSON.stringify({ subject: subject, body: body })
+                body: JSON.stringify({ body: body })
             }).then(function (data) {
                 if (data._status === 401) {
                     goLogin(draft);
@@ -888,7 +951,7 @@
                     return;
                 }
                 clearDraft();
-                newSubject.value = "";
+                if (newSubject) newSubject.value = "";
                 newBody.value = "";
                 topic = String(data.topic_id);
                 writeUrl();
@@ -899,7 +962,7 @@
 
         var draft = readDraft();
         if (draft && draft.kind === "topic") {
-            newSubject.value = draft.subject || "";
+            if (newSubject) newSubject.value = "";
             newBody.value = draft.body || "";
         }
         if (draft && draft.kind === "comment" && draft.topic_id) {

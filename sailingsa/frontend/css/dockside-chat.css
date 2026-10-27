@@ -115,6 +115,7 @@
 }
 
 #dockside-landing .dockside-subject {
+    display: none;
     margin: 6px 0 4px;
     padding: 0;
     border: 0;
@@ -210,10 +211,41 @@
     line-height: 1.35;
 }
 
+#dockside-landing .dockside-actions,
+#dockside-landing .dockside-reacts {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+#dockside-landing .dockside-reacts {
+    margin-top: 0;
+}
+
+#dockside-landing .dockside-reacts button,
+#dockside-landing .dockside-actions .dockside-mini,
+#dockside-landing .dockside-post {
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #65676b;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+#dockside-landing .dockside-reacts button.is-mine {
+    color: #001f3f;
+}
+
 #dockside-landing .dockside-mini {
     min-width: 0;
     min-height: 0;
-    margin: 2px 0 0;
+    margin: 0;
     padding: 0;
     background: transparent;
     color: #65676b;
@@ -231,27 +263,53 @@
     margin: 0 0 8px;
 }
 
+#dockside-landing .dockside-inline-hold {
+    margin: 4px 0 0 36px;
+}
+
+#dockside-landing .dockside-inline-hold.is-under-comment {
+    margin-left: 36px;
+}
+
 #dockside-landing .dockside-compose {
+    justify-content: flex-start;
     align-items: center;
     gap: 6px;
     height: 36px;
     margin-top: 8px;
-    padding: 0 4px 0 4px;
-    background: #f0f2f5;
-    border-radius: 999px;
+    padding: 0 4px;
+    background: transparent;
+    border-radius: 0;
 }
 
-#dockside-landing .dockside-compose input,
-#dockside-landing .dockside-start > input[type="text"] {
+#dockside-landing .dockside-compose input {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #f0f2f5;
+    text-align: left;
+}
+
+#dockside-landing .dockside-post {
+    flex: 0 0 auto;
+    width: auto;
+    height: 28px;
+    padding: 0 2px 0 6px;
+    color: #ff5a00;
+    font-weight: 800;
+}
+
+#dockside-landing .dockside-compose input {
     flex: 1 1 auto;
     width: auto;
     min-width: 0;
     height: 32px;
     border: 0;
-    border-radius: 0;
-    padding: 0 4px;
-    background: transparent;
+    border-radius: 999px;
+    padding: 0 12px;
+    background: #f0f2f5;
     font-size: 13px;
+    text-align: left;
 }
 
 #dockside-landing .dockside-start > input[type="text"] {
@@ -301,14 +359,28 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    min-width: 28px;
+    width: auto;
+    min-width: 0;
     height: 28px;
     min-height: 28px;
-    padding: 0;
+    padding: 0 2px 0 4px;
     border: 0;
-    border-radius: 50%;
+    border-radius: 0;
     background: transparent;
+    color: #ff5a00;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+#dockside-landing .dockside-compose .dockside-post {
+    width: auto;
+    min-width: 0;
+    height: 28px;
+    min-height: 28px;
+    padding: 0 2px 0 4px;
+    border-radius: 0;
+    background: transparent;
+    color: #ff5a00;
 }
 
 #dockside-landing .dockside-compose button {
