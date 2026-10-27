@@ -76,7 +76,23 @@
         });
     }
 
+    function presentAuthor(author) {
+        if (!author) return author;
+        var role = String(author.role || "").toLowerCase().replace(/[\s-]+/g, "_");
+        var name = String(author.display_name || "").replace(/\s+/g, " ").trim().toLowerCase();
+        var admin = author.is_super_admin || role === "super_admin" || role === "superadmin" || name === "kevin weaving";
+        if (!admin) return author;
+        return {
+            account_id: author.account_id,
+            display_name: "Admin",
+            avatar_text: "SA",
+            profile_url: null,
+            photo_url: null
+        };
+    }
+
     function authorNode(author, card) {
+        author = presentAuthor(author);
         var name = (author && author.display_name) || "Sailor";
         var node;
         if (author && author.profile_url) {
@@ -91,6 +107,8 @@
     }
 
     function initials(author) {
+        author = presentAuthor(author);
+        if (author && author.avatar_text) return String(author.avatar_text).slice(0, 2).toUpperCase();
         var name = ((author && author.display_name) || "").replace(/[^A-Za-z\s]/g, " ").trim();
         var parts = name.split(/\s+/).filter(Boolean);
         if (!parts.length) return "S";
@@ -99,6 +117,7 @@
     }
 
     function avatarNode(author) {
+        author = presentAuthor(author);
         var wrap = document.createElement("span");
         wrap.className = "dockside-avatar";
         wrap.setAttribute("aria-hidden", "true");
@@ -140,19 +159,14 @@
         body.textContent = post.body || "";
         text.appendChild(meta);
         text.appendChild(body);
-        if (onReply) {
-            var replyBtn = document.createElement("button");
-            replyBtn.type = "button";
-            replyBtn.className = "dockside-mini";
-            replyBtn.textContent = "Reply";
-            replyBtn.addEventListener("click", function () { onReply(post); });
-            text.appendChild(replyBtn);
-        }
+        wrap.dataset.postId = String(post.post_id);
+        if (onReply) text.appendChild(replyButton(function () { onReply(post, wrap, true); }));
         row.appendChild(text);
         wrap.appendChild(row);
         (replies || []).forEach(function (reply) {
             var item = document.createElement("div");
             item.className = "dockside-reply";
+            item.dataset.postId = String(reply.post_id);
             var replyRow = document.createElement("div");
             replyRow.className = "dockside-person";
             replyRow.appendChild(avatarNode(reply.author));
@@ -170,11 +184,24 @@
             replyBody.textContent = reply.body || "";
             replyText.appendChild(replyMeta);
             replyText.appendChild(replyBody);
+            if (onReply) replyText.appendChild(replyButton(function () { onReply(reply, item, false); }));
             replyRow.appendChild(replyText);
             item.appendChild(replyRow);
             wrap.appendChild(item);
         });
         return wrap;
+    }
+
+    function replyButton(onClick) {
+        var replyBtn = document.createElement("button");
+        replyBtn.type = "button";
+        replyBtn.className = "dockside-mini";
+        replyBtn.textContent = "Reply";
+        replyBtn.addEventListener("click", function (event) {
+            event.preventDefault();
+            onClick();
+        });
+        return replyBtn;
     }
 
     function postNode(post, replies, onReply, full) {
@@ -301,7 +328,7 @@
         var meAvatar = document.getElementById("dockside-me-avatar");
         if (!root || !topicBox || !originalEl || !scroll) return;
         var topicId = null;
-        var parentId = null;
+        var postsById = {};
 
         function fit() {
             fitDocksideCard(root);
@@ -311,7 +338,7 @@
             if (!meAvatar) return;
             meAvatar.textContent = "";
             if (!me.signed_in) return;
-            var author = me;
+            var author = presentAuthor(me);
             if (author && author.photo_url) {
                 var img = document.createElement("img");
                 img.alt = "";
@@ -326,12 +353,79 @@
             meAvatar.textContent = initials(author);
         }
 
-        function setTarget(post) {
-            parentId = post ? post.post_id : null;
-            if (!field) return;
-            var name = post && post.author && post.author.display_name;
-            field.placeholder = name ? ("Reply to " + name) : "Write a comment";
-            field.focus();
+        function meFace() {
+            var face = document.createElement("span");
+            face.className = "dockside-avatar dockside-avatar--me";
+            face.setAttribute("aria-hidden", "true");
+            if (!me.signed_in) return face;
+            var author = presentAuthor(me);
+            if (author && author.photo_url) {
+                var img = document.createElement("img");
+                img.alt = "";
+                img.src = author.photo_url;
+                img.addEventListener("error", function () {
+                    img.remove();
+                    face.textContent = initials(author);
+                });
+                face.appendChild(img);
+                return face;
+            }
+            face.textContent = initials(author);
+            return face;
+        }
+
+        function revealInline(hold) {
+            if (!scroll || !hold || !scroll.contains(hold)) return;
+            showLatestTwo(scroll);
+            var viewTop = scroll.getBoundingClientRect().top;
+            var box = hold.getBoundingClientRect();
+            var overflow = box.bottom - (viewTop + scroll.clientHeight);
+            if (overflow > 0) scroll.style.maxHeight = (scroll.clientHeight + overflow + 6) + "px";
+            var nextTop = hold.getBoundingClientRect().top;
+            if (nextTop < viewTop) scroll.scrollTop += nextTop - viewTop - 4;
+        }
+
+        function openInline(post, mount, indented) {
+            if (!mount) return;
+            var existing = root.querySelector(".dockside-inline-hold");
+            if (existing && existing.dataset.forPost === String(post.post_id)) {
+                existing.remove();
+                showLatestTwo(scroll);
+                fit();
+                return;
+            }
+            if (existing) existing.remove();
+            var shown = presentAuthor(post.author);
+            var hold = document.createElement("div");
+            hold.className = "dockside-inline-hold" + (indented ? " dockside-reply" : "");
+            hold.dataset.forPost = String(post.post_id);
+            var inline = document.createElement("form");
+            inline.className = "dockside-inline-reply";
+            inline.action = "/dockside.html";
+            inline.method = "get";
+            var input = document.createElement("input");
+            input.type = "text";
+            input.maxLength = 2000;
+            input.placeholder = "Reply to " + ((shown && shown.display_name) || "sailor");
+            input.setAttribute("aria-label", input.placeholder);
+            input.autocomplete = "off";
+            var button = document.createElement("button");
+            button.type = "submit";
+            button.setAttribute("aria-label", "Send reply");
+            button.innerHTML = '<svg class="dockside-send" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ff5a00" d="M3.2 11.2 20.5 3.4c.7-.3 1.4.4 1.1 1.1l-7.8 17.3c-.3.8-1.5.7-1.7-.1l-1.6-6.1-6.1-1.6c-.8-.2-.9-1.4-.2-1.8z"/></svg>';
+            inline.appendChild(meFace());
+            inline.appendChild(input);
+            inline.appendChild(button);
+            hold.appendChild(inline);
+            mount.appendChild(hold);
+            inline.addEventListener("submit", function (event) {
+                event.preventDefault();
+                sendComment((input.value || "").trim(), post.post_id, hold);
+            });
+            input.focus();
+            revealInline(hold);
+            fit();
+            return input;
         }
 
         function showStart(open) {
@@ -402,9 +496,11 @@
             var parts = splitThread(topic.posts);
             originalEl.textContent = "";
             scroll.textContent = "";
-            if (parts.originalPost) originalEl.appendChild(cardPost(parts.originalPost, [], setTarget));
+            postsById = {};
+            (topic.posts || []).forEach(function (post) { postsById[post.post_id] = post; });
+            if (parts.originalPost) originalEl.appendChild(cardPost(parts.originalPost, [], openInline));
             parts.roots.forEach(function (comment) {
-                scroll.appendChild(cardPost(comment, parts.replies[comment.post_id] || [], setTarget));
+                scroll.appendChild(cardPost(comment, parts.replies[comment.post_id] || [], openInline));
             });
             showLatestTwo(scroll);
             paintMe();
@@ -456,10 +552,17 @@
             }
             paintTopic(data.topic);
             var commentDraft = readDraft();
-            if (commentDraft && commentDraft.kind === "comment" && field && (!commentDraft.topic_id || commentDraft.topic_id === topicId)) {
-                field.value = commentDraft.body || "";
-                parentId = commentDraft.parent_post_id || null;
-                if (parentId) field.placeholder = "Reply";
+            if (commentDraft && commentDraft.kind === "comment" && (!commentDraft.topic_id || commentDraft.topic_id === topicId)) {
+                if (commentDraft.parent_post_id) {
+                    var mount = root.querySelector('[data-post-id="' + commentDraft.parent_post_id + '"]');
+                    var target = postsById[commentDraft.parent_post_id];
+                    if (mount && target) {
+                        var input = openInline(target, mount, mount.classList.contains("dockside-comment"));
+                        if (input) input.value = commentDraft.body || "";
+                    }
+                } else if (field) {
+                    field.value = commentDraft.body || "";
+                }
             }
         }).catch(function () {
             showEmpty("Dockside Chat is unavailable.");
@@ -503,34 +606,38 @@
                 });
             });
         }
-        if (form && field) {
-            form.addEventListener("submit", function (event) {
-                event.preventDefault();
-                var body = (field.value || "").trim();
-                if (!body || !topicId) return;
-                var draft = { kind: "comment", topic_id: topicId, parent_post_id: parentId, body: body };
-                if (!me.signed_in) {
+        function sendComment(body, parent, errorMount) {
+            if (!body || !topicId) return;
+            var draft = { kind: "comment", topic_id: topicId, parent_post_id: parent || null, body: body };
+            if (!me.signed_in) {
+                goLogin(draft);
+                return;
+            }
+            api("/api/dockside/topics/" + topicId + "/posts", {
+                method: "POST",
+                body: JSON.stringify({ body: body, parent_post_id: parent || null })
+            }).then(function (data) {
+                if (data._status === 401) {
                     goLogin(draft);
                     return;
                 }
-                api("/api/dockside/topics/" + topicId + "/posts", {
-                    method: "POST",
-                    body: JSON.stringify({ body: body, parent_post_id: parentId })
-                }).then(function (data) {
-                    if (data._status === 401) {
-                        goLogin(draft);
-                        return;
-                    }
-                    if (!data || data._status !== 200 || !data.topic) {
-                        noteError(scroll, (data && data.detail) || "Comment was not saved");
-                        return;
-                    }
-                    clearDraft();
+                if (!data || data._status !== 200 || !data.topic) {
+                    noteError(errorMount || scroll, (data && data.detail) || "Comment was not saved");
+                    return;
+                }
+                clearDraft();
+                if (field) {
                     field.value = "";
-                    parentId = null;
                     field.placeholder = "Write a comment";
-                    paintTopic(data.topic);
-                });
+                }
+                paintTopic(data.topic);
+            });
+        }
+
+        if (form && field) {
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+                sendComment((field.value || "").trim(), null, scroll);
             });
         }
         window.addEventListener("resize", fit);
@@ -802,7 +909,7 @@
         }
         if (meLine) {
             meLine.textContent = me.signed_in
-                ? ("Signed in as " + (me.display_name || me.sas_id || "sailor"))
+                ? ("Signed in as " + ((presentAuthor(me) && presentAuthor(me).display_name) || "sailor"))
                 : "Sign in to start a topic or reply. Your draft is kept.";
         }
         paintSort();

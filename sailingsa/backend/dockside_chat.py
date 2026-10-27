@@ -104,11 +104,34 @@ def _photo_url(path):
     return None
 
 
+def _role_key(role) -> str:
+    return str(role or "").strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _is_public_admin(role) -> bool:
+    return _role_key(role) in ("super_admin", "superadmin")
+
+
+def _hide_personal_name(name, role) -> bool:
+    folded = re.sub(r"\s+", " ", str(name or "")).strip().lower()
+    return _is_public_admin(role) or folded == "kevin weaving"
+
+
 def _author(row) -> dict:
+    account_id = row.get("created_by") or row.get("account_id")
+    if _hide_personal_name(row.get("display_name"), row.get("role")):
+        return {
+            "account_id": account_id,
+            "sas_id": None,
+            "display_name": "Admin",
+            "avatar_text": "SA",
+            "profile_url": None,
+            "photo_url": None,
+        }
     name = (row.get("display_name") or row.get("sas_id") or "").strip()
     photo = _photo_url(row.get("profile_picture_path")) or _photo_url(row.get("profile_photo_path"))
     return {
-        "account_id": row.get("created_by") or row.get("account_id"),
+        "account_id": account_id,
         "sas_id": row.get("sas_id"),
         "display_name": name,
         "profile_url": _profile_url(row.get("slug")),
@@ -250,14 +273,16 @@ def session_account(conn, token: str):
     cur.close()
     if not row:
         return None
-    role = str(row.get("role") or "").strip().lower().replace(" ", "_").replace("-", "_")
+    role = _role_key(row.get("role"))
+    admin = _hide_personal_name(row.get("display_name"), role)
     return {
         "account_id": int(row["account_id"]),
-        "sas_id": row.get("sas_id"),
+        "sas_id": None if admin else row.get("sas_id"),
         "role": role,
-        "display_name": (row.get("display_name") or row.get("sas_id") or "").strip(),
-        "profile_url": _profile_url(row.get("slug")),
-        "is_super_admin": role in ("super_admin", "superadmin"),
+        "display_name": "Admin" if admin else (row.get("display_name") or row.get("sas_id") or "").strip(),
+        "avatar_text": "SA" if admin else None,
+        "profile_url": None if admin else _profile_url(row.get("slug")),
+        "is_super_admin": admin,
     }
 
 
@@ -335,7 +360,7 @@ def _posts(cur, topic_id: int):
     cur.execute(
         """
         SELECT p.post_id, p.parent_post_id, p.body, p.created_at, p.created_by,
-               ua.sas_id, ua.profile_picture_path,
+               ua.sas_id, ua.role, ua.profile_picture_path,
                COALESCE(
                    NULLIF(TRIM(ua.full_name), ''),
                    NULLIF(TRIM(CONCAT_WS(' ', sp.first_name, sp.last_name)), ''),
@@ -587,6 +612,7 @@ def list_notifications(conn, account, limit: int = 30) -> dict:
         """
         SELECT n.notification_id, n.topic_id, n.post_id, n.created_at, n.read_at,
                t.subject, p.parent_post_id,
+               ua.role AS actor_role,
                COALESCE(
                    NULLIF(TRIM(ua.full_name), ''),
                    NULLIF(TRIM(CONCAT_WS(' ', sp.first_name, sp.last_name)), ''),
@@ -630,7 +656,7 @@ def list_notifications(conn, account, limit: int = 30) -> dict:
                 "topic_id": row["topic_id"],
                 "post_id": row["post_id"],
                 "subject": row["subject"],
-                "actor_name": (row.get("actor_name") or "").strip(),
+                "actor_name": "Admin" if _hide_personal_name(row.get("actor_name"), row.get("actor_role")) else (row.get("actor_name") or "").strip(),
                 "kind": "reply" if row["parent_post_id"] else "comment",
                 "created_at": _iso(row["created_at"]),
                 "read": row["read_at"] is not None,
@@ -824,6 +850,7 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 "account_id": account["account_id"],
                 "sas_id": account["sas_id"],
                 "display_name": account["display_name"],
+                "avatar_text": account.get("avatar_text"),
                 "role": account["role"],
                 "profile_url": account["profile_url"],
                 "is_super_admin": account["is_super_admin"],
