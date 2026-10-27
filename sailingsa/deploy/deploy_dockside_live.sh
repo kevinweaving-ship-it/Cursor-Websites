@@ -142,8 +142,15 @@ if ! systemctl restart sailingsa-api; then
   bash "$BAK/ROLLBACK.sh"
   exit 1
 fi
-sleep 2
-if ! systemctl is-active --quiet sailingsa-api; then
+ready=0
+for _ in $(seq 1 24); do
+  if systemctl is-active --quiet sailingsa-api && curl -fsS --max-time 15 "https://sailingsa.co.za/auth/session" -o /tmp/dockside-session.json; then
+    ready=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$ready" != 1 ]]; then
   echo "STOP_API_INACTIVE"
   bash "$BAK/ROLLBACK.sh"
   exit 1
@@ -152,7 +159,7 @@ fi
 check_pages() {
   local url="$1" file
   file="$(mktemp)"
-  curl -fsS "$url" -o "$file" || return 1
+  curl -fsS --max-time 30 "$url" -o "$file" || return 1
   grep -q 'id="dockside-landing"' "$file" || return 1
   grep -q 'Weekly Roundup' "$file" || return 1
   grep -q 'id="temp-landing-hero-image"' "$file" || return 1
@@ -160,7 +167,15 @@ check_pages() {
   rm -f "$file"
 }
 
-if ! check_pages "https://sailingsa.co.za/" || ! check_pages "https://sailingsa.co.za/blank.html"; then
+pages_ok=0
+for _ in $(seq 1 8); do
+  if check_pages "https://sailingsa.co.za/" && check_pages "https://sailingsa.co.za/blank.html"; then
+    pages_ok=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$pages_ok" != 1 ]]; then
   echo "STOP_PAGE_CHECK"
   bash "$BAK/ROLLBACK.sh"
   exit 1
@@ -185,7 +200,7 @@ fi
 if ! "$PY" - "$BAK" << 'PY'
 import json, urllib.request, urllib.error, subprocess, pathlib, sys
 bak = sys.argv[1]
-base = "http://127.0.0.1:8000"
+base = "https://sailingsa.co.za"
 
 def call(method, path, body=None, cookie=None):
     data = None if body is None else json.dumps(body).encode()
