@@ -86,7 +86,7 @@
         if (!author) return author;
         var role = String(author.role || "").toLowerCase().replace(/[\s-]+/g, "_");
         var name = String(author.display_name || "").replace(/\s+/g, " ").trim().toLowerCase();
-        var admin = author.is_super_admin || role === "super_admin" || role === "superadmin" || name === "kevin weaving";
+        var admin = author.is_super_admin || role === "super_admin" || role === "superadmin" || name === "kevin weaving" || name === "admin";
         if (!admin) return author;
         return {
             account_id: author.account_id,
