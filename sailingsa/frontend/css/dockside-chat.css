@@ -680,3 +680,240 @@ screen and (max-width: 1023px) and (orientation: landscape) {
         margin-bottom: var(--dockside-space, 180px);
     }
 }
+
+/* Full discussions page. Landing card rules above stay as they are. */
+#dockside-page .dockside-page-bar {
+    min-height: 0;
+    margin-bottom: 8px;
+}
+
+#dockside-page h1 {
+    font-size: 16px;
+}
+
+#dockside-page .dockside-back {
+    margin: 0;
+}
+
+#dockside-page .dockside-back a,
+#dockside-page .dockside-note,
+#dockside-page .dockside-note a,
+#dockside-page .dockside-mini {
+    min-height: 0;
+}
+
+#dockside-page .dockside-back a {
+    color: #ff5a00;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+#dockside-page .dockside-note {
+    min-height: 0;
+    margin: 0 0 6px;
+    padding: 0;
+    font-size: 12px;
+}
+
+#dockside-page #dockside-search-form {
+    display: block;
+    margin: 0 0 8px;
+}
+
+#dockside-page #dockside-search {
+    display: block;
+    width: 100%;
+    height: 32px;
+    margin: 0;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: #f0f2f5;
+    color: #172b3a;
+    font: 13px/32px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#dockside-page .dockside-compose,
+#dockside-page .dockside-inline-reply {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    height: 36px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+}
+
+#dockside-page .dockside-compose input,
+#dockside-page .dockside-inline-reply input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    height: 32px;
+    margin: 0;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: #f0f2f5;
+    color: #172b3a;
+    font: 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    text-align: left;
+}
+
+#dockside-page .dockside-compose .dockside-post,
+#dockside-page .dockside-inline-reply .dockside-post {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    height: 28px;
+    min-height: 0;
+    margin: 0;
+    padding: 0 2px 0 4px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #ff5a00;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+#dockside-page .dockside-error:empty {
+    display: none;
+}
+
+#dockside-page .dockside-topic {
+    padding: 8px 0 4px;
+    border-top: 1px solid #e4e7ec;
+}
+
+#dockside-page .dockside-person {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+#dockside-page .dockside-person > div {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+#dockside-page .dockside-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 50%;
+    background: #001f3f;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    overflow: hidden;
+}
+
+#dockside-page .dockside-avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#dockside-page .dockside-avatar--me {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+    font-size: 9px;
+}
+
+#dockside-page .dockside-meta {
+    display: block;
+}
+
+#dockside-page .dockside-name,
+#dockside-page .dockside-time {
+    display: inline;
+}
+
+#dockside-page .dockside-name {
+    color: #001f3f;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+#dockside-page .dockside-time {
+    margin-left: 6px;
+    color: #98a2b3;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+#dockside-page .dockside-body {
+    display: block;
+    margin: 1px 0 0;
+    max-width: 100%;
+    color: #344054;
+    font-size: 13px;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+#dockside-page .dockside-actions,
+#dockside-page .dockside-reacts {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+#dockside-page .dockside-reacts {
+    margin-top: 0;
+}
+
+#dockside-page .dockside-reacts button,
+#dockside-page .dockside-actions .dockside-mini,
+#dockside-page .dockside-tools .dockside-mini {
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #65676b;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+#dockside-page .dockside-reacts button.is-mine {
+    color: #001f3f;
+}
+
+#dockside-page .dockside-tools {
+    margin: 2px 0 0 36px;
+}
+
+#dockside-page .dockside-reply {
+    margin: 6px 0 0 14px;
+    padding-left: 8px;
+    border-left: 2px solid #e4e7ec;
+}
+
+#dockside-page .dockside-comment {
+    margin: 0 0 8px;
+}
+
+#dockside-page .dockside-inline-hold {
+    margin: 4px 0 0 36px;
+}

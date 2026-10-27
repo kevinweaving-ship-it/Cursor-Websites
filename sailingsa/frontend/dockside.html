@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dockside Chat | SailingSA</title>
 <link rel="stylesheet" href="/css/main.css">
-<link rel="stylesheet" href="/css/dockside-chat.css?v=dockside12">
+<link rel="stylesheet" href="/css/dockside-chat.css?v=dockside13">
 </head>
 <body>
 <main class="container" id="dockside-page">
@@ -13,38 +13,20 @@
         <h1>Dockside Chat</h1>
         <p class="dockside-back"><a href="/">Home</a></p>
     </div>
-    <p id="dockside-me" class="dockside-empty"></p>
     <div id="dockside-notes"></div>
     <form id="dockside-search-form">
-        <label class="dockside-sr" for="dockside-search">Search topics</label>
+        <label class="dockside-sr" for="dockside-search">Search posts</label>
         <input id="dockside-search" type="search" placeholder="Search posts" maxlength="120" autocomplete="off">
-        <button type="submit">Search</button>
     </form>
-    <div class="dockside-sort" role="group" aria-label="Sort topics">
-        <button type="button" data-sort="updated">Updated</button>
-        <button type="button" data-sort="comments">Comments</button>
-    </div>
-    <div id="dockside-topic-list"></div>
-    <article id="dockside-thread" hidden>
-        <div class="dockside-page-bar">
-            <h2 id="dockside-thread-subject" class="dockside-kicker"></h2>
-            <button type="button" class="dockside-mini" id="dockside-mute">Mute</button>
-        </div>
-        <div id="dockside-thread-posts"></div>
-        <form class="dockside-compose" id="dockside-thread-form">
-            <label class="dockside-sr" for="dockside-thread-body">Comment</label>
-            <textarea id="dockside-thread-body" maxlength="2000" rows="2" placeholder="Write a comment"></textarea>
-            <button type="submit">Comment</button>
-        </form>
-    </article>
-    <form class="dockside-new" id="dockside-new-topic">
-        <h2 class="dockside-kicker">Start a discussion</h2>
-        <label for="dockside-new-body">First post</label>
-        <textarea id="dockside-new-body" maxlength="2000" rows="3" required></textarea>
-        <button type="submit">Start topic</button>
-        <p id="dockside-new-error" class="dockside-error" role="status"></p>
+    <form class="dockside-compose" id="dockside-new-topic">
+        <span class="dockside-avatar dockside-avatar--me" id="dockside-page-avatar" aria-hidden="true"></span>
+        <label class="dockside-sr" for="dockside-new-body">Write a post</label>
+        <input id="dockside-new-body" type="text" maxlength="2000" placeholder="Write a post" autocomplete="off">
+        <button type="submit" class="dockside-post">Post</button>
     </form>
+    <p id="dockside-new-error" class="dockside-error" role="status"></p>
+    <div id="dockside-feed"></div>
 </main>
-<script src="/js/dockside-chat.js?v=dockside14" defer></script>
+<script src="/js/dockside-chat.js?v=dockside15" defer></script>
 </body>
 </html>

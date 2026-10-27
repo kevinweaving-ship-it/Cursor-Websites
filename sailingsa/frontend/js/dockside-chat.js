@@ -738,35 +738,102 @@
         var q = search.get("q") || "";
         var topic = search.get("topic") || "";
         var searchInput = document.getElementById("dockside-search");
-        var list = document.getElementById("dockside-topic-list");
-        var thread = document.getElementById("dockside-thread");
-        var threadSubject = document.getElementById("dockside-thread-subject");
-        var threadPosts = document.getElementById("dockside-thread-posts");
-        var threadForm = document.getElementById("dockside-thread-form");
-        var threadBody = document.getElementById("dockside-thread-body");
-        var muteBtn = document.getElementById("dockside-mute");
+        var feed = document.getElementById("dockside-feed");
         var newForm = document.getElementById("dockside-new-topic");
-        var newSubject = document.getElementById("dockside-new-subject");
         var newBody = document.getElementById("dockside-new-body");
         var newError = document.getElementById("dockside-new-error");
         var notes = document.getElementById("dockside-notes");
-        var meLine = document.getElementById("dockside-me");
-        var parentId = null;
+        var pageAvatar = document.getElementById("dockside-page-avatar");
+        if (!feed || !searchInput || !newForm || !newBody) return;
         if (searchInput) searchInput.value = q;
 
         function writeUrl() {
             var next = new URLSearchParams();
             if (q) next.set("q", q);
-            if (sort) next.set("sort", sort);
-            if (dir) next.set("dir", dir);
             if (topic) next.set("topic", topic);
             history.replaceState(null, "", location.pathname + (next.toString() ? "?" + next.toString() : ""));
         }
 
-        function paintSort() {
-            document.querySelectorAll(".dockside-sort button").forEach(function (button) {
-                button.classList.toggle("is-active", button.getAttribute("data-sort") === sort);
+        function paintPageAvatar() {
+            if (!pageAvatar) return;
+            pageAvatar.textContent = "";
+            if (!me.signed_in) return;
+            var author = presentAuthor(me);
+            if (author && author.photo_url) {
+                var img = document.createElement("img");
+                img.alt = "";
+                img.src = author.photo_url;
+                img.addEventListener("error", function () {
+                    img.remove();
+                    pageAvatar.textContent = initials(author);
+                });
+                pageAvatar.appendChild(img);
+                return;
+            }
+            pageAvatar.textContent = initials(author);
+        }
+
+        function pageFace() {
+            var face = document.createElement("span");
+            face.className = "dockside-avatar dockside-avatar--me";
+            face.setAttribute("aria-hidden", "true");
+            if (!me.signed_in) return face;
+            var author = presentAuthor(me);
+            if (author && author.photo_url) {
+                var img = document.createElement("img");
+                img.alt = "";
+                img.src = author.photo_url;
+                face.appendChild(img);
+                return face;
+            }
+            face.textContent = initials(author);
+            return face;
+        }
+
+        function pageParts(posts) {
+            var list = (posts || []).slice().sort(function (a, b) {
+                var at = String(a.created_at || "");
+                var bt = String(b.created_at || "");
+                if (at < bt) return -1;
+                if (at > bt) return 1;
+                return (a.post_id || 0) - (b.post_id || 0);
             });
+            var byId = {};
+            list.forEach(function (post) { byId[post.post_id] = post; });
+            var originalPost = null;
+            list.forEach(function (post) {
+                if (!originalPost && !post.parent_post_id) originalPost = post;
+            });
+            function displayRoot(post) {
+                var cur = post;
+                var guard = 0;
+                while (cur && cur.parent_post_id && guard < 6) {
+                    guard += 1;
+                    var parent = byId[cur.parent_post_id];
+                    if (!parent) break;
+                    if (originalPost && parent.post_id === originalPost.post_id) return cur;
+                    if (!parent.parent_post_id) return parent;
+                    cur = parent;
+                }
+                return cur;
+            }
+            var roots = [];
+            var replies = {};
+            var seen = {};
+            list.forEach(function (post) {
+                if (seen[post.post_id]) return;
+                seen[post.post_id] = true;
+                if (originalPost && post.post_id === originalPost.post_id) return;
+                var rootPost = displayRoot(post);
+                if (!rootPost) return;
+                if (rootPost.post_id === post.post_id) {
+                    roots.push(post);
+                    return;
+                }
+                if (!replies[rootPost.post_id]) replies[rootPost.post_id] = [];
+                replies[rootPost.post_id].push(post);
+            });
+            return { originalPost: originalPost, roots: roots, replies: replies };
         }
 
         function loadNotes() {
@@ -788,128 +855,53 @@
             });
         }
 
-        function loadList() {
-            var path = "/api/dockside/topics?sort=" + encodeURIComponent(sort) + "&dir=" + encodeURIComponent(dir);
-            if (q) path += "&q=" + encodeURIComponent(q);
-            api(path).then(function (data) {
-                list.textContent = "";
-                if (!data || data._status !== 200) {
-                    var failed = document.createElement("p");
-                    failed.className = "dockside-error";
-                    failed.textContent = (data && data.detail) || "Topics could not be loaded";
-                    list.appendChild(failed);
-                    return;
-                }
-                var rows = data.topics || [];
-                if (!rows.length) {
-                    var empty = document.createElement("p");
-                    empty.className = "dockside-empty";
-                    empty.textContent = q ? "No topics match that search." : "No topics yet.";
-                    list.appendChild(empty);
-                    return;
-                }
-                rows.forEach(function (row) {
-                    var button = document.createElement("button");
-                    button.type = "button";
-                    button.className = "dockside-topic-row";
-                    var label = document.createElement("span");
-                    label.textContent = row.opening || row.subject || "";
-                    var meta = document.createElement("small");
-                    meta.textContent = String(row.comment_count || 0) + " · " + when(row.updated_at);
-                    button.appendChild(label);
-                    button.appendChild(meta);
-                    button.addEventListener("click", function () {
-                        topic = String(row.topic_id);
-                        writeUrl();
-                        loadThread();
-                    });
-                    list.appendChild(button);
-                });
+        function openInline(topicId, post, mount) {
+            if (!mount) return null;
+            var existing = page.querySelector(".dockside-inline-hold");
+            if (existing && existing.dataset.forPost === String(post.post_id)) {
+                existing.remove();
+                return null;
+            }
+            if (existing) existing.remove();
+            var shown = presentAuthor(post.author);
+            var hold = document.createElement("div");
+            hold.className = "dockside-inline-hold";
+            hold.dataset.forPost = String(post.post_id);
+            var inline = document.createElement("form");
+            inline.className = "dockside-inline-reply";
+            inline.action = "/dockside.html";
+            inline.method = "get";
+            var input = document.createElement("input");
+            input.type = "text";
+            input.maxLength = 2000;
+            input.placeholder = "Reply to " + ((shown && shown.display_name) || "sailor");
+            input.setAttribute("aria-label", input.placeholder);
+            input.autocomplete = "off";
+            var button = document.createElement("button");
+            button.type = "submit";
+            button.className = "dockside-post";
+            button.textContent = "Post";
+            inline.appendChild(pageFace());
+            inline.appendChild(input);
+            inline.appendChild(button);
+            hold.appendChild(inline);
+            mount.appendChild(hold);
+            inline.addEventListener("submit", function (event) {
+                event.preventDefault();
+                sendReply(topicId, post.post_id, (input.value || "").trim(), hold);
             });
+            input.focus();
+            return input;
         }
 
-        function loadThread() {
-            if (!topic) {
-                thread.hidden = true;
-                return;
-            }
-            api("/api/dockside/topics/" + encodeURIComponent(topic)).then(function (data) {
-                if (data._status === 404 || !data.topic_id) {
-                    thread.hidden = true;
-                    return;
-                }
-                thread.hidden = false;
-                if (threadSubject) threadSubject.hidden = true;
-                var muted = data.following && data.following.muted;
-                muteBtn.hidden = !me.signed_in;
-                muteBtn.textContent = muted ? "Unmute" : "Mute";
-                muteBtn.dataset.muted = muted ? "1" : "0";
-                renderPosts(data.posts, threadPosts, function (post) {
-                    parentId = post.post_id;
-                    threadBody.placeholder = "Reply";
-                    threadBody.focus();
-                }, true);
-                thread.scrollIntoView({ block: "nearest" });
-            });
-        }
-
-        document.querySelectorAll(".dockside-sort button").forEach(function (button) {
-            button.addEventListener("click", function () {
-                var next = button.getAttribute("data-sort");
-                if (sort === next) dir = dir === "asc" ? "desc" : "asc";
-                else {
-                    sort = next;
-                    dir = next === "subject" ? "asc" : "desc";
-                }
-                rememberSort(sort, dir);
-                paintSort();
-                writeUrl();
-                loadList();
-            });
-        });
-
-        document.getElementById("dockside-search-form").addEventListener("submit", function (event) {
-            event.preventDefault();
-            q = (searchInput.value || "").trim();
-            writeUrl();
-            loadList();
-        });
-        searchInput.addEventListener("input", function () {
-            q = (searchInput.value || "").trim();
-            if (q.length === 1) return;
-            writeUrl();
-            loadList();
-        });
-
-        muteBtn.addEventListener("click", function () {
-            if (!me.signed_in) {
-                goLogin(null);
-                return;
-            }
-            var muted = muteBtn.dataset.muted !== "1";
-            api("/api/dockside/topics/" + encodeURIComponent(topic) + "/follow", {
-                method: "POST",
-                body: JSON.stringify({ muted: muted })
-            }).then(function (data) {
-                if (data._status === 401) {
-                    goLogin(null);
-                    return;
-                }
-                muteBtn.dataset.muted = data.muted ? "1" : "0";
-                muteBtn.textContent = data.muted ? "Unmute" : "Mute";
-            });
-        });
-
-        threadForm.addEventListener("submit", function (event) {
-            event.preventDefault();
-            var body = (threadBody.value || "").trim();
-            if (!body || !topic) return;
-            var draft = { kind: "comment", topic_id: Number(topic), parent_post_id: parentId, body: body };
+        function sendReply(topicId, parentId, body, hold) {
+            if (!body || !topicId) return;
+            var draft = { kind: "comment", topic_id: Number(topicId), parent_post_id: parentId, body: body };
             if (!me.signed_in) {
                 goLogin(draft);
                 return;
             }
-            api("/api/dockside/topics/" + encodeURIComponent(topic) + "/posts", {
+            api("/api/dockside/topics/" + encodeURIComponent(topicId) + "/posts", {
                 method: "POST",
                 body: JSON.stringify({ body: body, parent_post_id: parentId })
             }).then(function (data) {
@@ -917,26 +909,127 @@
                     goLogin(draft);
                     return;
                 }
-                if (data._status !== 200) {
-                    newError.textContent = data.detail || "Comment was not saved";
+                if (!data || data._status !== 200) {
+                    var err = document.createElement("p");
+                    err.className = "dockside-error";
+                    err.textContent = (data && data.detail) || "Comment was not saved";
+                    hold.appendChild(err);
                     return;
                 }
                 clearDraft();
-                threadBody.value = "";
-                parentId = null;
-                threadBody.placeholder = "Write a comment";
-                loadThread();
-                loadList();
+                loadFeed();
                 loadNotes();
             });
+        }
+
+        function renderTopic(detail) {
+            var block = document.createElement("section");
+            block.className = "dockside-topic";
+            block.id = "dockside-topic-" + detail.topic_id;
+            var parts = pageParts(detail.posts);
+            function onReply(post, mount) {
+                openInline(detail.topic_id, post, mount);
+            }
+            if (parts.originalPost) block.appendChild(cardPost(parts.originalPost, [], onReply));
+            parts.roots.forEach(function (comment) {
+                block.appendChild(cardPost(comment, parts.replies[comment.post_id] || [], onReply));
+            });
+            if (me.signed_in) {
+                var tools = document.createElement("div");
+                tools.className = "dockside-tools";
+                var mute = document.createElement("button");
+                mute.type = "button";
+                mute.className = "dockside-mini";
+                var muted = detail.following && detail.following.muted;
+                mute.textContent = muted ? "Unmute" : "Mute";
+                mute.addEventListener("click", function () {
+                    var next = mute.textContent !== "Unmute";
+                    api("/api/dockside/topics/" + encodeURIComponent(detail.topic_id) + "/follow", {
+                        method: "POST",
+                        body: JSON.stringify({ muted: next })
+                    }).then(function (data) {
+                        if (data._status === 401) {
+                            goLogin(null);
+                            return;
+                        }
+                        mute.textContent = data.muted ? "Unmute" : "Mute";
+                    });
+                });
+                tools.appendChild(mute);
+                block.appendChild(tools);
+            }
+            return block;
+        }
+
+        function loadFeed() {
+            var path = "/api/dockside/topics?sort=" + encodeURIComponent(sort) + "&dir=" + encodeURIComponent(dir);
+            if (q) path += "&q=" + encodeURIComponent(q);
+            api(path).then(function (data) {
+                feed.textContent = "";
+                if (!data || data._status !== 200) {
+                    var failed = document.createElement("p");
+                    failed.className = "dockside-error";
+                    failed.textContent = (data && data.detail) || "Posts could not be loaded";
+                    feed.appendChild(failed);
+                    return;
+                }
+                var rows = data.topics || [];
+                if (!rows.length) {
+                    var empty = document.createElement("p");
+                    empty.className = "dockside-empty";
+                    empty.textContent = q ? "No posts match that search." : "No posts yet.";
+                    feed.appendChild(empty);
+                    return;
+                }
+                Promise.all(rows.map(function (row) {
+                    return api("/api/dockside/topics/" + encodeURIComponent(row.topic_id));
+                })).then(function (details) {
+                    feed.textContent = "";
+                    details.forEach(function (detail) {
+                        if (!detail || detail._status === 404 || !detail.topic_id) return;
+                        feed.appendChild(renderTopic(detail));
+                    });
+                    if (!feed.children.length) {
+                        var missing = document.createElement("p");
+                        missing.className = "dockside-empty";
+                        missing.textContent = "No posts yet.";
+                        feed.appendChild(missing);
+                        return;
+                    }
+                    if (topic) {
+                        var focus = document.getElementById("dockside-topic-" + topic);
+                        if (focus) focus.scrollIntoView({ block: "start" });
+                    }
+                    restoreDraft();
+                }).catch(function () {
+                    feed.textContent = "";
+                    var failed = document.createElement("p");
+                    failed.className = "dockside-error";
+                    failed.textContent = "Posts could not be loaded";
+                    feed.appendChild(failed);
+                });
+            });
+        }
+
+        document.getElementById("dockside-search-form").addEventListener("submit", function (event) {
+            event.preventDefault();
+            q = (searchInput.value || "").trim();
+            writeUrl();
+            loadFeed();
+        });
+        searchInput.addEventListener("input", function () {
+            q = (searchInput.value || "").trim();
+            if (q.length === 1) return;
+            writeUrl();
+            loadFeed();
         });
 
         newForm.addEventListener("submit", function (event) {
             event.preventDefault();
-            newError.textContent = "";
+            if (newError) newError.textContent = "";
             var body = (newBody.value || "").trim();
             if (!body) {
-                newError.textContent = "Write the first post.";
+                if (newError) newError.textContent = "Write a post.";
                 return;
             }
             var draft = { kind: "topic", body: body };
@@ -953,38 +1046,41 @@
                     return;
                 }
                 if (data._status !== 200) {
-                    newError.textContent = data.detail || "Topic was not saved";
+                    if (newError) newError.textContent = data.detail || "Post was not saved";
                     return;
                 }
                 clearDraft();
-                if (newSubject) newSubject.value = "";
                 newBody.value = "";
                 topic = String(data.topic_id);
                 writeUrl();
-                loadList();
-                loadThread();
+                loadFeed();
+                loadNotes();
             });
         });
 
-        var draft = readDraft();
-        if (draft && draft.kind === "topic") {
-            if (newSubject) newSubject.value = "";
-            newBody.value = draft.body || "";
+        function restoreDraft() {
+            var draft = readDraft();
+            if (!draft) return;
+            if (draft.kind === "topic") {
+                newBody.value = draft.body || "";
+                return;
+            }
+            if (draft.kind !== "comment" || !draft.topic_id || !draft.parent_post_id) return;
+            var mount = feed.querySelector('#dockside-topic-' + draft.topic_id + ' [data-post-id="' + draft.parent_post_id + '"]');
+            if (!mount) return;
+            var posts = mount.closest(".dockside-topic");
+            if (!posts) return;
+            var nameNode = mount.querySelector(".dockside-name");
+            var input = openInline(draft.topic_id, {
+                post_id: draft.parent_post_id,
+                author: { display_name: nameNode ? nameNode.textContent : "sailor" }
+            }, mount);
+            if (input) input.value = draft.body || "";
         }
-        if (draft && draft.kind === "comment" && draft.topic_id) {
-            topic = topic || String(draft.topic_id);
-            threadBody.value = draft.body || "";
-            parentId = draft.parent_post_id || null;
-        }
-        if (meLine) {
-            meLine.textContent = me.signed_in
-                ? ("Signed in as " + ((presentAuthor(me) && presentAuthor(me).display_name) || "sailor"))
-                : "Sign in to start a topic or reply. Your draft is kept.";
-        }
-        paintSort();
+
+        paintPageAvatar();
         writeUrl();
-        loadList();
-        loadThread();
+        loadFeed();
         loadNotes();
     }
 
