@@ -157,6 +157,27 @@ def apply_schema(conn) -> None:
         );
         CREATE INDEX IF NOT EXISTS dockside_topics_updated_idx
             ON public.dockside_topics (updated_at DESC) WHERE status = 'open';
+        DELETE FROM public.dockside_notifications n
+        WHERE NOT EXISTS (
+            SELECT 1 FROM public.dockside_posts p WHERE p.post_id = n.post_id
+        );
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'dockside_notifications_post_fk'
+            ) THEN
+                ALTER TABLE public.dockside_notifications
+                    ADD CONSTRAINT dockside_notifications_post_fk
+                    FOREIGN KEY (post_id) REFERENCES public.dockside_posts(post_id) ON DELETE CASCADE;
+            END IF;
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'dockside_notifications_topic_fk'
+            ) THEN
+                ALTER TABLE public.dockside_notifications
+                    ADD CONSTRAINT dockside_notifications_topic_fk
+                    FOREIGN KEY (topic_id) REFERENCES public.dockside_topics(topic_id) ON DELETE CASCADE;
+            END IF;
+        END $$;
         """
     )
     cur.close()
