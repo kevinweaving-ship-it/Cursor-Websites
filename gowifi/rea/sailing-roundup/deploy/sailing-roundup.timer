@@ -1,8 +1,8 @@
 [Unit]
-Description=Monday Sailing Weekend Roundup publication
+Description=Daily Sailing Weekend Roundup publication
 
 [Timer]
-OnCalendar=Mon *-*-* 06:00:00
+OnCalendar=*-*-* 06:00:00 Africa/Johannesburg
 Persistent=true
 RandomizedDelaySec=90
 AccuracySec=1min

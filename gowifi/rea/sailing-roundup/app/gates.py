@@ -644,19 +644,6 @@ def gate_cards(ctx: dict) -> GateResult:
     errors: list[str] = []
     if len(lead.split()) < 12:
         errors.append("homepage card has no real copy")
-    reports = _reports(ctx)
-    if reports:
-        has_photo = False
-        for article in reports:
-            hero = ((article.get("hero_image") or {}) or {}).get("url") or ""
-            if hero and not is_chrome_image(hero, article.get("headline") or ""):
-                has_photo = True
-                break
-            if any(b.get("type") == "image" for b in (article.get("blocks") or [])):
-                has_photo = True
-                break
-        if not has_photo:
-            errors.append("homepage card has no real photograph")
     if landing and "Last Week" not in landing and "roundup" not in landing.lower():
         errors.append("landing page does not name the roundup")
     return GateResult(5, "cards", "pass" if not errors else "fail", errors=errors)

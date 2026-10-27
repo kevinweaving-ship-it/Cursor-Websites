@@ -382,7 +382,8 @@ def unlisted_event_names(events,covered):
 def feature(issue,monday,events,articles):
     from events_weekend import saturday_sunday
     sat,sun=saturday_sunday(monday)
-    reports=sorted([a for a in articles if a.get("type")=="regatta_report"],key=_article_entries,reverse=True)
+    from media_policy import local_report_rank
+    reports=sorted([a for a in articles if a.get("type")=="regatta_report"],key=local_report_rank,reverse=True)
     date_line=f"{sat.day}–{sun.strftime('%-d %B %Y')}"
     paragraphs=[]
     hero=None
