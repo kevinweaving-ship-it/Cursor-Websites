@@ -39,13 +39,19 @@
         if (draft) {
             try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (err) {}
         }
-        try { sessionStorage.setItem("auth_returnTo", window.location.href); } catch (err) {}
-        var headerBtn = document.getElementById("blank69HubSignInOnly");
-        if (headerBtn) {
-            headerBtn.click();
+        if (typeof sailingHandleHeaderSignUp === "function") {
+            sailingHandleHeaderSignUp();
             return;
         }
-        window.location.href = (window.location.origin || "") + "/login.html";
+        var signUpBtn = document.getElementById("authSignUpBtn");
+        if (signUpBtn) {
+            signUpBtn.click();
+            return;
+        }
+        var here = "";
+        try { here = window.location.href || ""; } catch (err) {}
+        try { sessionStorage.setItem("auth_returnTo", here); } catch (err2) {}
+        window.location.href = (window.location.origin || "") + "/signup.html?signup=1&returnTo=" + encodeURIComponent(here);
     }
 
     function readDraft() {
