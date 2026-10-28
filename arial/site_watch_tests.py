@@ -6,8 +6,19 @@ import site_watch as sw
 def test_compose_olarm_offline_headline():
     text = sw.compose_olarm({"label": "Hansekop", "url": "https://sailingsa.co.za/arial/"}, "down", 1792552587)
     assert text.splitlines()[1] == "Olarm Offline"
-    assert "Heartbeat fail" in text
+    assert "Olarm server / comms offline" in text
+    assert "by SERVER" in text
+    assert "not AC / power" in text
+    assert "AC loss" not in text
     assert "https://sailingsa.co.za/arial/" in text
+
+
+def test_compose_olarm_online_not_power():
+    text = sw.compose_olarm({"label": "Hansekop"}, "up", 1792552587)
+    assert text.splitlines()[1] == "Olarm Online"
+    assert "Olarm server / comms restored" in text
+    assert "not a power event" in text
+    assert "AC loss" not in text
 
 
 def test_compose_tuya_fail_headline():

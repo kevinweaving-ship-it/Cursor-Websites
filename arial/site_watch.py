@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Cloud-side heartbeat watch: Olarm Offline + Tuya reporting fail.
 
-If mains is down and the panel battery is dead, Olarm cannot send an AC-loss event.
-The communicator just stops — that must be reported as "Olarm Offline" (SMS + WhatsApp).
+Olarm Offline means Olarm reported the site communicator offline (deviceStatus / stale
+heartbeat) — same class of event the Olarm app shows as OFFLINE "by SERVER".
+That is not mains AC and not the Tuya power meter. Power/AC stay on the site URL and
+in separate Olarm AC-loss events. WA/SMS must say server/comms so nobody treats it as
+a power fault.
 
 Tuya meter ingest must never go silent. A stale/stopped sharing worker is reported as
 "Tuya reporting fail" so it can be investigated.
@@ -133,14 +136,18 @@ def admin_targets(cfg: dict) -> list[tuple[str, str]]:
 def compose_olarm(cfg: dict, kind: str, last_seen: float | None) -> str:
     label = cfg.get("label") or "Site"
     if kind == "up":
-        lines = [f"{label} {fmt_when()}", "Olarm Online", "Heartbeat restored"]
+        lines = [
+            f"{label} {fmt_when()}",
+            "Olarm Online",
+            "Olarm server / comms restored — not a power event",
+        ]
         if last_seen:
             lines.append(f"Back since {fmt_when_long(last_seen)}")
     else:
         lines = [
             f"{label} {fmt_when()}",
             "Olarm Offline",
-            "Heartbeat fail — AC loss will not send if the panel is dead",
+            "Olarm server / comms offline (by SERVER) — not AC / power",
             f"Last seen {fmt_when_long(last_seen)}",
         ]
     if cfg.get("url"):
