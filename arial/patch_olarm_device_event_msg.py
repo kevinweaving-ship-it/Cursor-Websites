@@ -14,7 +14,18 @@ if "Use Olarm's eventMsg verbatim" in text:
 bak = p.with_suffix(p.suffix + ".bak_olarm_msg_" + time.strftime("%Y%m%dT%H%M%SZ"))
 bak.write_text(text, encoding="utf-8")
 
-old = """    state_lab = _event_state_label(str(event.get("eventState") or ""))
+# Live aerialnet uses _arial_event_credit; repo may differ — match either shape.
+candidates = [
+    """    state_lab = _event_state_label(str(event.get("eventState") or ""))
+    if action.lower() in DEVICE_EVENT_ACTIONS:
+        label = "Olarm Offline" if str(event.get("eventState") or "").lower() == "offline" else "Olarm Online"
+    elif tab == "power" and msg:
+        label = msg
+    time_s, date_s = _sa_stamp(event.get("eventTime"))
+    actor, via = _arial_event_credit(tab, event, device)
+    activity = _activity_line(label, state_lab, actor, via)
+""",
+    """    state_lab = _event_state_label(str(event.get("eventState") or ""))
     if action.lower() in DEVICE_EVENT_ACTIONS:
         label = "Olarm Offline" if str(event.get("eventState") or "").lower() == "offline" else "Olarm Online"
     elif tab == "power" and msg:
@@ -31,9 +42,28 @@ old = """    state_lab = _event_state_label(str(event.get("eventState") or ""))
         else:
             via = "Panel"     # disarmed at the physical panel keypad
     activity = _activity_line(label, state_lab, actor, via)
+""",
+]
+
+new_credit = """    state_lab = _event_state_label(str(event.get("eventState") or ""))
+    if action.lower() in DEVICE_EVENT_ACTIONS:
+        # Use Olarm's eventMsg verbatim (e.g. "OFFLINE - Arial - Hansekop"). Do not invent titles.
+        label = msg or state_lab or action
+        state_lab = ""  # already present in eventMsg
+    elif tab == "power" and msg:
+        label = msg
+    time_s, date_s = _sa_stamp(event.get("eventTime"))
+    actor, via = _arial_event_credit(tab, event, device)
+    if action.lower() in DEVICE_EVENT_ACTIONS and not str(event.get("userFullname") or "").strip():
+        # Olarm App shows these as "by SERVER" when there is no user on the device event.
+        via = "SERVER"
+    if action.lower() in DEVICE_EVENT_ACTIONS and via:
+        activity = f"{label} · by {via}" if not str(via).lower().startswith("by ") else f"{label} · {via}"
+    else:
+        activity = _activity_line(label, state_lab, actor, via)
 """
 
-new = """    state_lab = _event_state_label(str(event.get("eventState") or ""))
+new_actor = """    state_lab = _event_state_label(str(event.get("eventState") or ""))
     if action.lower() in DEVICE_EVENT_ACTIONS:
         # Use Olarm's eventMsg verbatim (e.g. "OFFLINE - Arial - Hansekop"). Do not invent titles.
         label = msg or state_lab or action
@@ -60,7 +90,10 @@ new = """    state_lab = _event_state_label(str(event.get("eventState") or ""))
         activity = _activity_line(label, state_lab, actor, via)
 """
 
-if old not in text:
-    raise SystemExit("format_olarm_event block not found on live")
-p.write_text(text.replace(old, new, 1), encoding="utf-8")
-print("patched", p, "backup", bak)
+for old, new in ((candidates[0], new_credit), (candidates[1], new_actor)):
+    if old in text:
+        p.write_text(text.replace(old, new, 1), encoding="utf-8")
+        print("patched", p, "backup", bak)
+        raise SystemExit(0)
+
+raise SystemExit("format_olarm_event block not found on live")
