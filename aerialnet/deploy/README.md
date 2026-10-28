@@ -27,4 +27,4 @@ GOWIFI_SSH_KEY=~/.ssh/your_key bash aerialnet/deploy/deploy-to-gowifi-box.sh
 
 On the box, tokens live in `/etc/aerialnet-olarm.env` and `/etc/aerialnet-tuya.env` (copied from Sailing when reachable; never commit them).
 
-GoWifi **client login** + **admin /dash** publish for REA: `aerialnet/deploy/GOWIFI_WEB_DEPLOY.md` (live copy `/opt/rea/ops/GOWIFI_WEB_DEPLOY.md`). Verb: `rea-ops deploy gowifi-web`.
+GoWifi **homepage**, **client login**, **admin /dash**, and **gowifi-auth** publish for REA: `aerialnet/deploy/GOWIFI_WEB_DEPLOY.md` (live copy `/opt/rea/ops/GOWIFI_WEB_DEPLOY.md`). Verbs: `rea-ops deploy gowifi-home`, `gowifi-web`, `gowifi-auth`.
