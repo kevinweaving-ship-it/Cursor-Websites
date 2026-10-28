@@ -3092,13 +3092,18 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
         label = msg or action or "Event"
     state_lab = _event_state_label(str(event.get("eventState") or ""))
     if action.lower() in DEVICE_EVENT_ACTIONS:
-        label = "Olarm Offline" if str(event.get("eventState") or "").lower() == "offline" else "Olarm Online"
+        # Use Olarm's eventMsg verbatim (e.g. "OFFLINE - Arial - Hansekop"). Do not invent titles.
+        label = msg or state_lab or action
+        state_lab = ""  # already present in eventMsg
     elif tab == "power" and msg:
         label = msg
     time_s, date_s = _sa_stamp(event.get("eventTime"))
     actor = _arial_event_actor(tab, event, device)
     via = _activity_via(actor)
-    if not actor and tab == "areas" and str(event.get("eventState") or "").lower() in {"arm", "disarm", "stay", "sleep"}:
+    if action.lower() in DEVICE_EVENT_ACTIONS and not str(event.get("userFullname") or "").strip():
+        # Olarm App shows these as "by SERVER" when there is no user on the device event.
+        via = "SERVER"
+    elif not actor and tab == "areas" and str(event.get("eventState") or "").lower() in {"arm", "disarm", "stay", "sleep"}:
         # No keypad user matched: it came from the Olarm app / panel. Show the source, never the Olarm account name.
         if str(event.get("userFullname") or "").strip():
             via = "App"
@@ -3106,7 +3111,10 @@ def format_olarm_event(event: dict[str, Any], device: dict[str, Any] | None = No
             via = "Auto"      # no user at all: the panel's own auto-arm schedule
         else:
             via = "Panel"     # disarmed at the physical panel keypad
-    activity = _activity_line(label, state_lab, actor, via)
+    if action.lower() in DEVICE_EVENT_ACTIONS and via:
+        activity = f"{label} · by {via}" if not str(via).lower().startswith("by ") else f"{label} · {via}"
+    else:
+        activity = _activity_line(label, state_lab, actor, via)
     return {
         "tab": tab,
         "time": time_s,

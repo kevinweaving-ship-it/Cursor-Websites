@@ -3,11 +3,33 @@ import time
 import site_watch as sw
 
 
-def test_compose_olarm_offline_headline():
-    text = sw.compose_olarm({"label": "Hansekop", "url": "https://sailingsa.co.za/arial/"}, "down", 1792552587)
-    assert text.splitlines()[1] == "Olarm Offline"
-    assert "Heartbeat fail" in text
-    assert "https://sailingsa.co.za/arial/" in text
+def test_compose_olarm_uses_olarm_event_msg():
+    ev = {"msg": "OFFLINE - Arial - Hansekop", "state": "OFFLINE", "olarmUser": ""}
+    text = sw.compose_olarm(
+        {"label": "Hansekop", "url": "https://aerialnet.co.za/hansekop/"},
+        "down",
+        1792552587,
+        ev,
+    )
+    assert text.splitlines()[1] == "OFFLINE - Arial - Hansekop"
+    assert text.splitlines()[2] == "by SERVER"
+    assert "AC loss" not in text
+    assert "Heartbeat" not in text
+    assert "https://aerialnet.co.za/hansekop/" in text
+
+
+def test_compose_olarm_online_uses_olarm_event_msg():
+    ev = {"msg": "ONLINE - Arial - Hansekop", "state": "ONLINE"}
+    text = sw.compose_olarm({"label": "Hansekop"}, "up", 1792552587, ev)
+    assert text.splitlines()[1] == "ONLINE - Arial - Hansekop"
+    assert text.splitlines()[2] == "by SERVER"
+    assert "power event" not in text
+    assert "AC loss" not in text
+
+
+def test_olarm_device_via_prefers_olarm_user():
+    assert sw.olarm_device_via({"olarmUser": "Kevin"}) == "by Kevin"
+    assert sw.olarm_device_via({}) == "by SERVER"
 
 
 def test_compose_tuya_fail_headline():

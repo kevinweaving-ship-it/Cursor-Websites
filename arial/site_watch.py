@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Cloud-side heartbeat watch: Olarm Offline + Tuya reporting fail.
+"""Cloud-side heartbeat watch: Olarm device offline/online + Tuya reporting fail.
 
-If mains is down and the panel battery is dead, Olarm cannot send an AC-loss event.
-The communicator just stops — that must be reported as "Olarm Offline" (SMS + WhatsApp).
+WhatsApp text for Olarm link loss must use Olarm's own words only:
+  eventMsg  e.g. "OFFLINE - Arial - Hansekop" / "ONLINE - Arial - Hansekop"
+  by SERVER   (Olarm App attribution when userFullname is empty on device events)
+
+Do not invent heartbeat/AC-loss copy. Power faults are separate Olarm power events
+and arialPower on the site URL.
 
 Tuya meter ingest must never go silent. A stale/stopped sharing worker is reported as
 "Tuya reporting fail" so it can be investigated.
@@ -130,19 +134,71 @@ def admin_targets(cfg: dict) -> list[tuple[str, str]]:
     return out
 
 
-def compose_olarm(cfg: dict, kind: str, last_seen: float | None) -> str:
+def olarm_device_msg(event: dict | None, kind: str) -> str:
+    """Exact Olarm eventMsg, or Olarm's state word only — never invented prose."""
+    ev = event if isinstance(event, dict) else {}
+    msg = str(ev.get("msg") or ev.get("eventMsg") or ev.get("title") or "").strip()
+    if msg:
+        return msg
+    state = str(ev.get("state") or ev.get("eventState") or "").strip().upper()
+    if state in {"OFFLINE", "ONLINE"}:
+        return state
+    return "ONLINE" if kind == "up" else "OFFLINE"
+
+
+def olarm_device_via(event: dict | None) -> str:
+    """Match Olarm App: device online/offline with no user → by SERVER."""
+    ev = event if isinstance(event, dict) else {}
+    user = str(ev.get("olarmUser") or ev.get("userFullname") or ev.get("user") or "").strip()
+    if user:
+        return f"by {user}"
+    via = str(ev.get("via") or "").strip()
+    if via:
+        return via if via.lower().startswith("by ") else f"by {via}"
+    return "by SERVER"
+
+
+def latest_olarm_device_event(cfg: dict, want: str) -> dict:
+    """Newest device online/offline row from /api/arial/activity (Olarm-sourced)."""
+    want = (want or "").strip().lower()
+    try:
+        act = get(f"{cfg['api']}/api/arial/activity", timeout=12)
+    except Exception:  # noqa: BLE001
+        return {}
+    for row in act.get("events") or []:
+        if not isinstance(row, dict):
+            continue
+        action = str(row.get("action") or row.get("eventAction") or "").strip().lower()
+        state = str(row.get("state") or row.get("eventState") or "").strip().lower()
+        msg = str(row.get("msg") or row.get("eventMsg") or "").strip().upper()
+        is_device = action == "device" or msg.startswith("OFFLINE") or msg.startswith("ONLINE")
+        if not is_device:
+            continue
+        if want == "up" and (state == "online" or msg.startswith("ONLINE")):
+            return row
+        if want == "down" and (state == "offline" or msg.startswith("OFFLINE")):
+            return row
+        if not want:
+            return row
+    return {}
+
+
+def compose_olarm(
+    cfg: dict,
+    kind: str,
+    last_seen: float | None,
+    event: dict | None = None,
+) -> str:
     label = cfg.get("label") or "Site"
-    if kind == "up":
-        lines = [f"{label} {fmt_when()}", "Olarm Online", "Heartbeat restored"]
-        if last_seen:
-            lines.append(f"Back since {fmt_when_long(last_seen)}")
-    else:
-        lines = [
-            f"{label} {fmt_when()}",
-            "Olarm Offline",
-            "Heartbeat fail — AC loss will not send if the panel is dead",
-            f"Last seen {fmt_when_long(last_seen)}",
-        ]
+    lines = [
+        f"{label} {fmt_when()}",
+        olarm_device_msg(event, kind),
+        olarm_device_via(event),
+    ]
+    if kind == "up" and last_seen:
+        lines.append(f"Back since {fmt_when_long(last_seen)}")
+    elif kind != "up" and last_seen:
+        lines.append(f"Last seen {fmt_when_long(last_seen)}")
     if cfg.get("url"):
         lines.append(cfg["url"])
     return "\n".join(lines)
@@ -316,10 +372,12 @@ def check_olarm(site: str, cfg: dict, watch: dict) -> None:
     now = time.time()
     edge = _edge(st, olarm_down(panel, last_seen, now), now)
     if edge == "down" or edge == "nag":
-        if deliver(cfg, site, "olarm-offline", compose_olarm(cfg, "down", last_seen)):
+        ev = latest_olarm_device_event(cfg, "down")
+        if deliver(cfg, site, "olarm-offline", compose_olarm(cfg, "down", last_seen, ev)):
             mark_sent(st, now)
     elif edge == "up":
-        if deliver(cfg, site, "olarm-online", compose_olarm(cfg, "up", time.time())):
+        ev = latest_olarm_device_event(cfg, "up")
+        if deliver(cfg, site, "olarm-online", compose_olarm(cfg, "up", time.time(), ev)):
             mark_sent(st, now)
     watch.setdefault("olarm", {})[site] = st
 

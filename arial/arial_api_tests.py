@@ -100,7 +100,9 @@ def test_olarm_power_fault_and_event_tabs():
         {"eventAction": "device", "eventState": "offline", "eventMsg": "OFFLINE - Arial - Hansekop", "eventTime": 1792553052772},
         arial_api.enrich_device(SAMPLE),
     )
-    assert offline["title"] == "Olarm Offline"
+    assert offline["title"] == "OFFLINE - Arial - Hansekop"
+    assert offline["via"] == "SERVER"
+    assert "by SERVER" in offline["activity"]
     assert offline["tab"] == "power"
 
 
