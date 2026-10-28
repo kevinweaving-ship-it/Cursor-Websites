@@ -1,0 +1,7 @@
+[Unit]
+Description=Restore Aerialnet nginx API include if Mail-in-a-Box dropped it
+After=nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/keep-aerialnet-nginx-include.sh
