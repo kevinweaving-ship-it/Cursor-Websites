@@ -121,3 +121,6 @@ tokens, or `/etc/gowifi-auth.env` in chat, command arguments, or logs.
 - MIAB `local.conf` is not patched
 - Live files are copied to `/opt/rea/ops/backups/` before replace
 - Only `gowifi-auth` was added to helper control; other units unchanged
+
+Billing deploy / rebuild / read-only QB fetch is a separate runbook:
+`aerialnet/deploy/GOWIFI_BILLING_DEPLOY.md`.
