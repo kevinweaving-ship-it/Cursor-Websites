@@ -28,3 +28,5 @@ GOWIFI_SSH_KEY=~/.ssh/your_key bash aerialnet/deploy/deploy-to-gowifi-box.sh
 On the box, tokens live in `/etc/aerialnet-olarm.env` and `/etc/aerialnet-tuya.env` (copied from Sailing when reachable; never commit them).
 
 GoWifi **homepage**, **client login**, **admin /dash**, and **gowifi-auth** publish for REA: `aerialnet/deploy/GOWIFI_WEB_DEPLOY.md` (live copy `/opt/rea/ops/GOWIFI_WEB_DEPLOY.md`). Verbs: `rea-ops deploy gowifi-home`, `gowifi-web`, `gowifi-auth`.
+
+GoWifi **billing reconciliation** (Clients / Accounts / Invoices, read-only QuickBooks delta): `aerialnet/deploy/GOWIFI_BILLING_DEPLOY.md` (live copy `/opt/rea/ops/GOWIFI_BILLING_DEPLOY.md`). Verbs: `rea-ops deploy gowifi-billing`, `rebuild gowifi-billing`, `qb-fetch`, `rollback <backup_id>`. Does not write to QuickBooks.
