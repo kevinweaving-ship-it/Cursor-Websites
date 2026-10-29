@@ -918,23 +918,82 @@ screen and (max-width: 1023px) and (orientation: landscape) {
     margin: 4px 0 0 36px;
 }
 
-#dockside-landing .dockside-roundup-link,
-#dockside-landing .dockside-at-link,
-#dockside-page .dockside-at-link {
-    display: inline;
-    margin: 0;
-    color: #0b57d0;
-    font-size: inherit;
-    font-weight: 700;
-    line-height: inherit;
-    text-decoration: underline;
+#dockside-landing .dockside-roundup-link {
+    display: none !important;
 }
 
-#dockside-landing .dockside-roundup-link {
+#dockside-landing .dockside-at-link,
+#dockside-page .dockside-at-link,
+#dockside-landing .dockside-at-heading,
+#dockside-page .dockside-at-heading,
+#dockside-landing .dockside-at-chip,
+body.weekly-roundup-edition .dockside-at-heading {
     display: inline-block;
-    margin: 0 0 6px;
-    font-size: 13px;
-    line-height: 1.3;
+    margin: 0;
+    color: #0b57d0;
+    font: 700 11px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    text-decoration: none;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: baseline;
+}
+
+#dockside-landing .dockside-at-heading,
+#dockside-page .dockside-at-heading,
+body.weekly-roundup-edition .dockside-at-heading {
+    display: block;
+    margin: 0 0 2px;
+    font-size: 11px;
+    line-height: 1.25;
+}
+
+#dockside-landing .dockside-compose-field,
+#dockside-page .dockside-compose-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 32px;
+    margin: 0;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: #f0f2f5;
+    box-sizing: border-box;
+}
+
+#dockside-landing .dockside-compose-field .dockside-at-chip,
+#dockside-page .dockside-compose-field .dockside-at-chip {
+    flex: 0 1 auto;
+    max-width: 38%;
+    margin: 0;
+    padding: 0;
+    color: #0b57d0;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+    pointer-events: none;
+    user-select: none;
+    cursor: default;
+}
+
+#dockside-landing .dockside-compose-field input,
+#dockside-page .dockside-compose-field input {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 32px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 16px;
 }
 
 #dockside-landing .dockside-public-toggle,

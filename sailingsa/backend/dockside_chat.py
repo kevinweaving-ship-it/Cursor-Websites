@@ -802,6 +802,73 @@ def _roundup_targets(cur, body: str, issue_key=None, headline=None, parent_id=No
     return found
 
 
+def _text_after_roundup_tags(cur, body: str, issue_key=None, headline=None) -> str:
+    """Body with leading Roundup @matching tags removed."""
+    text = (body or "").strip()
+    tags = []
+    if headline:
+        key = None
+        try:
+            key = _issue_key(issue_key) if issue_key else None
+        except DocksideError:
+            key = None
+        tags.append("@" + _compact_headline(headline, key or "1970-01-01"))
+    cur.execute(
+        """
+        SELECT subject
+        FROM public.dockside_topics
+        WHERE issue_key IS NOT NULL AND status = 'open'
+        """
+    )
+    for row in cur.fetchall():
+        subject = str(row["subject"] or "").strip()
+        if subject:
+            tags.append("@" + subject)
+    tags = sorted(set(tags), key=len, reverse=True)
+    changed = True
+    while changed and text:
+        changed = False
+        lower = text.lower()
+        for tag in tags:
+            if lower.startswith(tag.lower()):
+                text = text[len(tag):].lstrip(" \t-–—:")
+                changed = True
+                break
+    return text.strip()
+
+
+def _assert_roundup_has_comment(cur, body: str, issue_key=None, headline=None, targets=None):
+    """Refuse @-only posts so we never create a bare Roundup heading."""
+    tagged = bool(issue_key or headline or targets)
+    if not tagged:
+        rest = _text_after_roundup_tags(cur, body, issue_key, headline)
+        if (body or "").strip().startswith("@") and rest != (body or "").strip() and not rest:
+            raise DocksideError(400, "Write a comment after @")
+        return
+    if not _text_after_roundup_tags(cur, body, issue_key, headline):
+        raise DocksideError(400, "Write a comment after @")
+
+
+def _existing_roundup_root(cur, topic_id: int, issue_key: str):
+    """First top-level post in this Dockside topic already mirrored to the Roundup."""
+    cur.execute(
+        """
+        SELECT p.post_id
+        FROM public.dockside_posts p
+        JOIN public.dockside_roundup_mirrors m
+          ON m.source_post_id = p.post_id AND m.issue_key = %s
+        WHERE p.topic_id = %s
+          AND p.parent_post_id IS NULL
+          AND p.status = 'visible'
+        ORDER BY p.created_at ASC, p.post_id ASC
+        LIMIT 1
+        """,
+        (issue_key, int(topic_id)),
+    )
+    row = cur.fetchone()
+    return int(row["post_id"]) if row else None
+
+
 def _mirror_roundup_post(cur, account, visitor_id, source_post_id, body, parent_id, issue_key, headline):
     cur.execute(
         "SELECT 1 FROM public.dockside_roundup_mirrors WHERE source_post_id = %s AND issue_key = %s",
@@ -898,6 +965,16 @@ def add_post(conn, account, topic_id: int, body, parent_post_id, visitor_id=None
         if not parent or parent["status"] != "visible":
             raise DocksideError(400, "Reply target is not on this topic")
         parent_id = parent["post_id"]
+    topic_issue = _topic_issue_key(cur, topic_id)
+    targets = [] if topic_issue else _roundup_targets(cur, body, issue_key, headline, parent_id)
+    _assert_roundup_has_comment(cur, body, issue_key, headline, targets)
+    # Same Roundup @ always stacks under the first matching post (Facebook-style thread).
+    if not parent_id and not topic_issue and targets:
+        for key, _title in targets:
+            existing = _existing_roundup_root(cur, topic_id, key)
+            if existing:
+                parent_id = existing
+                break
     cur.execute(
         """
         INSERT INTO public.dockside_posts (topic_id, parent_post_id, body, created_by, visitor_id)
@@ -919,8 +996,8 @@ def add_post(conn, account, topic_id: int, body, parent_post_id, visitor_id=None
         notified = _notify(cur, topic_id, post_id, account["account_id"])
     _touch_topic(cur, topic_id)
     # Main Dockside comments with an @Roundup leader also land on that issue page.
-    if not _topic_issue_key(cur, topic_id):
-        for key, title in _roundup_targets(cur, body, issue_key, headline, parent_id):
+    if not topic_issue:
+        for key, title in targets:
             _mirror_roundup_post(cur, account, visitor_id, post_id, body, parent_id, key, title or headline)
     cur.close()
     fresh = _open_topic(_cur(conn), topic_id)

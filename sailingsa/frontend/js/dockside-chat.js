@@ -215,6 +215,18 @@
         return wrap;
     }
 
+    function appendRoundupHeading(mount, bodyText) {
+        var lead = leadingRoundupTag(bodyText || "");
+        if (!lead || !lead.tag) return null;
+        var head = document.createElement("a");
+        head.className = "dockside-at-heading";
+        head.href = (lead.info && lead.info.url) || "#";
+        head.textContent = compactAtLabel((lead.info && lead.info.headline) || lead.tag.replace(/^@/, ""));
+        head.title = lead.tag;
+        mount.appendChild(head);
+        return lead;
+    }
+
     function cardPost(post, replies, onReply) {
         var wrap = document.createElement("article");
         wrap.className = "dockside-comment";
@@ -222,6 +234,7 @@
         row.className = "dockside-person";
         row.appendChild(avatarNode(post.author));
         var text = document.createElement("div");
+        var lead = appendRoundupHeading(text, post.body || "");
         var meta = document.createElement("div");
         meta.className = "dockside-meta";
         meta.appendChild(authorNode(post.author, true));
@@ -232,7 +245,7 @@
         meta.appendChild(time);
         var body = document.createElement("p");
         body.className = "dockside-body";
-        fillCommentBody(body, post.body || "");
+        fillCommentBody(body, post.body || "", { skipLeadingTag: !!lead });
         text.appendChild(meta);
         text.appendChild(body);
         text.appendChild(actionRow(post, onReply ? replyButton(function () { onReply(post, wrap, true); }) : null));
@@ -257,7 +270,7 @@
             replyMeta.appendChild(replyTime);
             var replyBody = document.createElement("p");
             replyBody.className = "dockside-body";
-            fillCommentBody(replyBody, reply.body || "");
+            fillCommentBody(replyBody, reply.body || "", { skipLeadingTag: true });
             replyText.appendChild(replyMeta);
             replyText.appendChild(replyBody);
             replyText.appendChild(actionRow(reply, onReply ? replyButton(function () { onReply(reply, item, false); }) : null));
@@ -295,10 +308,56 @@
         };
     }
 
-    function fillCommentBody(node, text) {
+    function compactAtLabel(headline) {
+        var text = String(headline || "").replace(/\s+/g, " ").trim();
+        if (text.length > 28) text = text.slice(0, 25).replace(/\s+\S*$/, "") + "…";
+        return "@" + (text || "Roundup");
+    }
+
+    function leadingRoundupTag(text) {
+        var raw = String(text || "");
+        if (!raw || raw.charAt(0) !== "@") return null;
+        var leaders = Object.keys(roundupLeaders()).sort(function (a, b) { return b.length - a.length; });
+        var lower = raw.toLowerCase();
+        for (var i = 0; i < leaders.length; i += 1) {
+            var tag = leaders[i];
+            if (lower.indexOf(tag.toLowerCase()) === 0) {
+                var rest = raw.slice(tag.length).replace(/^[\s\-–—:]+/, "");
+                return { tag: tag, rest: rest, info: roundupLeaders()[tag] };
+            }
+        }
+        var match = raw.match(/^@([^\n]+?)(?:\s{2,}|\s(?=[A-Z0-9])|(?=\n)|$)/);
+        if (!match) return null;
+        // Fallback: first @… chunk before the poster’s sentence.
+        var idx = raw.indexOf(" ");
+        if (idx < 0) return { tag: raw.trim(), rest: "", info: null };
+        // Prefer longest leader-like headline up to 72 chars.
+        var guess = raw.slice(0, Math.min(raw.length, 80));
+        var cut = guess.search(/\s{2,}|\s(?=[a-z])/);
+        if (cut > 1) {
+            return {
+                tag: raw.slice(0, cut).trim(),
+                rest: raw.slice(cut).replace(/^[\s\-–—:]+/, ""),
+                info: null
+            };
+        }
+        return {
+            tag: raw.slice(0, idx).trim(),
+            rest: raw.slice(idx).trim(),
+            info: null
+        };
+    }
+
+    function fillCommentBody(node, text, opts) {
         node.textContent = "";
         var raw = String(text || "");
         if (!raw) return;
+        opts = opts || {};
+        if (opts.skipLeadingTag) {
+            var lead = leadingRoundupTag(raw);
+            if (lead) raw = lead.rest;
+            if (!raw) return;
+        }
         var leaders = Object.keys(roundupLeaders()).sort(function (a, b) { return b.length - a.length; });
         if (!leaders.length) {
             node.textContent = raw;
@@ -326,7 +385,8 @@
             var link = document.createElement("a");
             link.className = "dockside-at-link";
             link.href = (info && info.url) || "#";
-            link.textContent = raw.slice(at, at + hit.length);
+            link.textContent = compactAtLabel((info && info.headline) || hit.replace(/^@/, ""));
+            link.title = hit;
             node.appendChild(link);
             cursor = at + hit.length;
         }
@@ -758,12 +818,8 @@
             showLatestTwo(scroll);
             paintMe();
             fit();
-            if (pendingMirror && pendingMirror.headline && field) {
-                var keepTag = "@" + pendingMirror.headline;
-                if ((field.value || "").indexOf(keepTag) !== 0) {
-                    field.value = keepTag + " ";
-                }
-                showRoundupLink(pendingMirror);
+            if (pendingMirror && pendingMirror.headline) {
+                lockRoundupChip(pendingMirror);
             }
             if (pendingCommentFocus) {
                 pendingCommentFocus = false;
@@ -803,18 +859,105 @@
         }
 
         function showRoundupLink(info) {
+            // Legacy big heading above compose created empty @ threads — remove it.
             var link = topicBox.querySelector(".dockside-roundup-link");
-            if (!info || !info.key) {
-                if (link) link.remove();
-                return;
+            if (link) link.remove();
+            if (info && info.key) lockRoundupChip(info);
+            else if (!info) clearRoundupChip();
+        }
+
+        function ensureComposeField() {
+            if (!form || !field) return null;
+            var wrap = form.querySelector(".dockside-compose-field");
+            if (!wrap) {
+                wrap = document.createElement("div");
+                wrap.className = "dockside-compose-field";
+                field.parentNode.insertBefore(wrap, field);
+                wrap.appendChild(field);
             }
-            if (!link) {
-                link = document.createElement("a");
-                link.className = "dockside-roundup-link";
-                topicBox.insertBefore(link, form || originalEl);
+            var chip = wrap.querySelector(".dockside-at-chip");
+            if (!chip) {
+                chip = document.createElement("a");
+                chip.className = "dockside-at-chip";
+                chip.hidden = true;
+                chip.tabIndex = -1;
+                chip.addEventListener("click", function (event) {
+                    // Matching tag only — open Roundup, never edit/remove from compose.
+                    event.stopPropagation();
+                });
+                wrap.insertBefore(chip, field);
             }
-            link.href = info.url || ("/sailing-roundup/issues/" + info.key + "/");
-            link.textContent = info.headline || "Weekly Roundup";
+            return chip;
+        }
+
+        function lockRoundupChip(info) {
+            if (!info || !info.key || !info.headline) return;
+            registerRoundupLeader(info);
+            pendingMirror = {
+                key: info.key,
+                url: info.url || ("/sailing-roundup/issues/" + info.key + "/"),
+                headline: String(info.headline || "").replace(/\s+/g, " ").trim()
+            };
+            var chip = ensureComposeField();
+            if (!chip || !field) return;
+            chip.hidden = false;
+            chip.href = pendingMirror.url;
+            chip.textContent = compactAtLabel(pendingMirror.headline);
+            chip.title = "@" + pendingMirror.headline;
+            // Poster can only type after the locked matching tag.
+            var typed = (field.value || "").trim();
+            Object.keys(roundupLeaders()).forEach(function (known) {
+                if (typed.toLowerCase().indexOf(known.toLowerCase()) === 0) {
+                    typed = typed.slice(known.length).trim();
+                }
+            });
+            field.value = typed;
+            field.placeholder = "Write a comment";
+            form.classList.add("has-roundup-chip");
+            stopLandingGuard();
+            stopLandingGuard = guardComposer([field, startBody], function (input) {
+                return input === field ? field.value : "";
+            });
+        }
+
+        function clearRoundupChip() {
+            pendingMirror = null;
+            var chip = form && form.querySelector(".dockside-at-chip");
+            if (chip) {
+                chip.hidden = true;
+                chip.removeAttribute("href");
+                chip.textContent = "";
+                chip.removeAttribute("title");
+            }
+            if (form) form.classList.remove("has-roundup-chip");
+        }
+
+        function findRoundupRoot(info) {
+            if (!info || !info.key) return null;
+            var tag = "@" + String(info.headline || "").replace(/\s+/g, " ").trim();
+            var found = null;
+            Object.keys(postsById).forEach(function (id) {
+                var post = postsById[id];
+                if (!post || post.parent_post_id) return;
+                var body = String(post.body || "");
+                var hit = leadingRoundupTag(body);
+                var sameTag = hit && hit.tag && tag && hit.tag.toLowerCase() === tag.toLowerCase();
+                var sameKey = hit && hit.info && hit.info.key === info.key;
+                if (!sameTag && !sameKey && body.toLowerCase().indexOf(tag.toLowerCase()) !== 0) return;
+                if (!found || String(post.created_at || "") < String(found.created_at || "")) found = post;
+            });
+            return found;
+        }
+
+        function typedCommentOnly() {
+            return ((field && field.value) || "").trim();
+        }
+
+        function buildRoundupBody(info, typed, asReply) {
+            var text = String(typed || "").trim();
+            if (!text) return "";
+            if (asReply) return text;
+            return "@" + String(info.headline || "").replace(/\s+/g, " ").trim() + " " + text;
         }
 
         function showRoundupEmpty() {
@@ -837,7 +980,9 @@
             if (!info || !info.key) return;
             opts = opts || {};
             roundupContext = info;
-            showRoundupLink(info);
+            registerRoundupLeader(info);
+            var orphan = topicBox.querySelector(".dockside-roundup-link");
+            if (orphan) orphan.remove();
             if (emptyBox) emptyBox.hidden = true;
             topicBox.hidden = false;
             if (form) form.hidden = false;
@@ -851,7 +996,7 @@
                     url: data.url || info.url,
                     headline: data.headline || info.headline
                 };
-                showRoundupLink(roundupContext);
+                registerRoundupLeader(roundupContext);
                 if (data.topic) paintTopic(data.topic);
                 else {
                     topicId = null;
@@ -974,7 +1119,7 @@
             return null;
         }
 
-        function sendComment(body, parent, errorMount) {
+        function sendComment(body, parent, errorMount, mirrorInfo) {
             if (!body) return;
             if (roundupContext && roundupContext.key && fixedKey) {
                 var roundupDraft = {
@@ -1013,14 +1158,17 @@
                         field.placeholder = "Write a comment";
                     }
                     stopLandingGuard = guardComposer([field, startBody]);
-                    showRoundupLink(roundupContext);
                     paintTopic(data.topic);
                 });
                 return;
             }
             if (!topicId) return;
             var parentPost = parent ? postsById[parent] : null;
-            var mirror = mirrorFromBody(body, parentPost);
+            var mirror = mirrorInfo || mirrorFromBody(body, parentPost);
+            if (mirror && mirror.key && !parent) {
+                var existingRoot = findRoundupRoot(mirror);
+                if (existingRoot) parent = existingRoot.post_id;
+            }
             var draft = {
                 kind: "comment",
                 topic_id: topicId,
@@ -1052,7 +1200,7 @@
                 }
                 clearDraft();
                 resumedDraft = null;
-                pendingMirror = null;
+                clearRoundupChip();
                 stopLandingGuard();
                 if (field) {
                     field.value = "";
@@ -1066,35 +1214,33 @@
         if (form && field) {
             form.addEventListener("submit", function (event) {
                 event.preventDefault();
-                sendComment((field.value || "").trim(), null, scroll);
+                var typed = typedCommentOnly();
+                var mirror = pendingMirror;
+                if (mirror && mirror.key) {
+                    if (!typed) {
+                        noteError(scroll, "Write a comment after @");
+                        if (field) field.focus();
+                        return;
+                    }
+                    var root = findRoundupRoot(mirror);
+                    var parentId = root ? root.post_id : null;
+                    var body = buildRoundupBody(mirror, typed, !!parentId);
+                    sendComment(body, parentId, scroll, mirror);
+                    return;
+                }
+                if (!typed) return;
+                sendComment(typed, null, scroll);
             });
         }
         mountPublicToggle(root.querySelector(".dockside-titles"));
         function openLandingLeader(info) {
             if (!info || !info.key) return;
-            registerRoundupLeader(info);
-            pendingMirror = {
-                key: info.key,
-                url: info.url || ("/sailing-roundup/issues/" + info.key + "/"),
-                headline: String(info.headline || "").replace(/\s+/g, " ").trim()
-            };
-            showRoundupLink(pendingMirror);
+            lockRoundupChip(info);
             if (emptyBox) emptyBox.hidden = true;
             topicBox.hidden = false;
             if (form) form.hidden = false;
-            var tag = "@" + pendingMirror.headline;
-            if (field) {
-                var current = (field.value || "").trim();
-                var rest = current;
-                Object.keys(roundupLeaders()).forEach(function (known) {
-                    if (rest.indexOf(known) === 0) rest = rest.slice(known.length).trim();
-                });
-                field.value = tag + (rest ? " " + rest : " ");
-                stopLandingGuard();
-                stopLandingGuard = guardComposer([field, startBody], function (input) {
-                    return input === field ? field.value : "";
-                });
-            }
+            var orphan = topicBox.querySelector(".dockside-roundup-link");
+            if (orphan) orphan.remove();
             if (!topicId) {
                 api("/api/dockside/current").then(function (data) {
                     if (data && data.topic) paintTopic(data.topic);
@@ -1108,10 +1254,6 @@
             }
             if (field) {
                 field.focus({ preventScroll: true });
-                try {
-                    var end = field.value.length;
-                    field.setSelectionRange(end, end);
-                } catch (err) {}
             }
             fit();
         }
