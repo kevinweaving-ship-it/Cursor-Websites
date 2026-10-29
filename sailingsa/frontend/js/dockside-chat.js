@@ -5,6 +5,14 @@
     var DRAFT_KEY = "dockside_draft";
     var SORT_KEY = "dockside_topic_sort";
     var me = { signed_in: false };
+    window.__docksideCommentQueue = window.__docksideCommentQueue || [];
+    if (typeof window.docksideOpenComment !== "function") {
+        window.docksideOpenComment = function (info) {
+            window.__docksideCommentQueue.push(info || null);
+            var card = document.getElementById("dockside-landing");
+            if (card) card.scrollIntoView({ block: "center" });
+        };
+    }
 
     function when(iso) {
         if (!iso) return "";
@@ -748,6 +756,13 @@
             showLatestTwo(scroll);
             paintMe();
             fit();
+            if (pendingMirror && pendingMirror.headline && field) {
+                var keepTag = "@" + pendingMirror.headline;
+                if ((field.value || "").indexOf(keepTag) !== 0) {
+                    field.value = keepTag + " ";
+                }
+                showRoundupLink(pendingMirror);
+            }
             if (pendingCommentFocus) {
                 pendingCommentFocus = false;
                 if (!me.signed_in && !guestsMayPost()) {
@@ -1053,6 +1068,47 @@
             });
         }
         mountPublicToggle(root.querySelector(".dockside-titles"));
+        function openLandingLeader(info) {
+            if (!info || !info.key) return;
+            registerRoundupLeader(info);
+            pendingMirror = {
+                key: info.key,
+                url: info.url || ("/sailing-roundup/issues/" + info.key + "/"),
+                headline: String(info.headline || "").replace(/\s+/g, " ").trim()
+            };
+            showRoundupLink(pendingMirror);
+            if (emptyBox) emptyBox.hidden = true;
+            topicBox.hidden = false;
+            if (form) form.hidden = false;
+            var tag = "@" + pendingMirror.headline;
+            if (field) {
+                var current = (field.value || "").trim();
+                var rest = current;
+                Object.keys(roundupLeaders()).forEach(function (known) {
+                    if (rest.indexOf(known) === 0) rest = rest.slice(known.length).trim();
+                });
+                field.value = tag + (rest ? " " + rest : " ");
+                stopLandingGuard();
+                stopLandingGuard = guardComposer([field, startBody], function (input) {
+                    return input === field ? field.value : "";
+                });
+            }
+            if (!topicId) {
+                api("/api/dockside/current").then(function (data) {
+                    if (data && data.topic) paintTopic(data.topic);
+                });
+            }
+            if (root) root.scrollIntoView({ block: "center" });
+            if (field) {
+                field.focus();
+                try {
+                    var end = field.value.length;
+                    field.setSelectionRange(end, end);
+                } catch (err) {}
+            }
+            fit();
+        }
+
         window.docksideOpenComment = function (info) {
             if (fixedKey) {
                 if (root) root.scrollIntoView({ block: "center" });
@@ -1060,43 +1116,7 @@
                 return;
             }
             if (info && info.key) {
-                registerRoundupLeader(info);
-                pendingMirror = {
-                    key: info.key,
-                    url: info.url || ("/sailing-roundup/issues/" + info.key + "/"),
-                    headline: String(info.headline || "").replace(/\s+/g, " ").trim()
-                };
-                showRoundupLink(pendingMirror);
-                if (emptyBox) emptyBox.hidden = true;
-                topicBox.hidden = false;
-                if (form) form.hidden = false;
-                var tag = "@" + pendingMirror.headline;
-                if (field) {
-                    var current = (field.value || "").trim();
-                    var rest = current;
-                    Object.keys(roundupLeaders()).forEach(function (known) {
-                        if (rest.indexOf(known) === 0) rest = rest.slice(known.length).trim();
-                    });
-                    field.value = tag + (rest ? " " + rest : " ");
-                    stopLandingGuard();
-                    stopLandingGuard = guardComposer([field, startBody], function (input) {
-                        return input === field ? field.value : "";
-                    });
-                }
-                if (!topicId) {
-                    api("/api/dockside/current").then(function (data) {
-                        if (data && data.topic) paintTopic(data.topic);
-                    });
-                }
-                if (root) root.scrollIntoView({ block: "center" });
-                if (field) {
-                    field.focus();
-                    try {
-                        var end = field.value.length;
-                        field.setSelectionRange(end, end);
-                    } catch (err) {}
-                }
-                fit();
+                openLandingLeader(info);
                 return;
             }
             if (form && form.hidden) {
@@ -1107,16 +1127,26 @@
             if (root) root.scrollIntoView({ block: "center" });
             if (field) field.focus();
         };
-        try {
-            var stored = sessionStorage.getItem("dockside_roundup_comment");
+
+        function flushCommentQueue() {
+            var queued = (window.__docksideCommentQueue || []).splice(0);
+            var stored = null;
+            try {
+                stored = sessionStorage.getItem("dockside_roundup_comment");
+                if (stored) sessionStorage.removeItem("dockside_roundup_comment");
+            } catch (errStore) {}
             if (stored) {
-                sessionStorage.removeItem("dockside_roundup_comment");
-                window.setTimeout(function () {
-                    window.docksideOpenComment(JSON.parse(stored));
-                }, 0);
+                try { queued.push(JSON.parse(stored)); } catch (errParse) {}
             }
-        } catch (errStore) {}
-        if (location.hash === "#dockside-comment") {
+            queued.forEach(function (info) {
+                if (info && info.key) openLandingLeader(info);
+            });
+        }
+        flushCommentQueue();
+        window.setTimeout(flushCommentQueue, 300);
+        window.setTimeout(flushCommentQueue, 1200);
+
+        if (location.hash === "#dockside-comment" || location.hash === "#dockside-landing") {
             try {
                 history.replaceState(null, "", location.pathname + location.search);
             } catch (err) {}

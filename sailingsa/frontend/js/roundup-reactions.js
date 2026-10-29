@@ -37,6 +37,38 @@
         };
     }
 
+    function rowInfo(row) {
+        var key = (row && row.getAttribute("data-issue-key")) || "";
+        return {
+            key: key,
+            url: (row && row.getAttribute("data-issue-url")) || ("/sailing-roundup/issues/" + key + "/"),
+            headline: (row && row.getAttribute("data-issue-headline")) || ("Roundup " + key)
+        };
+    }
+
+    function openDocksideComment(info) {
+        if (!info || !info.key) return;
+        if (!window.__docksideRoundupLeaders) window.__docksideRoundupLeaders = {};
+        var tag = "@" + String(info.headline || "").replace(/\s+/g, " ").trim();
+        window.__docksideRoundupLeaders[tag] = {
+            key: info.key,
+            url: info.url,
+            headline: String(info.headline || "").replace(/\s+/g, " ").trim(),
+            tag: tag
+        };
+        try {
+            sessionStorage.setItem("dockside_roundup_comment", JSON.stringify(info));
+        } catch (err) {}
+        if (typeof window.docksideOpenComment === "function") {
+            window.docksideOpenComment(info);
+            return;
+        }
+        window.__docksideCommentQueue = window.__docksideCommentQueue || [];
+        window.__docksideCommentQueue.push(info);
+        var card = document.getElementById("dockside-landing");
+        if (card) card.scrollIntoView({ block: "center" });
+    }
+
     function paint(row, issue, payload) {
         row.textContent = "";
         row.setAttribute("data-issue-key", issue);
@@ -45,6 +77,7 @@
         KINDS.forEach(function (pair) {
             var button = document.createElement("button");
             button.type = "button";
+            button.setAttribute("data-roundup-kind", pair[0]);
             var count = counts[pair[0]] || 0;
             button.textContent = countText(pair[1], count);
             if (mine.indexOf(pair[0]) >= 0) button.className = "is-mine";
@@ -66,29 +99,12 @@
         });
         var comment = document.createElement("button");
         comment.type = "button";
+        comment.setAttribute("data-roundup-comment", "1");
         comment.textContent = "Comment";
         comment.addEventListener("click", function (event) {
             event.preventDefault();
             event.stopPropagation();
-            var info = {
-                key: issue,
-                url: row.getAttribute("data-issue-url") || ("/sailing-roundup/issues/" + issue + "/"),
-                headline: row.getAttribute("data-issue-headline") || ("Roundup " + issue)
-            };
-            if (typeof window.docksideOpenComment === "function") {
-                window.docksideOpenComment(info);
-                return;
-            }
-            // Landing Comment always goes to Dockside Chat, not the Roundup URL.
-            try {
-                sessionStorage.setItem("dockside_roundup_comment", JSON.stringify(info));
-            } catch (err) {}
-            if (/\/sailing-roundup\/issues\//.test(location.pathname)) {
-                window.location.assign("/#dockside-landing");
-                return;
-            }
-            var card = document.getElementById("dockside-landing");
-            if (card) card.scrollIntoView({ block: "center" });
+            openDocksideComment(rowInfo(row));
         });
         row.appendChild(comment);
     }
@@ -117,7 +133,7 @@
         if (document.querySelector("link[data-roundup-reacts]")) return;
         var link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = "/css/roundup-reactions.css?v=dockside24";
+        link.href = "/css/roundup-reactions.css?v=dockside25";
         link.setAttribute("data-roundup-reacts", "1");
         document.head.appendChild(link);
     }
@@ -126,12 +142,12 @@
         if (!document.querySelector("link[href*='dockside-chat.css']")) {
             var css = document.createElement("link");
             css.rel = "stylesheet";
-            css.href = "/css/dockside-chat.css?v=dockside14";
+            css.href = "/css/dockside-chat.css?v=dockside17";
             document.head.appendChild(css);
         }
         if (!document.querySelector("script[src*='dockside-chat.js']")) {
             var js = document.createElement("script");
-            js.src = "/js/dockside-chat.js?v=dockside22";
+            js.src = "/js/dockside-chat.js?v=dockside23";
             js.defer = true;
             document.head.appendChild(js);
         }
@@ -270,6 +286,23 @@
             mountIssueDockside(info);
         });
     }
+
+    // Stop the Roundup carousel stealing taps, and open Dockside with @leader.
+    document.addEventListener("touchstart", function (event) {
+        if (event.target.closest && event.target.closest(".roundup-reacts")) event.stopPropagation();
+    }, true);
+    document.addEventListener("touchend", function (event) {
+        if (event.target.closest && event.target.closest(".roundup-reacts")) event.stopPropagation();
+    }, true);
+    document.addEventListener("click", function (event) {
+        var row = event.target.closest && event.target.closest(".roundup-reacts");
+        if (!row) return;
+        event.stopPropagation();
+        var comment = event.target.closest("button[data-roundup-comment='1']");
+        if (!comment) return;
+        event.preventDefault();
+        openDocksideComment(rowInfo(row));
+    }, true);
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", function () {
