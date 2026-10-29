@@ -26353,9 +26353,30 @@ def serve_sitemap_xml():
 
 @app.get("/robots.txt")
 def serve_robots_txt():
-    """Serve robots.txt: Allow all, point to sitemap. Content-Type: text/plain. Trailing newline for crawl spec."""
+    """Public robots: allow OG/logo images; keep /api/ and /profiles closed."""
     base = _canonical_base_url()
-    body = f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n"
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Allow: /api/og/\n"
+        "Allow: /api/club-logo/\n"
+        "Disallow: /api/\n"
+        "Disallow: /auth/\n"
+        "Disallow: /admin/\n"
+        "Disallow: /login\n"
+        "Disallow: /test/\n"
+        "Disallow: /dev-1\n"
+        "Disallow: /dev-1/\n"
+        "Disallow: /signup.html\n"
+        "Disallow: /profiles\n"
+        f"Sitemap: {base}/sitemap.xml\n"
+        "Disallow: /sailing-roundup/archive.json\n"
+        "Disallow: /sailing-roundup/feed.json\n"
+        "Disallow: /sailing-roundup/cards.json\n"
+        "Disallow: /sailing-roundup/latest.json\n"
+        f"Sitemap: {base}/sitemap-roundups.xml\n"
+        f"Sitemap: {base}/sitemap-news.xml\n"
+    )
     return Response(content=body, media_type="text/plain", headers={"Cache-Control": "public, max-age=3600"})
 
 # Serve /artwork/ from project artwork dir (e.g. TimAdvisor logo) so same-origin requests work
