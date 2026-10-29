@@ -230,12 +230,13 @@ def _fetch_regattas(cur, today: str) -> list[tuple[str, str]]:
 
 def _fetch_sailors(cur, today: str) -> list[tuple[str, str]]:
     """
-    One canonical /sailor/{name-slug} per unique live public slug.
+    One canonical /sailor/{slug} per sailor who has at least one event result
+    (helm or crew on a results row). NEVER the whole sas_id_personal catalogue.
     Live api.py never appends SAS id; name-{sasid} URLs 301 to the name slug.
     """
     cur.execute(
         """
-        WITH raced AS (
+        WITH has_event_result AS (
             SELECT
                 BTRIM(x.sa_id) AS sas_id,
                 MAX(
@@ -248,15 +249,13 @@ def _fetch_sailors(cur, today: str) -> list[tuple[str, str]]:
                        COALESCE(rg.end_date, rg.start_date) AS d
                 FROM results r
                 JOIN regattas rg ON rg.regatta_id = r.regatta_id
-                WHERE r.raced IS TRUE
-                  AND r.helm_sa_sailing_id IS NOT NULL
+                WHERE r.helm_sa_sailing_id IS NOT NULL
                 UNION ALL
                 SELECT r.crew_sa_sailing_id::text AS sa_id,
                        COALESCE(rg.end_date, rg.start_date) AS d
                 FROM results r
                 JOIN regattas rg ON rg.regatta_id = r.regatta_id
-                WHERE r.raced IS TRUE
-                  AND r.crew_sa_sailing_id IS NOT NULL
+                WHERE r.crew_sa_sailing_id IS NOT NULL
             ) x
             WHERE x.sa_id IS NOT NULL AND BTRIM(x.sa_id) <> ''
             GROUP BY BTRIM(x.sa_id)
@@ -266,9 +265,9 @@ def _fetch_sailors(cur, today: str) -> list[tuple[str, str]]:
             COALESCE(NULLIF(TRIM(s.first_name), ''), '') AS first_name,
             COALESCE(NULLIF(TRIM(s.last_name), ''), '') AS last_name,
             COALESCE(NULLIF(TRIM(s.full_name), ''), '') AS full_name_raw,
-            raced.lastmod
+            has_event_result.lastmod
         FROM sas_id_personal s
-        JOIN raced ON raced.sas_id = s.sa_sailing_id::text
+        JOIN has_event_result ON has_event_result.sas_id = s.sa_sailing_id::text
         WHERE s.sa_sailing_id IS NOT NULL
         """
     )
