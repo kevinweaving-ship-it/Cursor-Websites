@@ -23,7 +23,8 @@ from .probe_live import load_sitemap_urls, save_probes, test_urls
 from .server_api import inspect_url, list_sitemaps, list_sites, search_analytics_totals, submit_published_sitemaps
 from .server_auth import NeedGoogleConsent, access_token
 from .seo_health import evaluate_health, health_lines, write_health
-from .watchlist import build_watchlist, persist_reals
+from .page_indexing import probe_families, render_lines as page_indexing_lines, write_page_indexing
+from .watchlist import build_watchlist, persist_reals, priority_event_urls
 from .whatsapp_gsc import class_counts, write_whatsapp
 
 SAST = ZoneInfo("Africa/Johannesburg")
@@ -113,8 +114,10 @@ def main(argv: list[str] | None = None) -> int:
     dest.mkdir(parents=True, exist_ok=True)
 
     sitemap = load_sitemap_urls(dest / "sitemap_urls.txt")
+    priority = priority_event_urls(sitemap)
     urls = build_watchlist(root, sitemap, max(args.inspect_budget, 20))
     (dest / "watchlist.txt").write_text("\n".join(urls) + "\n", encoding="utf-8")
+    (dest / "priority_urls.txt").write_text("\n".join(priority) + "\n", encoding="utf-8")
 
     google: dict = {
         "auth": "PENDING",
@@ -217,6 +220,24 @@ def main(argv: list[str] | None = None) -> int:
             break
     if delta.get("new_real"):
         attn.insert(0, f"{delta['new_real']} new REAL vs yesterday")
+    sm_now = _sitemap_summary(google.get("sitemaps") or [])
+    if int(sm_now.get("count") or 0) > 1:
+        attn.append(
+            f"GSC has {sm_now.get('count')} sitemap feeds; should be sitemap.xml only"
+        )
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(
+            SITE.rstrip("/") + "/robots.txt",
+            headers={"User-Agent": "SailingSA-GSC/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            robots = resp.read().decode("utf-8", "replace")
+        if "Allow: /api/og/" not in robots or "Allow: /api/club-logo/" not in robots:
+            attn.append("robots.txt missing Allow /api/og/ or /api/club-logo/")
+    except Exception as e:
+        attn.append(f"robots.txt check failed: {type(e).__name__}")
 
     health = evaluate_health(
         day=day,
@@ -238,6 +259,13 @@ def main(argv: list[str] | None = None) -> int:
         if bad:
             names = ", ".join((row.get("feed") or "").rsplit("/", 1)[-1] for row in bad)
             attn.append(f"Sitemap submit failed: {names}")
+    try:
+        page_idx = probe_families()
+    except Exception as e:
+        page_idx = {"error": f"{type(e).__name__}: {e}", "broken": [str(e)], "snapshot": []}
+    write_page_indexing(dest, page_idx)
+    for item in page_idx.get("broken") or []:
+        attn.append(f"INDEX FAMILY {item}")
     payload = {
         "run_date": day,
         "sitemap_submit": sub,
@@ -252,6 +280,29 @@ def main(argv: list[str] | None = None) -> int:
         "sitemap": _sitemap_summary(google.get("sitemaps") or []),
         "search_analytics": google.get("search_analytics") or {},
         "inspect_summary": {"n": sum(1 for v in inspections.values() if v), "pass": pass_n, "not_indexed": not_idx},
+        "priority": {
+            "urls": priority,
+            "rows": [
+                {
+                    "url": u,
+                    "coverage": ((inspections.get(u) or {}).get("indexStatusResult") or {}).get(
+                        "coverageState"
+                    )
+                    or (inspections.get(u) or {}).get("error")
+                    or "",
+                    "verdict": _inspect_verdict(inspections.get(u) or {}),
+                    "last_crawl": ((inspections.get(u) or {}).get("indexStatusResult") or {}).get(
+                        "lastCrawlTime"
+                    )
+                    or "",
+                    "robots": ((inspections.get(u) or {}).get("indexStatusResult") or {}).get(
+                        "robotsTxtState"
+                    )
+                    or "",
+                }
+                for u in priority
+            ],
+        },
         "classes": cls,
         "delta": delta,
         "real_urls": real_urls,
@@ -275,14 +326,35 @@ def main(argv: list[str] | None = None) -> int:
             "live_canonical_mismatches": len(health.get("canonical_live_mismatches") or []),
             "performance": health.get("performance"),
         },
+        "page_indexing": {
+            "snapshot_date": page_idx.get("snapshot_date"),
+            "snapshot_total": page_idx.get("snapshot_total"),
+            "by_action": page_idx.get("by_action"),
+            "broken": page_idx.get("broken") or [],
+            "known_gaps": page_idx.get("known_gaps") or [],
+            "families": page_idx.get("families") or [],
+            "snapshot": [
+                {
+                    "key": r.get("key"),
+                    "label": r.get("label"),
+                    "pages": r.get("pages"),
+                    "action": r.get("action"),
+                }
+                for r in (page_idx.get("snapshot") or [])
+            ],
+        },
         "page_indexing_cohorts": None,
-        "page_indexing_note": (
-            "Official Search Console API has no Page Indexing report "
-            "(cohort names, example lists, validation, indexed/not-indexed totals)."
+        "page_indexing_note": page_idx.get("note")
+        or (
+            "Official Search Console API has no Page Indexing report. "
+            "Do not click Validate Fix."
         ),
     }
     (dest / "gsc_api.json").write_text(json.dumps(google, indent=2) + "\n", encoding="utf-8")
     (dest / "report.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    (dest / "inspect_priority.json").write_text(
+        json.dumps(payload.get("priority") or {}, indent=2) + "\n", encoding="utf-8"
+    )
     write_whatsapp(dest, payload)
     md = [
         f"# GSC server daily — {day}",
@@ -296,8 +368,11 @@ def main(argv: list[str] | None = None) -> int:
         ),
         f"Live classes: {cls}",
         f"Inspected: {payload['inspect_summary']}",
+        f"Priority: {[(r.get('verdict'), (r.get('coverage') or '')[:32], r.get('url')) for r in (payload.get('priority') or {}).get('rows') or []]}",
         "",
         *health_lines(health),
+        "",
+        *page_indexing_lines(page_idx),
         "",
         payload["page_indexing_note"],
         "",
