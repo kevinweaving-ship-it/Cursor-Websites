@@ -79,7 +79,16 @@
                 window.docksideOpenComment(info);
                 return;
             }
-            window.location.assign(info.url || ("/sailing-roundup/issues/" + issue + "/"));
+            // Landing Comment always goes to Dockside Chat, not the Roundup URL.
+            try {
+                sessionStorage.setItem("dockside_roundup_comment", JSON.stringify(info));
+            } catch (err) {}
+            if (/\/sailing-roundup\/issues\//.test(location.pathname)) {
+                window.location.assign("/#dockside-landing");
+                return;
+            }
+            var card = document.getElementById("dockside-landing");
+            if (card) card.scrollIntoView({ block: "center" });
         });
         row.appendChild(comment);
     }
@@ -108,7 +117,7 @@
         if (document.querySelector("link[data-roundup-reacts]")) return;
         var link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = "/css/roundup-reactions.css?v=dockside23";
+        link.href = "/css/roundup-reactions.css?v=dockside24";
         link.setAttribute("data-roundup-reacts", "1");
         document.head.appendChild(link);
     }
@@ -122,7 +131,7 @@
         }
         if (!document.querySelector("script[src*='dockside-chat.js']")) {
             var js = document.createElement("script");
-            js.src = "/js/dockside-chat.js?v=dockside21";
+            js.src = "/js/dockside-chat.js?v=dockside22";
             js.defer = true;
             document.head.appendChild(js);
         }
@@ -134,6 +143,14 @@
             var info = slideInfo(slide);
             if (!info.key) return;
             if (known[info.key]) cache[info.key] = known[info.key];
+            if (!window.__docksideRoundupLeaders) window.__docksideRoundupLeaders = {};
+            var tag = "@" + info.headline;
+            window.__docksideRoundupLeaders[tag] = {
+                key: info.key,
+                url: info.url,
+                headline: info.headline,
+                tag: tag
+            };
             var existing = slide.querySelector(".roundup-reacts");
             if (existing) {
                 existing.setAttribute("data-issue-key", info.key);

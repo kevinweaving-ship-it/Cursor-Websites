@@ -222,7 +222,7 @@
         meta.appendChild(time);
         var body = document.createElement("p");
         body.className = "dockside-body";
-        body.textContent = post.body || "";
+        fillCommentBody(body, post.body || "");
         text.appendChild(meta);
         text.appendChild(body);
         text.appendChild(actionRow(post, onReply ? replyButton(function () { onReply(post, wrap, true); }) : null));
@@ -247,7 +247,7 @@
             replyMeta.appendChild(replyTime);
             var replyBody = document.createElement("p");
             replyBody.className = "dockside-body";
-            replyBody.textContent = reply.body || "";
+            fillCommentBody(replyBody, reply.body || "");
             replyText.appendChild(replyMeta);
             replyText.appendChild(replyBody);
             replyText.appendChild(actionRow(reply, onReply ? replyButton(function () { onReply(reply, item, false); }) : null));
@@ -266,6 +266,60 @@
 
     function guestsMayPost() {
         return !!(me.public_comments && me.public_comments.open);
+    }
+
+    function roundupLeaders() {
+        if (!window.__docksideRoundupLeaders) window.__docksideRoundupLeaders = {};
+        return window.__docksideRoundupLeaders;
+    }
+
+    function registerRoundupLeader(info) {
+        if (!info || !info.key || !info.headline) return;
+        var tag = "@" + String(info.headline).replace(/\s+/g, " ").trim();
+        if (tag.length < 2) return;
+        roundupLeaders()[tag] = {
+            key: info.key,
+            url: info.url || ("/sailing-roundup/issues/" + info.key + "/"),
+            headline: String(info.headline).replace(/\s+/g, " ").trim(),
+            tag: tag
+        };
+    }
+
+    function fillCommentBody(node, text) {
+        node.textContent = "";
+        var raw = String(text || "");
+        if (!raw) return;
+        var leaders = Object.keys(roundupLeaders()).sort(function (a, b) { return b.length - a.length; });
+        if (!leaders.length) {
+            node.textContent = raw;
+            return;
+        }
+        var lower = raw.toLowerCase();
+        var cursor = 0;
+        while (cursor < raw.length) {
+            var hit = null;
+            var at = -1;
+            leaders.forEach(function (tag) {
+                var idx = lower.indexOf(tag.toLowerCase(), cursor);
+                if (idx < 0) return;
+                if (at < 0 || idx < at) {
+                    at = idx;
+                    hit = tag;
+                }
+            });
+            if (at < 0 || !hit) {
+                node.appendChild(document.createTextNode(raw.slice(cursor)));
+                return;
+            }
+            if (at > cursor) node.appendChild(document.createTextNode(raw.slice(cursor, at)));
+            var info = roundupLeaders()[hit];
+            var link = document.createElement("a");
+            link.className = "dockside-at-link";
+            link.href = (info && info.url) || "#";
+            link.textContent = raw.slice(at, at + hit.length);
+            node.appendChild(link);
+            cursor = at + hit.length;
+        }
     }
 
     function mountPublicToggle(anchor) {
@@ -497,6 +551,7 @@
         var postsById = {};
         var pendingCommentFocus = false;
         var roundupContext = null;
+        var pendingMirror = null;
         var resumedDraft = takeResumeDraft();
         var stopLandingGuard = function () {};
         if (!resumedDraft) {
@@ -886,9 +941,25 @@
                 });
             });
         }
-            function sendComment(body, parent, errorMount) {
+            function mirrorFromBody(body, parent) {
+            var hit = pendingMirror;
+            if (hit && hit.key && body.indexOf("@" + (hit.headline || "")) >= 0) return hit;
+            var leaders = roundupLeaders();
+            var tags = Object.keys(leaders).sort(function (a, b) { return b.length - a.length; });
+            for (var i = 0; i < tags.length; i += 1) {
+                if (body.indexOf(tags[i]) >= 0) return leaders[tags[i]];
+            }
+            if (parent && parent.body) {
+                for (var j = 0; j < tags.length; j += 1) {
+                    if (String(parent.body).indexOf(tags[j]) >= 0) return leaders[tags[j]];
+                }
+            }
+            return null;
+        }
+
+        function sendComment(body, parent, errorMount) {
             if (!body) return;
-            if (roundupContext && roundupContext.key) {
+            if (roundupContext && roundupContext.key && fixedKey) {
                 var roundupDraft = {
                     kind: "roundup",
                     issue_key: roundupContext.key,
@@ -931,14 +1002,28 @@
                 return;
             }
             if (!topicId) return;
-            var draft = { kind: "comment", topic_id: topicId, parent_post_id: parent || null, body: body };
+            var parentPost = parent ? postsById[parent] : null;
+            var mirror = mirrorFromBody(body, parentPost);
+            var draft = {
+                kind: "comment",
+                topic_id: topicId,
+                parent_post_id: parent || null,
+                body: body,
+                issue_key: mirror && mirror.key,
+                headline: mirror && mirror.headline
+            };
             if (!me.signed_in && !guestsMayPost()) {
                 goLogin(draft);
                 return;
             }
+            var payload = { body: body, parent_post_id: parent || null };
+            if (mirror && mirror.key) {
+                payload.issue_key = mirror.key;
+                payload.headline = mirror.headline || "";
+            }
             api("/api/dockside/topics/" + topicId + "/posts", {
                 method: "POST",
-                body: JSON.stringify({ body: body, parent_post_id: parent || null })
+                body: JSON.stringify(payload)
             }).then(function (data) {
                 if (data._status === 401) {
                     goLogin(draft);
@@ -950,6 +1035,7 @@
                 }
                 clearDraft();
                 resumedDraft = null;
+                pendingMirror = null;
                 stopLandingGuard();
                 if (field) {
                     field.value = "";
@@ -968,8 +1054,49 @@
         }
         mountPublicToggle(root.querySelector(".dockside-titles"));
         window.docksideOpenComment = function (info) {
+            if (fixedKey) {
+                if (root) root.scrollIntoView({ block: "center" });
+                if (field) field.focus();
+                return;
+            }
             if (info && info.key) {
-                loadRoundup(info, { scroll: true });
+                registerRoundupLeader(info);
+                pendingMirror = {
+                    key: info.key,
+                    url: info.url || ("/sailing-roundup/issues/" + info.key + "/"),
+                    headline: String(info.headline || "").replace(/\s+/g, " ").trim()
+                };
+                showRoundupLink(pendingMirror);
+                if (emptyBox) emptyBox.hidden = true;
+                topicBox.hidden = false;
+                if (form) form.hidden = false;
+                var tag = "@" + pendingMirror.headline;
+                if (field) {
+                    var current = (field.value || "").trim();
+                    var rest = current;
+                    Object.keys(roundupLeaders()).forEach(function (known) {
+                        if (rest.indexOf(known) === 0) rest = rest.slice(known.length).trim();
+                    });
+                    field.value = tag + (rest ? " " + rest : " ");
+                    stopLandingGuard();
+                    stopLandingGuard = guardComposer([field, startBody], function (input) {
+                        return input === field ? field.value : "";
+                    });
+                }
+                if (!topicId) {
+                    api("/api/dockside/current").then(function (data) {
+                        if (data && data.topic) paintTopic(data.topic);
+                    });
+                }
+                if (root) root.scrollIntoView({ block: "center" });
+                if (field) {
+                    field.focus();
+                    try {
+                        var end = field.value.length;
+                        field.setSelectionRange(end, end);
+                    } catch (err) {}
+                }
+                fit();
                 return;
             }
             if (form && form.hidden) {
@@ -980,6 +1107,15 @@
             if (root) root.scrollIntoView({ block: "center" });
             if (field) field.focus();
         };
+        try {
+            var stored = sessionStorage.getItem("dockside_roundup_comment");
+            if (stored) {
+                sessionStorage.removeItem("dockside_roundup_comment");
+                window.setTimeout(function () {
+                    window.docksideOpenComment(JSON.parse(stored));
+                }, 0);
+            }
+        } catch (errStore) {}
         if (location.hash === "#dockside-comment") {
             try {
                 history.replaceState(null, "", location.pathname + location.search);

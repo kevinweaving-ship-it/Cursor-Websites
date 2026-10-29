@@ -249,6 +249,17 @@ def apply_schema(conn) -> None:
         ALTER TABLE public.dockside_topics ALTER COLUMN created_by DROP NOT NULL;
         CREATE UNIQUE INDEX IF NOT EXISTS dockside_topics_issue_uidx
             ON public.dockside_topics (issue_key) WHERE issue_key IS NOT NULL;
+        CREATE TABLE IF NOT EXISTS public.dockside_roundup_mirrors (
+            source_post_id bigint NOT NULL
+                REFERENCES public.dockside_posts(post_id) ON DELETE CASCADE,
+            issue_key text NOT NULL,
+            roundup_post_id bigint NOT NULL
+                REFERENCES public.dockside_posts(post_id) ON DELETE CASCADE,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (source_post_id, issue_key)
+        );
+        CREATE INDEX IF NOT EXISTS dockside_roundup_mirrors_issue_idx
+            ON public.dockside_roundup_mirrors (issue_key);
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -715,7 +726,131 @@ def set_public_comments(conn, account, open_flag: bool) -> dict:
     return {"public_comments": state}
 
 
-def add_post(conn, account, topic_id: int, body, parent_post_id, visitor_id=None) -> dict:
+def _topic_issue_key(cur, topic_id: int):
+    cur.execute(
+        "SELECT issue_key FROM public.dockside_topics WHERE topic_id = %s",
+        (int(topic_id),),
+    )
+    row = cur.fetchone()
+    return row["issue_key"] if row else None
+
+
+def _ensure_roundup_topic_id(cur, issue_key: str, headline, account) -> int:
+    subject = _compact_headline(headline, issue_key)
+    row = _roundup_topic_row(cur, issue_key)
+    if row:
+        return int(row["topic_id"])
+    cur.execute(
+        """
+        INSERT INTO public.dockside_topics (subject, created_by, issue_key)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (issue_key) WHERE issue_key IS NOT NULL DO NOTHING
+        RETURNING topic_id
+        """,
+        (subject, account["account_id"] if account else None, issue_key),
+    )
+    inserted = cur.fetchone()
+    if inserted:
+        return int(inserted["topic_id"])
+    row = _roundup_topic_row(cur, issue_key)
+    if not row:
+        raise DocksideError(400, "Roundup discussion was not saved")
+    return int(row["topic_id"])
+
+
+def _roundup_targets(cur, body: str, issue_key=None, headline=None, parent_id=None):
+    """Issue keys that should also receive this Dockside comment."""
+    found = []
+    seen = set()
+
+    def add(key, title):
+        key = str(key or "").strip()
+        if not _ISSUE_KEY_RE.fullmatch(key) or key in seen:
+            return
+        seen.add(key)
+        found.append((key, title))
+
+    if issue_key:
+        try:
+            add(_issue_key(issue_key), headline)
+        except DocksideError:
+            pass
+    if parent_id:
+        cur.execute(
+            """
+            SELECT issue_key
+            FROM public.dockside_roundup_mirrors
+            WHERE source_post_id = %s
+            """,
+            (int(parent_id),),
+        )
+        for row in cur.fetchall():
+            add(row["issue_key"], headline)
+    cur.execute(
+        """
+        SELECT issue_key, subject
+        FROM public.dockside_topics
+        WHERE issue_key IS NOT NULL AND status = 'open'
+        """
+    )
+    rows = sorted(cur.fetchall(), key=lambda row: len(str(row["subject"] or "")), reverse=True)
+    text = body or ""
+    for row in rows:
+        label = "@" + str(row["subject"] or "").strip()
+        if label and label.lower() in text.lower():
+            add(row["issue_key"], row["subject"])
+    return found
+
+
+def _mirror_roundup_post(cur, account, visitor_id, source_post_id, body, parent_id, issue_key, headline):
+    cur.execute(
+        "SELECT 1 FROM public.dockside_roundup_mirrors WHERE source_post_id = %s AND issue_key = %s",
+        (int(source_post_id), issue_key),
+    )
+    if cur.fetchone():
+        return
+    topic_id = _ensure_roundup_topic_id(cur, issue_key, headline, account)
+    roundup_parent = None
+    if parent_id:
+        cur.execute(
+            """
+            SELECT roundup_post_id
+            FROM public.dockside_roundup_mirrors
+            WHERE source_post_id = %s AND issue_key = %s
+            """,
+            (int(parent_id), issue_key),
+        )
+        mapped = cur.fetchone()
+        if mapped:
+            roundup_parent = int(mapped["roundup_post_id"])
+    guest = account is None
+    cur.execute(
+        """
+        INSERT INTO public.dockside_posts (topic_id, parent_post_id, body, created_by, visitor_id)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING post_id
+        """,
+        (
+            topic_id,
+            roundup_parent,
+            body,
+            None if guest else account["account_id"],
+            visitor_id if guest else None,
+        ),
+    )
+    roundup_post_id = cur.fetchone()["post_id"]
+    cur.execute(
+        """
+        INSERT INTO public.dockside_roundup_mirrors (source_post_id, issue_key, roundup_post_id)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (source_post_id, issue_key) DO NOTHING
+        """,
+        (int(source_post_id), issue_key, roundup_post_id),
+    )
+    _touch_topic(cur, topic_id)
+
+
+def add_post(conn, account, topic_id: int, body, parent_post_id, visitor_id=None, issue_key=None, headline=None) -> dict:
     body = _clean_body(body)
     cur = _cur(conn)
     guest = account is None
@@ -783,6 +918,10 @@ def add_post(conn, account, topic_id: int, body, parent_post_id, visitor_id=None
         _follow(cur, topic_id, account["account_id"], False)
         notified = _notify(cur, topic_id, post_id, account["account_id"])
     _touch_topic(cur, topic_id)
+    # Main Dockside comments with an @Roundup leader also land on that issue page.
+    if not _topic_issue_key(cur, topic_id):
+        for key, title in _roundup_targets(cur, body, issue_key, headline, parent_id):
+            _mirror_roundup_post(cur, account, visitor_id, post_id, body, parent_id, key, title or headline)
     cur.close()
     fresh = _open_topic(_cur(conn), topic_id)
     viewer = None if guest else account["account_id"]
@@ -1486,6 +1625,8 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 payload.get("body"),
                 payload.get("parent_post_id"),
                 request.state.dockside_visitor,
+                payload.get("issue_key"),
+                payload.get("headline"),
             )
 
         return _run(request, handler)
