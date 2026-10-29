@@ -361,10 +361,21 @@ def event_visible_status_text(
 
 
 def event_schema_status(state: str) -> Optional[str]:
-    """Official schema.org EventStatusType only. Omit for completed/final/history."""
-    if state in ("upcoming", "live"):
-        return "https://schema.org/EventScheduled"
-    return None
+    """Official schema.org EventStatusType. Google flags Event items without this."""
+    if state == "cancelled":
+        return "https://schema.org/EventCancelled"
+    return "https://schema.org/EventScheduled"
+
+
+def start_date_from_slug(slug_or_url: str) -> Optional[date]:
+    """YYYY-MM-DD prefix on /regatta/{date}-{name} when the DB date is missing."""
+    m = re.search(r"(20\d{2}-\d{2}-\d{2})", slug_or_url or "")
+    if not m:
+        return None
+    try:
+        return date.fromisoformat(m.group(1))
+    except ValueError:
+        return None
 
 
 def sports_event_json_ld(
@@ -382,43 +393,44 @@ def sports_event_json_ld(
     series_name: str = "",
     series_url: str = "",
 ) -> dict:
-    st = _as_date(start_date)
-    en = _as_date(end_date)
+    """One SportsEvent Google can validate. Never emit a nested Event.
+
+    Google required: name, startDate, location (Place + PostalAddress).
+    Nested superEvent @type SportsEvent was a second Event item missing
+    those fields (GSC 'Missing location' / 'Missing startDate').
+    Do not invent offers or performer — sailing events are not concerts.
+    """
+    st = _as_date(start_date) or start_date_from_slug(canonical_url)
+    en = _as_date(end_date) or st
+    title = (name or "").strip()
+    if not title or not st:
+        return {}
     out: dict[str, Any] = {
         "@context": "https://schema.org",
         "@type": "SportsEvent",
-        "name": (name or "").strip(),
+        "name": title,
         "sport": "Sailing",
         "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+        "eventStatus": event_schema_status(state) or "https://schema.org/EventScheduled",
+        "startDate": st.isoformat(),
+        "endDate": en.isoformat(),
+        "description": (description or "").strip() or title,
     }
     if canonical_url:
         out["url"] = canonical_url
-    ev_status = event_schema_status(state)
-    if ev_status:
-        out["eventStatus"] = ev_status
-    if st:
-        out["startDate"] = st.isoformat()
-    if en:
-        out["endDate"] = en.isoformat()
-    if description:
-        out["description"] = description
-    if host_club:
-        org: dict[str, Any] = {"@type": "Organization", "name": host_club}
-        if host_club_url:
-            org["url"] = host_club_url
-        out["organizer"] = org
-        addr: dict[str, Any] = {"@type": "PostalAddress", "addressCountry": "ZA"}
-        if province:
-            addr["addressLocality"] = province
-        out["location"] = {"@type": "Place", "name": host_club, "address": addr}
+    loc_name = (host_club or "").strip() or "South Africa"
+    addr: dict[str, Any] = {"@type": "PostalAddress", "addressCountry": "ZA"}
+    if province:
+        addr["addressLocality"] = province
+    out["location"] = {"@type": "Place", "name": loc_name, "address": addr}
+    org_name = (host_club or "").strip() or "SailingSA"
+    org: dict[str, Any] = {"@type": "Organization", "name": org_name}
+    org["url"] = (host_club_url or "").strip() or "https://sailingsa.co.za"
+    out["organizer"] = org
     if image_url:
         out["image"] = image_url
-    if series_name and series_url:
-        out["superEvent"] = {
-            "@type": "SportsEvent",
-            "name": series_name,
-            "url": series_url,
-        }
+    # Series lives in visible HTML. Do not nest another SportsEvent here.
+    _ = (series_name, series_url)
     return out
 
 
@@ -438,6 +450,49 @@ def breadcrumb_json_ld(*, event_name: str, canonical_url: str, base_url: str) ->
             },
         ],
     }
+
+
+def class_results_json_ld(
+    *,
+    event_name: str,
+    class_name: str,
+    canonical_url: str,
+    event_url: str,
+    base_url: str,
+) -> dict:
+    """Fleet sheet is not a second Event. Breadcrumbs only — no SportsEvent."""
+    base = (base_url or "https://sailingsa.co.za").rstrip("/")
+    ev = (event_name or "Event").strip() or "Event"
+    cls = (class_name or "Class").strip() or "Class"
+    return {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Home", "item": f"{base}/"},
+            {"@type": "ListItem", "position": 2, "name": "Events", "item": f"{base}/events"},
+            {"@type": "ListItem", "position": 3, "name": ev, "item": event_url},
+            {"@type": "ListItem", "position": 4, "name": cls, "item": canonical_url},
+        ],
+    }
+
+
+def class_results_json_ld_html(
+    *,
+    event_name: str,
+    class_name: str,
+    canonical_url: str,
+    event_url: str,
+    base_url: str,
+) -> str:
+    return json_ld_script_tags(
+        class_results_json_ld(
+            event_name=event_name,
+            class_name=class_name,
+            canonical_url=canonical_url,
+            event_url=event_url,
+            base_url=base_url,
+        )
+    )
 
 
 def _class_href(class_name: str) -> str:

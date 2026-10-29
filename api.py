@@ -26369,31 +26369,19 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             + "</div></div>"
         )
 
-        def _iso_date(d):
-            if d is None:
-                return None
-            if hasattr(d, "strftime"):
-                return d.strftime("%Y-%m-%d")
-            return str(d)[:10] if str(d) else None
+        # Fleet sheet is not a second Event. Breadcrumbs only.
+        try:
+            from sailingsa.backend.event_page_seo import class_results_json_ld_html
 
-        start_iso = _iso_date(start_d)
-        json_ld = {
-            "@context": "https://schema.org",
-            "@type": "SportsEvent",
-            "name": event_name or "",
-            "sport": "Sailing",
-            "eventStatus": "https://schema.org/EventScheduled",
-            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-        }
-        if start_iso:
-            json_ld["startDate"] = start_iso
-        end_iso = _iso_date(end_d)
-        if end_iso:
-            json_ld["endDate"] = end_iso
-        if event_name:
-            json_ld["description"] = event_name
-        if host_club_text:
-            json_ld["organizer"] = {"@type": "Organization", "name": host_club_text}
+            json_ld_html = class_results_json_ld_html(
+                event_name=event_name or "",
+                class_name=class_name,
+                canonical_url=canonical_url,
+                event_url=f"{base_url}/regatta/{regatta_id}",
+                base_url=base_url,
+            )
+        except Exception:
+            json_ld_html = ""
         wc_prefs = _merge_wc_column_prefs_for_regatta(str(regatta_id)) if use_wc_cols else None
         sa_columns_frag = ""
         if use_wc_cols and is_sa:
@@ -26427,7 +26415,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
             "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
-            f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
+            f"{json_ld_html}"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
             f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script_c}{sa_toolbar_js}"
             "</body></html>"
@@ -26634,6 +26622,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         )
         upcoming_html = ""
         _pass_b_title = ""
+        _pass_b_ld_html = ""
         try:
             from sailingsa.backend.event_page_seo import build_regatta_pass_b
 
@@ -26656,6 +26645,7 @@ def serve_regatta_standalone(slug: str, request: Request):
                 status_line_text = _pass_b["status_visible"]
             upcoming_html = _pass_b.get("upcoming_html") or ""
             _pass_b_title = (_pass_b.get("title") or "").strip()
+            _pass_b_ld_html = (_pass_b.get("json_ld_html") or "").strip()
         except Exception as _up_err:
             print(f"[upcoming event body] {_up_err}", flush=True)
         is_sa = _session_role_is_super_admin(request)
@@ -26724,7 +26714,7 @@ def serve_regatta_standalone(slug: str, request: Request):
                 return d.strftime("%Y-%m-%d")
             return str(d)[:10] if str(d) else None
 
-        # SportsEvent JSON-LD: startDate required (ISO 8601 YYYY-MM-DD); rest for rich result eligibility
+        # SportsEvent JSON-LD: required name + startDate + location. Prefer Pass B.
         start_iso = _iso_date(start_d)
         json_ld = {
             "@context": "https://schema.org",
@@ -26743,16 +26733,24 @@ def serve_regatta_standalone(slug: str, request: Request):
         if description:
             json_ld["description"] = description
         organizer_name = host_club_text or "SailingSA"
-        json_ld["organizer"] = {"@type": "Organization", "name": organizer_name}
-        if host_club_text:
-            address = {"@type": "PostalAddress", "addressCountry": "ZA"}
-            if host_club_province:
-                address["addressLocality"] = host_club_province
-            json_ld["location"] = {
-                "@type": "Place",
-                "name": host_club_text,
-                "address": address,
-            }
+        json_ld["organizer"] = {
+            "@type": "Organization",
+            "name": organizer_name,
+            "url": (
+                f"{base_url}/club/{host_club_slug}"
+                if host_club_slug
+                else "https://sailingsa.co.za"
+            ),
+        }
+        address = {"@type": "PostalAddress", "addressCountry": "ZA"}
+        if host_club_province:
+            address["addressLocality"] = host_club_province
+        json_ld["location"] = {
+            "@type": "Place",
+            "name": host_club_text or "South Africa",
+            "address": address,
+        }
+        _ld_html = _pass_b_ld_html or f'<script type="application/ld+json">{json.dumps(json_ld)}</script>'
         use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
         wc_prefs = _merge_wc_column_prefs_for_regatta(str(regatta_id)) if use_wc_cols else None
         sa_columns_frag = ""
@@ -26810,7 +26808,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
             "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
-            f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
+            f"{_ld_html}"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
             f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
             "</body></html>"

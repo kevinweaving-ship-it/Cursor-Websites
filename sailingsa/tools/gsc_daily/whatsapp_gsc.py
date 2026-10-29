@@ -91,6 +91,11 @@ def compact_text(payload: dict) -> str:
         from .page_indexing import render_lines as _pi_lines
 
         lines.extend(_pi_lines(pi))
+    rr = payload.get("rich_results") or {}
+    if rr.get("live") or rr.get("gsc"):
+        from .rich_results import render_lines as _rr_lines
+
+        lines.extend(_rr_lines({"live": rr.get("live") or {}, "gsc": rr.get("gsc") or {}}))
     cls = payload.get("classes") or {}
     lines.append(
         f"Live: REAL {cls.get(REAL, 0)} | STALE {cls.get(STALE, 0)} | "

@@ -4,11 +4,13 @@ import unittest
 
 from sailingsa.backend.event_page_seo import (
     build_regatta_pass_b,
+    class_results_json_ld,
     countdown_label,
     derive_event_lifecycle,
     event_document_title,
     is_near_term_upcoming,
     match_event_news,
+    sports_event_json_ld,
     upcoming_event_body_html,
 )
 
@@ -142,6 +144,67 @@ class UpcomingBodyTests(unittest.TestCase):
         self.assertNotIn("Final Results", bits["title"])
         self.assertIn("6 DAYS TO GO", bits["upcoming_html"])
         self.assertIn("News", bits["upcoming_html"])
+
+
+class EventJsonLdTests(unittest.TestCase):
+    def test_required_fields_and_no_nested_event(self):
+        data = sports_event_json_ld(
+            name="2026 Zeekoe Vlei Cape Classic",
+            canonical_url="https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic",
+            state="final",
+            start_date=date(2026, 9, 12),
+            end_date=date(2026, 9, 13),
+            host_club="ZVYC - Zeekoe Vlei Yacht Club",
+            host_club_url="https://sailingsa.co.za/club/zvyc",
+            province="Western Cape",
+            series_name="ZVYC Cape Classic",
+            series_url="https://sailingsa.co.za/yearly-events",
+        )
+        self.assertEqual(data["@type"], "SportsEvent")
+        self.assertEqual(data["startDate"], "2026-09-12")
+        self.assertEqual(data["location"]["@type"], "Place")
+        self.assertEqual(data["location"]["address"]["addressCountry"], "ZA")
+        self.assertEqual(data["eventStatus"], "https://schema.org/EventScheduled")
+        self.assertEqual(data["organizer"]["url"], "https://sailingsa.co.za/club/zvyc")
+        self.assertNotIn("superEvent", data)
+        self.assertNotIn("offers", data)
+        self.assertNotIn("performer", data)
+
+    def test_slug_date_and_country_fallback(self):
+        data = sports_event_json_ld(
+            name="Tour de Vlei",
+            canonical_url="https://sailingsa.co.za/regatta/2026-10-24-vyc-tour-de-vlei",
+            state="upcoming",
+            start_date=None,
+            end_date=None,
+        )
+        self.assertEqual(data["startDate"], "2026-10-24")
+        self.assertEqual(data["endDate"], "2026-10-24")
+        self.assertEqual(data["location"]["name"], "South Africa")
+        self.assertEqual(data["organizer"]["name"], "SailingSA")
+
+    def test_no_event_without_date(self):
+        data = sports_event_json_ld(
+            name="Nameless",
+            canonical_url="https://sailingsa.co.za/regatta/lipton",
+            state="upcoming",
+            start_date=None,
+            end_date=None,
+        )
+        self.assertEqual(data, {})
+
+    def test_class_sheet_is_not_an_event(self):
+        data = class_results_json_ld(
+            event_name="2026 Zeekoe Vlei Cape Classic",
+            class_name="420",
+            canonical_url="https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic/class-420",
+            event_url="https://sailingsa.co.za/regatta/2026-09-13-zvyc-cape-classic",
+            base_url="https://sailingsa.co.za",
+        )
+        self.assertEqual(data["@type"], "BreadcrumbList")
+        blob = str(data)
+        self.assertNotIn("SportsEvent", blob)
+        self.assertNotIn("Event", blob.replace("Events", ""))
 
 
 if __name__ == "__main__":

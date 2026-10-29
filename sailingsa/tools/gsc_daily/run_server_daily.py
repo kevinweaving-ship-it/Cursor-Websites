@@ -24,6 +24,7 @@ from .server_api import inspect_url, list_sitemaps, list_sites, search_analytics
 from .server_auth import NeedGoogleConsent, access_token
 from .seo_health import evaluate_health, health_lines, write_health
 from .page_indexing import probe_families, render_lines as page_indexing_lines, write_page_indexing
+from .rich_results import audit_web_root, render_lines as rich_results_lines
 from .watchlist import build_watchlist, persist_reals, priority_event_urls
 from .whatsapp_gsc import class_counts, write_whatsapp
 
@@ -266,6 +267,17 @@ def main(argv: list[str] | None = None) -> int:
     write_page_indexing(dest, page_idx)
     for item in page_idx.get("broken") or []:
         attn.append(f"INDEX FAMILY {item}")
+    try:
+        rich = audit_web_root(inspections=inspections, dest=dest)
+    except Exception as e:
+        rich = {"error": f"{type(e).__name__}: {e}", "live": {}, "gsc": {}}
+        (dest / "rich_results.json").write_text(json.dumps(rich, indent=2) + "\n")
+    live_err_n = int((rich.get("live") or {}).get("error_pages") or 0)
+    gsc_err_n = int((rich.get("gsc") or {}).get("event_error_urls") or 0)
+    if live_err_n:
+        attn.append(f"EVENT JSON-LD errors on {live_err_n} pages")
+    if gsc_err_n:
+        attn.append(f"GSC Event ERRORS on {gsc_err_n} inspected URLs")
     payload = {
         "run_date": day,
         "sitemap_submit": sub,
@@ -349,6 +361,16 @@ def main(argv: list[str] | None = None) -> int:
             "Official Search Console API has no Page Indexing report. "
             "Do not click Validate Fix."
         ),
+        "rich_results": {
+            "live": rich.get("live") or {},
+            "gsc": rich.get("gsc") or {},
+            "error": rich.get("error"),
+        },
+        "rich_results_note": rich.get("note")
+        or (
+            "Official Search Console API has no Enhancement report table. "
+            "We audit live Event JSON-LD and read URL Inspection richResultsResult."
+        ),
     }
     (dest / "gsc_api.json").write_text(json.dumps(google, indent=2) + "\n", encoding="utf-8")
     (dest / "report.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -375,6 +397,10 @@ def main(argv: list[str] | None = None) -> int:
         *page_indexing_lines(page_idx),
         "",
         payload["page_indexing_note"],
+        "",
+        *rich_results_lines(rich),
+        "",
+        payload["rich_results_note"],
         "",
     ]
     (dest / "REPORT.md").write_text("\n".join(md), encoding="utf-8")
