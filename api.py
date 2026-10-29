@@ -27069,6 +27069,15 @@ def serve_robots_txt():
     body = f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n"
     return Response(content=body, media_type="text/plain", headers={"Cache-Control": "public, max-age=3600"})
 
+# Event interest API (Stages 1–3). Safe if schema already applied; ensure_schema is idempotent.
+try:
+    from sailingsa.backend.event_interest import register_event_interest_routes
+
+    register_event_interest_routes(app, get_db_connection, return_db_connection)
+    print("[event_interest] routes registered", flush=True)
+except Exception as _eci_reg_err:
+    print(f"[event_interest] route registration skipped: {_eci_reg_err}", flush=True)
+
 # Serve /artwork/ from project artwork dir (e.g. TimAdvisor logo) so same-origin requests work
 ARTWORK_DIR = os.path.join(BASE_DIR, "artwork")
 if os.path.isdir(ARTWORK_DIR):
