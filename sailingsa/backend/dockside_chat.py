@@ -1,13 +1,16 @@
 """Dockside Chat: topics, comments, replies, follows, notifications, reports.
 
-Routes are registered onto the live FastAPI app. All writes require a valid
-session cookie. Hidden rows are omitted from public reads.
+Routes are registered onto the live FastAPI app. Comments and replies require
+a session unless a super admin has opened the public window. Reaction icons
+accept a signed-in sailor or a visitor cookie. Hidden rows are omitted from
+public reads.
 """
 from __future__ import annotations
 
 import re
+import secrets
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import psycopg2.extras
 from fastapi import HTTPException, Request
@@ -17,6 +20,11 @@ _SCHEMA_LOCK = threading.Lock()
 _SCHEMA_READY = False
 _TAG_RE = re.compile(r"<[^>]*>")
 _SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$")
+_VISITOR_RE = re.compile(r"^[a-f0-9]{32}$")
+_ISSUE_KEY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+PUBLIC_WINDOW_DAYS = 7
+PUBLIC_LOW_COMMENTS = 5
+_REACTION_KINDS = ("up", "heart", "down")
 _SORTS = {
     ("updated", "desc"): "t.updated_at DESC, t.topic_id DESC",
     ("updated", "asc"): "t.updated_at ASC, t.topic_id ASC",
@@ -118,6 +126,15 @@ def _hide_personal_name(name, role) -> bool:
 
 
 def _author(row) -> dict:
+    if row.get("visitor_id") and not row.get("created_by"):
+        return {
+            "account_id": None,
+            "sas_id": None,
+            "display_name": "Guest",
+            "avatar_text": "G",
+            "profile_url": None,
+            "photo_url": None,
+        }
     account_id = row.get("created_by") or row.get("account_id")
     if _hide_personal_name(row.get("display_name"), row.get("role")):
         return {
@@ -226,6 +243,73 @@ def apply_schema(conn) -> None:
                     FOREIGN KEY (topic_id) REFERENCES public.dockside_topics(topic_id) ON DELETE CASCADE;
             END IF;
         END $$;
+        ALTER TABLE public.dockside_posts ADD COLUMN IF NOT EXISTS visitor_id text;
+        ALTER TABLE public.dockside_posts ALTER COLUMN created_by DROP NOT NULL;
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'dockside_posts_author_chk'
+            ) THEN
+                ALTER TABLE public.dockside_posts
+                    ADD CONSTRAINT dockside_posts_author_chk
+                    CHECK (
+                        created_by IS NOT NULL
+                        OR (visitor_id IS NOT NULL AND char_length(visitor_id) = 32)
+                    );
+            END IF;
+        END $$;
+        CREATE INDEX IF NOT EXISTS dockside_posts_visitor_idx
+            ON public.dockside_posts (visitor_id, created_at);
+        CREATE TABLE IF NOT EXISTS public.dockside_guest_reactions (
+            post_id bigint NOT NULL REFERENCES public.dockside_posts(post_id) ON DELETE CASCADE,
+            visitor_id text NOT NULL,
+            kind text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (post_id, visitor_id, kind),
+            CONSTRAINT dockside_guest_reactions_kind_chk CHECK (kind IN ('up', 'heart', 'down')),
+            CONSTRAINT dockside_guest_reactions_visitor_chk CHECK (char_length(visitor_id) = 32)
+        );
+        CREATE TABLE IF NOT EXISTS public.roundup_reactions (
+            issue_key text NOT NULL,
+            actor_key text NOT NULL,
+            kind text NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (issue_key, actor_key, kind),
+            CONSTRAINT roundup_reactions_kind_chk CHECK (kind IN ('up', 'heart', 'down')),
+            CONSTRAINT roundup_reactions_issue_chk CHECK (issue_key ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        );
+        CREATE TABLE IF NOT EXISTS public.dockside_public_window (
+            id smallint PRIMARY KEY CHECK (id = 1),
+            open boolean NOT NULL DEFAULT false,
+            opened_at timestamptz,
+            until_at timestamptz,
+            extended boolean NOT NULL DEFAULT false,
+            baseline_count integer NOT NULL DEFAULT 0
+        );
+        INSERT INTO public.dockside_public_window (id)
+        VALUES (1)
+        ON CONFLICT (id) DO NOTHING;
+        DELETE FROM public.dockside_reactions older
+        WHERE EXISTS (
+            SELECT 1 FROM public.dockside_reactions newer
+            WHERE newer.post_id = older.post_id
+              AND newer.account_id = older.account_id
+              AND (newer.created_at, newer.kind) > (older.created_at, older.kind)
+        );
+        DELETE FROM public.dockside_guest_reactions older
+        WHERE EXISTS (
+            SELECT 1 FROM public.dockside_guest_reactions newer
+            WHERE newer.post_id = older.post_id
+              AND newer.visitor_id = older.visitor_id
+              AND (newer.created_at, newer.kind) > (older.created_at, older.kind)
+        );
+        DELETE FROM public.roundup_reactions older
+        WHERE EXISTS (
+            SELECT 1 FROM public.roundup_reactions newer
+            WHERE newer.issue_key = older.issue_key
+              AND newer.actor_key = older.actor_key
+              AND (newer.created_at, newer.kind) > (older.created_at, older.kind)
+        );
         """
     )
     cur.close()
@@ -368,7 +452,7 @@ def _empty_reactions():
     return {"counts": {"up": 0, "heart": 0, "down": 0}, "mine": []}
 
 
-def _attach_reactions(cur, posts, account_id):
+def _attach_reactions(cur, posts, account_id=None, visitor_id=None):
     ids = [post["post_id"] for post in posts]
     counts = {}
     mine = {}
@@ -376,11 +460,18 @@ def _attach_reactions(cur, posts, account_id):
         cur.execute(
             """
             SELECT post_id, kind, COUNT(*) AS n
-            FROM public.dockside_reactions
-            WHERE post_id = ANY(%s)
+            FROM (
+                SELECT post_id, kind
+                FROM public.dockside_reactions
+                WHERE post_id = ANY(%s)
+                UNION ALL
+                SELECT post_id, kind
+                FROM public.dockside_guest_reactions
+                WHERE post_id = ANY(%s)
+            ) reactions
             GROUP BY post_id, kind
             """,
-            (ids,),
+            (ids, ids),
         )
         for row in cur.fetchall():
             bucket = counts.setdefault(row["post_id"], {"up": 0, "heart": 0, "down": 0})
@@ -394,8 +485,19 @@ def _attach_reactions(cur, posts, account_id):
                 """,
                 (account_id, ids),
             )
-            for row in cur.fetchall():
-                mine.setdefault(row["post_id"], []).append(row["kind"])
+        elif visitor_id:
+            cur.execute(
+                """
+                SELECT post_id, kind
+                FROM public.dockside_guest_reactions
+                WHERE visitor_id = %s AND post_id = ANY(%s)
+                """,
+                (visitor_id, ids),
+            )
+        else:
+            cur.execute("SELECT NULL::bigint AS post_id, NULL::text AS kind WHERE false")
+        for row in cur.fetchall():
+            mine.setdefault(row["post_id"], []).append(row["kind"])
     for post in posts:
         base = {"up": 0, "heart": 0, "down": 0}
         base.update(counts.get(post["post_id"], {}))
@@ -403,10 +505,10 @@ def _attach_reactions(cur, posts, account_id):
     return posts
 
 
-def _posts(cur, topic_id: int, account_id=None):
+def _posts(cur, topic_id: int, account_id=None, visitor_id=None):
     cur.execute(
         """
-        SELECT p.post_id, p.parent_post_id, p.body, p.created_at, p.created_by,
+        SELECT p.post_id, p.parent_post_id, p.body, p.created_at, p.created_by, p.visitor_id,
                ua.sas_id, ua.role, ua.profile_picture_path,
                COALESCE(
                    NULLIF(TRIM(ua.full_name), ''),
@@ -417,7 +519,7 @@ def _posts(cur, topic_id: int, account_id=None):
                NULLIF(TRIM(sp.ssl_profile_slug), '') AS slug,
                sp.profile_photo_path
         FROM public.dockside_posts p
-        JOIN public.user_accounts ua ON ua.account_id = p.created_by
+        LEFT JOIN public.user_accounts ua ON ua.account_id = p.created_by
         LEFT JOIN LATERAL (
             SELECT first_name, last_name, full_name, ssl_profile_slug, profile_photo_path
             FROM public.sas_id_personal
@@ -444,7 +546,7 @@ def _posts(cur, topic_id: int, account_id=None):
                 "reactions": _empty_reactions(),
             }
         )
-    return _attach_reactions(cur, out, account_id)
+    return _attach_reactions(cur, out, account_id, visitor_id)
 
 
 def _topic_json(row, posts, following=None):
@@ -497,12 +599,132 @@ def create_topic(conn, account, subject, body) -> dict:
     return _topic_json(topic, _posts(_cur(conn), topic["topic_id"], account["account_id"]), {"muted": False})
 
 
-def add_post(conn, account, topic_id: int, body, parent_post_id) -> dict:
+def _guest_rate_limit(cur, visitor_id: str) -> None:
+    cur.execute(
+        """
+        SELECT COUNT(*) AS n
+        FROM public.dockside_posts
+        WHERE visitor_id = %s AND created_at > NOW() - INTERVAL '1 hour'
+        """,
+        (visitor_id,),
+    )
+    if int(cur.fetchone()["n"]) >= 6:
+        raise DocksideError(429, "Too many comments. Wait a few minutes and try again.")
+
+
+def _public_payload(open_flag, until, extended) -> dict:
+    return {
+        "open": bool(open_flag),
+        "until": _iso(until) if open_flag else None,
+        "extended": bool(extended),
+        "low_mark": PUBLIC_LOW_COMMENTS,
+        "days": PUBLIC_WINDOW_DAYS,
+    }
+
+
+def public_comment_state(cur) -> dict:
+    """Login stays the default. A super admin can open comments for 7 days.
+
+    If fewer than PUBLIC_LOW_COMMENTS new comments arrive, the window extends
+    once by another 7 days, then closes back to login only.
+    """
+    cur.execute(
+        """
+        SELECT open, opened_at, until_at, extended
+        FROM public.dockside_public_window
+        WHERE id = 1
+        FOR UPDATE
+        """
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.execute("INSERT INTO public.dockside_public_window (id) VALUES (1) ON CONFLICT (id) DO NOTHING")
+        return _public_payload(False, None, False)
+    if not row["open"] or not row["until_at"]:
+        return _public_payload(False, None, row["extended"])
+    until = row["until_at"]
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if now < until:
+        return _public_payload(True, until, row["extended"])
+    cur.execute(
+        """
+        SELECT COUNT(*) AS n
+        FROM public.dockside_posts
+        WHERE status = 'visible' AND created_at >= %s
+        """,
+        (row["opened_at"],),
+    )
+    fresh = int(cur.fetchone()["n"])
+    if not row["extended"] and fresh < PUBLIC_LOW_COMMENTS:
+        extended_until = until + timedelta(days=PUBLIC_WINDOW_DAYS)
+        cur.execute(
+            """
+            UPDATE public.dockside_public_window
+            SET until_at = %s, extended = true
+            WHERE id = 1
+            """,
+            (extended_until,),
+        )
+        return _public_payload(True, extended_until, True)
+    cur.execute("UPDATE public.dockside_public_window SET open = false WHERE id = 1")
+    return _public_payload(False, None, True)
+
+
+def set_public_comments(conn, account, open_flag: bool) -> dict:
     account = _require(account)
+    if not account.get("is_super_admin"):
+        raise DocksideError(403, "Super admin required")
+    cur = _cur(conn)
+    if not open_flag:
+        cur.execute(
+            """
+            UPDATE public.dockside_public_window
+            SET open = false
+            WHERE id = 1
+            """
+        )
+        state = _public_payload(False, None, False)
+        cur.close()
+        return {"public_comments": state}
+    now = datetime.now(timezone.utc)
+    until = now + timedelta(days=PUBLIC_WINDOW_DAYS)
+    cur.execute("SELECT COUNT(*) AS n FROM public.dockside_posts WHERE status = 'visible'")
+    baseline = int(cur.fetchone()["n"])
+    cur.execute(
+        """
+        INSERT INTO public.dockside_public_window
+            (id, open, opened_at, until_at, extended, baseline_count)
+        VALUES (1, true, %s, %s, false, %s)
+        ON CONFLICT (id) DO UPDATE SET
+            open = true,
+            opened_at = EXCLUDED.opened_at,
+            until_at = EXCLUDED.until_at,
+            extended = false,
+            baseline_count = EXCLUDED.baseline_count
+        """,
+        (now, until, baseline),
+    )
+    state = _public_payload(True, until, False)
+    cur.close()
+    return {"public_comments": state}
+
+
+def add_post(conn, account, topic_id: int, body, parent_post_id, visitor_id=None) -> dict:
     body = _clean_body(body)
     cur = _cur(conn)
+    guest = account is None
+    if guest:
+        if not visitor_id or not _VISITOR_RE.fullmatch(visitor_id):
+            raise DocksideError(401, "Sign in required")
+        if not public_comment_state(cur)["open"]:
+            raise DocksideError(401, "Sign in required")
+        _guest_rate_limit(cur, visitor_id)
+    else:
+        account = _require(account)
+        _rate_limit(cur, account["account_id"])
     topic = _open_topic(cur, topic_id)
-    _rate_limit(cur, account["account_id"])
     parent_id = None
     if parent_post_id not in (None, "", 0, "0"):
         try:
@@ -539,22 +761,31 @@ def add_post(conn, account, topic_id: int, body, parent_post_id) -> dict:
         parent_id = parent["post_id"]
     cur.execute(
         """
-        INSERT INTO public.dockside_posts (topic_id, parent_post_id, body, created_by)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO public.dockside_posts (topic_id, parent_post_id, body, created_by, visitor_id)
+        VALUES (%s, %s, %s, %s, %s)
         RETURNING post_id
         """,
-        (topic_id, parent_id, body, account["account_id"]),
+        (
+            topic_id,
+            parent_id,
+            body,
+            None if guest else account["account_id"],
+            visitor_id if guest else None,
+        ),
     )
     post_id = cur.fetchone()["post_id"]
-    _follow(cur, topic_id, account["account_id"], False)
-    notified = _notify(cur, topic_id, post_id, account["account_id"])
+    notified = 0
+    if not guest:
+        _follow(cur, topic_id, account["account_id"], False)
+        notified = _notify(cur, topic_id, post_id, account["account_id"])
     _touch_topic(cur, topic_id)
     cur.close()
     fresh = _open_topic(_cur(conn), topic_id)
+    viewer = None if guest else account["account_id"]
     return {
         "post_id": post_id,
         "notified": notified,
-        "topic": _topic_json(fresh, _posts(_cur(conn), topic_id, account["account_id"])),
+        "topic": _topic_json(fresh, _posts(_cur(conn), topic_id, viewer, visitor_id if guest else None)),
     }
 
 
@@ -623,7 +854,7 @@ def list_topics(conn, q: str, sort: str, direction: str, limit: int = 50) -> dic
     }
 
 
-def get_topic(conn, topic_id: int, account=None) -> dict:
+def get_topic(conn, topic_id: int, account=None, visitor_id=None) -> dict:
     cur = _cur(conn)
     topic = _open_topic(cur, topic_id)
     following = None
@@ -638,12 +869,12 @@ def get_topic(conn, topic_id: int, account=None) -> dict:
         row = cur.fetchone()
         if row:
             following = {"muted": bool(row["muted"])}
-    posts = _posts(cur, topic_id, account["account_id"] if account else None)
+    posts = _posts(cur, topic_id, account["account_id"] if account else None, None if account else visitor_id)
     cur.close()
     return _topic_json(topic, posts, following)
 
 
-def current_topic(conn, account=None) -> dict:
+def current_topic(conn, account=None, visitor_id=None) -> dict:
     cur = _cur(conn)
     cur.execute(
         """
@@ -659,7 +890,7 @@ def current_topic(conn, account=None) -> dict:
         cur.close()
         return {"topic": None}
     viewer = account["account_id"] if account else None
-    payload = _topic_json(topic, _posts(cur, topic["topic_id"], viewer))
+    payload = _topic_json(topic, _posts(cur, topic["topic_id"], viewer, None if account else visitor_id))
     cur.close()
     return {"topic": payload}
 
@@ -864,46 +1095,170 @@ def moderate(conn, account, post_id, topic_id, action: str) -> dict:
     return {"ok": True, "action": action}
 
 
-def set_reaction(conn, account, post_id: int, kind: str) -> dict:
-    account = _require(account)
-    if kind not in ("up", "heart", "down"):
+def _reaction_kind(kind) -> str:
+    if kind not in _REACTION_KINDS:
         raise DocksideError(400, "Reaction is invalid")
+    return kind
+
+
+def _issue_key(value) -> str:
+    key = str(value or "").strip()
+    if not _ISSUE_KEY_RE.fullmatch(key):
+        raise DocksideError(400, "Roundup issue is invalid")
+    return key
+
+
+def _empty_roundup():
+    return {"counts": {"up": 0, "heart": 0, "down": 0}, "mine": []}
+
+
+def _actor_key(account, visitor_id) -> str:
+    if account:
+        return "a:%s" % int(account["account_id"])
+    if visitor_id and _VISITOR_RE.fullmatch(visitor_id):
+        return "v:" + visitor_id
+    raise DocksideError(401, "Sign in required")
+
+
+def _keep_one(cur, select_sql, delete_sql, insert_sql, params, kind, insert_params) -> None:
+    """One person, one icon. The same icon again clears it."""
+    cur.execute(select_sql, params)
+    existing = {row["kind"] for row in cur.fetchall()}
+    cur.execute(delete_sql, params)
+    if existing == {kind}:
+        return
+    cur.execute(insert_sql, insert_params)
+
+
+def set_reaction(conn, account, post_id: int, kind: str, visitor_id=None) -> dict:
+    kind = _reaction_kind(kind)
+    if not account and not (visitor_id and _VISITOR_RE.fullmatch(visitor_id)):
+        raise DocksideError(401, "Sign in required")
     cur = _cur(conn)
     cur.execute(
         """
         SELECT post_id FROM public.dockside_posts
         WHERE post_id = %s AND status = 'visible'
+        FOR UPDATE
         """,
         (int(post_id),),
     )
     if not cur.fetchone():
         raise DocksideError(404, "Comment not found")
-    cur.execute(
-        """
-        SELECT kind FROM public.dockside_reactions
-        WHERE post_id = %s AND account_id = %s AND kind = %s
-        """,
-        (int(post_id), account["account_id"], kind),
-    )
-    if cur.fetchone():
-        cur.execute(
+    if account:
+        _keep_one(
+            cur,
+            """
+            SELECT kind FROM public.dockside_reactions
+            WHERE post_id = %s AND account_id = %s
+            """,
             """
             DELETE FROM public.dockside_reactions
-            WHERE post_id = %s AND account_id = %s AND kind = %s
+            WHERE post_id = %s AND account_id = %s
             """,
-            (int(post_id), account["account_id"], kind),
-        )
-    else:
-        cur.execute(
             """
             INSERT INTO public.dockside_reactions (post_id, account_id, kind)
             VALUES (%s, %s, %s)
             """,
+            (int(post_id), account["account_id"]),
+            kind,
             (int(post_id), account["account_id"], kind),
         )
-    reactions = _attach_reactions(cur, [{"post_id": int(post_id)}], account["account_id"])[0]["reactions"]
+        reactions = _attach_reactions(cur, [{"post_id": int(post_id)}], account["account_id"])[0]["reactions"]
+    else:
+        _keep_one(
+            cur,
+            """
+            SELECT kind FROM public.dockside_guest_reactions
+            WHERE post_id = %s AND visitor_id = %s
+            """,
+            """
+            DELETE FROM public.dockside_guest_reactions
+            WHERE post_id = %s AND visitor_id = %s
+            """,
+            """
+            INSERT INTO public.dockside_guest_reactions (post_id, visitor_id, kind)
+            VALUES (%s, %s, %s)
+            """,
+            (int(post_id), visitor_id),
+            kind,
+            (int(post_id), visitor_id, kind),
+        )
+        reactions = _attach_reactions(cur, [{"post_id": int(post_id)}], None, visitor_id)[0]["reactions"]
     cur.close()
     return {"post_id": int(post_id), "reactions": reactions}
+
+
+def roundup_reaction_map(conn, keys, account=None, visitor_id=None) -> dict:
+    clean = []
+    for key in keys:
+        text = str(key or "").strip()
+        if _ISSUE_KEY_RE.fullmatch(text) and text not in clean:
+            clean.append(text)
+        if len(clean) >= 40:
+            break
+    found = {key: _empty_roundup() for key in clean}
+    if not clean:
+        return {"issues": found}
+    actor = None
+    if account:
+        actor = "a:%s" % int(account["account_id"])
+    elif visitor_id and _VISITOR_RE.fullmatch(visitor_id):
+        actor = "v:" + visitor_id
+    cur = _cur(conn)
+    cur.execute(
+        """
+        SELECT issue_key, kind, COUNT(*) AS n
+        FROM public.roundup_reactions
+        WHERE issue_key = ANY(%s)
+        GROUP BY issue_key, kind
+        """,
+        (clean,),
+    )
+    for row in cur.fetchall():
+        found[row["issue_key"]]["counts"][row["kind"]] = int(row["n"])
+    if actor:
+        cur.execute(
+            """
+            SELECT issue_key, kind
+            FROM public.roundup_reactions
+            WHERE actor_key = %s AND issue_key = ANY(%s)
+            """,
+            (actor, clean),
+        )
+        for row in cur.fetchall():
+            found[row["issue_key"]]["mine"].append(row["kind"])
+    cur.close()
+    return {"issues": found}
+
+
+def set_roundup_reaction(conn, account, issue_key: str, kind: str, visitor_id=None) -> dict:
+    kind = _reaction_kind(kind)
+    issue_key = _issue_key(issue_key)
+    actor = _actor_key(account, visitor_id)
+    cur = _cur(conn)
+    cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))", (issue_key, actor))
+    _keep_one(
+        cur,
+        """
+        SELECT kind FROM public.roundup_reactions
+        WHERE issue_key = %s AND actor_key = %s
+        """,
+        """
+        DELETE FROM public.roundup_reactions
+        WHERE issue_key = %s AND actor_key = %s
+        """,
+        """
+        INSERT INTO public.roundup_reactions (issue_key, actor_key, kind)
+        VALUES (%s, %s, %s)
+        """,
+        (issue_key, actor),
+        kind,
+        (issue_key, actor, kind),
+    )
+    cur.close()
+    mapped = roundup_reaction_map(conn, [issue_key], account, visitor_id)
+    return {"issue_key": issue_key, "reactions": mapped["issues"].get(issue_key) or _empty_roundup()}
 
 
 def _json_body(payload):
@@ -920,19 +1275,41 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
     """Attach /api/dockside routes. is_super_admin is unused; role comes from the session row."""
     del is_super_admin
 
-    def _run(handler):
+    def _visitor_pair(request: Request):
+        raw = (request.cookies.get("dockside_vid") or "").strip().lower()
+        if _VISITOR_RE.fullmatch(raw):
+            return raw, False
+        return secrets.token_hex(16), True
+
+    def _emit(payload, status, visitor, is_new):
+        response = JSONResponse(payload, status_code=status)
+        if is_new:
+            response.set_cookie(
+                "dockside_vid",
+                visitor,
+                max_age=34560000,
+                httponly=True,
+                samesite="lax",
+                secure=True,
+                path="/",
+            )
+        return response
+
+    def _run(request: Request, handler):
+        visitor, is_new = _visitor_pair(request)
+        request.state.dockside_visitor = visitor
         conn = get_db_connection()
         try:
             ensure_schema(conn)
             result = handler(conn)
             conn.commit()
-            return result
+            return _emit(result, 200, visitor, is_new)
         except DocksideError as exc:
             try:
                 conn.rollback()
             except Exception:
                 pass
-            return JSONResponse({"detail": exc.detail}, status_code=exc.status)
+            return _emit({"detail": exc.detail}, exc.status, visitor, is_new)
         except HTTPException:
             try:
                 conn.rollback()
@@ -953,8 +1330,11 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
     def dockside_me(request: Request):
         def handler(conn):
             account = session_account(conn, _token(request))
+            cur = _cur(conn)
+            window = public_comment_state(cur)
+            cur.close()
             if not account:
-                return {"signed_in": False}
+                return {"signed_in": False, "public_comments": window}
             return {
                 "signed_in": True,
                 "account_id": account["account_id"],
@@ -964,16 +1344,18 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 "role": account["role"],
                 "profile_url": account["profile_url"],
                 "is_super_admin": account["is_super_admin"],
+                "public_comments": window,
             }
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.get("/api/dockside/current")
     def dockside_current(request: Request):
         def handler(conn):
-            return current_topic(conn, session_account(conn, _token(request)))
+            account = session_account(conn, _token(request))
+            return current_topic(conn, account, request.state.dockside_visitor)
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.get("/api/dockside/topics")
     def dockside_topics(request: Request):
@@ -984,14 +1366,15 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
         def handler(conn):
             return list_topics(conn, q, sort, direction)
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.get("/api/dockside/topics/{topic_id}")
     def dockside_topic(topic_id: int, request: Request):
         def handler(conn):
-            return get_topic(conn, topic_id, session_account(conn, _token(request)))
+            account = session_account(conn, _token(request))
+            return get_topic(conn, topic_id, account, request.state.dockside_visitor)
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.post("/api/dockside/topics")
     async def dockside_create_topic(request: Request):
@@ -1001,7 +1384,7 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
             account = session_account(conn, _token(request))
             return create_topic(conn, account, payload.get("subject"), payload.get("body"))
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.post("/api/dockside/topics/{topic_id}/posts")
     async def dockside_add_post(topic_id: int, request: Request):
@@ -1015,9 +1398,10 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 topic_id,
                 payload.get("body"),
                 payload.get("parent_post_id"),
+                request.state.dockside_visitor,
             )
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.post("/api/dockside/posts/{post_id}/react")
     async def dockside_react(post_id: int, request: Request):
@@ -1029,9 +1413,53 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 session_account(conn, _token(request)),
                 post_id,
                 payload.get("kind"),
+                request.state.dockside_visitor,
             )
 
-        return _run(handler)
+        return _run(request, handler)
+
+    @app.post("/api/dockside/public-comments")
+    async def dockside_public_comments(request: Request):
+        payload = _json_body(await request.json())
+
+        def handler(conn):
+            return set_public_comments(
+                conn,
+                session_account(conn, _token(request)),
+                bool(payload.get("open")),
+            )
+
+        return _run(request, handler)
+
+    @app.get("/api/dockside/roundup/reactions")
+    def dockside_roundup_reactions(request: Request):
+        raw = request.query_params.get("keys") or ""
+        keys = [part.strip() for part in raw.split(",") if part.strip()]
+
+        def handler(conn):
+            return roundup_reaction_map(
+                conn,
+                keys,
+                session_account(conn, _token(request)),
+                request.state.dockside_visitor,
+            )
+
+        return _run(request, handler)
+
+    @app.post("/api/dockside/roundup/react")
+    async def dockside_roundup_react(request: Request):
+        payload = _json_body(await request.json())
+
+        def handler(conn):
+            return set_roundup_reaction(
+                conn,
+                session_account(conn, _token(request)),
+                payload.get("issue_key"),
+                payload.get("kind"),
+                request.state.dockside_visitor,
+            )
+
+        return _run(request, handler)
 
     @app.post("/api/dockside/topics/{topic_id}/follow")
     async def dockside_follow(topic_id: int, request: Request):
@@ -1041,14 +1469,14 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
         def handler(conn):
             return set_muted(conn, session_account(conn, _token(request)), topic_id, muted)
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.get("/api/dockside/notifications")
     def dockside_notifications(request: Request):
         def handler(conn):
             return list_notifications(conn, session_account(conn, _token(request)))
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.post("/api/dockside/notifications/read")
     async def dockside_read(request: Request):
@@ -1062,7 +1490,7 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 bool(payload.get("all")),
             )
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.post("/api/dockside/reports")
     async def dockside_report(request: Request):
@@ -1080,14 +1508,14 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 payload.get("reason"),
             )
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.get("/api/dockside/reports")
     def dockside_reports(request: Request):
         def handler(conn):
             return list_reports(conn, session_account(conn, _token(request)))
 
-        return _run(handler)
+        return _run(request, handler)
 
     @app.post("/api/dockside/moderate")
     async def dockside_moderate(request: Request):
@@ -1102,4 +1530,4 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 str(payload.get("action") or ""),
             )
 
-        return _run(handler)
+        return _run(request, handler)

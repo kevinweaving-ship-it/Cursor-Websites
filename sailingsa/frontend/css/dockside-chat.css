@@ -917,3 +917,24 @@ screen and (max-width: 1023px) and (orientation: landscape) {
 #dockside-page .dockside-inline-hold {
     margin: 4px 0 0 36px;
 }
+
+#dockside-landing .dockside-public-toggle,
+#dockside-page .dockside-public-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 0 0;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+#dockside-landing .dockside-public-toggle input,
+#dockside-page .dockside-public-toggle input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: #001f3f;
+}

@@ -264,6 +264,57 @@
         return (author && author.display_name) || "sailor";
     }
 
+    function guestsMayPost() {
+        return !!(me.public_comments && me.public_comments.open);
+    }
+
+    function mountPublicToggle(anchor) {
+        if (!me.is_super_admin || !anchor || anchor.querySelector(".dockside-public-toggle")) return;
+        var state = me.public_comments || {};
+        var label = document.createElement("label");
+        label.className = "dockside-public-toggle";
+        label.title = "Opens comments and replies to everyone for 7 days. Adds another 7 days if fewer than 5 comments are posted. Turn off to require login again.";
+        var input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = !!state.open;
+        var text = document.createElement("span");
+        function paintText() {
+            if (state.open && state.until) {
+                var when = "";
+                try {
+                    when = new Date(state.until).toLocaleDateString("en-ZA", {
+                        timeZone: "Africa/Johannesburg",
+                        day: "numeric",
+                        month: "short"
+                    });
+                } catch (err) {}
+                text.textContent = when ? ("Public until " + when) : "Public comments";
+            } else {
+                text.textContent = "Public comments";
+            }
+        }
+        paintText();
+        input.addEventListener("change", function () {
+            var next = input.checked;
+            api("/api/dockside/public-comments", {
+                method: "POST",
+                body: JSON.stringify({ open: next })
+            }).then(function (data) {
+                if (!data || data._status !== 200 || !data.public_comments) {
+                    input.checked = !!state.open;
+                    return;
+                }
+                state = data.public_comments;
+                me.public_comments = state;
+                input.checked = !!state.open;
+                paintText();
+            });
+        });
+        label.appendChild(input);
+        label.appendChild(text);
+        anchor.appendChild(label);
+    }
+
     function reactionBar(post) {
         var bar = document.createElement("span");
         bar.className = "dockside-reacts";
@@ -278,10 +329,6 @@
                 button.textContent = count ? (pair[1] + " " + count) : pair[1];
                 if (mine.indexOf(pair[0]) >= 0) button.className = "is-mine";
                 button.addEventListener("click", function () {
-                    if (!me.signed_in) {
-                        goLogin(null);
-                        return;
-                    }
                     api("/api/dockside/posts/" + post.post_id + "/react", {
                         method: "POST",
                         body: JSON.stringify({ kind: pair[0] })
@@ -448,6 +495,7 @@
         if (!root || !topicBox || !originalEl || !scroll) return;
         var topicId = null;
         var postsById = {};
+        var pendingCommentFocus = false;
         var resumedDraft = takeResumeDraft();
         var stopLandingGuard = function () {};
         if (!resumedDraft) {
@@ -644,6 +692,15 @@
             showLatestTwo(scroll);
             paintMe();
             fit();
+            if (pendingCommentFocus) {
+                pendingCommentFocus = false;
+                if (!me.signed_in && !guestsMayPost()) {
+                    goLogin(null);
+                    return;
+                }
+                if (root) root.scrollIntoView({ block: "center" });
+                if (field) field.focus();
+            }
         }
 
         function showLatestTwo(scroll) {
@@ -751,10 +808,10 @@
                 });
             });
         }
-        function sendComment(body, parent, errorMount) {
+            function sendComment(body, parent, errorMount) {
             if (!body || !topicId) return;
             var draft = { kind: "comment", topic_id: topicId, parent_post_id: parent || null, body: body };
-            if (!me.signed_in) {
+            if (!me.signed_in && !guestsMayPost()) {
                 goLogin(draft);
                 return;
             }
@@ -787,6 +844,26 @@
                 event.preventDefault();
                 sendComment((field.value || "").trim(), null, scroll);
             });
+        }
+        mountPublicToggle(root.querySelector(".dockside-titles"));
+        window.docksideOpenComment = function () {
+            if (!me.signed_in && !guestsMayPost()) {
+                goLogin(null);
+                return;
+            }
+            if (form && form.hidden) {
+                pendingCommentFocus = true;
+                if (root) root.scrollIntoView({ block: "center" });
+                return;
+            }
+            if (root) root.scrollIntoView({ block: "center" });
+            if (field) field.focus();
+        };
+        if (location.hash === "#dockside-comment") {
+            pendingCommentFocus = true;
+            try {
+                history.replaceState(null, "", location.pathname + location.search);
+            } catch (err) {}
         }
         window.addEventListener("resize", fit);
         window.addEventListener("load", fit);
@@ -985,7 +1062,7 @@
         function sendReply(topicId, parentId, body, hold) {
             if (!body || !topicId) return;
             var draft = { kind: "comment", topic_id: Number(topicId), parent_post_id: parentId, body: body };
-            if (!me.signed_in) {
+            if (!me.signed_in && !guestsMayPost()) {
                 goLogin(draft);
                 return;
             }
@@ -1123,8 +1200,37 @@
                 return;
             }
             var draft = { kind: "topic", body: body };
-            if (!me.signed_in) {
+            if (!me.signed_in && !guestsMayPost()) {
                 goLogin(draft);
+                return;
+            }
+            if (!me.signed_in) {
+                api("/api/dockside/current").then(function (current) {
+                    var topicId = current && current.topic && current.topic.topic_id;
+                    if (!topicId) {
+                        if (newError) newError.textContent = "Sign in to start a discussion.";
+                        return;
+                    }
+                    api("/api/dockside/topics/" + encodeURIComponent(topicId) + "/posts", {
+                        method: "POST",
+                        body: JSON.stringify({ body: body })
+                    }).then(function (data) {
+                        if (data._status === 401) {
+                            goLogin(draft);
+                            return;
+                        }
+                        if (!data || data._status !== 200) {
+                            if (newError) newError.textContent = (data && data.detail) || "Comment was not saved";
+                            return;
+                        }
+                        clearDraft();
+                        resumedDraft = null;
+                        stopPageGuard();
+                        newBody.value = "";
+                        stopPageGuard = guardComposer([newBody]);
+                        loadFeed();
+                    });
+                });
                 return;
             }
             api("/api/dockside/topics", {
@@ -1177,6 +1283,7 @@
         }
 
         paintPageAvatar();
+        mountPublicToggle(page.querySelector(".dockside-page-bar"));
         loadFeed();
         loadNotes();
     }
