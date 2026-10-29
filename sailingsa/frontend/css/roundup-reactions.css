@@ -1,12 +1,29 @@
-/* Reaction row for Weekly Roundup cards and each issue page. */
-.landing-roundup-slide .roundup-reacts,
+/* Reaction row for Weekly Roundup cards and each issue page.
+   Landing actions sit OUTSIDE #landing-roundup-viewport so the carousel
+   cannot steal Comment taps. */
+
+#landing-roundup-actions,
+.landing-roundup-actions {
+    display: block;
+    margin: 0;
+    padding: 8px 12px 10px;
+    background: #001f3f;
+    border: 0;
+    border-top: 1px solid rgba(229, 195, 148, 0.35);
+    position: relative;
+    z-index: 20;
+    pointer-events: auto;
+}
+
+#landing-roundup-actions .roundup-reacts,
+.landing-roundup-actions .roundup-reacts,
 .paper > .roundup-reacts,
 body.weekly-roundup-edition .roundup-reacts {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 0 12px 10px;
-    padding: 2px 0 0;
+    margin: 0;
+    padding: 0;
 }
 
 .paper > .roundup-reacts,
@@ -17,25 +34,37 @@ body.weekly-roundup-edition .roundup-reacts {
 
 .roundup-reacts button {
     min-width: 0;
-    min-height: 0;
+    min-height: 36px;
     margin: 0;
-    padding: 0;
+    padding: 6px 4px;
     border: 0;
     background: transparent;
     color: #65676b;
     font: 700 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     cursor: pointer;
+    position: relative;
+    z-index: 21;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: rgba(229, 195, 148, 0.35);
+    touch-action: manipulation;
 }
 
 .roundup-reacts button.is-mine {
     color: #001f3f;
 }
 
-.landing-roundup-slide .roundup-reacts button,
-.landing-roundup-slide .roundup-reacts button.is-mine,
+#landing-roundup-actions .roundup-reacts button,
+#landing-roundup-actions .roundup-reacts button.is-mine,
+.landing-roundup-actions .roundup-reacts button,
+.landing-roundup-actions .roundup-reacts button.is-mine,
 body.weekly-roundup-edition .roundup-reacts button,
 body.weekly-roundup-edition .roundup-reacts button.is-mine {
     color: #fff;
+}
+
+/* Never leave a second bar inside clipped carousel slides. */
+.landing-roundup-slide .roundup-reacts {
+    display: none !important;
 }
 
 .landing-roundup-slide .landing-roundup-reads {

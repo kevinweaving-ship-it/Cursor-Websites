@@ -4,6 +4,7 @@
 
     var KINDS = [["up", "👍"], ["heart", "❤️"], ["down", "👎"]];
     var cache = {};
+    var ACTIONS_ID = "landing-roundup-actions";
 
     function issueKey(url) {
         var match = String(url || "").match(/\/issues\/(\d{4}-\d{2}-\d{2})(?:\/|#|\?|$)/);
@@ -15,7 +16,8 @@
     }
 
     function stop(event) {
-        event.stopPropagation();
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        else event.stopPropagation();
     }
 
     function compactHeadline(value, key) {
@@ -87,7 +89,7 @@
             if (mine.indexOf(pair[0]) >= 0) button.className = "is-mine";
             button.addEventListener("click", function (event) {
                 event.preventDefault();
-                event.stopPropagation();
+                stop(event);
                 fetch("/api/dockside/roundup/react", {
                     method: "POST",
                     credentials: "same-origin",
@@ -107,7 +109,7 @@
         comment.textContent = "Comment";
         comment.addEventListener("click", function (event) {
             event.preventDefault();
-            event.stopPropagation();
+            stop(event);
             openDocksideComment(rowInfo(row));
         });
         row.appendChild(comment);
@@ -126,9 +128,10 @@
         row.setAttribute("data-issue-key", info.key);
         row.setAttribute("data-issue-url", info.url || "");
         row.setAttribute("data-issue-headline", info.headline || "");
-        row.addEventListener("click", stop);
-        row.addEventListener("touchstart", stop, { passive: true });
-        row.addEventListener("touchend", stop, { passive: true });
+        // Bubble only — capture+stopImmediate would kill the button handlers.
+        row.addEventListener("click", function (event) { event.stopPropagation(); });
+        row.addEventListener("touchstart", function (event) { event.stopPropagation(); }, { passive: true });
+        row.addEventListener("touchend", function (event) { event.stopPropagation(); }, { passive: true });
         paint(row, info.key, payload);
         return row;
     }
@@ -137,7 +140,7 @@
         if (document.querySelector("link[data-roundup-reacts]")) return;
         var link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = "/css/roundup-reactions.css?v=dockside26";
+        link.href = "/css/roundup-reactions.css?v=dockside27";
         link.setAttribute("data-roundup-reacts", "1");
         document.head.appendChild(link);
     }
@@ -146,7 +149,7 @@
         if (!document.querySelector("link[href*='dockside-chat.css']")) {
             var css = document.createElement("link");
             css.rel = "stylesheet";
-            css.href = "/css/dockside-chat.css?v=dockside17";
+            css.href = "/css/dockside-chat.css?v=dockside18";
             document.head.appendChild(css);
         }
         if (!document.querySelector("script[src*='dockside-chat.js']")) {
@@ -157,12 +160,70 @@
         }
     }
 
-    function syncCards(known) {
+    function activeSlide() {
         var slides = document.querySelectorAll(".landing-roundup-slide[data-issue-url]");
+        var visible = null;
         Array.prototype.forEach.call(slides, function (slide) {
+            if (slide.getAttribute("aria-hidden") === "false") visible = slide;
+            else if (!visible && slide.style.visibility !== "hidden") visible = slide;
+        });
+        return visible || slides[0] || null;
+    }
+
+    function stripInSlideRows() {
+        Array.prototype.forEach.call(document.querySelectorAll(".landing-roundup-slide .roundup-reacts"), function (row) {
+            if (row.parentNode) row.parentNode.removeChild(row);
+        });
+    }
+
+    function ensureActionsHost() {
+        var card = document.getElementById("landing-top-card");
+        var viewport = document.getElementById("landing-roundup-viewport");
+        if (!card || !viewport) return null;
+        var host = document.getElementById(ACTIONS_ID);
+        if (host) return host;
+        host = document.createElement("div");
+        host.id = ACTIONS_ID;
+        host.className = "landing-roundup-actions";
+        host.setAttribute("aria-label", "Roundup reactions");
+        if (viewport.nextSibling) card.insertBefore(host, viewport.nextSibling);
+        else card.appendChild(host);
+        return host;
+    }
+
+    function syncLandingBar(known) {
+        stripInSlideRows();
+        var host = ensureActionsHost();
+        if (!host) return;
+        var slide = activeSlide();
+        if (!slide) return;
+        var info = slideInfo(slide);
+        if (!info.key) return;
+        if (known && known[info.key]) cache[info.key] = known[info.key];
+        if (!window.__docksideRoundupLeaders) window.__docksideRoundupLeaders = {};
+        var tag = "@" + info.headline;
+        window.__docksideRoundupLeaders[tag] = {
+            key: info.key,
+            url: info.url,
+            headline: info.headline,
+            tag: tag
+        };
+        var row = host.querySelector(".roundup-reacts");
+        if (!row) {
+            row = makeRow(info, cache[info.key]);
+            host.appendChild(row);
+            return;
+        }
+        row.setAttribute("data-issue-key", info.key);
+        row.setAttribute("data-issue-url", info.url);
+        row.setAttribute("data-issue-headline", info.headline);
+        paint(row, info.key, cache[info.key]);
+    }
+
+    function registerLeaders() {
+        Array.prototype.forEach.call(document.querySelectorAll(".landing-roundup-slide[data-issue-url]"), function (slide) {
             var info = slideInfo(slide);
             if (!info.key) return;
-            if (known[info.key]) cache[info.key] = known[info.key];
             if (!window.__docksideRoundupLeaders) window.__docksideRoundupLeaders = {};
             var tag = "@" + info.headline;
             window.__docksideRoundupLeaders[tag] = {
@@ -171,15 +232,6 @@
                 headline: info.headline,
                 tag: tag
             };
-            var existing = slide.querySelector(".roundup-reacts");
-            if (existing) {
-                existing.setAttribute("data-issue-key", info.key);
-                existing.setAttribute("data-issue-url", info.url);
-                existing.setAttribute("data-issue-headline", info.headline);
-                paint(existing, info.key, cache[info.key] || known[info.key]);
-                return;
-            }
-            slide.appendChild(makeRow(info, cache[info.key] || known[info.key]));
         });
     }
 
@@ -209,11 +261,27 @@
                     var key = issueKey(slide.getAttribute("data-issue-url"));
                     if (key && keys.indexOf(key) < 0) keys.push(key);
                 });
+                registerLeaders();
                 if (!keys.length) return;
-                load(keys).then(function (known) { syncCards(known); });
+                load(keys).then(function (known) {
+                    Object.keys(known).forEach(function (key) { cache[key] = known[key]; });
+                    syncLandingBar(known);
+                });
             }, 40);
         }
-        new MutationObserver(schedule).observe(track, { childList: true, subtree: true });
+        new MutationObserver(schedule).observe(track, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["aria-hidden", "style", "data-issue-url"]
+        });
+        var dots = document.getElementById("landing-roundup-dots");
+        if (dots) {
+            dots.addEventListener("click", function () {
+                window.setTimeout(function () { syncLandingBar(); }, 0);
+                window.setTimeout(function () { syncLandingBar(); }, 340);
+            }, true);
+        }
         schedule();
     }
 
@@ -291,21 +359,16 @@
         });
     }
 
-    // Stop the Roundup carousel stealing taps, and open Dockside with @leader.
-    document.addEventListener("touchstart", function (event) {
-        if (event.target.closest && event.target.closest(".roundup-reacts")) event.stopPropagation();
-    }, true);
-    document.addEventListener("touchend", function (event) {
-        if (event.target.closest && event.target.closest(".roundup-reacts")) event.stopPropagation();
-    }, true);
+    // Capture Comment only. Do not stop reaction clicks or their button handlers die.
     document.addEventListener("click", function (event) {
-        var row = event.target.closest && event.target.closest(".roundup-reacts");
-        if (!row) return;
-        event.stopPropagation();
-        var comment = event.target.closest("button[data-roundup-comment='1']");
+        var comment = event.target.closest && event.target.closest("button[data-roundup-comment='1']");
         if (!comment) return;
+        var reactRow = comment.closest(".roundup-reacts");
+        if (!reactRow) return;
         event.preventDefault();
-        openDocksideComment(rowInfo(row));
+        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+        else event.stopPropagation();
+        openDocksideComment(rowInfo(reactRow));
     }, true);
 
     if (document.readyState === "loading") {
