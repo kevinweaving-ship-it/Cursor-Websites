@@ -96,6 +96,11 @@ def compact_text(payload: dict) -> str:
         from .rich_results import render_lines as _rr_lines
 
         lines.extend(_rr_lines({"live": rr.get("live") or {}, "gsc": rr.get("gsc") or {}}))
+    ps = payload.get("pagespeed") or {}
+    if ps.get("scores") or ps.get("autofix"):
+        from .pagespeed import render_lines as _ps_lines
+
+        lines.extend(_ps_lines(ps if "scores" in ps else {"scores": ps.get("scores") or {}, "autofix": ps.get("autofix") or {}}))
     cls = payload.get("classes") or {}
     lines.append(
         f"Live: REAL {cls.get(REAL, 0)} | STALE {cls.get(STALE, 0)} | "
