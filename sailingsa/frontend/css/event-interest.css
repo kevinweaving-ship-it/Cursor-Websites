@@ -1,0 +1,269 @@
+/* Event Interest — Upcoming card cluster + class picker popup (Stage 3).
+   Does not alter card chrome, orange bar, title/host structure. */
+
+.sa-home-regatta-top-main {
+  position: relative;
+}
+
+.eci-interest {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  max-width: 55%;
+  min-height: 26px;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.eci-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  color: #21356b;
+  font: 800 10px/1.1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: nowrap;
+}
+
+.eci-total-ico {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.eci-logos {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+.eci-logo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.eci-logo-item img,
+.landing-event-card img.eci-logo-img {
+  display: block;
+  width: 14px !important;
+  height: 14px !important;
+  max-width: 14px !important;
+  max-height: 14px !important;
+  object-fit: contain !important;
+  background: transparent;
+}
+
+.eci-logo-n {
+  color: #334155;
+  font: 700 8px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.eci-more {
+  color: #475569;
+  font: 800 9px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  align-self: center;
+  padding-bottom: 7px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.eci-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 9px;
+  border: 1.5px solid #0b3d91;
+  border-radius: 6px;
+  background: #fff;
+  color: #0b3d91;
+  font: 800 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
+}
+
+.eci-btn:hover {
+  background: #eff6ff;
+}
+
+.eci-btn:focus-visible {
+  outline: 2px solid #0b3d91;
+  outline-offset: 2px;
+}
+
+.eci-btn.is-mine {
+  background: #0b3d91;
+  color: #fff;
+  border-color: #082f6b;
+}
+
+.eci-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.eci-title-pad {
+  padding-right: var(--eci-pad, 0px) !important;
+  box-sizing: border-box;
+}
+
+/* Popup */
+.eci-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.eci-scrim.is-open {
+  display: flex;
+}
+
+.eci-popup {
+  width: min(380px, 100%);
+  max-height: min(80vh, 560px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #8aa2c6;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+  padding: 14px;
+  box-sizing: border-box;
+}
+
+.eci-popup-title {
+  margin: 0 0 2px;
+  color: #142c78;
+  font: 800 15px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.eci-popup-sub {
+  margin: 0 0 12px;
+  color: #64748b;
+  font: 500 12px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.eci-popup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.eci-popup-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+  color: #334155;
+  font: 700 10px/1.15 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-align: center;
+}
+
+.eci-popup-item.is-selected {
+  border-color: #0b3d91;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1px #0b3d91;
+}
+
+.eci-popup-item img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.eci-popup-item .eci-popup-missing {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #475569;
+  font: 800 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.eci-popup-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.eci-popup-actions button {
+  flex: 1;
+  height: 34px;
+  border-radius: 6px;
+  font: 700 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.eci-popup-confirm {
+  border: 1px solid #0b3d91;
+  background: #0b3d91;
+  color: #fff;
+}
+
+.eci-popup-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.eci-popup-withdraw {
+  border: 1px solid #94a3b8;
+  background: #fff;
+  color: #334155;
+}
+
+.eci-popup-close {
+  border: 1px solid #94a3b8;
+  background: #fff;
+  color: #334155;
+}
+
+.eci-popup-empty {
+  margin: 8px 0 0;
+  color: #64748b;
+  font: 500 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.eci-popup-error {
+  margin: 8px 0 0;
+  color: #b91c1c;
+  font: 600 12px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@media (max-width: 420px) {
+  .eci-popup-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
