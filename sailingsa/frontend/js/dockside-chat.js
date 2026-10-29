@@ -9,6 +9,8 @@
     if (typeof window.docksideOpenComment !== "function") {
         window.docksideOpenComment = function (info) {
             window.__docksideCommentQueue.push(info || null);
+            // Do not jump the Roundup issue page while Dockside is still booting.
+            if (/\/sailing-roundup\/issues\//.test(location.pathname)) return;
             var card = document.getElementById("dockside-landing");
             if (card) card.scrollIntoView({ block: "center" });
         };
@@ -1098,9 +1100,14 @@
                     if (data && data.topic) paintTopic(data.topic);
                 });
             }
-            if (root) root.scrollIntoView({ block: "center" });
+            try {
+                var top = root.getBoundingClientRect().top + window.pageYOffset - 12;
+                window.scrollTo(0, Math.max(0, top));
+            } catch (errScroll) {
+                if (root) root.scrollIntoView({ block: "start" });
+            }
             if (field) {
-                field.focus();
+                field.focus({ preventScroll: true });
                 try {
                     var end = field.value.length;
                     field.setSelectionRange(end, end);
@@ -1109,10 +1116,23 @@
             fit();
         }
 
+        function goToIssueChat() {
+            if (!root) return;
+            try {
+                var top = root.getBoundingClientRect().top + window.pageYOffset - 12;
+                window.scrollTo(0, Math.max(0, top));
+            } catch (err) {
+                root.scrollIntoView({ block: "start" });
+            }
+            if (field) {
+                field.focus({ preventScroll: true });
+            }
+        }
+
         window.docksideOpenComment = function (info) {
+            // Roundup issue page: Comment goes to this page's chat only when clicked.
             if (fixedKey) {
-                if (root) root.scrollIntoView({ block: "center" });
-                if (field) field.focus();
+                goToIssueChat();
                 return;
             }
             if (info && info.key) {
@@ -1138,18 +1158,23 @@
             if (stored) {
                 try { queued.push(JSON.parse(stored)); } catch (errParse) {}
             }
+            // Never auto-open/focus chat when landing on a Roundup URL.
+            if (fixedKey) return;
             queued.forEach(function (info) {
                 if (info && info.key) openLandingLeader(info);
             });
         }
         flushCommentQueue();
-        window.setTimeout(flushCommentQueue, 300);
-        window.setTimeout(flushCommentQueue, 1200);
+        if (!fixedKey) {
+            window.setTimeout(flushCommentQueue, 300);
+            window.setTimeout(flushCommentQueue, 1200);
+        }
 
         if (location.hash === "#dockside-comment" || location.hash === "#dockside-landing") {
             try {
                 history.replaceState(null, "", location.pathname + location.search);
             } catch (err) {}
+            // Hash must not auto-jump the Roundup issue page either.
             if (!fixedKey) pendingCommentFocus = true;
         }
         window.addEventListener("resize", fit);

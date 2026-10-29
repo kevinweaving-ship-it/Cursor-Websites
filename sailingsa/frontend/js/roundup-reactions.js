@@ -56,15 +56,19 @@
             headline: String(info.headline || "").replace(/\s+/g, " ").trim(),
             tag: tag
         };
-        try {
-            sessionStorage.setItem("dockside_roundup_comment", JSON.stringify(info));
-        } catch (err) {}
+        var onIssue = /\/sailing-roundup\/issues\//.test(location.pathname);
+        if (!onIssue) {
+            try {
+                sessionStorage.setItem("dockside_roundup_comment", JSON.stringify(info));
+            } catch (err) {}
+        }
         if (typeof window.docksideOpenComment === "function") {
             window.docksideOpenComment(info);
             return;
         }
         window.__docksideCommentQueue = window.__docksideCommentQueue || [];
         window.__docksideCommentQueue.push(info);
+        if (onIssue) return;
         var card = document.getElementById("dockside-landing");
         if (card) card.scrollIntoView({ block: "center" });
     }
@@ -133,7 +137,7 @@
         if (document.querySelector("link[data-roundup-reacts]")) return;
         var link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = "/css/roundup-reactions.css?v=dockside25";
+        link.href = "/css/roundup-reactions.css?v=dockside26";
         link.setAttribute("data-roundup-reacts", "1");
         document.head.appendChild(link);
     }
@@ -147,7 +151,7 @@
         }
         if (!document.querySelector("script[src*='dockside-chat.js']")) {
             var js = document.createElement("script");
-            js.src = "/js/dockside-chat.js?v=dockside23";
+            js.src = "/js/dockside-chat.js?v=dockside24";
             js.defer = true;
             document.head.appendChild(js);
         }
