@@ -1,0 +1,12 @@
+[Unit]
+Description=Restart Hansekop Tuya sharing if it was left stopped
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=15s
+Persistent=true
+Unit=tuya-sharing-guard.service
+
+[Install]
+WantedBy=timers.target

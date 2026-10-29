@@ -1,0 +1,6 @@
+[Unit]
+Description=Keep Hansekop Tuya sharing worker running (never leave it stopped)
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl start tuya-sharing.service tuya-home-api.service

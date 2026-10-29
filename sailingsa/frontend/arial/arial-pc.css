@@ -1,0 +1,37 @@
+/* Desktop layout for /arial /voelklip /stanford /bing — phone column stays for mobile. */
+.arial-desk {
+    display: block;
+}
+
+@media (min-width: 960px) {
+    .arial-desk {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 28px;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 8px 20px 28px;
+        box-sizing: border-box;
+    }
+    .arial-desk .pad-wrap {
+        flex: 0 0 416px;
+        width: 416px;
+        max-width: 416px;
+        margin: 2px 0 0;
+    }
+    .arial-desk .arial-below:not([hidden]) {
+        flex: 1 1 560px;
+        width: auto;
+        max-width: 720px;
+        margin: 10px 0 0;
+    }
+    .arial-desk:not(:has(.arial-below:not([hidden]))) {
+        display: block;
+        max-width: none;
+        padding: 0;
+    }
+    .arial-desk:not(:has(.arial-below:not([hidden]))) .pad-wrap {
+        margin: 2px auto 0;
+    }
+}

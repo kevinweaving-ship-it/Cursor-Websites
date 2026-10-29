@@ -26317,3 +26317,12 @@ if os.path.isdir(_TRANSPARENT_ICON_DIR):
         name="sailing_sa_transparent_icons",
     )
 
+
+
+# --- Arial keypad / Olarm / Tuya routes (must survive api.py redeploys) ---
+try:
+    from arial_api import router as arial_router
+    app.include_router(arial_router)
+except Exception as _arial_imp_err:
+    import logging as _arial_logging
+    _arial_logging.getLogger("arial").warning("arial_api not loaded: %s", _arial_imp_err)
