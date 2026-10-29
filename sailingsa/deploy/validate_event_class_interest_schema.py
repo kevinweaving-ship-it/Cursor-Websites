@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import psycopg2
@@ -412,7 +414,197 @@ def main() -> int:
         assert _count_active(cur, 168679) == 2
         ok("failed upsert aborts transaction; prior counts intact")
 
-        # Rollback script
+        # --- Unmapped class (Junior): class_id NULL must still count ---
+        cur.execute(
+            """
+            SELECT class_id, class_identifier, status
+            FROM public.eci_upsert_interest(%s,%s,%s,NULL,NULL)
+            """,
+            (168679, "junior", 1001),
+        )
+        j_class_id, j_ident, j_status = cur.fetchone()
+        assert j_class_id is None and j_ident == "junior" and j_status == "active"
+        cur.execute(
+            """
+            SELECT interested_count, class_id
+            FROM public.event_class_interest_counts
+            WHERE event_id=168679 AND class_identifier='junior'
+            """
+        )
+        j_count, j_view_class_id = cur.fetchone()
+        assert j_count == 1 and j_view_class_id is None
+        _assert_total_equals_sum(cur, 168679)
+        cur.execute(
+            "SELECT total_interested FROM public.event_interest_totals WHERE event_id=168679"
+        )
+        total_now = cur.fetchone()[0]
+        cur.execute(
+            """
+            SELECT COALESCE(SUM(interested_count),0)
+            FROM public.event_class_interest_counts WHERE event_id=168679
+            """
+        )
+        assert total_now == cur.fetchone()[0]
+        ok("Junior (NULL class_id) stays in counts; total still equals sum")
+
+        # History TRUNCATE blocked
+        _expect_fail(
+            cur,
+            "TRUNCATE public.event_class_interest_history",
+            label="history truncate blocked",
+        )
+        ok("history TRUNCATE blocked by statement trigger")
+
+        # Composite FK matches production UNIQUE(event_id, class_identifier)
+        cur.execute(
+            """
+            SELECT pg_get_constraintdef(oid)
+            FROM pg_constraint
+            WHERE conrelid = 'public.event_edition_classes'::regclass
+              AND conname = 'event_edition_classes_event_id_class_identifier_key'
+            """
+        )
+        assert cur.fetchone()[0] == "UNIQUE (event_id, class_identifier)"
+        cur.execute(
+            """
+            SELECT pg_get_constraintdef(oid)
+            FROM pg_constraint
+            WHERE conrelid = 'public.event_class_interest'::regclass
+              AND conname = 'eci_event_class_fkey'
+            """
+        )
+        fkdef = cur.fetchone()[0]
+        compact = fkdef.replace(" ", "").replace("public.", "")
+        assert compact.startswith("FOREIGNKEY(event_id,class_identifier)REFERENCESevent_edition_classes(event_id,class_identifier)")
+        ok("composite FK definition matches edition-classes unique key")
+
+        conn.commit()
+
+        # --- Concurrency: simultaneous upserts same identity ---
+        barrier = threading.Barrier(8)
+        errors = []
+
+        def _upsert_same(n: int) -> None:
+            c = psycopg2.connect(dsn)
+            try:
+                barrier.wait(timeout=10)
+                with c.cursor() as cu:
+                    cu.execute(
+                        "SELECT interest_id, class_identifier FROM public.eci_upsert_interest(%s,%s,%s,NULL,%s)",
+                        (168679, "finn", 1002, 9),
+                    )
+                    cu.fetchone()
+                c.commit()
+            except Exception as ex:  # noqa: BLE001
+                errors.append(ex)
+                c.rollback()
+            finally:
+                c.close()
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(_upsert_same, range(8)))
+        assert not errors, errors
+        cur.execute(
+            """
+            SELECT COUNT(*), COUNT(*) FILTER (WHERE status='active')
+            FROM public.event_class_interest
+            WHERE event_id=168679 AND account_id=1002
+            """
+        )
+        rows, active = cur.fetchone()
+        assert rows == 1 and active == 1
+        _assert_total_equals_sum(cur, 168679)
+        ok("8 concurrent upserts same sailor/event → one row, no double-count")
+
+        # Concurrent distinct visitors
+        def _upsert_visitor(i: int) -> None:
+            vid = f"{i:032x}"
+            c = psycopg2.connect(dsn)
+            try:
+                with c.cursor() as cu:
+                    cu.execute(
+                        "SELECT public.eci_upsert_interest(%s,%s,NULL,%s,%s)",
+                        (246456, "soling", vid, 69),
+                    )
+                c.commit()
+            finally:
+                c.close()
+
+        with ThreadPoolExecutor(max_workers=10) as pool:
+            list(pool.map(_upsert_visitor, range(10)))
+        cur.execute(
+            """
+            SELECT COUNT(*) FROM public.event_class_interest
+            WHERE event_id=246456 AND status='active'
+            """
+        )
+        assert cur.fetchone()[0] == 10
+        _assert_total_equals_sum(cur, 246456)
+        ok("10 concurrent distinct visitor upserts → 10 active rows")
+
+        # Concurrent reconcile vs upsert: sailor wins, no double-count
+        cur.execute(
+            "SELECT public.eci_upsert_interest(%s,%s,NULL,%s,%s)",
+            (246456, "flying-15", "dddddddddddddddddddddddddddddddd", 206),
+        )
+        conn.commit()
+
+        def _reconcile() -> None:
+            c = psycopg2.connect(dsn)
+            try:
+                with c.cursor() as cu:
+                    cu.execute(
+                        "SELECT public.eci_reconcile_visitor_to_account(%s,%s)",
+                        ("dddddddddddddddddddddddddddddddd", 1001),
+                    )
+                c.commit()
+            finally:
+                c.close()
+
+        def _upsert_account() -> None:
+            c = psycopg2.connect(dsn)
+            try:
+                with c.cursor() as cu:
+                    cu.execute(
+                        "SELECT public.eci_upsert_interest(%s,%s,%s,NULL,%s)",
+                        (246456, "soling", 1001, 69),
+                    )
+                c.commit()
+            finally:
+                c.close()
+
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futs = [pool.submit(_reconcile) for _ in range(3)] + [
+                pool.submit(_upsert_account) for _ in range(3)
+            ]
+            for f in as_completed(futs):
+                f.result()
+
+        cur.execute(
+            """
+            SELECT COUNT(*) FILTER (WHERE status='active' AND account_id=1001),
+                   COUNT(*) FILTER (WHERE visitor_id='dddddddddddddddddddddddddddddddd' AND status='active')
+            FROM public.event_class_interest
+            WHERE event_id=246456
+            """
+        )
+        acc_active, vis_active = cur.fetchone()
+        assert acc_active == 1 and vis_active == 0
+        _assert_total_equals_sum(cur, 246456)
+        ok("concurrent reconcile + account upsert: one active sailor, visitor not active")
+
+        # Rollback removes ONLY interest objects — preserve unrelated table
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS public._eci_validation_canary (
+                id int PRIMARY KEY,
+                note text NOT NULL
+            );
+            INSERT INTO public._eci_validation_canary(id, note)
+            VALUES (1, 'must-survive-rollback')
+            ON CONFLICT (id) DO UPDATE SET note=EXCLUDED.note;
+            """
+        )
         conn.commit()
         _exec_file(cur, RB)
         conn.commit()
@@ -424,9 +616,26 @@ def main() -> int:
             """
         )
         assert cur.fetchone() == (None, None, None)
-        ok("rollback script drops interest objects")
+        cur.execute(
+            """
+            SELECT COUNT(*) FROM pg_proc p
+            JOIN pg_namespace n ON n.oid = p.pronamespace
+            WHERE n.nspname='public'
+              AND p.proname IN (
+                'eci_upsert_interest','eci_withdraw_interest',
+                'eci_reconcile_visitor_to_account','eci_identity_lock',
+                'eci_history_immutable'
+              )
+            """
+        )
+        assert cur.fetchone()[0] == 0
+        cur.execute("SELECT note FROM public._eci_validation_canary WHERE id=1")
+        assert cur.fetchone()[0] == "must-survive-rollback"
+        cur.execute("SELECT to_regclass('public.events'), to_regclass('public.event_edition_classes')")
+        assert cur.fetchone() == ("events", "event_edition_classes")
+        ok("rollback drops only interest objects; parents + canary survive")
 
-        # Re-apply after rollback (idempotent CREATE IF NOT EXISTS path)
+        # Re-apply after rollback
         _exec_file(cur, MIG)
         conn.commit()
         cur.execute("SELECT to_regclass('public.event_class_interest')")

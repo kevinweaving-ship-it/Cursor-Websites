@@ -136,18 +136,26 @@ CREATE TRIGGER ecih_no_delete
     BEFORE DELETE ON public.event_class_interest_history
     FOR EACH ROW EXECUTE FUNCTION public.eci_history_immutable();
 
+-- TRUNCATE bypasses row-level triggers; block it too for normal sessions.
+DROP TRIGGER IF EXISTS ecih_no_truncate ON public.event_class_interest_history;
+CREATE TRIGGER ecih_no_truncate
+    BEFORE TRUNCATE ON public.event_class_interest_history
+    FOR EACH STATEMENT EXECUTE FUNCTION public.eci_history_immutable();
+
 -- ---------------------------------------------------------------------------
 -- Derived counts (no stored counters — total must equal sum of class counts)
 -- ---------------------------------------------------------------------------
+-- Counts key on class_identifier so unmapped classes (e.g. Junior, class_id NULL)
+-- remain visible and never silently drop out of totals.
 CREATE OR REPLACE VIEW public.event_class_interest_counts AS
 SELECT
     event_id,
     class_identifier,
-    class_id,
+    MAX(class_id) AS class_id,
     COUNT(*)::bigint AS interested_count
 FROM public.event_class_interest
 WHERE status = 'active'
-GROUP BY event_id, class_identifier, class_id;
+GROUP BY event_id, class_identifier;
 
 CREATE OR REPLACE VIEW public.event_interest_totals AS
 SELECT
@@ -160,6 +168,27 @@ GROUP BY event_id;
 -- ---------------------------------------------------------------------------
 -- Transactional write helpers (Stage 2 will call these; validated in Stage 1)
 -- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.eci_identity_lock(
+    p_event_id integer,
+    p_account_id bigint,
+    p_visitor_id text
+) RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Transaction-scoped advisory lock: serialise writes per event+identity.
+    IF p_account_id IS NOT NULL THEN
+        PERFORM pg_advisory_xact_lock(
+            hashtextextended('eci:a:' || p_event_id::text || ':' || p_account_id::text, 0)
+        );
+    ELSE
+        PERFORM pg_advisory_xact_lock(
+            hashtextextended('eci:v:' || p_event_id::text || ':' || p_visitor_id, 0)
+        );
+    END IF;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.eci_upsert_interest(
     p_event_id integer,
@@ -194,6 +223,7 @@ BEGIN
     END IF;
 
     -- Must be a verified edition class for this event (also enforced by FK).
+    -- class_id may be NULL (unmapped labels such as Junior); counts use class_identifier.
     IF NOT EXISTS (
         SELECT 1 FROM public.event_edition_classes eec
         WHERE eec.event_id = p_event_id
@@ -201,6 +231,8 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'class_identifier % is not configured for event %', v_ident, p_event_id;
     END IF;
+
+    PERFORM public.eci_identity_lock(p_event_id, p_account_id, p_visitor_id);
 
     IF p_account_id IS NOT NULL THEN
         SELECT * INTO v_row
@@ -215,22 +247,40 @@ BEGIN
     END IF;
 
     IF NOT FOUND THEN
-        INSERT INTO public.event_class_interest (
-            event_id, class_id, class_identifier, account_id, visitor_id, status
-        ) VALUES (
-            p_event_id, p_class_id, v_ident, p_account_id, p_visitor_id, 'active'
-        )
-        RETURNING * INTO v_row;
+        BEGIN
+            INSERT INTO public.event_class_interest (
+                event_id, class_id, class_identifier, account_id, visitor_id, status
+            ) VALUES (
+                p_event_id, p_class_id, v_ident, p_account_id, p_visitor_id, 'active'
+            )
+            RETURNING * INTO v_row;
 
-        INSERT INTO public.event_class_interest_history (
-            interest_id, event_id, class_id, class_identifier,
-            account_id, visitor_id, action, to_class_id, to_class_identifier, meta
-        ) VALUES (
-            v_row.interest_id, v_row.event_id, v_row.class_id, v_row.class_identifier,
-            v_row.account_id, v_row.visitor_id, 'created',
-            v_row.class_id, v_row.class_identifier, COALESCE(p_meta, '{}'::jsonb)
-        );
-        RETURN v_row;
+            INSERT INTO public.event_class_interest_history (
+                interest_id, event_id, class_id, class_identifier,
+                account_id, visitor_id, action, to_class_id, to_class_identifier, meta
+            ) VALUES (
+                v_row.interest_id, v_row.event_id, v_row.class_id, v_row.class_identifier,
+                v_row.account_id, v_row.visitor_id, 'created',
+                v_row.class_id, v_row.class_identifier, COALESCE(p_meta, '{}'::jsonb)
+            );
+            RETURN v_row;
+        EXCEPTION WHEN unique_violation THEN
+            -- Belt-and-braces if a writer bypassed the advisory lock path.
+            IF p_account_id IS NOT NULL THEN
+                SELECT * INTO v_row
+                FROM public.event_class_interest
+                WHERE event_id = p_event_id AND account_id = p_account_id
+                FOR UPDATE;
+            ELSE
+                SELECT * INTO v_row
+                FROM public.event_class_interest
+                WHERE event_id = p_event_id AND visitor_id = p_visitor_id
+                FOR UPDATE;
+            END IF;
+            IF NOT FOUND THEN
+                RAISE;
+            END IF;
+        END;
     END IF;
 
     v_prev_class_id := v_row.class_id;
@@ -294,6 +344,11 @@ BEGIN
        OR (p_account_id IS NOT NULL AND p_visitor_id IS NOT NULL) THEN
         RAISE EXCEPTION 'exactly one of account_id or visitor_id required';
     END IF;
+    IF p_visitor_id IS NOT NULL AND p_visitor_id !~ '^[0-9a-f]{32}$' THEN
+        RAISE EXCEPTION 'visitor_id must be 32-char hex ssa_vid';
+    END IF;
+
+    PERFORM public.eci_identity_lock(p_event_id, p_account_id, p_visitor_id);
 
     IF p_account_id IS NOT NULL THEN
         SELECT * INTO v_row
@@ -355,9 +410,32 @@ BEGIN
         RAISE EXCEPTION 'account_id required';
     END IF;
 
+    -- Lock order: reconcile pair → per-event identity advisories → row locks.
+    -- Advisory locks are taken before FOR UPDATE to avoid deadlocks with upserts.
+    PERFORM pg_advisory_xact_lock(
+        hashtextextended('eci:reconcile:' || p_visitor_id || ':' || p_account_id::text, 0)
+    );
+
+    PERFORM public.eci_identity_lock(e.event_id, p_account_id, NULL)
+    FROM (
+        SELECT DISTINCT event_id
+        FROM public.event_class_interest
+        WHERE visitor_id = p_visitor_id OR account_id = p_account_id
+        ORDER BY event_id
+    ) e;
+
+    PERFORM public.eci_identity_lock(e.event_id, NULL, p_visitor_id)
+    FROM (
+        SELECT DISTINCT event_id
+        FROM public.event_class_interest
+        WHERE visitor_id = p_visitor_id
+        ORDER BY event_id
+    ) e;
+
     FOR v_vis IN
         SELECT * FROM public.event_class_interest
         WHERE visitor_id = p_visitor_id
+        ORDER BY event_id
         FOR UPDATE
     LOOP
         SELECT * INTO v_acc
