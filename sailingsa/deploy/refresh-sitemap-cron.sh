@@ -53,4 +53,12 @@ PY
 # Nginx serves files as www-data
 chown www-data:www-data "$WEB_ROOT"/sitemap.xml "$WEB_ROOT"/sitemap-*.xml 2>/dev/null || true
 
+# If the URL set grew (new event / sailor / weekly roundup), PUT sitemap.xml only.
+# Does not use the Indexing API. Does not PUT child feeds.
+if [[ -d /opt/sailingsa-gsc ]]; then
+  echo "[$(date -Is)] notify Google of new sitemap URLs"
+  PYTHONPATH=/opt/sailingsa-gsc "$PY" -m sailingsa.tools.gsc_daily.notify_new_urls \
+    --web-root "$WEB_ROOT" || echo "[notify] failed (non-fatal)" >&2
+fi
+
 echo "[$(date -Is)] sitemap refresh done"
