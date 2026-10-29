@@ -5,7 +5,8 @@
   position: relative;
 }
 
-.eci-interest {
+/* Title-row controls: total (if any) + Interested — top right only */
+.eci-interest-top {
   position: absolute;
   top: 0;
   right: 0;
@@ -16,7 +17,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 5px;
-  max-width: 55%;
+  max-width: 100%;
   min-height: 26px;
   pointer-events: auto;
   box-sizing: border-box;
@@ -37,13 +38,19 @@
   line-height: 1;
 }
 
+/* In-flow under meta: wrap across available width; no clip / no +N budget */
 .eci-logos {
-  display: inline-flex;
+  display: flex;
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: flex-end;
-  gap: 4px;
-  min-width: 0;
+  justify-content: flex-start;
+  gap: 4px 6px;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 6px;
+  box-sizing: border-box;
+  pointer-events: auto;
 }
 
 .eci-logo-item {
@@ -53,6 +60,7 @@
   gap: 1px;
   flex: 0 0 auto;
   min-width: 0;
+  max-width: 100%;
   background: transparent;
   border: 0;
   padding: 0;
@@ -70,20 +78,26 @@
   background: transparent;
 }
 
+.eci-logo-miss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  color: #475569;
+  font: 800 7px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
 .eci-logo-n {
   color: #334155;
   font: 700 8px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: -0.02em;
-}
-
-.eci-more {
-  color: #475569;
-  font: 800 9px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  align-self: center;
-  padding-bottom: 7px;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
+  max-width: 28px;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .eci-btn {

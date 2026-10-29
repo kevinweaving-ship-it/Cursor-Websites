@@ -4,8 +4,8 @@
  * Mounts on articles.landing-event-card[data-event-id].
  * Uses Stage 2 API contract. Never invents counts or classes.
  *
- * Layout: compact title-row cluster — logos (14px) + counts, total, + Interested.
- * On narrow cards the button (and total when possible) win over logos.
+ * Zero interest: + Interested only.
+ * Genuine interest: total + button on the title row; 14px logos/counts wrap below.
  */
 (function (global) {
   "use strict";
@@ -240,12 +240,23 @@
       });
   }
 
-  function buildCluster(card, snap, maxWidth) {
-    var wrap = document.createElement("div");
-    wrap.className = "eci-interest";
-    wrap.setAttribute("data-eci", "1");
-
+  function buildInterest(card, snap) {
     var mine = snap && snap.mine && snap.mine.interested;
+    var total = Number(snap && snap.total_interested) || 0;
+
+    var top = document.createElement("div");
+    top.className = "eci-interest-top";
+    top.setAttribute("data-eci", "1");
+
+    // Zero interest: button only. Never show total/logos for empty genuine totals.
+    if (total > 0) {
+      var totalEl = document.createElement("span");
+      totalEl.className = "eci-total";
+      totalEl.innerHTML =
+        '<span class="eci-total-ico" aria-hidden="true">👥</span><span>' + total + "</span>";
+      top.appendChild(totalEl);
+    }
+
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "eci-btn" + (mine ? " is-mine" : "");
@@ -254,145 +265,100 @@
       stop(e);
       openPopup(card, snap);
     });
+    top.appendChild(btn);
 
-    // Budget layout (button first). Avoid off-DOM getBoundingClientRect flakiness.
-    var budget = Math.max(0, Math.floor(maxWidth));
-    var btnCost = mine ? 112 : 104;
-    var totalCost = 34;
-    var logoCost = 22;
-    var moreCost = 20;
-    budget = Math.max(0, budget - btnCost);
-
-    var fragBefore = [];
-
-    var total = Number(snap && snap.total_interested) || 0;
-    if (total > 0 && budget >= totalCost) {
-      var totalEl = document.createElement("span");
-      totalEl.className = "eci-total";
-      totalEl.innerHTML =
-        '<span class="eci-total-ico" aria-hidden="true">👥</span><span>' + total + "</span>";
-      fragBefore.push(totalEl);
-      budget -= totalCost;
-    }
-
-    var active = ((snap && snap.classes) || [])
-      .filter(function (c) {
-        return (c.interested_count || 0) > 0 && c.logo_path;
-      })
-      .sort(function (a, b) {
-        return (b.interested_count || 0) - (a.interested_count || 0);
-      });
-
-    // Classes with interest but no logo still count toward +N overflow, not dropped from totals.
-    var activeAll = ((snap && snap.classes) || [])
-      .filter(function (c) {
-        return (c.interested_count || 0) > 0;
-      })
-      .sort(function (a, b) {
-        return (b.interested_count || 0) - (a.interested_count || 0);
-      });
-
-    var logosWrap = document.createElement("div");
-    logosWrap.className = "eci-logos";
-    var shown = 0;
-    var maxLogos = Math.floor(budget / logoCost);
-    if (maxLogos > 0 && active.length) {
-      var showN = Math.min(maxLogos, active.length);
-      // Reserve room for +N only when more than one logo would remain visible.
-      if (activeAll.length > showN && budget - showN * logoCost < moreCost && showN > 1) {
-        showN -= 1;
-      }
-      for (var i = 0; i < showN; i++) {
-        var c = active[i];
-        var item = document.createElement("button");
-        item.type = "button";
-        item.className = "eci-logo-item";
-        item.title =
-          (c.class_display_name || c.class_identifier || "") + " · " + c.interested_count;
-        item.addEventListener("click", function (e) {
-          stop(e);
-          openPopup(card, snap);
+    var logosWrap = null;
+    if (total > 0) {
+      var active = ((snap && snap.classes) || [])
+        .filter(function (c) {
+          return (c.interested_count || 0) > 0;
+        })
+        .sort(function (a, b) {
+          return (b.interested_count || 0) - (a.interested_count || 0);
         });
-        var img = document.createElement("img");
-        img.className = "landing-event-inline-logo eci-logo-img";
-        img.src = c.logo_path;
-        img.alt = "";
-        img.width = LOGO_SIZE;
-        img.height = LOGO_SIZE;
-        item.appendChild(img);
-        var n = document.createElement("span");
-        n.className = "eci-logo-n";
-        n.textContent = String(c.interested_count);
-        item.appendChild(n);
-        logosWrap.appendChild(item);
-        shown += 1;
-        budget -= logoCost;
+      if (active.length) {
+        logosWrap = document.createElement("div");
+        logosWrap.className = "eci-logos";
+        logosWrap.setAttribute("data-eci-logos", "1");
+        active.forEach(function (c) {
+          var item = document.createElement("button");
+          item.type = "button";
+          item.className = "eci-logo-item";
+          item.title =
+            (c.class_display_name || c.class_identifier || "") + " · " + c.interested_count;
+          item.addEventListener("click", function (e) {
+            stop(e);
+            openPopup(card, snap);
+          });
+          if (c.logo_path) {
+            var img = document.createElement("img");
+            img.className = "landing-event-inline-logo eci-logo-img";
+            img.src = c.logo_path;
+            img.alt = "";
+            img.width = LOGO_SIZE;
+            img.height = LOGO_SIZE;
+            item.appendChild(img);
+          } else {
+            var miss = document.createElement("span");
+            miss.className = "eci-logo-miss";
+            miss.textContent = String(c.class_display_name || c.class_identifier || "?")
+              .slice(0, 2)
+              .toUpperCase();
+            item.appendChild(miss);
+          }
+          var n = document.createElement("span");
+          n.className = "eci-logo-n";
+          n.textContent = String(c.interested_count);
+          item.appendChild(n);
+          logosWrap.appendChild(item);
+        });
       }
     }
 
-    var remain = activeAll.length - shown;
-    if (remain > 0 && budget >= moreCost && shown >= 0) {
-      var more = document.createElement("button");
-      more.type = "button";
-      more.className = "eci-more";
-      more.textContent = "+" + remain;
-      more.addEventListener("click", function (e) {
-        stop(e);
-        openPopup(card, snap);
-      });
-      logosWrap.appendChild(more);
-    }
-
-    fragBefore.forEach(function (node) {
-      wrap.appendChild(node);
-    });
-    if (logosWrap.childNodes.length) wrap.appendChild(logosWrap);
-    wrap.appendChild(btn);
-    return wrap;
+    top.setAttribute("data-eci-total", String(total));
+    top.setAttribute(
+      "data-eci-classes",
+      String(logosWrap ? logosWrap.childNodes.length : 0)
+    );
+    return { top: top, logos: logosWrap };
   }
 
   function renderCard(card, snap) {
     var main = qs(card, ".sa-home-regatta-top-main");
     var title = qs(card, ".sa-home-regatta-title");
-    var host = qs(card, ".sa-home-regatta-host");
+    var meta = qs(card, ".sa-home-regatta-meta");
     if (!main || !title) return;
 
+    qsa(main, ".eci-interest-top, .eci-logos[data-eci-logos]").forEach(function (n) {
+      n.remove();
+    });
+    // legacy single-cluster cleanup
     qsa(main, ".eci-interest").forEach(function (n) {
       n.remove();
     });
 
     title.classList.add("eci-title-pad");
 
-    var mainBox = main.getBoundingClientRect();
-    var want = BTN_MIN;
-    if (mainBox.width >= 220) want = Math.min(Math.floor(mainBox.width * 0.48), BTN_MIN + 110);
-    else if (mainBox.width >= 160) want = Math.min(Math.floor(mainBox.width * 0.42), BTN_MIN + 36);
+    var parts = buildInterest(card, snap || { total_interested: 0, classes: [], mine: null });
+    main.appendChild(parts.top);
 
-    title.style.setProperty("--eci-pad", Math.ceil(want) + "px");
-    mainBox = main.getBoundingClientRect();
-    var free = Math.max(BTN_MIN, mainBox.right - glyphRight(title) - 4);
-    free = Math.min(free, want + 8);
+    // Title pad reserves space for total+button only (top row).
+    var pad = Math.ceil(parts.top.getBoundingClientRect().width) + 8;
+    if (pad < BTN_MIN) pad = BTN_MIN;
+    title.style.setProperty("--eci-pad", pad + "px");
+    // Re-measure after pad so top bar stays clear of title glyphs.
+    pad = Math.ceil(parts.top.getBoundingClientRect().width) + 8;
+    title.style.setProperty("--eci-pad", Math.max(BTN_MIN, pad) + "px");
 
-    var rowH = 26;
-    if (host) {
-      rowH = Math.max(26, Math.min(34, host.getBoundingClientRect().top - mainBox.top - 2));
+    if (parts.logos) {
+      // In-flow under meta so 10+ logos wrap without overlay/clip.
+      if (meta && meta.parentNode === main) {
+        if (meta.nextSibling) main.insertBefore(parts.logos, meta.nextSibling);
+        else main.appendChild(parts.logos);
+      } else {
+        main.appendChild(parts.logos);
+      }
     }
-
-    var cluster = buildCluster(card, snap || { total_interested: 0, classes: [], mine: null }, free);
-    cluster.style.height = Math.floor(rowH) + "px";
-    cluster.setAttribute("data-eci-free", String(Math.round(free)));
-    cluster.setAttribute(
-      "data-eci-total",
-      String(Number(snap && snap.total_interested) || 0)
-    );
-    cluster.setAttribute(
-      "data-eci-classes",
-      String(((snap && snap.classes) || []).length)
-    );
-    main.appendChild(cluster);
-
-    var cw = Math.ceil(cluster.getBoundingClientRect().width) + 6;
-    title.style.setProperty("--eci-pad", cw + "px");
 
     card.__eciSnap = snap;
   }
