@@ -3,6 +3,7 @@
     window.__roundupReacts = true;
 
     var KINDS = [["up", "👍"], ["heart", "❤️"], ["down", "👎"]];
+    var cache = {};
 
     function issueKey(url) {
         var match = String(url || "").match(/\/issues\/(\d{4}-\d{2}-\d{2})(?:\/|#|\?|$)/);
@@ -17,8 +18,28 @@
         event.stopPropagation();
     }
 
+    function compactHeadline(value, key) {
+        var text = String(value || "").replace(/\s+/g, " ").trim();
+        if (text.length > 72) text = text.slice(0, 69).replace(/\s+\S*$/, "") + "...";
+        if (text.length < 3) text = "Roundup " + key;
+        return text;
+    }
+
+    function slideInfo(slide) {
+        var url = (slide && slide.getAttribute("data-issue-url")) || "";
+        var key = issueKey(url);
+        var titleNode = slide && slide.querySelector(".landing-roundup-title");
+        var headline = compactHeadline(titleNode ? titleNode.textContent : "", key);
+        return {
+            key: key,
+            url: url || ("/sailing-roundup/issues/" + key + "/"),
+            headline: headline
+        };
+    }
+
     function paint(row, issue, payload) {
         row.textContent = "";
+        row.setAttribute("data-issue-key", issue);
         var counts = (payload && payload.counts) || {};
         var mine = (payload && payload.mine) || [];
         KINDS.forEach(function (pair) {
@@ -38,7 +59,7 @@
                 }).then(function (res) {
                     return res.json().catch(function () { return {}; });
                 }).then(function (data) {
-                    if (data && data.reactions) paint(row, issue, data.reactions);
+                    if (data && data.reactions) paintAll(issue, data.reactions);
                 });
             });
             row.appendChild(button);
@@ -49,22 +70,37 @@
         comment.addEventListener("click", function (event) {
             event.preventDefault();
             event.stopPropagation();
+            var info = {
+                key: issue,
+                url: row.getAttribute("data-issue-url") || ("/sailing-roundup/issues/" + issue + "/"),
+                headline: row.getAttribute("data-issue-headline") || ("Roundup " + issue)
+            };
             if (typeof window.docksideOpenComment === "function") {
-                window.docksideOpenComment();
+                window.docksideOpenComment(info);
                 return;
             }
-            window.location.assign("/#dockside-comment");
+            window.location.assign(info.url || ("/sailing-roundup/issues/" + issue + "/"));
         });
         row.appendChild(comment);
     }
 
-    function makeRow(issue, payload) {
+    function paintAll(issue, payload) {
+        cache[issue] = payload || cache[issue] || { counts: { up: 0, heart: 0, down: 0 }, mine: [] };
+        Array.prototype.forEach.call(document.querySelectorAll('.roundup-reacts[data-issue-key="' + issue + '"]'), function (row) {
+            paint(row, issue, cache[issue]);
+        });
+    }
+
+    function makeRow(info, payload) {
         var row = document.createElement("div");
         row.className = "roundup-reacts";
+        row.setAttribute("data-issue-key", info.key);
+        row.setAttribute("data-issue-url", info.url || "");
+        row.setAttribute("data-issue-headline", info.headline || "");
         row.addEventListener("click", stop);
         row.addEventListener("touchstart", stop, { passive: true });
         row.addEventListener("touchend", stop, { passive: true });
-        paint(row, issue, payload);
+        paint(row, info.key, payload);
         return row;
     }
 
@@ -72,19 +108,41 @@
         if (document.querySelector("link[data-roundup-reacts]")) return;
         var link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = "/css/roundup-reactions.css?v=dockside21";
+        link.href = "/css/roundup-reactions.css?v=dockside23";
         link.setAttribute("data-roundup-reacts", "1");
         document.head.appendChild(link);
+    }
+
+    function ensureDocksideAssets() {
+        if (!document.querySelector("link[href*='dockside-chat.css']")) {
+            var css = document.createElement("link");
+            css.rel = "stylesheet";
+            css.href = "/css/dockside-chat.css?v=dockside14";
+            document.head.appendChild(css);
+        }
+        if (!document.querySelector("script[src*='dockside-chat.js']")) {
+            var js = document.createElement("script");
+            js.src = "/js/dockside-chat.js?v=dockside21";
+            js.defer = true;
+            document.head.appendChild(js);
+        }
     }
 
     function syncCards(known) {
         var slides = document.querySelectorAll(".landing-roundup-slide[data-issue-url]");
         Array.prototype.forEach.call(slides, function (slide) {
-            var key = issueKey(slide.getAttribute("data-issue-url"));
-            if (!key) return;
+            var info = slideInfo(slide);
+            if (!info.key) return;
+            if (known[info.key]) cache[info.key] = known[info.key];
             var existing = slide.querySelector(".roundup-reacts");
-            if (existing) return;
-            slide.appendChild(makeRow(key, known[key]));
+            if (existing) {
+                existing.setAttribute("data-issue-key", info.key);
+                existing.setAttribute("data-issue-url", info.url);
+                existing.setAttribute("data-issue-headline", info.headline);
+                paint(existing, info.key, cache[info.key] || known[info.key]);
+                return;
+            }
+            slide.appendChild(makeRow(info, cache[info.key] || known[info.key]));
         });
     }
 
@@ -111,7 +169,6 @@
                 var slides = document.querySelectorAll(".landing-roundup-slide[data-issue-url]");
                 var keys = [];
                 Array.prototype.forEach.call(slides, function (slide) {
-                    if (slide.querySelector(".roundup-reacts")) return;
                     var key = issueKey(slide.getAttribute("data-issue-url"));
                     if (key && keys.indexOf(key) < 0) keys.push(key);
                 });
@@ -123,18 +180,77 @@
         schedule();
     }
 
+    function mountIssueDockside(info) {
+        if (document.getElementById("dockside-landing")) return;
+        ensureDocksideAssets();
+        var host = document.createElement("section");
+        host.id = "dockside-landing";
+        host.className = "dockside-landing";
+        host.setAttribute("aria-label", "Dockside Chat");
+        host.setAttribute("data-dockside-card", "1");
+        host.setAttribute("data-roundup-key", info.key);
+        host.setAttribute("data-roundup-url", info.url);
+        host.setAttribute("data-roundup-headline", info.headline);
+        host.innerHTML =
+            '<div class="dockside-head">' +
+            '<div class="dockside-brand">' +
+            '<svg class="dockside-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+            '<path fill="#001f3f" d="M5 3.5h14a2.5 2.5 0 0 1 2.5 2.5v8.2a2.5 2.5 0 0 1-2.5 2.5H9.2L4.2 21v-4.3H5A2.5 2.5 0 0 1 2.5 14.2V6A2.5 2.5 0 0 1 5 3.5z"/>' +
+            "</svg>" +
+            '<div class="dockside-titles">' +
+            '<h2 class="dockside-kicker">Dockside Chat</h2>' +
+            '<p class="dockside-sub">Sailors on the dock</p>' +
+            "</div></div>" +
+            '<a class="dockside-viewall" href="/dockside.html">View all</a>' +
+            "</div>" +
+            '<div id="dockside-topic">' +
+            '<div class="dockside-op" id="dockside-original"></div>' +
+            '<div class="dockside-scroll" id="dockside-scroll" tabindex="0"></div>' +
+            '<form class="dockside-compose" id="dockside-reply-form" action="/dockside.html" method="get">' +
+            '<span class="dockside-avatar dockside-avatar--me" id="dockside-me-avatar" aria-hidden="true"></span>' +
+            '<label class="dockside-sr" for="dockside-reply-body">Comment</label>' +
+            '<input id="dockside-reply-body" type="text" maxlength="2000" placeholder="Write a comment" autocomplete="off">' +
+            '<button type="submit" class="dockside-post">Post</button>' +
+            "</form></div>" +
+            '<div id="dockside-empty" class="dockside-invite" hidden></div>';
+        var paper = document.querySelector("main.paper") || document.querySelector(".paper") || document.body;
+        paper.appendChild(host);
+        if (location.hash === "#dockside-comment") {
+            try {
+                history.replaceState(null, "", location.pathname + location.search);
+            } catch (err) {}
+        }
+    }
+
     function bootIssue() {
         var key = issueKey(location.pathname + "/");
-        if (!key || document.querySelector(".roundup-reacts")) return;
-        var folio = document.querySelector(".folio");
-        var paper = document.querySelector(".paper");
-        if (!folio && !paper) return;
+        if (!key) return;
         ensureStyle();
-        load([key]).then(function (known) {
-            if (document.querySelector(".roundup-reacts")) return;
-            var row = makeRow(key, known[key]);
+        var headlineNode = document.querySelector(".edition-headline, h2.edition-headline, .story-lead h2");
+        var info = {
+            key: key,
+            url: location.pathname.replace(/\/?$/, "/"),
+            headline: compactHeadline(headlineNode ? headlineNode.textContent : document.title, key)
+        };
+        var existing = document.querySelector('.roundup-reacts[data-issue-key="' + key + '"]');
+        function place(row) {
+            if (existing) return;
+            var folio = document.querySelector(".folio");
+            var paper = document.querySelector("main.paper") || document.querySelector(".paper");
             if (folio && folio.parentNode) folio.parentNode.insertBefore(row, folio.nextSibling);
-            else paper.insertBefore(row, paper.firstChild);
+            else if (paper) paper.insertBefore(row, paper.firstChild);
+            else document.body.insertBefore(row, document.body.firstChild);
+        }
+        load([key]).then(function (known) {
+            cache[key] = known[key] || cache[key];
+            if (existing) {
+                existing.setAttribute("data-issue-url", info.url);
+                existing.setAttribute("data-issue-headline", info.headline);
+                paint(existing, key, cache[key]);
+            } else {
+                place(makeRow(info, cache[key]));
+            }
+            mountIssueDockside(info);
         });
     }
 

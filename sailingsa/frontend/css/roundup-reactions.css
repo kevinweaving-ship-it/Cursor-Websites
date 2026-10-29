@@ -1,6 +1,7 @@
 /* Reaction row for Weekly Roundup cards and each issue page. */
 .landing-roundup-slide .roundup-reacts,
-.paper > .roundup-reacts {
+.paper > .roundup-reacts,
+body.weekly-roundup-edition .roundup-reacts {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -8,8 +9,9 @@
     padding: 2px 0 0;
 }
 
-.paper > .roundup-reacts {
-    margin: 0 28px;
+.paper > .roundup-reacts,
+body.weekly-roundup-edition .roundup-reacts {
+    margin: 8px 28px 0;
     padding: 8px 0 0;
 }
 
@@ -30,10 +32,26 @@
 }
 
 .landing-roundup-slide .roundup-reacts button,
-.landing-roundup-slide .roundup-reacts button.is-mine {
+.landing-roundup-slide .roundup-reacts button.is-mine,
+body.weekly-roundup-edition .roundup-reacts button,
+body.weekly-roundup-edition .roundup-reacts button.is-mine {
     color: #fff;
 }
 
 .landing-roundup-slide .landing-roundup-reads {
     display: none !important;
+}
+
+#dockside-landing .dockside-roundup-link,
+body.weekly-roundup-edition .dockside-roundup-link {
+    display: inline-block;
+    margin: 0 0 6px;
+    color: #0b57d0;
+    font: 700 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    text-decoration: underline;
+}
+
+body.weekly-roundup-edition #dockside-landing {
+    margin: 16px 28px 28px;
+    max-width: 804px;
 }

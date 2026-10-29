@@ -496,6 +496,7 @@
         var topicId = null;
         var postsById = {};
         var pendingCommentFocus = false;
+        var roundupContext = null;
         var resumedDraft = takeResumeDraft();
         var stopLandingGuard = function () {};
         if (!resumedDraft) {
@@ -729,8 +730,85 @@
             fit();
         }
 
+        function showRoundupLink(info) {
+            var link = topicBox.querySelector(".dockside-roundup-link");
+            if (!info || !info.key) {
+                if (link) link.remove();
+                return;
+            }
+            if (!link) {
+                link = document.createElement("a");
+                link.className = "dockside-roundup-link";
+                topicBox.insertBefore(link, form || originalEl);
+            }
+            link.href = info.url || ("/sailing-roundup/issues/" + info.key + "/");
+            link.textContent = info.headline || "Weekly Roundup";
+        }
+
+        function showRoundupEmpty() {
+            if (emptyBox) emptyBox.hidden = true;
+            topicBox.hidden = false;
+            if (form) form.hidden = false;
+            if (subjectEl) subjectEl.hidden = true;
+            originalEl.textContent = "";
+            scroll.textContent = "";
+            var note = document.createElement("p");
+            note.className = "dockside-empty";
+            note.textContent = "No comments yet.";
+            scroll.appendChild(note);
+            setCommentPlaceholder();
+            paintMe();
+            fit();
+        }
+
+        function loadRoundup(info, opts) {
+            if (!info || !info.key) return;
+            opts = opts || {};
+            roundupContext = info;
+            showRoundupLink(info);
+            if (emptyBox) emptyBox.hidden = true;
+            topicBox.hidden = false;
+            if (form) form.hidden = false;
+            api("/api/dockside/roundup/" + encodeURIComponent(info.key) + "/chat?headline=" + encodeURIComponent(info.headline || "")).then(function (data) {
+                if (!data || data._status !== 200) {
+                    noteError(scroll, (data && data.detail) || "Comments could not be loaded");
+                    return;
+                }
+                roundupContext = {
+                    key: data.issue_key || info.key,
+                    url: data.url || info.url,
+                    headline: data.headline || info.headline
+                };
+                showRoundupLink(roundupContext);
+                if (data.topic) paintTopic(data.topic);
+                else {
+                    topicId = null;
+                    showRoundupEmpty();
+                }
+                if (opts.scroll) {
+                    if (root) root.scrollIntoView({ block: "center" });
+                    if (field) field.focus();
+                }
+                fit();
+            });
+        }
+
         paintMe();
-        api("/api/dockside/current").then(function (data) {
+        var fixedKey = root.getAttribute("data-roundup-key") || "";
+        if (fixedKey) {
+            loadRoundup({
+                key: fixedKey,
+                url: root.getAttribute("data-roundup-url") || "",
+                headline: root.getAttribute("data-roundup-headline") || ""
+            }, { scroll: false });
+        } else if (resumedDraft && resumedDraft.kind === "roundup" && resumedDraft.issue_key) {
+            loadRoundup({
+                key: resumedDraft.issue_key,
+                url: resumedDraft.url || "",
+                headline: resumedDraft.headline || ""
+            }, { scroll: true });
+            if (field) field.value = resumedDraft.body || "";
+        } else api("/api/dockside/current").then(function (data) {
             if (!data || data._status !== 200) {
                 showEmpty("Dockside Chat is unavailable.");
                 if (startOpen) startOpen.hidden = true;
@@ -809,7 +887,50 @@
             });
         }
             function sendComment(body, parent, errorMount) {
-            if (!body || !topicId) return;
+            if (!body) return;
+            if (roundupContext && roundupContext.key) {
+                var roundupDraft = {
+                    kind: "roundup",
+                    issue_key: roundupContext.key,
+                    headline: roundupContext.headline || "",
+                    url: roundupContext.url || "",
+                    parent_post_id: parent || null,
+                    body: body
+                };
+                if (!me.signed_in && !guestsMayPost()) {
+                    goLogin(roundupDraft);
+                    return;
+                }
+                api("/api/dockside/roundup/" + encodeURIComponent(roundupContext.key) + "/posts", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        body: body,
+                        parent_post_id: parent || null,
+                        headline: roundupContext.headline || ""
+                    })
+                }).then(function (data) {
+                    if (data._status === 401) {
+                        goLogin(roundupDraft);
+                        return;
+                    }
+                    if (!data || data._status !== 200 || !data.topic) {
+                        noteError(errorMount || scroll, (data && data.detail) || "Comment was not saved");
+                        return;
+                    }
+                    clearDraft();
+                    resumedDraft = null;
+                    stopLandingGuard();
+                    if (field) {
+                        field.value = "";
+                        field.placeholder = "Write a comment";
+                    }
+                    stopLandingGuard = guardComposer([field, startBody]);
+                    showRoundupLink(roundupContext);
+                    paintTopic(data.topic);
+                });
+                return;
+            }
+            if (!topicId) return;
             var draft = { kind: "comment", topic_id: topicId, parent_post_id: parent || null, body: body };
             if (!me.signed_in && !guestsMayPost()) {
                 goLogin(draft);
@@ -846,9 +967,9 @@
             });
         }
         mountPublicToggle(root.querySelector(".dockside-titles"));
-        window.docksideOpenComment = function () {
-            if (!me.signed_in && !guestsMayPost()) {
-                goLogin(null);
+        window.docksideOpenComment = function (info) {
+            if (info && info.key) {
+                loadRoundup(info, { scroll: true });
                 return;
             }
             if (form && form.hidden) {
@@ -860,10 +981,10 @@
             if (field) field.focus();
         };
         if (location.hash === "#dockside-comment") {
-            pendingCommentFocus = true;
             try {
                 history.replaceState(null, "", location.pathname + location.search);
             } catch (err) {}
+            if (!fixedKey) pendingCommentFocus = true;
         }
         window.addEventListener("resize", fit);
         window.addEventListener("load", fit);

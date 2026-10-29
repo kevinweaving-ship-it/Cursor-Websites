@@ -245,6 +245,10 @@ def apply_schema(conn) -> None:
         END $$;
         ALTER TABLE public.dockside_posts ADD COLUMN IF NOT EXISTS visitor_id text;
         ALTER TABLE public.dockside_posts ALTER COLUMN created_by DROP NOT NULL;
+        ALTER TABLE public.dockside_topics ADD COLUMN IF NOT EXISTS issue_key text;
+        ALTER TABLE public.dockside_topics ALTER COLUMN created_by DROP NOT NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS dockside_topics_issue_uidx
+            ON public.dockside_topics (issue_key) WHERE issue_key IS NOT NULL;
         DO $$
         BEGIN
             IF NOT EXISTS (
@@ -819,6 +823,7 @@ def list_topics(conn, q: str, sort: str, direction: str, limit: int = 50) -> dic
                ) AS comment_count
         FROM public.dockside_topics t
         WHERE t.status = 'open'
+          AND t.issue_key IS NULL
           AND (
                 %s IS NULL
                 OR t.subject ILIKE %s ESCAPE '\\'
@@ -881,6 +886,7 @@ def current_topic(conn, account=None, visitor_id=None) -> dict:
         SELECT topic_id, subject, status, created_by, created_at, updated_at
         FROM public.dockside_topics
         WHERE status = 'open'
+          AND issue_key IS NULL
         ORDER BY updated_at DESC, topic_id DESC
         LIMIT 1
         """
@@ -1232,6 +1238,87 @@ def roundup_reaction_map(conn, keys, account=None, visitor_id=None) -> dict:
     return {"issues": found}
 
 
+def _compact_headline(value, issue_key: str) -> str:
+    text = _TAG_RE.sub("", str(value or "").replace("\x00", ""))
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > 72:
+        text = text[:69].rstrip() + "..."
+    if len(text) < 3:
+        text = "Roundup " + issue_key
+    return text[:120]
+
+
+def _roundup_url(issue_key: str) -> str:
+    return "/sailing-roundup/issues/" + issue_key + "/"
+
+
+def _roundup_topic_row(cur, issue_key: str):
+    cur.execute(
+        """
+        SELECT topic_id, subject, status, created_by, created_at, updated_at, issue_key
+        FROM public.dockside_topics
+        WHERE issue_key = %s AND status = 'open'
+        """,
+        (issue_key,),
+    )
+    return cur.fetchone()
+
+
+def get_roundup_chat(conn, issue_key: str, headline, account=None, visitor_id=None) -> dict:
+    issue_key = _issue_key(issue_key)
+    cur = _cur(conn)
+    row = _roundup_topic_row(cur, issue_key)
+    shown = row["subject"] if row else _compact_headline(headline, issue_key)
+    topic = None
+    if row:
+        viewer = account["account_id"] if account else None
+        topic = _topic_json(
+            row,
+            _posts(cur, row["topic_id"], viewer, None if account else visitor_id),
+        )
+    cur.close()
+    return {
+        "issue_key": issue_key,
+        "headline": shown,
+        "url": _roundup_url(issue_key),
+        "topic": topic,
+    }
+
+
+def add_roundup_post(conn, account, issue_key: str, headline, body, parent_post_id, visitor_id=None) -> dict:
+    issue_key = _issue_key(issue_key)
+    cur = _cur(conn)
+    if account is None:
+        if not visitor_id or not _VISITOR_RE.fullmatch(str(visitor_id)):
+            raise DocksideError(401, "Sign in required")
+        if not public_comment_state(cur)["open"]:
+            raise DocksideError(401, "Sign in required")
+    subject = _compact_headline(headline, issue_key)
+    row = _roundup_topic_row(cur, issue_key)
+    if not row:
+        cur.execute(
+            """
+            INSERT INTO public.dockside_topics (subject, created_by, issue_key)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (issue_key) WHERE issue_key IS NOT NULL DO NOTHING
+            RETURNING topic_id
+            """,
+            (subject, account["account_id"] if account else None, issue_key),
+        )
+        inserted = cur.fetchone()
+        if inserted:
+            topic_id = inserted["topic_id"]
+        else:
+            row = _roundup_topic_row(cur, issue_key)
+            if not row:
+                raise DocksideError(400, "Roundup discussion was not saved")
+            topic_id = row["topic_id"]
+    else:
+        topic_id = row["topic_id"]
+    cur.close()
+    return add_post(conn, account, topic_id, body, parent_post_id, visitor_id)
+
+
 def set_roundup_reaction(conn, account, issue_key: str, kind: str, visitor_id=None) -> dict:
     kind = _reaction_kind(kind)
     issue_key = _issue_key(issue_key)
@@ -1456,6 +1543,38 @@ def register_dockside_routes(app, get_db_connection, return_db_connection, is_su
                 session_account(conn, _token(request)),
                 payload.get("issue_key"),
                 payload.get("kind"),
+                request.state.dockside_visitor,
+            )
+
+        return _run(request, handler)
+
+    @app.get("/api/dockside/roundup/{issue_key}/chat")
+    def dockside_roundup_chat(issue_key: str, request: Request):
+        headline = request.query_params.get("headline") or ""
+
+        def handler(conn):
+            return get_roundup_chat(
+                conn,
+                issue_key,
+                headline,
+                session_account(conn, _token(request)),
+                request.state.dockside_visitor,
+            )
+
+        return _run(request, handler)
+
+    @app.post("/api/dockside/roundup/{issue_key}/posts")
+    async def dockside_roundup_post(issue_key: str, request: Request):
+        payload = _json_body(await request.json())
+
+        def handler(conn):
+            return add_roundup_post(
+                conn,
+                session_account(conn, _token(request)),
+                issue_key,
+                payload.get("headline"),
+                payload.get("body"),
+                payload.get("parent_post_id"),
                 request.state.dockside_visitor,
             )
 
