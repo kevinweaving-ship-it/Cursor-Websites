@@ -29,6 +29,11 @@
     color: #001f3f;
 }
 
+.landing-roundup-slide .roundup-reacts button,
+.landing-roundup-slide .roundup-reacts button.is-mine {
+    color: #fff;
+}
+
 .landing-roundup-slide .landing-roundup-reads {
     display: none !important;
 }

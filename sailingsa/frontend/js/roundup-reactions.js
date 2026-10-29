@@ -72,7 +72,7 @@
         if (document.querySelector("link[data-roundup-reacts]")) return;
         var link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = "/css/roundup-reactions.css?v=dockside20";
+        link.href = "/css/roundup-reactions.css?v=dockside21";
         link.setAttribute("data-roundup-reacts", "1");
         document.head.appendChild(link);
     }
