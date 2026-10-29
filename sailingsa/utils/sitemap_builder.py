@@ -106,6 +106,23 @@ def _is_reserved_public_slug(slug: str) -> bool:
     return (slug or "").strip().lower() in RESERVED_PUBLIC_SLUGS
 
 
+# Old regatta_id rows that 301 to a different public /regatta/{id}.
+# Sitemap must list the destination only; the alias is a GSC "Page with redirect".
+REGATTA_ALIAS_IDS = frozenset(
+    {
+        "2026-02-15-hyc-cape-classic",
+        "2025-09-28-sa-sailing-national-championships-finn-class",
+        "2025-12-31-dabchick-wc-regionals",
+        "2025-03-16-nr-interschools",
+        "2025-12-31-wc-extra-regionals",
+    }
+)
+
+
+def _is_regatta_alias_id(regatta_id: str) -> bool:
+    return (regatta_id or "").strip().lower() in REGATTA_ALIAS_IDS
+
+
 def _slug_from_name(full_name: str) -> str:
     """Same rule as live api.py _slug_from_name (including Last, First flip)."""
     if not full_name or not isinstance(full_name, str):
@@ -222,7 +239,7 @@ def _fetch_regattas(cur, today: str) -> list[tuple[str, str]]:
     out = []
     for r in cur.fetchall() or []:
         regatta_id = (str(r.get("regatta_id") or "")).strip()
-        if not regatta_id or _is_reserved_public_slug(regatta_id):
+        if not regatta_id or _is_reserved_public_slug(regatta_id) or _is_regatta_alias_id(regatta_id):
             continue
         out.append((regatta_id, _date_iso(r.get("lastmod"), today=today)))
     return out
@@ -576,7 +593,7 @@ def build_sitemap(
     reg_entries: list[tuple[str, str]] = []
     for regatta_id, lastmod in sorted(regattas, key=lambda x: x[1], reverse=True):
         path = f"/regatta/{regatta_id}"
-        if path in seen_paths or _is_reserved_public_slug(regatta_id):
+        if path in seen_paths or _is_reserved_public_slug(regatta_id) or _is_regatta_alias_id(regatta_id):
             continue
         seen_paths.add(path)
         reg_entries.append((path, lastmod))
