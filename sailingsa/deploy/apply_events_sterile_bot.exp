@@ -1,0 +1,20 @@
+#!/usr/bin/expect -f
+set timeout 180
+spawn scp -o StrictHostKeyChecking=no /workspace/sailingsa/deploy/patch_events_sterile_bot.py /workspace/sailingsa/deploy/_remote_apply_sterile_quarantine.py root@102.218.215.253:/tmp/
+expect {
+  -re "(?i)password:" { send "TimAdd#072082\r"; exp_continue }
+  eof {}
+}
+catch {wait}
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 python3 /tmp/patch_events_sterile_bot.py
+expect {
+  -re "(?i)password:" { send "TimAdd#072082\r"; exp_continue }
+  eof {}
+}
+catch {wait}
+spawn ssh -o StrictHostKeyChecking=no root@102.218.215.253 bash -lc {PY=$(ls -1 /var/www/sailingsa/api/venv/bin/python /var/www/sailingsa/venv/bin/python /opt/*/bin/python 2>/dev/null | head -1); if [ -z "$PY" ]; then PY=python3; fi; echo USING $PY; $PY /tmp/_remote_apply_sterile_quarantine.py; systemctl restart sailingsa-api; sleep 2; systemctl is-active sailingsa-api}
+expect {
+  -re "(?i)password:" { send "TimAdd#072082\r"; exp_continue }
+  eof {}
+}
+catch {wait}
