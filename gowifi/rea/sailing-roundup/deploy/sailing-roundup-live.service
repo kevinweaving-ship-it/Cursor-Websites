@@ -1,0 +1,17 @@
+[Unit]
+Description=Publish Sailing Weekend Roundup to sailingsa.co.za
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/sailing-roundup
+Environment=HOME=/root
+Environment=PATH=/opt/sailing-roundup/.venv/bin:/usr/bin:/bin
+ExecStart=/bin/bash /opt/sailing-roundup/deploy/run-monday.sh /opt/sailing-roundup
+StandardOutput=append:/opt/sailing-roundup/data/publish.log
+StandardError=append:/opt/sailing-roundup/data/publish.log
+
+[Install]
+WantedBy=multi-user.target

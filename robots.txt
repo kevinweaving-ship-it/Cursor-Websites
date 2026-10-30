@@ -1,4 +1,18 @@
 User-agent: *
 Allow: /
-
+Disallow: /api/
+Disallow: /auth/
+Disallow: /admin/
+Disallow: /login
+Disallow: /test/
+Disallow: /dev-1
+Disallow: /dev-1/
+Disallow: /signup.html
+Disallow: /profiles
+Disallow: /sailing-roundup/archive.json
+Disallow: /sailing-roundup/feed.json
+Disallow: /sailing-roundup/cards.json
+Disallow: /sailing-roundup/latest.json
 Sitemap: https://sailingsa.co.za/sitemap.xml
+Sitemap: https://sailingsa.co.za/sitemap-roundups.xml
+Sitemap: https://sailingsa.co.za/sitemap-news.xml

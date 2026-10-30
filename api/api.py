@@ -1577,7 +1577,10 @@ def _regatta_class_results_html():
 
 
 @app.get("/regatta/class/podium/podium.html")
-def _regatta_podium_html():
+def _regatta_podium_html(request: Request):
+    # Empty ?regatta_id= is a soft-404 that Search Console flags. Send it to /events.
+    if not (request.query_params.get("regatta_id") or "").strip():
+        return RedirectResponse(url="/events", status_code=301)
     path = os.path.join(_static_dir(), "regatta", "class", "podium", "podium.html")
     if os.path.isfile(path):
         return FileResponse(path, media_type="text/html")
@@ -1748,7 +1751,9 @@ def _directory_page_html(title: str, items: list, href_key: str, page_title: str
     header = """<!DOCTYPE html>
 <html lang="en-US">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>""" + html_module.escape(page_title) + """</title>
+<title>""" + html_module.escape(page_title) + """ | SailingSA</title>
+<meta name="robots" content="index, follow">
+<meta name="description" content=\"""" + html_module.escape(about_text) + """\">
 <link rel="canonical" href="https://sailingsa.co.za""" + html_module.escape(title) + """">
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
 <link rel="stylesheet" href="/css/main.css">
@@ -1796,7 +1801,7 @@ def _directory_page_html(title: str, items: list, href_key: str, page_title: str
 def _directory_sailors_page():
     """Directory: all sailors, alphabetical by first letter. Links to /sailor/{slug}."""
     items = _directory_sailors()
-    return HTMLResponse(_directory_page_html("/sailors", items, "sailor", "Sailors"))
+    return HTMLResponse(_directory_page_html("/sailors", items, "sailor", "South African Sailors"))
 
 
 @app.get("/regattas", response_class=HTMLResponse)
