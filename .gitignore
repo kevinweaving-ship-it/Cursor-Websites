@@ -257,6 +257,8 @@ dist/
 output/
 admin/
 artwork/
+!aerialnet/artwork/
+!aerialnet/artwork/**
 assets/
 class_engine/
 projection_engine/

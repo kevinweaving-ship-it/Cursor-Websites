@@ -1,0 +1,13 @@
+Aerial Networks artwork
+
+aerial-networks-logo.png
+  Full logo: the mark plus the words AERIAL NETWORKS.
+  Use this on the website header and anywhere the full name should show.
+
+aerial-networks-logo-mark.png
+  Mark only (the A and N).
+  Use this file when a logo is needed without the wordmark.
+  The website does not use a favicon.
+
+aerial-networks-favicon.ico
+  Saved mark sized for a browser icon. Not used on the site.
