@@ -12394,6 +12394,164 @@ def _require_super_admin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Super admin required")
 
 
+def _normalize_account_role(role) -> str:
+    if not role:
+        return ""
+    return str(role).strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _session_role_is_club_admin(request: Request) -> bool:
+    """True for Club Admin / Club Manager (scoped to one host club)."""
+    return _normalize_account_role(_get_session_role(request)) in (
+        "club_admin",
+        "clubadmin",
+        "club_manager",
+    )
+
+
+def _session_admin_club_id(request: Request):
+    try:
+        if not table_exists("user_accounts") or not column_exists("user_accounts", "admin_club_id"):
+            return None
+        token = request.cookies.get("session") or (
+            request.query_params.get("session") if request.query_params else None
+        )
+        if not token:
+            return None
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            where_extra = " AND s.logout_time IS NULL" if column_exists("user_sessions", "logout_time") else ""
+            cur.execute(
+                """
+                SELECT ua.admin_club_id FROM public.user_sessions s
+                JOIN public.user_accounts ua ON ua.account_id = s.account_id
+                WHERE s.session_id = %s AND s.expires_at > NOW()
+                """
+                + where_extra,
+                (token,),
+            )
+            row = cur.fetchone()
+            if not row or row.get("admin_club_id") is None:
+                return None
+            return int(row["admin_club_id"])
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _row_get(row, key, index=0):
+    """Read a column from a tuple or RealDictRow (live pool cursors are RealDict)."""
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[index]
+    except Exception:
+        return None
+
+
+def _regatta_host_club_id(regatta_id):
+    rid = str(regatta_id or "").strip()
+    if not rid or not table_exists("regattas") or not column_exists("regattas", "host_club_id"):
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute(
+                "SELECT host_club_id FROM public.regattas WHERE regatta_id = %s LIMIT 1",
+                (rid,),
+            )
+            row = cur.fetchone()
+            host_id = _row_get(row, "host_club_id")
+            if host_id is None:
+                return None
+            return int(host_id)
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _session_can_edit_regatta_scores(request: Request, regatta_id) -> bool:
+    if _session_role_is_super_admin(request):
+        return True
+    if not _session_role_is_club_admin(request):
+        return False
+    club_id = _session_admin_club_id(request)
+    host_id = _regatta_host_club_id(regatta_id)
+    if club_id is None or host_id is None:
+        return False
+    return int(club_id) == int(host_id)
+
+
+def _result_regatta_id(result_id):
+    try:
+        rid = int(result_id)
+    except (TypeError, ValueError):
+        return None
+    if not table_exists("results"):
+        return None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        try:
+            cur.execute("SELECT regatta_id FROM public.results WHERE result_id = %s LIMIT 1", (rid,))
+            row = cur.fetchone()
+            value = _row_get(row, "regatta_id")
+            if value is None:
+                return None
+            return str(value).strip()
+        finally:
+            cur.close()
+            return_db_connection(conn)
+    except Exception:
+        return None
+
+
+def _require_result_identity_write(request: Request, result_id) -> None:
+    """Super admin, or club_admin/club_manager whose admin_club_id hosts this result."""
+    if _session_role_is_super_admin(request):
+        return
+    rid = _result_regatta_id(result_id)
+    if rid and _session_can_edit_regatta_scores(request, rid):
+        return
+    raise HTTPException(status_code=403, detail="Super admin or host-club admin required")
+
+
+def _session_club_fields(request: Request) -> dict:
+    admin_club_id = _session_admin_club_id(request)
+    club_abbrev = None
+    if admin_club_id is not None and table_exists("clubs"):
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            try:
+                cur.execute(
+                    "SELECT club_abbrev FROM public.clubs WHERE club_id = %s LIMIT 1",
+                    (int(admin_club_id),),
+                )
+                row = cur.fetchone()
+                value = _row_get(row, "club_abbrev")
+                if value:
+                    club_abbrev = str(value).strip()
+            finally:
+                cur.close()
+                return_db_connection(conn)
+        except Exception:
+            club_abbrev = None
+    return {
+        "admin_club_id": admin_club_id,
+        "is_club_admin": _session_role_is_club_admin(request),
+        "club_abbrev": club_abbrev,
+    }
+
+
 def _fetch_og_metadata(url: str) -> dict:
     """Fetch URL and extract og:title, og:description, og:image. Also try first <h2> as headline when page title is long (section heading often more relevant)."""
     out = {"headline": None, "snippet": None, "thumb_url": None}
@@ -13756,7 +13914,8 @@ def api_search_members(
 
 # --- TEMP ID: create ---
 @app.post("/api/id/temp")
-def create_temp_id(payload: dict):
+def create_temp_id(request: Request, payload: dict):
+    _require_super_admin(request)
     first_name = payload.get("first_name", "")
     last_name  = payload.get("last_name", "")
     club_code  = payload.get("club_code")
@@ -13773,7 +13932,8 @@ def create_temp_id(payload: dict):
 
 # --- Promote TEMP -> real SAS ---
 @app.post("/api/id/promote")
-def promote_temp(payload: dict):
+def promote_temp(request: Request, payload: dict):
+    _require_super_admin(request)
     temp_alias = payload.get("temp_alias")
     sa_no_raw  = payload.get("sa_registry_no")
     if not temp_alias or sa_no_raw is None:
@@ -13791,38 +13951,27 @@ def promote_temp(payload: dict):
 
 # --- Attach a person (SAS or TEMP) to a result in one call ---
 @app.post("/api/result/attach-person")
-def attach_person_to_result(payload: dict):
+def attach_person_to_result(request: Request, payload: dict):
     result_id = payload.get("result_id")
     role = payload.get("role")
     identifier = payload.get("id")
+    _require_result_identity_write(request, result_id)
 
     if not result_id or not identifier or not role:
         raise HTTPException(status_code=400, detail="result_id, role, and id are required")
+    role_n = str(role).strip().lower()
+    if role_n not in ("helm", "crew"):
+        raise HTTPException(status_code=400, detail="role must be 'helm' or 'crew'")
 
-    rows = q(
-        """
-        SELECT person_id, kind
-        FROM public.resolve_person_by_identifier(%s)
-        """,
-        identifier,
-    )
-    if not rows:
-        raise HTTPException(status_code=404, detail=f"Identifier not found: {identifier}")
-
-    person_id = rows[0]["person_id"]
-    try:
-        q(
-            """
-            INSERT INTO public.result_participants (result_id, person_id, role)
-            VALUES (%s, %s, %s)
-            ON CONFLICT DO NOTHING
-            """,
-            result_id, person_id, role,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to attach person: {e}")
-
-    return {"ok": True, "result_id": result_id, "person_id": person_id, "role": role}
+    ident = str(identifier).strip()
+    if ident.isdigit():
+        person_key = f"SAS:{ident}"
+    elif ":" in ident:
+        person_key = ident
+    else:
+        person_key = f"SAS:{ident}"
+    row = api_set_person(result_id, {"role": role_n, "person_key": person_key}, request)
+    return {"ok": True, "result_id": result_id, "role": role_n, "result": row}
 
 # ---------- People search and result editing used by live search UI ----------
 @app.get("/api/people/search")
@@ -13842,8 +13991,9 @@ def api_people_search(q: str = Query(""), club_id: Optional[int] = None, limit: 
     return api_search(q=qn, limit=limit)
 
 @app.post("/api/result/{result_id}/set_person")
-def api_set_person(result_id: int, payload: dict):
+def api_set_person(result_id: int, payload: dict, request: Request):
     """Set person for helm or crew from search selection"""
+    _require_result_identity_write(request, result_id)
     role = payload.get("role")         # 'helm' | 'crew'
     key  = payload.get("person_key")   # 'SAS:123' | 'TMP:42'
     name = payload.get("display_name") # optional: update printed name too
@@ -19305,8 +19455,8 @@ async def check_session(request: Request):
                         if first_name or last_name:
                             full_name = f"{first_name or ''} {last_name or ''}".strip()
                 
-                # If not found in sas_id_personal, try sailing_id
-                if not full_name or not full_name.strip():
+                # If not found in sas_id_personal, try sailing_id (table is absent on live)
+                if (not full_name or not full_name.strip()) and table_exists("sailing_id"):
                     cur.execute("""
                         SELECT first_name, last_name,
                                COALESCE(
@@ -19331,6 +19481,7 @@ async def check_session(request: Request):
             
             # Session is valid
             role = _get_session_role(request)
+            club_fields = _session_club_fields(request)
             return {
                 "valid": True,
                 "session_id": session['session_id'],
@@ -19338,10 +19489,13 @@ async def check_session(request: Request):
                 "login_method": session['login_method'],
                 "role": role,
                 "is_super_admin": _session_role_is_super_admin(request),
+                "admin_club_id": club_fields.get("admin_club_id"),
+                "is_club_admin": club_fields.get("is_club_admin"),
                 "user": {
                     "first_name": first_name,
                     "last_name": last_name,
-                    "full_name": full_name
+                    "full_name": full_name,
+                    "admin_club_id": club_fields.get("admin_club_id"),
                 }
             }
         else:
@@ -19355,6 +19509,22 @@ async def check_session(request: Request):
     finally:
         cur.close()
         conn.close()
+
+
+@app.get("/api/club/me")
+def api_club_me(request: Request):
+    """Current session club-permission snapshot. 401 if not logged in."""
+    sas_id = _get_session_sas_id(request)
+    if not sas_id:
+        raise HTTPException(status_code=401, detail="Login required")
+    club_fields = _session_club_fields(request)
+    return {
+        "sas_id": sas_id,
+        "role": _get_session_role(request),
+        "admin_club_id": club_fields.get("admin_club_id"),
+        "is_club_admin": club_fields.get("is_club_admin"),
+        "club_abbrev": club_fields.get("club_abbrev"),
+    }
 
 
 def _hub_hero_json_path() -> Path:
