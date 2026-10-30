@@ -3245,6 +3245,12 @@
     var emptyEl = root.querySelector('[data-' + NS + '-empty]');
     var bodyEl = root.querySelector('[data-' + NS + '-body]');
     var cardSection = root.closest('[data-blank-bn-card]');
+    
+    // NEVER hide body if it's already visible with content - prevents show/hide flicker
+    if (mode !== 'qualified' && bodyEl && !bodyEl.hidden) {
+      return;
+    }
+    
     if (mode === 'hidden') {
       if (emptyEl) emptyEl.hidden = true;
       if (bodyEl) bodyEl.hidden = true;
@@ -4649,6 +4655,11 @@
   function setLoading(root, on) {
     var ld = root.querySelector('[data-' + NS + '-loading]');
     var sec = root.closest('[data-blank-bn-card]');
+    var bodyEl = root.querySelector('[data-' + NS + '-body]');
+    // Skip showing loading if body is already visible (prevents refresh flicker)
+    if (on && bodyEl && !bodyEl.hidden) {
+      return;
+    }
     if (ld) ld.hidden = !on;
     if (sec && on) sec.hidden = false;
   }
@@ -4895,8 +4906,9 @@
       var et0 = parseInt(summary.entries_total, 10);
       summary.entries_total = (isFinite(et0) ? et0 : 0) + mt;
     }
-    setVisibility(root, 'qualified');
+    // Render content BEFORE showing body - prevents show-then-hide if render fails
     await render(root, summary, winningCandidate, classEntriesObj, fleetClasses);
+    setVisibility(root, 'qualified');
   }
 
   async function refreshSlot(b, candidates, today, slot, globalReserved) {
@@ -4940,7 +4952,11 @@
               try {
                 console.error('[bncard] render failed', e);
               } catch (e2) {}
-              if (roots[idx]) setVisibility(roots[idx], 'notQualified');
+              // Only hide if body doesn't already have content (prevents hiding existing content on error)
+              var bodyEl = roots[idx] && roots[idx].querySelector('[data-' + NS + '-body]');
+              if (roots[idx] && (!bodyEl || bodyEl.hidden)) {
+                setVisibility(roots[idx], 'notQualified');
+              }
             }
           })();
         })
@@ -4961,7 +4977,30 @@
     }
   }
 
+  /** Guard to prevent concurrent refreshes causing show/hide flicker. */
+  var _bnRefreshInProgress = false;
+  var _bnRefreshPending = false;
+
   async function refreshAll() {
+    if (_bnRefreshInProgress) {
+      _bnRefreshPending = true;
+      return;
+    }
+    _bnRefreshInProgress = true;
+    _bnRefreshPending = false;
+
+    try {
+      await _doRefreshAll();
+    } finally {
+      _bnRefreshInProgress = false;
+      if (_bnRefreshPending) {
+        _bnRefreshPending = false;
+        refreshAll();
+      }
+    }
+  }
+
+  async function _doRefreshAll() {
     var roots = document.querySelectorAll('[data-blank-bn-card] [data-' + NS + '-root]');
     var b = baseUrl();
     var ri;
