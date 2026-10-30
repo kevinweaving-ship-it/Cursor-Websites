@@ -1,5 +1,7 @@
 # Resubmit sitemap in Google Search Console (GSC)
 
+Daily Page Indexing retrieval (Mac Chrome, no API): **`docs/GSC_DAILY_WORKFLOW.md`**.
+
 After adding or changing URLs in the sitemap (e.g. class URLs `/class/{id}-{slug}`), resubmit so Google recrawls.
 
 ## Steps
