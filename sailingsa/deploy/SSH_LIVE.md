@@ -70,15 +70,15 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "echo SSH KEY WORKS"
 
 **Cursor must deploy the file that was actually edited** (project root `api.py`). The live process runs **`/var/www/sailingsa/api/api.py`**. If deploy only restarts the service without copying the new file into that path, the dashboard and API will still serve old code.
 
-**One-time setup on server:** copy the verified deploy script and make it executable:
+**One-time setup on server:** copy the verified deploy script and the ILCA 4 guard, and make them executable. Repeat this before the next `api.py` deploy so `/root/deploy_api_verified.sh` matches git. The guard refuses to replace the long production `api.py` with the short branch file, and it installs `class_name_aliases.py` plus the ILCA 4 patch when that patch is not already present. It does not restart the API by itself.
 ```bash
-scp -i ~/.ssh/sailingsa_live_key sailingsa/deploy/deploy_api_verified.sh root@102.218.215.253:/root/deploy_api_verified.sh
-ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "chmod +x /root/deploy_api_verified.sh"
+bash sailingsa/deploy/stage_ilca4_incoming.sh
 ```
 
 **Single deploy command (Cursor must use this after every api.py change):**
 ```bash
-# From project root:
+# From project root. Stages the ILCA 4 guard first, then deploys.
+bash sailingsa/deploy/stage_ilca4_incoming.sh && \
 scp -i ~/.ssh/sailingsa_live_key api.py root@102.218.215.253:/root/incoming/api.py && \
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "/root/deploy_api_verified.sh"
 ```
@@ -125,11 +125,12 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
 #### 3) Deploy `api.py` and restart (after templates exist)
 
 ```bash
+bash sailingsa/deploy/stage_ilca4_incoming.sh && \
 scp -i ~/.ssh/sailingsa_live_key api.py root@102.218.215.253:/root/incoming/api.py && \
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "/root/deploy_api_verified.sh"
 ```
 
-Or manual copy + restart:
+Or manual copy + restart. This copy replaces the live file outright. Do not use it to put the short branch `api.py` over the production file. Use `/root/deploy_api_verified.sh` after `stage_ilca4_incoming.sh` for that case.
 
 ```bash
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "
@@ -246,6 +247,7 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253
 
 **Deploy api.py via incoming + script (recommended):** One-time setup: copy `sailingsa/deploy/deploy_api.sh` to server as `/root/deploy_api.sh`, then on server `chmod +x /root/deploy_api.sh` and `mkdir -p /root/incoming`. From then on:
 ```bash
+bash sailingsa/deploy/stage_ilca4_incoming.sh
 scp -i ~/.ssh/sailingsa_live_key api.py root@102.218.215.253:/root/incoming/api.py
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "/root/deploy_api.sh"
 ```

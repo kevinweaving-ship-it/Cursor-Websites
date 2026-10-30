@@ -28,6 +28,7 @@ fi
 
 if [ "$CHANGED_BACKEND" = true ]; then
   echo "Deploying BACKEND..."
+  bash sailingsa/deploy/stage_ilca4_incoming.sh "$HOME/.ssh/sailingsa_live_key" root@102.218.215.253
   scp -i ~/.ssh/sailingsa_live_key api.py root@102.218.215.253:/root/incoming/api.py
   if [ -f regatta_host_code.py ]; then
     scp -i ~/.ssh/sailingsa_live_key regatta_host_code.py root@102.218.215.253:/root/incoming/regatta_host_code.py

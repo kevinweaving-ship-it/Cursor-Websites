@@ -126,11 +126,12 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "chmod +x /root/deploy_api
 **From then on, deploy =**
 
 ```bash
+bash sailingsa/deploy/stage_ilca4_incoming.sh
 scp -i ~/.ssh/sailingsa_live_key api.py root@102.218.215.253:/root/incoming/api.py
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 "/root/deploy_api.sh"
 ```
 
-The script: backs up live api.py to `/root/backups/api.py.YYYYMMDD_HHMMSS`, unlocks, copies `/root/incoming/api.py` to live, chown www-data, relocks, restarts sailingsa-api, runs `systemctl is-active sailingsa-api`. Expected output: `active`.
+The script: backs up live api.py to `/root/backups/api.py.YYYYMMDD_HHMMSS`, unlocks, then copies `/root/incoming/api.py` to live only when that incoming file is the same production lineage. A short branch `api.py` is refused. In that case the script keeps the live file, installs `class_name_aliases.py` when `/root/incoming/class_name_aliases.py` is present, and applies `sailingsa/deploy/patches/20261004_ilca4_live_api.patch` only if `EVENT_LOGO_ASSET_BUST` is not already `20261004ilca4`. Stage the guard first with `bash sailingsa/deploy/stage_ilca4_incoming.sh`. On a real production-lineage copy it still chowns www-data, relocks, restarts sailingsa-api, and runs `systemctl is-active sailingsa-api`. Expected output: `active`.
 
 ---
 
