@@ -9444,6 +9444,18 @@ def admin_dashboard_v10(request: Request):
     return HTMLResponse(content=html, headers={"Cache-Control": "no-store"})
 
 
+@app.get("/regatta/{slug}/results.pdf")
+@app.head("/regatta/{slug}/results.pdf")
+def _regatta_parent_results_pdf(slug: str, download: int = 0):
+    return _serve_regatta_stored_pdf(slug, None, bool(download))
+
+
+@app.get("/regatta/{slug}/class-{class_slug}/results.pdf")
+@app.head("/regatta/{slug}/class-{class_slug}/results.pdf")
+def _regatta_child_results_pdf(slug: str, class_slug: str, download: int = 0):
+    return _serve_regatta_stored_pdf(slug, class_slug, bool(download))
+
+
 @app.get("/regatta/{slug}/class-{class_slug}")
 @app.head("/regatta/{slug}/class-{class_slug}")
 def _regatta_class_standalone(request: Request, slug: str, class_slug: str):
@@ -13649,6 +13661,7 @@ def _fetch_regatta_result_row_by_id(result_id: int):
 @app.patch("/api/result/{result_id}")
 def patch_result(request: Request, result_id: int, p: ResultPatch):
     _require_super_admin(request)
+    regatta_id = None
     with psycopg2.connect(DB_URL) as conn:
         with conn.cursor() as cur:
             if p.helm_key is not None:
@@ -13723,6 +13736,8 @@ def patch_result(request: Request, result_id: int, p: ResultPatch):
                 regatta_id = row[0]
                 _ensure_snapshot_integrity(conn, regatta_id, [result_id])
         conn.commit()
+    if regatta_id:
+        _schedule_regatta_pdf_rebuild(str(regatta_id))
     out_row = _fetch_regatta_result_row_by_id(result_id)
     if isinstance(out_row, dict):
         if out_row.get("club_id"):
@@ -14032,6 +14047,7 @@ def patch_race_score(request: Request, result_id: int, body: dict):
             
             _ensure_snapshot_integrity(conn, regatta_id)
             conn.commit()
+            _schedule_regatta_pdf_rebuild(str(regatta_id))
             
             # Return updated result data
             cur.execute("""
@@ -22597,18 +22613,10 @@ def _get_regatta_full_page_data(regatta_id: str):
             host_club_province = (row.get("host_club_province") or "").strip() or None
             start_date = row.get("start_date")
             end_date = row.get("end_date")
-            result_status = (row.get("result_status") or "").strip() or "Final"
+            result_status = (row.get("result_status") or "").strip() or "Provisional"
             as_at_time = row.get("as_at_time")
             print(f"REGATTA_DATA: step=after_regatta_meta time={time.time() - t0:.3f}", flush=True)
-            # Status-line timestamp: prefer results table (per Result rule), fallback to regattas.as_at_time
-            cur.execute("""
-                SELECT as_at_time FROM results
-                WHERE regatta_id = %s AND as_at_time IS NOT NULL
-                ORDER BY result_id LIMIT 1
-            """, (regatta_id,))
-            res_row = cur.fetchone()
-            if res_row and res_row.get("as_at_time"):
-                as_at_time = res_row["as_at_time"]
+            # Status line: regattas.as_at_time, else last event day 17:30. Never results.as_at_time.
             print(f"REGATTA_DATA: step=after_as_at_time time={time.time() - t0:.3f}", flush=True)
 
             cur.execute("""
@@ -23447,6 +23455,8 @@ def _wc_standalone_fleet_autocomplete_script_html() -> str:
 
 
 # Same CSS as admin regatta_viewer.html result sheet popup, with mobile-friendly widths so headers match tables
+from sailingsa.backend.regatta_print_compact_css import PRINT_COMPACT_CSS as _RESULT_SHEET_PRINT_COMPACT_CSS
+
 _RESULT_SHEET_CSS = (
     "*{box-sizing:border-box}"
     "html,body{background:#ffffff;color:#1a2750;font-family:system-ui,sans-serif;margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden}"
@@ -23528,11 +23538,6 @@ _RESULT_SHEET_CSS = (
     ".disc{color:#6a1b9a;font-weight:bold;text-decoration:line-through;opacity:0.8}"
     ".strike-out{text-decoration:line-through;opacity:0.6}"
     ".action-buttons{display:flex;gap:10px;justify-content:flex-end;margin-top:30px;margin-bottom:20px;padding:10px;width:100%}"
-    "@media print{.action-buttons{display:none!important}.back-to-home{display:none!important}.regatta-sa-mode-wrap{display:none!important}.regatta-wc-icons-row{display:none!important}.regatta-sa-columns-panel{display:none!important}"
-    ".regatta-name-editor{display:none!important}.regatta-name-view{display:block!important}"
-    ".host-club-sa-edit-hit{display:none!important}.host-club-wrap .host-club-public-nav{display:inline!important}"
-    ".fleet-sa-edit-hit{display:none!important}.fleet-title-public-nav{display:inline!important}"
-    ".regatta-host-picker{display:none!important}}"
     ".action-button{padding:12px 24px;border:2px solid #1a2750;border-radius:6px;background:#ffffff;color:#1a2750;font-weight:bold;font-size:14px;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,0.2);min-width:120px}"
     ".action-button:hover{background:#1a2750;color:#ffffff}"
     ".regatta-header-wrap{width:100%}"
@@ -23663,7 +23668,7 @@ _RESULT_SHEET_CSS = (
     ".wc-sa-ac-list li:hover,.wc-sa-ac-list li.wc-sa-ac-li-active{background:#e0e7ff}"
     ".wc-sa-ac-list .wc-sa-ac-li-sub{font-size:11px;font-weight:500;color:#64748b}"
     ".regatta-page--super-admin-edit .wc-sa-ac-wrap .wc-result-field-input{min-width:5rem}"
-)
+) + _RESULT_SHEET_PRINT_COMPACT_CSS
 
 
 def _wc_fleet_editable_cell(
@@ -25402,33 +25407,18 @@ def _format_regatta_host_display(abbrev: str, fullname: str, legacy_coalesce: st
     return leg
 
 
-def _format_regatta_status_line(status_word: str, as_at_time) -> str:
-    """Format status line per RESULTS_HTML_STATUS_LINE_RULE. as_at_time from API (results table then regattas). No datetime.now/start_date.
-    If as_at_time exists and is formattable: 'Results are <Status> as at DD Month YYYY at HH:MM'.
-    If as_at_time is NULL or invalid: 'Results are <Status> (snapshot time not recorded)'."""
-    word = (status_word or "Final").strip() or "Final"
-    escaped_word = html_module.escape(word)
-    if not as_at_time:
-        return f"Results are {escaped_word} (snapshot time not recorded)"
-    if hasattr(as_at_time, "strftime"):
-        status_date = as_at_time.strftime("%d %B %Y at %H:%M")
-        return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
-    if isinstance(as_at_time, str) and as_at_time.strip():
-        try:
-            from datetime import datetime as _dt
-            s = as_at_time.strip()
-            s2 = s[:19].replace("Z", "").replace("+00:00", "").strip()
-            if "T" in s2:
-                t = _dt.strptime(s2, "%Y-%m-%dT%H:%M:%S")
-            elif len(s2) >= 16 and (" " in s2 or "-" in s2):
-                t = _dt.strptime(s2[:16], "%Y-%m-%d %H:%M")
-            else:
-                t = _dt.strptime(s[:10], "%Y-%m-%d")
-            status_date = t.strftime("%d %B %Y at %H:%M")
-            return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
-        except Exception:
-            pass
-    return f"Results are {escaped_word} (snapshot time not recorded)"
+def _format_regatta_status_line(status_word: str, as_at_time, end_date=None, start_date=None) -> str:
+    """Results are [Provisional|Final] as at DD Month YYYY at HH:MM.
+
+    Default time is the event's last day at 17:30 when regattas.as_at_time is empty.
+    """
+    from sailingsa.backend.regatta_status_line import format_results_status_line
+
+    return html_module.escape(
+        format_results_status_line(
+            status_word, as_at_time, end_date=end_date, start_date=start_date
+        )
+    )
 
 
 def _resolve_class_slug_to_class_id(class_slug: str):
@@ -25491,16 +25481,8 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
             host_club_province = (row.get("host_club_province") or "").strip() or None
             start_date = row.get("start_date")
             end_date = row.get("end_date")
-            result_status = (row.get("result_status") or "").strip() or "Final"
+            result_status = (row.get("result_status") or "").strip() or "Provisional"
             as_at_time = row.get("as_at_time")
-            cur.execute("""
-                SELECT as_at_time FROM results
-                WHERE regatta_id = %s AND as_at_time IS NOT NULL
-                ORDER BY result_id LIMIT 1
-            """, (regatta_id,))
-            res_row = cur.fetchone()
-            if res_row and res_row.get("as_at_time"):
-                as_at_time = res_row["as_at_time"]
             cur.execute("""
                 SELECT rb.block_id,
                        COALESCE(TRIM(rb.fleet_label), TRIM(rb.class_canonical), TRIM(rb.class_original), 'Fleet') AS fleet_name,
@@ -25655,6 +25637,116 @@ def _get_regatta_class_page_data(regatta_id: str, class_id: int):
     )
 
 
+def _regatta_print_share_buttons_html() -> str:
+    """Print + Share on standalone /regatta pages (ZVYC Cape Classic and all other sheets)."""
+    from sailingsa.backend.regatta_print_compact_css import print_share_bar_html
+
+    return print_share_bar_html()
+
+
+def _schedule_regatta_pdf_rebuild(slug: str) -> None:
+    rid = str(slug or "").strip()
+    if not rid:
+        return
+    threading.Thread(target=_rebuild_regatta_stored_pdfs, args=(rid,), daemon=True).start()
+
+
+def _rebuild_regatta_stored_pdfs(slug: str):
+    """Write parent + child results PDFs for one event (called on save and first Print)."""
+    from sailingsa.backend.regatta_stored_pdf import write_event_pdfs
+
+    rid = str(slug or "").strip()
+    if not rid:
+        return None
+    data = _get_regatta_full_page_data(rid)
+    if not data:
+        return None
+    ev_name = data[0] if data else rid
+    fleets = data[4] if len(data) > 4 else []
+    result_status = data[5] if len(data) > 5 else "Provisional"
+    as_at_time = data[6] if len(data) > 6 else None
+    start_d = data[2] if len(data) > 2 else None
+    end_d = data[3] if len(data) > 3 else None
+    host_abbrev = data[8] if len(data) > 8 else ""
+    host_full = data[9] if len(data) > 9 else ""
+    host_legacy = data[1] if len(data) > 1 else ""
+    host = _format_regatta_host_display(host_abbrev, host_full, host_legacy or "")
+    from sailingsa.backend.regatta_status_line import format_results_status_line
+
+    status_line = format_results_status_line(
+        result_status, as_at_time, end_date=end_d, start_date=start_d
+    )
+    left_logo = ""
+    right_logo = ""
+    try:
+        lu, ru = _wc_regatta_header_icon_urls(rid)
+        left_logo = lu or _regatta_named_event_logo_url(rid, ev_name or "") or ""
+        right_logo = ru or ""
+    except Exception:
+        pass
+    fleet_jobs = []
+    for f in fleets or []:
+        html = _render_result_sheet_fleet(f, wc_sa_fleet_edit=False)
+        if isinstance(html, tuple):
+            html = html[0]
+        cslug = (f.get("class_slug") or "").strip()
+        if not cslug:
+            raw = (f.get("class_canonical") or f.get("fleet_label") or f.get("name") or "").strip()
+            try:
+                cslug = _class_canonical_slug(raw) if raw else ""
+            except Exception:
+                cslug = ""
+        bid = str(f.get("block_id") or "")
+        tail = bid.split(":", 1)[-1].strip() if ":" in bid else cslug
+        pdf_slug = f"{rid}-{tail}" if tail else ""
+        fleet_jobs.append(
+            {
+                "class_slug": cslug,
+                "pdf_slug": pdf_slug,
+                "html": html,
+                "n_rows": len(f.get("rows") or []),
+            }
+        )
+    return write_event_pdfs(
+        slug=rid,
+        event_name=(ev_name or rid).strip() or rid,
+        host=host,
+        status_line=status_line,
+        sheet_url=f"https://sailingsa.co.za/regatta/{rid}",
+        fleets=fleet_jobs,
+        left_logo=left_logo,
+        right_logo=right_logo,
+    )
+
+
+def _serve_regatta_stored_pdf(slug: str, class_slug: Optional[str], download: bool):
+    from sailingsa.backend.regatta_stored_pdf import pdf_abs_path, pdf_download_name
+
+    rid = str(slug or "").strip()
+    cslug = (class_slug or "").strip() or None
+    if not rid:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    path = pdf_abs_path(rid, cslug)
+    if not path.is_file() or path.stat().st_size < 500:
+        try:
+            _rebuild_regatta_stored_pdfs(rid)
+        except Exception as exc:
+            print(f"[regatta-pdf] rebuild {rid}: {exc}", flush=True)
+        path = pdf_abs_path(rid, cslug)
+    if not path.is_file() or path.stat().st_size < 500:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    fn = pdf_download_name(rid, cslug)
+    disp = "attachment" if download else "inline"
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'{disp}; filename="{fn}"',
+            "Cache-Control": "public, max-age=60",
+        },
+    )
+
+
 def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request):
     """Serve single-class regatta page at /regatta/{slug}/class-{class_slug}. Reuses regatta header and fleet renderer."""
     reg = _get_regatta_by_slug(slug)
@@ -25685,8 +25777,10 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         base_url = _canonical_base_url()
         canonical_url = f"{base_url}/regatta/{regatta_id}/class-{_class_canonical_slug(class_name)}"
         escaped_title = html_module.escape(event_name or "")
-        status_word = (result_status or "Final").strip() or "Final"
-        status_line_text = _format_regatta_status_line(status_word, as_at_time)
+        status_word = (result_status or "Provisional").strip() or "Provisional"
+        status_line_text = _format_regatta_status_line(
+            status_word, as_at_time, end_date=end_d, start_date=start_d
+        )
         host_club_id = reg[5] if len(reg) > 5 else None
         host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
         host_club_text = _format_regatta_host_display(host_club_abbrev, host_club_fullname, host_club_name or "")
@@ -25761,7 +25855,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         fleet_picker_frag = ""
         if use_wc_cols and is_sa:
             fleet_picker_frag = _wc_regatta_fleet_picker_fragment(str(regatta_id))
-        print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
+        print_btn = _regatta_print_share_buttons_html()
         body_html = header_html + sa_columns_frag + fleet_picker_frag + "\n".join(fleet_sections) + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
@@ -25814,8 +25908,10 @@ def serve_regatta_standalone(slug: str, request: Request):
         canonical_url = f"{base_url}/regatta/{regatta_id}"
         display_name = (ev_name or event_name or "").strip()
         escaped_title = html_module.escape(display_name)
-        status_word = (result_status or "Final").strip() or "Final"
-        status_line_text = _format_regatta_status_line(status_word, as_at_time)
+        status_word = (result_status or "Provisional").strip() or "Provisional"
+        status_line_text = _format_regatta_status_line(
+            status_word, as_at_time, end_date=end_d, start_date=start_d
+        )
         host_club_slug = _get_club_slug_by_id(host_club_id) if host_club_id else None
         host_club_text = _format_regatta_host_display(
             host_club_abbrev, host_club_fullname, (host_club_legacy or host_club_name or "")
@@ -25955,7 +26051,7 @@ def serve_regatta_standalone(slug: str, request: Request):
                 'root.addEventListener("click",onCap,true);'
                 "})();</script>"
             )
-        print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
+        print_btn = _regatta_print_share_buttons_html()
         body_html = header_html + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()

@@ -18,7 +18,7 @@
    - **Display sentence:** `Results are [Provisional|Final] as at DD Month YYYY at HH:MM`  
      Example: `Results are Provisional as at 15 February 2026 at 14:20`
    - **Date/time format:** DD = two-digit day (e.g. `15`), Month = full month name (e.g. `February`), YYYY = four-digit year, HH:MM = 24-hour time (e.g. `14:20`). Do not use "as of"; use **"as at"**.
-   - **Where to store:** `regattas.result_status` = status word (e.g. `'Provisional'`, `'Final'`); `regattas.as_at_time` = timestamp in DB (e.g. `'2026-02-15 14:20:00'`). If regattas is not populated, the API may use `results.result_status` and `results.as_at_time` from the first result row. Never use current date/time or event start/end date as the "as at" value.
+   - **Where to store:** `regattas.result_status` = status word (e.g. `'Provisional'`, `'Final'`); `regattas.as_at_time` = timestamp in DB when you override the default. Default display is **Provisional as at the event last day at 17:30**. Never use current date/time or `results.as_at_time` (row-save clock).
 
    **Pass header to regatta_viewer** — Store extracted header so `regatta_viewer.html` can display it:
    - **regattas**: `result_status` = X (e.g. `'Provisional'`, `'Final'`, `'Provisional - Day 1 of 2'`); `as_at_time` = Y at Z as timestamp (e.g. `'2026-02-15 14:20:00'`). Use `UPDATE regattas SET result_status=..., as_at_time=... WHERE regatta_id=...` when adding results.
