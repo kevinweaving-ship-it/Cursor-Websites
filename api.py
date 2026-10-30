@@ -885,6 +885,14 @@ def _yearly_event_series_key(name: str) -> str:
         return "sa sailing youth nationals"
     if "29er" in s and ("national" in s or "yn" in s):
         return "29er nationals"
+    # Dart 18 Nationals — calendar titles add "incorporating the KZN provincials"
+    # and result sheets prefix YYYY-MM-DD. Keep Single-Handed / SH as its own series.
+    if (
+        ("dart 18" in s or "dart18" in s.replace(" ", ""))
+        and "national" in s
+        and not re.search(r"single[\s-]*handed|\bsinglehanded\b|\bsh\b", s)
+    ):
+        return "dart 18 nationals"
     # MACS @ ZVYC club champs — calendar titles often drop "Shipping" / wording differs.
     if "macs" in s and "zvyc" in s and ("champ" in s or "club" in s):
         return "macs zvyc club champs"
@@ -10116,6 +10124,9 @@ def api_events_public_list(
                                 item["blank_hub_news_badge_label"] = badge_map[rr]
                     except Exception as e_badge:
                         print(f"[api_events_public_list] hub badge merge: {e_badge}", flush=True)
+            from sailingsa.backend.preloaded_event_urls import attach_preloaded_regatta_ids
+
+            attach_preloaded_regatta_ids(out)
             hub_window = _compute_hub_upcoming_window_payload(out, today_iso=date.today().isoformat(), window_days=5, limit=10)
             return {"events": out, "hub_upcoming_window": hub_window}
         return out
@@ -16283,10 +16294,18 @@ def api_regattas_with_counts(
         """ + exclude_series + """
         """
         
-        # Include regattas with 0 results when they matched by name, or when regatta_number >= 375 (recent batch: 377-385)
-        having_clause = "HAVING (COUNT(DISTINCT res.result_id) > 0 OR r.regatta_number >= 375)"
+        # Include 0-result rows when they matched by name, are a recent numbered import
+        # (>= 375), or are a preloaded upcoming Event URL (start_date still in the future).
+        having_clause = (
+            "HAVING (COUNT(DISTINCT res.result_id) > 0 OR r.regatta_number >= 375 "
+            "OR r.start_date >= CURRENT_DATE)"
+        )
         if name_match_sql is not None:
-            having_clause = "HAVING (COUNT(DISTINCT res.result_id) > 0 OR " + name_match_sql + " OR r.regatta_number >= 375)"
+            having_clause = (
+                "HAVING (COUNT(DISTINCT res.result_id) > 0 OR "
+                + name_match_sql
+                + " OR r.regatta_number >= 375 OR r.start_date >= CURRENT_DATE)"
+            )
             params.extend(name_match_params)
         # Sort best match (regatta name matches all terms) first, then by regatta number/date
         order_best_first = ""
@@ -16445,7 +16464,9 @@ def api_regattas_with_counts(
             else:
                 d["slug"] = ""
 
-        return out
+        from sailingsa.backend.preloaded_event_urls import inject_preloaded_into_search
+
+        return inject_preloaded_into_search(out, search_q)
     except Exception as e:
         print(f"Error fetching regattas: {e}")
         traceback.print_exc()
@@ -16529,7 +16550,9 @@ def _regatta_results_summary_payload(regatta_id: str) -> Optional[dict]:
             )
             reg = cur.fetchone()
             if not reg:
-                return None
+                from sailingsa.backend.preloaded_event_urls import preloaded_results_summary
+
+                return preloaded_results_summary(rid)
             out = dict(reg)
             out["result_name"] = (out.get("event_name") or "").strip() or None
             # ISO dates for JSON
@@ -19462,6 +19485,19 @@ async def api_admin_hub_hero_put(request: Request, body: dict = Body(...)):
 
 # Pilot regatta slug: super-admin tools on standalone sheet (must exist before WC header-icon helpers).
 WC_DINGHY_CHAMPS_REGATTA_SLUG = "live-2026-wc-dinghy-champs-sbyc"
+
+# New Event URLs inherit the last same-club live-card stack (HMYC = Midmar Cup).
+from sailingsa.backend.club_live_cards import (  # noqa: E402
+    club_live_event_scripts_html as _club_live_event_scripts_html,
+    club_live_page_attrs as _club_live_page_attrs,
+)
+
+HMYC_DART_18_NATIONALS_SLUG = "2026-09-24-hmyc-dart-18-nationals"
+
+
+def _hmyc_live_event_scripts_html(regatta_id: str, host_abbrev: str = "") -> str:
+    """Leaderboard / weather / media / camera when this Event URL inherits the club stack."""
+    return _club_live_event_scripts_html(regatta_id, host_abbrev)
 
 # regattas.blank_hub_news_badge_label — must match _regatta_sa_toolbar_html <option value="…">.
 _BLANK_HUB_NEWS_BADGE_LABELS_ALLOWED = frozenset(
@@ -23012,7 +23048,9 @@ def _get_regatta_by_regatta_id(param: str):
             cur.close()
             conn.close()
         if not row:
-            return None
+            from sailingsa.backend.preloaded_event_urls import preloaded_slug_tuple
+
+            return preloaded_slug_tuple(param)
         return (
             str(row.get("regatta_id") or ""),
             (row.get("event_name") or "").strip(),
@@ -23023,6 +23061,9 @@ def _get_regatta_by_regatta_id(param: str):
         )
     except Exception as e:
         print(f"[SEO] _get_regatta_by_regatta_id: {e}")
+        from sailingsa.backend.preloaded_event_urls import preloaded_slug_tuple
+
+        return preloaded_slug_tuple(param)
     return None
 
 
@@ -23153,6 +23194,7 @@ def _get_regatta_full_page_data(regatta_id: str):
     as_at_time: for status line; from results table (one row) per Result rule, fallback to regattas.as_at_time."""
     t0 = time.time()
     print(f"REGATTA_DATA: step=start time={time.time() - t0:.3f}", flush=True)
+    empty_blocks = []
     if not regatta_id or not table_exists("regattas") or not table_exists("regatta_blocks") or not table_exists("results"):
         return None
     try:
@@ -23184,7 +23226,9 @@ def _get_regatta_full_page_data(regatta_id: str):
                 """, (regatta_id,))
             row = cur.fetchone()
             if not row:
-                return None
+                from sailingsa.backend.preloaded_event_urls import preloaded_full_page_data
+
+                return preloaded_full_page_data(regatta_id)
             event_name = (row.get("event_name") or "").strip()
             host_club_name = (row.get("host_club_name") or "").strip()
             host_club_abbrev = (row.get("host_club_abbrev") or "").strip()
@@ -23229,6 +23273,20 @@ def _get_regatta_full_page_data(regatta_id: str):
             """, (regatta_id,))
             raw = cur.fetchall() or []
             print(f"REGATTA_DATA: step=after_main_join time={time.time() - t0:.3f}", flush=True)
+            if not raw:
+                cur.execute(
+                    """
+                    SELECT rb.block_id,
+                           COALESCE(TRIM(rb.fleet_label), TRIM(rb.class_canonical), TRIM(rb.class_original), 'Fleet') AS fleet_name,
+                           rb.fleet_label, rb.class_canonical, rb.class_original,
+                           rb.races_sailed, rb.discard_count, rb.to_count
+                    FROM regatta_blocks rb
+                    WHERE rb.regatta_id = %s
+                    ORDER BY rb.block_id
+                    """,
+                    (regatta_id,),
+                )
+                empty_blocks = cur.fetchall() or []
             dup_names = set()
             cur.execute("""
                 SELECT LOWER(TRIM(COALESCE(full_name, first_name || ' ' || COALESCE(last_name, '')))) AS n
@@ -23341,6 +23399,27 @@ def _get_regatta_full_page_data(regatta_id: str):
             "class_name": (r.get("class_name") or "").strip(),
             "result_class_id": r.get("result_class_id"),
         })
+    for b in empty_blocks:
+        bid = b.get("block_id")
+        if not bid or bid in by_block:
+            continue
+        class_name_for_slug = (
+            (b.get("class_canonical") or b.get("class_original") or b.get("fleet_name") or "")
+        ).strip()
+        class_slug = _class_canonical_slug(class_name_for_slug) if class_name_for_slug else ""
+        by_block[bid] = {
+            "block_id": bid,
+            "name": (b.get("fleet_name") or "Fleet").strip(),
+            "fleet_label": (b.get("fleet_label") or b.get("class_canonical") or "").strip(),
+            "class_canonical": (b.get("class_canonical") or "").strip(),
+            "races_sailed": b.get("races_sailed") or 0,
+            "discard_count": b.get("discard_count") or 0,
+            "to_count": b.get("to_count") or 0,
+            "scoring_system": "Appendix A",
+            "rows": [],
+            "regatta_id": regatta_id,
+            "class_slug": class_slug,
+        }
     for bid in sorted(by_block.keys()):
         bl = by_block[bid]
         bl["entries"] = len(bl["rows"])
@@ -26739,6 +26818,8 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        hmyc_live_js = _hmyc_live_event_scripts_html(str(regatta_id), host_club_abbrev)
+        page_attrs = _club_live_page_attrs(str(regatta_id), host_club_abbrev)
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
@@ -26748,7 +26829,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
+            f"<div{page_attrs}>{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}{hmyc_live_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
