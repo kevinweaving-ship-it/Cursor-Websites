@@ -1,0 +1,24 @@
+#!/usr/bin/expect -f
+# Put Lipton 2026 URL into simulated Race mode (RACING).
+set timeout 90
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set script_dir [file dirname [info script]]
+
+spawn scp -o StrictHostKeyChecking=no $script_dir/patch_lipton_sim_race_mode.py ${user}@${server}:/tmp/patch_lipton_sim_race_mode.py
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: scp timeout"; exit 1 }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "python3 /tmp/patch_lipton_sim_race_mode.py all && systemctl restart sailingsa-api && sleep 2 && systemctl is-active sailingsa-api && echo APPLIED_OK"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    "APPLIED_OK" { puts "Race mode applied" }
+    timeout { puts "ERROR: ssh timeout"; exit 1 }
+    eof { }
+}
+wait
