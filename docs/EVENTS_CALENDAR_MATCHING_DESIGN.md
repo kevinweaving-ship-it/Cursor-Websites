@@ -1,5 +1,9 @@
 # Events Calendar – Comparison Table & Matching Design
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
+**Rule 1:** Event URL dates/slug come from the matched `events` row (date window + name + host), not from the first name hit. Worked failure: May SAS `344422` vs October SAS `382272` for KZN Mirror Regionals.
+
 ## Overview
 
 Build a comparison/matching layer to:
