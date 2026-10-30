@@ -1,0 +1,49 @@
+{
+  "host_id": "gowifi",
+  "audit_log": "/opt/rea/inspect/audit/inspect.jsonl",
+  "max_get_bytes": 1500000,
+  "max_sql_rows": 200,
+  "allow_paths": [
+    "/opt/rea/inspect",
+    "/opt/rea/work",
+    "/opt/rea/ops",
+    "/opt/rea/seo/reports",
+    "/opt/rea/seo/conf",
+    "/opt/aerialnet-arial",
+    "/opt/arial-whatsapp-poc",
+    "/opt/dolibarr",
+    "/home/user-data/www",
+    "/var/www/aerialnet/data",
+    "/etc/nginx"
+  ],
+  "allow_logs": [
+    "/var/log/nginx",
+    "/var/www/aerialnet/data",
+    "/opt/arial-whatsapp-poc/state"
+  ],
+  "discover_roots": [
+    "/opt/aerialnet-arial",
+    "/opt/arial-whatsapp-poc",
+    "/home/user-data/www",
+    "/etc/nginx"
+  ],
+  "revision_roots": [
+    "/opt/aerialnet-arial",
+    "/home/user-data/www/aerialnet.co.za",
+    "/etc/nginx"
+  ],
+  "nginx_files": [
+    "/home/user-data/www/gowifi.co.za.conf",
+    "/home/user-data/www/aerialnet.co.za.conf"
+  ],
+  "logs": {
+    "nginx-error": { "kind": "file", "path": "/var/log/nginx/error.log" },
+    "nginx-access": { "kind": "file", "path": "/var/log/nginx/access.log" },
+    "arial-whatsapp-poc": { "kind": "journal", "unit": "arial-whatsapp-poc" },
+    "arial-whatsapp-watcher": { "kind": "journal", "unit": "arial-whatsapp-watcher" },
+    "whatsapp-admin": { "kind": "file", "path": "/var/www/aerialnet/data/whatsapp_log.jsonl" }
+  },
+  "db": {
+    "kind": null
+  }
+}

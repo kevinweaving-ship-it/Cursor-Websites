@@ -1,0 +1,108 @@
+{
+  "host_id": "gowifi",
+  "identity": "rea",
+  "audit_log": "/opt/rea/ops/audit/ops.jsonl",
+  "stage_dir": "/opt/rea/ops/stage",
+  "backup_dir": "/opt/rea/ops/backups",
+  "jobs_dir": "/opt/rea/ops/jobs",
+  "helper": {
+    "kind": "localhost-root-ssh",
+    "key": "/opt/rea/.ssh/id_rea_ops",
+    "user": "root",
+    "host": "127.0.0.1",
+    "binary": "/usr/local/sbin/rea-ops-helper"
+  },
+  "allow_read_paths": [
+    "/opt/aerialnet-arial",
+    "/opt/arial-whatsapp-poc",
+    "/opt/dolibarr",
+    "/opt/rea/work",
+    "/opt/rea/inspect",
+    "/opt/rea/ops",
+    "/opt/rea/seo/reports",
+    "/opt/rea/seo/conf",
+    "/home/user-data/www",
+    "/var/www/aerialnet/data",
+    "/etc/nginx",
+    "/etc/systemd/system/arial-whatsapp-poc.service",
+    "/etc/systemd/system/arial-whatsapp-watcher.service"
+  ],
+  "allow_write_paths": [
+    "/opt/aerialnet-arial",
+    "/opt/arial-whatsapp-poc",
+    "/opt/rea/work",
+    "/opt/rea/ops/stage",
+    "/opt/rea/seo/conf"
+  ],
+  "deny_path_substrings": [
+    "/state/auth",
+    "/state/event-whatsapp",
+    "/root/",
+    "/opt/openai-tunnel/runtime.key",
+    "/opt/rea/.ssh/",
+    "/etc/arial-whatsapp-poc.env",
+    "/root/secrets",
+    "/root/gowifi-upp",
+    "/root/.ssh",
+    "/home/user-data/ssl",
+    "/etc/ssl/private",
+    "/etc/ssh",
+    "/etc/sudoers",
+    "/boot/"
+  ],
+  "deny_name_regex": "(\\.env$|\\.pem$|\\.key$|authorized_keys|^id_|password|secret|credential|runtime\\.key)",
+  "units_status": [
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "openai-rea-tunnel",
+    "sailing-roundup",
+    "sailing-roundup.timer",
+    "nginx",
+    "certbot.timer",
+    "rea-inspect-discover.timer",
+    "aerialnet-hansekop-api",
+    "aerialnet-voelklip-api",
+    "arial-site-watch",
+    "tuya-sharing"
+  ],
+  "units_control": [
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "nginx",
+    "aerialnet-hansekop-api",
+    "aerialnet-voelklip-api",
+    "arial-site-watch"
+  ],
+  "owners": {
+    "/opt/arial-whatsapp-poc": "wapoc:wapoc",
+    "/opt/aerialnet-arial": "root:root",
+    "/var/www/aerialnet": "www-data:www-data"
+  },
+  "run_allowlist": [
+    ["python3", "-m", "py_compile"],
+    ["python3", "-m", "compileall"],
+    ["node", "--check"],
+    ["/opt/arial-whatsapp-poc/node/bin/node", "--check"],
+    ["nginx", "-t"],
+    ["git", "status"],
+    ["git", "diff"],
+    ["git", "log"],
+    ["git", "rev-parse"],
+    ["sha256sum"]
+  ],
+  "http_allow_hosts": [
+    "127.0.0.1",
+    "localhost",
+    "gowifi.co.za",
+    "www.gowifi.co.za",
+    "aerialnet.co.za",
+    "box.gowifi.co.za"
+  ],
+  "db": {
+    "kind": "mariadb",
+    "database": "rea_ops",
+    "user": "rea",
+    "socket_auth": true,
+    "readonly_databases": ["dolibarr"]
+  }
+}

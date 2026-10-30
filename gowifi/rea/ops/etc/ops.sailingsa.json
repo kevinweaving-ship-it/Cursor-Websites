@@ -1,0 +1,99 @@
+{
+  "host_id": "sailingsa",
+  "identity": "rea-ops",
+  "audit_log": "/opt/rea-ops/audit/ops.jsonl",
+  "stage_dir": "/opt/rea-ops/stage",
+  "backup_dir": "/opt/rea-ops/backups",
+  "jobs_dir": "/opt/rea-ops/jobs",
+  "helper": {
+    "kind": "local-sudo"
+  },
+  "allow_read_paths": [
+    "/var/www/sailingsa",
+    "/var/www/timadvisor",
+    "/etc/nginx",
+    "/var/log/nginx",
+    "/opt/rea-ops",
+    "/opt/arial-whatsapp-poc",
+    "/opt/sailingsa-whatsapp-poc",
+    "/etc/cron.d",
+    "/etc/systemd/system"
+  ],
+  "allow_write_paths": [
+    "/var/www/sailingsa",
+    "/var/www/timadvisor",
+    "/opt/rea-ops/stage"
+  ],
+  "deny_path_substrings": [
+    "/root/",
+    "/etc/ssl/private",
+    "/var/lib/postgresql",
+    "/etc/sailingsa/",
+    "/etc/sailingsa-",
+    "/etc/systemd/system/sailingsa-api.service",
+    "/state/auth",
+    "/state/event-whatsapp",
+    "/etc/arial-whatsapp-poc.env",
+    "/etc/sailingsa-whatsapp-poc.env",
+    "/root/.ssh",
+    "/etc/ssh",
+    "/etc/sudoers",
+    "/boot/"
+  ],
+  "deny_name_regex": "(\\.env$|\\.pem$|\\.key$|authorized_keys|^id_|password|secret|credential|runtime\\.key)",
+  "units_status": [
+    "sailingsa-api",
+    "nginx",
+    "postgresql",
+    "certbot.timer",
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "arial-api",
+    "arial-bing",
+    "arial-stanford",
+    "arial-voelklip",
+    "arial-site-watch",
+    "event-whatsapp-ingest",
+    "sailingsa-whatsapp-poc"
+  ],
+  "units_control": [
+    "sailingsa-api",
+    "nginx"
+  ],
+  "units_stop": [
+    "arial-whatsapp-poc",
+    "arial-whatsapp-watcher",
+    "arial-api",
+    "arial-voelklip",
+    "arial-site-watch"
+  ],
+  "owners": {
+    "/var/www/sailingsa": "www-data:www-data",
+    "/var/www/timadvisor": "www-data:www-data"
+  },
+  "run_allowlist": [
+    ["python3", "-m", "py_compile"],
+    ["python3", "-m", "compileall"],
+    ["sha256sum"],
+    ["nginx", "-t"],
+    ["git", "status"],
+    ["git", "diff"],
+    ["git", "log"],
+    ["git", "rev-parse"]
+  ],
+  "http_allow_hosts": [
+    "127.0.0.1",
+    "localhost",
+    "sailingsa.co.za",
+    "www.sailingsa.co.za",
+    "timadvisor.co.za"
+  ],
+  "db": {
+    "kind": "postgres",
+    "database": "sailors_master",
+    "user": "rea-ops",
+    "host": "",
+    "port": 5432,
+    "probe_schema": "rea_ops"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "host_id": "sailingsa",
+  "audit_log": "/opt/rea-ro/audit/inspect.jsonl",
+  "max_get_bytes": 1500000,
+  "max_sql_rows": 200,
+  "allow_paths": [
+    "/var/www/sailingsa",
+    "/var/www/timadvisor",
+    "/etc/nginx/nginx.conf",
+    "/etc/nginx/sites-enabled",
+    "/etc/nginx/sites-available/sailingsa",
+    "/etc/nginx/sites-available/00-timadvisor",
+    "/etc/nginx/conf.d"
+  ],
+  "allow_logs": [
+    "/var/log/nginx"
+  ],
+  "discover_roots": [
+    "/var/www/sailingsa",
+    "/var/www/timadvisor",
+    "/etc/nginx/sites-enabled"
+  ],
+  "revision_roots": [
+    "/var/www/sailingsa",
+    "/var/www/sailingsa/api/api.py",
+    "/var/www/sailingsa/blank.html",
+    "/var/www/timadvisor"
+  ],
+  "nginx_files": [
+    "/etc/nginx/sites-enabled/sailingsa",
+    "/etc/nginx/sites-enabled/00-timadvisor",
+    "/etc/nginx/nginx.conf"
+  ],
+  "logs": {
+    "nginx-error": { "kind": "file", "path": "/var/log/nginx/error.log" },
+    "nginx-access": { "kind": "file", "path": "/var/log/nginx/access.log" },
+    "sailingsa-api": { "kind": "journal", "unit": "sailingsa-api" }
+  },
+  "db": {
+    "kind": "postgres",
+    "database": "sailors_master",
+    "user": "rea-ro",
+    "host": "",
+    "port": 5432
+  }
+}
