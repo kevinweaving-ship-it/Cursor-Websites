@@ -1,10 +1,12 @@
 # REA 179-tool connection fix and SailingSA read-only audit
 
 **Date:** 18 October 2026 (SAST).  
+**Re-verified:** 31 October 2026 (SAST) — live mux now also merges `ops_*` (see §4.1).  
 **Production writes:** none (SailingSA code, PostgreSQL rows, and nginx were not modified).  
 **Tunnel:** `tunnel_6ad4db67cc24819192e1938a21a5f663` (“GoWifi REA”), credentials unchanged.
 
 Raw inspect JSON is on the GoWifi box at `/opt/rea/inspect/audit/sailingsa-arch-20261018/`.
+Related live ops docs: `docs/REA_CHATGPT_ACCESS.md`, `gowifi/rea/ops/CATALOG.md`.
 
 ## 1. Why ChatGPT discovered 170 tools, not 179
 
@@ -22,11 +24,12 @@ Before this fix:
 `/opt/rea/inspect/bin/mcp-mux` still:
 
 - starts REA (`/opt/rea/bin/rea mcp`) and `audit-mcp` as stdio children
+- (after #260) also starts `/opt/rea/ops/bin/ops-mcp`
 - keeps MCP identity `rea` / `6.4.0`
-- merges `tools/list` (REA first, then `audit_*` if the name is new)
-- routes `audit_*` calls to `audit-mcp`, everything else to REA
+- merges `tools/list` (REA first, then `audit_*` / `ops_*` if the name is new)
+- routes `ops_*` → `ops-mcp`, `audit_*` → `audit-mcp`, everything else → REA
 
-No second tunnel, no duplicate tool names.
+No second tunnel, no duplicate tool names. Do **not** add a second YAML channel.
 
 ## 3. Configuration correction
 
@@ -47,11 +50,12 @@ After restart:
 
 - `/healthz` live, `/readyz` ready
 - channels: **`main`** (stdio `mcp-mux`, `probe_status: ok`) + disabled `harpoon`
-- process tree: `tunnel-client` → `mcp-mux` → `rea mcp` + `audit-mcp` (mux child only)
+- process tree (18 Oct): `tunnel-client` → `mcp-mux` → `rea mcp` + `audit-mcp`
+- process tree (31 Oct re-check): same, plus `ops-mcp` as a third mux child
 
 ## 4. `tools/list` verification
 
-Probed as user `rea` against `/opt/rea/inspect/bin/mcp-mux` (NDJSON `initialize` + `tools/list`):
+Probed as user `rea` against `/opt/rea/inspect/bin/mcp-mux` (NDJSON `initialize` + `tools/list`) on **18 Oct 2026**:
 
 | Metric | Value |
 | --- | --- |
@@ -69,6 +73,29 @@ Standalone `audit-mcp` still advertises those nine tools with `readOnlyHint: tru
 
 `/health/mcp` remains `not_observed` because the tunnel health UI does not issue `initialize`/`tools/list`. That is expected and is not a mux failure.
 
+### 4.1 Re-verification — 31 October 2026 (SAST)
+
+Live profile is still **main-only** → `mcp-mux`. No `channel: audit`. Tunnel id unchanged. `/healthz` live, `/readyz` ready.
+
+| Metric | Value |
+| --- | --- |
+| Server | `rea` 6.4.0 |
+| Unique tools | **201** |
+| Duplicates | none |
+| REA tools | 170 |
+| `audit_*` | 9 (all present) |
+| `ops_*` | 22 |
+
+`ops_*` names: `ops_backup`, `ops_db`, `ops_deploy`, `ops_deps`, `ops_gh`, `ops_git`, `ops_health`, `ops_http_check`, `ops_inspect_arial`, `ops_inventory`, `ops_jobs`, `ops_logs`, `ops_migrate`, `ops_nginx`, `ops_read_file`, `ops_retarget_ingest`, `ops_rollback`, `ops_run`, `ops_service`, `ops_transfer`, `ops_whatsapp_status`, `ops_write_file`.
+
+Smoke (read-only / capabilities only):
+
+- `rea-inspect sailingsa sql "SELECT current_user, current_database()"` → `rea-ro` / `sailors_master`
+- `rea-admin sailingsa -- capabilities` → ForceCommand helper, Gold lock on, no general root shell
+- `rea-admin gowifi -- capabilities` → helper OK
+
+The 179-tool fix remains the correct base. #260 added scoped `ops_*` onto the **same** `main` mux. ChatGPT must still refresh the connector to see anything beyond its cached catalog.
+
 ## 5. ChatGPT plugin refresh — remaining limitation
 
 Server-side connector refresh is **not supported** with the runtime key on this box.
@@ -81,9 +108,9 @@ Server-side connector refresh is **not supported** with the runtime key on this 
 
 1. Open [ChatGPT connector settings](https://chatgpt.com/#settings/Connectors).
 2. Refresh / republish the existing **GoWifi REA** custom MCP connector (do not create a second connector).
-3. Start a **new** chat and confirm 179 tools, including the nine `audit_*` tools.
+3. Start a **new** chat and confirm the full mux catalog (**201** unique tools as of 31 Oct 2026: 170 REA + 9 `audit_*` + 22 `ops_*`).
 
-Until that UI refresh, ChatGPT can keep showing 170 tools even though the tunnel now serves 179.
+Until that UI refresh, ChatGPT can keep showing a cached older count (170 or 179) even though the tunnel already serves 201.
 
 ## 6. Read-only confirmation (SailingSA)
 
