@@ -1,0 +1,13 @@
+[Unit]
+Description=GoWiFi UniFi Site Manager read-only summary
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/root/secrets/unifi.env
+ExecStart=/usr/bin/python3 /root/gowifi-upp/unifi_api.py serve
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · Clients</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<style>
+:root {
+  --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --unpaid:#6b2d8b; --acc:#123a7a; --pad:16px;
+  --ml:844px;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:var(--acc); text-decoration:none; }
+a:hover { text-decoration:underline; }
+
+/* MP first — portrait phone. Full width. */
+header.app {
+  position:sticky; top:0; z-index:5;
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:10px max(var(--pad), env(safe-area-inset-right)) 12px max(var(--pad), env(safe-area-inset-left));
+}
+.bar { display:flex; flex-direction:column; gap:6px; }
+header.app h1 { margin:0; font-size:22px; color:var(--acc); }
+header.app .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+.nav { display:flex; flex-wrap:wrap; gap:4px 16px; }
+.nav a { color:var(--acc); font-size:14px; min-height:40px; display:inline-flex; align-items:center; }
+.search {
+  width:100%; margin-top:10px; padding:12px 14px; font:16px/1.3 inherit;
+  color:var(--text); background:#fff; border:1px solid var(--line); border-radius:10px;
+}
+.search:focus { outline:2px solid var(--acc); border-color:var(--acc); }
+main {
+  padding:12px max(var(--pad), env(safe-area-inset-right)) 32px max(var(--pad), env(safe-area-inset-left));
+  width:100%;
+}
+.counts { color:var(--muted); font-size:13px; margin:0 0 10px; }
+.cat-card {
+  width:100%; margin:0 0 16px; padding:12px;
+  background:#e8eef6; border:1px solid var(--line); border-radius:14px;
+}
+.cat-card h2 {
+  margin:0 0 10px; font-size:15px; font-weight:700; color:var(--acc);
+}
+.cat-card h2 .n { color:var(--muted); font-weight:500; font-size:13px; }
+.cat-list { display:flex; flex-direction:column; gap:10px; }
+.card {
+  width:100%; background:var(--card); color:var(--text);
+  border:1px solid var(--line); border-radius:12px;
+}
+.head {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  width:100%; padding:12px 14px; background:transparent; border:0; color:inherit;
+  font:inherit; text-align:left; cursor:pointer; min-height:48px;
+}
+.head:focus { outline:2px solid var(--acc); outline-offset:-2px; }
+.head-right { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+.head .kind { display:none; color:var(--muted); font-size:13px; white-space:nowrap; }
+.name { font-weight:700; font-size:16px; color:var(--acc); display:flex; align-items:center; gap:8px; min-width:0; }
+.bal { font-size:13px; font-weight:700; white-space:nowrap; text-align:right; }
+.meta { color:var(--muted); font-size:13px; font-weight:400; }
+.detail { border-top:1px solid var(--line); }
+.band {
+  display:flex; flex-direction:column; gap:8px;
+  width:100%; padding:10px 14px;
+}
+.band + .band { border-top:1px solid var(--line); }
+.field { display:flex; flex-direction:column; gap:2px; min-width:0; width:100%; }
+.k { font-size:11px; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); }
+.v { min-width:0; overflow-wrap:anywhere; }
+.dot {
+  width:12px; height:12px; border-radius:50%; display:inline-block; flex:0 0 12px;
+  box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--line);
+}
+.dot.active { background:var(--ok); }
+.dot.issue { background:var(--bad); }
+.dot.suspended { background:var(--warn); }
+.dot.cancelled { background:#8b9bb4; }
+.due { font-weight:700; }
+.due.ok { color:var(--ok); }
+.due.warn { color:var(--warn); }
+.due.bad { color:var(--bad); }
+.alert { color:var(--bad); font-weight:700; }
+.stmt-band { display:block; }
+.stmt-wrap { width:100%; max-height:380px; overflow:auto; }
+.stmt { width:100%; table-layout:fixed; border-collapse:collapse; font-size:12px; line-height:1.35; }
+.stmt col.d { width:6.4em; }
+.stmt col.n { width:5.4em; }
+.fnb-reg-wrap { width:100%; max-height:380px; overflow:auto; }
+.fnb-reg {
+  width:100%; table-layout:fixed; border-collapse:collapse;
+  font-size:13px; font-variant-numeric:tabular-nums;
+}
+.fnb-reg col.d { width:11em; }
+.fnb-reg col.n { width:6.8em; }
+.fnb-reg th, .fnb-reg td {
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  vertical-align:middle; padding:7px 10px;
+  border-bottom:1px solid var(--line);
+  border-right:1px solid var(--line);
+}
+.fnb-reg th:last-child, .fnb-reg td:last-child { border-right:0; }
+.fnb-reg th {
+  text-align:left; color:var(--muted); font-size:11px; letter-spacing:.03em;
+  text-transform:uppercase; font-weight:700;
+  position:sticky; top:0; background:#fff;
+}
+.fnb-reg th.num, .fnb-reg td.num { text-align:right; }
+.fnb-reg tr:last-child td { border-bottom:0; }
+.fnb-reg tr.pending td { color:var(--warn); }
+.fnb-reg tr.posted td { color:var(--acc); }
+.fnb-reg td.spent { color:var(--bad); }
+.fnb-choice { width:100%; max-width:100%; font:inherit; font-size:13px; }
+.stmt th, .stmt td {
+  font-size:12px; line-height:1.35; font-weight:600;
+  padding:5px 6px 5px 0; vertical-align:top;
+  border-bottom:1px solid var(--line);
+}
+.stmt th {
+  text-align:left; color:var(--muted); letter-spacing:.03em;
+  text-transform:uppercase; font-weight:700;
+  position:sticky; top:0; background:#fff;
+}
+.stmt th.num, .stmt td.num { text-align:right; white-space:nowrap; }
+.stmt td.date { white-space:nowrap; }
+.stmt a.inv-link { color:inherit; text-decoration:underline; font-weight:700; }
+.stmt tr.inv-row { cursor:pointer; }
+.stmt tr.inv-row:hover td { text-decoration:underline; }
+.stmt tr:last-child td { border-bottom:0; }
+.stmt tr.payment td { color:var(--ok); }
+.stmt tr.invoice td,
+.stmt tr.invoice.pending td { color:var(--warn); }
+.stmt tr.invoice.matched td { color:var(--acc); }
+.stmt tr.invoice.unpaid td,
+.stmt tr.invoice.overdue td { color:var(--unpaid); }
+.stmt tr.unpaid td { color:var(--bad); }
+.stmt-toggle {
+  display:block; width:100%; margin:0 0 8px; padding:8px 0; border:0;
+  background:transparent; color:var(--acc); font:inherit; font-size:13px;
+  font-weight:700; text-align:left; cursor:pointer;
+}
+.stmt-toggle:focus { outline:2px solid var(--acc); outline-offset:2px; }
+.empty { color:var(--muted); padding:20px 14px; }
+.err { color:#8a1212; background:#fdecec; padding:12px; border-radius:10px; }
+.fold-head {
+  cursor:pointer; user-select:none; margin:8px 0 10px;
+  border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+  background:#fff; color:var(--acc);
+}
+.fold-head .name { font-size:16px; }
+.fold-head[aria-expanded="true"] { border-color:var(--acc); }
+.hidden { display:none; }
+.fnb-top { order:-1; }
+.fetch-btn {
+  display:inline-block; margin:0; padding:8px 14px; border:0; border-radius:8px;
+  background:var(--acc); color:#fff; font:inherit; font-size:14px; font-weight:700;
+  cursor:pointer; min-height:40px;
+}
+.fetch-btn:disabled { opacity:.6; cursor:wait; }
+.match-ok { color:var(--ok); font-weight:700; }
+.attn { color:var(--warn); font-weight:700; }
+.fnb-status { border-top:0; }
+.fnb-top > h2 { cursor:pointer; }
+.fnb-head {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  width:100%; padding:12px 14px; min-height:48px; flex-wrap:wrap; cursor:pointer;
+}
+.fnb-toggle {
+  display:flex; align-items:center; gap:8px; padding:0; border:0;
+  background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer;
+  min-height:40px;
+}
+.fnb-top .kind { display:inline; }
+.fnb-live {
+  color:var(--acc); font-size:13px; font-weight:700; white-space:nowrap;
+  max-width:22em; overflow:hidden; text-overflow:ellipsis;
+}
+.fnb-live.fail { color:var(--bad); }
+.fnb-live.ok { color:var(--ok); }
+
+/* ML — landscape phone full width. Mac / wide tablet: same ML column, centred. */
+@media (min-width: 600px) {
+  header.app, main {
+    width:100%; max-width:var(--ml);
+    margin-left:auto; margin-right:auto;
+  }
+  header.app { padding:12px 20px; }
+  .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; gap:16px; }
+  main { padding:14px 20px 36px; }
+  .cat-card { padding:16px; }
+  .cat-card h2 { font-size:16px; }
+  .cat-list { gap:12px; }
+  .head { padding:12px 16px; }
+  .head .kind { display:inline; }
+  .name { font-size:16px; }
+  .band {
+    display:grid; grid-template-columns:1fr 1fr 1fr;
+    gap:8px 20px; align-items:start; padding:10px 16px;
+  }
+  .band.two { grid-template-columns:1fr 1fr; }
+  .band.stmt-band { display:block; }
+  .field { width:auto; }
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="bar">
+    <div>
+      <h1>Clients</h1>
+      <div class="sub">One line each · click the name for details</div>
+    </div>
+    <nav class="nav">
+      <a href="/dash/#/">Home</a>
+      <a href="/dash/accounts.html">Accounts</a>
+      <a href="/dash/invoices.html">Invoices</a>
+    </nav>
+  </div>
+  <input class="search" id="q" type="search" placeholder="Search name, address, phone, B number, package" autocomplete="off">
+</header>
+<main>
+  <div class="counts" id="counts"></div>
+  <div id="grid">Loading…</div>
+  <section id="cancelled-wrap" class="hidden">
+    <div class="fold-head" id="cancelled-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="cancelled-grid">
+      <div class="name">Cancelled / deleted</div>
+      <div class="meta" id="cancelled-meta">Not clients anymore · click to show</div>
+    </div>
+    <div class="hidden" id="cancelled-grid"></div>
+  </section>
+</main>
+<script>
+const $ = (s,el=document)=>el.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+const stripUncapped = s => {
+  const raw = String(s||"");
+  const cancel = /cancellation month/i.test(raw);
+  let out = raw.replace(/\s*[-–—]?\s*uncapped\b[\s\S]*/i, "").replace(/\s+[-–—/]\s*$/, "").trim();
+  if (cancel && !/cancellation month/i.test(out)) out = out ? out + " — cancellation month" : "cancellation month";
+  return out;
+};
+const money = v => v==null||v==="" ? "—" : Number(v).toFixed(2);
+const whenClock = v => {
+  if (!v) return "Never fetched";
+  const m = String(v).match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (m) {
+    const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+    return `${m[3]} ${months[+m[2]-1]} ${m[1]}, ${m[4]}:${m[5]}`;
+  }
+  const t = String(v).match(/(\d{2}):(\d{2})/);
+  return t ? t[1]+":"+t[2] : String(v);
+};
+const dueClass = c => c.suspension_notice||c.bounced ? "bad" : (c.paid_up ? "ok" : (c.in_grace ? "warn" : (Number(c.due) ? "bad" : "")));
+const accessLabel = c => (c.access||"") === "fibre" ? "Fibre" : (c.access||"") === "offset" ? "Offset" : "Wifi";
+function field(label, value, extra){
+  return `<div class="field"><span class="k">${esc(label)}</span><span class="v${extra&&extra.cls?" "+extra.cls:""}">${value}</span></div>`;
+}
+function invoiceRef(r){
+  if ((r.kind||"")==="invoice" && r.ref) return String(r.ref);
+  const m = String(r.what||r.ref||"").match(/Invoice\s+(\d+)/i);
+  return m ? m[1] : "";
+}
+function stmtRows(rows){
+  return rows.map(r=>{
+    const hide = r.reconciled ? " hidden" : "";
+    const n = invoiceRef(r);
+    const href = n ? `/dash/invoice.html?n=${esc(n)}` : "";
+    const cls = [r.kind||"", r.tone||"", r.due_row?"due_row":"", r.reconciled?"paid":"", href?"inv-row":""].filter(Boolean).join(" ");
+    const what = stripUncapped(r.what||"");
+    const whatHtml = href
+      ? `<a class="inv-link" href="${href}">${esc(what)}</a>`
+      : esc(what);
+    return `<tr class="${esc(cls)}${hide}"${href?` data-href="${href}"`:""}>
+    <td class="date">${esc(r.date_fmt||r.date||"")}</td>
+    <td>${whatHtml}</td>
+    <td class="num">${esc(money(r.amount))}</td>
+    <td class="num">${esc(money(r.balance))}</td>
+  </tr>`;
+  }).join("");
+}
+function stmtTable(c, id){
+  const rows = c.ledger || [];
+  if (!rows.length) return "";
+  const earlier = Number(c.earlier_paid||0) || rows.filter(r => r.reconciled && r.kind!=="line").length;
+  const hid = "s-"+id;
+  const toggle = earlier
+    ? `<button class="stmt-toggle" type="button" aria-expanded="false" aria-controls="${hid}">Statement · ${earlier} earlier paid · click to show</button>`
+    : `<div class="k">Last invoice / payment</div>`;
+  return `<div class="band stmt-band">
+    ${toggle}
+    <div class="stmt-wrap" id="${hid}"><table class="stmt">
+      <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>
+      <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+      <tbody>${stmtRows(rows)}</tbody>
+    </table></div>
+  </div>`;
+}
+function headBal(c){
+  if (c.suspension_notice || c.bounced) return `Bounced · Due ${money(c.due)}`;
+  return c.balance_label || "—";
+}
+function card(c){
+  const id = "d-"+Math.random().toString(36).slice(2,8);
+  const bno = c.access==="offset" ? "None · not a client" : (c.b_number || (c.access==="fibre" ? "—" : "Wireless"));
+  const dc = dueClass(c);
+  const kind = [accessLabel(c), c.pay, c.discount?"disc":""].filter(Boolean).join(" · ");
+  const bal = `${esc(c.balance_label||"—")} <span class="meta">Billed ${esc(money(c.billed))} · paid ${esc(money(c.paid))} · due ${esc(money(c.due))}</span>`;
+  return `<article class="card" data-search="${esc(c.search||"")}">
+    <button class="head" type="button" aria-expanded="false" aria-controls="${id}">
+      <span class="name"><span class="dot ${esc(c.dot||"active")}" title="${esc(c.dot_label||"")}"></span>${esc(c.name||"—")}</span>
+      <span class="head-right">
+        <span class="kind">${esc(kind)}</span>
+        <span class="bal due ${dc}">${esc(headBal(c))}</span>
+      </span>
+    </button>
+    <div class="detail hidden" id="${id}">
+      <div class="band">
+        ${field("Address", esc(c.address||"—"))}
+        ${field("Contact", esc(c.phone||"—"))}
+        ${field("Email", esc(c.email||"—"))}
+      </div>
+      <div class="band">
+        ${field("Start", esc(c.started_label||"—"))}
+        ${field("Years", esc(c.tenure||"—"))}
+        ${field("B no", esc(bno))}
+      </div>
+      <div class="band two">
+        ${field("Package", esc(c.package||"—"))}
+        ${field("Balance", bal, {cls:"due "+dc})}
+      </div>
+      ${c.access==="offset" ? `<div class="band">
+        ${field("Deal", esc(c.offset_note||"Offset · not a fibre or wifi client"))}
+        ${field("Cash to", esc(c.loan_account||"Kevin Weaving loan"))}
+        ${field("Fibre cost", "Stays cost of service · no Paltco B-number")}
+      </div>` : ""}
+      ${c.access==="fibre" ? `<div class="band">
+        ${field("Cost", c.os_cost==null ? "— not on latest Openserve invoice" : `${esc(money(c.os_cost))} <span class="meta">${esc(c.os_cost_label||"incl VAT")}</span>`)}
+        ${field("Charge", esc(money(c.charge)))}
+        ${field("Margin", c.margin==null ? "—" : `${esc(money(c.margin))}${c.margin_pct!=null?` <span class="meta">${esc(c.margin_pct)}%</span>`:""}`, {cls: c.os_loss ? "due bad" : ""})}
+      </div>` : ""}
+      ${stmtTable(c, id)}
+      ${c.suspension_notice?`<div class="band"><div class="alert">Suspension notice · D/O bounced</div></div>`:""}
+    </div>
+  </article>`;
+}
+function fnbCard(fnb){
+  fnb = fnb || {};
+  const id = "d-fnb";
+  const bal = fnb.balance==null ? "—" : money(fnb.balance);
+  const last = whenClock(fnb.last_fetched_label || fnb.last_fetched);
+  const need = Number(fnb.attention_amount||0);
+  const hasPending = (fnb.rows||[]).some(r => r.tone==="pending");
+  const matched = fnb.last_ok && fnb.matched!==false && need<=0.004 && !hasPending;
+  const matchLabel = !fnb.last_ok
+    ? "Fetch failed · not matched"
+    : (hasPending ? "Pending on register" : (matched ? "Processed" : `Needs help ${money(need)}`));
+  const choices = [`<option value="">Allocate…</option>`].concat((fnb.choices||[]).map(c=>`<option value="${esc(c.kind)}|${esc(c.to)}">${esc(c.label||c.to)}</option>`)).join("");
+  const attn = (fnb.attention||[]).map(r=>`<tr>
+    <td>${esc(r.paid_on||"")}</td>
+    <td title="${esc(r.what||r.description||"Needs recon")}">${esc(r.what||r.description||"Needs recon")}</td>
+    <td class="num">${esc(money(r.amount))}</td>
+    <td><select class="fnb-choice" data-id="${esc(r.id||"")}">${choices}</select></td>
+  </tr>`).join("");
+  const rows = (fnb.rows||[]).map(r=>`<tr class="${esc(r.tone==="pending"?"pending":"posted")}">
+    <td>${esc(r.paid_on||"")}</td>
+    <td title="${esc(r.description||"")}">${esc(r.description||"")}</td>
+    <td class="num spent">${r.spent==null?"":esc("-"+money(Math.abs(r.spent)))}</td>
+    <td class="num">${r.received==null?"":esc(money(r.received))}</td>
+    <td class="num">${esc(money(r.balance))}</td>
+  </tr>`).join("");
+  return `<section class="cat-card fnb-top">
+    <h2>FNB <span class="n">${esc(fnb.account_number||"62860060278")}</span></h2>
+    <div class="cat-list">
+      <article class="card">
+        <div class="head fnb-head">
+          <button class="fnb-toggle" type="button" aria-expanded="false" aria-controls="${id}">
+            <span class="name"><span class="dot ${fnb.ready&&fnb.last_ok?"active":"issue"}"></span>FNB ${esc(fnb.account_number||"62860060278")}</span>
+          </button>
+          <span class="head-right">
+            <button type="button" class="fetch-btn fnb-fetch">Fetch</button>
+            <span class="kind">Bank</span>
+            <span class="bal ${hasPending?"attn":""}">${esc(bal)}</span>
+            <span class="fnb-live" aria-live="polite"></span>
+          </span>
+        </div>
+        <div class="detail hidden" id="${id}">
+          <div class="fnb-status">
+            <div class="band">
+              ${field("Last fetched", esc(last))}
+              ${field("Balance", esc(bal), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
+              ${field("Status", esc(matchLabel), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
+            </div>
+            ${need>0.004 ? `<div class="band stmt-band">
+              <div class="k">Issues ${esc(money(need))}</div>
+              <div class="fnb-reg-wrap"><table class="fnb-reg">
+                <colgroup><col class="d"><col><col class="n"><col class="n"></colgroup>
+                <thead><tr><th>Date</th><th>What</th><th class="num">Amount</th><th>Allocate</th></tr></thead>
+                <tbody>${attn}</tbody>
+              </table></div>
+              <p><button type="button" class="fetch-btn fnb-apply">Allocate selected</button></p>
+            </div>` : ""}
+          </div>
+          <div class="band">
+            ${field("Account", esc(fnb.account_name||"GoWifi (Pty) Ltd"))}
+            ${field("Branch", esc((fnb.branch||"Hermanus")+" "+(fnb.branch_code||"200412")))}
+            ${field("Status", esc(matchLabel), {cls: hasPending?"attn":(matched?"match-ok":"attn")})}
+          </div>
+          <div class="band stmt-band">
+            <div class="k">FNB register</div>
+            <div class="fnb-reg-wrap"><table class="fnb-reg">
+              <colgroup><col class="d"><col><col class="n"><col class="n"><col class="n"></colgroup>
+              <thead><tr><th>Date</th><th>Description</th><th class="num">Spent</th><th class="num">Received</th><th class="num">Balance</th></tr></thead>
+              <tbody>${rows || `<tr><td colspan="5" class="meta">No FNB rows on the system yet.</td></tr>`}</tbody>
+            </table></div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>`;
+}
+function block(title, list){
+  if (!list.length) return "";
+  return `<section class="cat-card">
+    <h2>${esc(title)} <span class="n">${list.length}</span></h2>
+    <div class="cat-list">${list.map(card).join("")}</div>
+  </section>`;
+}
+function bindFnbApply(root, pack){
+  const btn = root.querySelector(".fnb-apply");
+  if (!btn) return;
+  btn.addEventListener("click", ev=>{
+    ev.preventDefault();
+    ev.stopPropagation();
+    const picks = [...root.querySelectorAll(".fnb-choice")].filter(s => s.value && s.getAttribute("data-id"));
+    if (!picks.length) return;
+    btn.disabled = true;
+    Promise.all(picks.map(s=>{
+      const [kind, ...rest] = s.value.split("|");
+      return fetch("/legal/fnb-alloc", {
+        method:"POST",
+        credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({id: Number(s.getAttribute("data-id")), kind, to: rest.join("|")})
+      }).then(r=>r.json());
+    })).then(()=>fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"}))
+      .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+      .then(data=>{ Object.assign(pack, data.clients || {}); paint(pack); })
+      .catch(()=>{ btn.disabled = false; });
+  });
+}
+function bindFnbFetch(root, pack){
+  const liveEl = root.querySelector(".fnb-live");
+  const setLive = (text, cls) => {
+    if (!liveEl) return;
+    let t = (text || "").split("\n")[0];
+    if (/target page|browser has been closed/i.test(t)) t = "FNB window closed";
+    liveEl.textContent = t.slice(0, 80);
+    liveEl.className = "fnb-live" + (cls ? " " + cls : "");
+  };
+  const paintLiveBank = () => {
+    fetch("/legal/fnb-card", {credentials:"same-origin", cache:"no-store"})
+      .then(r=>r.json()).then(c=>{
+        const balEl = root.querySelector(".fnb-head .bal");
+        if (balEl && c.balance != null) balEl.textContent = money(c.balance);
+      }).catch(()=>{});
+  };
+  const pollProgress = done => {
+    const t0 = Date.now();
+    const tick = () => {
+      fetch("/legal/fnb-progress", {credentials:"same-origin", cache:"no-store"})
+        .then(r=>r.json()).then(p=>{
+          setLive(p.step || "Fetching FNB", p.error ? "fail" : (p.done ? "ok" : ""));
+          paintLiveBank();
+          if (p.done || Date.now()-t0 > 180000) { done(p); return; }
+          setTimeout(tick, 400);
+        }).catch(()=>setTimeout(tick, 800));
+    };
+    tick();
+  };
+  root.querySelectorAll(".fnb-fetch").forEach(btn=>{
+    btn.addEventListener("click", ev=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      btn.disabled = true;
+      const prev = btn.textContent;
+      btn.textContent = "Fetching…";
+      setLive("Starting FNB fetch");
+      fetch("/legal/fnb-pull", {
+        method:"POST",
+        credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({via:"qb"})
+      }).catch(()=>{});
+      pollProgress(p=>{
+        if (p.error) {
+          btn.disabled = false;
+          btn.textContent = prev;
+          setLive(p.step || p.error, "fail");
+          return;
+        }
+        fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
+          .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+          .then(data=>{ Object.assign(pack, data.clients || {}); paint(pack); })
+          .catch(err=>{
+            btn.disabled = false;
+            btn.textContent = prev;
+            setLive(err.message || "FNB fetch failed", "fail");
+          });
+      });
+    });
+  });
+}
+function bindToggles(root){
+  root.querySelectorAll(".head:not(.fnb-head)").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const open = btn.getAttribute("aria-expanded")==="true";
+      const panel = document.getElementById(btn.getAttribute("aria-controls"));
+      btn.setAttribute("aria-expanded", open?"false":"true");
+      if (panel) panel.classList.toggle("hidden", open);
+    });
+  });
+  const fnbToggle = root.querySelector(".fnb-toggle");
+  const fnbPanel = fnbToggle && document.getElementById(fnbToggle.getAttribute("aria-controls"));
+  const flipFnb = () => {
+    if (!fnbToggle || !fnbPanel) return;
+    const open = fnbToggle.getAttribute("aria-expanded")==="true";
+    fnbToggle.setAttribute("aria-expanded", open?"false":"true");
+    fnbPanel.classList.toggle("hidden", open);
+  };
+  const fnbHead = root.querySelector(".fnb-head");
+  if (fnbHead) fnbHead.addEventListener("click", ev=>{
+    if (ev.target.closest(".fnb-fetch,.fnb-apply,.fnb-choice")) return;
+    flipFnb();
+  });
+  const fnbTitle = root.querySelector(".fnb-top > h2");
+  if (fnbTitle) fnbTitle.addEventListener("click", flipFnb);
+  root.querySelectorAll(".stmt-toggle").forEach(btn=>{
+    btn.addEventListener("click", e=>{
+      e.stopPropagation();
+      const open = btn.getAttribute("aria-expanded")==="true";
+      const next = !open;
+      btn.setAttribute("aria-expanded", next?"true":"false");
+      const wrap = document.getElementById(btn.getAttribute("aria-controls"));
+      if (wrap) wrap.querySelectorAll("tr.paid").forEach(tr => tr.classList.toggle("hidden", !next));
+      const n = (btn.textContent.match(/\d+/)||[])[0] || "";
+      btn.textContent = next
+        ? `Statement · hide earlier paid`
+        : `Statement · ${n} earlier paid · click to show`;
+    });
+  });
+}
+function splitAccess(list){
+  const name = c => (c.name||"").toLowerCase();
+  const wifi = list.filter(c => (c.access||"") !== "fibre" && (c.access||"") !== "offset").sort((a,b)=>name(a).localeCompare(name(b)));
+  const fibre = list.filter(c => (c.access||"") === "fibre").sort((a,b)=>name(a).localeCompare(name(b)));
+  return {wifi, fibre};
+}
+function paint(pack){
+  const q = ($("#q").value||"").trim().toLowerCase();
+  const cards = pack.cards || [];
+  const cancelled = pack.cancelled || [];
+  const hit = c => !q || (c.search||"").includes(q) || (c.name||"").toLowerCase().includes(q);
+  const shown = cards.filter(hit);
+  const shownC = cancelled.filter(hit);
+  const {wifi, fibre} = splitAccess(shown);
+  const offsets = (pack.offsets||[]).filter(hit);
+  const os = pack.os || {};
+  const osBits = [];
+  if (!q && os.fibre) osBits.push(`${os.on_invoice||0}/${os.fibre} fibre on invoice`);
+  if (!q && os.missing) osBits.push(`${os.missing} cost missing`);
+  if (!q && os.loss) osBits.push(`${os.loss} loss`);
+  $("#counts").textContent = (
+    q
+      ? `${shown.length} match · ${wifi.length} wifi · ${fibre.length} fibre`
+      : `${cards.length} clients · ${wifi.length} wifi · ${fibre.length} fibre`
+  ) + (osBits.length ? ` · ${osBits.join(" · ")}` : "");
+  const body = fnbCard(pack.fnb)
+    + (shown.length ? block("GoWiFi Wifi", wifi) + block("Fibre", fibre) : "")
+    + (offsets.length ? block("Offset · Kevin loan", offsets) : "");
+  $("#grid").innerHTML = body;
+  bindToggles($("#grid"));
+  bindFnbFetch($("#grid"), pack);
+  bindFnbApply($("#grid"), pack);
+  const wrap = $("#cancelled-wrap");
+  if (!cancelled.length) { wrap.classList.add("hidden"); return; }
+  wrap.classList.remove("hidden");
+  const owe = cancelled.filter(c => Number(c.due||0) > 0).length;
+  $("#cancelled-meta").textContent = q
+    ? `${shownC.length} of ${cancelled.length} deleted`
+    : `${cancelled.length} deleted · ${owe} still owe · click to show`;
+  $("#cancelled-grid").innerHTML = shownC.length
+    ? block("Cancelled / deleted", shownC)
+    : `<p class="empty">No deleted clients match.</p>`;
+  bindToggles($("#cancelled-grid"));
+}
+document.addEventListener("click", ev => {
+  if (ev.target.closest("a.inv-link")) return;
+  const tr = ev.target.closest("tr.inv-row[data-href]");
+  if (!tr) return;
+  location.href = tr.getAttribute("data-href");
+});
+fetch("accounts.json?v="+Date.now(),{credentials:"same-origin", cache:"no-store"})
+  .then(r=>{ if(!r.ok) throw new Error("accounts.json "+r.status); return r.json(); })
+  .then(data=>{
+    const pack = data.clients || {};
+    if (location.hash) $("#q").value = decodeURIComponent(location.hash.slice(1));
+    paint(pack);
+    fetch("/legal/fnb-card", {credentials:"same-origin", cache:"no-store"})
+      .then(r=>r.json()).then(c=>{
+        pack.fnb = Object.assign(pack.fnb || {}, c);
+        paint(pack);
+      }).catch(()=>{});
+    const first = $("#grid .cat-card:not(.fnb-top) .head");
+    if (location.hash && first) first.click();
+    $("#q").addEventListener("input", ()=>paint(pack));
+    const tog = $("#cancelled-toggle");
+    const grid = $("#cancelled-grid");
+    const flip = () => {
+      const open = tog.getAttribute("aria-expanded")==="true";
+      tog.setAttribute("aria-expanded", open?"false":"true");
+      grid.classList.toggle("hidden", open);
+    };
+    tog.addEventListener("click", flip);
+    tog.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); flip(); }});
+  })
+  .catch(e=>{ $("#grid").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>
