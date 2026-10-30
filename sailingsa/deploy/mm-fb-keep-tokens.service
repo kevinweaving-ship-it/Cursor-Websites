@@ -1,0 +1,8 @@
+[Unit]
+Description=Keep Marine Megastore Facebook Page token (server-minted, never-expiring)
+
+[Service]
+Type=oneshot
+Nice=10
+EnvironmentFile=/etc/sailingsa/mm-fb-app.env
+ExecStart=/usr/bin/python3 /var/www/sailingsa/deploy/mm_fb_keep_tokens.py --force
