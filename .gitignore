@@ -285,6 +285,7 @@ archives/
 *.zip
 *.tar.gz
 *.sql
+!database/migrations/*.sql
 *.log
 
 # Local API snapshots / restore trees (large; not source of truth)
