@@ -1886,18 +1886,129 @@ def _directory_page_html(title: str, items: list, href_key: str, page_title: str
     return header
 
 
+
+def _directory_gold_page_response(title: str, inner: str, extra_head: str):
+    """Return HTMLResponse with gold header when available."""
+    gold_fn = globals().get("_html_with_gold_header")
+    if gold_fn:
+        return gold_fn(title, inner, extra_head)
+    return HTMLResponse(
+        "<!DOCTYPE html><html lang=\"en-US\"><head><meta charset=\"UTF-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\">"
+        f"<title>{html_module.escape(title)}</title>{extra_head}</head><body>{inner}</body></html>"
+    )
+
+
+_DIRECTORY_PAGE_ABOUT_CSS = """
+.page-about-block{margin:0 0 1rem 0;padding:0.85rem 1rem;border:1px solid #dbe5ef;border-radius:8px;background:#f8fbff;color:#1e293b;line-height:1.45;font-size:0.95rem;}
+.directory-results-label{margin:0 0 0.75rem 0;font-size:1.1rem;font-weight:700;color:#001f3f;}
+#regattas-dashboard,#sailors-dashboard{padding-top:1rem;box-sizing:border-box;}
+@media (min-width:640px){#regattas-dashboard,#sailors-dashboard{padding-top:1.25rem;}}
+#public-regattas-list .sa-home-regatta-wrap{margin:0;}
+.sailor-directory-hint{color:#64748b;font-size:0.95rem;margin:0.5rem 0 0;}
+.sailor-directory-results{margin-top:0.5rem;display:flex;flex-direction:column;gap:0.75rem;padding-bottom:2.5rem;}
+.sailor-directory-results .ssa-dev1-inject{margin:0 0 8px 0;max-width:100%;}
+.sailor-directory-results .ssa-dev1-inject main,.sailor-directory-results .ssa-dev1-inject .main-column,.sailor-directory-results .ssa-dev1-inject .container{width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;}
+.sailor-directory-results .ssa-dev1-inject .sa-approved-sailor-card{margin-top:0;}
+.sailor-directory-results .profile-card{margin:0;}
+.sailor-directory-results .sa-claim-banner,.sailor-directory-results .sailor-claim-cta,.sailor-directory-results #dev1-claim-banner,.sailor-directory-results .sa-header-mid-slot > #dev1-claim-slot{display:none!important;}
+.sailor-directory-results .sa-ranks-mid-slot,.sailor-directory-results #dev1-ranks-mid-slot,.sailor-directory-results #dev1-next-event-slot{display:block!important;}
+"""
+
+
+def _regattas_directory_page_html():
+    about = (
+        "Explore South African sailing regattas with full race results, rankings, and performance history. "
+        "Search by event name, host club, class, or year — same card list as the home page."
+    )
+    extra_head = (
+        '<link rel="canonical" href="https://sailingsa.co.za/regattas">'
+        '<link rel="stylesheet" href="/css/gold-list-tables.css?v=20260723m5">'
+        "<style>"
+        + _SECTION_HEADING_ROW_UNIFIED_CSS
+        + _EVENTS_TOOLBAR_SEARCH_CSS
+        + _DIRECTORY_PAGE_ABOUT_CSS
+        + "</style>"
+        '<script src="/js/config.js"></script>'
+        '<script src="/js/api.js?v=20260717regatta"></script>'
+        '<script src="/js/hub-regatta-list.js?v=20260823dir1"></script>'
+    )
+    inner = (
+        '<div class="container" id="regattas-dashboard">'
+        '<div class="card stats-section">'
+        + _events_section_heading_row_html("Regattas")
+        + f'<div class="page-about-block">{html_module.escape(about)}</div>'
+        + '<section id="public-regattas-section" aria-label="Regatta list">'
+        + '<div id="public-regattas-list"><p>Loading regattas…</p></div>'
+        + "</section>"
+        + "</div></div>"
+        + _seo_discovery_block_html()
+        + """
+<footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer>
+<script>document.getElementById("year").textContent=new Date().getFullYear();</script>
+<script>
+(function(){
+  window.searchMode = "regatta";
+  window.__ssaDirectoryRegattas = true;
+  var inp = document.getElementById("events-dashboard-search");
+  if (inp) {
+    inp.setAttribute("placeholder", "Search regattas…");
+    inp.setAttribute("aria-label", "Search regattas");
+    var deb = null;
+    inp.addEventListener("input", function() {
+      clearTimeout(deb);
+      deb = setTimeout(function() {
+        if (typeof window.applyRegattaFilter === "function") window.applyRegattaFilter();
+      }, 220);
+    });
+  }
+  if (typeof window.applyRegattaFilter === "function") window.applyRegattaFilter();
+})();
+</script>"""
+    )
+    return (extra_head, inner)
+
+
+def _sailors_directory_page_html():
+    about = "Search active South African sailors"
+    extra_head = (
+        '<link rel="canonical" href="https://sailingsa.co.za/sailors">'
+        "<style>"
+        + _SECTION_HEADING_ROW_UNIFIED_CSS
+        + _EVENTS_TOOLBAR_SEARCH_CSS
+        + _DIRECTORY_PAGE_ABOUT_CSS
+        + ".profile-card{background:#fff;border-radius:8px;border:2px solid #001f3f;padding:0.5rem 0.85rem;cursor:pointer;line-height:1.35;}"
+        + ".sailor-directory-hint{display:none!important;}"
+        + "</style>"
+        '<script src="/js/hub-sailor-directory.js?v=20260823dir6"></script>'
+    )
+    inner = (
+        '<div class="container" id="sailors-dashboard">'
+        '<div class="card stats-section">'
+        + _events_section_heading_row_html("Sailors")
+        + f'<div class="page-about-block">{html_module.escape(about)}</div>'
+        + '<div class="sailor-directory-results sailor-search-results" id="sailor-directory-results" role="list"></div>'
+        + "</div></div>"
+        + _seo_discovery_block_html()
+        + """
+<footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer>
+<script>document.getElementById("year").textContent=new Date().getFullYear();</script>"""
+    )
+    return (extra_head, inner)
+
+
 @app.get("/sailors", response_class=HTMLResponse)
 def _directory_sailors_page():
-    """Directory: all sailors, alphabetical by first letter. Links to /sailor/{slug}."""
-    items = _directory_sailors()
-    return HTMLResponse(_directory_page_html("/sailors", items, "sailor", "Sailors"))
+    """Directory: sailors with hub-style fuzzy search and full profile cards."""
+    extra_head, inner = _sailors_directory_page_html()
+    return _directory_gold_page_response("Sailors | SailingSA", inner, extra_head)
 
 
 @app.get("/regattas", response_class=HTMLResponse)
 def _directory_regattas_page():
-    """Directory: all regattas. Links to /regatta/{slug}."""
-    items = _directory_regattas()
-    return HTMLResponse(_directory_page_html("/regattas", items, "regatta", "Regattas"))
+    """Directory: regatta cards (parents only) with fuzzy search — same as landing list."""
+    extra_head, inner = _regattas_directory_page_html()
+    return _directory_gold_page_response("Regattas | SailingSA", inner, extra_head)
 
 
 @app.get("/clubs", response_class=HTMLResponse)
@@ -1920,27 +2031,197 @@ def _directory_classes_page_head():
     return Response(status_code=200)
 
 
+def _event_category_shows_times(category: str | None, event_name: str | None = None) -> bool:
+    """Show clock times only for AGM / course / meeting / training-style events.
+
+    Racing / championship / regatta SAS times are usually placeholder (e.g. 09:00–09:00).
+    """
+    cat = (category or "").strip().lower()
+    name = (event_name or "").strip().lower()
+    keep_cats = (
+        "meeting", "meetings", "training", "course", "courses",
+        "clinic", "seminar", "workshop", "briefing", "agm",
+    )
+    if cat in keep_cats or any(k in cat for k in ("meeting", "training", "course", "clinic", "seminar", "workshop")):
+        return True
+    # Name fallback when category empty/wrong (e.g. AGM tagged oddly)
+    for token in (" agm", "agm ", "course", "clinic", "seminar", "workshop", "briefing", "meeting"):
+        if token in f" {name} ":
+            return True
+    if name.endswith(" agm") or name.startswith("agm ") or name == "agm":
+        return True
+    return False
+
+
+def _event_span_days(start_date, end_date) -> int:
+    """Calendar days covered (1 = same-day)."""
+    def _as_date(d):
+        if not d:
+            return None
+        if hasattr(d, "toordinal") and not isinstance(d, str):
+            # date or datetime
+            if hasattr(d, "hour"):
+                try:
+                    return d.date()
+                except Exception:
+                    return None
+            return d
+        s = str(d)[:10]
+        try:
+            return datetime.strptime(s, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    s = _as_date(start_date)
+    if not s:
+        return 1
+    e = _as_date(end_date) or s
+    try:
+        return max(1, (e - s).days + 1)
+    except Exception:
+        return 1
+
+
+def _event_has_real_host(host_code: str | None, host_club: str | None = None, club_slug: str | None = None) -> bool:
+    """True when card has usable host info (club code/name/slug), not blank/TBC/Unassigned."""
+    for raw in (host_code, host_club, club_slug):
+        s = (raw or "").strip()
+        if not s:
+            continue
+        if s in ("—", "-", "–"):
+            continue
+        if s.lower() in ("tbc", "unk", "unknown", "unassigned", "teams", "online", "n/a", "na"):
+            continue
+        return True
+    return False
+
+
+def _event_expect_racing_results(
+    category: str | None,
+    event_name: str | None = None,
+    *,
+    host_code: str | None = None,
+    host_club: str | None = None,
+    club_slug: str | None = None,
+    start_date=None,
+    end_date=None,
+) -> bool:
+    """True for real regattas sailors enter (results expected).
+
+    Clues: exclude AGM/course/training; most real events have host info;
+    many span 2–3+ calendar days.
+    """
+    if _event_category_shows_times(category, event_name):
+        return False
+    cat = (category or "").strip().lower()
+    if cat in ("meeting", "meetings", "training"):
+        return False
+    name = f" {(event_name or '').strip().lower()} "
+    for token in (
+        " agm",
+        "agm ",
+        " instructor ",
+        " race officer ",
+        " safeguarding ",
+        " appointment ",
+        " cruise ",
+    ):
+        if token in name:
+            return False
+    has_host = _event_has_real_host(host_code, host_club, club_slug)
+    multi_day = _event_span_days(start_date, end_date) >= 2
+    # Primary: resolved host (club race or championship).
+    if has_host:
+        return True
+    # Secondary: multi-day even when host still unmatched.
+    if multi_day:
+        return True
+    # Single-day, no host: only clear racing titles.
+    for token in (
+        " championship",
+        " nationals",
+        " regional",
+        " provincials",
+        " regatta",
+        " open ",
+        " classic",
+        " series",
+        " cup ",
+        " trophy",
+    ):
+        if token in name:
+            return True
+    return False
+
+
 def _format_event_date_range(start_date, end_date, start_time=None, end_time=None):
-    """Format event date range for display. If start_time exists: 'Thu 30 Apr 2026 18:00 – Sun 03 May 2026 18:00'. Else date only: 'Sat 14 Mar 2026 – Sun 15 Mar 2026'."""
+    """Compact event dates for cards.
+
+    With times (AGM/course/meeting only): '18:00 Thu 27 – 18:00 Sat 29 Aug 2026'
+    Without (default for sailing):        'Thu 27 – Sat 29 Aug 2026'
+    Same day:   '18:00 Thu 27 Aug 2026' or 'Thu 27 Aug 2026'
+    """
     if not start_date:
         return "—"
+
+    def _as_date(d):
+        if hasattr(d, "strftime"):
+            return d
+        s = str(d)[:10]
+        try:
+            return datetime.strptime(s, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    def _hhmm(t):
+        if not t:
+            return None
+        if hasattr(t, "strftime"):
+            return t.strftime("%H:%M")
+        s = str(t).strip()
+        if len(s) >= 5 and s[2] == ":":
+            return s[:5]
+        return s or None
+
     try:
-        time_fmt = "%H:%M"
-        if hasattr(start_date, "strftime"):
-            start_str = start_date.strftime("%a %d %b %Y")
+        sd = _as_date(start_date)
+        ed = _as_date(end_date) if end_date else sd
+        if not sd:
+            return str(start_date)[:10]
+        if not ed:
+            ed = sd
+        st = _hhmm(start_time)
+        et = _hhmm(end_time) or st
+        same_day = ed == sd
+        same_month = (ed.year == sd.year and ed.month == sd.month)
+        same_year = ed.year == sd.year
+
+        def day_part(d, include_month=False, include_year=False):
+            parts = [d.strftime("%a"), str(d.day)]
+            if include_month:
+                parts.append(d.strftime("%b"))
+            if include_year:
+                parts.append(d.strftime("%Y"))
+            return " ".join(parts)
+
+        if same_day:
+            core = day_part(sd, include_month=True, include_year=True)
+            return f"{st} {core}" if st else core
+
+        # Multi-day: put year (and month when shared) only on the end side.
+        if same_month:
+            left = day_part(sd, include_month=False, include_year=False)
+            right = day_part(ed, include_month=True, include_year=True)
+        elif same_year:
+            left = day_part(sd, include_month=True, include_year=False)
+            right = day_part(ed, include_month=True, include_year=True)
         else:
-            start_str = str(start_date)[:10] if start_date else "—"
-        if start_time and hasattr(start_time, "strftime"):
-            start_str += " " + start_time.strftime(time_fmt)
-        if end_date and end_date != start_date:
-            if hasattr(end_date, "strftime"):
-                end_str = end_date.strftime("%a %d %b %Y")
-            else:
-                end_str = str(end_date)[:10]
-            if end_time and hasattr(end_time, "strftime"):
-                end_str += " " + end_time.strftime(time_fmt)
-            return f"{start_str} – {end_str}"
-        return start_str
+            left = day_part(sd, include_month=True, include_year=True)
+            right = day_part(ed, include_month=True, include_year=True)
+
+        if st:
+            return f"{st} {left} – {et} {right}"
+        return f"{left} – {right}"
     except Exception:
         return str(start_date) if start_date else "—"
 
@@ -2133,11 +2414,64 @@ def _derive_event_state(r, is_past_panel: bool) -> str:
     en = _event_date_only(r.get("end_date")) or st
     if not st:
         return "UPCOMING"
+    if en and en < today:
+        return "PAST"
     if st <= today <= (en or st):
         return "ACTIVE"
     if st > today:
         return "UPCOMING"
     return "UPCOMING"
+
+
+def _sanitize_event_row_end_date(r: dict) -> None:
+    """Fix known SAS end-date bullshit in-memory (before Live/Past bucketing).
+
+    DSO Appointments (361162): SAS list says May 2029; real window is May 2026.
+    Also clamps same-month year typos (end year > start, day span ≤14).
+    """
+    name = (r.get("event_name") or "")
+    url = (r.get("source_url") or "")
+    sid = str(r.get("source_event_id") or "").strip()
+    if (
+        sid == "361162"
+        or "361162" in url
+        or "Safeguarding Officer (DSO)" in name
+        or "Safeguarding Personal Clearances" in name
+    ):
+        r["end_date"] = date(2026, 5, 31)
+        return
+    start = _event_date_only(r.get("start_date"))
+    end = _event_date_only(r.get("end_date"))
+    if not start or not end:
+        return
+    if end.year > start.year and end.month == start.month and 0 < (end.day - start.day) <= 14:
+        try:
+            r["end_date"] = end.replace(year=start.year)
+        except ValueError:
+            pass
+
+
+def _rebucket_event_rows_after_date_sanitize(upcoming_rows: list, past_rows: list) -> tuple:
+    """Sanitize end dates then re-split upcoming vs past (so DSO 2029→2026 leaves Live)."""
+    today = date.today()
+    for r in list(upcoming_rows) + list(past_rows):
+        _sanitize_event_row_end_date(r)
+    seen = set()
+    up: list = []
+    past: list = []
+    for r in list(upcoming_rows) + list(past_rows):
+        eid = r.get("event_id")
+        key = ("id", eid) if eid is not None else ("obj", id(r))
+        if key in seen:
+            continue
+        seen.add(key)
+        start = _event_date_only(r.get("start_date"))
+        end = _event_date_only(r.get("end_date")) or start
+        if end and end < today:
+            past.append(r)
+        else:
+            up.append(r)
+    return up, past
 
 
 def _event_time_to_sort_seconds(t) -> int:
@@ -2158,7 +2492,7 @@ def _event_time_to_sort_seconds(t) -> int:
 
 
 # Shared with /blank hub, /events, /events/type/*, club pages, /yearly-events, GET /api/events/upcoming-window.
-UPCOMING_DISPLAY_SORT_VERSION = "upcoming_display_v2"
+UPCOMING_DISPLAY_SORT_VERSION = "upcoming_display_v3_date_asc"
 
 
 def _batch_entries_by_regatta_ids(cur, regatta_ids: list) -> dict[str, int]:
@@ -2204,18 +2538,16 @@ def _attach_event_card_display_sort_fields(
         key = _yearly_event_series_key((c.get("event_name") or "").strip())
         c["series_years_count"] = int(series_map.get(key, 0)) if key else 0
         smax = int(series_max_entries_by_key.get(key, 0)) if key else 0
+        c["entries"] = regatta_e
         c["entries_for_sort"] = max(regatta_e, smax)
 
 
 def _sort_event_cards_display_order(cards: list, *, use_start_time: bool) -> list:
-    """Established series (≥2 years) first, then entries, series depth, date; live tab ties on start_time."""
+    """Upcoming/live: real calendar order — start_date ascending (next event first); same-day optional start_time."""
     sub = list(cards)
     sub.sort(
         key=lambda c: (
-            0 if int(c.get("series_years_count") or 0) >= 2 else 1,
-            -int(c.get("entries_for_sort") or 0),
-            -int(c.get("series_years_count") or 0),
-            c.get("start_date_iso") or "",
+            c.get("start_date_iso") or "9999-99-99",
             (_event_time_to_sort_seconds(c.get("start_time")) if use_start_time else 0),
             (c.get("event_name") or "").lower(),
             int(c.get("event_id") or 0),
@@ -2296,9 +2628,6 @@ def _compute_hub_upcoming_window_payload(
 
     windowed.sort(
         key=lambda e: (
-            0 if int(e.get("series_years_count") or 0) >= 2 else 1,
-            -_hub_ent(e),
-            -int(e.get("series_years_count") or 0),
             _sd(e),
             (e.get("event_name") or "").lower(),
             str(e.get("regatta_id") or ""),
@@ -2319,18 +2648,272 @@ def _compute_hub_upcoming_window_payload(
     }
 
 
-def _sort_past_event_cards(cards: list) -> list:
-    order_san = {"SAS": 0, "CLUB": 1, "OTHER": 2}
+# Same artwork paths as landing regatta list (_attach_regatta_search_card_logos / logo_url).
+_SA_NATIONALS_EVENT_LOGO = "/artwork/Event Logo/SA-Nationals.png"
+_YOUTH_NATIONALS_EVENT_LOGO = "/artwork/Event Logo/Youth-Nationals-Logo.png"
+_EVENT_LOGO_ASSET_BUST = "20260823d"
+_EVENT_CARD_NAMED_LOGO_RULES: tuple[tuple[str, str], ...] = (
+    ("youth national", _YOUTH_NATIONALS_EVENT_LOGO),
+    ("rsa national", _SA_NATIONALS_EVENT_LOGO),
+    ("national championship", _SA_NATIONALS_EVENT_LOGO),
+    ("sa sailing national", _SA_NATIONALS_EVENT_LOGO),
+    ("ilca kzn", "/artwork/Event Logo/ILCA-KZN-Regional-Championships.png"),
+    ("club champs", "/artwork/Event Logo/Club-Championships.png"),
+    ("club championship", "/artwork/Event Logo/Club-Championships.png"),
+    ("interclub", "/artwork/Event Logo/Interclub.png"),
+    ("29er", "/artwork/Event Logo/29er-Class-Logo.png"),
+)
+_EVENT_CARD_CLASS_TOKENS: tuple[str, ...] = (
+    "flying fifteen",
+    "flying 15",
+    "cape 31",
+    "dart 18",
+    "hobie 16",
+    "hobie 14",
+    "dragonflite",
+    "df 95",
+    "df95",
+    "optimist",
+    "dabchick",
+    "mirror",
+    "ilca 7",
+    "ilca 6",
+    "ilca 4.7",
+    "ilca 4",
+    "ilca",
+    "laser",
+    "29er",
+    "420",
+    "505",
+    "finn",
+    "soling",
+    "hunter",
+    "j22",
+    "iom",
+    "sonnet",
+)
 
-    def date_key(c):
-        return c.get("start_date_iso") or ""
 
-    out = []
-    for s in ("SAS", "CLUB", "OTHER"):
-        sub = [c for c in cards if (c.get("sanction_level") or "CLUB") == s]
-        sub.sort(key=date_key, reverse=True)
-        out.extend(sub)
+def _public_event_logo_url(path: Optional[str]) -> Optional[str]:
+    p = (path or "").strip()
+    if not p:
+        return None
+    if not p.startswith("/"):
+        p = "/" + p.lstrip("/")
+    if "?" in p:
+        return p
+    return f"{p}?v={_EVENT_LOGO_ASSET_BUST}"
+
+
+def _event_logo_from_named_rules_simple(
+    regatta_id: Optional[str],
+    event_name: Optional[str] = None,
+) -> Optional[str]:
+    hay = f"{(event_name or '').lower()} {str(regatta_id or '').lower()}"
+    hay_flex = hay.replace("-", " ")
+    best_src = ""
+    best_len = -1
+    rules = globals().get("_CLUB_EVENT_LOGO_RULES") or _EVENT_CARD_NAMED_LOGO_RULES
+    for item in rules:
+        if len(item) == 3:
+            needle, src, _label = item
+        else:
+            needle, src = item[0], item[1]
+        if not needle:
+            continue
+        if needle not in hay and needle not in hay_flex:
+            continue
+        s = (src or "").strip()
+        if not s:
+            continue
+        if len(needle) > best_len:
+            best_src = s
+            best_len = len(needle)
+    if not best_src:
+        return None
+    return best_src if best_src.startswith("/") else "/" + best_src.lstrip("/")
+
+
+def _class_logo_path_from_db(cur, class_name: str) -> Optional[str]:
+    cn = (class_name or "").strip()
+    if not cn or cur is None or not table_exists("classes"):
+        return None
+    try:
+        cur.execute(
+            """
+            SELECT NULLIF(btrim(logo_path), '') AS logo_path
+            FROM classes
+            WHERE lower(btrim(class_name)) = lower(btrim(%s))
+               OR lower(replace(class_name, ' ', '')) = lower(replace(%s, ' ', ''))
+            ORDER BY class_id
+            LIMIT 1
+            """,
+            (cn, cn),
+        )
+        row = cur.fetchone()
+        if row and row.get("logo_path"):
+            return str(row["logo_path"]).strip() or None
+    except Exception:
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
+    return None
+
+
+def _class_logo_from_obvious_event_name(event_name: str, cur=None) -> Optional[str]:
+    hay = f" {(event_name or '').strip().lower()} "
+    if not hay.strip():
+        return None
+    try:
+        from events_logos_gallery import _canon_series_key, _series_key_from_regatta_name
+
+        sk = _canon_series_key(_series_key_from_regatta_name(event_name or "", ""))
+        series_map = globals().get("_EVENTS_LOGOS_SERIES_CLASS_LOGO") or {}
+        if sk and sk in series_map:
+            return series_map[sk]
+    except Exception:
+        pass
+    for tok in _EVENT_CARD_CLASS_TOKENS:
+        if f" {tok} " in hay or hay.strip().startswith(tok) or f" {tok}" in hay:
+            lp = _class_logo_path_from_db(cur, tok.replace("df 95", "df95"))
+            if lp:
+                return lp
+    return None
+
+
+def _batch_regatta_block_logos(cur, regatta_ids: list[str]) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    rids = [str(r).strip() for r in regatta_ids if str(r).strip()]
+    if not rids or cur is None or not table_exists("regatta_blocks"):
+        return out
+    try:
+        cur.execute(
+            """
+            SELECT DISTINCT ON (rb.regatta_id)
+                   rb.regatta_id,
+                   NULLIF(btrim(cl.logo_path), '') AS logo_path,
+                   COALESCE(
+                     NULLIF(btrim(cl.class_name), ''),
+                     NULLIF(btrim(rb.class_canonical), ''),
+                     NULLIF(btrim(rb.class_original), '')
+                   ) AS class_name
+            FROM regatta_blocks rb
+            LEFT JOIN classes cl ON cl.class_id = rb.class_id
+            WHERE rb.regatta_id = ANY(%s)
+            ORDER BY rb.regatta_id, rb.block_id
+            """,
+            (rids,),
+        )
+        for row in cur.fetchall() or []:
+            rid = str(row.get("regatta_id") or "").strip()
+            if rid:
+                out[rid] = dict(row)
+    except Exception:
+        try:
+            cur.connection.rollback()
+        except Exception:
+            pass
     return out
+
+
+def _event_card_logo_url(cur, regatta_id: str, event_name: str) -> Optional[str]:
+    """Resolve left event logo — same sources as landing regatta list (logo_url)."""
+    rid = str(regatta_id or "").strip()
+    rname = str(event_name or "").strip()
+    regatta_logo_fn = globals().get("_regatta_card_event_logo_url")
+    if regatta_logo_fn and rid:
+        try:
+            logo = regatta_logo_fn(rid, rname, cur=cur)
+            if logo:
+                return logo
+        except Exception:
+            pass
+    catalogue_fn = globals().get("_catalogue_regatta_left_logo")
+    if catalogue_fn and rid:
+        try:
+            logo, _href = catalogue_fn(rid, rname, cur=cur)
+            if logo:
+                pub_fn = globals().get("_public_artwork_url") or _public_event_logo_url
+                return pub_fn(logo)
+        except Exception:
+            pass
+    logo = None
+    try:
+        left, _right = _wc_regatta_header_icon_urls(rid)
+        if left:
+            logo = left.strip()
+    except Exception:
+        pass
+    named_fn = globals().get("_event_logo_from_named_rules") or _event_logo_from_named_rules_simple
+    try:
+        named = named_fn(rid, rname)
+        if named and (not logo or "/artwork/class logo/" in str(logo).lower()):
+            logo = named
+    except Exception:
+        pass
+    if not logo and rid:
+        block = (_batch_regatta_block_logos(cur, [rid]) or {}).get(rid) or {}
+        logo = str(block.get("logo_path") or "").strip() or None
+    if not logo:
+        logo = _class_logo_from_obvious_event_name(rname, cur)
+    pub_fn = globals().get("_public_artwork_url") or _public_event_logo_url
+    return pub_fn(logo) if logo else None
+
+
+def _attach_events_page_card_logos(cards: list, cur=None) -> None:
+    """Fill event_logo_url on coloured /events cards (past has-results first)."""
+    if not cards:
+        return
+    targets = []
+    for c in cards:
+        if not (c.get("result_yes") or c.get("expect_results")):
+            continue
+        if str(c.get("event_logo_url") or c.get("image_url") or "").strip():
+            continue
+        targets.append(c)
+    if not targets:
+        return
+    class_logo_by_rid: dict[str, str] = {}
+    if globals().get("_regatta_card_event_logo_url"):
+        rids = list({str(c.get("regatta_id") or "").strip() for c in targets if c.get("regatta_id")})
+        for rid, block in (_batch_regatta_block_logos(cur, rids) or {}).items():
+            lp = str(block.get("logo_path") or "").strip()
+            if lp:
+                class_logo_by_rid[rid] = lp
+    for c in targets:
+        rid = str(c.get("regatta_id") or "").strip()
+        rname = str(c.get("event_name") or c.get("display_title") or "").strip()
+        logo = None
+        regatta_logo_fn = globals().get("_regatta_card_event_logo_url")
+        if regatta_logo_fn and rid:
+            try:
+                logo = regatta_logo_fn(
+                    rid,
+                    rname,
+                    cur=cur,
+                    class_logo_by_rid=class_logo_by_rid or None,
+                )
+            except Exception:
+                logo = None
+        if not logo:
+            logo = _event_card_logo_url(cur, rid, rname)
+        if logo:
+            c["event_logo_url"] = logo
+
+
+def _sort_past_event_cards(cards: list) -> list:
+    """Past: newest start_date first (do not bury club/laser.org rows behind all SAS)."""
+    sub = list(cards)
+    sub.sort(
+        key=lambda c: (
+            c.get("start_date_iso") or "",
+            (c.get("event_name") or "").lower(),
+            int(c.get("event_id") or 0),
+        ),
+        reverse=True,
+    )
+    return sub
 
 
 # Tailwind-aligned hex: ACTIVE/UPCOMING/PAST × SAS/CLUB/OTHER — /events + club events (identical).
@@ -2459,6 +3042,45 @@ a.event-result-chip.event-result-pick { padding: 0.18rem 0.4rem; min-height: 1.5
 .event-card.ec-past-other .event-card-index { background: #fff; color: #991b1b; }
 """
 
+_EVENTS_SA_HOME_REGATTA_CSS = """
+/* Events list = same layout as home regatta list; light green = we have results */
+.events-cards.sa-home-regatta-list { display: flex; flex-direction: column; gap: 10px; }
+.sa-home-regatta-card{background:#fff;border:2px solid #8aa2c6;border-radius:6px;box-shadow:0 2px 3px rgba(15,23,42,.06);padding:8px 12px 10px;display:flex;flex-direction:column;gap:8px;overflow:hidden;}
+.sa-home-regatta-card--has-results{background:#f6ecec;border-color:#e0c4c4;}
+.sa-home-regatta-card--has-results .sa-home-regatta-btn{border-color:#c9a0a0;background:#faf4f4;color:#7f1d1d;}
+.sa-home-regatta-card--expect-results{background:#eaf8ef;border-color:#b8e6c8;}
+.sa-home-regatta-card--expect-results .sa-home-regatta-btn{border-color:#7dcf9a;background:#f3fcf6;color:#166534;}
+.sa-home-regatta-top{display:grid;grid-template-columns:104px minmax(0,1fr) minmax(160px,252px) auto;grid-template-areas:"logo main host actions";gap:14px;align-items:center;}
+.sa-home-regatta-event-logo{grid-area:logo;display:block;width:96px;height:68px;object-fit:contain;border:none;border-radius:0;background:transparent;flex:0 0 auto;padding:0;justify-self:start;}
+.sa-home-regatta-top-main{grid-area:main;min-width:0;}
+.sa-home-regatta-title{font-size:15px;font-weight:900;color:#142c78;line-height:1.15;margin:0;letter-spacing:-.01em;text-decoration:none;}
+a.sa-home-regatta-title:hover{color:#1d4ed8;text-decoration:underline;}
+.sa-home-regatta-meta{display:flex;flex-wrap:wrap;gap:8px;color:#5b6780;font-size:11.5px;margin-top:6px;}
+.sa-home-regatta-meta-pill{display:inline-flex;align-items:center;gap:5px;padding:0;border:none;border-radius:0;background:transparent;font-weight:700;white-space:nowrap;position:relative;}
+.sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill{padding-left:10px;}
+.sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:1px;background:#cbd5e1;}
+.sa-home-regatta-type{display:inline-block;font-size:11px;font-weight:800;padding:2px 7px;background:#001f3f;color:#fff;border-radius:4px;line-height:1.2;}
+.sa-home-regatta-host{grid-area:host;display:flex;align-items:center;gap:10px;min-width:0;text-decoration:none;color:inherit;}
+.sa-home-regatta-host-logo{display:block;width:84px;height:44px;object-fit:contain;border:none;border-radius:0;background:transparent;flex:0 0 auto;padding:0;}
+.sa-home-regatta-host-text{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.sa-home-regatta-host-code{font-weight:900;color:#21356b;font-size:14px;line-height:1.05;}
+.sa-home-regatta-host-name{color:#475569;font-size:11px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;}
+.sa-home-regatta-actions{grid-area:actions;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;}
+.sa-home-regatta-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;border-radius:6px;border:1px solid #a5d7de;background:#f9ffff;color:#0f6d7a;font-weight:900;font-size:12px;text-decoration:none;white-space:nowrap;min-width:126px;box-shadow:0 1px 0 rgba(15,109,122,.08);}
+.sa-home-regatta-details{font-size:11px;font-weight:700;color:#2563eb;text-decoration:underline;text-underline-offset:2px;}
+.sa-home-regatta-details:hover{color:#1d4ed8;}
+@media (max-width: 480px){
+.sa-home-regatta-card{padding:8px 10px 10px;border-radius:6px;}
+.sa-home-regatta-top{grid-template-columns:82px minmax(0,1fr);grid-template-areas:"logo main" "logo host" "actions actions";gap:8px 10px;align-items:start;}
+.sa-home-regatta-event-logo{width:78px;max-width:78px;height:58px;}
+.sa-home-regatta-title{font-size:14px;}
+.sa-home-regatta-host-logo{width:76px;height:36px;}
+.sa-home-regatta-host-name{max-width:220px;}
+.sa-home-regatta-actions{width:100%;justify-content:flex-start;}
+.sa-home-regatta-btn{flex:1;min-width:0;padding:9px 10px;}
+}
+"""
+
 
 def _results_regatta_ids_in_batches(cur, regatta_ids: list) -> set:
     """Which regatta_ids have ≥1 results row. Batched IN() avoids huge single queries on /events."""
@@ -2558,6 +3180,7 @@ def _get_upcoming_events(host_club_id=None):
         past_rows = list(cur.fetchall() or [])
         t2 = time.time()
         print("EVENTS: past query", round(t2 - t1, 3))
+        upcoming_rows, past_rows = _rebucket_event_rows_after_date_sanitize(upcoming_rows, past_rows)
         # Resolve host_display to club when host_club_id is NULL. Use venue_raw when host_club_name_raw is association-only.
         if table_exists("clubs"):
             host_displays_to_resolve = set()
@@ -2622,9 +3245,27 @@ def _get_upcoming_events(host_club_id=None):
         # Automatic calendar↔regatta linking: global date pool for /events and type filters only.
         # Club pages (host_club_id set) re-match in serve_club_page against Regattas hosted only.
         if out["past"] and past_rows and host_club_id is None:
+            # Public /events: fuzzy-matching every unlinked past card against the full
+            # regatta pool is O(n*m) and previously took ~80s (crawl 504s). Only
+            # fuzzy-match recent unlinked rows; already-linked cards still get ticks.
             pool = _regatta_match_pool_for_past_rows(cur, past_rows)
             if pool:
-                _club_past_events_match_hosted(out["past"], pool, None)
+                from datetime import date as _date, timedelta as _td
+                cut = (_date.today() - _td(days=550)).isoformat()
+                linked_or_recent = []
+                for card in out["past"]:
+                    rid = str(card.get("regatta_id") or "").strip()
+                    iso = (card.get("start_date_iso") or card.get("end_date_iso") or "").strip()[:10]
+                    if rid or (iso and iso >= cut):
+                        linked_or_recent.append(card)
+                if linked_or_recent:
+                    _club_past_events_match_hosted(linked_or_recent, pool, None)
+        try:
+            _attach_events_page_card_logos(out["past"], cur)
+            _attach_events_page_card_logos(out.get("live") or [], cur)
+            _attach_events_page_card_logos(out["upcoming"], cur)
+        except Exception as _logo_err:
+            print(f"[events] card logos: {_logo_err}", flush=True)
         out["past"] = _sort_past_event_cards(out["past"])
         t5 = time.time()
         print("EVENTS: rows upcoming:", len(out["upcoming"]), "live:", len(out["live"]), "past:", len(out["past"]))
@@ -2724,6 +3365,7 @@ def _get_events_by_type_slug(slug: str):
             {order_past_sql}
         """, (slug,))
         past_rows = list(cur.fetchall() or [])
+        upcoming_rows, past_rows = _rebucket_event_rows_after_date_sanitize(upcoming_rows, past_rows)
         display_name = None
         if upcoming_rows:
             display_name = (upcoming_rows[0].get("category") or "").strip()
@@ -2799,6 +3441,12 @@ def _get_events_by_type_slug(slug: str):
             pool = _regatta_match_pool_for_past_rows(cur, past_rows)
             if pool:
                 _club_past_events_match_hosted(out["past"], pool, None)
+        try:
+            _attach_events_page_card_logos(out["past"], cur)
+            _attach_events_page_card_logos(out.get("live") or [], cur)
+            _attach_events_page_card_logos(out["upcoming"], cur)
+        except Exception as _logo_err:
+            print(f"[events] card logos: {_logo_err}", flush=True)
         out["past"] = _sort_past_event_cards(out["past"])
         cur.close()
         return_db_connection(conn)
@@ -2820,6 +3468,12 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
     end = r.get("end_date")
     start_t = r.get("start_time")
     end_t = r.get("end_time")
+    event_name_early = (r.get("event_name") or "").strip()
+    category_early = (r.get("category") or "").strip() or ""
+    # Racing/championship SAS times are usually junk; keep times for AGM/course/meeting/training only.
+    if not _event_category_shows_times(category_early, event_name_early):
+        start_t = None
+        end_t = None
     date_display = _format_event_date_range(start, end, start_time=start_t, end_time=end_t)
     club_slug = (r.get("club_slug") or "").strip() if (has_host_club_id and r.get("host_club_id")) else (r.get("club_slug") or "").strip()
     host_code = "—"
@@ -2931,6 +3585,15 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
         "image_url": image_url or "",
         "show_result_line": show_result_line,
         "result_yes": result_yes,
+        "expect_results": _event_expect_racing_results(
+            event_type,
+            event_name,
+            host_code=host_code,
+            host_club=host_club,
+            club_slug=club_slug,
+            start_date=start,
+            end_date=end,
+        ),
         "host_unmatched": host_unmatched,
         "result_url": result_url or "",
         "likely_classes": likely_classes,
@@ -2940,13 +3603,26 @@ def _event_row_to_card(r, has_regatta_id, has_host_club_id, is_upcoming, regatta
         "end_date_iso": _event_date_to_iso(end),
         "event_id": int(r["event_id"]) if r.get("event_id") is not None else 0,
         "regatta_id": (r.get("regatta_id") or "").strip() if has_regatta_id else "",
+        "entries": 0,
+        # Logos for sa-home-regatta list layout (host always; event logo filled when known upstream)
+        "club_logo_url": (
+            f"/artwork/Club Logo/{host_code}.png"
+            if host_code
+            and host_code not in ("—", "-", "TBC", "Unk", "Unassigned")
+            and re.match(r"^[A-Za-z0-9]{2,12}$", host_code)
+            else ""
+        ),
+        "event_logo_url": (image_url or "").strip(),
     }
 
 
 def _get_public_stats():
-    """Aggregated counts and top lists for public /stats page. Uses existing tables only. Lightweight, limited rows.
-    Data validation: total_regattas = COUNT(regattas), total_races = COUNT(results). No placeholders; totals match canonical DB."""
-    _pub_stats_ck = "public_stats_full_v1"
+    """Aggregated counts and top lists for public /stats page.
+
+    Overview card totals match homepage /api/site-stats (_get_site_stats): active sailors,
+    regattas with raced results, races sailed (raced=TRUE), classes sailed — same sources
+    as /sailors search and /regattas with-counts. Cached 3min."""
+    _pub_stats_ck = "public_stats_full_v2"
     _cached_pub = get_cached(_pub_stats_ck, ttl_seconds=180)
     if _cached_pub is not None:
         return _cached_pub
@@ -2970,31 +3646,20 @@ def _get_public_stats():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        # Total sailors: distinct helm + crew from results
-        if table_exists("results"):
-            cur.execute("""
-                SELECT COUNT(DISTINCT sailor_id) AS n FROM (
-                    SELECT helm_sa_sailing_id::text AS sailor_id FROM results WHERE helm_sa_sailing_id IS NOT NULL
-                    UNION ALL
-                    SELECT crew_sa_sailing_id::text AS sailor_id FROM results WHERE crew_sa_sailing_id IS NOT NULL
-                ) u
-            """)
-            row = cur.fetchone()
-            out["total_sailors"] = int(row["n"]) if row and row.get("n") is not None else 0
-        if table_exists("regattas"):
-            cur.execute("SELECT COUNT(*) AS n FROM regattas")
-            row = cur.fetchone()
-            out["total_regattas"] = int(row["n"]) if row and row.get("n") is not None else 0
-        if table_exists("results"):
-            cur.execute("SELECT COUNT(*) AS n FROM results")
-            row = cur.fetchone()
-            out["total_races"] = int(row["n"]) if row and row.get("n") is not None else 0
-        if table_exists("classes"):
-            cur.execute("SELECT COUNT(*) AS n FROM classes")
-            row = cur.fetchone()
-            out["total_classes"] = int(row["n"]) if row and row.get("n") is not None else 0
+        # Overview cards: same 4 metrics as homepage (/api/site-stats) — updates when results/SAS IDs added
+        site = _get_site_stats()
+        out["total_sailors"] = int(site.get("active_sailors") or 0)
+        out["total_regattas"] = int(site.get("regattas_sailed") or 0)
+        out["total_races"] = int(site.get("races_raced") or 0)
+        out["total_classes"] = int(site.get("classes_sailed") or 0)
         if table_exists("clubs"):
-            cur.execute("SELECT COUNT(*) AS n FROM clubs")
+            cur.execute("""
+                SELECT COUNT(*) AS n FROM clubs
+                WHERE ((club_fullname IS NOT NULL AND TRIM(club_fullname) != '')
+                   OR (club_abbrev IS NOT NULL AND TRIM(club_abbrev) != ''))
+                  AND lower(trim(COALESCE(club_abbrev, ''))) != 'unassigned'
+                  AND lower(trim(COALESCE(club_fullname, ''))) != 'unassigned'
+            """)
             row = cur.fetchone()
             out["total_clubs"] = int(row["n"]) if row and row.get("n") is not None else 0
         if table_exists("results"):
@@ -3230,14 +3895,9 @@ def _stats_page_html(data: dict) -> str:
     from urllib.parse import quote
     title = "Sailing Statistics – South African Regatta Results"
     desc = "Explore statistics from South Africa's sailing results database including sailors, classes, clubs and regatta participation."
-    header = f"""<!DOCTYPE html>
-<html lang="en-US">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>{html_module.escape(title)}</title>
-<meta name="description" content="{html_module.escape(desc)}">
+    extra_head = (
+        f"""<meta name="description" content="{html_module.escape(desc)}">
 <link rel="canonical" href="https://sailingsa.co.za/stats">
-<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
-<link rel="stylesheet" href="/css/main.css?v=13">
 <style>
 .stats-overview {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1rem; }}
 .stats-card {{ background: #fff; border: 2px solid #001f3f; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,31,63,0.08); padding: 0.75rem 1rem; text-align: center; }}
@@ -3264,18 +3924,15 @@ def _stats_page_html(data: dict) -> str:
 .stats-month-title {{ font-weight: 600; margin: 0.25rem 0; }}
 .stats-regatta-row {{ padding: 0.2rem 0; font-size: 0.85rem; }}
 </style>
-</head>
-<body>
-<header class="site-header"><div class="container" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.75rem;">
-<a href="/" class="logo js-go-home" title="Home"><img src="/assets/logos/sailingsa-logo.png" alt="SailingSA Logo"></a>
-<nav class="nav-inline" aria-label="Main" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-right:auto;"><a href="/">Home</a><a href="/sailors">Sailors</a><a href="/regattas">Regattas</a><a href="/classes">Classes</a><a href="/clubs">Clubs</a><a href="https://sailingsa.co.za/events">Events</a><a href="/about">About</a></nav>
-<div class="header-auth" style="margin-left:auto;"></div>
-</div></header>
-<main class="main-content" id="stats-dashboard"><div class="container">
 """
+    )
+    inner = (
+        """<div class="container" id="stats-dashboard">
+"""
+    )
     card_links = ("/sailors", "/regattas", "/stats?races=1", "/classes", "/clubs")
     cards = data.get("total_sailors", 0), data.get("total_regattas", 0), data.get("total_races", 0), data.get("total_classes", 0), data.get("total_clubs", 0)
-    labels = ("Total Sailors", "Total Regattas", "Total Races", "Total Classes", "Total Clubs")
+    labels = ("Active Sailors", "Regattas with Results", "Races Sailed", "Classes Sailed", "Clubs")
     body = '<div class="card stats-section"><h2 class="section-title">Database Overview</h2><div class="stats-overview">'
     for (val, label), link in zip(zip(cards, labels), card_links):
         body += f'<a href="{html_module.escape(link)}" class="stats-card-link"><div class="stats-card"><div class="stats-value">{val}</div><div class="stats-label">{label}</div></div></a>'
@@ -3328,7 +3985,7 @@ def _stats_page_html(data: dict) -> str:
         date_iso = row.get("date_iso") or ""
         body += f'<tr data-date="{html_module.escape(date_iso)}" data-event_name="{html_module.escape(str(row.get("event_name") or ""))}" data-host_club="{html_module.escape(str(row.get("host_club") or ""))}"><td>{html_module.escape(row.get("date") or "—")}</td><td><a href="{reg_href}">{html_module.escape(row.get("event_name") or "—")}</a></td><td><a href="{club_href}">{html_module.escape(row.get("host_club") or "—")}</a></td></tr>'
     body += "</tbody></table></div></div>"
-    footer = """</div></main><footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer>
+    footer = """</div><footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">SailingSA – South African Sailing Results Database © <span id="year"></span></footer>
 <script>
 document.getElementById("year").textContent = new Date().getFullYear();
 (function(){
@@ -3358,8 +4015,22 @@ document.getElementById("year").textContent = new Date().getFullYear();
     row.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); row.click(); } });
   });
 })();
-</script></body></html>"""
-    return header + body + _seo_discovery_block_html() + footer
+</script>"""
+    inner = inner + body + _seo_discovery_block_html() + footer
+    gold_fn = globals().get("_html_with_gold_header")
+    if gold_fn:
+        resp = gold_fn(title, inner, extra_head)
+        body_bytes = resp.body
+        if isinstance(body_bytes, memoryview):
+            body_bytes = body_bytes.tobytes()
+        if isinstance(body_bytes, (bytes, bytearray)):
+            return body_bytes.decode("utf-8")
+        return str(body_bytes)
+    # Fallback when thin api.py lacks gold header helper
+    return (
+        f"<!DOCTYPE html><html lang=\"en-US\"><head><meta charset=\"UTF-8\">"
+        f"<title>{html_module.escape(title)}</title>{extra_head}</head><body>{inner}</body></html>"
+    )
 
 
 _EVENTS_TOOLBAR_SEARCH_CSS = """
@@ -3600,7 +4271,7 @@ def _events_page_html() -> str:
 .events-panel {{ display: none; }}
 .events-panel.active {{ display: block; }}
 .page-about-block {{ margin: 0 0 1rem 0; padding: 0.85rem 1rem; border: 1px solid #dbe5ef; border-radius: 8px; background: #f8fbff; color: #1e293b; line-height: 1.45; font-size: 0.95rem; }}
-""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + f"""
+""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + _EVENTS_SA_HOME_REGATTA_CSS + f"""
 .event-card .event-likely-classes {{ font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }}
 .event-card .event-card-header {{ display: block; }}
 .event-card[class*="ec-"] h3 {{ font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }}
@@ -3728,47 +4399,82 @@ document.getElementById("year").textContent = new Date().getFullYear();
     else st = 'upcoming';
     return 'ec-' + st + '-' + sl;
   }
-  function renderCard(e, panelId, index1, totalN){
-    var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
-    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
-      ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
-      : esc(titleText);
-    var hostLabel = 'Host: ';
-    var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
-    var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
-    var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list — add to clubs table">⚠</span>' : '';
-    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
-    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
-    var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
-    var resultHtml = (e.show_result_line === true)
-      ? (e.result_yes
-          ? (e.result_multi && e.result_options && e.result_options.length
-          ? '<details class="event-result-line event-result-line-multi event-result-multi-details"><summary class="event-result-multi-summary" aria-label="Choose which results to open">' +
-          '<span class="event-result-label">Results:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></summary>' +
-          '<div class="event-result-dropdown-panel">' + e.result_options.map(function(o){ return '<a href="' + esc(o.url || '') + '" class="event-result-chip event-result-yes event-result-pick"><span class="event-result-glyph" aria-hidden="true">&#10003;</span><span class="event-result-pick-label">' + esc(o.label || 'Results') + '</span></a>'; }).join('') + '</div></details>'
-          : '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>')
-          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
-      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
-    var hasDetails = e.details_url && e.details_url !== '#';
-    var ext = hasDetails && e.details_url.indexOf('/') !== 0;
-    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '<span class="event-details-btn event-details-btn--empty" aria-hidden="true">Details</span>';
-    var idxAria = (typeof totalN === "number" && totalN > 0) ? ' aria-label="Event ' + index1 + ' of ' + totalN + '"' : "";
-    var indexBadge = '<span class="event-card-index"' + idxAria + '>' + String(index1) + '</span>';
-    var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
-    var body = '<div class="event-card-body">'
-      + '<div class="event-card-body-inner">'
-      + typeHtml
-      + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
-      + '<div class="event-card-result-row">'
-      + '<div class="event-result-slot">' + resultHtml + '</div>'
-      + '<div class="event-card-actions">' + indexBadge + btn + '</div>'
-      + '</div>'
-      + locHtml
-      + '</div>'
-      + '</div>';
-    return '<div class="' + cardClass + '">' + header + body + '</div>';
+  function icoCal(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
   }
+  function icoPeople(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  }
+  function renderCard(e, panelId, index1, totalN){
+    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
+    var rid = (e.regatta_id || '').trim();
+    var regHref = rid ? ('/regatta/' + encodeURIComponent(rid)) : '';
+    var titleHref = '';
+    if (e.has_regatta_link && e.details_url && String(e.details_url).indexOf('/regatta/') === 0) titleHref = e.details_url;
+    else if (regHref && e.result_yes) titleHref = regHref;
+    else if (e.details_url && String(e.details_url).indexOf('/') === 0) titleHref = e.details_url;
+    var titleHtml = titleHref
+      ? '<a href="' + esc(titleHref) + '" class="sa-home-regatta-title">' + esc(titleText) + '</a>'
+      : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
+    var logoSrc = (e.event_logo_url || e.image_url || '').trim();
+    var logoHtml = logoSrc
+      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">'
+      : '';
+    var meta = '<div class="sa-home-regatta-meta">';
+    if (e.date_display) meta += '<span class="sa-home-regatta-meta-pill">' + icoCal() + '<span>' + esc(e.date_display) + '</span></span>';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    if (rawType) meta += '<span class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-type">' + esc(rawType) + '</span></span>';
+    var ent = parseInt(e.entries, 10);
+    if (!ent || ent < 1) ent = 0;
+    if (e.result_yes && ent > 0) meta += '<span class="sa-home-regatta-meta-pill">' + icoPeople() + '<span>' + ent + ' entries</span></span>';
+    meta += '</div>';
+    var hostCode = (e.host_code || e.host_club || '').trim();
+    var hostName = (e.host_club_fullname || '').trim();
+    if (hostName && hostCode && hostName.toLowerCase() === hostCode.toLowerCase()) hostName = '';
+    var isUnassigned = !hostCode || hostCode === '—' || hostCode === '-' || /^(tbc|unk|unassigned)$/i.test(hostCode);
+    var clubLogo = (e.club_logo_url || '').trim();
+    var hostInner = '';
+    if (!isUnassigned && clubLogo) {
+      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">';
+    }
+    hostInner += '<div class="sa-home-regatta-host-text">';
+    hostInner += '<div class="sa-home-regatta-host-code">' + esc(isUnassigned ? (hostCode || 'Unassigned') : hostCode) + '</div>';
+    if (hostName) hostInner += '<div class="sa-home-regatta-host-name">' + esc(hostName) + '</div>';
+    hostInner += '</div>';
+    var hostHtml;
+    if (!isUnassigned && e.club_slug) {
+      hostHtml = '<a class="sa-home-regatta-host" href="/club/' + esc(e.club_slug) + '">' + hostInner + '</a>';
+    } else {
+      hostHtml = '<div class="sa-home-regatta-host">' + hostInner + '</div>';
+    }
+    var actions = '<div class="sa-home-regatta-actions">';
+    var resHref = '';
+    if (e.result_yes && e.show_result_line !== false) {
+      resHref = (e.result_url || regHref || '').trim();
+      if (resHref) {
+        actions += '<a class="sa-home-regatta-btn" href="' + esc(resHref) + '">Full Results</a>';
+      }
+    }
+    var det = (e.details_url || '').trim();
+    if (det && det !== '#' && !(e.result_yes && (det === resHref || det === regHref))) {
+      var ext = det.indexOf('/') !== 0;
+      if (!(e.result_yes && det.indexOf('/regatta/') === 0)) {
+        actions += '<a class="sa-home-regatta-details" href="' + esc(det) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>';
+      }
+    }
+    actions += '</div>';
+    var hasRes = !!e.result_yes;
+    var expect = !!e.expect_results && !hasRes && (panelId === 'upcoming' || panelId === 'live');
+    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : (expect ? ' sa-home-regatta-card--expect-results' : ''));
+    return '<article class="' + cardCls + '" data-panel="' + esc(panelId) + '" aria-label="Event ' + index1 + ' of ' + totalN + '">'
+      + '<div class="sa-home-regatta-top">'
+      + logoHtml
+      + '<div class="sa-home-regatta-top-main">' + titleHtml + meta + '</div>'
+      + hostHtml
+      + actions
+      + '</div></article>';
+  }
+
   function wireEventsCarousel(panelId){
     var carousel = document.getElementById("cards-" + panelId);
     var controls = document.getElementById("events-controls-" + panelId);
@@ -3859,6 +4565,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
     var btnWrap = document.getElementById("show-more-" + id);
     var btn = document.getElementById("btn-more-" + id);
     if(!container){ return; }
+    container.classList.add("sa-home-regatta-list");
     if(!list.length){
       container.innerHTML = "";
       if(btnWrap) btnWrap.classList.add("hidden");
@@ -3961,6 +4668,7 @@ def _events_dashboard_fragment(
         ".events-panel { display: none; }\n"
         ".events-panel.active { display: block; }\n"
         + _EVENTS_CARD_MATRIX_CSS
+        + _EVENTS_SA_HOME_REGATTA_CSS
         + "\n"
         ".event-card .event-likely-classes { font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }\n"
         ".event-card .event-card-header { display: block; }\n"
@@ -4080,47 +4788,82 @@ def _events_dashboard_fragment(
     else st = 'upcoming';
     return 'ec-' + st + '-' + sl;
   }
-  function renderCard(e, panelId, index1, totalN){
-    var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
-    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
-      ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
-      : esc(titleText);
-    var hostLabel = 'Host: ';
-    var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
-    var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
-    var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list — add to clubs table">⚠</span>' : '';
-    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
-    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
-    var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
-    var resultHtml = (e.show_result_line === true)
-      ? (e.result_yes
-          ? (e.result_multi && e.result_options && e.result_options.length
-          ? '<details class="event-result-line event-result-line-multi event-result-multi-details"><summary class="event-result-multi-summary" aria-label="Choose which results to open">' +
-          '<span class="event-result-label">Results:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></summary>' +
-          '<div class="event-result-dropdown-panel">' + e.result_options.map(function(o){ return '<a href="' + esc(o.url || '') + '" class="event-result-chip event-result-yes event-result-pick"><span class="event-result-glyph" aria-hidden="true">&#10003;</span><span class="event-result-pick-label">' + esc(o.label || 'Results') + '</span></a>'; }).join('') + '</div></details>'
-          : '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>')
-          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
-      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
-    var hasDetails = e.details_url && e.details_url !== '#';
-    var ext = hasDetails && e.details_url.indexOf('/') !== 0;
-    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '<span class="event-details-btn event-details-btn--empty" aria-hidden="true">Details</span>';
-    var idxAria = (typeof totalN === "number" && totalN > 0) ? ' aria-label="Event ' + index1 + ' of ' + totalN + '"' : "";
-    var indexBadge = '<span class="event-card-index"' + idxAria + '>' + String(index1) + '</span>';
-    var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
-    var body = '<div class="event-card-body">'
-      + '<div class="event-card-body-inner">'
-      + typeHtml
-      + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
-      + '<div class="event-card-result-row">'
-      + '<div class="event-result-slot">' + resultHtml + '</div>'
-      + '<div class="event-card-actions">' + indexBadge + btn + '</div>'
-      + '</div>'
-      + locHtml
-      + '</div>'
-      + '</div>';
-    return '<div class="' + cardClass + '">' + header + body + '</div>';
+  function icoCal(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
   }
+  function icoPeople(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  }
+  function renderCard(e, panelId, index1, totalN){
+    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
+    var rid = (e.regatta_id || '').trim();
+    var regHref = rid ? ('/regatta/' + encodeURIComponent(rid)) : '';
+    var titleHref = '';
+    if (e.has_regatta_link && e.details_url && String(e.details_url).indexOf('/regatta/') === 0) titleHref = e.details_url;
+    else if (regHref && e.result_yes) titleHref = regHref;
+    else if (e.details_url && String(e.details_url).indexOf('/') === 0) titleHref = e.details_url;
+    var titleHtml = titleHref
+      ? '<a href="' + esc(titleHref) + '" class="sa-home-regatta-title">' + esc(titleText) + '</a>'
+      : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
+    var logoSrc = (e.event_logo_url || e.image_url || '').trim();
+    var logoHtml = logoSrc
+      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">'
+      : '';
+    var meta = '<div class="sa-home-regatta-meta">';
+    if (e.date_display) meta += '<span class="sa-home-regatta-meta-pill">' + icoCal() + '<span>' + esc(e.date_display) + '</span></span>';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    if (rawType) meta += '<span class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-type">' + esc(rawType) + '</span></span>';
+    var ent = parseInt(e.entries, 10);
+    if (!ent || ent < 1) ent = 0;
+    if (e.result_yes && ent > 0) meta += '<span class="sa-home-regatta-meta-pill">' + icoPeople() + '<span>' + ent + ' entries</span></span>';
+    meta += '</div>';
+    var hostCode = (e.host_code || e.host_club || '').trim();
+    var hostName = (e.host_club_fullname || '').trim();
+    if (hostName && hostCode && hostName.toLowerCase() === hostCode.toLowerCase()) hostName = '';
+    var isUnassigned = !hostCode || hostCode === '—' || hostCode === '-' || /^(tbc|unk|unassigned)$/i.test(hostCode);
+    var clubLogo = (e.club_logo_url || '').trim();
+    var hostInner = '';
+    if (!isUnassigned && clubLogo) {
+      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">';
+    }
+    hostInner += '<div class="sa-home-regatta-host-text">';
+    hostInner += '<div class="sa-home-regatta-host-code">' + esc(isUnassigned ? (hostCode || 'Unassigned') : hostCode) + '</div>';
+    if (hostName) hostInner += '<div class="sa-home-regatta-host-name">' + esc(hostName) + '</div>';
+    hostInner += '</div>';
+    var hostHtml;
+    if (!isUnassigned && e.club_slug) {
+      hostHtml = '<a class="sa-home-regatta-host" href="/club/' + esc(e.club_slug) + '">' + hostInner + '</a>';
+    } else {
+      hostHtml = '<div class="sa-home-regatta-host">' + hostInner + '</div>';
+    }
+    var actions = '<div class="sa-home-regatta-actions">';
+    var resHref = '';
+    if (e.result_yes && e.show_result_line !== false) {
+      resHref = (e.result_url || regHref || '').trim();
+      if (resHref) {
+        actions += '<a class="sa-home-regatta-btn" href="' + esc(resHref) + '">Full Results</a>';
+      }
+    }
+    var det = (e.details_url || '').trim();
+    if (det && det !== '#' && !(e.result_yes && (det === resHref || det === regHref))) {
+      var ext = det.indexOf('/') !== 0;
+      if (!(e.result_yes && det.indexOf('/regatta/') === 0)) {
+        actions += '<a class="sa-home-regatta-details" href="' + esc(det) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>';
+      }
+    }
+    actions += '</div>';
+    var hasRes = !!e.result_yes;
+    var expect = !!e.expect_results && !hasRes && (panelId === 'upcoming' || panelId === 'live');
+    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : (expect ? ' sa-home-regatta-card--expect-results' : ''));
+    return '<article class="' + cardCls + '" data-panel="' + esc(panelId) + '" aria-label="Event ' + index1 + ' of ' + totalN + '">'
+      + '<div class="sa-home-regatta-top">'
+      + logoHtml
+      + '<div class="sa-home-regatta-top-main">' + titleHtml + meta + '</div>'
+      + hostHtml
+      + actions
+      + '</div></article>';
+  }
+
   function wireEventsCarousel(panelId){
     var carousel = document.getElementById("cards-" + panelId);
     var controls = document.getElementById("events-controls-" + panelId);
@@ -4211,6 +4954,7 @@ def _events_dashboard_fragment(
     var btnWrap = document.getElementById("show-more-" + id);
     var btn = document.getElementById("btn-more-" + id);
     if(!container){ return; }
+    container.classList.add("sa-home-regatta-list");
     if(!list.length){
       container.innerHTML = "";
       if(btnWrap) btnWrap.classList.add("hidden");
@@ -4303,7 +5047,7 @@ def _events_type_page_html(slug: str, display_name: str, data: dict) -> str:
 .events-tabs button[data-tab="past"].active {{ background: #7f1d1d; color: #fff; border-color: #991b1b; }}
 .events-panel {{ display: none; }}
 .events-panel.active {{ display: block; }}
-""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + f"""
+""" + _EVENTS_TAB_COUNT_CSS + _SECTION_HEADING_ROW_UNIFIED_CSS + _EVENTS_TOOLBAR_SEARCH_CSS + _EVENTS_CARD_MATRIX_CSS + _EVENTS_SA_HOME_REGATTA_CSS + f"""
 .event-card .event-likely-classes {{ font-size: 0.8rem; color: #475569; margin: 0.2rem 0 0 0; }}
 .event-card .event-card-header {{ display: block; }}
 .event-card[class*="ec-"] h3 {{ font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }}
@@ -4420,52 +5164,88 @@ document.getElementById("year").textContent = new Date().getFullYear();
     else st = 'upcoming';
     return 'ec-' + st + '-' + sl;
   }
-  function renderCard(e, panelId, index1, totalN){
-    var cardClass = 'event-card ' + eventMatrixClass(e, panelId);
-    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
-    var titleHtml = (panelId === 'past' && e.has_regatta_link && e.details_url && e.details_url.indexOf('/regatta/') === 0)
-      ? '<a href="' + esc(e.details_url) + '" class="event-title-link">' + esc(titleText) + '</a>'
-      : esc(titleText);
-    var hostLabel = 'Host: ';
-    var hostLink = e.club_slug ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(e.host_code || e.host_club) + '</a>' : esc(e.host_code || e.host_club);
-    var hostFullname = (e.host_club_fullname && e.host_club_fullname.trim() && String(e.host_club_fullname).trim() !== String(e.host_code || e.host_club).trim()) ? ' (' + esc(e.host_club_fullname) + ')' : '';
-    var hostFlag = (e.host_unmatched) ? ' <span class="event-host-unmatched" title="Host not in club list">&#9888;</span>' : '';
-    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
-    var typeHtml = '<div class="event-type-line"><span class="event-type' + (rawType ? '' : ' event-type--empty') + '"' + (rawType ? '' : ' title="Event type not set"') + '>' + (rawType ? esc(rawType) : '\u2014') + '</span></div>';
-    var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
-    var resultHtml = (e.show_result_line === true)
-      ? (e.result_yes
-          ? (e.result_multi && e.result_options && e.result_options.length
-          ? '<details class="event-result-line event-result-line-multi event-result-multi-details"><summary class="event-result-multi-summary" aria-label="Choose which results to open">' +
-          '<span class="event-result-label">Results:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></summary>' +
-          '<div class="event-result-dropdown-panel">' + e.result_options.map(function(o){ return '<a href="' + esc(o.url || '') + '" class="event-result-chip event-result-yes event-result-pick"><span class="event-result-glyph" aria-hidden="true">&#10003;</span><span class="event-result-pick-label">' + esc(o.label || 'Results') + '</span></a>'; }).join('') + '</div></details>'
-          : '<div class="event-result-line"><a href="' + esc(e.result_url || '') + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a></div>')
-          : '<div class="event-result-line"><span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span></div>')
-      : '<div class="event-result-line"><span class="event-result-chip event-result-chip--reserved" aria-hidden="true"><span class="event-result-label">Result:</span><span class="event-result-glyph">&#10003;</span></span></div>';
-    var hasDetails = e.details_url && e.details_url !== '#';
-    var ext = hasDetails && e.details_url.indexOf('/') !== 0;
-    var btn = hasDetails ? '<a href="' + esc(e.details_url) + '" class="event-details-btn"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>' : '<span class="event-details-btn event-details-btn--empty" aria-hidden="true">Details</span>';
-    var idxAria = (typeof totalN === "number" && totalN > 0) ? ' aria-label="Event ' + index1 + ' of ' + totalN + '"' : "";
-    var indexBadge = '<span class="event-card-index"' + idxAria + '>' + String(index1) + '</span>';
-    var header = '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display) + '</span></div>';
-    var body = '<div class="event-card-body">'
-      + '<div class="event-card-body-inner">'
-      + typeHtml
-      + '<span class="event-club">' + hostLabel + hostLink + hostFullname + hostFlag + '</span>'
-      + '<div class="event-card-result-row">'
-      + '<div class="event-result-slot">' + resultHtml + '</div>'
-      + '<div class="event-card-actions">' + indexBadge + btn + '</div>'
-      + '</div>'
-      + locHtml
-      + '</div>'
-      + '</div>';
-    return '<div class="' + cardClass + '">' + header + body + '</div>';
+  function icoCal(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
   }
+  function icoPeople(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  }
+  function renderCard(e, panelId, index1, totalN){
+    var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : e.event_name;
+    var rid = (e.regatta_id || '').trim();
+    var regHref = rid ? ('/regatta/' + encodeURIComponent(rid)) : '';
+    var titleHref = '';
+    if (e.has_regatta_link && e.details_url && String(e.details_url).indexOf('/regatta/') === 0) titleHref = e.details_url;
+    else if (regHref && e.result_yes) titleHref = regHref;
+    else if (e.details_url && String(e.details_url).indexOf('/') === 0) titleHref = e.details_url;
+    var titleHtml = titleHref
+      ? '<a href="' + esc(titleHref) + '" class="sa-home-regatta-title">' + esc(titleText) + '</a>'
+      : '<div class="sa-home-regatta-title">' + esc(titleText) + '</div>';
+    var logoSrc = (e.event_logo_url || e.image_url || '').trim();
+    var logoHtml = logoSrc
+      ? '<img class="sa-home-regatta-event-logo" src="' + esc(logoSrc) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">'
+      : '';
+    var meta = '<div class="sa-home-regatta-meta">';
+    if (e.date_display) meta += '<span class="sa-home-regatta-meta-pill">' + icoCal() + '<span>' + esc(e.date_display) + '</span></span>';
+    var rawType = (e.event_type != null && String(e.event_type).trim()) ? String(e.event_type).trim() : '';
+    if (rawType) meta += '<span class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-type">' + esc(rawType) + '</span></span>';
+    var ent = parseInt(e.entries, 10);
+    if (!ent || ent < 1) ent = 0;
+    if (e.result_yes && ent > 0) meta += '<span class="sa-home-regatta-meta-pill">' + icoPeople() + '<span>' + ent + ' entries</span></span>';
+    meta += '</div>';
+    var hostCode = (e.host_code || e.host_club || '').trim();
+    var hostName = (e.host_club_fullname || '').trim();
+    if (hostName && hostCode && hostName.toLowerCase() === hostCode.toLowerCase()) hostName = '';
+    var isUnassigned = !hostCode || hostCode === '—' || hostCode === '-' || /^(tbc|unk|unassigned)$/i.test(hostCode);
+    var clubLogo = (e.club_logo_url || '').trim();
+    var hostInner = '';
+    if (!isUnassigned && clubLogo) {
+      hostInner += '<img class="sa-home-regatta-host-logo" src="' + esc(clubLogo) + '" alt="" loading="lazy" decoding="async" onerror="this.hidden=true">';
+    }
+    hostInner += '<div class="sa-home-regatta-host-text">';
+    hostInner += '<div class="sa-home-regatta-host-code">' + esc(isUnassigned ? (hostCode || 'Unassigned') : hostCode) + '</div>';
+    if (hostName) hostInner += '<div class="sa-home-regatta-host-name">' + esc(hostName) + '</div>';
+    hostInner += '</div>';
+    var hostHtml;
+    if (!isUnassigned && e.club_slug) {
+      hostHtml = '<a class="sa-home-regatta-host" href="/club/' + esc(e.club_slug) + '">' + hostInner + '</a>';
+    } else {
+      hostHtml = '<div class="sa-home-regatta-host">' + hostInner + '</div>';
+    }
+    var actions = '<div class="sa-home-regatta-actions">';
+    var resHref = '';
+    if (e.result_yes && e.show_result_line !== false) {
+      resHref = (e.result_url || regHref || '').trim();
+      if (resHref) {
+        actions += '<a class="sa-home-regatta-btn" href="' + esc(resHref) + '">Full Results</a>';
+      }
+    }
+    var det = (e.details_url || '').trim();
+    if (det && det !== '#' && !(e.result_yes && (det === resHref || det === regHref))) {
+      var ext = det.indexOf('/') !== 0;
+      if (!(e.result_yes && det.indexOf('/regatta/') === 0)) {
+        actions += '<a class="sa-home-regatta-details" href="' + esc(det) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>Details</a>';
+      }
+    }
+    actions += '</div>';
+    var hasRes = !!e.result_yes;
+    var expect = !!e.expect_results && !hasRes && (panelId === 'upcoming' || panelId === 'live');
+    var cardCls = 'sa-home-regatta-card' + (hasRes ? ' sa-home-regatta-card--has-results' : (expect ? ' sa-home-regatta-card--expect-results' : ''));
+    return '<article class="' + cardCls + '" data-panel="' + esc(panelId) + '" aria-label="Event ' + index1 + ' of ' + totalN + '">'
+      + '<div class="sa-home-regatta-top">'
+      + logoHtml
+      + '<div class="sa-home-regatta-top-main">' + titleHtml + meta + '</div>'
+      + hostHtml
+      + actions
+      + '</div></article>';
+  }
+
   function fillPanel(id, list){
     var container = document.getElementById("cards-" + id);
     var btnWrap = document.getElementById("show-more-" + id);
     var btn = document.getElementById("btn-more-" + id);
     if(!container){ return; }
+    container.classList.add("sa-home-regatta-list");
     if(!list.length){
       container.innerHTML = "";
       if(btnWrap) btnWrap.classList.add("hidden");
@@ -15031,6 +15811,7 @@ def test_class_aggregate_page(class_id: int):
         _SECTION_HEADING_ROW_UNIFIED_CSS
         + _EVENTS_TOOLBAR_SEARCH_CSS
         + _EVENTS_CARD_MATRIX_CSS
+        + _EVENTS_SA_HOME_REGATTA_CSS
         + _CLUB_EVENTS_CAROUSEL_CSS
         + """
 .class-test-page .event-card .event-title-link { font-weight: 700; text-decoration: underline; }
@@ -15584,6 +16365,7 @@ def api_search(
     age_over: Optional[int] = None,
     limit: int = 200,
     hub: int = Query(0, description="1 = landing/hub search: higher cap, multi-word fuzzy on names"),
+    active: int = Query(0, description="1 = only sailors with raced results on dated regattas (stats active count)"),
 ):
     """Search for members (SA IDs and Temp IDs) with last regatta info"""
     request_id = getattr(request.state, 'request_id', None) if request else None
@@ -15599,6 +16381,7 @@ def api_search(
     
     max_cap = 500 if int(hub or 0) == 1 else 200
     limit = min(max(1, int(limit or 200)), max_cap)
+    active_on = int(active or 0) == 1
     
     rows = []
     
@@ -15733,6 +16516,8 @@ def api_search(
                 if age_over:
                     conditions.append("s.year_of_birth < %s")
                     params.append(current_year - age_over)
+
+                # active_on uses active_join INNER JOIN (see below)
                 
                 where_clause = " AND " + " AND ".join(conditions) if conditions else ""
                 
@@ -15746,6 +16531,28 @@ def api_search(
                     # Uses pre-aggregated LEFT JOINs instead of per-row subqueries
                     # Pattern: Single pass through sas_id_personal with pre-computed result flags
                     
+                    # Active sailors only: join pre-filtered set (faster than per-row EXISTS)
+                    active_join = ""
+                    if active_on:
+                        active_join = """
+                            INNER JOIN (
+                                SELECT DISTINCT sailor_id FROM (
+                                    SELECT r.helm_sa_sailing_id::text AS sailor_id
+                                    FROM public.results r
+                                    JOIN public.regattas reg ON reg.regatta_id = r.regatta_id
+                                    WHERE r.raced = TRUE
+                                      AND r.helm_sa_sailing_id IS NOT NULL AND r.helm_sa_sailing_id::text != ''
+                                      AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+                                    UNION
+                                    SELECT r.crew_sa_sailing_id::text AS sailor_id
+                                    FROM public.results r
+                                    JOIN public.regattas reg ON reg.regatta_id = r.regatta_id
+                                    WHERE r.raced = TRUE
+                                      AND r.crew_sa_sailing_id IS NOT NULL AND r.crew_sa_sailing_id::text != ''
+                                      AND (reg.end_date IS NOT NULL OR reg.start_date IS NOT NULL)
+                                ) u
+                            ) active_sailors ON active_sailors.sailor_id = s.sa_sailing_id::text
+                        """
                     # Build sail/boat name search JOIN if needed (replaces EXISTS clause)
                     sail_boat_join = ""
                     sail_boat_filter = ""
@@ -15793,6 +16600,7 @@ def api_search(
                             NULL::text as bow_no,
                             s.year_of_birth as born
                         FROM public.sas_id_personal s
+                        {active_join}
                         {sail_boat_join}
                         WHERE 1=1 {where_clause}{" " + sail_boat_filter if sail_boat_filter else ""}
                         ORDER BY surname NULLS LAST, first_names NULLS LAST, sas_id
@@ -15813,8 +16621,11 @@ def api_search(
                 # 2. q is "T" or starts with "TMP"
                 # 3. q is empty (show all)
                 should_show_temp_ids = (
-                    (sas_id and (sas_id.strip().upper() == "T" or sas_id.upper().startswith("TMP"))) or
-                    (not q or q.strip() == "" or q.strip().upper() == "T" or q.upper().startswith("TMP"))
+                    not active_on
+                    and (
+                        (sas_id and (sas_id.strip().upper() == "T" or sas_id.upper().startswith("TMP")))
+                        or (not q or q.strip() == "" or q.strip().upper() == "T" or q.upper().startswith("TMP"))
+                    )
                 )
                 
                 if should_show_temp_ids:

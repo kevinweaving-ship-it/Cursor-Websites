@@ -207,6 +207,8 @@ recalc_*.py
 refactor_*.py
 report_*.py
 scrape_*.py
+!sailingsa/deploy/scrape_sas_events_list.py
+!scrape_sas_events_list.py
 show_*.py
 test_*.py
 update_*.py
