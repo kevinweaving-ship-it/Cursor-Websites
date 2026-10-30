@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Sailing Weekend Roundup publication
+
+[Timer]
+OnCalendar=*-*-* 06:00:00 Africa/Johannesburg
+Persistent=true
+RandomizedDelaySec=90
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
