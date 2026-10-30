@@ -1,0 +1,39 @@
+<section id="dockside-landing" class="dockside-landing" aria-label="Dockside Chat" data-dockside-card="1">
+    <div class="dockside-head">
+        <div class="dockside-brand">
+            <svg class="dockside-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="#001f3f" d="M5 3.5h14a2.5 2.5 0 0 1 2.5 2.5v8.2a2.5 2.5 0 0 1-2.5 2.5H9.2L4.2 21v-4.3H5A2.5 2.5 0 0 1 2.5 14.2V6A2.5 2.5 0 0 1 5 3.5z"/>
+            </svg>
+            <div class="dockside-titles">
+                <h2 class="dockside-kicker">Dockside Chat</h2>
+                <p class="dockside-sub">Sailors on the dock</p>
+            </div>
+        </div>
+        <a class="dockside-viewall" href="/dockside.html">View all</a>
+    </div>
+    <div id="dockside-topic" hidden>
+        <div class="dockside-op" id="dockside-original"></div>
+        <div class="dockside-scroll" id="dockside-scroll" tabindex="0"></div>
+        <form class="dockside-compose" id="dockside-reply-form" action="/dockside.html" method="get" hidden>
+            <span class="dockside-avatar dockside-avatar--me" id="dockside-me-avatar" aria-hidden="true"></span>
+            <label class="dockside-sr" for="dockside-reply-body">Comment</label>
+            <input id="dockside-reply-body" type="text" maxlength="2000" placeholder="Comment as sailor" autocomplete="off">
+            <button type="submit" class="dockside-post">Post</button>
+        </form>
+    </div>
+    <div id="dockside-empty" class="dockside-invite">
+        <p>No discussion yet.</p>
+        <button type="button" id="dockside-start-open">Start a discussion</button>
+        <form id="dockside-start-form" class="dockside-start" hidden>
+            <div class="dockside-compose">
+                <label class="dockside-sr" for="dockside-start-body">First post</label>
+                <input id="dockside-start-body" type="text" maxlength="2000" placeholder="Write the first post" autocomplete="off">
+                <button type="submit" class="dockside-post">Post</button>
+            </div>
+        </form>
+    </div>
+</section>
+<link rel="stylesheet" href="/css/dockside-chat.css?v=dockside19">
+<link rel="stylesheet" href="/css/roundup-reactions.css?v=dockside28">
+<script src="/js/dockside-chat.js?v=dockside25" defer></script>
+<script src="/js/roundup-reactions.js?v=dockside28" defer></script>

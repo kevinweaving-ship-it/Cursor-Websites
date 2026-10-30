@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dockside Chat | SailingSA</title>
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/dockside-chat.css?v=dockside18">
+</head>
+<body>
+<main class="container" id="dockside-page">
+    <div class="dockside-page-bar">
+        <h1>Dockside Chat</h1>
+        <p class="dockside-back"><a href="/">Home</a></p>
+    </div>
+    <div id="dockside-notes"></div>
+    <form class="dockside-compose" id="dockside-new-topic">
+        <span class="dockside-avatar dockside-avatar--me" id="dockside-page-avatar" aria-hidden="true"></span>
+        <label class="dockside-sr" for="dockside-new-body">Write a post</label>
+        <input id="dockside-new-body" type="text" maxlength="2000" placeholder="Write a post…" autocomplete="off">
+        <button type="submit" class="dockside-post">Post</button>
+    </form>
+    <p id="dockside-new-error" class="dockside-error" role="status"></p>
+    <div id="dockside-feed"></div>
+</main>
+<script src="/js/dockside-chat.js?v=dockside24" defer></script>
+</body>
+</html>
