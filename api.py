@@ -26,6 +26,7 @@ from urllib.parse import urlparse, unquote
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+import math
 
 # Sailor bio: build_sailor_bio_from_db(sas_id) from modules/sailor_bio.py — do not reintroduce _get_sailor_bio_data for bio generation.
 _api_modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sailingsa", "api")
@@ -26409,6 +26410,143 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         return HTMLResponse(content=_HTML_SOFT_FAIL_200, status_code=200, media_type="text/html")
 
 
+TRACKING_LIVE_ASSETS = ((2619, "MagTrack"), (2079, "KingPet1"))
+TRACKING_LIVE_FRESH_SEC = 30 * 60
+TRACKING_LIVE_RADIUS_KM = 10.0
+_TRACKING_GPS_RE = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$")
+
+
+def _tracking_live_sys_path():
+    root = str(Path(__file__).resolve().parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+
+def _tracking_parse_club_gps(raw):
+    """clubs.gps_coordinates is 'latitude,longitude' decimal degrees."""
+    if not isinstance(raw, str):
+        return None
+    match = _TRACKING_GPS_RE.match(raw)
+    if not match:
+        return None
+    lat = float(match.group(1))
+    lon = float(match.group(2))
+    if lat < -90 or lat > 90 or lon < -180 or lon > 180:
+        return None
+    return lat, lon
+
+
+def _tracking_haversine_km(lat1, lon1, lat2, lon2):
+    radius = 6371.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lon / 2) ** 2
+    return 2 * radius * math.asin(min(1.0, math.sqrt(a)))
+
+
+def _tracking_parse_utc(raw):
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    text = raw.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    if "." in text:
+        head, rest = text.split(".", 1)
+        frac, tz = rest, ""
+        for i, ch in enumerate(rest):
+            if ch in "+-":
+                frac, tz = rest[:i], rest[i:]
+                break
+        text = head + "." + (frac + "000000")[:6] + tz
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _tracking_host_gps(event_slug):
+    reg = _get_regatta_by_slug(event_slug)
+    if not reg or not reg[5]:
+        return None
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cur.execute("SELECT gps_coordinates FROM clubs WHERE club_id = %s", (reg[5],))
+        row = cur.fetchone()
+    finally:
+        cur.close()
+        return_db_connection(conn)
+    if not row:
+        return None
+    return _tracking_parse_club_gps(row.get("gps_coordinates"))
+
+
+def _tracking_live_off(event):
+    return JSONResponse({"show": False, "event": event, "assets": []})
+
+
+@app.get("/api/tracking/live")
+def api_tracking_live(request: Request):
+    """Show live allowlisted trackers within 10 km of the host club. No track history."""
+    event = (request.query_params.get("event") or "").strip()
+    if not event:
+        return _tracking_live_off("")
+    try:
+        venue = _tracking_host_gps(event)
+    except Exception as err:
+        print(f"[api_tracking_live] host gps: {err}", flush=True)
+        return JSONResponse({"show": False, "error": "tracking unavailable"}, status_code=502)
+    if venue is None:
+        return _tracking_live_off(event)
+    try:
+        _tracking_live_sys_path()
+        from sailingsa.backend.gpsgate_client import GpsGateClient
+        client = GpsGateClient()
+        now = datetime.now(timezone.utc)
+        assets = []
+        for uid, label in TRACKING_LIVE_ASSETS:
+            position = client.status(uid)
+            fix_at = _tracking_parse_utc(position.get("utc"))
+            lat = position.get("lat")
+            lon = position.get("lon")
+            if fix_at is None or lat is None or lon is None:
+                continue
+            age = (now - fix_at).total_seconds()
+            if age < -300 or age > TRACKING_LIVE_FRESH_SEC:
+                continue
+            distance = _tracking_haversine_km(venue[0], venue[1], lat, lon)
+            if distance > TRACKING_LIVE_RADIUS_KM:
+                continue
+            assets.append({
+                "userId": uid,
+                "name": label,
+                "distanceKm": round(distance, 3),
+                "position": position,
+            })
+        return JSONResponse({"show": bool(assets), "event": event, "assets": assets})
+    except Exception as err:
+        code = getattr(err, "status_code", None) or 502
+        if code not in (400, 401, 403, 404, 429, 503):
+            code = 502
+        return JSONResponse({"show": False, "error": "tracking unavailable"}, status_code=code)
+
+
+@app.get("/tracking-live.html")
+@app.head("/tracking-live.html")
+def tracking_live_page():
+    path = FRONTEND_DIR / "tracking-live.html"
+    if not path.is_file():
+        path = Path(__file__).resolve().parent / "sailingsa" / "frontend" / "tracking-live.html"
+    if not path.is_file():
+        return HTMLResponse("Tracking page missing", status_code=404)
+    return HTMLResponse(path.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"})
+
+
 TRACKING_DEV2_SLUG = "2026-08-29-lipton-challenge-cup-dev2"
 
 
@@ -26730,7 +26868,12 @@ def serve_regatta_standalone(slug: str, request: Request):
                 "})();</script>"
             )
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-        body_html = header_html + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
+        tracking_slot = (
+            '<div id="tracking-event-slot" class="tracking-event-slot" data-event="'
+            + html_module.escape(str(regatta_id))
+            + '"></div>'
+        )
+        body_html = header_html + "\n" + tracking_slot + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script = (
@@ -26749,6 +26892,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
             f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
+            '<script src="/js/tracking-event-module.js?v=2" defer></script>'
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
