@@ -1,0 +1,17 @@
+#!/usr/bin/expect -f
+# Apply Lipton 2026 R4 results on LIVE DB only.
+# From project root: expect sailingsa/deploy/apply-lipton-2026-r4.exp
+set timeout 90
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+set sql_file "sailingsa/deploy/patch_lipton_2026_r4.sql"
+
+spawn bash -c "scp -o StrictHostKeyChecking=no $sql_file ${user}@${server}:/tmp/patch_lipton_2026_r4.sql && ssh -o StrictHostKeyChecking=no ${user}@${server} \"DB_URL=\\\$(systemctl show sailingsa-api -p Environment --no-pager --value | tr ' ' '\\\\n' | sed -n 's/^DB_URL=//p'); /usr/bin/psql \\\"\\\$DB_URL\\\" -v ON_ERROR_STOP=1 -f /tmp/patch_lipton_2026_r4.sql\""
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    -re "password" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
