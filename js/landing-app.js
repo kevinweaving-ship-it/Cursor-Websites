@@ -19,7 +19,6 @@
             var isSailor = mode === 'sailor';
             var isHome = !isClass && !isSailor;
             function show(el, on) { if (el) el.style.display = on ? '' : 'none'; }
-            show(document.getElementById('site-stats-embed'), false); // gauges temporarily removed
             if (isSailor) {
                 return;
             }
