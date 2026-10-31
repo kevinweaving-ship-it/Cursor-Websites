@@ -15,14 +15,14 @@ a:focus-visible,button:focus-visible{outline:3px solid #e5c394;outline-offset:3p
 <header class="dev-header" aria-label="SailingSA header"><div class="dev-header-inner">
 <a href="/" class="logo" aria-label="SailingSA homepage"><img src="/assets/logos/sailingsa-logo.png" alt="SailingSA"></a>
 <nav class="auth" id="loggedOut" aria-label="Account" hidden><a class="sign-up" href="/signup.html">Sign Up</a><a class="sign-in" href="/login.html?v=20261028login">Sign In</a></nav>
-<a class="account-center" href="/" id="accountLink" hidden><span id="accountName">My SailingSA</span><span id="accountSas" hidden></span></a><nav class="auth" id="loggedIn" aria-label="Account" hidden><button type="button" class="sign-out" id="logout">Logout</button></nav>
+<a class="account-center" href="/" id="accountLink" hidden><span id="accountName">My SailingSA</span></a><nav class="auth" id="loggedIn" aria-label="Account" hidden><button type="button" class="sign-out" id="logout">Logout</button></nav>
 </div></header>
 <script>
 (() => {
 "use strict";
-const loggedOut=document.getElementById("loggedOut"),loggedIn=document.getElementById("loggedIn"),account=document.getElementById("accountLink"),accountName=document.getElementById("accountName"),accountSas=document.getElementById("accountSas");
-function setState(user,sasId){loggedOut.hidden=!!user;loggedIn.hidden=!user;account.hidden=!user;if(user){const full=(user.full_name||[user.first_name,user.last_name].filter(Boolean).join(" ")).trim();accountName.textContent=full||"My SailingSA";accountSas.textContent=sasId?"SAS ID: "+sasId:"";accountSas.hidden=!sasId;}else{accountName.textContent="My SailingSA";accountSas.hidden=true;}}
-fetch("/auth/session?path=%2F",{credentials:"same-origin",cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Session check unavailable");return r.json()}).then(data=>setState(data&&data.valid?(data.user||{}):null,data&&data.valid?data.sas_id:null)).catch(()=>{setState(null);});
+const loggedOut=document.getElementById("loggedOut"),loggedIn=document.getElementById("loggedIn"),account=document.getElementById("accountLink"),accountName=document.getElementById("accountName");
+function setState(user){loggedOut.hidden=!!user;loggedIn.hidden=!user;account.hidden=!user;if(user){const full=(user.full_name||[user.first_name,user.last_name].filter(Boolean).join(" ")).trim();accountName.textContent=full||"My SailingSA";}else{accountName.textContent="My SailingSA";}}
+fetch("/auth/session?path=%2F",{credentials:"same-origin",cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Session check unavailable");return r.json()}).then(data=>setState(data&&data.valid?(data.user||{}):null)).catch(()=>{setState(null);});
 document.getElementById("logout").addEventListener("click",async()=>{if(!confirm("Log out of your existing SailingSA session?"))return;const button=document.getElementById("logout");button.disabled=true;try{const r=await fetch("/auth/logout",{method:"POST",credentials:"same-origin"});if(!r.ok)throw Error("Logout failed");setState(null);}catch(e){}finally{button.disabled=false;}});
 })();
 </script></body></html>
