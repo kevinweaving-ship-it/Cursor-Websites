@@ -6106,7 +6106,6 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                     console.error("[media] Invalid sa_id for public-mentions:", sid);
                                     console.error("[media] sa_id must be numeric; stopping.");
                                 } else {
-                                    console.log("[media] sa_id used:", sid);
                                     var mentionsRes = await fetch(API + '/api/member/' + encodeURIComponent(sid) + '/public-mentions').catch(function(err) { 
                                         console.error("Fetch error:", err);
                                         return null; 
@@ -6131,7 +6130,6 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                         }
                                         mentionItems = Array.isArray(mentionsData.items) ? mentionsData.items : [];
                                     }
-                                    console.log("[media] items returned:", mentionItems.length);
                                     var mediaScore = mentionsData && mentionsData.media_score;
                                     if (mediaScore != null && Number(mediaScore) >= 4 && mentionItems.length === 0) {
                                         console.error("[media] Sailor has media_score >= 4 but sailor_public_mentions = 0. Run jobs/refresh_sailor_media_recent.py to ingest content.");
@@ -6178,9 +6176,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                         '<h2 class="ai-overview-title">Career Summary</h2>' +
                                         '<div class="ai-overview-text">' + formattedSummary + '</div>' +
                                         '</section>';
-                                    console.log("✅ AI Overview HTML created, length:", aiOverviewHtml.length);
                                 } else {
-                                    console.log("⚠️ AI Overview summary not available or empty");
                                 }
                                 
                                 // Sailor avatar: ONLY local assets/avatars, cached media/avatars, or default – never media tab thumbnails
@@ -6776,11 +6772,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                     }).join('');
                                     var addMediaBtn = isLoggedInUser ? '<button type="button" class="add-media-btn" id="add-media-btn" data-sa-id="' + escapeHtml(String(sid)) + '" data-name="' + escapeHtml(String(name || '')) + '" data-club="' + escapeHtml(String(club || '')) + '" style="margin-top:8px;padding:8px 14px;background:#001f3f;color:#fff;border:none;border-radius:6px;font-size:0.9rem;cursor:pointer;">Add Media</button>' : '';
                                     mentionsSectionHtml = '<div class="sailor-public-mentions"><h2 class="sailor-media-page-header">Sailor &quot;' + escapeHtml(sailorNameForMedia) + '&quot; in the Media</h2><h3 class="sailor-media-section-title">Media</h3><p class="sailor-mentions-subtitle">Publicly available articles, posts and videos.</p>' + (addMediaBtn ? '<div class="sailor-media-header-actions">' + addMediaBtn + '</div>' : '') + '<div class="media-list">' + mentionCards + '</div></div>';
-                                    console.log("✅ Created mentionsSectionHtml with", mentionItems.length, "items");
                                 } else {
                                     var addMediaBtnEmpty = isLoggedInUser ? '<button type="button" class="add-media-btn" id="add-media-btn" data-sa-id="' + escapeHtml(String(sid)) + '" data-name="' + escapeHtml(String(name || '')) + '" data-club="' + escapeHtml(String(club || '')) + '" style="margin-top:8px;padding:8px 14px;background:#001f3f;color:#fff;border:none;border-radius:6px;font-size:0.9rem;cursor:pointer;">Add Media</button>' : '';
                                     mentionsSectionHtml = '<div class="sailor-public-mentions"><h2 class="sailor-media-page-header">Sailor &quot;' + escapeHtml(sailorNameForMedia) + '&quot; in the Media</h2><h3 class="sailor-media-section-title">Media</h3><p class="sailor-mentions-subtitle">No public mentions yet.</p>' + (addMediaBtnEmpty ? '<div class="sailor-media-header-actions">' + addMediaBtnEmpty + '</div>' : '') + '</div>';
-                                    console.log("⚠️ No mentionItems to display (count:", mentionItems.length, ")");
                                 }
                             } catch (err) {
                                 console.error("❌ Error in public mentions fetch:", err);
