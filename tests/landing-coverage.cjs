@@ -61,6 +61,23 @@ async function main() {
             else actions.push({name,ok:false,reason:'not-visible'});
           }catch(e){actions.push({name,ok:false,reason:String(e).slice(0,160)});}
         }
+        // Inspect state rather than treating clicks alone as proof of functionality.
+        const state = await page.evaluate(() => ({
+          path: location.pathname,
+          sailorInput: document.querySelector('#sailor-search-input')?.value ?? null,
+          regattaInput: document.querySelector('#temp-landing-regatta-input')?.value ?? null,
+          hasSearchResults: !!document.querySelector('#sailor-search-results'),
+          hasProfileContainer: !!document.querySelector('#sailor-view'),
+          hasRegattaContainer: !!document.querySelector('#public-regattas-list'),
+          headerExists: !!document.querySelector('header.site-header'),
+          headerLogoExists: !!document.querySelector('#headerLogoLink'),
+          horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 2
+        }));
+        actions.push({name:'state-inspection',ok:state.headerExists && state.hasSearchResults && state.hasRegattaContainer,state});
+        const startingUrl=page.url();
+        try { await page.goBack({waitUntil:'domcontentloaded',timeout:3500}).catch(()=>null); }
+        catch(_){}
+        actions.push({name:'navigation-history-inspection',ok:true,before:startingUrl,after:page.url()});
         await page.screenshot({path:path.join(OUT,mode.name+'-after.png'),fullPage:true,timeout:15000});
       } catch(e) { actions.push({name:'fatal',ok:false,reason:String(e)}); }
       const js=(await page.coverage.stopJSCoverage()).map(summarize);
