@@ -10,6 +10,9 @@ on:
       - 'js/landing-app.js'
       - 'js/landing-bootstrap.js'
       - '.github/workflows/landing-coverage-audit.yml'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
