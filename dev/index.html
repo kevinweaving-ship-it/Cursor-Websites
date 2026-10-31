@@ -23,6 +23,32 @@ a:focus-visible,button:focus-visible{outline:3px solid #e5c394;outline-offset:3p
 const loggedOut=document.getElementById("loggedOut"),loggedIn=document.getElementById("loggedIn"),account=document.getElementById("accountLink"),accountName=document.getElementById("accountName");
 function setState(user){loggedOut.hidden=!!user;loggedIn.hidden=!user;account.hidden=!user;if(user){const full=(user.full_name||[user.first_name,user.last_name].filter(Boolean).join(" ")).trim();accountName.textContent=full||"My SailingSA";}else{accountName.textContent="My SailingSA";}}
 fetch("/auth/session?path=%2F",{credentials:"same-origin",cache:"no-store"}).then(r=>{if(!r.ok)throw Error("Session check unavailable");return r.json()}).then(data=>setState(data&&data.valid?(data.user||{}):null)).catch(()=>{setState(null);});
-document.getElementById("logout").addEventListener("click",async()=>{if(!confirm("Log out of your existing SailingSA session?"))return;const button=document.getElementById("logout");button.disabled=true;try{const r=await fetch("/auth/logout",{method:"POST",credentials:"same-origin"});if(!r.ok)throw Error("Logout failed");setState(null);}catch(e){}finally{button.disabled=false;}});
+function askAutoLogin(){
+return new Promise(resolve=>{
+ const overlay=document.createElement("div");overlay.style.cssText="position:fixed;inset:0;z-index:9999999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center";
+ const box=document.createElement("div");box.style.cssText="background:#fff;border-radius:10px;padding:22px;max-width:300px;width:calc(100% - 32px);text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.28);color:#1a365d";
+ const heading=document.createElement("strong");heading.textContent="Auto Login";heading.style.cssText="display:block;font-size:17px;margin-bottom:8px";
+ const question=document.createElement("p");question.textContent="Sign in automatically next time?";question.style.cssText="margin:0 0 16px;font-size:14px;color:#2d3748";
+ const actions=document.createElement("div");actions.style.cssText="display:flex;gap:12px;justify-content:center";
+ function choice(label,yes){const b=document.createElement("button");b.type="button";b.textContent=label;b.style.cssText="padding:9px 22px;border:0;border-radius:7px;font-size:14px;font-weight:600;min-width:88px;cursor:pointer;background:"+(yes?"#1a365d":"#e2e8f0")+";color:"+(yes?"#fff":"#1a365d");b.addEventListener("click",()=>{overlay.remove();resolve(yes)},{once:true});actions.appendChild(b)}
+ choice("Yes",true);choice("No",false);box.append(heading,question,actions);overlay.appendChild(box);document.body.appendChild(overlay);
+});
+}
+document.getElementById("logout").addEventListener("click",async()=>{
+ const keepRemember=await askAutoLogin();
+ const button=document.getElementById("logout");button.disabled=true;
+ try{
+  const token=localStorage.getItem("session")||localStorage.getItem("sailing_session")||"";
+  const r=await fetch("/auth/logout",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({keep_remember:keepRemember,session_token:token})});
+  if(!r.ok)throw Error("Logout failed");
+  localStorage.removeItem("session");localStorage.removeItem("sailing_session");
+  document.cookie="session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+  document.cookie="session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+  if(keepRemember){localStorage.setItem("remember_credentials","true");sessionStorage.removeItem("disable_auto_login_once");}
+  else{sessionStorage.setItem("disable_auto_login_once","true");["saved_username","saved_email","saved_password","ssa_id_passwords","ssa_login_history","remember_credentials","saved_login_method"].forEach(k=>localStorage.removeItem(k));}
+  setState(null);
+ }catch(e){alert("Logout failed. Please try again.");}
+ finally{button.disabled=false;}
+});
 })();
 </script></body></html>
