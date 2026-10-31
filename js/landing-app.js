@@ -260,49 +260,6 @@
                 );
             });
 
-            function normalizeArtworkPath(path) {
-                try {
-                    return decodeURIComponent(String(path || '').split('?')[0]).toLowerCase();
-                } catch (_) {
-                    return String(path || '').split('?')[0].toLowerCase();
-                }
-            }
-            function isEventLogoArtworkPath(path) {
-                return normalizeArtworkPath(path).indexOf('/artwork/event logo/') !== -1;
-            }
-            function classNameFromLogoFilename(path) {
-                var base = String(path || '').split('/').pop() || '';
-                base = base.replace(/\.[a-z0-9]+$/i, '');
-                base = base.replace(/[-_]?(class[-_]?logo|event[-_]?logo|logo)$/i, '');
-                return base.replace(/-/g, ' ').replace(/_/g, ' ').trim();
-            }
-            function classSlugFromLogoLabel(label) {
-                return String(label || '').trim().toLowerCase()
-                    .replace(/\s+/g, '-')
-                    .replace(/[^a-z0-9.-]/g, '')
-                    .replace(/^-+|-+$/g, '');
-            }
-            function eventLogoSeriesSlugFromContext(src, regattaId, regattaName) {
-                var fn = String(src || '').split('/').pop().toLowerCase();
-                var hay = (String(regattaId || '') + ' ' + String(regattaName || '') + ' ' + fn).toLowerCase();
-                if (/j22-nationals/.test(fn) || (/j\s*-?\s*22|j22/.test(hay) && /national|champ|north-sails/.test(hay))) return 'j22-nationals';
-                if (/cape-classic|zvyc.*classic|tsc.*classic|hyc.*classic/.test(hay)) return 'zvyc-cape-classic';
-                if (/wc-dinghy|western-cape-dinghy/.test(hay)) return 'w-cape-championships-dinghy-classes';
-                if (/ilca|laser/.test(hay) && /national|champ/.test(hay)) return 'ilca-nationals';
-                return '';
-            }
-            function artworkCatalogueHref(src, className, regattaId, regattaName) {
-                var s = String(src || '').trim();
-                if (!s) return '';
-                if (isEventLogoArtworkPath(s)) {
-                    var series = eventLogoSeriesSlugFromContext(s, regattaId, regattaName);
-                    return series ? ('/events-logos/' + encodeURIComponent(series)) : '/events-logos';
-                }
-                var cn = String(className || '').trim() || classNameFromLogoFilename(s);
-                var cslug = classSlugFromLogoLabel(cn);
-                return cslug ? ('/class/' + encodeURIComponent(cslug)) : '/classes';
-            }
-
             function eventLogoSlug(path) {
                 if (!path) return '';
                 var base = String(path).split('/').pop() || '';
