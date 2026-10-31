@@ -5,6 +5,10 @@ on:
       - audit/landing-surgical-cleanup-20261031
     paths:
       - 'tests/landing-coverage.cjs'
+      - 'tests/landing-syntax-check.cjs'
+      - 'index.html'
+      - 'js/landing-app.js'
+      - 'js/landing-bootstrap.js'
       - '.github/workflows/landing-coverage-audit.yml'
   workflow_dispatch:
 
@@ -20,6 +24,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate JavaScript syntax before browser tests
+        run: node tests/landing-syntax-check.cjs
       - name: Install browser runner (no project dependency changes)
         run: |
           npm install --no-save --package-lock=false playwright
