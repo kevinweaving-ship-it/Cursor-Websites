@@ -89,5 +89,18 @@ async function main() {
   }finally{await browser.close();}
   fs.writeFileSync(path.join(OUT,'summary.json'),JSON.stringify(all,null,2));
   console.log(JSON.stringify(all,null,2));
+  const failures = all.flatMap(({mode, actions, errors}) => [
+    ...errors.map(error => `${mode}: JavaScript error: ${error}`),
+    ...actions.filter(action => action.name === 'fatal' ||
+      (['initial-load','state-inspection'].includes(action.name) && !action.ok) ||
+      (['sailor-tab','regatta-tab','regatta-search','sailor-search'].includes(action.name) && !action.ok))
+      .map(action => `${mode}: ${action.name}: ${action.reason || 'failed'}`),
+    ...actions.filter(action => action.name === 'state-inspection' && action.state?.horizontalOverflow)
+      .map(() => `${mode}: horizontal overflow`)
+  ]);
+  if (failures.length) {
+    console.error('Landing smoke coverage FAILED:\\n' + failures.join('\\n'));
+    process.exitCode = 1;
+  }
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});
