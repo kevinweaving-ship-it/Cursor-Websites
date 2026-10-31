@@ -6,6 +6,7 @@ on:
     paths:
       - 'tests/landing-coverage.cjs'
       - 'tests/landing-syntax-check.cjs'
+      - 'tests/landing-function-inventory.cjs'
       - 'index.html'
       - 'js/landing-app.js'
       - 'js/landing-bootstrap.js'
@@ -31,11 +32,12 @@ jobs:
         run: node tests/landing-syntax-check.cjs
       - name: Install browser runner (no project dependency changes)
         run: |
-          npm install --no-save --package-lock=false playwright
+          npm install --no-save --package-lock=false playwright acorn acorn-walk
           npx playwright install --with-deps chromium
       - name: Serve branch locally; capture read-only coverage and screenshots
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/sailingsa-static.log 2>&1 &
+          node tests/landing-function-inventory.cjs
           node tests/landing-coverage.cjs
         env:
           COVERAGE_BASE_URL: http://127.0.0.1:8765/
