@@ -1,0 +1,38 @@
+name: SailingSA landing coverage (isolated audit)
+on:
+  push:
+    branches:
+      - audit/landing-surgical-cleanup-20261031
+    paths:
+      - 'tests/landing-coverage.cjs'
+      - '.github/workflows/landing-coverage-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runner (no project dependency changes)
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - name: Serve branch locally; capture read-only coverage and screenshots
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/sailingsa-static.log 2>&1 &
+          node tests/landing-coverage.cjs
+        env:
+          COVERAGE_BASE_URL: http://127.0.0.1:8765/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: landing-coverage-audit
+          path: artifacts/landing-coverage/
+          retention-days: 14
