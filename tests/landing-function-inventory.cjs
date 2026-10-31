@@ -3,7 +3,7 @@ const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const acorn=require('acorn'),walk=require('acorn-walk');
 const entry=fs.readFileSync('index.html','utf8');
 const paths=[...entry.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)/g)].map(m=>m[1].split('?')[0].replace(/^\//,'')).filter(p=>fs.existsSync(p));
-const inline=[...entry.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(x=>x.trim());
+const inline=[...entry.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>!(/\bsrc\s*=/.test(m[1])) && !(/\btype\s*=\s*["'](?:application\/ld\+json|application\/json)["']/i.test(m[1]))).map(m=>m[2]).filter(x=>x.trim());
 const inputs=[...paths.map(p=>({file:p,code:fs.readFileSync(p,'utf8')})),...inline.map((code,i)=>({file:'index.html:inline:'+i,code}))];
 const definitions=[],errors=[];
 for(const {file,code} of inputs){
