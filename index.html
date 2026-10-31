@@ -4752,14 +4752,12 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
 
         window.loadClassPageRoute = async function(classSlug) {
             if (!classSlug) return;
-            console.log('CLASS SLUG:', classSlug);
             if (window.__sailingClassSsrPainted) return;
             var ssrEl = document.getElementById('sailing-class-ssr-data');
             if (ssrEl) {
                 try {
                     var ssrData = JSON.parse(ssrEl.textContent);
                     if (ssrData && typeof ssrData === 'object') {
-                        console.log('CLASS DATA:', ssrData);
                         if (typeof window.renderClassPage === 'function') window.renderClassPage(ssrData);
                         if (typeof setClassPageSEO === 'function') setClassPageSEO(window.location.pathname || '', ssrData);
                         finishClassPageLoad();
@@ -4771,7 +4769,6 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             }
             var API = (window.API_BASE || '').replace(/\/$/, '');
             var classRes = await fetch(API + '/api/class/' + encodeURIComponent(classSlug) + '?t=' + Date.now(), { cache: 'no-store' }).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; });
-            console.log('CLASS DATA:', classRes);
             if (!classRes || typeof classRes !== 'object') {
                 var cv0 = document.getElementById('class-view');
                 if (cv0) cv0.innerHTML = '<div class="container"><p class="card">Failed to load class. Try again or <a href="/classes">browse classes</a>.</p></div>';
