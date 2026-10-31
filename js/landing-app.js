@@ -1500,13 +1500,6 @@
                                     || ssrSailorBioText
                                     || (aiOverviewSummary && String(aiOverviewSummary).trim())
                                     || '';
-                                console.log("AI Overview Summary check:", {
-                                    exists: aiOverviewSummary !== undefined,
-                                    hasValue: !!aiOverviewSummary,
-                                    value: aiOverviewSummary ? aiOverviewSummary.substring(0, 100) : null,
-                                    resolveBio: resolveBioText ? resolveBioText.substring(0, 80) : null,
-                                    ssrBio: ssrSailorBioText ? ssrSailorBioText.substring(0, 80) : null
-                                });
                                 // Visible Note about sailor (between header and tabs) — must not flash then disappear
                                 sailorBioHtml = '';
                                 if (sailorBioText) {
