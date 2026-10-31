@@ -1,27 +1,5 @@
 
         .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
-        /* Site stats gauges temporarily removed — keep CSS inert; redo later */
-        .site-stats-embed {
-            display: none !important;
-            margin: 0 !important;
-            height: 0 !important;
-            overflow: hidden !important;
-            width: 100%;
-        }
-        .site-stats-iframe {
-            display: none !important;
-            width: 100%;
-            height: 0 !important;
-            border: none;
-            overflow: hidden;
-        }
-        @media (max-width: 768px) {
-            .site-stats-iframe { height: 0 !important; }
-        }
-        @media (max-width: 640px) {
-            .site-stats-iframe { height: 0 !important; }
-            .site-stats-embed { margin: 0 !important; }
-        }
         /* Class page (/class/{slug}): datetime strip + intro + master layout */
         .homepage-datetime-wrap { padding-top: 8px; }
         .homepage-datetime { font-size: 1.04rem; font-weight: bold; color: #001f3f; margin: 0 0 1rem 0; text-align: center; }
