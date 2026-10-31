@@ -7,6 +7,7 @@ on:
       - 'tests/landing-coverage.cjs'
       - 'tests/landing-syntax-check.cjs'
       - 'tests/landing-function-inventory.cjs'
+      - 'tests/landing-before-after.cjs'
       - 'index.html'
       - 'js/landing-app.js'
       - 'js/landing-bootstrap.js'
@@ -34,9 +35,12 @@ jobs:
         run: |
           npm install --no-save --package-lock=false playwright acorn acorn-walk
           npx playwright install --with-deps chromium
+      - name: Materialize original backup for controlled baseline
+        run: git clone --quiet --no-checkout . ../landing-original && git -C ../landing-original checkout --quiet origin/backup/landing-before-cleanup-20261031
       - name: Serve branch locally; capture read-only coverage and screenshots
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/sailingsa-static.log 2>&1 &
+          node tests/landing-before-after.cjs
           node tests/landing-function-inventory.cjs
           node tests/landing-coverage.cjs
         env:
