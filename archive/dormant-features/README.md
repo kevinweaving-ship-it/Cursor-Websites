@@ -33,3 +33,9 @@ The historical implementation fetched member results, selected a recent regatta 
 ## Scanning caveat
 
 A regular-expression search for `/* ... */` falsely spans thousands of active lines when it encounters the phrase `member/* API` inside a `//` comment. Do NOT mass-delete on naive regex classifications. Use a JavaScript parser / syntax-aware scanner and tests.
+
+## Additional archived broken logic
+
+| Feature | Archive | Status |
+|---|---|---|
+| Legacy header callback/enforcement script | `2026-10-31-invalid-header-script.js.txt` | Parsed with syntax error; inert in original HTML, retained for investigation only; do not reactivate before header tests |
