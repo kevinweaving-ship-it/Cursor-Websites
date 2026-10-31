@@ -74,10 +74,8 @@ async function main() {
           horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 2
         }));
         actions.push({name:'state-inspection',ok:state.headerExists && state.hasSearchResults && state.hasRegattaContainer,state});
-        const startingUrl=page.url();
-        try { await page.goBack({waitUntil:'domcontentloaded',timeout:3500}).catch(()=>null); }
-        catch(_){}
-        actions.push({name:'navigation-history-inspection',ok:true,before:startingUrl,after:page.url()});
+        // Back/Forward requires a real in-app history entry; do not navigate to about:blank.
+        actions.push({name:'navigation-history-inspection',ok:false,reason:'not exercised: no in-app history entry produced by this basic scenario'});
         await page.screenshot({path:path.join(OUT,mode.name+'-after.png'),fullPage:true,timeout:15000});
       } catch(e) { actions.push({name:'fatal',ok:false,reason:String(e)}); }
       const js=(await page.coverage.stopJSCoverage()).map(summarize);
