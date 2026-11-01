@@ -8,11 +8,11 @@
 .searchbox{background:#eef0f3;border-radius:30px;display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:0 15px;height:48px}
 .searchbox svg{width:22px;height:22px;flex:none}.searchbox input{border:0;outline:none;background:none;min-width:0;width:100%;color:#111;font-size:17px}.clear{width:27px;height:27px;border-radius:50%;background:#707780;color:#fff;font-size:18px}
 .results{max-width:900px;margin:4px auto;padding-bottom:25px}.item{display:flex;align-items:center;height:58px;gap:8px;padding:6px 12px;text-decoration:none;color:inherit;overflow:hidden;cursor:pointer}
-.item:hover,.item:focus-visible{background:#f2f5f9;outline:0}.avatar{height:38px;width:38px;flex:none;border-radius:50%;object-fit:cover;background:#edf0f4}.item:not(.sailor) .avatar{border-radius:0;object-fit:contain;background:transparent}.item.event .identity,.item.regatta .identity{max-width:none;flex:1 1 auto}
+.item:hover,.item:focus-visible{background:#f2f5f9;outline:0}.avatar{height:38px;width:38px;flex:none;border-radius:50%;object-fit:cover;background:#edf0f4}.item:not(.sailor) .avatar{border-radius:0;object-fit:contain;background:transparent}.item.event .identity,.item.regatta .identity{max-width:none;flex:1 1 auto}.class-indicator{flex:none;white-space:nowrap;font-size:11px;font-weight:500;color:#67768e;margin:auto 6px}.class-indicator .dot{font-size:13px;vertical-align:middle;margin-right:4px}
 .identity{min-width:0;flex:0 1 auto;font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56%}
 .logos{margin-left:auto;display:flex;align-items:center;gap:5px;flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;touch-action:pan-x}.logos::-webkit-scrollbar{display:none}
 .logos img{width:29px;height:29px;object-fit:contain;flex:none}.item+.item{border-top:1px solid #f1f2f4}.hint{color:#697386;font-size:14px;padding:18px 17px}
-@media(max-width:430px){.identity{max-width:53%;font-size:13px}.item{height:54px;gap:6px;padding:5px 9px}.avatar{width:34px;height:34px}.logos img{width:25px;height:25px}.item.event .identity,.item.regatta .identity{max-width:none}}
+@media(max-width:430px){.identity{max-width:53%;font-size:13px}.item{height:54px;gap:6px;padding:5px 9px}.avatar{width:34px;height:34px}.logos img{width:25px;height:25px}.item.event .identity,.item.regatta .identity{max-width:none}.class-indicator{font-size:10px;margin:auto 2px}}
 </style></head><body>
 <header class="top"><div class="searchbar"><button class="back" type="button" aria-label="Back" onclick="history.length>1?history.back():location.assign('/')">‹</button><div class="searchbox"><svg viewBox="0 0 24 24" fill="none" stroke="#66717f" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="q" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search SailingSA" aria-label="Search SailingSA"><button id="clear" class="clear" type="button" aria-label="Clear search" hidden>×</button></div></div></header>
 <main id="results" class="results" role="list" aria-live="polite"><p class="hint">Search sailors, clubs, classes and events.</p></main>
@@ -81,8 +81,9 @@ function eventLogo(x){
  return '';
 }
 function eventHost(x){const code=txt(x,'host_club_code','host_club_abbrev','club_code');if(code)return code;const id=key(x.regatta_id||'');for(const c of ['HYC','TSC','ZVYC','HMYC','MAC','RCYC'])if(id.includes('-'+c.toLowerCase()+'-'))return c;return ''}
+function decodeLabel(v){const el=document.createElement('textarea');el.innerHTML=String(v||'');return el.value}
 function eventDisplay(x){
-  const raw=txt(x,'event_name','name').trim();
+  const raw=decodeLabel(txt(x,'event_name','name')).trim();
   const year=String(x.start_date||'').slice(0,4)||String(x.year||'')||String(x.regatta_id||'').slice(0,4);
   let name=raw.replace(/^(?:19|20)\d{2}-\d{2}-\d{2}\s+/,'').trim();
   name=name.replace(/^(?:(?:19|20)\d{2}(?:[-–/](?:19|20)\d{2})?\s+)+/,'').trim();
@@ -93,7 +94,7 @@ function eventDisplay(x){
     const label=[year,host,'Cape Classic'].filter(Boolean).join(' ');
     return label+(leg?' — Event '+leg:'')+sponsor;
   }
-  return [year,name].filter(Boolean).join(' ');
+  name=name.replace(/\b((?:19|20)\d{2})\s+\1\b/g,'$1');return [year,name].filter(Boolean).join(' ');
 }
 function eventRow(x,type){
   const id=txt(x,'regatta_id');if(!id)return null;
@@ -109,7 +110,7 @@ async function enrich(row,gen){if(!row.id||cardCache.has(row.id)){if(cardCache.h
 try{const r=await fetch('/dev-1?embed=1&sas_id='+encodeURIComponent(row.id),{credentials:'same-origin'});if(!r.ok)return;const doc=new DOMParser().parseFromString(await r.text(),'text/html');const avatar=doc.querySelector('.sa-approved-sailor-avatar-clip img,.sa-approved-sailor-avatar img');const club=doc.querySelector('.sa-approved-sailor-club-icon img');const assets={avatar:avatar&&avatar.getAttribute('src')||'',logos:[]};if(club&&club.getAttribute('src'))assets.logos.push({src:club.getAttribute('src'),alt:'Club'});const unique=new Set();doc.querySelectorAll('[data-ns-classes] img').forEach(el=>{let src=el.getAttribute('src');if(src&&!unique.has(src)){unique.add(src);assets.logos.push({src,alt:el.alt||'Sailing class'})}});cardCache.set(row.id,assets);apply(row,assets,gen)}catch(e){}}
 function apply(row,assets,gen){if(gen!==generation||!row.el||!row.el.isConnected)return;const a=row.el.querySelector('.avatar');if(a&&assets.avatar){const next=img(assets.avatar,'avatar',row.name);if(next)a.replaceWith(next)}const strip=row.el.querySelector('.logos');if(strip){strip.replaceChildren();assets.logos.forEach(x=>{const e=img(x.src,'',x.alt);if(e)strip.append(e)})}}
 function render(rows,q,gen){if(gen!==generation)return;area.replaceChildren();if(!rows.length){const p=make('p','hint');p.textContent='No results found.';area.append(p);return}
-rows.forEach(r=>{const a=make('a','item');a.classList.add(r.type);a.href=r.href||'#';a.setAttribute('role','listitem');a.setAttribute('aria-label',r.name);const avatar=img(r.avatar,'avatar',r.name);if(avatar)a.append(avatar);else{let placeholder=make('span','avatar');a.append(placeholder)}const name=make('span','identity');name.textContent=r.name;a.append(name);const logos=make('span','logos');logos.setAttribute('aria-label','Club and sailing class logos');a.append(logos);(r.logos||[]).forEach(x=>{const e=img(x.src,'',x.alt);if(e)logos.append(e)});a.addEventListener('click',e=>{if(!r.href){e.preventDefault()}});area.append(a);r.el=a});
+rows.forEach(r=>{const a=make('a','item');a.classList.add(r.type);a.href=r.href||'#';a.setAttribute('role','listitem');a.setAttribute('aria-label',r.name);const avatar=img(r.avatar,'avatar',r.name);if(avatar)a.append(avatar);else{let placeholder=make('span','avatar');a.append(placeholder)}const name=make('span','identity');name.textContent=r.name;a.append(name);if(r.type==='class'){const mark=make('span','class-indicator');mark.innerHTML='<span class="dot">●</span>Class page';a.append(mark)}const logos=make('span','logos');logos.setAttribute('aria-label','Club and sailing class logos');a.append(logos);(r.logos||[]).forEach(x=>{const e=img(x.src,'',x.alt);if(e)logos.append(e)});a.addEventListener('click',e=>{if(!r.href){e.preventDefault()}});area.append(a);r.el=a});
 rows.filter(r=>r.type==='sailor').slice(0,12).forEach(r=>enrich(r,gen));rows.filter(r=>r.type==='class').forEach(r=>classLogo(r,gen))}
 async function search(){const q=input.value.trim(),gen=++generation;clear.hidden=!q;if(controller)controller.abort();if(q.length<2){area.replaceChildren();if(!q){const p=make('p','hint');p.textContent='Start typing to search SailingSA.';area.append(p)}return}controller=new AbortController();const signal=controller.signal;const p=make('p','hint');p.textContent='Searching…';area.replaceChildren(p);
 const results=await Promise.allSettled([sailors(q,signal),clubs(q,signal),classes(q,signal),events(q,signal),regattas(q,signal)]);if(gen!==generation)return;let found=[];results.forEach(r=>{if(r.status==='fulfilled')found.push(...r.value)});const seen=new Set();found=found.filter(r=>{const k=r.href||r.type+'|'+r.name+'|'+(r.id||'');if(seen.has(k))return false;seen.add(k);return true});found.sort((a,b)=>{const ar=(a.type==='event'||a.type==='regatta'),br=(b.type==='event'||b.type==='regatta');if(ar&&br)return String(b.date||'').localeCompare(String(a.date||''))||a.name.localeCompare(b.name);return rank(a.name,q)-rank(b.name,q)||a.name.localeCompare(b.name)});render(found.slice(0,30),q,gen)}
