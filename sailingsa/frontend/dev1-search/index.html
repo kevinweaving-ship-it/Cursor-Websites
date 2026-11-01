@@ -94,7 +94,9 @@ function eventDisplay(x){
     const label=[year,host,'Cape Classic'].filter(Boolean).join(' ');
     return label+(leg?' — Event '+leg:'')+sponsor;
   }
-  name=name.replace(/\b((?:19|20)\d{2})\s+\1\b/g,'$1');if(year)name=name.replace(new RegExp('(?:\\s+|\\s*[-–]\\s*)'+year+'
+  name=name.replace(/\b((?:19|20)\d{2})\s+\1\b/g,'$1');
+  if(year && name.endsWith(' '+year))name=name.slice(0,-year.length).trim();
+  return [year,name].filter(Boolean).join(' ');
 }
 function eventRow(x,type){
   const id=txt(x,'regatta_id');if(!id)return null;
