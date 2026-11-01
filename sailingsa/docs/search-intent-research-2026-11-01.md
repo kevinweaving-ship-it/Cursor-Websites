@@ -68,3 +68,14 @@ User-supplied candidate percentages attributed to Google; NOT externally verifie
 3. Relevance scoring should prioritize matching actual named entity and search intent, with query popularity learned from privacy-conscious aggregated on-site typed queries, successful result clicks, empty-result rates and reformulations, deduplicated sessions and bot exclusion.
 4. UI contract: exactly one mixed search-results list, every result has a left logo/photo/icon (including fallback), no category selection required.
 5. Do not mistake broad general recreational marine searches for Sailingsa's specific demand. Validate with Search Console for the actual property if available, analytics, server access logs and search interaction telemetry.
+
+## Confirmed name + class + club fuzzy search contract (2026-11-01)
+- Order independent token matching: `Tim 420` = `420 Tim`; `HYC We` = `We HYC`.
+- Split query into tokens, recognize club codes and full-name aliases from actual clubs registry; class names/variants from classes registry (e.g. 29 => 29er only when ambiguity safely resolved).
+- All remaining tokens match any portion/prefix of first name or surname; support initials and abbreviated given names, e.g. Tim/Timothy, but do not falsely identify individuals.
+- Score candidates matching every token above partial matches; exact > prefix > fuzzy. Word order does not affect scores.
+- Class match must include verified historical participation (helm and crew) rather than merely current/primary class; club match should reflect recorded affiliation and historic club where specified.
+- Named examples: Tim 420 / 420 Tim; HYC We / We HYC; James Sonnet / Sonnet James; 29 James / James 29er; Dave Royal CY.
+- Limit false positives: 29 is ambiguous absent registry context; YC/SC suffix alone is not evidence of a specific club; never invent club/class associations.
+- Existing /api/search?q= currently returns name matches but combined 'Tim 420' returns zero; therefore implementation needs a purpose-built indexed multi-attribute search backend, not just frontend conjunctive filtering against a truncated response.
+- Keep logos mandatory and preserve all URLs and existing entity IDs.
