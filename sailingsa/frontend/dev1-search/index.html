@@ -54,7 +54,7 @@ async function sailors(q,signal){
   const logos=[];if(clubVal&&/^[a-z0-9]{2,8}$/.test(clubVal))logos.push({src:'/api/club-logo/'+encodeURIComponent(clubVal.toUpperCase()),alt:clubVal.toUpperCase()+' club logo'});const known=[...new Set([classVal,...(histories[id]||[]).map(key)])].filter(Boolean);for(const c of known){const artwork=classArtwork(c);if(artwork!==SEARCH_FALLBACK&&!logos.some(l=>l.src===artwork)){logos.push({src:artwork,alt:c+' class logo'});if(logos.length>=5)break}};
   return{id,type:'sailor',name,logos,alsoSas:Object.keys(merges).filter(k=>merges[k]===id),sourceId,href:urlPath(txt(x,'profile_url','url'))||('/sailor/'+encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))),row:x,avatar:txt(x,'avatar_url','profile_photo_url')||avatarMap[String(Number(id))]||SAILOR_FALLBACK};
  }).filter(Boolean);
- const uniquePeople=[...new Map(people.slice().sort((a,b)=>(a.sourceId===a.id?-1:0)-(b.sourceId===b.id?-1:0)).map(p=>[p.id,p])).values()];
+ const canonical=new Map();people.forEach(p=>{const prev=canonical.get(p.id);if(!prev||(p.sourceId===p.id&&prev.sourceId!==prev.id))canonical.set(p.id,p)});const uniquePeople=[...canonical.values()];
  if(clubCode)uniquePeople.sort((a,b)=>{const score=x=>key(txt(x.row,'club','club_code','club_fullname'))===clubCode?0:1;return score(a)-score(b)||a.name.localeCompare(b.name)});
  return uniquePeople;
 }
