@@ -23,7 +23,7 @@ let generation=0, timer=0, controller=null;let classCache=null,clubCache=null,ev
 const urlPath=(p)=>p&&p.startsWith('/')&&!p.startsWith('//')?p:'';
 const txt=(o,...keys)=>{for(const k of keys){const v=o&&o[k];if(typeof v==='string'&&v.trim())return v.trim()}return ''};
 const make=(tag,cls)=>{let e=document.createElement(tag);if(cls)e.className=cls;return e};
-const SEARCH_FALLBACK='/artwork/Class Logo/Open-Class-Logo.png';const SAILOR_FALLBACK='/dev1/sa-avatar.png';
+const SEARCH_FALLBACK='/artwork/Class Logo/Open-Class-Logo.png';const SAILOR_FALLBACK='/assets/avatars/default-youth.png';
 function img(src,cls,alt){const e=make('img',cls);e.alt=alt||'';e.loading='lazy';e.decoding='async';e.onerror=()=>{if(e.dataset.fallback==='1')return;e.dataset.fallback='1';e.src=cls==='avatar'&&e.closest('.sailor')?SAILOR_FALLBACK:(cls==='avatar'&&alt&&e.dataset.sailor==='1'?SAILOR_FALLBACK:SEARCH_FALLBACK)};e.src=urlPath(src)||((String(src||'').startsWith('https://')||String(src||'').startsWith('http://'))?src:(cls==='sailor-avatar'?SAILOR_FALLBACK:SEARCH_FALLBACK));return e}
 function key(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function rank(label,q){const a=key(label),b=key(q);return a===b?0:a.startsWith(b)?1:a.includes(b)?2:3}
@@ -41,7 +41,7 @@ async function sailors(q,signal){
  const nameTerms=terms.filter(t=>t!==clubCode&&t!==className);
  const lookup=nameTerms.length?nameTerms.slice().sort((a,b)=>b.length-a.length||nameTerms.indexOf(b)-nameTerms.indexOf(a))[0]:q;
  const a=normalizeArray(await json('/api/search?q='+encodeURIComponent(lookup),signal));
- const histories=historyCache||(historyCache=cached('/dev1-search/sailor-class-history.json').catch(()=>({})));
+ const [histories,avatarMap]=await Promise.all([historyCache||(historyCache=cached('/dev1-search/sailor-class-history.json').catch(()=>({}))),cached('/dev1-search/sailor-avatars.json').catch(()=>({}))]);
  const people=a.map(x=>{
   const id=String(x.sa_sailing_id??x.sas_id??x.sa_id??'');
   const name=txt(x,'full_name','name')||[txt(x,'first_names','first_name'),txt(x,'surname','last_name')].filter(Boolean).join(' ');
@@ -52,7 +52,7 @@ async function sailors(q,signal){
   if(clubCode&&clubVal&&clubVal!==clubCode&&!clubVal.includes(key(txt(club,'name','club_fullname'))))return null;
   if(className&&!classVal.includes(className)&&!(histories[id]||[]).some(c=>key(c).includes(className)))return null;
   const logos=[];if(clubVal&&/^[a-z0-9]{2,8}$/.test(clubVal))logos.push({src:'/api/club-logo/'+encodeURIComponent(clubVal.toUpperCase()),alt:clubVal.toUpperCase()+' club logo'});const known=[...new Set([classVal,...(histories[id]||[]).map(key)])].filter(Boolean);for(const c of known){const artwork=classArtwork(c);if(artwork!==SEARCH_FALLBACK&&!logos.some(l=>l.src===artwork)){logos.push({src:artwork,alt:c+' class logo'});if(logos.length>=5)break}};
-  return{id,type:'sailor',name,logos,href:urlPath(txt(x,'profile_url','url'))||('/sailor/'+encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))),row:x,avatar:txt(x,'avatar_url','profile_photo_url')||SAILOR_FALLBACK};
+  return{id,type:'sailor',name,logos,href:urlPath(txt(x,'profile_url','url'))||('/sailor/'+encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))),row:x,avatar:txt(x,'avatar_url','profile_photo_url')||avatarMap[String(Number(id))]||SAILOR_FALLBACK};
  }).filter(Boolean);
  if(clubCode)people.sort((a,b)=>{const score=x=>key(txt(x.row,'club','club_code','club_fullname'))===clubCode?0:1;return score(a)-score(b)||a.name.localeCompare(b.name)});
  return people;
