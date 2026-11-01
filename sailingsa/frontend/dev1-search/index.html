@@ -49,10 +49,11 @@ async function sailors(q,signal){
   const classVal=key(txt(x,'class_name','primary_class'));
   const person=key(name);
   if(nameTerms.some(t=>!person.split(/\s+/).some(part=>part.startsWith(t))))return null;
-  if(clubCode&&clubVal!==clubCode&&!clubVal.includes(key(txt(club,'name','club_fullname'))))return null;
+  if(clubCode&&clubVal&&clubVal!==clubCode&&!clubVal.includes(key(txt(club,'name','club_fullname'))))return null;
   if(className&&!classVal.includes(className)&&!(histories[id]||[]).some(c=>key(c).includes(className)))return null;
   return{id,type:'sailor',name,href:urlPath(txt(x,'profile_url','url'))||('/sailor/'+encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))),row:x,avatar:txt(x,'avatar_url','profile_photo_url')||SEARCH_FALLBACK};
  }).filter(Boolean);
+ if(clubCode)people.sort((a,b)=>{const score=x=>key(txt(x.row,'club','club_code','club_fullname'))===clubCode?0:1;return score(a)-score(b)||a.name.localeCompare(b.name)});
  return people;
 }
 async function clubs(q,signal){if(!clubCache)clubCache=normalizeArray(await json('/api/clubs',signal));const a=clubCache;return a.map(x=>{const code=txt(x,'club_abbrev','club_code','code','abbreviation');const name=txt(x,'club_fullname','club_full_name','club_name','name');return{type:'club',name,href:code?'/club/'+encodeURIComponent(code.toLowerCase()):'',avatar:code?'/api/club-logo/'+encodeURIComponent(code):'',logos:[],code}}).filter(x=>x.name&&x.href&&(key(x.name).includes(key(q))||key(x.code).includes(key(q))||/^(clubs?|yacht clubs?)$/.test(key(q)))).slice(0,300)}
