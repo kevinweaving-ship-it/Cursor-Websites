@@ -32,7 +32,54 @@ async function sailors(q,signal){const a=normalizeArray(await json('/api/search?
 async function clubs(q,signal){if(!clubCache)clubCache=normalizeArray(await json('/api/clubs',signal));const a=clubCache;return a.map(x=>{const code=txt(x,'club_abbrev','club_code','code','abbreviation');const name=txt(x,'club_fullname','club_full_name','club_name','name');return{type:'club',name,href:code?'/club/'+encodeURIComponent(code.toLowerCase()):'',avatar:code?'/api/club-logo/'+encodeURIComponent(code):'',logos:[],code}}).filter(x=>x.name&&x.href&&(key(x.name).includes(key(q))||key(x.code).includes(key(q)))).slice(0,40)}
 async function classes(q,signal){if(!classCache){const raw=await json('/api/classes',signal);classCache=Array.isArray(raw)?raw:(Array.isArray(raw.classes)?raw.classes:normalizeArray(raw))}
 return classCache.map(x=>{if(typeof x==='string')x={name:x};const name=txt(x,'class_name','name');const id=String(x.class_id??'');const slug=txt(x,'slug','class_slug');return{type:'class',name,href:slug?'/class/'+encodeURIComponent(slug):(name?'/class/'+encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9]+/g,'-')):''),avatar:txt(x,'logo_url','class_logo_url'),logos:[]}}).filter(x=>x.name&&key(x.name).includes(key(q))).slice(0,25)}
-function eventLogo(x){const source=key([x.event_name,x.regatta_id,x.slug].join(' '));if(source.includes('cape classic'))return '/artwork/Event Logo/Cape-Classic-Series.png';return txt(x,'event_logo_url','logo_url','wc_header_left_icon_url','image_url')}
+const EVENT_LOGOS=[
+['cape classic','Cape-Classic-Series.png'],['lipton','Lipton-Challenge-Cup-2026.png'],
+['youth nationals','SA-Sailing-Youth-Nationals.png'],['mykonos','Mykonos-Offshore.png'],
+['grand slam','KZN-Grand-Slam.png'],['dam bottle','Dam-Bottle-Sprints.png'],
+['twilight','Twilight-Series.png'],['admirals','Admirals-Regatta.png'],
+['congella','Congella-Cup.png'],['tour de vlei',''],
+['nks grand prix','NKS-Grand-Prix.png'],['9 hour','HMYC-9hr.png'],
+['team sailing','TSL-Team-Sailing.png'],['triple crown','Triple-Crown.png'],
+['round robben','Round-Robben-Island-Race.png'],['knysna interclub','Knysna-Yacht-Club-Interclub.png']
+];
+const CLASS_LOGOS=[
+['hunter 19','Hunter-19-Class-Logo.png'],['hunter','Hunter-19-Class-Logo.png'],
+['optimist b','Optimist-B-Class-Logo.png'],['optimist a','Optimist-A-Class-Logo.png'],
+['optimist','Optimist-Class-Logo.png'],['hobie tiger','Hobie-Tiger-Class-Logo.png'],
+['hobie 16','Hobie-16-Class-Logo.png'],['hobie 14','Hobie-14-Class-Logo.png'],
+['flying 15','Flying-Fifteen-Class-Logo.png'],['flying fifteen','Flying-Fifteen-Class-Logo.png'],
+['dart 18','Dart-18-Class-Logo.png'],['dart','Dart-18-Class-Logo.png'],
+['ilca 7','ILCA-7-Class-Logo.png'],['ilca 6','ILCA-6-Class-Logo.png'],
+['ilca 4','ILCA-4-Class-Logo.png'],['laser','ILCA-Class-Logo.png'],
+['ilca','ILCA-Class-Logo.png'],['dabchick','Dabchick-Class-Logo.png'],
+['mirror','Mirror-Class-Logo.png'],['sonnet','Sonnet-Class-Logo.png'],
+['420','420-Class-Logo.png'],['29er','29er-Class-Logo.png'],
+['49er','49er-Class-Logo.png'],['finn','Finn-Class-Logo.png'],['505','505-Class-Logo.png'],
+['df95','DF95-Class-Logo.png'],['stadt 23','Stadt23-Class-Logo.png'],
+['stadt23','Stadt23-Class-Logo.png'],['j22','J22-Class-Logo.png'],
+['j/22','J22-Class-Logo.png'],['cape 31','Cape-31-Class-Logo.png'],
+['gp14','GP14-Class-Logo.png'],['extra','Extra-Class-Logo.png'],
+['halcat','Halcat-Class-Logo.png'],['dolphin','Dolphin-Class-Logo.png'],
+['dragonfly','Dragonfly-Class-Logo.png'],['topaz','Topaz-Class-Logo.png'],
+['soling','Soling-Class-Logo.png'],['tera','RS-Tera-Class-Logo.png'],
+['l26','L26-Class-Logo.png'],['multihull','Multihull-Fleet-Class-Logo.png'],
+['open class','Open-Class-Logo.png']
+];
+function eventLogo(x){
+ const raw=key([x.event_name,x.regatta_id,x.slug].join(' '));
+ // First priority: specifically assigned artwork from the record, if available.
+ const explicit=txt(x,'event_logo_url','logo_url','wc_header_left_icon_url');
+ if(explicit)return explicit;
+ for(const [name,file] of EVENT_LOGOS)if(file&&raw.includes(name))return '/artwork/Event Logo/'+file;
+ for(const [name,file] of CLASS_LOGOS)if(raw.includes(name))return '/artwork/Class Logo/'+file;
+ const children=Array.isArray(x.children)?x.children:[];
+ if(children.length===1){const c=children[0],logo=txt(c,'logo_url','class_logo_url');
+   if(logo)return logo;
+   const cn=key([c.class_name,c.fleet_label,c.class_slug].join(' '));
+   for(const [name,file] of CLASS_LOGOS)if(cn.includes(name))return '/artwork/Class Logo/'+file;
+ }
+ return '';
+}
 function eventHost(x){const code=txt(x,'host_club_code','host_club_abbrev','club_code');if(code)return code;const id=key(x.regatta_id||'');for(const c of ['HYC','TSC','ZVYC','HMYC','MAC','RCYC'])if(id.includes('-'+c.toLowerCase()+'-'))return c;return ''}
 function eventDisplay(x){
   const raw=txt(x,'event_name','name').trim();
