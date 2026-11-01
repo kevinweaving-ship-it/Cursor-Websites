@@ -30,7 +30,7 @@ function rank(label,q){const a=key(label),b=key(q);return a===b?0:a.startsWith(b
 async function json(url,signal){const r=await fetch(url,{credentials:'same-origin',signal});if(!r.ok)throw Error(String(r.status));return r.json()}
 function normalizeArray(d){if(Array.isArray(d))return d;if(d&&typeof d==='object'){for(const k of ['results','items','clubs','classes','data'])if(Array.isArray(d[k]))return d[k]}return []}
 async function sailors(q,signal){
- const terms=key(q).split(/\\s+/).filter(Boolean);
+ const terms=key(q).split(/\s+/).filter(Boolean);
  if(!clubCache)clubCache=normalizeArray(await json('/api/clubs',signal));
  if(!classCache){const raw=await json('/api/classes',signal);classCache=Array.isArray(raw)?raw:normalizeArray(raw)}
  const club=clubCache.find(c=>{const code=key(txt(c,'club_abbrev','club_code','code','abbreviation'));return code&&terms.includes(code)})||null;
@@ -40,15 +40,16 @@ async function sailors(q,signal){
  const nameTerms=terms.filter(t=>t!==clubCode&&t!==className);
  const lookup=nameTerms.length?nameTerms.slice().sort((a,b)=>b.length-a.length)[0]:q;
  const a=normalizeArray(await json('/api/search?q='+encodeURIComponent(lookup),signal));
+ const histories=className?await json('/dev1-search/sailor-class-history.json',signal).catch(()=>({})):{};
  const people=a.map(x=>{
   const id=String(x.sa_sailing_id??x.sas_id??x.sa_id??'');
   const name=txt(x,'full_name','name')||[txt(x,'first_names','first_name'),txt(x,'surname','last_name')].filter(Boolean).join(' ');
   const clubVal=key(txt(x,'club','club_code','club_fullname'));
   const classVal=key(txt(x,'class_name','primary_class'));
   const person=key(name);
-  if(nameTerms.some(t=>!person.split(/\\s+/).some(part=>part.startsWith(t))))return null;
+  if(nameTerms.some(t=>!person.split(/\s+/).some(part=>part.startsWith(t))))return null;
   if(clubCode&&clubVal!==clubCode&&!clubVal.includes(key(txt(club,'name','club_fullname'))))return null;
-  if(className&&!classVal.includes(className))return null;
+  if(className&&!classVal.includes(className)&&!(histories[id]||[]).some(c=>key(c).includes(className)))return null;
   return{id,type:'sailor',name,href:urlPath(txt(x,'profile_url','url'))||('/sailor/'+encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))),row:x,avatar:txt(x,'avatar_url','profile_photo_url')||SEARCH_FALLBACK};
  }).filter(Boolean);
  return people;
