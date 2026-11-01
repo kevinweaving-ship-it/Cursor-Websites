@@ -38,7 +38,7 @@ async function sailors(q,signal){
  const clubCode=club?key(txt(club,'club_abbrev','club_code','code','abbreviation')):'';
  const className=classMatch?key(typeof classMatch==='string'?classMatch:txt(classMatch,'class_name','name')):'';
  const nameTerms=terms.filter(t=>t!==clubCode&&t!==className);
- const lookup=nameTerms.length?nameTerms.slice().sort((a,b)=>b.length-a.length)[0]:q;
+ const lookup=nameTerms.length?nameTerms.slice().sort((a,b)=>b.length-a.length||nameTerms.indexOf(b)-nameTerms.indexOf(a))[0]:q;
  const a=normalizeArray(await json('/api/search?q='+encodeURIComponent(lookup),signal));
  const histories=className?await json('/dev1-search/sailor-class-history.json',signal).catch(()=>({})):{};
  const people=a.map(x=>{
