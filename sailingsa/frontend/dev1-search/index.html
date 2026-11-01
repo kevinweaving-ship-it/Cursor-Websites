@@ -49,15 +49,12 @@ async function sailors(q,signal){
   const classVal=key(txt(x,'class_name','primary_class'));
   const person=key(name);
   if(nameTerms.some(t=>!person.split(/\s+/).some(part=>part.startsWith(t))))return null;
-  const verifiedClub=!!clubCode&&(clubVal===clubCode||!!clubVal&&clubVal.includes(key(txt(club,'name','club_fullname'))));
-  const surnameMatch=!!clubCode&&person.split(/\s+/).some(p=>p.startsWith(clubCode));
-  if(clubCode&&!verifiedClub&&!surnameMatch&&clubVal)return null;
-  if(clubCode&&!verifiedClub&&!surnameMatch&&!person.includes('mac')&&!nameTerms.every(t=>person.split(/\s+/).some(p=>p.startsWith(t))))return null;
+  if(clubCode&&(!clubVal||(clubVal!==clubCode&&!clubVal.includes(key(txt(club,'name','club_fullname'))))))return null;
   if(className&&!classVal.includes(className)&&!(histories[id]||[]).some(c=>key(c).includes(className)))return null;
   const logos=[];if(clubVal&&/^[a-z0-9]{2,8}$/.test(clubVal))logos.push({src:'/api/club-logo/'+encodeURIComponent(clubVal.toUpperCase()),alt:clubVal.toUpperCase()+' club logo'});const known=[...new Set([classVal,...(histories[id]||[]).map(key)])].filter(Boolean);for(const c of known){const artwork=classArtwork(c);if(artwork!==SEARCH_FALLBACK&&!logos.some(l=>l.src===artwork)){logos.push({src:artwork,alt:c+' class logo'});if(logos.length>=5)break}};
   return{id,type:'sailor',name,logos,href:urlPath(txt(x,'profile_url','url'))||('/sailor/'+encodeURIComponent(name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))),row:x,avatar:txt(x,'avatar_url','profile_photo_url')||avatarMap[String(Number(id))]||SAILOR_FALLBACK};
  }).filter(Boolean);
- if(clubCode)people.sort((a,b)=>{const score=x=>{const c=key(txt(x.row,'club','club_code','club_fullname'));return c===clubCode?0:key(x.name).split(/\s+/).some(w=>w.startsWith(clubCode))?1:2};return score(a)-score(b)||a.name.localeCompare(b.name)});
+ if(clubCode)people.sort((a,b)=>{const score=x=>key(txt(x.row,'club','club_code','club_fullname'))===clubCode?0:1;return score(a)-score(b)||a.name.localeCompare(b.name)});
  return people;
 }
 async function clubs(q,signal){if(!clubCache)clubCache=normalizeArray(await json('/api/clubs',signal));const a=clubCache;return a.map(x=>{const code=txt(x,'club_abbrev','club_code','code','abbreviation');const name=txt(x,'club_fullname','club_full_name','club_name','name');return{type:'club',name,href:code?'/club/'+encodeURIComponent(code.toLowerCase()):'',avatar:code?'/api/club-logo/'+encodeURIComponent(code):'',logos:[],code}}).filter(x=>x.name&&x.href&&(key(x.name).includes(key(q))||key(x.code).includes(key(q))||/^(clubs?|yacht clubs?)$/.test(key(q)))).slice(0,300)}
