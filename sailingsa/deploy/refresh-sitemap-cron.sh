@@ -1,6 +1,8 @@
 #!/bin/bash
 # Daily sitemap rebuild for cron. Loads DB_URL from sailingsa-api systemd environment.
-# Uses API venv (psycopg2). Does not change sitemap XML logic — calls utils.sitemap_builder.build_sitemap only.
+# Uses API venv (psycopg2). Writes sitemap.xml plus child urlsets including
+# sitemap-roundups.xml (hub + /latest/ + every Monday issue) and sitemap-news.xml
+# (issues from the last 48 hours). Calls utils.sitemap_builder.build_sitemap only.
 set -euo pipefail
 umask 022
 

@@ -37,6 +37,18 @@ curl -sL https://sailingsa.co.za/sitemap.xml | head -40
 
 echo ""
 echo "=============================================="
+echo "STEP 3b — Weekend Roundup sitemaps"
+echo "=============================================="
+echo "sitemap-roundups.xml:"
+curl -sI https://sailingsa.co.za/sitemap-roundups.xml
+curl -sL https://sailingsa.co.za/sitemap-roundups.xml | grep -E 'sailing-roundup/|changefreq' | head -20
+echo "sitemap-news.xml:"
+curl -sI https://sailingsa.co.za/sitemap-news.xml
+echo "Index must list both children:"
+curl -sL https://sailingsa.co.za/sitemap.xml | grep -E 'sitemap-(roundups|news)'
+
+echo ""
+echo "=============================================="
 echo "STEP 4 — Robots.txt"
 echo "=============================================="
 curl -sL https://sailingsa.co.za/robots.txt

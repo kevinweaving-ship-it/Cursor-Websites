@@ -1,0 +1,45 @@
+# Independent Sailing Roundup — news feed contract v1
+
+Output: `GET https://sailingsa.co.za/sailing-roundup/issues/YYYY-MM-DD/issue.json`.
+Visual default is the gold 2026-09-28 edition: cream paper, gold accent, SailingSA header, H1 “The Weekend Roundup”, event stories as kicker / headline / deck / photos / copy / official board.
+**How Gold is created (calendar → cluster → AI polish → checksum → live URL):** [docs/GOLD.md](docs/GOLD.md).
+The edition is generated independently (GoWifi REA box) and published as static
+files under `/var/www/sailingsa/sailing-roundup/`. SailingSA remains a read-only
+results source; this path does not change the SailingSA SPA, header, or database.
+
+The lead article is type `feature` and is written from the public `events`
+table. The Monday issue covers the previous week (Mon–Sun). A multi-week
+event is included once, on the Monday after the week it ended.
+Each following article is a **rewritten** regatta report: unique headline,
+the official `https://sailingsa.co.za/regatta/{slug}` listed and clickable
+directly under that headline (every event URL the article refers to),
+original copy clustered from the event's own sources with inline citations,
+photographs from those same sources (podium and on the water are both
+valid; more than one photo is allowed; never Wikimedia), and the official
+event podium in gold format — heading exactly `1st, 2nd, 3rd` (or
+`{Class} · 1st, 2nd, 3rd` when one event has several classes). Same
+columns as 2026-09-28: Pos, Helm, Crew, Club, Sail No, Nett. Team racing
+(TSL) names **teams** (MAC, MATIES, RCYC Sailing Academy), not sailors
+from the overall results table; checksum rejects those sailor cells.
+External media is kept only when
+named sailors checksum against those official results. Age titles (U17,
+U19, and the like) are mentioned only when verified media names sailors
+who appear in the results. Discovery always includes the SailingSA regatta page (direct API access;
+Google `{event} {year}` / `{event} {month} {year}` should also surface it
+as the SAS-sanctioned card). Other web, club, class, and Facebook hits
+are collated around that official source. Posts must be published during
+the regatta or in the two weeks after. Fields: id (stable), type (feature|regatta_report|brief),
+headline, deck, byline, kicker, layout (lead|photo-led|split|classic|compact),
+published_at, event_id, hero_image (nullable), blocks (ordered), sources (URLs).
+The public HTML/PDF must not dump `source_info` or social caption lists.
+
+Block types: paragraph, heading, image, quote, results, video.
+Image block: url, alt, caption, credit, source_url, rights_status.
+Results block: source_event_url, columns, rows, as_of.
+Draft/unverified data is not treated as licensed reuse.
+
+The consuming website renders its own layout. A separately generated PDF uses
+the same issue JSON. Empty article lists still produce a landing page + PDF.
+
+Folders: `issues/YYYY-MM-DD/media`, `issues/YYYY-MM-DD/sources`,
+`public/issues/YYYY-MM-DD/` for the published feed.

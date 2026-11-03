@@ -1,0 +1,59 @@
+# Weekend Roundup (Monday weekly)
+
+Public URLs: `https://sailingsa.co.za/sailing-roundup/` and `…/issues/YYYY-MM-DD/`.
+
+**Gold default:** `https://sailingsa.co.za/sailing-roundup/issues/2026-09-28/` is the locked format, layout, and style. Every issue uses that magazine chrome (cream paper, gold accent, SailingSA header, `The Weekend Roundup` lead, story-heading, per-class official boards). Later issues must not drift to the older purple/folio template.
+
+**Master Gold spec (step-by-step creation, external media, AI polish, publish, no hand edit):** [gowifi/rea/sailing-roundup/docs/GOLD.md](../gowifi/rea/sailing-roundup/docs/GOLD.md).
+
+This is a **Monday weekly**, not Sat–Sun only. Midweek races, long weekends, and multi-week events are included. The name on the site stays Weekend Roundup.
+
+## Assignment rule
+
+An event is in **exactly one** Monday issue: the **Monday after the week the event ended**.
+
+- Finish Sunday 27 Sep → issue Monday **28 Sep**
+- Finish Wednesday 15 Apr → issue Monday **20 Apr** (week of 13–19 Apr)
+- Multi-week event ending Tuesday 15 Dec → issue Monday **21 Dec** (week of 14–20 Dec)
+- Empty weeks (no racing events finished) → **no URL**
+
+SailingSA results (names, scores, classes, sailors) are the source of truth. REA then pulls club sites, class socials, Google, and sailor Media-tab mentions for copy and photographs. No Wikimedia. No invented photos.
+
+Each regatta report publishes the official **1st / 2nd / 3rd** podium (not the full fleet). A single-class event gets one board headed `1st, 2nd, 3rd`; a multi-class event gets one board per class headed `{Class} · 1st, 2nd, 3rd`. Extra sailor notes (Media-tab, club or class posts) are included only when those names checksum against the official results. If external media lists other-event sailors as this event's leaders, the source is dropped. U15 / U17 / U19 / U21 titles are mentioned only when verified media names official sailors in that age group. Team racing names teams, not sailors.
+
+Historical 2026 (and later years) is the same pipeline, not a results-only stub:
+
+```bash
+python3 gowifi/rea/sailing-roundup/app/publish_weekend.py --list-year 2026
+python3 gowifi/rea/sailing-roundup/app/publish_weekend.py --year 2026
+```
+
+Run that on the GoWifi REA box (`/opt/rea/work/sailing-roundup`). Existing editorial issues are kept unless `--rebuild`. Then `deploy/publish-to-sailingsa.sh` publishes the static tree.
+
+Later years: `--year 2025` back to 2017, one year at a time.
+
+## Not for landing Latest News
+
+Landing recency rules stay as they are. Historical issues are archive URLs for Google depth (`sitemap-roundups.xml`). They are not injected into `/api/news/latest`.
+
+## Google
+
+| File | Rule |
+| --- | --- |
+| `/sitemap-news.xml` | First-party roundup URLs from the last **48 hours** only (`news:news`, `news:publication_date`, `news:title`) |
+| `/sitemap-roundups.xml` | Hub + `/latest/` + all issue URLs (historical). `changefreq` weekly so Google recrawls most Mondays |
+| `/sitemap.xml` | Index lists both |
+| `/robots.txt` | `Sitemap:` lines for the index and both child sitemaps |
+| Issue HTML | Self-canonical, `index,follow`, Open Graph, `NewsArticle` JSON-LD (`datePublished`, `headline`, `author`) |
+| `/sailing-roundup/latest/` | Canonical to the newest issue URL |
+| `/regatta/{id}` | `SportsEvent` — sport Sailing, yacht-club location, podium competitors |
+
+Monday publish and the daily sitemap cron rewrite those files and ping Google. Submit **https://sailingsa.co.za/sitemap.xml** (or the two child sitemaps) once in Google Search Console; new Monday URLs are then discovered automatically.
+
+Indexing API (`URL_UPDATED`) is optional: `--notify-google` or `GOOGLE_INDEXING_SA_JSON`. Google documents that API for JobPosting / livestream; failures must not block publish.
+
+## Code
+
+- REA pipeline: `gowifi/rea/sailing-roundup/`
+- Week clustering: `app/events_weekend.py` (`issue_monday_for_end`, `year_issue_mondays`)
+- Monday / year publish: `app/publish_weekend.py`

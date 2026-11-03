@@ -1,0 +1,11 @@
+[Unit]
+Description=Monday Sailing Weekend Roundup publication
+
+[Timer]
+OnCalendar=Mon *-*-* 06:00:00
+Persistent=true
+RandomizedDelaySec=90
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
