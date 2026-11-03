@@ -1,0 +1,35 @@
+{
+  "entries_total": 7,
+  "races_total": 8,
+  "regatta_id": "2026-10-24-hmyc-dam-bottle-sprints",
+  "result_name": "Dam Bottle Sprints",
+  "event_name": "Dam Bottle Sprints",
+  "start_date": "2026-10-24",
+  "end_date": "2026-10-25",
+  "result_status": "Provisional",
+  "as_at_time": "2026-10-31T09:36:05.427251+02:00",
+  "host_club_code": "HMYC",
+  "host_club_name": "HMYC",
+  "host_club_id": 98,
+  "fleet_classes": [],
+  "fleet_stats": [
+    {
+      "class_name": "Open",
+      "class_slug": "open",
+      "path": "/class/open",
+      "entries": 7,
+      "races_depth": 8,
+      "fleet_label": "Open"
+    }
+  ],
+  "fleet_count": 1,
+  "entries_checksum_ok": true,
+  "blank_hub_news_badge_label": null,
+  "blank_hub_news_image_url": null,
+  "blank_hub_news_album": [],
+  "blank_hub_news_show_hero": true,
+  "mm_live_fb_feed": false,
+  "mm_feed_source": "",
+  "mm_fb_page": "",
+  "mm_clip_urls": []
+}

@@ -1,0 +1,43 @@
+{
+  "entries_total": 55,
+  "races_total": 1,
+  "regatta_id": "2026-10-24-vyc-tour-de-vlei",
+  "result_name": "Tour de Vlei",
+  "event_name": "Tour de Vlei",
+  "start_date": "2026-10-24",
+  "end_date": "2026-10-25",
+  "result_status": "Final",
+  "as_at_time": "2026-10-25T17:15:00+02:00",
+  "host_club_code": "VYC",
+  "host_club_name": "VYC",
+  "host_club_id": 70,
+  "fleet_classes": [],
+  "fleet_stats": [
+    {
+      "class_name": "Dinghy",
+      "class_slug": "dinghy",
+      "path": "/class/dinghy",
+      "entries": 38,
+      "races_depth": 1,
+      "fleet_label": "Dinghy"
+    },
+    {
+      "class_name": "Multihull",
+      "class_slug": "multihull",
+      "path": "/class/multihull",
+      "entries": 17,
+      "races_depth": 1,
+      "fleet_label": "Multihull"
+    }
+  ],
+  "fleet_count": 2,
+  "entries_checksum_ok": true,
+  "blank_hub_news_badge_label": null,
+  "blank_hub_news_image_url": null,
+  "blank_hub_news_album": [],
+  "blank_hub_news_show_hero": true,
+  "mm_live_fb_feed": false,
+  "mm_feed_source": "",
+  "mm_fb_page": "",
+  "mm_clip_urls": []
+}
