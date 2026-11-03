@@ -116,6 +116,8 @@ python3 /root/gowifi-upp/audit_export.py
 
 ## Books (no QuickBooks)
 
+The 17 Oct 2026 catch-up made each QuickBooks customer balance equal the client page. Daily FNB, the 17th invoices, and the debit-order follow-up are in `BOOKS_MONTHLY.md`.
+
 GoWiFi books are three feeds, not a full ledger package:
 
 1. **We invoice / statement** active fibre lines (series continues after QuickBooks 3039)
