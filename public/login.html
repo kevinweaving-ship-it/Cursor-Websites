@@ -1,6 +1,45 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
+    <script id="sailingsa-login-to-signup">
+    (function () {
+        try {
+            var hash = (window.location.hash || "").replace(/^#/, "");
+            if (hash === "recovery") return;
+            var params = new URLSearchParams(window.location.search || "");
+            if (params.get("session")) return;
+            function usable(value) {
+                if (!value) return "";
+                try {
+                    var u = new URL(value, window.location.origin);
+                    if (u.origin !== window.location.origin) return "";
+                    var path = (u.pathname || "").replace(/\/+$/, "") || "/";
+                    if (path === "/login" || path === "/login.html" || path === "/signup" || path === "/signup.html") return "";
+                    return u.toString();
+                } catch (err) {
+                    return "";
+                }
+            }
+            var returnTo = usable(params.get("returnTo") || params.get("next") || "");
+            if (!returnTo) {
+                try { returnTo = usable(sessionStorage.getItem("auth_returnTo") || ""); } catch (err) {}
+            }
+            if (returnTo) {
+                try { sessionStorage.setItem("auth_returnTo", returnTo); } catch (err2) {}
+            }
+            var dest = new URL((window.location.origin || "") + "/signup.html");
+            dest.searchParams.set("signup", "1");
+            if (returnTo) dest.searchParams.set("returnTo", returnTo);
+            ["sas_id", "name", "q", "sailor", "error"].forEach(function (key) {
+                var val = params.get(key);
+                if (val) dest.searchParams.set(key, val);
+            });
+            var sasAlias = params.get("sasId") || params.get("sas");
+            if (sasAlias && !dest.searchParams.get("sas_id")) dest.searchParams.set("sas_id", sasAlias);
+            window.location.replace(dest.toString());
+        } catch (err) {}
+    })();
+    </script>
     <base href="/">
     <meta charset="UTF-8">
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
