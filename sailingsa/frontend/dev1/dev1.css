@@ -1,0 +1,504 @@
+/* /dev1/dev1.css — single winning sheet. No stacked patches.
+   Card geometry from live #dev1-layout-locked. Demo / header-enforcer / landing-copy CSS deleted.
+*/
+
+html[data-ssa-layout] body {
+  margin: 0;
+  padding-top: 80px;
+  background: #eef2f5;
+  overflow-x: hidden;
+}
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+/* First-paint navy shell — reserved size before slides exist */
+#dev1-root {
+  max-width: 720px;
+  margin: 12px auto 30px;
+  padding: 0 12px;
+  overflow-anchor: none;
+}
+#dev1-editorial {
+  background: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+}
+#landing-top-card,
+#landing-top-card .landing-roundup-viewport,
+#landing-top-card .landing-roundup-slide {
+  background: #071c35;
+}
+#landing-top-card {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  z-index: 1;
+}
+#landing-top-card .landing-roundup-viewport {
+  width: 100%;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+#landing-top-card .landing-roundup-slide {
+  box-sizing: border-box;
+  height: 480px;
+  min-height: 480px;
+}
+@media (max-width: 480px) {
+  #dev1-root { padding: 0; margin: 12px auto 30px; }
+  #dev1-editorial { border-radius: 0; }
+  #landing-top-card .landing-roundup-slide {
+    height: 445px;
+    min-height: 445px;
+  }
+}
+
+/* Header auth chrome that session.js fills — gold-header owns layout */
+#headerAuth #loginBox,
+#headerAuth #loggedInStatus { display: flex; align-items: center; gap: 8px; }
+#authBtn, #authSignUpBtn, #headerAuth .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0.4rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: #d4a017;
+  color: #001f3f;
+  font: 700 0.8rem/1 system-ui, sans-serif;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media (max-width: 480px) {
+  #authBtn, #authSignUpBtn, #headerAuth .btn-primary {
+    min-height: 32px;
+    font-size: 0.7rem;
+    padding: 0.35rem 0.65rem;
+  }
+}
+
+/* --- folded from #dev1-comment-pill-style --- */
+/* DEV1 roundup comment pill */
+#dev1-root #landing-roundup-actions .roundup-reacts button[data-roundup-comment="1"]{
+display:inline-flex!important;align-items:center!important;justify-content:center!important;
+gap:7px!important;padding:7px 11px!important;margin:0!important;
+min-height:32px!important;border-radius:999px!important;
+border:1px solid rgba(190,222,241,.42)!important;background:rgba(255,255,255,.11)!important;
+color:#fff!important;font:650 12px/1.15 system-ui,sans-serif!important;
+white-space:nowrap!important;box-shadow:none!important;
+}
+#dev1-root #landing-roundup-actions .roundup-reacts button[data-roundup-comment="1"]::after{
+content:"➤";display:inline-block;font-size:13px;line-height:1;color:#bdebf7;transform:rotate(-35deg);
+}
+#dev1-root #landing-roundup-actions .roundup-reacts button[data-roundup-comment="1"]:hover,
+#dev1-root #landing-roundup-actions .roundup-reacts button[data-roundup-comment="1"]:focus-visible{
+background:rgba(255,255,255,.2)!important;border-color:rgba(190,222,241,.75)!important;
+}
+@media(max-width:480px){
+#dev1-root #landing-roundup-actions .roundup-reacts button[data-roundup-comment="1"]{padding:6px 9px!important;gap:5px!important;font-size:11px!important;min-height:30px!important}
+}
+
+/* --- folded from #dev1-selected-reaction-colors --- */
+#dev1-root .roundup-reacts button[data-roundup-kind="up"].is-mine,
+#dev1-root .roundup-reacts button[data-roundup-kind="down"].is-mine,
+#dev1-root .dockside-reacts button.is-mine[data-outline="up"],
+#dev1-root .dockside-reacts button.is-mine[data-outline="down"]{color:#f7be28!important}
+#dev1-root .roundup-reacts button[data-roundup-kind="heart"].is-mine,
+#dev1-root .dockside-reacts button.is-mine[data-outline="heart"]{color:#f04363!important}
+#dev1-root .roundup-reacts button.is-mine svg,
+#dev1-root .dockside-reacts button.is-mine svg{fill:currentColor!important;stroke:currentColor!important}
+#dev1-root .roundup-reacts button:not(.is-mine) svg,
+#dev1-root .dockside-reacts button:not(.is-mine) svg{fill:none!important}
+
+/* --- folded from #dev1-dockside-icon-parity --- */
+#dev1-root .dockside-reacts button[data-outline]{display:inline-flex!important;align-items:center!important;gap:4px!important;border:0!important;background:transparent!important;padding:3px 4px!important;cursor:pointer!important}
+#dev1-root .dockside-reacts button[data-outline] svg{display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8}
+#dev1-root .dockside-reacts button[data-outline="up"].is-mine,#dev1-root .dockside-reacts button[data-outline="down"].is-mine{color:#f7be28!important}
+#dev1-root .dockside-reacts button[data-outline="heart"].is-mine{color:#f04363!important}
+#dev1-root .dockside-reacts button[data-outline].is-mine svg{fill:currentColor!important}
+#dev1-root .dockside-reacts button[data-outline]:not(.is-mine) svg{fill:none!important}
+
+/* --- folded from #dev1-underline-refinement --- */
+#dev1-root #landing-top-card .landing-roundup-series{border-bottom:0!important;text-decoration:none!important}
+#dev1-root #landing-top-card .landing-roundup-series::after{content:"";display:block!important;width:100%!important;max-width:100%!important;height:1px!important;background:rgba(205,225,237,.72)!important;margin-top:3px!important}
+#dev1-root #landing-top-card .landing-roundup-date{border-bottom:0!important;text-decoration:none!important;width:max-content!important;max-width:calc(100% - 32px)!important;left:auto!important;right:16px!important;padding-bottom:3px!important;box-shadow:0 1px 0 rgba(205,225,237,.72)!important;white-space:nowrap!important}
+#dev1-root #landing-top-card .landing-roundup-edition{border-bottom:0!important;text-decoration:none!important;box-shadow:none!important}
+
+/* --- folded from #dev1-comment-width-read-position --- */
+#dev1-root #landing-roundup-actions{display:flex!important;align-items:center!important;gap:7px!important}
+#dev1-root #landing-roundup-actions .roundup-reacts{display:flex!important;flex:1 1 auto!important;min-width:0!important}
+#dev1-root #landing-roundup-actions .roundup-reacts button[data-roundup-comment="1"]{min-width:112px!important;padding:7px 13px!important;justify-content:space-between!important}
+#dev1-root #dev1-read-count{margin-left:auto!important;margin-right:2px!important;flex:0 0 auto!important}
+#dev1-root #dev1-read-active{margin-left:0!important;flex:0 0 auto!important}
+@media(max-width:480px){#dev1-root #landing-roundup-actions{gap:5px!important;padding-left:7px!important;padding-right:7px!important}#dev1-root #landing-roundup-actions .roundup-reacts{gap:5px!important}#dev1-root #landing-roundup-actions .roundup-reacts button[data-roundup-comment="1"]{min-width:95px!important;padding:6px 9px!important}}
+
+/* --- folded from #dev1-count-driven-fill --- */
+#dev1-root .roundup-reacts button[data-roundup-kind] svg,
+#dev1-root .dockside-reacts button[data-outline] svg{fill:none!important}
+#dev1-root .roundup-reacts button[data-roundup-kind][data-has-count="1"] svg,
+#dev1-root .dockside-reacts button[data-outline][data-has-count="1"] svg{fill:currentColor!important}
+#dev1-root .roundup-reacts button[data-roundup-kind="up"][data-has-count="1"],
+#dev1-root .roundup-reacts button[data-roundup-kind="down"][data-has-count="1"],
+#dev1-root .dockside-reacts button[data-outline="up"][data-has-count="1"],
+#dev1-root .dockside-reacts button[data-outline="down"][data-has-count="1"]{color:#f7be28!important}
+#dev1-root .roundup-reacts button[data-roundup-kind="heart"][data-has-count="1"],
+#dev1-root .dockside-reacts button[data-outline="heart"][data-has-count="1"]{color:#f04363!important}
+
+/* --- folded from #dev1-real-comment-composer --- */
+#dev1-root #landing-roundup-actions{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:8px!important}
+#dev1-root #landing-roundup-actions .roundup-reacts{flex:0 0 auto!important}
+#dev1-root #landing-roundup-actions button[data-roundup-comment]{display:none!important}
+#dev1-card-compose{display:flex;align-items:center;flex:1 1 145px;min-width:130px;max-width:none;border:1px solid rgba(222,238,250,.55);border-radius:22px;background:rgba(255,255,255,.12);padding:3px 4px 3px 12px;box-sizing:border-box}
+#dev1-card-compose input{min-width:0;width:100%;flex:1;border:0!important;background:transparent!important;outline:0!important;box-shadow:none!important;color:white!important;font:400 16px/1.2 system-ui,sans-serif!important;padding:5px 0!important;border-radius:0!important}
+#dev1-card-compose input::placeholder{color:#e5eff8;opacity:.95}
+#dev1-card-compose button{width:29px;height:29px;flex:0 0 29px;padding:0;border:0;border-radius:50%;background:#d8f0f6;color:#092a48;display:grid;place-items:center;cursor:pointer}
+#dev1-card-compose button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
+#dev1-card-compose button:disabled{opacity:.5}
+#dev1-card-message{flex:0 0 100%;font:12px/1.3 system-ui,sans-serif;color:#f7e5ad;min-height:0}
+#dev1-card-message:empty{display:none}
+#dev1-root #dev1-read-count{margin-left:auto!important}
+#dev1-root #dev1-read-active{white-space:nowrap}
+@media(max-width:480px){#dev1-card-compose{flex:1 1 135px;min-width:125px}#dev1-root #landing-roundup-actions{gap:6px!important}#dev1-card-compose input{font-size:16px!important}}
+
+/* --- folded from #dev1-comment-layout-correction --- */
+#dev1-root #landing-roundup-actions{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;grid-template-rows:auto auto!important;gap:8px 10px!important;padding:10px 14px!important;align-items:center!important}
+#dev1-root #landing-roundup-actions .roundup-reacts{grid-column:1!important;grid-row:1!important;min-width:0!important;display:flex!important;gap:9px!important}
+#dev1-root #landing-roundup-actions .roundup-reacts [data-roundup-comment]{display:none!important}
+#dev1-root #dev1-read-count{grid-column:2!important;grid-row:1!important;margin:0!important}
+#dev1-root #dev1-read-active{grid-column:3!important;grid-row:1!important;margin:0!important}
+#dev1-root #dev1-card-compose{grid-column:1/-1!important;grid-row:2!important;width:100%!important;max-width:none!important;min-height:42px!important;flex:none!important;padding:4px 5px 4px 15px!important}
+#dev1-root #dev1-card-compose input{width:100%!important;flex:1!important;min-width:0!important;font-size:16px!important;padding:5px 0!important}
+#dev1-root #dev1-card-compose button{height:32px!important;width:32px!important;flex:0 0 32px!important}
+#dev1-root #dev1-card-message{grid-column:1/-1!important;grid-row:3!important}
+@media(max-width:480px){#dev1-root #landing-roundup-actions{gap:7px 6px!important;padding:9px 11px!important}#dev1-root #landing-roundup-actions .roundup-reacts{gap:6px!important}#dev1-root #dev1-read-active{font-size:10px!important}}
+
+/* --- folded from #dev1-comment-final-row --- */
+#dev1-root #landing-roundup-actions .roundup-reacts button[data-roundup-comment="1"]{display:none!important;visibility:hidden!important;position:absolute!important;width:0!important;height:0!important;padding:0!important;margin:0!important}
+#dev1-root #dev1-card-compose{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:space-between!important;min-height:45px!important;height:45px!important;max-height:45px!important;border-radius:24px!important;overflow:hidden!important}
+#dev1-root #dev1-card-compose input{display:block!important;flex:1 1 0!important;width:auto!important;max-width:none!important;min-width:0!important;align-self:center!important;height:32px!important;line-height:22px!important;margin:0!important}
+#dev1-root #dev1-card-compose button{display:grid!important;align-self:center!important;flex:0 0 32px!important;width:32px!important;height:32px!important;margin:0!important}
+
+/* --- folded from #dev1-unified-controls-final --- */
+#dev1-root #landing-roundup-actions{display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:5px!important;padding:8px 9px!important;min-height:51px!important}
+#dev1-root #landing-roundup-actions .roundup-reacts{flex:0 0 auto!important;display:flex!important;align-items:center!important;gap:3px!important}
+#dev1-root #landing-roundup-actions .roundup-reacts button{padding:3px 1px!important;min-width:0!important;min-height:26px!important;font-size:11px!important;white-space:nowrap!important}
+#dev1-root #landing-roundup-actions .roundup-reacts [data-roundup-comment]{display:none!important}
+#dev1-root #dev1-card-compose{grid-area:auto!important;display:flex!important;flex:1 1 0!important;min-width:68px!important;width:auto!important;max-width:none!important;height:34px!important;min-height:34px!important;max-height:34px!important;border-radius:99px!important;padding:2px 3px 2px 9px!important;gap:2px!important}
+#dev1-root #dev1-card-compose input{flex:1 1 0!important;width:1px!important;min-width:0!important;height:28px!important;font-size:16px!important;padding:0!important;line-height:28px!important}
+#dev1-root #dev1-card-compose button{flex:0 0 27px!important;width:27px!important;height:27px!important;min-width:27px!important;border-radius:50%!important;background:#f97316!important;color:white!important}
+#dev1-root #dev1-card-compose button svg{stroke:white!important}
+#dev1-root #dev1-read-count{grid-area:auto!important;flex:0 0 auto!important;margin:0!important;font-size:11px!important;white-space:nowrap!important}
+#dev1-root #dev1-read-active{grid-area:auto!important;flex:0 0 auto!important;margin:0!important;font-size:9px!important;letter-spacing:0!important;white-space:nowrap!important}
+#dev1-root #dev1-card-message{position:absolute;top:100%;left:8px;z-index:10;background:#102746;padding:4px 6px}
+#dev1-root #landing-top-card .landing-roundup-arrow{width:33px!important;height:39px!important;min-width:33px!important;min-height:39px!important;font-size:27px!important;background:rgba(4,24,46,.8)!important;border:1px solid rgba(255,255,255,.8)!important;opacity:1!important;box-shadow:0 2px 7px #0018!important}
+#dev1-root #landing-top-card .landing-roundup-arrow:disabled{opacity:.38!important}
+#dev1-root #dockside-landing .dockside-compose,#dev1-root #dockside-landing .dockside-inline-reply,#dev1-root #dockside-landing .dockside-start .dockside-compose{display:flex!important;flex-flow:row nowrap!important;align-items:center!important;gap:5px!important;padding:3px 4px 3px 12px!important;border:1px solid #d4dce5!important;border-radius:99px!important;background:#eef1f5!important;min-height:39px!important;max-width:100%!important;box-sizing:border-box!important}
+#dev1-root #dockside-landing .dockside-compose input,#dev1-root #dockside-landing .dockside-inline-reply input{flex:1 1 0!important;min-width:0!important;width:100%!important;background:transparent!important;border:0!important;box-shadow:none!important;outline:0!important;font-size:16px!important;padding:5px 0!important}
+#dev1-root #dockside-landing .dockside-compose button[type=submit],#dev1-root #dockside-landing .dockside-inline-reply button[type=submit]{flex:0 0 29px!important;width:29px!important;height:29px!important;min-width:29px!important;border:0!important;border-radius:50%!important;padding:0!important;background:#f97316!important;color:white!important;font-size:0!important;display:grid!important;place-items:center!important}
+#dev1-root #dockside-landing .dockside-compose button[type=submit]::after,#dev1-root #dockside-landing .dockside-inline-reply button[type=submit]::after{content:"➤";font-size:17px!important;line-height:1!important}
+#dev1-root #dockside-landing .dockside-compose .dockside-avatar,#dev1-root #dockside-landing .dockside-inline-reply .dockside-avatar{flex:0 0 26px!important;width:26px!important;height:26px!important}
+@media(max-width:480px){#dev1-root #landing-roundup-actions{gap:4px!important;padding:7px 7px!important}#dev1-root #dev1-read-active{font-size:8px!important}#dev1-root #dev1-card-compose{min-width:55px!important}#dev1-root #landing-roundup-actions .roundup-reacts{gap:2px!important}}
+
+/* --- folded from #dev1-underline-no-wrap-fix --- */
+#dev1-root #landing-top-card .landing-roundup-series{white-space:nowrap!important;font-size:20px!important;line-height:1.15!important;padding-right:0!important}
+#dev1-root #landing-top-card .landing-roundup-series::after{width:190px!important;max-width:53%!important;margin-top:4px!important}
+#dev1-root #landing-top-card .landing-roundup-date{width:132px!important;max-width:none!important;right:16px!important;left:auto!important;text-align:right!important;white-space:nowrap!important;overflow:visible!important;font-size:11px!important;padding:0 0 3px!important;box-shadow:0 1px 0 rgba(205,225,237,.72)!important}
+@media(max-width:480px){#dev1-root #landing-top-card .landing-roundup-series{font-size:20px!important}#dev1-root #landing-top-card .landing-roundup-date{width:132px!important;font-size:11px!important;right:16px!important}}
+
+/* --- folded from #dev1-focus-and-underline-correction --- */
+#dev1-root #landing-top-card .landing-roundup-series::after{content:"";position:absolute!important;left:0!important;top:calc(100% + 3px)!important;display:block!important;width:188px!important;max-width:none!important;height:1px!important;margin:0!important;background:rgba(197,220,235,.70)!important;pointer-events:none!important}
+#dev1-root #landing-top-card .landing-roundup-series{white-space:nowrap!important}
+#dev1-root #landing-top-card .landing-roundup-date{box-shadow:none!important;border-bottom:1px solid rgba(197,220,235,.70)!important;width:max-content!important;max-width:none!important;min-width:0!important;right:16px!important;left:auto!important;white-space:nowrap!important;overflow:visible!important;text-align:right!important}
+
+/* --- folded from #dev1-fb-thread-layout --- */
+#dev1-root #dockside-landing .dockside-person{gap:10px!important;align-items:flex-start!important}
+#dev1-root #dockside-landing .dockside-avatar{width:36px!important;height:36px!important;flex:0 0 36px!important;border-radius:50%!important;overflow:hidden!important}
+#dev1-root #dockside-landing .dockside-name{font-size:14px!important;font-weight:750!important}
+#dev1-root #dockside-landing .dockside-body{font-size:14px!important;line-height:1.45!important;-webkit-line-clamp:unset!important;display:block!important;overflow:visible!important}
+#dev1-root #dockside-landing .dockside-reply{margin-left:18px!important;padding-left:16px!important;border-left:2px solid #dbe2e9!important}
+#dev1-root .dev1-thread-toggle{border:0!important;background:transparent!important;color:#64748b!important;font:700 12px/1.4 system-ui,sans-serif!important;cursor:pointer;padding:7px 0!important}
+#dev1-root .dev1-thread-toggle:before{content:"⌄ ";font-size:15px}
+#dev1-root .dev1-thread-toggle[aria-expanded="true"]:before{content:"⌃ "}
+#dev1-root #dockside-landing .dockside-reply[hidden]{display:none!important}
+
+/* --- folded from #dev1-pagination-own-row --- */
+#dev1-root #landing-top-card #landing-roundup-dots{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;width:100%!important;min-height:24px!important;height:24px!important;margin:0!important;padding:4px 0!important;box-sizing:border-box!important;background:#102746!important;z-index:6!important;clear:both!important}
+#dev1-root #landing-top-card #landing-roundup-dots[hidden]{display:none!important}
+#dev1-root #landing-top-card #landing-roundup-dots .landing-roundup-dot{width:6px!important;height:6px!important;min-width:6px!important;min-height:6px!important;padding:0!important;border-radius:50%!important}
+#dev1-root #landing-top-card #landing-roundup-actions{position:relative!important;z-index:7!important}
+
+/* --- folded from #dev1-uniform-avatar-sizes --- */
+#dev1-root #dockside-landing .dockside-avatar,
+#dev1-root #dockside-landing .dockside-avatar--me,
+#dev1-root #dockside-landing .dockside-inline-reply .dockside-avatar,
+#dev1-root #dockside-landing .dockside-compose .dockside-avatar{
+width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;max-width:36px!important;max-height:36px!important;flex:0 0 36px!important;border-radius:50%!important;box-sizing:border-box!important;overflow:hidden!important;padding:0!important}
+#dev1-root #dockside-landing .dockside-avatar img{width:100%!important;height:100%!important;object-fit:cover!important;border-radius:50%!important}
+
+/* --- folded from #dev1-dots-inside-hero --- */
+#dev1-root #landing-top-card{position:relative!important}
+#dev1-root #landing-top-card .landing-roundup-slide{height:408px!important;min-height:408px!important}
+#dev1-root #landing-top-card #landing-roundup-dots{position:absolute!important;left:0!important;right:0!important;bottom:auto!important;top:382px!important;z-index:12!important;width:100%!important;height:22px!important;min-height:22px!important;padding:0!important;margin:0!important;background:transparent!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:8px!important}
+#dev1-root #landing-top-card #landing-roundup-dots .landing-roundup-dot{width:7px!important;height:7px!important;min-width:7px!important;min-height:7px!important;background:rgba(255,255,255,.55)!important;box-shadow:0 1px 3px #0008!important}
+#dev1-root #landing-top-card #landing-roundup-dots .landing-roundup-dot.is-active{background:#fff!important}
+#dev1-root #landing-top-card #landing-roundup-actions{margin:0!important}
+#dev1-root #landing-top-card .landing-roundup-title{bottom:54px!important}
+@media(max-width:480px){#dev1-root #landing-top-card .landing-roundup-slide{height:385px!important;min-height:385px!important}#dev1-root #landing-top-card #landing-roundup-dots{top:359px!important}#dev1-root #landing-top-card .landing-roundup-title{bottom:51px!important}}
+
+/* --- folded from #dev1-true-round-dots --- */
+#dev1-root #landing-top-card #landing-roundup-dots{display:flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;line-height:0!important}
+#dev1-root #landing-top-card #landing-roundup-dots .landing-roundup-dot{display:block!important;box-sizing:border-box!important;flex:0 0 7px!important;width:7px!important;height:7px!important;min-width:7px!important;max-width:7px!important;min-height:7px!important;max-height:7px!important;aspect-ratio:1/1!important;border:0!important;border-radius:50%!important;padding:0!important;margin:0!important;transform:none!important;outline:0!important;box-shadow:none!important;background:rgba(255,255,255,.55)!important}
+#dev1-root #landing-top-card #landing-roundup-dots .landing-roundup-dot.is-active{background:#fff!important}
+
+/* --- folded from #dev1-contextual-comment-dock --- */
+#dev1-root #dockside-reply-form.dev1-floating-compose{position:fixed!important;left:50%!important;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;transform:translateX(-50%)!important;width:min(calc(100vw - 28px),650px)!important;z-index:90!important;box-shadow:0 5px 22px rgba(0,20,40,.19)!important;background:#eef1f5!important}
+#dev1-root #dockside-reply-form.dev1-floating-compose input{min-width:0!important}
+#dev1-root #dockside-reply-form.dev1-floating-compose .dockside-avatar{width:30px!important;height:30px!important;flex:0 0 30px!important}
+#dev1-root #dockside-reply-form.dev1-floating-compose:focus-within{box-shadow:0 4px 18px rgba(0,20,40,.24)!important}
+
+/* --- folded from #dev1-single-avatar-send-unify --- */
+#dev1-root #dockside-reply-form #dockside-me-avatar{position:relative!important;display:inline-flex!important;flex:0 0 30px!important;width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;overflow:hidden!important;border-radius:50%!important;background:transparent!important;background-image:none!important}
+#dev1-root #dockside-reply-form #dockside-me-avatar::before,#dev1-root #dockside-reply-form #dockside-me-avatar::after{content:none!important;display:none!important}
+#dev1-root #dockside-reply-form #dockside-me-avatar img{display:block!important;position:static!important;width:100%!important;height:100%!important;object-fit:cover!important;border-radius:50%!important}
+#dev1-root #dockside-reply-form button[type=submit]{width:27px!important;height:27px!important;min-width:27px!important;min-height:27px!important;flex:0 0 27px!important;border-radius:50%!important;background:#f97316!important;color:#fff!important;display:grid!important;place-items:center!important;font-size:0!important}
+
+#dev1-root #dev1-card-compose button{background:#f97316!important;color:white!important}
+
+/* --- folded from #dev1-send-icon-canonical --- */
+#dev1-root #dev1-card-compose button[type=submit],
+#dev1-root #dockside-landing .dockside-compose button[type=submit],
+#dev1-root #dockside-landing .dockside-inline-reply button[type=submit]{
+display:grid!important;place-items:center!important;flex:0 0 30px!important;width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;padding:0!important;border:0!important;border-radius:50%!important;background:#f97316!important;color:#fff!important;font-size:0!important;line-height:0!important;box-shadow:none!important}
+#dev1-root button.dev1-canonical-send::after{content:none!important;display:none!important}
+#dev1-root button.dev1-canonical-send svg{display:block!important;width:17px!important;height:17px!important;fill:none!important;stroke:#fff!important;stroke-width:2!important;stroke-linecap:round!important;stroke-linejoin:round!important}
+
+/* --- folded from #dev1-interest-compact-style --- */
+#dev1-upcoming-design .landing-event-card[data-landing-event-slot="1"] .sa-home-regatta-top-main{position:relative!important}
+#dev1-upcoming-design .landing-event-card[data-landing-event-slot="1"] .sa-home-regatta-title{padding-right:42px!important}
+#dev1-upcoming-design .landing-event-card[data-landing-event-slot="1"] .dev1-card1-logo-right{display:flex;align-items:center;justify-content:flex-end;position:absolute;top:0;right:0;height:34px;margin:0;background:transparent;border:0;box-shadow:none}
+#dev1-upcoming-design .landing-event-card[data-landing-event-slot="1"] .dev1-card1-logo-right .sa-home-regatta-event-logo-link{position:static!important;display:block!important;width:46px!important;height:34px!important;min-width:0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+#dev1-upcoming-design .landing-event-card[data-landing-event-slot="1"] .dev1-card1-logo-right img{display:block!important;width:46px!important;height:34px!important;max-width:46px!important;max-height:34px!important;object-fit:contain!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+
+#dev1-upcoming-design{max-width:720px;margin:18px auto 38px;padding:0;font-family:system-ui,-apple-system,sans-serif}
+#dev1-upcoming-design .dev1-upcoming-titlebar{background:#102746;color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+#dev1-upcoming-design .dev1-upcoming-titlebar h2{margin:0;color:#fff;font:750 22px/1.2 system-ui,sans-serif}
+#dev1-upcoming-design .dev1-upcoming-titlebar span{display:none}
+#dev1-upcoming-design #temp-landing-hero-image{display:grid!important;grid-template-columns:1fr!important;gap:12px!important;padding:12px!important;background:#ecf1f6!important;max-width:100%!important;margin:0!important}
+#dev1-upcoming-design .landing-event-card{position:relative!important;display:block!important;box-sizing:border-box!important;width:100%!important;height:auto!important;min-height:175px!important;margin:0!important;padding:12px!important;background:#fff!important;border:1px solid #d4dee8!important;border-radius:13px!important;box-shadow:0 2px 9px #14314c16!important;overflow:hidden!important;color:#102746!important}
+#dev1-upcoming-design .sa-home-regatta-top{display:grid!important;grid-template-columns:95px minmax(0,1fr)!important;grid-template-areas:"logo main" "logo host" "logo actions"!important;align-items:start!important;gap:2px 10px!important}
+#dev1-upcoming-design .sa-home-regatta-event-logo-link{grid-area:logo!important;display:flex!important;align-items:flex-start!important;justify-content:center!important;width:95px!important;height:145px!important;min-width:95px!important;max-width:95px!important;border:0!important;border-radius:8px!important;padding:7px!important;box-sizing:border-box!important;background:linear-gradient(145deg,#073c68,#0a7ba0)!important}
+#dev1-upcoming-design .sa-home-regatta-event-logo{width:72px!important;height:62px!important;max-width:72px!important;max-height:62px!important;object-fit:contain!important;background:#fff!important;border-radius:50%!important;padding:5px!important;box-sizing:border-box!important}
+#dev1-upcoming-design .sa-home-regatta-top-main{grid-area:main!important;min-width:0!important;margin:0!important;padding:0!important}
+#dev1-upcoming-design .landing-event-card-count{margin:0 0 3px!important;font:700 10px/1.2 system-ui,sans-serif!important;color:#327393!important;background:transparent!important;letter-spacing:0!important}
+#dev1-upcoming-design .sa-home-regatta-title{margin:0 0 5px!important;font:750 17px/1.14 system-ui,sans-serif!important;letter-spacing:-.02em!important;color:#0d2746!important;overflow-wrap:anywhere!important}
+#dev1-upcoming-design .sa-home-regatta-meta{font:500 11px/1.25 system-ui,sans-serif!important;margin:0!important}
+#dev1-upcoming-design .eci-title-pad{padding-right:0!important}
+#dev1-upcoming-design .eci-interest-top{position:static!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;width:100%!important;min-width:0!important;height:auto!important;gap:5px!important;margin:4px 0!important;padding:0!important;transform:none!important}
+#dev1-upcoming-design .eci-controls{position:static!important;display:flex!important;flex-wrap:nowrap!important;gap:7px!important;width:100%!important;align-items:center!important}
+#dev1-upcoming-design .eci-total{font:650 11px/1.1 system-ui,sans-serif!important;color:#38576f!important;background:transparent!important;border:0!important;padding:0!important;white-space:nowrap!important}
+#dev1-upcoming-design .eci-total-ico{font-size:12px!important}
+#dev1-upcoming-design .eci-btn{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;min-height:30px!important;flex:1 1 auto!important;border:0!important;border-radius:999px!important;background:#e76a16!important;color:white!important;font:750 11px/1.1 system-ui,sans-serif!important;padding:6px 7px!important;white-space:nowrap!important;box-shadow:none!important;cursor:pointer!important}
+#dev1-upcoming-design .eci-logos{position:static!important;display:flex!important;flex-wrap:wrap!important;gap:4px!important;width:100%!important;height:auto!important;max-height:none!important;overflow:visible!important;background:transparent!important;margin:0!important;padding:0!important}
+#dev1-upcoming-design .eci-logos-row{display:flex!important;align-items:center!important;gap:4px!important;flex-wrap:wrap!important;overflow:visible!important;width:auto!important;height:auto!important;max-width:100%!important;padding:0!important;margin:0!important;background:transparent!important}
+#dev1-upcoming-design .eci-logo-item{display:inline-flex!important;align-items:center!important;gap:3px!important;min-width:0!important;height:24px!important;padding:2px 5px!important;border:1px solid #d2e0e9!important;border-radius:6px!important;background:#f5f9fc!important;box-shadow:none!important}
+#dev1-upcoming-design .eci-logo-img{display:block!important;width:18px!important;height:18px!important;min-width:18px!important;max-width:18px!important;object-fit:contain!important;background:transparent!important}
+#dev1-upcoming-design .eci-logo-n{font:750 11px/1 system-ui,sans-serif!important;color:#102746!important;border:0!important;background:transparent!important;padding:0!important}
+#dev1-upcoming-design .sa-home-regatta-host{grid-area:host!important;display:flex!important;align-items:center!important;gap:5px!important;padding:4px 0!important;margin:1px 0!important;min-width:0!important;border:0!important;background:transparent!important;text-decoration:none!important}
+#dev1-upcoming-design .sa-home-regatta-host-logo{max-width:31px!important;max-height:21px!important;width:auto!important;height:auto!important;object-fit:contain!important;border:0!important;background:transparent!important}
+#dev1-upcoming-design .sa-home-regatta-host-text{min-width:0!important;background:transparent!important}
+#dev1-upcoming-design .sa-home-regatta-host-code{font:750 11px/1.1 system-ui,sans-serif!important;color:#122e4b!important}
+#dev1-upcoming-design .sa-home-regatta-host-name{font:500 10px/1.2 system-ui,sans-serif!important;color:#607588!important}
+#dev1-upcoming-design .sa-home-regatta-actions{grid-area:actions!important;display:flex!important;align-items:center!important;gap:5px!important;margin:0!important}
+#dev1-upcoming-design .sa-home-regatta-btn{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;min-height:28px!important;width:auto!important;min-width:0!important;padding:6px 10px!important;border:0!important;border-radius:999px!important;background:#173c60!important;color:#fff!important;font:750 11px/1 system-ui,sans-serif!important}
+#dev1-upcoming-design .sa-home-regatta-btn-ico,#dev1-upcoming-design .sa-home-regatta-btn-ico svg{width:13px!important;height:13px!important;max-width:13px!important;max-height:13px!important}
+#dev1-upcoming-design .landing-event-card-hit{z-index:0!important;pointer-events:none!important}
+#dev1-upcoming-design .sa-home-regatta-top a,#dev1-upcoming-design .sa-home-regatta-top button{position:relative;z-index:3}
+#eci-scrim{position:fixed!important;inset:0!important;z-index:99999!important;display:none!important;align-items:center!important;justify-content:center!important;padding:16px!important;background:#071b2d99!important;box-sizing:border-box!important}
+#eci-scrim.is-open{display:flex!important}
+#eci-scrim .eci-popup{width:min(100%,440px)!important;max-height:85vh!important;overflow:auto!important;padding:20px!important;border-radius:12px!important;background:white!important;color:#102746!important}
+@media(max-width:480px){#dev1-upcoming-design #temp-landing-hero-image{padding:10px!important;gap:10px!important}#dev1-upcoming-design .landing-event-card{padding:10px!important}#dev1-upcoming-design .sa-home-regatta-top{grid-template-columns:91px minmax(0,1fr)!important;gap:2px 9px!important}#dev1-upcoming-design .sa-home-regatta-event-logo-link{width:91px!important;min-width:91px!important;max-width:91px!important}}
+
+#dev1-upcoming-design .landing-event-card{display:grid!important;grid-template-columns:29% minmax(0,1fr)!important;gap:0!important;padding:0!important;border-radius:12px!important;overflow:hidden!important;min-height:180px!important;background:white!important;border:1px solid #dae4eb!important;box-shadow:0 2px 9px #092b4516!important}
+#dev1-upcoming-design .dev1-upcoming-photo{position:relative;grid-column:1;grid-row:1;height:100%;min-height:180px;overflow:hidden;background:#14354b}
+#dev1-upcoming-design .dev1-upcoming-photo>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#dev1-upcoming-design .dev1-upcoming-photo .sa-home-regatta-event-logo-link{position:absolute!important;top:8px!important;left:7px!important;display:flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;border:none!important;box-shadow:none!important;width:50px!important;height:47px!important;padding:0!important;z-index:4!important}
+#dev1-upcoming-design .dev1-upcoming-photo .sa-home-regatta-event-logo{width:48px!important;height:46px!important;max-width:48px!important;max-height:46px!important;object-fit:contain!important;background:transparent!important;box-shadow:none!important;mix-blend-mode:multiply!important;border-radius:0!important}
+#dev1-upcoming-design .sa-home-regatta-top{grid-column:2;grid-row:1;display:flex!important;flex-direction:column!important;min-width:0!important;gap:5px!important;padding:10px 8px!important}
+#dev1-upcoming-design .sa-home-regatta-top-main{order:0!important;min-width:0!important}
+#dev1-upcoming-design .sa-home-regatta-title{font-size:16px!important;line-height:1.14!important;margin:2px 0 4px!important;padding:0!important}
+#dev1-upcoming-design .landing-event-card[data-landing-event-slot="1"] .sa-home-regatta-title{font-size:17px!important;line-height:1.13!important;font-weight:800!important;letter-spacing:-.025em!important;color:#0d2746!important;margin:0 0 5px!important;padding:0!important;text-align:left!important}
+#dev1-upcoming-design .landing-event-card[data-landing-event-slot="1"] .sa-home-regatta-top-main{display:flex!important;flex-direction:column!important}
+#dev1-upcoming-design .landing-event-card[data-landing-event-slot="1"] .sa-home-regatta-title{order:-1!important}
+#dev1-upcoming-design .landing-event-card[data-landing-event-slot="1"] .landing-event-card-count{order:0!important}
+#dev1-upcoming-design .landing-event-card-count{font-size:10px!important;margin:0 0 4px!important;padding:0!important}
+#dev1-upcoming-design .eci-title-pad{padding-right:0!important}
+#dev1-upcoming-design .eci-interest-top{position:relative!important;inset:auto!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:4px!important;margin:5px 0!important;width:100%!important}
+#dev1-upcoming-design .eci-controls{display:flex!important;flex-wrap:wrap!important;gap:4px!important}
+#dev1-upcoming-design .eci-btn{font-size:11px!important;min-height:27px!important;padding:5px 9px!important;border-radius:99px!important;background:#e9f3f8!important;border:1px solid #c7dbe5!important;color:#103a56!important;box-shadow:none!important}
+#dev1-upcoming-design .eci-logos{display:block!important;width:100%!important;max-width:100%!important;position:relative!important;margin:4px 0!important}
+#dev1-upcoming-design .eci-logos-row{display:flex!important;flex-wrap:wrap!important;gap:5px!important;width:100%!important}
+#dev1-upcoming-design .eci-logo-item{display:inline-flex!important;align-items:center!important;gap:3px!important;padding:1px 3px!important;border:0!important;background:transparent!important;box-shadow:none!important}
+#dev1-upcoming-design .eci-logo-img{width:22px!important;height:22px!important;max-width:22px!important;max-height:22px!important;object-fit:contain!important;background:transparent!important}
+#dev1-upcoming-design .eci-logo-n{font-size:11px!important;border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important}
+#dev1-upcoming-design .sa-home-regatta-host{order:1!important;margin:1px 0!important;padding:0!important;border:0!important;display:flex!important;align-items:center!important;gap:5px!important;background:transparent!important;box-shadow:none!important}
+#dev1-upcoming-design .sa-home-regatta-host-logo{max-width:30px!important;max-height:18px!important;object-fit:contain!important;background:transparent!important;box-shadow:none!important}
+#dev1-upcoming-design .sa-home-regatta-host-text{display:flex!important;gap:4px!important;align-items:center!important}
+#dev1-upcoming-design .sa-home-regatta-host-code,#dev1-upcoming-design .sa-home-regatta-host-name{font-size:10px!important}
+#dev1-upcoming-design .sa-home-regatta-actions{order:2!important;display:flex!important;justify-content:flex-end!important;margin:2px 0 0!important;padding:0!important}
+#dev1-upcoming-design .sa-home-regatta-btn{min-height:27px!important;width:auto!important;padding:5px 11px!important;background:#143c5d!important;color:white!important;border-radius:99px!important;font-size:11px!important;border:0!important}
+#dev1-upcoming-design .landing-event-card-hit{z-index:0!important}
+#dev1-upcoming-design .sa-home-regatta-top a,#dev1-upcoming-design .sa-home-regatta-top button{position:relative!important;z-index:2!important}
+
+#dev1-upcoming-design .dev1-upcoming-photo{display:block!important;position:relative!important;height:100%!important;min-height:180px!important;background:transparent!important;isolation:isolate!important}
+#dev1-upcoming-design .dev1-upcoming-photo>img:first-child{display:block!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;object-position:center!important;border:0!important;border-radius:0!important;filter:none!important;opacity:1!important}
+#dev1-upcoming-design .dev1-upcoming-photo .sa-home-regatta-event-logo-link{display:block!important;position:absolute!important;top:8px!important;left:7px!important;width:50px!important;height:50px!important;background:none!important;background-color:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important}
+#dev1-upcoming-design .dev1-upcoming-photo .sa-home-regatta-event-logo{display:block!important;width:50px!important;height:50px!important;max-width:50px!important;max-height:50px!important;object-fit:contain!important;background:none!important;background-color:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;filter:none!important;mix-blend-mode:multiply!important}
+#dev1-upcoming-design .sa-home-regatta-btn{font-size:11px!important}
+#dev1-upcoming-design .sa-home-regatta-btn-ico{display:inline-flex!important}
+
+/* --- folded from #dev1-layout-locked (winning card) --- */
+body{background:#eef2f5!important}
+#dev1-root{max-width:720px;margin:18px auto 50px;padding:0 12px}
+#dev1-editorial{background:white;border-radius:6px;overflow:hidden}
+#landing-top-card{position:relative!important;width:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#071b32!important;z-index:1!important}
+#landing-top-card .landing-roundup-viewport{width:100%!important;overflow:hidden!important;touch-action:pan-y!important;contain:none!important;cursor:grab}
+#landing-top-card .landing-roundup-track{display:flex!important;flex-wrap:nowrap!important;width:max-content!important;gap:0!important;align-items:flex-start!important}
+#landing-top-card .landing-roundup-slide{flex:0 0 var(--roundup-card-width,100%)!important;width:var(--roundup-card-width,100%)!important;min-width:var(--roundup-card-width,100%)!important;max-width:var(--roundup-card-width,100%)!important;height:540px!important;min-height:540px!important;padding:0!important;margin:0!important;position:relative!important;overflow:hidden!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#071c35!important}
+#landing-top-card .landing-roundup-hero{position:absolute!important;inset:0 0 62px!important;display:block!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;overflow:hidden!important;z-index:0!important;background:#143c50!important}
+#landing-top-card .landing-roundup-hero img{display:block!important;width:100%!important;height:100%!important;min-height:100%!important;max-height:none!important;object-fit:cover!important;object-position:center!important}
+#landing-top-card .landing-roundup-hero:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,17,35,.72) 0%,transparent 26%,transparent 48%,rgba(1,13,23,.92) 100%);pointer-events:none}
+#landing-top-card .landing-roundup-series{position:absolute!important;top:25px!important;left:24px!important;right:24px!important;z-index:20!important;margin:0!important;padding:0 45% 0 0!important;color:#fff!important;font-weight:700!important;font-size:clamp(22px,3.8vw,31px)!important;line-height:1.13!important;font-family:system-ui,sans-serif!important;text-transform:none!important;letter-spacing:0!important;white-space:normal!important}
+#landing-top-card .landing-roundup-edition{position:absolute!important;top:1px!important;right:0!important;margin:0!important;color:#fff!important;font-weight:600!important;font-size:16px!important;line-height:1.3!important;font-family:system-ui,sans-serif!important;letter-spacing:0!important;text-transform:none!important;text-align:right!important;white-space:nowrap!important}
+#landing-top-card .landing-roundup-date{position:absolute!important;top:54px!important;right:24px!important;z-index:20!important;margin:0!important;padding:0!important;color:#e6eaf0!important;font-weight:500!important;font-size:13px!important;line-height:1.3!important;font-family:system-ui,sans-serif!important;text-align:right!important;max-width:46%!important}
+#landing-top-card .landing-roundup-title{position:absolute!important;bottom:86px!important;left:24px!important;right:24px!important;z-index:20!important;margin:0!important;padding:0!important;color:#fff!important;font-weight:700!important;font-size:clamp(25px,4.5vw,38px)!important;line-height:1.1!important;font-family:system-ui,sans-serif!important;letter-spacing:-.018em!important;white-space:normal!important;max-height:4.4em!important;overflow:hidden!important;text-shadow:0 1px 3px #0008}
+#landing-top-card .landing-top-card-caption{display:none!important}
+#landing-top-card .landing-roundup-more{position:absolute!important;bottom:0!important;right:0!important;left:0!important;z-index:3!important;height:62px!important;margin:0!important;padding:19px 24px!important;text-align:right!important;background:#102746!important;color:#c0ebf2!important;font:750 12px/1.4 system-ui,sans-serif!important;text-transform:uppercase!important;border:0!important}
+#landing-top-card .landing-roundup-more span{margin:0!important;padding:0!important;font:inherit!important}
+#landing-top-card .landing-roundup-reads{position:absolute!important;bottom:19px!important;left:24px!important;z-index:5!important;margin:0!important;color:white!important;font:600 14px/1.3 system-ui,sans-serif!important}
+#landing-top-card .landing-roundup-reads:before{content:"◉ ";font-size:17px}
+#landing-top-card .landing-roundup-arrow{z-index:7!important}
+#landing-roundup-dots{padding:8px!important;margin:0!important;background:#102746!important}
+#dockside-landing{border:1px solid #aebdce!important;border-radius:0!important;box-shadow:none!important;background:white!important;padding:22px 24px 30px!important;margin:0!important}
+#dockside-landing .dockside-head{border:0!important;background:white!important;padding:0!important;margin:0 0 20px!important}
+#dockside-landing .dockside-icon,#dockside-landing .dockside-sub{display:none!important}
+#dockside-landing .dockside-kicker{font:750 25px/1.2 system-ui,sans-serif!important;color:#111827!important;margin:0!important}
+#dockside-landing .dockside-viewall{font-size:12px!important}
+#dockside-landing .dockside-scroll{max-height:none!important;overflow:visible!important}
+#dockside-landing .dockside-person{align-items:flex-start!important}
+@media(max-width:480px){
+#dev1-root{padding:0;margin:12px auto 30px}
+#dev1-editorial{border-radius:0}
+#landing-top-card .landing-roundup-slide{height:505px!important;min-height:505px!important}
+#landing-top-card .landing-roundup-series{top:20px!important;left:16px!important;right:16px!important;padding-right:47%!important;font-size:22px!important}
+#landing-top-card .landing-roundup-edition{font-size:13px!important}
+#landing-top-card .landing-roundup-date{top:52px!important;right:16px!important;font-size:12px!important}
+#landing-top-card .landing-roundup-title{left:17px!important;right:17px!important;bottom:79px!important;font-size:clamp(25px,6.5vw,32px)!important}
+#landing-top-card .landing-roundup-more{padding:20px 17px!important}
+#landing-top-card .landing-roundup-reads{left:17px!important}
+#dockside-landing{padding:18px 16px 26px!important}
+}
+
+#landing-top-card .landing-roundup-series{padding-right:40%!important;font-size:24px!important}
+#landing-top-card .landing-roundup-date{white-space:nowrap!important;max-width:50%!important;font-size:12px!important}
+#landing-top-card .landing-roundup-title{font-size:clamp(22px,4vw,30px)!important;line-height:1.12!important;bottom:85px!important;max-height:none!important;display:-webkit-box!important;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden!important}
+#landing-top-card .landing-roundup-more{display:none!important}
+#landing-top-card .landing-roundup-slide{height:480px!important;min-height:480px!important}
+#landing-top-card .landing-roundup-hero{bottom:0!important}
+#landing-top-card .landing-roundup-reads{bottom:15px!important}
+#landing-roundup-actions{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;min-height:56px!important;padding:8px 16px!important;background:#102746!important}
+#landing-roundup-actions .roundup-reacts{gap:10px!important}
+#landing-roundup-actions .roundup-reacts button{font-size:13px!important;padding:4px 0!important}
+#dev1-read-active{font:700 12px/1.3 system-ui,sans-serif;color:#b5eaf4;text-transform:uppercase;text-decoration:none;white-space:nowrap}
+@media(max-width:480px){#landing-top-card .landing-roundup-series{font-size:20px!important;padding-right:38%!important}#landing-top-card .landing-roundup-edition{font-size:13px!important}#landing-top-card .landing-roundup-date{font-size:11px!important;top:49px!important}#landing-top-card .landing-roundup-title{font-size:24px!important;bottom:45px!important}#landing-top-card .landing-roundup-slide{height:445px!important;min-height:445px!important}#landing-roundup-actions{padding:8px 12px!important}#dev1-read-active{font-size:10px}}
+
+#landing-top-card .landing-roundup-date{width:162px!important;max-width:162px!important;right:16px!important;font-size:11px!important;white-space:normal!important}
+#landing-top-card .landing-roundup-reads{display:none!important}
+#dev1-read-count{display:inline-flex;align-items:center;gap:3px;color:#fff;font:650 13px/1.3 system-ui,sans-serif;white-space:nowrap;margin-right:auto}
+#landing-roundup-actions .roundup-reacts{flex:0 1 auto}
+@media(max-width:480px){#landing-top-card .landing-roundup-title{font-size:20px!important;line-height:1.15!important;-webkit-line-clamp:5!important;bottom:42px!important}#landing-top-card .landing-roundup-date{top:46px!important;font-size:11px!important;width:150px!important;max-width:150px!important}}
+/* DEV1 subtle image navigation arrows */
+/* DEV1 subtle image navigation arrows */
+#dev1-root #landing-top-card .landing-roundup-arrow{
+  position:absolute!important;
+  z-index:30!important;
+  width:28px!important;height:34px!important;
+  min-width:28px!important;min-height:34px!important;
+  padding:0!important;margin:0!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  border:1px solid rgba(255,255,255,.25)!important;
+  border-radius:5px!important;
+  background:rgba(5,23,43,.46)!important;
+  color:#fff!important;
+  font:500 24px/1 Arial,sans-serif!important;
+  box-shadow:none!important;
+  text-shadow:0 1px 2px #0008!important;
+  cursor:pointer!important;
+  opacity:.83!important;
+  transition:background .16s ease,opacity .16s ease!important;
+  touch-action:manipulation!important;
+}
+#dev1-root #landing-top-card .landing-roundup-arrow.is-prev{left:5px!important;right:auto!important}
+#dev1-root #landing-top-card .landing-roundup-arrow.is-next{right:5px!important;left:auto!important}
+#dev1-root #landing-top-card .landing-roundup-arrow:hover:not(:disabled),
+#dev1-root #landing-top-card .landing-roundup-arrow:focus-visible{
+  opacity:1!important;background:rgba(5,23,43,.76)!important;
+}
+#dev1-root #landing-top-card .landing-roundup-arrow:disabled{opacity:.23!important;cursor:default!important}
+#dev1-root #landing-top-card .landing-roundup-arrow[hidden]{display:none!important}
+@media(max-width:480px){
+#dev1-root #landing-top-card .landing-roundup-arrow{width:26px!important;height:32px!important;min-width:26px!important;min-height:32px!important;font-size:22px!important}
+}
+
+/* Final lock: layout-locked geometry beats earlier patch heights (408/385). */
+#dev1-root #landing-top-card .landing-roundup-slide {
+  position: relative !important;
+  height: 480px !important;
+  min-height: 480px !important;
+  background: #071c35 !important;
+}
+#dev1-root #landing-top-card .landing-roundup-series,
+#dev1-root #landing-top-card .landing-roundup-title {
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #f4f7fb !important;
+  text-shadow: 0 1px 3px #0008 !important;
+}
+#dev1-root #landing-top-card .landing-roundup-series {
+  position: absolute !important;
+  top: 20px !important;
+  left: 16px !important;
+  right: auto !important;
+  z-index: 6 !important;
+  font: 700 20px/1.15 system-ui, sans-serif !important;
+}
+#dev1-root #landing-top-card .landing-roundup-arrow {
+  top: calc((100% - 56px) / 2) !important;
+  transform: translateY(-50%) !important;
+}
+#dev1-root #landing-top-card #landing-roundup-dots {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  bottom: 56px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  z-index: 12 !important;
+}
+#dev1-root #landing-top-card #landing-roundup-dots[hidden] { display: none !important; }
+@media (max-width: 480px) {
+  #dev1-root #landing-top-card .landing-roundup-slide {
+    height: 445px !important;
+    min-height: 445px !important;
+  }
+}
