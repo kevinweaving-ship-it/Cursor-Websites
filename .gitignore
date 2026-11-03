@@ -296,3 +296,6 @@ api_restore_8001/
 
 # macOS AppleDouble / resource fork files inside tracked dirs
 **/._*
+
+# Offline tests for the standalone Grok review adapter (not app scripts)
+!dev-tools/grok-review-adapter/tests/test_*.py
