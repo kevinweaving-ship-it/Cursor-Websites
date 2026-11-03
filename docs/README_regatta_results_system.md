@@ -1,5 +1,7 @@
 # Regatta Results Management System - README
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
 ## Overview
 The Regatta Results Management System is a web-based application that displays sailing regatta results dynamically from a PostgreSQL database. It supports multiple fleets, classes, and implements a sophisticated discard system for fair competition scoring.
 

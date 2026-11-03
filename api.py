@@ -747,7 +747,7 @@ def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Opt
     total_podiums = gold + silver + bronze
     medal_rate = round(100 * total_podiums / total_races, 0) if total_races > 0 else 0
     html = (
-        f'<div class="sa-approved-sailor-card" role="listitem" data-sas-id="{esc(sid)}" style="cursor:pointer;margin:0;border-radius:10px;border:2px solid #001f3f;padding:12px;background:#fff;">'
+        f'<div class="sa-approved-sailor-card" role="listitem" data-sas-id="{esc(sid)}" style="cursor:pointer;margin:0;border-radius:6px;border:2px solid #8aa2c6;padding:12px;background:#fff;">'
         f'<div style="display:flex;gap:12px;align-items:flex-start;">'
         f'<div style="width:64px;height:64px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem;color:#001f3f;flex-shrink:0;">{esc(first_name[:1] + last_name[:1]) if first_name and last_name else "?"}</div>'
         f'<div style="flex:1;min-width:0;">'
@@ -21998,8 +21998,25 @@ def _class_logo_url_from_fleet_name(name: str) -> Optional[str]:
     return file_map.get(key)
 
 
+try:
+    from event_logo_class_compat import (  # type: ignore
+        event_logo_src_compatible_with_event as _event_logo_src_compatible_with_event,
+        named_event_logo_url as _named_event_logo_url_compat,
+    )
+except ImportError:
+    _event_logo_src_compatible_with_event = None  # type: ignore
+    _named_event_logo_url_compat = None  # type: ignore
+
+
 def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
-    """Named recurring events: left header event logo (not generic Sailing SA)."""
+    """Named recurring events: left header event logo (not generic Sailing SA).
+
+    Class-in-name events are class = fleet: use that class logo. Never apply
+    combined Event Logos (Mirror+ILCA, etc.) unless every class in the artwork
+    filename is in the event name or slug.
+    """
+    if _named_event_logo_url_compat is not None:
+        return _named_event_logo_url_compat(regatta_id, event_name)
     rid = str(regatta_id or "").strip().lower()
     en = str(event_name or "").lower()
     if "lipton" in rid or "lipton" in en:

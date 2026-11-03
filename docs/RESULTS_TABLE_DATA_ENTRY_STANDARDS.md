@@ -1,5 +1,7 @@
 # Results Table - Complete Data Entry Standards
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
 ## Purpose
 This document defines **ALL** data entry rules and format standards for the `public.results` table to ensure:
 1. **HTML Compatibility** - Data format doesn't break HTML pages
