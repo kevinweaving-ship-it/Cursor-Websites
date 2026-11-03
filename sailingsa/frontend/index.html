@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
+<meta name="description" content="Search South African sailing results, regatta results, sailor profiles, and class standings."><link rel="canonical" href="https://sailingsa.co.za"><meta property="og:site_name" content="SailingSA"><meta property="og:type" content="website"><meta property="og:title" content="South African Sailing Results &amp; Regatta Database | SailingSA"><meta property="og:description" content="Search South African sailing results, regatta results, sailor profiles, and class standings."><meta property="og:url" content="https://sailingsa.co.za"><meta property="og:image" content="https://sailingsa.co.za/api/og/home/site/32a6e5b20ea21d84.png"><meta property="og:image:secure_url" content="https://sailingsa.co.za/api/og/home/site/32a6e5b20ea21d84.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="South African Sailing Results &amp; Regatta Database | SailingSA"><meta name="twitter:description" content="Search South African sailing results, regatta results, sailor profiles, and class standings."><meta name="twitter:image" content="https://sailingsa.co.za/api/og/home/site/32a6e5b20ea21d84.png">
+
+
+
+
+
     <base href="/">
     <script>
         (function() {
@@ -68,32 +74,32 @@
     </script>
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Search South African sailing results, regatta results, sailor profiles, Optimist results, ILCA results, club results and youth sailing standings across South Africa.">
+    
     <meta name="keywords" content="sailing, South Africa, regatta results, sailing results, sailor profiles, yacht racing, dinghy racing, sailing statistics">
     <meta name="robots" content="index, follow">
     <meta name="author" content="SailingSA">
     
     <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="SailingSA - South African Sailing Results">
-    <meta property="og:description" content="Search and view South African sailing results, regatta results, sailor profiles, and sailing statistics.">
-    <meta property="og:url" content="https://sailingsa.co.za">
-    <meta property="og:site_name" content="SailingSA">
+    
+    
+    
+    
+    
     
     <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="SailingSA - South African Sailing Results">
-    <meta name="twitter:description" content="Search and view South African sailing results, regatta results, sailor profiles, and sailing statistics.">
+    
+    
+    
     
     <!-- Favicon -->
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     
     <!-- Canonical URL -->
-    <link rel="canonical" href="https://sailingsa.co.za">
+    
+    <link rel="preload" as="image" href="/assets/logos/sailingsa-logo.png">
 
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="/css/tabler-icons.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <style>
         .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
         /* Site stats gauges temporarily removed — keep CSS inert; redo later */
@@ -143,9 +149,41 @@
         .class-gold-page .club-page-logo-wrap { display: flex; justify-content: center; }
         .class-gold-page .club-page-logo-img { display: block; width: auto; max-width: min(220px, 100%); height: auto; max-height: 120px; object-fit: contain; }
         .class-gold-page .club-story-meta { margin: 0; color: #475569; font-size: 0.95rem; font-weight: 600; text-align: center; }
-        /* Events featuring / Clubs sailing — same boxed cards as /classes + /clubs (MP default) */
-        .class-gold-page .club-story-logo-row { width: 100%; margin: 0.35rem 0 0.15rem; }
-        .class-gold-page .club-story-logo-row-label { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #001f3f; margin: 0 0 0.45rem 0; text-align: center; }
+        /* Events featuring / Clubs sailing — outer card border matches Events / Sailors / Clubs */
+        .class-gold-page .club-story-logo-row {
+            width: 100%;
+            margin: 0 0 1.25rem 0;
+            box-sizing: border-box;
+            background: #fff;
+            border: 2px solid #001f3f;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+        }
+        /* CLASS_GOLD_OUTER_CARDS_v1 */
+        .class-gold-page .class-gold-identity-card {
+            width: 100%;
+            margin: 0 0 1.25rem 0;
+            box-sizing: border-box;
+            background: #fff;
+            border: 2px solid #001f3f;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+        }
+        .class-gold-page .class-gold-identity-card .club-story-header {
+            margin: 0;
+            padding: 0;
+            border-bottom: none;
+        }
+        .class-gold-page .club-story-logo-row-label { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #001f3f; margin: 0 0 0.45rem 0; text-align: center; display: flex; align-items: center; justify-content: center; gap: 0.45rem; }
+        .class-gold-page .class-gold-title-logo {
+            display: inline-block;
+            height: 40px;
+            width: auto;
+            max-width: 96px;
+            object-fit: contain;
+            vertical-align: middle;
+            text-transform: none;
+        }
         .class-gold-page .club-story-logo-chips {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
@@ -224,16 +262,110 @@
             .class-gold-page .club-story-chip img { width: 64px; height: 64px; margin-bottom: 8px; }
             .class-gold-page .club-story-chip-label { font-size: 0.82rem; }
         }
-        .class-gold-page .section-heading-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 1.25rem 0 0.65rem; }
-        .class-gold-page .section-title { margin: 0; font-size: 1.15rem; color: #001f3f; }
-        .class-gold-page .club-table-filter { min-width: 12rem; padding: 0.4rem 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; }
-        .class-gold-page .table-container { overflow-x: auto; }
-        .class-gold-page table.table { width: 100%; border-collapse: collapse; }
-        .class-gold-page table.table th, .class-gold-page table.table td { padding: 0.55rem 0.65rem; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
-        .class-gold-page table.table th { text-align: left; font-size: 0.8rem; text-transform: uppercase; letter-spacing: .03em; color: #64748b; }
-        .class-gold-page .cell-left { text-align: left; }
-        .class-gold-page .row-logo { display: inline-block; width: auto; height: 28px; max-width: 40px; object-fit: contain; vertical-align: middle; margin-right: 0.45rem; }
-        .class-gold-page .row-av { display: inline-block; width: 28px; height: 28px; max-width: 28px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 0.45rem; }
+        .class-gold-page .card.stats-section { background: #fff; border: 2px solid #001f3f; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+        .class-gold-page .events-section-heading-row,
+        .class-gold-page .club-section-heading-row {
+            display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center;
+            justify-content: flex-start; gap: 0.5rem 0.75rem; width: 100%; min-width: 0;
+            margin: 0 0 0.5rem 0; box-sizing: border-box;
+        }
+        .class-gold-page .events-section-heading-row .section-title,
+        .class-gold-page .club-section-heading-row .section-title {
+            margin: 0; padding: 0; border-bottom: none; font-size: 1rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.25; color: #001f3f;
+            flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .class-gold-page .events-dashboard-search,
+        .class-gold-page .club-sailors-filter-input {
+            flex: 1 1 0; min-width: 5rem; max-width: 14rem; margin: 0; height: 2.25rem;
+            padding: 0 0.65rem; font-size: 0.875rem; border: 2px solid #001f3f; border-radius: 9999px;
+            background: #fff; color: #001f3f; box-sizing: border-box; -webkit-appearance: none; appearance: none;
+        }
+        .class-gold-page .events-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-bottom: 0.75rem; }
+        .class-gold-page .events-tabs button { flex: 0 0 auto; padding: 0.55rem 0.75rem; font-size: 1rem; font-weight: 600; border: 2px solid transparent; border-radius: 8px; cursor: pointer; }
+        .class-gold-page .events-tab { display: inline-flex; align-items: center; gap: 0.4rem; }
+        .class-gold-page .events-tab .events-tab-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+        .class-gold-page .events-tabs button[data-tab='upcoming'] { background: #9ce3b4; color: #fff; }
+        .class-gold-page .events-tabs button[data-tab='upcoming'].active { background: #39C768; color: #fff; border-color: #2ea854; }
+        .class-gold-page .events-tabs button[data-tab='live'] { background: #f5ac86; color: #fff; }
+        .class-gold-page .events-tabs button[data-tab='live'].active { background: #ea580c; color: #fff; border-color: #c2410c; }
+        .class-gold-page .events-tabs button[data-tab='past'] { background: #bf8e8e; color: #fff; }
+        .class-gold-page .events-tabs button[data-tab='past'].active { background: #7f1d1d; color: #fff; border-color: #991b1b; }
+        .class-gold-page .events-panel { display: none; }
+        .class-gold-page .events-panel.active { display: block; }
+        .class-gold-page .events-carousel-controls,
+        .class-gold-page .club-sailors-carousel-controls,
+        .class-gold-page .club-regattas-carousel-controls { margin-bottom: 0.5rem; }
+        .class-gold-page .events-swipe-hint,
+        .class-gold-page .club-sailors-swipe-hint { font-size: 0.9rem; color: #475569; margin: 0 0 0.65rem 0; line-height: 1.4; text-align: center; }
+        .class-gold-page .events-pagination,
+        .class-gold-page .club-sailors-pagination { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 0.75rem; }
+        .class-gold-page .events-arrow-btn,
+        .class-gold-page .club-sailors-arrow-btn { flex-shrink: 0; min-width: 44px; min-height: 44px; padding: 0 0.5rem; border: 1px solid #cbd5e1; background: #f8fafc; color: #001f3f; font-size: 1.1rem; font-weight: 600; border-radius: 6px; cursor: pointer; line-height: 1; }
+        .class-gold-page .events-arrow-btn:hover:not(:disabled),
+        .class-gold-page .club-sailors-arrow-btn:hover:not(:disabled) { background: #e2e8f0; border-color: #94a3b8; }
+        .class-gold-page .events-arrow-btn:disabled,
+        .class-gold-page .club-sailors-arrow-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .class-gold-page .events-dots,
+        .class-gold-page .club-sailors-dots { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.5rem; flex: 1 1 auto; min-width: 0; max-width: min(100%, 20rem); overflow-x: auto; scrollbar-width: none; line-height: 0; }
+        .class-gold-page .events-dots::-webkit-scrollbar,
+        .class-gold-page .club-sailors-dots::-webkit-scrollbar { display: none; }
+        .class-gold-page .events-dot,
+        .class-gold-page .club-sailors-dot { display: block; flex: 0 0 8px; width: 8px; height: 8px; min-width: 8px; min-height: 8px; padding: 0; border: none; border-radius: 9999px; background: rgba(0, 31, 63, 0.22); cursor: pointer; appearance: none; }
+        .class-gold-page .events-dot.is-active,
+        .class-gold-page .club-sailors-dot.is-active { background: #001f3f; box-shadow: 0 0 0 2px rgba(0, 31, 63, 0.15); }
+        .class-gold-page .events-carousel-wrap,
+        .class-gold-page .club-sailors-carousel-wrap { overflow: hidden; width: 100%; box-sizing: border-box; }
+        .class-gold-page .events-carousel,
+        .class-gold-page .club-sailors-carousel { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 0; width: 100%; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+        .class-gold-page .events-page,
+        .class-gold-page .club-sailors-page { flex: 0 0 100%; min-width: 100%; max-width: 100%; scroll-snap-align: start; scroll-snap-stop: always; box-sizing: border-box; padding: 0 0.2rem; display: flex; flex-direction: column; align-items: stretch; }
+        .class-gold-page .event-card { display: flex; flex-direction: column; gap: 0.35rem; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.08); border-width: 2px; border-style: solid; box-sizing: border-box; }
+        .class-gold-page .event-card.ec-upcoming-sas,
+        .class-gold-page .event-card.ec-upcoming-club { background: #39C768; border-color: #2ea854; color: #fff; }
+        .class-gold-page .event-card.ec-upcoming-other { background: #f97316; border-color: #ea580c; color: #fff; }
+        .class-gold-page .event-card.ec-active-sas { background: #ea580c; border-color: #c2410c; color: #fff; }
+        .class-gold-page .event-card.ec-past-sas { background: #7f1d1d; border-color: #991b1b; color: #fef2f2; }
+        .class-gold-page .event-card.ec-past-club { background: #f87171; border-color: #ef4444; color: #450a0a; }
+        .class-gold-page .event-card.ec-past-other { background: #dc2626; border-color: #b91c1c; color: #fff; }
+        .class-gold-page .event-card h3 { font-size: 0.95rem; font-weight: 700; margin: 0 0 0.2rem 0; line-height: 1.25; }
+        .class-gold-page .event-card .event-date { font-size: 0.8rem; margin: 0; display: block; }
+        .class-gold-page .event-card .event-title-link { color: inherit; font-weight: 700; text-decoration: underline; }
+        .class-gold-page .event-card .event-club { font-size: 0.8rem; margin: 0; }
+        .class-gold-page .event-card .event-club a { color: #2563eb; font-weight: 600; text-decoration: underline; }
+        .class-gold-page .event-card .event-type { display: inline-block; font-size: 0.85rem; font-weight: 700; padding: 0.25rem 0.5rem; background: #001f3f; color: #fff; border-radius: 4px; margin: 0.2rem 0 0 0; }
+        .class-gold-page .event-card .event-location { font-size: 0.75rem; margin: 0; }
+        .class-gold-page .event-card-result-row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; margin-top: 0.35rem; }
+        .class-gold-page .event-result-chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.22rem 0.45rem; min-height: 1.5rem; background: #fff; border: 1px solid rgba(0,0,0,0.2); border-radius: 6px; font-size: 0.7rem; font-weight: 600; text-decoration: none; color: #1e293b; }
+        .class-gold-page .event-result-chip.event-result-yes { border-color: #22c55e; background: #f0fdf4; }
+        .class-gold-page .event-result-chip.event-result-yes .event-result-glyph { color: #16a34a; }
+        .class-gold-page .event-result-chip.event-result-no .event-result-glyph { color: #dc2626; }
+        .class-gold-page .event-result-chip.event-result-yes .event-result-label { color: #2563eb; text-decoration: underline; }
+        .class-gold-page .event-card-index,
+        .class-gold-page .event-details-btn { display: inline-flex; align-items: center; justify-content: center; height: 1.5rem; padding: 0 0.4rem; font-size: 0.7rem; font-weight: 600; border-radius: 6px; text-decoration: none; border: none; }
+        .class-gold-page .event-details-btn { background: #001f3f; color: #fff; cursor: pointer; }
+        .class-gold-page .event-card-actions { display: inline-flex; align-items: center; gap: 0.35rem; }
+        .class-gold-page .club-sailor-card,
+        .class-gold-page .club-regatta-row { display: flex; flex-direction: row; align-items: center; gap: 0.35rem; padding: 0.35rem 0; min-height: 44px; box-sizing: border-box; width: 100%; text-decoration: none; color: #001f3f; border-bottom: 1px solid #e2e8f0; }
+        .class-gold-page .club-sailors-page .club-sailor-card:last-child,
+        .class-gold-page .club-sailors-page .club-regatta-row:last-child { border-bottom: none; }
+        .class-gold-page .club-sailor-card:hover .club-sailor-card-name,
+        .class-gold-page .club-regatta-row:hover .club-regatta-row-name { text-decoration: underline; }
+        .class-gold-page .club-sailor-card-num,
+        .class-gold-page .club-regatta-row-num { font-size: 0.75rem; color: #64748b; flex-shrink: 0; width: 1.85rem; text-align: right; }
+        .class-gold-page .club-sailor-card-name,
+        .class-gold-page .club-regatta-row-name { font-size: 0.875rem; font-weight: 600; line-height: 1.25; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .class-gold-page .club-sailor-card-meta,
+        .class-gold-page .club-regatta-row-date { font-size: 0.72rem; color: #64748b; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .class-gold-page .class-section-empty { padding: 0.75rem; color: #64748b; margin: 0; }
+        @media (min-width: 640px) {
+            .class-gold-page .events-section-heading-row,
+            .class-gold-page .club-section-heading-row { flex-wrap: wrap; }
+            .class-gold-page .events-dashboard-search,
+            .class-gold-page .club-sailors-filter-input { min-height: 44px; height: auto; max-width: 18rem; padding: 0.45rem 0.85rem; }
+            .class-gold-page .club-sailor-card-name,
+            .class-gold-page .club-regatta-row-name { font-size: 0.95rem; }
+        }
 
         /* Search Header Containers - Dark Blue Background - Compact - Separate Headers */
         .search-header-container {
@@ -280,7 +412,7 @@
         .sailor-search-input,
         .temp-landing-regatta-input { flex: 1; min-width: 0; max-width: 100%; padding: 0 12px 0 2.35rem !important; font-size: 14px; border: 2px solid #cbd5e1 !important; border-radius: 12px !important; height: 40px; box-sizing: border-box; background: #fff; color: #0f172a; caret-color: #0f172a; text-align: left; }
         .sailor-search-input::placeholder,
-        .temp-landing-regatta-input::placeholder { color: #94a3b8; font-weight: 800; opacity: 1; }
+        .temp-landing-regatta-input::placeholder { color: #64748b; font-weight: 800; opacity: 1; }
         .sailor-search-input:focus,
         .temp-landing-regatta-input:focus { outline: none; border-color: #93c5fd !important; box-shadow: 0 0 0 2px rgba(59,130,246,0.18); }
         .regatta-search-section { margin: 0; flex: 1; width: 100%; }
@@ -374,14 +506,53 @@
             width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important;
         }
         #sailor-search-results .ssa-dev1-inject .sa-approved-sailor-card { margin-top: 0; }
-        #sailor-search-results.guest-locked .sa-avatar-expand-btn { opacity: 0.45; animation: none; }
-        #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn {
-            animation: ssa-expand-pulse 2.8s ease-in-out infinite;
+        /* Outer border only — same as upcoming + All Regattas cards. */
+        #chosen-sailor-before-profile,
+        #sailor-search-results .sa-approved-sailor-card,
+        #sailor-search-results .profile-card,
+        #sailor-search-results .profile-card.single-result {
+            border: 2px solid #8aa2c6 !important;
+            border-radius: 6px !important;
+        }
+        /* Claim panel internals only. Outer sailor card locked. */
+        #sailor-search-results .sa-claim-banner.sa-claim-banner--landing {
+            min-height: 0;
+        }
+        #sailor-search-results .sa-claim-landing-copy {
+            padding: 4px 8px;
+            gap: 1px;
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+        #sailor-search-results .sa-claim-landing-copy strong {
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.15;
+        }
+        #sailor-search-results .sa-claim-landing-cta {
+            min-height: 0;
+            height: 26px;
+            padding: 0 8px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        #sailor-search-results.guest-locked .sa-avatar-expand-btn,
+        #sailor-search-results.guest-locked .sa-avatar-expand-btn svg {
+            opacity: 0.45; animation: none !important;
+        }
+        #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn.ssa-expand-pulse-on,
+        #sailor-search-results:not(.guest-locked) .sa-avatar-expand-btn.ssa-expand-pulse-on svg,
+        #landing-dev1-home .sa-avatar-expand-btn.ssa-expand-pulse-on,
+        #landing-dev1-home .sa-avatar-expand-btn.ssa-expand-pulse-on svg {
+            animation: ssa-expand-pulse 4.2s ease-in-out infinite !important;
         }
         @keyframes ssa-expand-pulse {
             0%, 100% { opacity: 1; filter: brightness(1); }
-            50% { opacity: 0.4; filter: brightness(1.35); }
+            50% { opacity: 0.2; filter: brightness(1.5); }
         }
+        .landing-event-card-open { display: none !important; }
         .sailor-search-results[role="list"] { list-style: none; }
         .sailor-search-results .profile-card { margin-bottom: 0.875rem; }
         .sailor-profile-placeholder { background: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 8px; }
@@ -1060,8 +1231,8 @@
         .sa-approved-sailor-card {
             margin-top: 1rem;
             background: #ffffff;
-            border: 2px solid #7f97bc;
-            border-radius: 18px;
+            border: 2px solid #8aa2c6;
+            border-radius: 6px;
             box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
             overflow: hidden;
         }
@@ -3278,6 +3449,161 @@
     max-width: 100%;
     margin: 0.75rem 0 1rem;
 }
+.landing-top-card {
+    width: 100%;
+    max-width: 100%;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.landing-top-row {
+    width: 100%;
+    max-width: 100%;
+}
+.temp-landing-hero-image .landing-event-card + .landing-event-card {
+    margin-top: 12px;
+}
+@media screen and (min-width: 1024px),
+       screen and (max-width: 1023px) and (orientation: landscape) {
+    .landing-top-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        column-gap: 16px;
+        align-items: start;
+        margin: 0.75rem 0 1rem;
+    }
+    .landing-top-row > .landing-top-card,
+    .landing-top-row > .temp-landing-hero-image {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        margin: 0;
+    }
+    .landing-top-row > .temp-landing-hero-image .sa-home-regatta-top {
+        grid-template-columns: 82px minmax(0, 1fr);
+        grid-template-areas: "logo main" "logo host" "actions actions";
+        gap: 8px 10px;
+        align-items: start;
+    }
+    .landing-top-row > .temp-landing-hero-image .sa-home-regatta-event-logo-link {
+        width: 78px;
+        max-width: 78px;
+    }
+    .landing-top-row > .temp-landing-hero-image .sa-home-regatta-title { font-size: 14px; }
+    .landing-top-row > .temp-landing-hero-image .sa-home-regatta-actions { width: 100%; justify-content: flex-end; }
+    .landing-top-row > .temp-landing-hero-image .sa-home-regatta-btn { flex: 1; min-width: 0; }
+}
+
+@media screen and (min-width: 1024px),
+       screen and (max-width: 1023px) and (orientation: landscape) {
+    .landing-top-row { position: relative; }
+    .landing-top-row > .landing-top-card { grid-column: 1; grid-row: 1; }
+    .landing-top-row > .temp-landing-hero-image {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: calc((100% - 16px) / 2) !important;
+        max-width: none;
+        height: auto;
+        margin: 0;
+        overflow: hidden;
+    }
+    .landing-events-fit { transform-origin: top left; }
+}
+
+.landing-top-card-face {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    background: #fff;
+    border: 2px solid #8aa2c6;
+    border-radius: 6px;
+    box-shadow: 0 2px 3px rgba(15,23,42,.06);
+    height: auto;
+    overflow: hidden;
+}
+.landing-roundup-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+.landing-roundup-hero {
+    display: block;
+    width: 100%;
+    line-height: 0;
+    background: #fff;
+}
+.landing-roundup-hero svg,
+.landing-roundup-hero img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    object-fit: contain;
+    background: #fff;
+}
+.landing-top-card-caption {
+    margin: 0;
+    padding: 8px 12px 4px;
+    color: #697078;
+    font: 10px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow-wrap: anywhere;
+}
+.landing-roundup-link { container-type: inline-size; }
+.landing-roundup-title {
+    margin: 0;
+    padding: 2px 6px 0;
+    color: #001f3f;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight: 800;
+    font-size: 8cqw;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    white-space: nowrap;
+}
+.landing-roundup-date {
+    margin: 0;
+    padding: 10px 12px 0;
+    color: #8b6c43;
+    font: 500 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: .025em;
+    white-space: normal;
+}
+.landing-roundup-copy {
+    padding: 14px 12px 8px;
+}
+.landing-roundup-copy p {
+    margin: 0 0 16px;
+    color: #172b3a;
+    font-family: "Source Serif 4", Georgia, serif;
+    font-weight: 500;
+    font-size: 17px;
+    line-height: 1.6;
+    text-align: left;
+}
+.landing-roundup-copy p + p {
+    color: #697078;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.6;
+}
+.landing-roundup-copy p:last-child { margin-bottom: 12px; }
+.landing-roundup-more {
+    margin: 2px 12px 16px;
+    padding: 0;
+    text-align: center;
+}
+.landing-roundup-more span {
+    display: inline-block;
+    padding: 0 0 7px;
+    border-bottom: 2px solid #bf9760;
+    color: #001f3f;
+    font: 700 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
 .temp-landing-hero-image img {
     display: block;
     width: 100%;
@@ -3293,6 +3619,10 @@
     width: 100%;
     height: auto;
 }
+#temp-landing-claim-profile-banner > picture img,
+#temp-landing-claim-profile-banner > img {
+    aspect-ratio: 1024 / 512;
+}
 .temp-landing-secondary-image[role="link"] {
     cursor: pointer;
 }
@@ -3300,6 +3630,487 @@
 .temp-landing-secondary-image ~ .temp-landing-secondary-image {
     display: none !important;
 }
+/* LANDING_EVENT_CARD_CSS */
+
+/* Hero slots reuse All Regattas `.sa-home-regatta-card` tokens exactly. */
+.temp-landing-hero-image,
+.temp-landing-secondary-image,
+#landing-event-hero-2 {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+    box-sizing: border-box;
+}
+/* Hero 2 must stay visible even if a prior .temp-landing-secondary-image exists. */
+#landing-event-hero-2 {
+    display: block !important;
+}
+/* Banner-era `.temp-landing-*-image img { width:100%; display:block }` must not size the card. */
+.temp-landing-hero-image .landing-event-card img:not(.landing-event-inline-logo),
+.temp-landing-secondary-image .landing-event-card img:not(.landing-event-inline-logo),
+#landing-event-hero-2 .landing-event-card img:not(.landing-event-inline-logo) {
+    width: auto;
+    height: auto;
+    max-width: 78px;
+}
+.temp-landing-hero-image .sa-home-regatta-card,
+.temp-landing-secondary-image .sa-home-regatta-card,
+#landing-event-hero-2 .sa-home-regatta-card {
+    background: #fff;
+    border: 2px solid #8aa2c6;
+    border-radius: 6px;
+    box-shadow: 0 2px 3px rgba(15,23,42,.06);
+    padding: 10px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    color: #142c78;
+    position: relative;
+}
+.temp-landing-hero-image .sa-home-regatta-card--live,
+.temp-landing-secondary-image .sa-home-regatta-card--live {
+    background: #fff1e6;
+    border-color: #f5ac86;
+}
+.temp-landing-hero-image .sa-home-regatta-top,
+.temp-landing-secondary-image .sa-home-regatta-top,
+#landing-event-hero-2 .sa-home-regatta-top {
+    display: grid;
+    grid-template-columns: 104px minmax(0,1fr) minmax(200px,252px) auto;
+    grid-template-areas: "logo main host actions";
+    gap: 14px;
+    align-items: center;
+}
+.temp-landing-hero-image .sa-home-regatta-event-logo-link,
+.temp-landing-secondary-image .sa-home-regatta-event-logo-link {
+    grid-area: logo;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    text-decoration: none;
+    line-height: 0;
+    min-width: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-event-logo,
+.temp-landing-secondary-image .sa-home-regatta-event-logo,
+#landing-event-hero-2 .sa-home-regatta-event-logo {
+    display: block !important;
+    width: 78px !important;
+    height: 58px !important;
+    max-width: 78px !important;
+    max-height: 58px !important;
+    object-fit: contain !important;
+    object-position: center;
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-top-main,
+.temp-landing-secondary-image .sa-home-regatta-top-main { grid-area: main; min-width: 0; }
+.temp-landing-hero-image .sa-home-regatta-title,
+.temp-landing-secondary-image .sa-home-regatta-title {
+    font-size: 15px;
+    font-weight: 900;
+    color: #142c78;
+    line-height: 1.15;
+    margin: 0;
+    letter-spacing: -.01em;
+}
+.temp-landing-hero-image .sa-home-regatta-meta,
+.temp-landing-secondary-image .sa-home-regatta-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #5b6780;
+    font-size: 11.5px;
+    margin-top: 6px;
+}
+.temp-landing-hero-image .sa-home-regatta-meta-pill,
+.temp-landing-secondary-image .sa-home-regatta-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 700;
+    white-space: nowrap;
+    position: relative;
+}
+.temp-landing-hero-image .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill,
+.temp-landing-secondary-image .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill { padding-left: 10px; }
+.temp-landing-hero-image .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
+.temp-landing-secondary-image .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before {
+    content: "";
+    position: absolute;
+    left: 0; top: 2px; bottom: 2px;
+    width: 1px;
+    background: #cbd5e1;
+}
+.temp-landing-hero-image .sa-home-regatta-meta-ico,
+.temp-landing-secondary-image .sa-home-regatta-meta-ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
+    color: #60708b;
+}
+.temp-landing-hero-image .sa-home-regatta-host,
+.temp-landing-secondary-image .sa-home-regatta-host {
+    grid-area: host;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+.temp-landing-hero-image .sa-home-regatta-host-logo,
+.temp-landing-secondary-image .sa-home-regatta-host-logo,
+#landing-event-hero-2 .sa-home-regatta-host-logo {
+    display: block !important;
+    width: 76px !important;
+    height: 36px !important;
+    max-width: 76px !important;
+    max-height: 36px !important;
+    object-fit: contain !important;
+    background: transparent;
+    flex: 0 0 auto;
+    padding: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-host-text,
+.temp-landing-secondary-image .sa-home-regatta-host-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-host-code,
+.temp-landing-secondary-image .sa-home-regatta-host-code {
+    font-weight: 900;
+    color: #21356b;
+    font-size: 14px;
+    line-height: 1.05;
+}
+.temp-landing-hero-image .sa-home-regatta-host-name,
+.temp-landing-secondary-image .sa-home-regatta-host-name {
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+}
+.temp-landing-hero-image .sa-home-regatta-actions,
+.temp-landing-secondary-image .sa-home-regatta-actions,
+#landing-event-hero-2 .sa-home-regatta-actions {
+    grid-area: actions;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: stretch;
+    min-width: 126px;
+    width: 100%;
+}
+.temp-landing-hero-image .sa-home-regatta-single-class,
+.temp-landing-secondary-image .sa-home-regatta-single-class {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    text-decoration: none;
+}
+.temp-landing-hero-image .sa-home-regatta-chip-logo,
+.temp-landing-secondary-image .sa-home-regatta-chip-logo,
+#landing-event-hero-2 .sa-home-regatta-chip-logo {
+    display: block !important;
+    width: 46px !important;
+    height: 24px !important;
+    max-width: 46px !important;
+    max-height: 24px !important;
+    object-fit: contain !important;
+    background: transparent;
+    padding: 0;
+}
+.temp-landing-hero-image .sa-home-regatta-btn,
+.temp-landing-secondary-image .sa-home-regatta-btn,
+#landing-event-hero-2 .sa-home-regatta-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 14px;
+    border-radius: 6px;
+    border: 1px solid #a5d7de;
+    background: #f9ffff;
+    color: #0f6d7a;
+    font-weight: 900;
+    font-size: 12px;
+    text-decoration: none;
+    white-space: nowrap;
+    min-width: 126px;
+    flex: 1 1 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+.temp-landing-hero-image .sa-home-regatta-btn--upcoming,
+.temp-landing-secondary-image .sa-home-regatta-btn--upcoming,
+#landing-event-hero-2 .sa-home-regatta-btn--upcoming,
+.sa-home-regatta-btn--upcoming {
+    background: #c2410c;
+    border-color: #c2410c;
+    color: #fff;
+}
+.temp-landing-hero-image .sa-home-regatta-btn--upcoming .sa-home-regatta-btn-ico,
+.temp-landing-secondary-image .sa-home-regatta-btn--upcoming .sa-home-regatta-btn-ico,
+#landing-event-hero-2 .sa-home-regatta-btn--upcoming .sa-home-regatta-btn-ico,
+.sa-home-regatta-btn--upcoming .sa-home-regatta-btn-ico { color: #fff; }
+.temp-landing-hero-image .sa-home-regatta-days-pill,
+.temp-landing-secondary-image .sa-home-regatta-days-pill,
+#landing-event-hero-2 .sa-home-regatta-days-pill,
+.sa-home-regatta-days-pill {
+    padding: 2px 7px !important;
+    margin-left: 2px;
+    border-radius: 4px;
+    background: #c2410c;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+.temp-landing-hero-image .sa-home-regatta-meta-pill.sa-home-regatta-days-pill:before,
+.temp-landing-secondary-image .sa-home-regatta-meta-pill.sa-home-regatta-days-pill:before,
+#landing-event-hero-2 .sa-home-regatta-meta-pill.sa-home-regatta-days-pill:before,
+.sa-home-regatta-meta-pill.sa-home-regatta-days-pill:before { content: none !important; width: 0; }
+.temp-landing-hero-image .sa-home-regatta-children,
+.temp-landing-secondary-image .sa-home-regatta-children {
+    margin: 0;
+    border: 1px solid #dbe3ef;
+    border-radius: 4px;
+    background: #fff;
+    overflow: hidden;
+}
+.temp-landing-hero-image .sa-home-regatta-children-head,
+.temp-landing-secondary-image .sa-home-regatta-children-head {
+    display: block;
+    padding: 8px 12px;
+    background: #eff5ff;
+}
+.landing-event-card-count {
+    display: inline-block;
+    margin: 0 0 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    color: #142c78;
+    background: #e8eef8;
+    border: 1px solid #8aa2c6;
+    border-radius: 4px;
+}
+.landing-event-card--live .landing-event-card-count {
+    background: #fff1e6;
+    border-color: #f5ac86;
+    color: #9a3412;
+}
+
+.landing-event-card--live:has(a[href*="hmyc-midmar-cup"]) .landing-event-card-count {
+    animation: midmar-live-invert 2.8s ease-in-out infinite alternate;
+}
+@keyframes midmar-live-invert {
+    from {
+        background: #fff1e6;
+        border-color: #f5ac86;
+        color: #9a3412;
+    }
+    to {
+        background: #9a3412;
+        border-color: #9a3412;
+        color: #fff1e6;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .landing-event-card--live:has(a[href*="hmyc-midmar-cup"]) .landing-event-card-count {
+        animation: none;
+    }
+}
+.landing-event-card-story {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #334155;
+    line-height: 1.4;
+    white-space: normal;
+}
+.landing-event-card-story a {
+    color: #1e3a6e;
+    font-weight: 800;
+    text-decoration: underline;
+    text-decoration-color: #94a3b8;
+    text-underline-offset: 2px;
+}
+.landing-event-story-ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+    color: #64748b;
+    flex: 0 0 12px;
+}
+.landing-event-story-ico svg {
+    display: block;
+    width: 12px;
+    height: 12px;
+}
+.landing-event-last-label {
+    color: #64748b;
+}
+.landing-event-story-mark {
+    font-weight: 800;
+    color: #142c78;
+}
+.temp-landing-hero-image .landing-event-inline-logo,
+.temp-landing-secondary-image .landing-event-inline-logo,
+#landing-event-hero-2 .landing-event-inline-logo,
+.temp-landing-hero-image .landing-event-card-story img,
+.temp-landing-secondary-image .landing-event-card-story img,
+#landing-event-hero-2 .landing-event-card-story img,
+.landing-event-inline-logo {
+    display: inline !important;
+    width: 14px !important;
+    height: 11px !important;
+    max-width: 14px !important;
+    max-height: 11px !important;
+    object-fit: contain !important;
+    vertical-align: -2px;
+    margin: 0 3px 0 0 !important;
+    float: none !important;
+}
+.temp-landing-hero-image .landing-event-card-story-wrap,
+.temp-landing-secondary-image .landing-event-card-story-wrap,
+#landing-event-hero-2 .landing-event-card-story-wrap {
+    flex: 0 0 auto;
+}
+.temp-landing-hero-image .landing-event-card-story-wrap .sa-home-regatta-children-head,
+.temp-landing-secondary-image .landing-event-card-story-wrap .sa-home-regatta-children-head,
+#landing-event-hero-2 .landing-event-card-story-wrap .sa-home-regatta-children-head {
+    padding: 4px 22px 4px 8px;
+    line-height: 1.2;
+}
+
+.landing-event-card-story-wrap--with-cup {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+}
+.landing-event-card-story-wrap--with-cup .sa-home-regatta-children-head {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.temp-landing-hero-image .landing-event-cup-img,
+.temp-landing-secondary-image .landing-event-cup-img,
+#landing-event-hero-2 .landing-event-cup-img,
+.landing-event-cup-img {
+    display: block !important;
+    width: auto !important;
+    height: 72px !important;
+    max-width: 52px !important;
+    max-height: 72px !important;
+    object-fit: contain !important;
+    margin: 4px 0 4px 8px !important;
+    float: none !important;
+    background: transparent;
+    flex: 0 0 auto;
+}
+.landing-event-card-hit {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+.landing-event-card-open {
+    display: none !important;
+}
+.landing-event-last-head,
+.landing-event-last-podium,
+.landing-event-return {
+    display: block;
+    margin: 0;
+}
+.landing-event-last-head {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.landing-event-last-podium,
+.landing-event-return {
+    margin-top: 2px;
+}
+.temp-landing-hero-image .landing-event-card a:not(.landing-event-card-hit),
+.temp-landing-secondary-image .landing-event-card a:not(.landing-event-card-hit),
+#landing-event-hero-2 .landing-event-card a:not(.landing-event-card-hit) {
+    position: relative;
+    z-index: 1;
+}
+@media (max-width: 480px) {
+    .temp-landing-hero-image .sa-home-regatta-card,
+    .temp-landing-secondary-image .sa-home-regatta-card,
+    #landing-event-hero-2 .sa-home-regatta-card { padding: 10px 10px 10px; border-radius: 6px; }
+    .temp-landing-hero-image .sa-home-regatta-top,
+    .temp-landing-secondary-image .sa-home-regatta-top,
+    #landing-event-hero-2 .sa-home-regatta-top {
+        grid-template-columns: 82px minmax(0,1fr);
+        grid-template-areas: "logo main" "logo host" "actions actions";
+        gap: 8px 10px;
+        align-items: start;
+    }
+    .temp-landing-hero-image .sa-home-regatta-event-logo-link,
+    .temp-landing-secondary-image .sa-home-regatta-event-logo-link,
+    #landing-event-hero-2 .sa-home-regatta-event-logo-link {
+        width: 78px; max-width: 78px;
+    }
+    .temp-landing-hero-image .sa-home-regatta-event-logo,
+    .temp-landing-secondary-image .sa-home-regatta-event-logo,
+    #landing-event-hero-2 .sa-home-regatta-event-logo {
+        width: 78px !important; max-width: 78px !important; height: 58px !important; max-height: 58px !important;
+    }
+    .temp-landing-hero-image .sa-home-regatta-title,
+    .temp-landing-secondary-image .sa-home-regatta-title,
+    #landing-event-hero-2 .sa-home-regatta-title { font-size: 14px; }
+    .temp-landing-hero-image .sa-home-regatta-host,
+    .temp-landing-secondary-image .sa-home-regatta-host,
+    #landing-event-hero-2 .sa-home-regatta-host { gap: 8px; }
+    .temp-landing-hero-image .sa-home-regatta-host-logo,
+    .temp-landing-secondary-image .sa-home-regatta-host-logo,
+    #landing-event-hero-2 .sa-home-regatta-host-logo { width: 76px !important; height: 36px !important; }
+    .temp-landing-hero-image .sa-home-regatta-actions,
+    .temp-landing-secondary-image .sa-home-regatta-actions,
+    #landing-event-hero-2 .sa-home-regatta-actions { width: 100%; justify-content: flex-end; }
+    .temp-landing-hero-image .sa-home-regatta-btn,
+    .temp-landing-secondary-image .sa-home-regatta-btn,
+    #landing-event-hero-2 .sa-home-regatta-btn { flex: 1; min-width: 0; padding: 9px 10px; }
+    .temp-landing-hero-image .sa-home-regatta-chip-logo,
+    .temp-landing-secondary-image .sa-home-regatta-chip-logo,
+    #landing-event-hero-2 .sa-home-regatta-chip-logo { width: 46px !important; height: 24px !important; max-width: 46px !important; }
+}
+
 /* ================================================================
    GOLD HEADER — 3-column pure CSS grid (logo | center | auth).
    ZERO JavaScript translate/position hacks; name/SAS true-center
@@ -3666,7 +4477,7 @@ html.temp-landing-layout-pending .search-header-container.sailor-search-pills {
 }
 .temp-landing-search-stack .sailor-search-input::placeholder,
 .temp-landing-search-stack .temp-landing-regatta-input::placeholder {
-    color: #94a3b8 !important;
+    color: #64748b !important;
     font-weight: 600 !important;
     opacity: 1 !important;
 }
@@ -4157,8 +4968,82 @@ header.site-header #headerAuth button {
         max-height: 32px !important;
     }
 }
+
+.landing-roundup-viewport {
+    overflow: hidden;
+    touch-action: pan-y pinch-zoom;
+    cursor: grab;
+    width: 100%;
+}
+.landing-roundup-track {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+}
+.landing-roundup-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 100%;
+    box-sizing: border-box;
+}
+.landing-roundup-viewport .landing-roundup-hero {
+    max-height: min(52vw, 320px);
+    overflow: hidden;
+    background: #111;
+}
+.landing-roundup-viewport .landing-roundup-hero img,
+.landing-roundup-viewport .landing-roundup-hero svg {
+    height: min(52vw, 320px);
+    object-fit: cover;
+    object-position: center 28%;
+    background: #111;
+}
+.landing-roundup-dots {
+    display: flex;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 12px 0;
+}
+.landing-roundup-dot {
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #c5d0e0;
+    cursor: pointer;
+}
+.landing-roundup-dot.is-active { background: #001f3f; }
+
+.landing-roundup-title {
+    font-family: "Playfair Display", Georgia, serif !important;
+    font-weight: 500 !important;
+    font-size: clamp(28px, 7vw, 40px) !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.03em !important;
+    white-space: normal !important;
+    padding: 10px 12px 0 !important;
+}
+.landing-roundup-link { container-type: normal !important; }
+.landing-roundup-viewport .landing-roundup-hero {
+    aspect-ratio: 16 / 9;
+    max-height: 220px;
+    overflow: hidden;
+    background: #111;
+}
+.landing-roundup-viewport .landing-roundup-hero img,
+.landing-roundup-viewport .landing-roundup-hero svg {
+    width: 100%;
+    height: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    object-position: center center;
+    background: #111;
+}
 </style>
 
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap"></noscript>
 </head>
 <body>
 <header class="site-header">
@@ -4183,6 +5068,7 @@ header.site-header #headerAuth button {
     </header>
 
     <main class="main-content">
+<h1 class="visually-hidden">South African Sailing Results &amp; Regatta Database</h1>
         <!-- Three-column layout: left ad | main content | right ad -->
         <div class="layout-three-col">
             
@@ -4192,17 +5078,62 @@ header.site-header #headerAuth button {
             <section id="site-stats-embed" class="site-stats-embed" aria-label="Site statistics" hidden></section>
             <!-- Search Header -->
             
-<section id="temp-landing-hero-image" class="temp-landing-hero-image" aria-label="SailingSA feedback hero">
-    <img src="assets/temp-landing-feedback-hero.png" alt="SailingSA feedback banner">
+<div class="landing-top-row" id="landing-top-row">
+<section id="landing-top-card" class="landing-top-card" aria-label="Weekly Roundup">
+<div class="landing-roundup-viewport" id="landing-roundup-viewport">
+<div class="landing-roundup-track" id="landing-roundup-track"></div>
+</div>
+<div class="landing-roundup-dots" id="landing-roundup-dots" hidden></div>
 </section>
+
+<style id="landing-roundup-cardfix4">
+#landing-top-card{position:relative!important;z-index:5!important;overflow:hidden!important}
+#landing-top-card .landing-roundup-viewport{overflow:hidden!important;overflow-x:hidden!important;width:100%!important;contain:paint}
+#landing-top-card .landing-roundup-track{display:flex!important;flex-wrap:nowrap!important;gap:0!important;margin:0!important;padding:0!important;width:max-content!important}
+#landing-top-card .landing-roundup-slide{flex:0 0 var(--roundup-card-width,100%)!important;width:var(--roundup-card-width,100%)!important;min-width:var(--roundup-card-width,100%)!important;max-width:var(--roundup-card-width,100%)!important;box-sizing:border-box!important;overflow:hidden!important;cursor:pointer}
+#landing-top-card .landing-roundup-hero{display:block!important;width:100%!important;aspect-ratio:16/9!important;max-height:220px!important;overflow:hidden!important;background:#111!important;line-height:0!important}
+#landing-top-card .landing-roundup-hero img{display:block!important;width:100%!important;height:100%!important;max-height:220px!important;object-fit:cover!important;object-position:center center!important;background:#111!important}
+#landing-top-card .landing-roundup-hero svg{display:none!important}
+</style>
+<style id="weekly-roundup-image-policy">
+#landing-top-card .landing-roundup-hero{width:100%!important;aspect-ratio:auto!important;max-height:none!important;height:auto!important;background:transparent!important}
+#landing-top-card .landing-roundup-hero img{width:100%!important;height:auto!important;max-height:none!important;object-fit:contain!important;background:transparent!important}
+#landing-roundup-track:empty{display:block!important;width:100%!important}
+#landing-roundup-track:empty::before{content:"";display:block;width:100%;aspect-ratio:16/9;box-sizing:content-box!important;padding-bottom:351px}
+@media(min-width:420px){#landing-roundup-track:empty::before{padding-bottom:317px}}
+@media(min-width:1024px){#landing-roundup-track:empty::before{padding-bottom:322px}}
+</style>
+<script id="landing-roundup-card" src="/js/landing-roundup-cards.js?v=homepage-lcp-20261024" defer></script>
+<section id="temp-landing-hero-image" class="temp-landing-hero-image" aria-label="2026-10-24 Ullman Sails Women&#x27;s Series — Day 2" data-landing-event-card="1">
+<!-- LANDING_EVENT_CARD_BEGIN slot=1 -->
+<article class="sa-home-regatta-card landing-event-card landing-event-card--live sa-home-regatta-card--live" data-landing-event-slot="1" data-state="live"><div class="sa-home-regatta-top"><a class="sa-home-regatta-event-logo-link" tabindex="-1" aria-hidden="true" href="/regatta/2026-10-24-ullman-sails-womens-series-day-2" aria-label="2026-10-24 Ullman Sails Women&#x27;s Series — Day 2"><img class="sa-home-regatta-event-logo" src="/artwork/home-cards/ullman-sails-womens-series.png" alt="2026-10-24 Ullman Sails Women&#x27;s Series — Day 2" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a><div class="sa-home-regatta-top-main"><p class="landing-event-card-count">LIVE · STARTS TODAY</p><div class="sa-home-regatta-title"><a href="/regatta/2026-10-24-ullman-sails-womens-series-day-2" style="color:inherit;text-decoration:none">2026-10-24 Ullman Sails Women&#x27;s Series — Day 2</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.25" y="3.5" width="11.5" height="9.5" rx="1.4"></rect><line x1="2.25" y1="6" x2="13.75" y2="6"></line><line x1="5" y1="2.25" x2="5" y2="4.75"></line><line x1="11" y1="2.25" x2="11" y2="4.75"></line></svg></span>24 Oct 2026</div><div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5.5" r="2.1"></circle><circle cx="10.5" cy="6.2" r="1.8"></circle><path d="M2.7 12.4c.45-1.9 2.05-3 4.2-3 2.15 0 3.75 1.1 4.2 3"></path><path d="M9.4 11.8c.35-1.2 1.35-1.95 2.7-1.95 1.05 0 1.95.45 2.5 1.25"></path></svg></span>0 Entries</div></div></div><a class="sa-home-regatta-host" href="/club/rcyc" title="Open club page"><img class="sa-home-regatta-host-logo" src="/artwork/home-cards/rcyc-host.png" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">RCYC</div><div class="sa-home-regatta-host-name">Royal Cape Yacht Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn" tabindex="-1" aria-hidden="true" href="/regatta/2026-10-24-ullman-sails-womens-series-day-2"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>LIVE RESULTS</a></div></div><a class="landing-event-card-hit" href="/regatta/2026-10-24-ullman-sails-womens-series-day-2" tabindex="-1" aria-hidden="true"></a></article>
+<!-- LANDING_EXTRA_UPCOMING_BEGIN -->
+<article class="sa-home-regatta-card landing-event-card landing-event-card--live sa-home-regatta-card--live" data-landing-event-slot="2" data-state="live"><div class="sa-home-regatta-top"><a class="sa-home-regatta-event-logo-link" tabindex="-1" aria-hidden="true" href="https://www.sailing.org.za/events/357905" aria-label="2026 Tour de Vlei"><img class="sa-home-regatta-event-logo" src="/artwork/home-cards/tour-de-vlei.jpg" alt="2026 Tour de Vlei" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a><div class="sa-home-regatta-top-main"><p class="landing-event-card-count">LIVE · DAY 1 OF 2</p><div class="sa-home-regatta-title"><a href="https://www.sailing.org.za/events/357905" style="color:inherit;text-decoration:none">2026 Tour de Vlei</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.25" y="3.5" width="11.5" height="9.5" rx="1.4"></rect><line x1="2.25" y1="6" x2="13.75" y2="6"></line><line x1="5" y1="2.25" x2="5" y2="4.75"></line><line x1="11" y1="2.25" x2="11" y2="4.75"></line></svg></span>24–25 Oct 2026</div><div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5.5" r="2.1"></circle><circle cx="10.5" cy="6.2" r="1.8"></circle><path d="M2.7 12.4c.45-1.9 2.05-3 4.2-3 2.15 0 3.75 1.1 4.2 3"></path><path d="M9.4 11.8c.35-1.2 1.35-1.95 2.7-1.95 1.05 0 1.95.45 2.5 1.25"></path></svg></span>0 Entries</div></div></div><a class="sa-home-regatta-host" href="/club/vyc" title="Open club page"><img class="sa-home-regatta-host-logo" src="/api/club-logo/VYC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">VYC</div><div class="sa-home-regatta-host-name">Vogelvlei Yacht Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn" tabindex="-1" aria-hidden="true" href="https://www.sailing.org.za/events/357905"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div><a class="landing-event-card-hit" href="https://www.sailing.org.za/events/357905" tabindex="-1" aria-hidden="true"></a></article>
+<article class="sa-home-regatta-card landing-event-card landing-event-card--live sa-home-regatta-card--live" data-landing-event-slot="3" data-state="live"><div class="sa-home-regatta-top"><a class="sa-home-regatta-event-logo-link" tabindex="-1" aria-hidden="true" data-ssa-logo-lock="1" href="https://www.revolutionise.com.au/boskopyc/events/385472" aria-label="NW Youth Regionals Regatta 2026"></a><div class="sa-home-regatta-top-main"><p class="landing-event-card-count">LIVE · DAY 1 OF 2</p><div class="sa-home-regatta-title"><a href="https://www.revolutionise.com.au/boskopyc/events/385472" style="color:inherit;text-decoration:none">NW Youth Regionals Regatta 2026</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.25" y="3.5" width="11.5" height="9.5" rx="1.4"></rect><line x1="2.25" y1="6" x2="13.75" y2="6"></line><line x1="5" y1="2.25" x2="5" y2="4.75"></line><line x1="11" y1="2.25" x2="11" y2="4.75"></line></svg></span>24–25 Oct 2026</div><div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5.5" r="2.1"></circle><circle cx="10.5" cy="6.2" r="1.8"></circle><path d="M2.7 12.4c.45-1.9 2.05-3 4.2-3 2.15 0 3.75 1.1 4.2 3"></path><path d="M9.4 11.8c.35-1.2 1.35-1.95 2.7-1.95 1.05 0 1.95.45 2.5 1.25"></path></svg></span>0 Entries</div></div></div><div class="sa-home-regatta-host"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code"></div><div class="sa-home-regatta-host-name"></div></div></div><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn" tabindex="-1" aria-hidden="true" href="https://www.revolutionise.com.au/boskopyc/events/385472"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div><a class="landing-event-card-hit" href="https://www.revolutionise.com.au/boskopyc/events/385472" tabindex="-1" aria-hidden="true"></a></article>
+<article class="sa-home-regatta-card landing-event-card landing-event-card--upcoming" data-landing-event-slot="4" data-state="upcoming"><div class="sa-home-regatta-top"><a class="sa-home-regatta-event-logo-link" tabindex="-1" aria-hidden="true" href="https://www.sailing.org.za/events/373989" aria-label="2026 EC Dinghy Regionals"><img class="sa-home-regatta-event-logo" src="/artwork/home-cards/ec-dinghy-regionals.png" alt="2026 EC Dinghy Regionals" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a><div class="sa-home-regatta-top-main"><div class="sa-home-regatta-title"><a href="https://www.sailing.org.za/events/373989" style="color:inherit;text-decoration:none">2026 EC Dinghy Regionals</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.25" y="3.5" width="11.5" height="9.5" rx="1.4"></rect><line x1="2.25" y1="6" x2="13.75" y2="6"></line><line x1="5" y1="2.25" x2="5" y2="4.75"></line><line x1="11" y1="2.25" x2="11" y2="4.75"></line></svg></span>31 Oct – 1 Nov 2026</div><div class="sa-home-regatta-meta-pill"><span class="sa-home-regatta-meta-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5.5" r="2.1"></circle><circle cx="10.5" cy="6.2" r="1.8"></circle><path d="M2.7 12.4c.45-1.9 2.05-3 4.2-3 2.15 0 3.75 1.1 4.2 3"></path><path d="M9.4 11.8c.35-1.2 1.35-1.95 2.7-1.95 1.05 0 1.95.45 2.5 1.25"></path></svg></span>0 Entries</div><div class="sa-home-regatta-meta-pill sa-home-regatta-days-pill">7 DAYS TO GO</div></div></div><a class="sa-home-regatta-host" href="/club/ryc" title="Open club page"><img class="sa-home-regatta-host-logo" src="/api/club-logo/RYC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">RYC</div><div class="sa-home-regatta-host-name">Redhouse Yacht Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn sa-home-regatta-btn--upcoming" tabindex="-1" aria-hidden="true" href="https://www.sailing.org.za/events/373989"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div><a class="landing-event-card-hit" href="https://www.sailing.org.za/events/373989" tabindex="-1" aria-hidden="true"></a></article>
+<!-- LANDING_EXTRA_UPCOMING_END -->
+<!-- LANDING_EVENT_CARD_END slot=1 -->
+</section>
+</div>
+<section id="landing-event-hero-2" class="temp-landing-secondary-image" aria-label="Next upcoming event" data-landing-event-card="1">
+<!-- LANDING_EVENT_CARD_BEGIN slot=2 -->
+
+<!-- LANDING_EVENT_CARD_END slot=2 -->
+</section>
+<div id="landing-dev1-home"></div>
+
+<script id="landing-events-fit">/* Superseded by the shared Weekly Roundup layout component. */</script>
 <section id="temp-landing-claim-profile-banner" class="temp-landing-secondary-image" aria-label="Claim your SailingSA profile banner">
-    <img src="assets/temp-landing-claim-profile-banner.png" alt="Claim your Sailing profile banner">
+    <picture>
+        <source type="image/webp" srcset="assets/temp-landing-claim-profile-banner.webp">
+        <img src="assets/temp-landing-claim-profile-banner.png" alt="Claim your Sailing profile banner" width="1024" height="512" loading="lazy" decoding="async" fetchpriority="low">
+    </picture>
 </section>
 
 <div class="search-header-container sailor-search-pills">
                 <section id="sailor-search-section" class="sailor-search-section" aria-label="Sailor search">
                     <div class="sa-home-search-row">
-                        <a href="/" class="search-mode-btn active" data-mode="sailor" aria-pressed="true">Sailor</a>
+                        <a href="/" class="search-mode-btn active" data-mode="sailor" role="button" aria-pressed="true">Sailor</a>
                         <form id="sailor-search-form" class="sailor-search-form" role="search">
                             <label for="sailor-search-input" class="sailor-search-label">Sailor Search</label>
                             <div class="sailor-search-input-wrap">
@@ -4214,7 +5145,7 @@ header.site-header #headerAuth button {
                         </form>
                     </div>
                     <div class="sa-home-search-row">
-                        <a href="/" class="search-mode-btn" data-mode="regatta" aria-pressed="false">Regatta</a>
+                        <a href="/" class="search-mode-btn" data-mode="regatta" role="button" aria-pressed="false">Regatta</a>
                         <form id="temp-landing-regatta-form" class="temp-landing-regatta-form" role="search">
                             <label for="temp-landing-regatta-input" class="regatta-search-label">Regatta Search</label>
                             <div class="sailor-search-input-wrap temp-landing-regatta-input-wrap">
@@ -4269,7 +5200,9 @@ header.site-header #headerAuth button {
                 <h2>Login</h2>
                 <p>Enter your SAS ID and password</p>
                 <form id="usernamePasswordForm">
+                    <label class="visually-hidden" for="usernameInput">SAS ID</label>
                     <input type="text" id="usernameInput" placeholder="SAS ID" required>
+                    <label class="visually-hidden" for="passwordInput">Password</label>
                     <input type="password" id="passwordInput" placeholder="Password" required>
                     <button type="submit" class="btn-primary">Login</button>
                     <button type="button" class="btn-secondary" onclick="showState('login-choice')">Back</button>
@@ -4284,6 +5217,7 @@ header.site-header #headerAuth button {
                 <h2>Find Your Profile</h2>
                 <p>Search by SAS ID or Name & Surname</p>
                 <form id="searchProfileForm">
+                    <label class="visually-hidden" for="searchInput">SAS ID or Name &amp; Surname</label>
                     <input type="text" id="searchInput" placeholder="SAS ID or Name & Surname" required>
                     <button type="submit" class="btn-primary">Search</button>
                 </form>
@@ -4310,6 +5244,7 @@ header.site-header #headerAuth button {
             <div id="state-relationship" class="popup-state" style="display: none;">
                 <h2>Relationship</h2>
                 <form id="relationshipForm">
+                    <label class="visually-hidden" for="relationshipSelect">Relationship</label>
                     <select id="relationshipSelect" required>
                         <option value="">Select relationship</option>
                         <option value="parent">Parent / Guardian</option>
@@ -4652,6 +5587,8 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
+    <script src="/js/card-left-logo.js?v=cll3"></script>
+
     
     <script>
         // Function to close popup and return to landing page
@@ -5042,57 +5979,16 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 ? '<div class="club-page-logo-wrap"><img src="' + esc(classLogo) + '" alt="' + esc(className) + '" class="club-page-logo-img" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></div>'
                 : '';
 
+            var classTitleLogo = classLogo
+                ? '<img src="' + esc(classLogo) + '" alt="" class="class-gold-title-logo">'
+                : esc(className);
             var strips = '';
             if (eventChips.length) {
-                strips += '<div class="club-story-logo-row"><div class="club-story-logo-row-label">Events featuring ' + esc(className) + '</div><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section club-story-logo-row"><div class="club-story-logo-row-label">Events featuring ' + classTitleLogo + '</div><div class="club-story-logo-chips">' + eventChips.join('') + '</div></div>';
             }
             if (clubChips.length) {
-                strips += '<div class="club-story-logo-row"><div class="club-story-logo-row-label">Clubs sailing ' + esc(className) + '</div><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
+                strips += '<div class="card stats-section club-story-logo-row"><div class="club-story-logo-row-label">Clubs sailing ' + classTitleLogo + '</div><div class="club-story-logo-chips">' + clubChips.join('') + '</div></div>';
             }
-
-            function rowLogo(src) {
-                if (!src) return '';
-                return '<img src="' + esc(src) + '" alt="" class="row-logo" loading="lazy" onerror="this.style.display=\'none\'">';
-            }
-            function rowAv(src) {
-                var u = src || '/assets/avatars/default-youth.png';
-                return '<img src="' + esc(u) + '" alt="" class="row-av" width="28" height="28" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'/assets/avatars/default-youth.png\'">';
-            }
-
-            var regattaRows = regattas.map(function(r, i) {
-                var slug = (r.regatta_slug || (r.regatta_id != null ? String(r.regatta_id) : '')) || '';
-                var url = slug ? '/regatta/' + encodeURIComponent(slug) : '#';
-                var eventName = esc(r.regatta_name || r.event_name || '');
-                var eventDate = esc(r.event_date || r.end_date || r.start_date || '—');
-                var hostCode = (r.club_code || '').trim().toUpperCase();
-                var hostSlug = (r.club_slug || hostCode.toLowerCase() || '').trim();
-                var hostLogo = (r.club_logo_url || (hostCode ? '/api/club-logo/' + hostCode : '')).trim();
-                var hostCell = hostCode
-                    ? (rowLogo(hostLogo) + (hostSlug ? '<a href="/club/' + encodeURIComponent(hostSlug) + '">' + esc(hostCode) + '</a>' : esc(hostCode)))
-                    : '—';
-                var evLogo = (r.event_logo_url || classLogo || '').trim();
-                var eventEntries = (r.event_entries != null && r.event_entries !== '') ? r.event_entries
-                    : ((r.fleet_size != null && r.fleet_size !== '') ? r.fleet_size : '—');
-                var classEntries = (r.class_entries != null && r.class_entries !== '') ? r.class_entries
-                    : ((r.fleet_size != null && r.fleet_size !== '') ? r.fleet_size : '—');
-                var races = (r.races != null && r.races !== '') ? r.races : '—';
-                var search = esc(((r.regatta_name || '') + ' ' + hostCode + ' ' + eventDate).toLowerCase());
-                return '<tr data-search="' + search + '"><td>' + (i + 1) + '</td><td class="cell-left">' + rowLogo(evLogo) + '<a href="' + url + '">' + eventName + '</a></td><td class="cell-nowrap">' + eventDate + '</td><td class="cell-left hide-mobile">' + hostCell + '</td><td>' + eventEntries + '</td><td>' + classEntries + '</td><td class="hide-mobile">' + races + '</td></tr>';
-            }).join('');
-
-            var clubRows = clubs.map(function(c, i) {
-                var code = (c.club_code || '').trim().toUpperCase();
-                var slug = (c.club_slug || code.toLowerCase() || '').trim();
-                var img = (c.club_logo_url || (code ? '/api/club-logo/' + code : '')).trim();
-                var label = (code && c.club_name) ? (esc(code) + ' — ' + esc(c.club_name)) : esc(code || c.club_name || '');
-                var clubCell = rowLogo(img) + (slug ? '<a href="/club/' + encodeURIComponent(slug) + '">' + label + '</a>' : label);
-                var lastUrl = c.last_regatta_slug ? '/regatta/' + encodeURIComponent(c.last_regatta_slug) : '';
-                var lastCell = (c.last_regatta_name || '').trim()
-                    ? (lastUrl ? '<a href="' + lastUrl + '">' + esc(c.last_regatta_name) + '</a>' : esc(c.last_regatta_name))
-                    : '—';
-                var search = esc(((code || '') + ' ' + (c.club_name || '') + ' ' + (c.last_regatta_name || '')).toLowerCase());
-                return '<tr data-search="' + search + '"><td>' + (i + 1) + '</td><td class="cell-left">' + clubCell + '</td><td>' + (c.sailors != null ? c.sailors : '—') + '</td><td>' + (c.races != null ? c.races : '—') + '</td><td>' + lastCell + '</td><td class="cell-nowrap">' + esc(c.last_regatta_date || '—') + '</td></tr>';
-            }).join('');
 
             function ordinal(n) {
                 var num = parseInt(n, 10);
@@ -5102,71 +5998,350 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 var d = num % 10;
                 return num + ({ 1: 'st', 2: 'nd', 3: 'rd' }[d] || 'th');
             }
-            var sailorRows = sailors.map(function(s, i) {
-                var slug = s.sailor_slug || '';
-                var url = slug ? '/sailor/' + encodeURIComponent(slug) : '#';
-                var clubCode = (s.club_code || '').trim().toUpperCase();
-                var clubImg = (s.club_logo_url || (clubCode ? '/api/club-logo/' + clubCode : '')).trim();
-                var clubCell = clubCode ? (rowLogo(clubImg) + '<a href="/club/' + encodeURIComponent(clubCode) + '">' + esc(clubCode) + '</a>') : '—';
-                var rank = '';
-                if (s.last_result_rank != null && s.last_fleet_size != null) {
-                    rank = ordinal(s.last_result_rank) + '/' + s.last_fleet_size;
-                } else if (s.last_result_rank != null) {
-                    rank = ordinal(s.last_result_rank);
-                } else {
-                    rank = '—';
-                }
-                var lastUrl = s.last_regatta_slug ? '/regatta/' + encodeURIComponent(s.last_regatta_slug) : '';
-                var lastCell = (s.last_regatta_name || '').trim()
-                    ? (lastUrl ? '<a href="' + lastUrl + '">' + esc(s.last_regatta_name) + '</a>' : esc(s.last_regatta_name))
-                    : '—';
-                var search = esc(((s.sailor_name || '') + ' ' + clubCode + ' ' + (s.last_regatta_name || '')).toLowerCase());
-                return '<tr data-search="' + search + '"><td>' + (i + 1) + '</td><td class="cell-left">' + rowAv(s.avatar_url) + '<a href="' + url + '">' + esc(s.sailor_name || s.sas_id || '') + '</a></td><td class="cell-left hide-mobile">' + clubCell + '</td><td>' + (s.races_in_class != null ? s.races_in_class : '—') + '</td><td>' + (s.regattas_in_class != null ? s.regattas_in_class : '—') + '</td><td class="cell-nowrap">' + esc(rank) + '</td><td>' + lastCell + '</td></tr>';
-            }).join('');
-
-            function section(id, title, filterId, tableHtml) {
-                return '<div class="section-heading-row" id="' + id + '">' +
+            function headingRow(title, inputId, placeholder) {
+                return '<div class="events-section-heading-row">' +
                     '<h2 class="section-title">' + esc(title) + '</h2>' +
-                    '<input type="search" class="club-table-filter" data-table="' + filterId + '" placeholder="Search…" autocomplete="off">' +
-                    '</div><div class="table-container club-table-scroll">' + tableHtml + '</div>';
+                    '<input type="search" class="events-dashboard-search" id="' + inputId + '" placeholder="' + esc(placeholder) + '" aria-label="' + esc(placeholder) + '" autocomplete="off" autocapitalize="off" spellcheck="false" />' +
+                    '</div>';
             }
+            function carouselShell(panelId, hint) {
+                return '<div id="events-controls-' + panelId + '" class="events-carousel-controls" style="display:none">' +
+                    '<p class="events-swipe-hint">' + esc(hint) + '</p>' +
+                    '<div class="events-pagination" role="navigation">' +
+                    '<button type="button" class="events-arrow-btn" id="events-prev-' + panelId + '" aria-label="Previous" disabled>←</button>' +
+                    '<div class="events-dots" id="events-dots-' + panelId + '" role="tablist" aria-label="Page"></div>' +
+                    '<button type="button" class="events-arrow-btn" id="events-next-' + panelId + '" aria-label="Next">→</button>' +
+                    '</div></div>' +
+                    '<div id="events-wrap-' + panelId + '" class="events-carousel-wrap">' +
+                    '<div id="cards-' + panelId + '" class="events-carousel"></div></div>';
+            }
+            function wireCarousel(panelId) {
+                var carousel = document.getElementById('cards-' + panelId);
+                var controls = document.getElementById('events-controls-' + panelId);
+                var prevBtn = document.getElementById('events-prev-' + panelId);
+                var nextBtn = document.getElementById('events-next-' + panelId);
+                var dotsWrap = document.getElementById('events-dots-' + panelId);
+                if (!carousel || !prevBtn || !nextBtn || !dotsWrap) return;
+                function pageCount() { return carousel.querySelectorAll('.events-page').length; }
+                function currentPage() {
+                    var w = carousel.clientWidth || 1;
+                    var n = pageCount();
+                    if (n <= 1) return 0;
+                    var idx = Math.floor((carousel.scrollLeft + w * 0.25) / w);
+                    if (idx < 0) idx = 0;
+                    if (idx > n - 1) idx = n - 1;
+                    return idx;
+                }
+                function syncNav() {
+                    var n = pageCount();
+                    if (n <= 1) { if (controls) controls.style.display = 'none'; return; }
+                    if (controls) controls.style.display = '';
+                    var cur = currentPage();
+                    prevBtn.disabled = (cur <= 0);
+                    nextBtn.disabled = (cur >= n - 1);
+                    dotsWrap.querySelectorAll('.events-dot').forEach(function(d, i) {
+                        d.classList.toggle('is-active', i === cur);
+                    });
+                }
+                function scrollToPage(idx) {
+                    var n = pageCount();
+                    idx = Math.max(0, Math.min(idx, n - 1));
+                    carousel.scrollTo({ left: idx * carousel.clientWidth, behavior: 'smooth' });
+                }
+                prevBtn.onclick = function() { scrollToPage(currentPage() - 1); };
+                nextBtn.onclick = function() { scrollToPage(currentPage() + 1); };
+                carousel.addEventListener('scroll', function() { syncNav(); }, { passive: true });
+                window.addEventListener('resize', function() { syncNav(); });
+                dotsWrap.onclick = function(ev) {
+                    var t = ev.target;
+                    if (t && t.getAttribute && t.getAttribute('data-page') !== null)
+                        scrollToPage(parseInt(t.getAttribute('data-page'), 10));
+                };
+                syncNav();
+            }
+            function fillPages(panelId, pageHtmls) {
+                var carousel = document.getElementById('cards-' + panelId);
+                var controls = document.getElementById('events-controls-' + panelId);
+                var dotsWrap = document.getElementById('events-dots-' + panelId);
+                if (!carousel) return;
+                if (!pageHtmls || !pageHtmls.length) {
+                    carousel.innerHTML = '<div class="events-page"><p class="class-section-empty">No matches</p></div>';
+                    if (controls) controls.style.display = 'none';
+                    return;
+                }
+                carousel.innerHTML = pageHtmls.map(function(h) {
+                    return '<div class="events-page" role="group">' + h + '</div>';
+                }).join('');
+                if (dotsWrap) {
+                    dotsWrap.innerHTML = pageHtmls.map(function(_, k) {
+                        return '<button type="button" class="events-dot' + (k === 0 ? ' is-active' : '') + '" data-page="' + k + '" aria-label="Page ' + (k + 1) + ' of ' + pageHtmls.length + '"></button>';
+                    }).join('');
+                }
+                if (controls) controls.style.display = pageHtmls.length > 1 ? '' : 'none';
+                wireCarousel(panelId);
+            }
+            function eventMatrixClass(e, panelId) {
+                var sl = String(e.sanction_level || 'CLUB').toLowerCase();
+                if (sl !== 'sas' && sl !== 'club') sl = 'other';
+                var es = String(e.event_state || '').toUpperCase();
+                var st;
+                if (es === 'PAST' || (!es && panelId === 'past')) st = 'past';
+                else if (es === 'ACTIVE' || (!es && panelId === 'live')) st = 'active';
+                else st = 'upcoming';
+                return 'ec-' + st + '-' + sl;
+            }
+            function renderEventCard(e, panelId, index1, totalN) {
+                var titleText = (e.display_title != null && e.display_title !== '') ? e.display_title : (e.event_name || e.regatta_name || 'Event');
+                var href = e.details_url || e.result_url || '';
+                var titleHtml = href
+                    ? '<a href="' + esc(href) + '" class="event-title-link">' + esc(titleText) + '</a>'
+                    : esc(titleText);
+                var hostCode = e.host_code || e.host_club || e.club_code || e.club_name || '';
+                var hostLink = e.club_slug
+                    ? '<a href="/club/' + esc(e.club_slug) + '">' + esc(hostCode) + '</a>'
+                    : esc(hostCode);
+                var typeLabel = (e.event_type || 'Regatta');
+                var locHtml = e.location ? '<span class="event-location">' + esc(e.location) + '</span>' : '';
+                var extra = '';
+                if (e.fleet_size != null || e.races != null) {
+                    extra = '<p class="event-location">Entries: ' + esc(e.fleet_size != null ? e.fleet_size : '—') +
+                        ' · Races: ' + esc(e.races != null ? e.races : '—') + '</p>';
+                }
+                var resultHtml = '';
+                if (e.show_result_line !== false) {
+                    if (e.result_yes && e.result_url) {
+                        resultHtml = '<a href="' + esc(e.result_url) + '" class="event-result-chip event-result-yes"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10003;</span></a>';
+                    } else {
+                        resultHtml = '<span class="event-result-chip event-result-no"><span class="event-result-label">Result:</span><span class="event-result-glyph" aria-hidden="true">&#10007;</span></span>';
+                    }
+                }
+                var hasDetails = href && href !== '#';
+                var btn = hasDetails
+                    ? '<a href="' + esc(href) + '" class="event-details-btn">Details</a>'
+                    : '';
+                var indexBadge = '<span class="event-card-index" aria-label="Event ' + index1 + ' of ' + totalN + '">' + index1 + '</span>';
+                return '<div class="event-card ' + eventMatrixClass(e, panelId) + '">' +
+                    '<div class="event-card-header"><h3>' + titleHtml + '</h3><span class="event-date">' + esc(e.date_display || e.event_date || e.start_date || '—') + '</span></div>' +
+                    '<div class="event-card-body"><div class="event-type-line"><span class="event-type">' + esc(typeLabel) + '</span></div>' +
+                    (hostCode ? '<span class="event-club">Host: ' + hostLink + '</span>' : '') +
+                    locHtml + extra +
+                    '<div class="event-card-result-row"><div class="event-result-slot">' + resultHtml + '</div>' +
+                    '<div class="event-card-actions">' + btn + indexBadge + '</div></div></div></div>';
+            }
+            function eventHaystack(e) {
+                return [e.event_name, e.display_title, e.regatta_name, e.date_display, e.event_date, e.host_code, e.host_club, e.club_name, e.location, e.event_type]
+                    .filter(Boolean).join(' ').toLowerCase();
+            }
+            function filterList(list, q, hayFn) {
+                q = (q || '').trim().toLowerCase();
+                if (!q) return list.slice();
+                var words = q.split(/\s+/).filter(Boolean);
+                return list.filter(function(item) {
+                    var hay = hayFn(item);
+                    return words.every(function(w) { return hay.indexOf(w) !== -1; });
+                });
+            }
+            function fleetHref(slug) {
+                if (!slug) return '';
+                return classSlug ? ('/regatta/' + encodeURIComponent(slug) + '/class-' + encodeURIComponent(classSlug))
+                    : ('/regatta/' + encodeURIComponent(slug));
+            }
+            var evData = data.events || {};
+            var evUpcoming = (evData.upcoming || []).slice();
+            var evLive = (evData.live || []).slice();
+            var evPast = (evData.past || []).slice();
+            var seenRids = {};
+            evUpcoming.concat(evLive, evPast).forEach(function(e) {
+                if (e && e.regatta_id) seenRids[String(e.regatta_id)] = true;
+            });
+            regattas.forEach(function(r) {
+                var rid = String(r.regatta_slug || r.regatta_id || '');
+                if (!rid || seenRids[rid]) return;
+                seenRids[rid] = true;
+                evPast.push({
+                    event_name: r.regatta_name || r.event_name || rid,
+                    display_title: (r.regatta_name || r.event_name || rid) + ' Results',
+                    date_display: r.event_date || r.end_date || r.start_date || '—',
+                    host_code: (r.club_code || '').trim().toUpperCase(),
+                    host_club: r.club_name || '',
+                    club_slug: r.club_slug || '',
+                    event_type: 'Regatta',
+                    details_url: '/regatta/' + encodeURIComponent(rid),
+                    result_url: fleetHref(rid),
+                    show_result_line: true,
+                    result_yes: true,
+                    event_state: 'PAST',
+                    sanction_level: 'CLUB',
+                    fleet_size: r.fleet_size,
+                    races: r.races,
+                    regatta_id: rid
+                });
+            });
+            var evTotal = evUpcoming.length + evLive.length + evPast.length;
+            function tabBtn(id, label, n) {
+                return '<button type="button" class="events-tab" role="tab" data-tab="' + id + '">' +
+                    '<span class="events-tab-label">' + label + '</span>' +
+                    '<span class="events-tab-count">' + n + '</span></button>';
+            }
+            function eventsPanel(id) {
+                return '<div id="panel-' + id + '" class="events-panel" role="tabpanel">' + carouselShell(id, 'Swipe Right or Left for more events') + '</div>';
+            }
+            var showLive = evLive.length > 0;
+            var eventsHtml = '<div class="card stats-section club-events-dashboard" id="class-events">' +
+                headingRow('Events (' + evTotal + ')', 'class-search-events', 'Search events…') +
+                '<div class="events-toolbar"><div class="events-tabs" role="tablist">' +
+                (showLive ? tabBtn('live', 'Live', evLive.length) : '') +
+                tabBtn('upcoming', 'Upcoming', evUpcoming.length) +
+                tabBtn('past', 'Past', evPast.length) +
+                '</div></div>' +
+                (showLive ? eventsPanel('live') : '') +
+                eventsPanel('upcoming') +
+                eventsPanel('past') +
+                '</div>';
 
-            var regattaTable = '<table class="table" id="class-regattas-table"><thead><tr><th>#</th><th>Event</th><th>Date</th><th class="hide-mobile">Host</th><th>Entries</th><th>' + esc(className || 'Class') + '</th><th class="hide-mobile">Races</th></tr></thead><tbody>' +
-                (regattaRows || '<tr><td colspan="7">No regattas</td></tr>') + '</tbody></table>';
-            var clubsTable = '<table class="table" id="class-clubs-table"><thead><tr><th>#</th><th>Club</th><th>Sailors</th><th>Races</th><th>Last regatta</th><th>Date</th></tr></thead><tbody>' +
-                (clubRows || '<tr><td colspan="6">No clubs</td></tr>') + '</tbody></table>';
-            var sailorsTable = '<table class="table" id="class-sailors-table"><thead><tr><th>#</th><th>Sailor</th><th class="hide-mobile">Club</th><th>Races</th><th>Regattas</th><th>Last result</th><th>Last regatta</th></tr></thead><tbody>' +
-                (sailorRows || '<tr><td colspan="7">No sailors</td></tr>') + '</tbody></table>';
+            function sailorCard(s, i) {
+                var name = s.sailor_name || s.sas_id || 'Sailor';
+                var href = s.sailor_slug ? '/sailor/' + encodeURIComponent(s.sailor_slug) : '';
+                var rank = '';
+                if (s.last_result_rank != null && s.last_fleet_size != null) rank = ordinal(s.last_result_rank) + '/' + s.last_fleet_size;
+                else if (s.last_result_rank != null) rank = ordinal(s.last_result_rank);
+                var last = (s.last_regatta_name || '').trim();
+                var lastHref = s.last_regatta_slug ? fleetHref(s.last_regatta_slug) : '';
+                var meta = [];
+                if (s.races_in_class != null) meta.push(s.races_in_class + ' races');
+                if (rank) meta.push(rank);
+                if (last) meta.push(last);
+                var inner = '<span class="club-sailor-card-num">' + (i + 1) + '.</span>' +
+                    '<span class="club-sailor-card-name">' + esc(name) + '</span>' +
+                    (meta.length ? '<span class="club-sailor-card-meta">' + (lastHref && last
+                        ? esc(meta.slice(0, -1).join(' · ') + (meta.length > 1 ? ' · ' : '')) + '<a href="' + esc(lastHref) + '">' + esc(last) + '</a>'
+                        : esc(meta.join(' · '))) + '</span>' : '');
+                return href
+                    ? '<a href="' + esc(href) + '" class="club-sailor-card">' + inner + '</a>'
+                    : '<span class="club-sailor-card">' + inner + '</span>';
+            }
+            function sailorHay(s) {
+                return [s.sailor_name, s.sas_id, s.club_code, s.last_regatta_name].filter(Boolean).join(' ').toLowerCase();
+            }
+            function clubCard(c, i) {
+                var code = (c.club_code || '').trim().toUpperCase();
+                var label = (code && c.club_name) ? (code + ' — ' + c.club_name) : (code || c.club_name || 'Club');
+                var href = c.club_slug ? '/club/' + encodeURIComponent(c.club_slug) : '';
+                var last = (c.last_regatta_name || '').trim();
+                var lastHref = c.last_regatta_slug ? fleetHref(c.last_regatta_slug) : '';
+                var meta = [];
+                if (c.sailors != null) meta.push(c.sailors + ' sailors');
+                if (c.races != null) meta.push(c.races + ' races');
+                if (last) meta.push(last);
+                var inner = '<span class="club-regatta-row-num">' + (i + 1) + '.</span>' +
+                    '<span class="club-regatta-row-name">' + esc(label) + '</span>' +
+                    (meta.length ? '<span class="club-regatta-row-date">' + (lastHref && last
+                        ? esc(meta.slice(0, -1).join(' · ') + (meta.length > 1 ? ' · ' : '')) + '<a href="' + esc(lastHref) + '">' + esc(last) + '</a>'
+                        : esc(meta.join(' · '))) + '</span>' : '');
+                return href
+                    ? '<a href="' + esc(href) + '" class="club-regatta-row">' + inner + '</a>'
+                    : '<span class="club-regatta-row">' + inner + '</span>';
+            }
+            function clubHay(c) {
+                return [c.club_code, c.club_name, c.last_regatta_name].filter(Boolean).join(' ').toLowerCase();
+            }
+            var LIST_PAGE = 5;
+            function listSection(id, title, count, placeholder) {
+                return '<div class="card stats-section club-events-dashboard" id="class-' + id + '">' +
+                    headingRow(title + ' (' + count + ')', 'class-search-' + id, placeholder) +
+                    carouselShell('class-' + id, 'Swipe Right or Left for more') +
+                    '</div>';
+            }
 
             var html = '' +
                 '<div class="container club-page class-gold-page">' +
                 '<div class="card elg-detail-page" style="border:none;box-shadow:none;padding:0;">' +
+                '<div class="card stats-section class-gold-identity-card">' +
                 '<div class="header club-page-header club-story-header">' +
                 '<div class="club-story-inner">' +
-                '<div class="club-story-title-row"><h1>' + esc(className) + '</h1>' + logoHtml + '</div>' +
+                (classLogo ? ('<div class="club-story-title-row">' + logoHtml + '</div>') : ('<div class="club-story-title-row"><h1>' + esc(className) + '</h1></div>')) +
                 (meta.length ? '<p class="club-story-meta">' + esc(meta.join(' · ')) + '</p>' : '') +
+                '</div></div></div>' +
                 strips +
-                '</div></div>' +
-                section('regattas', 'Regattas (' + regattas.length + ')', 'class-regattas-table', regattaTable) +
-                (clubs.length ? section('clubs', 'Clubs sailing ' + className + ' (' + clubs.length + ')', 'class-clubs-table', clubsTable) : '') +
-                section('sailors', 'Sailors (' + sailors.length + ')', 'class-sailors-table', sailorsTable) +
+                eventsHtml +
+                (clubs.length ? listSection('clubs', 'Clubs sailing ' + className, clubs.length, 'Search clubs…') : '') +
+                listSection('sailors', 'Sailors', sailors.length, 'Search sailors name…') +
                 '</div></div>';
 
             cv.innerHTML = html;
-            // Table filters
-            cv.querySelectorAll('.club-table-filter').forEach(function(inp) {
-                inp.addEventListener('input', function() {
-                    var id = inp.getAttribute('data-table');
-                    var table = document.getElementById(id);
-                    if (!table) return;
-                    var q = (inp.value || '').toLowerCase().trim();
-                    table.querySelectorAll('tbody tr').forEach(function(tr) {
-                        var hay = tr.getAttribute('data-search') || tr.textContent.toLowerCase();
-                        tr.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
-                    });
+
+            function paintEvents(panelId, list) {
+                fillPages(panelId, list.map(function(e, i) {
+                    return renderEventCard(e, panelId, i + 1, list.length);
+                }));
+            }
+            function activateTab(tab) {
+                cv.querySelectorAll('.events-tab').forEach(function(x) {
+                    var on = x.getAttribute('data-tab') === tab;
+                    x.classList.toggle('active', on);
+                    x.setAttribute('aria-selected', on ? 'true' : 'false');
                 });
+                cv.querySelectorAll('.events-panel').forEach(function(p) {
+                    p.classList.toggle('active', p.id === 'panel-' + tab);
+                });
+            }
+            function currentEventLists() {
+                var q = (document.getElementById('class-search-events') || {}).value || '';
+                return {
+                    live: filterList(evLive, q, eventHaystack),
+                    upcoming: filterList(evUpcoming, q, eventHaystack),
+                    past: filterList(evPast, q, eventHaystack)
+                };
+            }
+            function refreshEvents() {
+                var lists = currentEventLists();
+                if (showLive) paintEvents('live', lists.live);
+                paintEvents('upcoming', lists.upcoming);
+                paintEvents('past', lists.past);
+                var map = { live: lists.live.length, upcoming: lists.upcoming.length, past: lists.past.length };
+                cv.querySelectorAll('.events-tab').forEach(function(btn) {
+                    var k = btn.getAttribute('data-tab');
+                    var span = btn.querySelector('.events-tab-count');
+                    if (span && map[k] !== undefined) span.textContent = String(map[k]);
+                });
+            }
+            function firstTab() {
+                if (showLive && evLive.length) return 'live';
+                if (evUpcoming.length) return 'upcoming';
+                return 'past';
+            }
+            refreshEvents();
+            activateTab(firstTab());
+            cv.querySelectorAll('.events-tab').forEach(function(btn) {
+                btn.addEventListener('click', function() { activateTab(btn.getAttribute('data-tab')); });
             });
-            if (typeof attachSortableTables === 'function') attachSortableTables(cv);
+            var evSearch = document.getElementById('class-search-events');
+            if (evSearch) evSearch.addEventListener('input', refreshEvents);
+
+            function paintList(panelId, list, renderOne) {
+                var pages = [];
+                for (var p = 0; p < list.length; p += LIST_PAGE) {
+                    var chunk = list.slice(p, p + LIST_PAGE);
+                    pages.push(chunk.map(function(item, j) {
+                        return renderOne(item, p + j);
+                    }).join(''));
+                }
+                fillPages(panelId, pages);
+            }
+            function refreshSailors() {
+                var q = (document.getElementById('class-search-sailors') || {}).value || '';
+                paintList('class-sailors', filterList(sailors, q, sailorHay), sailorCard);
+            }
+            function refreshClubs() {
+                var q = (document.getElementById('class-search-clubs') || {}).value || '';
+                paintList('class-clubs', filterList(clubs, q, clubHay), clubCard);
+            }
+            refreshSailors();
+            if (clubs.length) refreshClubs();
+            var sSearch = document.getElementById('class-search-sailors');
+            if (sSearch) sSearch.addEventListener('input', refreshSailors);
+            var cSearch = document.getElementById('class-search-clubs');
+            if (cSearch) cSearch.addEventListener('input', refreshClubs);
         };
 
         // Initialize popup handlers
@@ -7645,8 +8820,11 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                             expandedHtml +
                                         '</div>';
                                     sailorSearchResults.style.display = 'block';
+                                    if (isLoggedInUser) sailorSearchResults.classList.remove('guest-locked');
                                     var root = sailorSearchResults.querySelector('.sa-approved-sailor-card');
                                     if (!root) return;
+                                    root.style.setProperty('border', '2px solid #8aa2c6', 'important');
+                                    root.style.setProperty('border-radius', '6px', 'important');
                                     root.querySelectorAll('[data-profile-class]').forEach(function(btn) {
                                         btn.addEventListener('click', function(ev) {
                                             var href = btn.getAttribute('data-profile-class-href') || '';
@@ -8196,6 +9374,12 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                             while (box.firstChild) slot.appendChild(box.firstChild);
                             runDev1Scripts(slot, codes);
                             wireClaimBanners(slot);
+                            var frame = slot.querySelector(".sa-approved-sailor-card") || slot.querySelector(".profile-card");
+                            if (frame) {
+                                frame.style.setProperty("border", "2px solid #8aa2c6", "important");
+                                frame.style.setProperty("border-radius", "6px", "important");
+                            }
+                            if (typeof window.__ssaPulseSailorExpand === "function") window.__ssaPulseSailorExpand(slot);
                             if (guestLocked) {
                                 slot.addEventListener("click", function(ev) {
                                     var btn = ev.target && ev.target.closest ? ev.target.closest(".sa-avatar-expand-btn") : null;
@@ -8593,6 +9777,71 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                     }
                 });
                 window.showSailorStatsInResults = showSailorStatsInResultsFn;
+                (function pulseLoggedInExpandArrows() {
+                    function cardHasResultsOrEvents(root) {
+                        if (!root || !root.querySelector) return false;
+                        if (root.querySelector("#dev1-next-event-slot, .ne-card, [data-ne-json]")) return true;
+                        if (root.querySelector(".dev1-er-row")) return true;
+                        var digits = root.querySelector(".sa-ssl-rank-digits, .sa-ssa-rank-digits, .rank-num");
+                        if (digits && /\d/.test(String(digits.textContent || "").replace(/\s+/g, ""))) return true;
+                        return false;
+                    }
+                    function pulseExpandIfActive(root) {
+                        if (!root || !root.querySelectorAll) return;
+                        var locked = false;
+                        try {
+                            var host = document.getElementById("sailor-search-results");
+                            locked = !!(host && host.classList.contains("guest-locked") && host.contains(root));
+                        } catch (_) {}
+                        var on = !locked && cardHasResultsOrEvents(root);
+                        root.querySelectorAll(".sa-avatar-expand-btn").forEach(function(btn) {
+                            btn.removeAttribute("data-ssa-pulse");
+                            var svg = btn.querySelector("svg");
+                            if (on) {
+                                btn.classList.add("ssa-expand-pulse-on");
+                                btn.style.removeProperty("animation");
+                                if (svg) svg.style.removeProperty("animation");
+                            } else {
+                                btn.classList.remove("ssa-expand-pulse-on");
+                                btn.style.setProperty("animation", "none", "important");
+                                if (svg) svg.style.setProperty("animation", "none", "important");
+                            }
+                        });
+                    }
+                    window.__ssaPulseSailorExpand = pulseExpandIfActive;
+                    function apply(root) {
+                        if (!root) return;
+                        if (root.id === "landing-dev1-home") {
+                            pulseExpandIfActive(root);
+                            return;
+                        }
+                        var cards = root.querySelectorAll ? root.querySelectorAll(".ssa-dev1-inject") : [];
+                        if (cards && cards.length) {
+                            cards.forEach(pulseExpandIfActive);
+                            return;
+                        }
+                        pulseExpandIfActive(root);
+                    }
+                    function watch(id) {
+                        function start() {
+                            var el = document.getElementById(id);
+                            if (!el) return false;
+                            apply(el);
+                            try {
+                                new MutationObserver(function() { apply(el); }).observe(el, { childList: true, subtree: true });
+                            } catch (_) {}
+                            return true;
+                        }
+                        if (start()) return;
+                        var n = 0;
+                        var t = setInterval(function() {
+                            n += 1;
+                            if (start() || n > 40) clearInterval(t);
+                        }, 200);
+                    }
+                    watch("landing-dev1-home");
+                    watch("sailor-search-results");
+                })();
                 function scrollToSailorProfile() {
                     if (sailorSearchResults && sailorSearchResults.offsetParent !== null) {
                         sailorSearchResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -10884,7 +12133,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     if (entriesResponse.ok) classEntries = await entriesResponse.json();
                 } catch (e) { console.error('Class entries fetch:', e); }
                 function formatClassName(key) {
-                    const m = { 'dabchick':'Dabchick','ilca 4':'ILCA 4','ilca 4.7':'ILCA 4.7','ilca 6':'ILCA 6','mirror':'Mirror','open':'Open','optimist a':'Optimist A','optimist b':'Optimist B','rs tera':'RS Tera','topaz':'Topaz','topper 5.3':'Topper 5.3' };
+                    const m = { 'dabchick':'Dabchick','ilca 4':'ILCA 4','ilca 4.7':'ILCA 4','ilca 6':'ILCA 6','mirror':'Mirror','open':'Open','optimist a':'Optimist A','optimist b':'Optimist B','rs tera':'RS Tera','topaz':'Topaz','topper 5.3':'Topper 5.3' };
                     return m[(key || '').toLowerCase()] || key;
                 }
                 const classesWithEntries = Object.entries(classEntries)
@@ -11161,9 +12410,17 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
             }, true);
         }
 
+            function _saRegattaListingIsLive(r) {
+                if (!r) return false;
+                var rid = String(r.regatta_id != null ? r.regatta_id : (r.id || ''));
+                if (rid === '2026-10-10-hmyc-dam-bottle-sprints') return false;
+                var st = String(r.result_status || r.event_status || '').toLowerCase();
+                if (st === 'final' || st === 'completed') return false;
+                return !!r.is_live;
+            }
             function _sortRegattasNewestFirst(list) {
                 return (list || []).slice().sort(function(a, b) {
-                    var liveA = !!a.is_live, liveB = !!b.is_live;
+                    var liveA = _saRegattaListingIsLive(a), liveB = _saRegattaListingIsLive(b);
                     if (liveA !== liveB) return liveA ? -1 : 1;
                     var da = String(a.start_date || a.end_date || a.as_at_time || '').slice(0, 10);
                     var db = String(b.start_date || b.end_date || b.as_at_time || '').slice(0, 10);
@@ -11219,15 +12476,20 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     '.sa-home-regatta-host-text{display:flex;flex-direction:column;gap:2px;min-width:0;}' +
                     '.sa-home-regatta-host-code{font-weight:900;color:#21356b;font-size:14px;line-height:1.05;}' +
                     '.sa-home-regatta-host-name{color:#475569;font-size:11px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;}' +
-                    '.sa-home-regatta-actions{grid-area:actions;display:flex;gap:8px;align-items:center;justify-content:flex-end;}' +
+                    '.sa-home-regatta-actions{grid-area:actions;display:flex;gap:8px;align-items:center;justify-content:stretch;min-width:126px;width:100%;}' +
                     '.sa-home-regatta-single-class{display:inline-flex;align-items:center;justify-content:center;line-height:0;text-decoration:none;flex:0 0 auto;}' +
                     '.sa-home-regatta-single-class .sa-home-regatta-chip-logo{width:52px;height:28px;max-width:52px;visibility:visible;}' +
                     '.sa-home-regatta-single-class .sa-home-regatta-chip-text{font:800 11px/1 system-ui,-apple-system,sans-serif;color:#1e3a8a;white-space:nowrap;padding:0 2px;}' +
-                    '.sa-home-regatta-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;border-radius:6px;border:1px solid #a5d7de;background:#f9ffff;color:#0f6d7a;font-weight:900;font-size:12px;text-decoration:none;white-space:nowrap;min-width:126px;box-shadow:0 1px 0 rgba(15,109,122,.08);}' +
-                    '.sa-home-regatta-btn--live{background:#ea580c;border-color:#c2410c;color:#fff;}' +
+                    '.sa-home-regatta-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;border-radius:6px;border:1px solid #a5d7de;background:#f9ffff;color:#0f6d7a;font-weight:900;font-size:12px;text-decoration:none;white-space:nowrap;min-width:148px;box-shadow:0 1px 0 rgba(15,109,122,.08);}' +
+                    '.sa-home-regatta-btn--live,.sa-home-regatta-btn--upcoming{background:#c2410c;border-color:#c2410c;color:#fff;}' +
+                    '.sa-home-regatta-btn--later{background:#001f3f;border-color:#001428;color:#fff;}' +
                     '.sa-home-regatta-btn--racing{background:#15803d;border-color:#166534;color:#fff;}' +
                     '.sa-home-regatta-btn--postponed{background:#b91c1c;border-color:#991b1b;color:#fff;}' +
-                    '.sa-home-regatta-btn--live .sa-home-regatta-btn-ico,.sa-home-regatta-btn--racing .sa-home-regatta-btn-ico,.sa-home-regatta-btn--postponed .sa-home-regatta-btn-ico{color:#fff;}' +
+                    '.sa-home-regatta-btn--live .sa-home-regatta-btn-ico,.sa-home-regatta-btn--upcoming .sa-home-regatta-btn-ico,.sa-home-regatta-btn--racing .sa-home-regatta-btn-ico,.sa-home-regatta-btn--postponed .sa-home-regatta-btn-ico{color:#fff;}' +
+                    '.sa-home-regatta-days-pill{padding:2px 7px;border-radius:4px;background:#c2410c;color:#fff;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;line-height:1.2;}' +
+                    '.sa-home-regatta-days-pill--later{background:#001f3f;color:#fff;}' +
+                    '.sa-home-regatta-meta-pill.sa-home-regatta-days-pill{padding-left:7px;}' +
+                    '.sa-home-regatta-meta-pill.sa-home-regatta-days-pill:before{content:none;width:0;background:transparent;}' +
                     '.sa-home-regatta-btn-ico{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;color:#0f6d7a;}' +
                     '.sa-home-regatta-children{margin:0;border:1px solid #dbe3ef;border-radius:4px;background:#fff;padding:0;display:flex;flex-direction:column;gap:0;overflow:hidden;}' +
                     '.sa-home-regatta-children-head{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 12px;background:#eff5ff;border-bottom:none;}' +
@@ -11320,10 +12582,10 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 window.__saRegattaEventLogoCache = window.__saRegattaEventLogoCache || {};
                 if (!forceRefresh && window.__saRegattaEventLogoCache[rid]) return window.__saRegattaEventLogoCache[rid];
                 try {
-                    var k = 'sa:regattaLogo:event:v4:' + rid;
+                    var k = 'sa:regattaLogo:event:v6:' + rid;
                     if (forceRefresh) localStorage.removeItem(k);
                     var cached = forceRefresh ? '' : localStorage.getItem(k);
-                    if (cached && cached.trim()) {
+                    if (cached && isLandingEventSlotLogo(cached)) {
                         window.__saRegattaEventLogoCache[rid] = Promise.resolve(cached.trim());
                         return window.__saRegattaEventLogoCache[rid];
                     }
@@ -11336,8 +12598,11 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                             var doc = new DOMParser().parseFromString(html, 'text/html');
                             var img = doc.querySelector('.regatta-header-logo-col img.regatta-header-left-logo-img, .regatta-header-logo-col img.regatta-header-logo-img');
                             var src = img ? (img.getAttribute('src') || '').trim() : '';
-                            if (src) { try { localStorage.setItem('sa:regattaLogo:event:v4:' + rid, src); } catch (_) {} }
-                            return src || null;
+                            if (src && isLandingEventSlotLogo(src)) {
+                                try { localStorage.setItem('sa:regattaLogo:event:v6:' + rid, src); } catch (_) {}
+                                return src;
+                            }
+                            return null;
                         } catch (_) {
                             return null;
                         }
@@ -11368,6 +12633,74 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
             }
             function isEventLogoArtworkPath(path) {
                 return normalizeArtworkPath(path).indexOf('/artwork/event logo/') !== -1;
+            }
+            function isClassLogoArtworkPath(path) {
+                return normalizeArtworkPath(path).indexOf('/artwork/class logo/') !== -1;
+            }
+            function isDefaultSailingsaLogo(path) {
+                var n = normalizeArtworkPath(path);
+                return n.indexOf('sailingsa-logo') !== -1 || n.indexOf('/assets/logos/sailingsa') !== -1;
+            }
+            // Big card slot: named Event Logo, else sole class=fleet logo. Keep small fleet chip.
+            function isLandingEventSlotLogo(path) {
+                var s = String(path || '').trim();
+                if (!s || isDefaultSailingsaLogo(s)) return false;
+                return isEventLogoArtworkPath(s) || isClassLogoArtworkPath(s);
+            }
+            function preferredEventSlotLogo(r) {
+                var ev = String((r && r.event_logo_url) || '').trim();
+                if (ev && isLandingEventSlotLogo(ev)) return ev;
+                var logo = String((r && r.logo_url) || '').trim();
+                if (logo && isEventLogoArtworkPath(logo)) return logo;
+                var kids = (r && (r._children || r.children)) || [];
+                var nKids = Array.isArray(kids) ? kids.length : 0;
+                var soleLogo = String((r && r.sole_class_logo_url) || '').trim();
+                var soleName = String((r && r.sole_class_name) || '').trim();
+                var soleFleet = nKids <= 1 || !!soleLogo || !!soleName;
+                if (logo && isClassLogoArtworkPath(logo) && soleFleet) return logo;
+                if (soleLogo && isLandingEventSlotLogo(soleLogo)) return soleLogo;
+                return '';
+            }
+
+            function saYmdToday() {
+                var t = new Date();
+                var m = t.getMonth() + 1;
+                var d = t.getDate();
+                return t.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+            }
+            function daysUntilStart(r) {
+                var sd = String((r && r.start_date) || '').slice(0, 10);
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(sd)) return null;
+                var a = Date.parse(sd + 'T00:00:00');
+                var b = Date.parse(saYmdToday() + 'T00:00:00');
+                if (isNaN(a) || isNaN(b)) return null;
+                return Math.round((a - b) / 86400000);
+            }
+            function shouldShowOnRegattaList(r) {
+                if (r && r.is_live) return true;
+                var days = daysUntilStart(r);
+                if (days == null) return true;
+                return days <= 0;
+            }
+            function upcomingCountdownLabel(r) {
+                var days = daysUntilStart(r);
+                if (days == null || days <= 0) return '';
+                if (days === 1) return 'Tomorrow';
+                return days + ' Days to Go';
+            }
+            function isUpcomingWithin7Days(r) {
+                var days = daysUntilStart(r);
+                return days != null && days > 0 && days <= 7;
+            }
+            function cachedEventSlotLogo(rid) {
+                try {
+                    var cached = localStorage.getItem('sa:regattaLogo:event:v6:' + String(rid || '').trim());
+                    if (cached && isLandingEventSlotLogo(cached)) return cached.trim();
+                } catch (_) {}
+                return '';
+            }
+            function hideSupersededClassChip(card) {
+                return;
             }
             function classNameFromLogoFilename(path) {
                 var base = String(path || '').split('/').pop() || '';
@@ -11434,6 +12767,8 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     'mirror': '/artwork/Class Logo/Mirror-Class-Logo.png',
                     'open': '/artwork/Class Logo/Open-Class-Logo.png',
                     '420': '/artwork/Class Logo/420-Class-Logo.png',
+                    'dart 18': '/artwork/Class Logo/Dart-18-Class-Logo.png',
+                    'dart18': '/artwork/Class Logo/Dart-18-Class-Logo.png',
                     'sonnet': '/artwork/Class Logo/Sonnet-Class-Logo.png',
                     '29er': '/artwork/Class Logo/29er-Class-Logo.png',
                     'hobie 14': '/artwork/Class Logo/Hobie-14-Class-Logo.png',
@@ -11505,6 +12840,15 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                         var chip = next.img && next.img.closest ? next.img.closest('.sa-home-regatta-children-chip') : null;
                         if (!src || !next.img || !next.img.isConnected) {
                             if (next.kind === 'child' && chip) setFleetChipLogoState(chip, false);
+                            if (next.kind === 'event') {
+                                var emptyCard = next.img.closest ? next.img.closest('.sa-home-regatta-card') : null;
+                                if (emptyCard && typeof emptyCard.__saAddClassChip === 'function') emptyCard.__saAddClassChip();
+                            }
+                            return;
+                        }
+                        if (next.kind === 'event' && !isLandingEventSlotLogo(src)) {
+                            var skipCard = next.img.closest ? next.img.closest('.sa-home-regatta-card') : null;
+                            if (skipCard && typeof skipCard.__saAddClassChip === 'function') skipCard.__saAddClassChip();
                             return;
                         }
                         next.img.src = src;
@@ -11513,6 +12857,12 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                         if (next.kind === 'event') {
                             var catHref = (next.img && next.img.dataset) ? (next.img.dataset.saLogoCatalogueHref || '') : '';
                             updateEventLogoCatalogueLink(next.img, src, catHref, next.rid, '');
+                            var eventCard = next.img.closest ? next.img.closest('.sa-home-regatta-card') : null;
+                            if (isLandingEventSlotLogo(src)) {
+                                if (eventCard) eventCard.__saEventLogoLocked = true;
+                            } else if (eventCard && typeof eventCard.__saAddClassChip === 'function') {
+                                eventCard.__saAddClassChip();
+                            }
                         }
                         if (next.kind === 'child' && chip) setFleetChipLogoState(chip, true);
                     } catch (_) {}
@@ -11549,9 +12899,9 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 return items.filter(function(r) { return !childIds[String(r.regatta_id || '')]; });
             }
 
-            var parents = nestRegattaParents(regattas);
+            var parents = nestRegattaParents(regattas).filter(shouldShowOnRegattaList);
             var count = parents.length;
-            var liveN = parents.filter(function(r) { return !!r.is_live; }).length;
+            var liveN = parents.filter(function(r) { return _saRegattaListingIsLive(r); }).length;
             var labelText = searchQuery
                 ? 'Regatta Search for "<span style="color:#c00;font-weight:700;">' + esc(searchQuery) + '</span>" = Results (' + count + ')'
                 : (liveN
@@ -11671,7 +13021,7 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 var card = document.createElement('div');
                 card.className = 'sa-home-regatta-card';
                 var boardSt = String(r.live_board_status || '').toUpperCase();
-                var isLiveWindow = !!r.is_live;
+                var isLiveWindow = _saRegattaListingIsLive(r);
                 if (isLiveWindow && boardSt === 'POSTPONED') card.classList.add('sa-home-regatta-card--postponed');
                 else if (isLiveWindow && boardSt === 'RACING') card.classList.add('sa-home-regatta-card--racing');
                 else if (isLiveWindow) card.classList.add('sa-home-regatta-card--live');
@@ -11693,13 +13043,14 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 eventLogoImg.alt = '';
                 eventLogoImg.style.display = 'none';
                 eventLogoImg.dataset.saLogoRid = rid;
-                eventLogoImg.dataset.saLogoSrc = (r.logo_url || '');
-                eventLogoImg.dataset.saLogoCatalogueHref = (r.logo_catalogue_href || '');
+                var eventSlotLogo = preferredEventSlotLogo(r) || cachedEventSlotLogo(rid);
+                eventLogoImg.dataset.saLogoSrc = eventSlotLogo;
+                eventLogoImg.dataset.saLogoCatalogueHref = eventSlotLogo ? (r.logo_catalogue_href || '') : '';
                 eventLogoImg.dataset.saLogoRetry = '0';
-                if (r.logo_url) {
-                    eventLogoImg.src = r.logo_url;
+                if (eventSlotLogo) {
+                    eventLogoImg.src = eventSlotLogo;
                     eventLogoImg.style.display = '';
-                    updateEventLogoCatalogueLink(eventLogoImg, r.logo_url, r.logo_catalogue_href, rid, title);
+                    updateEventLogoCatalogueLink(eventLogoImg, eventSlotLogo, r.logo_catalogue_href, rid, title);
                 } else {
                     eventLogoLink.removeAttribute('href');
                 }
@@ -11751,6 +13102,14 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 entriesItem.appendChild(document.createTextNode((displayEntries != null && displayEntries !== '—') ? (Number(displayEntries).toLocaleString() + ' Entries') : '— Entries'));
                 meta.appendChild(dateItem);
                 meta.appendChild(entriesItem);
+                var daysLabel = upcomingCountdownLabel(r);
+                if (daysLabel) {
+                    var daysItem = document.createElement('div');
+                    var daysOut = daysUntilStart(r);
+                    daysItem.className = 'sa-home-regatta-meta-pill sa-home-regatta-days-pill' + ((daysOut != null && daysOut > 7) ? ' sa-home-regatta-days-pill--later' : '');
+                    daysItem.textContent = daysLabel;
+                    meta.appendChild(daysItem);
+                }
                 main.appendChild(meta);
 
                 var childrenWrap = document.createElement('div');
@@ -11785,10 +13144,16 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 var parentResultsHref = '/regatta/' + encodeURIComponent(rid);
                 var parentLabel = r.search_label || r.event_name || '';
 
-                // Single class: class logo left of Full Results / status → parent URL (no fleet bar).
-                // kids.length===1 (fleet child) OR sole raced class on flat parent (e.g. Lipton J22).
+                // Single class chip: only after we know parent has no Event Logo.
+                // Event Logo trumps Open/class mark — one logo in the event slot.
                 var soleName = String(r.sole_class_name || '').trim();
                 var soleLogo = String(r.sole_class_logo_url || '').trim();
+                card.__saAddClassChip = function() {
+                    if (eventSlotLogo || card.__saEventLogoLocked || card.querySelector('.sa-home-regatta-single-class')) return;
+                    if (!(kids.length === 1 || (kids.length === 0 && (soleName || soleLogo)))) return;
+                    addSingleClassChipNow();
+                };
+                function addSingleClassChipNow() {
                 if (kids.length === 1 || (kids.length === 0 && (soleName || soleLogo))) {
                     var only = kids.length === 1 ? kids[0] : null;
                     var onlyChildLabel = only
@@ -11843,12 +13208,22 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                         t0.textContent = onlyName;
                         singleClass.appendChild(t0);
                     }
-                    actions.appendChild(singleClass);
+                    var fullBtnNow = actions.querySelector('.sa-home-regatta-btn');
+                    if (fullBtnNow) actions.insertBefore(singleClass, fullBtnNow);
+                    else actions.appendChild(singleClass);
+                }
                 }
 
                 var fullBtn = document.createElement('a');
                 fullBtn.className = 'sa-home-regatta-btn';
                 fullBtn.href = parentResultsHref;
+                var raceN = Number(r.races_sailed || r.race_count || 0);
+                var hasRace1 = raceN >= 1 || r.has_results === true || r.has_results === 'true';
+                var endIso = String(r.end_date || r.start_date || '').slice(0, 10);
+                var now = new Date();
+                var p2 = function (n) { return n < 10 ? '0' + n : String(n); };
+                var todayIso = now.getFullYear() + '-' + p2(now.getMonth() + 1) + '-' + p2(now.getDate());
+                var isPastEvent = !!(endIso && endIso < todayIso);
                 var btnLabel = 'Full Results';
                 if (isLiveWindow && boardSt === 'POSTPONED') {
                     fullBtn.className = 'sa-home-regatta-btn sa-home-regatta-btn--postponed';
@@ -11859,6 +13234,13 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                 } else if (isLiveWindow) {
                     fullBtn.className = 'sa-home-regatta-btn sa-home-regatta-btn--live';
                     btnLabel = 'Live Event';
+                } else if (isUpcomingWithin7Days(r)) {
+                    fullBtn.className = 'sa-home-regatta-btn sa-home-regatta-btn--upcoming';
+                    btnLabel = 'Upcoming event';
+                } else if (!hasRace1 && !isPastEvent) {
+                    var daysOutBtn = daysUntilStart(r);
+                    if (daysOutBtn != null && daysOutBtn > 7) fullBtn.className = 'sa-home-regatta-btn sa-home-regatta-btn--later';
+                    btnLabel = 'Upcoming Event';
                 }
                 if (isLiveWindow) {
                     fullBtn.setAttribute('data-live-board-rid', rid);
@@ -11964,10 +13346,11 @@ const normalizeClass = (s) => (s || '').trim().replace(/_/g, ' ').replace(/\s+Fl
                     var rid = ev && ev.dataset ? ev.dataset.saLogoRid : '';
                     var src = ev && ev.dataset ? (ev.dataset.saLogoSrc || '') : '';
                     var catHref = ev && ev.dataset ? (ev.dataset.saLogoCatalogueHref || '') : '';
-                    if (ev && src) {
+                    if (ev && src && isLandingEventSlotLogo(src)) {
                         ev.src = src;
                         ev.style.display = '';
                         updateEventLogoCatalogueLink(ev, src, catHref, rid, '');
+                        hideSupersededClassChip(card);
                         loadChipLogos(card);
                         return;
                     }
@@ -13492,7 +14875,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             setupTempLandingSearchLayout();
             var signUpBanner = document.getElementById('temp-landing-claim-profile-banner');
-            if (signUpBanner) {
+            if (signUpBanner && !signUpBanner.querySelector('.landing-event-card')) {
                 signUpBanner.setAttribute('role', 'link');
                 signUpBanner.setAttribute('tabindex', '0');
                 signUpBanner.setAttribute('aria-label', 'Open sign up');
@@ -13523,5 +14906,68 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+
+<script id="landing-dev1-home-bridge">
+(function(){
+  function pathHome(){
+    var p=(location.pathname||'').replace(/\/+$/,'')||'/';
+    return p==='/';
+  }
+  function hideClaim(){
+    var claim=document.getElementById('temp-landing-claim-profile-banner');
+    if(claim) claim.style.display='none';
+  }
+  function runScripts(root){
+    root.querySelectorAll('script').forEach(function(old){
+      var s=document.createElement('script');
+      if(old.src){s.src=old.src;s.async=false;}
+      else {s.textContent=old.textContent;}
+      old.parentNode.replaceChild(s, old);
+    });
+  }
+  function injectDev1Home(){
+    var slot=document.getElementById('landing-dev1-home');
+    if(!slot){
+      slot=document.createElement('div');
+      slot.id='landing-dev1-home';
+      var h2=document.getElementById('landing-event-hero-2');
+      var claim=document.getElementById('temp-landing-claim-profile-banner');
+      if(h2&&h2.parentNode){
+        if(h2.nextSibling) h2.parentNode.insertBefore(slot, h2.nextSibling);
+        else h2.parentNode.appendChild(slot);
+      } else if(claim&&claim.parentNode) claim.parentNode.insertBefore(slot, claim);
+      else {
+        var host=document.querySelector('.main-column .container')||document.body;
+        host.insertBefore(slot, host.firstChild);
+      }
+    }
+    hideClaim();
+    if(slot.getAttribute('data-dev1-loaded')==='1') return Promise.resolve();
+    return fetch('/dev-1?embed=1',{credentials:'same-origin',cache:'no-store'})
+      .then(function(r){return r.text();})
+      .then(function(html){
+        slot.innerHTML=html;
+        slot.setAttribute('data-dev1-loaded','1');
+        runScripts(slot);
+      });
+  }
+  function install(){
+    var orig=window.showSailorStatsInResults;
+    if(!orig){setTimeout(install,80);return;}
+    if(orig.__dev1HomeWrapped) return;
+    function wrapped(sid,name,club,classes,options){
+      options=options||{};
+      if(pathHome() && options.isLoggedInUser && !options.allowUrlOverride){
+        return injectDev1Home();
+      }
+      return orig.apply(this, arguments);
+    }
+    wrapped.__dev1HomeWrapped=true;
+    window.showSailorStatsInResults=wrapped;
+  }
+  install();
+})();
+</script>
+<script src="/js/site-traffic.js" defer></script>
 </body>
 </html>
