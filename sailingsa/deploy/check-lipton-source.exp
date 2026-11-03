@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+# Check for Lipton tracking/source data on server
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "ls -la /var/www/sailingsa/results/2026/lipton* 2>/dev/null || echo 'No lipton results dir'; ls -la /root/lipton* 2>/dev/null || echo 'No lipton in root'; find /var/www/sailingsa -name '*lipton*' -type f 2>/dev/null | head -20"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait

@@ -1,0 +1,25 @@
+#!/usr/bin/expect -f
+# Read vakaros regatta races data
+set timeout 60
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "python3 -c '
+import json
+with open(\"/root/lipton-vakaros-archive/lipton_vakaros_summary.json\") as f:
+    d = json.load(f)
+for race in d.get(\"races\", []):
+    rn = race.get(\"race_number\")
+    finishes = race.get(\"finish_order\", [])
+    print(f\"Race {rn}:\")
+    for i, fin in enumerate(finishes[:17], 1):
+        print(f\"  {i}. {fin.get(\"sail_number\")}\")
+    print()
+'"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait

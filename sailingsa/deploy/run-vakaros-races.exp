@@ -1,0 +1,24 @@
+#!/usr/bin/expect -f
+# Upload and run vakaros races script
+set timeout 60
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+# Upload script
+spawn scp -o StrictHostKeyChecking=no sailingsa/deploy/read_vakaros_races.py ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout upload"; exit 1 }
+}
+wait
+
+# Run script
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "python3 /tmp/read_vakaros_races.py"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout run"; exit 1 }
+}
+wait

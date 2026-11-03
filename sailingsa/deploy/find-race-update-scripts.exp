@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+# Find race update scripts
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "ls -la /root/lipton_r*update* 2>/dev/null; ls -la /root/*r8* /root/*r9* /root/*r10* 2>/dev/null | grep -v telemetry | grep -v replay | grep -v trail | head -20"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
