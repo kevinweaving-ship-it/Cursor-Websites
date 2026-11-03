@@ -1,0 +1,40 @@
+{
+  "issue_id": "2026-10-26",
+  "edition_date": "2026-10-26",
+  "html": "issues/2026-10-26/",
+  "pdf": "issues/2026-10-26/edition.pdf",
+  "cards": [
+    {
+      "id": "2026-df95-global-championship",
+      "headline": "Defending champion keeps the DF95 world crown at Theewater",
+      "deck": "Theewater Sports Club · 16–23 October 2026",
+      "kicker": "DF95",
+      "image": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/media/df95-global-2026.png",
+      "url": "issues/2026-10-26/#2026-df95-global-championship"
+    },
+    {
+      "id": "2026-10-24-vyc-tour-de-vlei",
+      "headline": "Tour de Vlei: Stephen Du Toit (VYC) won",
+      "deck": "VYC · 24–25 October 2026",
+      "kicker": "DINGHY / MULTIHULL  ·  VYC",
+      "image": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/media/2026-10-24-vyc-tour-de-vlei-hero.png",
+      "url": "issues/2026-10-26/#2026-10-24-vyc-tour-de-vlei"
+    },
+    {
+      "id": "2026-10-24-ullman-sails-womens-series-day-2",
+      "headline": "Ullman Sails Women's Series — Day 2: series winners at RCYC",
+      "deck": "RCYC · 24 October 2026",
+      "kicker": "NON-SPINNAKER / SPINNAKER  ·  RCYC",
+      "image": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/media/2026-10-24-ullman-sails-womens-series-day-2-hero.jpg",
+      "url": "issues/2026-10-26/#2026-10-24-ullman-sails-womens-series-day-2"
+    },
+    {
+      "id": "2026-10-24-hmyc-dam-bottle-sprints",
+      "headline": "Dam Bottle Sprints: Alistair Clulow (HMYC) leads the provisional standings",
+      "deck": "HMYC · 24–25 October 2026",
+      "kicker": "PY (HANDICAP)  ·  HMYC",
+      "image": "https://sailingsa.co.za/artwork/Event%20Logo/Dam-Bottle-Sprints.png?v=20261019",
+      "url": "issues/2026-10-26/#2026-10-24-hmyc-dam-bottle-sprints"
+    }
+  ]
+}
