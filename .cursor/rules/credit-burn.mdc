@@ -1,0 +1,19 @@
+---
+description: Keep Cursor credit burn low. Cheap models, focused edits, no Cloud unless asked.
+alwaysApply: true
+---
+
+# Credit burn (hard)
+
+Mac daily vibe-coding is **Codex** (existing ChatGPT Pro). Cursor is occasional phone / Mini + Auto only. Ultra $200 is not the target. See `docs/MAC_CODEX_VIBE.md`.
+
+Kevin does not classify tasks or switch models. Do not ask him to. Codex desktop stays on **Default**. Mini/CLI still bill the selected Cursor model.
+
+- Prefer Auto / Composer if this session is Cursor. Do not enable Max Mode. Do not switch to Claude Opus, Claude Thinking, Best-of-N, GLM, MiniMax, or multi-model runs unless the user names that model in this message.
+- Do not launch Cloud Agents, background agents, or parallel subagents unless the user asks in this message. Do not spawn summarize/extract/browser subagents for context you can read yourself.
+- Search/read only relevant code. Make focused edits. Run relevant checks once. Avoid unrelated files.
+- If the same fix fails twice, stop retrying and investigate the cause before another attempt.
+- Report briefly. Do not re-read large files or rescan the repo without need.
+- SailingSA / sailingsa.co.za work stays on This Mac. Do not start or continue Cloud for that work unless the user types that they want Cloud in the same message.
+
+Settings the human must change (agents cannot): on-demand stays OFF; Ultra → Pro only after the Mac Codex trial in `docs/MAC_CODEX_VIBE.md` passes. Do not add GLM/MiniMax keys. Usage: cursor.com/dashboard/spending.

@@ -1,6 +1,14 @@
 # Agent / task-splitting guide
 
-This project uses **split tasks** to avoid agent resource limits and crashes.
+This project uses **split tasks** to avoid agent resource limits, crashes, and Cursor credit burn.
+
+## Credit burn (do not skip)
+
+**Mac daily work uses Codex** (ChatGPT Pro, already paid). Cursor is for occasional phone / Mini + Auto only. Ultra $200 is not the target. Setup and trial: **`docs/MAC_CODEX_VIBE.md`**. Always-apply: `.cursor/rules/credit-burn.mdc`, `.cursor/rules/task-splitting-and-resources.mdc`.
+
+Kevin vibe-codes only. Do **not** ask him to pick a model, classify difficulty, or switch providers. On Codex desktop leave **Default** (official slider that combines models and reasoning). Do not pick a named model, Fast, or Ultrafast. CLI has no Default slider — prefer the desktop app. If the same fix fails twice, stop and report the cause. Do not start Cursor Cloud agents. Mini or Linux Cursor CLI still bills the selected Cursor model. Deploy live only with `bash sailingsa/deploy/deploy-with-key.sh` when this message asked for live.
+
+**`docs/CREDIT_BURN.md`** — no Max Mode, Opus, Thinking, Best-of-N, or parallel subagents unless the user names that model in this message. SailingSA stays on This Mac. Humans: Ultra → Pro only after the Mac trial passes; on-demand stays OFF.
 
 ## SSH / deploy / live — MUST use readme
 
@@ -20,7 +28,7 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 - **One active agent at a time**: Close other agent chats or Composer sessions while working on this project so resources are not shared and the current agent is less likely to crash.
 - **Keep requests small**: One clear task per message; for big work, ask to "split into steps" and do step 1 only.
-- **Agents**: Use minimal context (targeted reads, small edits, few tool calls per turn). See `.cursor/rules/task-splitting-and-resources.mdc` for the full rule.
+- **Agents**: Use minimal context (targeted reads, small edits, few tool calls per turn). See `.cursor/rules/task-splitting-and-resources.mdc` and `.cursor/rules/credit-burn.mdc`.
 
 ## For humans
 
