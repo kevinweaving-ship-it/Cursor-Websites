@@ -9,13 +9,10 @@ from pathlib import Path
 
 from billing import (
     CLIENTS,
-    DO_CLIENTS,
     KEVIN_LOAN_ACCOUNT,
-    PENDING_DO,
     canon_key,
     client_row,
     display_name,
-    do_action_date,
     is_offset,
 )
 from invoice_canned import parse_day
@@ -651,7 +648,7 @@ def ingest(conn: sqlite3.Connection) -> dict:
         )
         nc_n += 1
     named_n = _ingest_named_do(conn)
-    monthly_n = _ingest_monthly_do(conn)
+    monthly_n = _mirror_pull_items(conn)
     nc_n += named_n + monthly_n
     conn.commit()
     return {
@@ -675,91 +672,91 @@ def _account_ref_for(key: str, book: dict | None) -> str:
     return key.replace(" ", "")[:22]
 
 
-def _ingest_monthly_do(conn: sqlite3.Connection, today: date | None = None) -> int:
-    """Each monthly invoice gets its D/O. EFT stays on FNB. FIFO allocates both.
+def _mirror_pull_items(conn: sqlite3.Connection) -> int:
+    """Copy paid and unpaid netcash_items onto netcash_tx. Do not invent a batch."""
+    from billing import item_outcome, match_do_client
 
-    Skip only a month already on the Netcash table (paid or named unpaid).
-    Do not skip because an EFT exists — that EFT is the other payment.
-    """
-    from invoice_list import classify
-
-    today = today or date.today()
-    unpaid_months: dict[str, set[str]] = {}
-    have_month: set[tuple[str, str]] = set()
     try:
-        for rec in conn.execute(
-            """SELECT alloc_key, paid_on, alloc_kind FROM netcash_tx
-               WHERE alloc_kind IN ('client_paid','client_unpaid')"""
-        ):
-            key = str(rec[0] or "")
-            day = str(rec[1] or "")[:10]
-            if key and day:
-                have_month.add((key, day[:7]))
-            if rec[2] == "client_unpaid" and key and day:
-                unpaid_months.setdefault(key, set()).add(day[:7])
+        found = conn.execute(
+            """SELECT account_ref, amount, action_date, result, batch_id
+               FROM netcash_items"""
+        ).fetchall()
     except sqlite3.OperationalError:
         return 0
     n = 0
-    for inv in classify(today).get("monthly") or []:
-        if inv.get("pay") != "D/O":
+    for account_ref, amount, action_date, result, batch_id in found:
+        outcome = item_outcome(result)
+        client = match_do_client(account_ref)
+        if outcome not in {"paid", "unpaid"} or not client or not action_date:
             continue
-        name = display_name(inv.get("name")) or inv.get("name")
-        book = client_row(name)
-        if not book or book.get("method") != "debit-order":
+        key = canon_key(client["name"])
+        amt = abs(float(amount or 0))
+        day = str(action_date)[:10]
+        batch = str(batch_id or day.replace("-", ""))
+        unpaid = outcome == "unpaid"
+        existing = conn.execute(
+            """SELECT id, result FROM netcash_tx
+               WHERE paid_on=? AND alloc_key=? AND COALESCE(batch_id,'')=?
+               ORDER BY id DESC LIMIT 1""",
+            (day, key, batch),
+        ).fetchone()
+        if existing:
+            if (existing[1] or "") != outcome:
+                conn.execute(
+                    """UPDATE netcash_tx
+                       SET result=?, alloc_kind=?, bank_status=?, unpaid_amount=?,
+                           deposit=?, payment=?, source='netcash-items'
+                       WHERE id=?""",
+                    (
+                        outcome,
+                        "client_unpaid" if unpaid else "client_paid",
+                        "Unpaid" if unpaid else "Collected",
+                        amt if unpaid else 0,
+                        0 if unpaid else amt,
+                        amt if unpaid else 0,
+                        existing[0],
+                    ),
+                )
+                n += 1
             continue
-        key = canon_key(name)
-        inv_day = parse_day(inv.get("date"))
-        if not inv_day:
-            continue
-        collect = do_action_date(inv_day)
-        if collect > today:
-            continue
-        day = collect.isoformat()
-        if day[:7] in unpaid_months.get(key, set()):
-            continue
-        if (key, day[:7]) in have_month:
-            continue
-        amt = abs(_money(inv.get("amount")))
-        if amt <= 0.004:
-            continue
-        batch = (
-            PENDING_DO["batch_id"]
-            if day == PENDING_DO.get("action_date")
-            else day.replace("-", "")
-        )
         conn.execute(
-            """INSERT OR IGNORE INTO netcash_tx
+            """INSERT INTO netcash_tx
                (paid_on, ref, payee, memo, payment, deposit, amount, balance, qb_type,
                 account, bank_status, alloc_kind, alloc_to, alloc_key, result, batch_id,
                 account_ref, tracking_ref, extra_ref, unpaid_amount, source)
                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 day,
-                _account_ref_for(key, book),
-                name,
-                f"Debit order · Batch {batch} · Processed",
-                0,
-                amt,
+                account_ref,
+                client["name"],
+                f"Debit order · Batch {batch} · {'Unpaid' if unpaid else 'Processed'}",
+                amt if unpaid else 0,
+                0 if unpaid else amt,
                 amt,
                 None,
                 "Payment",
                 "Accounts Receivable (A/R)",
-                "Collected",
-                "client_paid",
-                name,
+                "Unpaid" if unpaid else "Collected",
+                "client_unpaid" if unpaid else "client_paid",
+                client["name"],
                 key,
-                "paid",
+                outcome,
                 batch,
-                _account_ref_for(key, book),
+                account_ref,
                 None,
                 None,
-                0,
-                "netcash-masterfile",
+                amt if unpaid else 0,
+                "netcash-items",
             ),
         )
-        have_month.add((key, day[:7]))
         n += 1
     return n
+
+
+def _ingest_monthly_do(conn: sqlite3.Connection, today: date | None = None) -> int:
+    """Retired inventor. Debit results come from the Netcash pull only."""
+    del today
+    return _mirror_pull_items(conn)
 
 
 def _ingest_named_do(conn: sqlite3.Connection) -> int:
@@ -1043,31 +1040,11 @@ def self_test() -> int:
             print("FAIL cupido-sep-still-unpaid")
             failed += 1
         elif conn.execute(
-            """SELECT COUNT(DISTINCT alloc_key) FROM netcash_tx
-               WHERE batch_id='2571994' AND alloc_kind='client_paid'"""
-        ).fetchone()[0] < len(DO_CLIENTS):
-            print("FAIL oct-batch-all-do-clients")
-            failed += 1
-        elif not conn.execute(
-            """SELECT 1 FROM netcash_tx
-               WHERE alloc_key='david wantling' AND paid_on='2026-10-05'
-                 AND alloc_kind='client_paid'"""
-        ).fetchone():
-            print("FAIL wantling-oct-do")
-            failed += 1
-        elif not conn.execute(
-            """SELECT 1 FROM netcash_tx
-               WHERE alloc_key='gordon neethling' AND paid_on='2026-09-01'
-                 AND alloc_kind='client_paid'"""
-        ).fetchone():
-            print("FAIL neethling-sep-do")
-            failed += 1
-        elif not conn.execute(
-            """SELECT 1 FROM netcash_tx
-               WHERE alloc_key='murray dh' AND paid_on='2026-06-01'
-                 AND alloc_kind='client_paid'"""
-        ).fetchone():
-            print("FAIL murray-jun-do")
+            """SELECT COUNT(*) FROM netcash_tx
+               WHERE source='netcash-masterfile'
+                 AND alloc_key IN ('david wantling','gordon neethling','murray dh')"""
+        ).fetchone()[0]:
+            print("FAIL invented-do-without-pull")
             failed += 1
         elif pack.get("checksum"):
             print("FAIL money-checksum", pack.get("checksum"))

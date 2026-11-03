@@ -574,14 +574,21 @@ def cards_for_export(
         }
         if conn is not None:
             try:
+                from qb_api import is_whale_rock, whale_rock_account
                 from statements import account_as_at
 
-                st = account_as_at(conn, line.get("customer"), today)
+                # Temporary Whale Rock only. Do not extend; shared flow is
+                # QB invoices + FNB-via-QB + Netcash → local due.
+                if is_whale_rock(line.get("customer")):
+                    st = whale_rock_account(conn, today)
+                else:
+                    st = account_as_at(conn, line.get("customer"), today)
                 if st.get("billed"):
                     card["billed"] = st.get("billed")
                     card["paid"] = st.get("paid") or 0
                     card["due"] = st.get("due")
                     card["paid_up"] = bool(st.get("nil"))
+                    card["pay"] = st.get("pay") or card.get("pay")
                     card["ledger"] = st.get("ledger") or []
                     card["ageing"] = st.get("ageing") or {}
                     card["master"] = st.get("master")
@@ -855,6 +862,92 @@ def self_test() -> int:
     else:
         print("OK client-cards")
         print("OK cancelled-own-list")
+    whale = {
+        "service_number": "B110065107",
+        "customer": "Whale Rock Lodge",
+        "line_status": "active",
+        "access_status": "Active",
+        "partner_status": "IspActive",
+        "address": "WHALE ROCK LODGE",
+        "activated": "2026-10-07",
+        "product": "Webstream",
+        "speed": "1000/1000",
+    }
+    whale_db = sqlite3.connect(":memory:")
+    from qb_api import _upsert_whale_invoice, whale_invoice_row
+    from qb_import import ensure_history_tables
+
+    ensure_history_tables(whale_db)
+    whale_db.execute(
+        """INSERT INTO customer_invoices
+           (invoice_number, invoice_date, customer, amount, balance_due, status, source)
+           VALUES (3131,'2026-10-07','Whale Rock Lodge',1759,3463,'historical','quickbooks')"""
+    )
+    empty = cards_for_export(whale_db, [pop, hpp, whale], today)
+    empty_w = next((c for c in empty["cards"] if c["name"] == "Whale Rock Lodge"), None)
+    _upsert_whale_invoice(
+        whale_db,
+        whale_invoice_row(
+            {
+                "Id": "2139",
+                "DocNumber": "3131",
+                "TxnDate": "2026-10-07",
+                "DueDate": "2026-10-07",
+                "TotalAmt": 3213.4,
+                "Balance": 3213.4,
+                "CustomerRef": {"value": "55", "name": "Whale Rock Lodge"},
+                "Line": [
+                    {
+                        "DetailType": "SalesItemLineDetail",
+                        "Description": "Fibre & Wifi Installation",
+                        "Amount": 399.0,
+                    }
+                ],
+            }
+        ),
+    )
+    live_w = cards_for_export(whale_db, [pop, hpp, whale], today)
+    shown = next((c for c in live_w["cards"] if c["name"] == "Whale Rock Lodge"), None)
+    if empty_w is None or (empty_w.get("billed") or 0) > 0.004:
+        print("FAIL whale-pdf-must-stay-empty", empty_w)
+        failed += 1
+    elif shown is None or abs(float(shown.get("billed") or 0) - 3213.4) > 0.02:
+        print("FAIL whale-billed", shown)
+        failed += 1
+    elif abs(float(shown.get("due") or 0) - 3213.4) > 0.02 or shown.get("pay") != "EFT":
+        print("FAIL whale-due-eft", shown)
+        failed += 1
+    elif shown.get("paid_up") or "Due 3213.40" not in (shown.get("balance_label") or ""):
+        print("FAIL whale-label", shown.get("balance_label"))
+        failed += 1
+    elif not any(str(r.get("ref")) == "3131" for r in (shown.get("ledger") or [])):
+        print("FAIL whale-ledger-3131", shown.get("ledger"))
+        failed += 1
+    else:
+        print("OK whale-rock-card", shown.get("balance_label"))
+    _upsert_whale_invoice(
+        whale_db,
+        whale_invoice_row(
+            {
+                "Id": "2139",
+                "DocNumber": "3131",
+                "TxnDate": "2026-10-07",
+                "TotalAmt": 3213.4,
+                "Balance": 0,
+                "CustomerRef": {"value": "55", "name": "Whale Rock Lodge"},
+            }
+        ),
+    )
+    paid_w = next(
+        (c for c in cards_for_export(whale_db, [pop, hpp, whale], today)["cards"] if c["name"] == "Whale Rock Lodge"),
+        None,
+    )
+    if not paid_w or not paid_w.get("paid_up") or paid_w.get("balance_label") != "Paid Up":
+        print("FAIL whale-paid-up", paid_w)
+        failed += 1
+    else:
+        print("OK whale-paid-up")
+    whale_db.close()
     conn = sqlite3.connect(":memory:")
     from invoice_import import ingest_csv_text
 
