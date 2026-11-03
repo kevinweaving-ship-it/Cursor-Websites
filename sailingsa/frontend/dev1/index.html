@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en" data-ssa-layout="landing">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Roundup DEV1 | SailingSA</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="SailingSA /dev1/ Weekly Roundup preview.">
+    <base href="/">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="canonical" href="https://sailingsa.co.za/dev1/">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/gold-header.css?v=20261030source">
+    <link rel="stylesheet" href="/css/dockside-chat.css?v=dockside18">
+    <link rel="stylesheet" href="/dev1/dev1.css?v=fouc-20261103">
+</head>
+<body>
+<header class="site-header">
+    <div class="container">
+        <a href="/" class="logo js-go-home" id="headerLogoLink" title="Home – clear search and return to sailingsa.co.za">
+            <img src="/assets/logos/sailingsa-logo.png" alt="SailingSA Logo">
+        </a>
+        <div class="header-user-center" id="headerUserCenter"></div>
+        <div class="header-auth" id="headerAuth">
+            <div id="loggedInStatus" hidden></div>
+            <div id="loginBox">
+                <a class="btn-primary" id="authSignUpBtn" href="/signup.html">Sign Up</a>
+                <a class="btn-primary" id="authBtn" href="/login.html">Login</a>
+            </div>
+        </div>
+    </div>
+</header>
+<main id="dev1-root">
+<div id="dev1-editorial">
+<section id="landing-top-card" class="landing-top-card" aria-label="Weekly Roundup">
+    <div class="landing-roundup-viewport" id="landing-roundup-viewport">
+        <div class="landing-roundup-track" id="landing-roundup-track">
+            <article class="landing-top-card-face landing-roundup-slide" aria-hidden="false">
+                <div class="landing-roundup-hero" aria-hidden="true"></div>
+                <p class="landing-roundup-series">Weekly Roundup</p>
+                <p class="landing-roundup-title">Weekly Roundup</p>
+            </article>
+        </div>
+    </div>
+    <button type="button" id="landing-roundup-prev" class="landing-roundup-arrow is-prev" aria-label="Previous Weekly Roundup" hidden>&#8249;</button>
+    <button type="button" id="landing-roundup-next" class="landing-roundup-arrow is-next" aria-label="Next Weekly Roundup" hidden>&#8250;</button>
+    <div class="landing-roundup-dots" id="landing-roundup-dots" hidden></div>
+    <div id="landing-roundup-actions" class="landing-roundup-actions" aria-label="Roundup reactions">
+        <form id="dev1-card-compose">
+            <input type="text" maxlength="2000" required placeholder="Write a comment…" aria-label="Write a comment on this roundup">
+            <button type="submit" class="dev1-canonical-send" aria-label="Post comment to Dockside Chat">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 21 12 4 4l3 8-3 8Zm3-8h14"/></svg>
+            </button>
+        </form>
+        <span id="dev1-read-count"></span>
+        <a id="dev1-read-active" href="/sailing-roundup/latest/">Read full roundup</a>
+        <div id="dev1-card-message"></div>
+    </div>
+</section>
+<section id="dockside-landing" class="dockside-landing" aria-label="Dockside Chat" data-dockside-card="1">
+    <div class="dockside-head">
+        <div class="dockside-brand">
+            <svg class="dockside-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="#001f3f" d="M5 3.5h14a2.5 2.5 0 0 1 2.5 2.5v8.2a2.5 2.5 0 0 1-2.5 2.5H9.2L4.2 21v-4.3H5A2.5 2.5 0 0 1 2.5 14.2V6A2.5 2.5 0 0 1 5 3.5z"/>
+            </svg>
+            <div class="dockside-titles">
+                <h2 class="dockside-kicker">Dockside Chat</h2>
+                <p class="dockside-sub">Sailors on the dock</p>
+            </div>
+        </div>
+        <a class="dockside-viewall" href="/dockside.html">View all</a>
+    </div>
+    <div id="dockside-topic" hidden>
+        <div class="dockside-op" id="dockside-original"></div>
+        <div class="dockside-scroll" id="dockside-scroll" tabindex="0"></div>
+        <form class="dockside-compose" id="dockside-reply-form" action="/dockside.html" method="get" hidden>
+            <span class="dockside-avatar dockside-avatar--me" id="dockside-me-avatar" aria-hidden="true"><img src="/favicon-192.png" alt="" width="36" height="36"></span>
+            <label class="dockside-sr" for="dockside-reply-body">Comment</label>
+            <input id="dockside-reply-body" type="text" maxlength="2000" placeholder="Comment as sailor" autocomplete="off">
+            <button type="submit" class="dockside-post">Post</button>
+        </form>
+    </div>
+    <div id="dockside-empty" class="dockside-invite" hidden>
+        <p>No discussion yet.</p>
+        <button type="button" id="dockside-start-open">Start a discussion</button>
+        <form id="dockside-start-form" class="dockside-start" hidden>
+            <div class="dockside-compose">
+                <label class="dockside-sr" for="dockside-start-body">First post</label>
+                <input id="dockside-start-body" type="text" maxlength="2000" placeholder="Write the first post" autocomplete="off">
+                <button type="submit" class="dockside-post">Post</button>
+            </div>
+        </form>
+    </div>
+</section>
+</div>
+<section id="dev1-upcoming-design" aria-label="Upcoming Sailing Events"><div class="dev1-upcoming-titlebar"><h2>Upcoming Events</h2><span>SAILINGSA</span></div><section id="temp-landing-hero-image" class="temp-landing-hero-image" aria-label="Upcoming events" data-landing-event-card="1">
+<!-- LANDING_EVENT_CARD_BEGIN slot=1 -->
+<!-- LANDING_EXTRA_UPCOMING_BEGIN -->
+<article class="sa-home-regatta-card landing-event-card landing-event-card--live sa-home-regatta-card--live" data-landing-event-slot="1" data-state="live" data-event-id="168679"><div class="dev1-upcoming-photo"><img src="/sailing-roundup/issues/2026-04-13/media/2026-04-06-western-cape-dinghy-championships-hero.jpg" alt="Sailing event photograph" loading="lazy"></div><div class="sa-home-regatta-top"><div class="sa-home-regatta-top-main"><div class="dev1-card1-logo-right"><a class="sa-home-regatta-event-logo-link" href="https://www.sailing.org.za/events/373989" aria-label="2026 EC Dinghy Regionals"><img class="sa-home-regatta-event-logo" src="/dev1/event-logo-clean-1.png" alt="2026 EC Dinghy Regionals" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a></div><div class="sa-home-regatta-title"><a href="https://www.sailing.org.za/events/373989" style="color:inherit;text-decoration:none">2026 EC Dinghy Regionals</a></div><p class="landing-event-card-count">LIVE · DAY 1 OF 2</p><div class="sa-home-regatta-meta"></div></div><a class="sa-home-regatta-host" href="/club/ryc" title="Open club page"><img class="sa-home-regatta-host-logo" src="/api/club-logo/RYC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">RYC</div><div class="sa-home-regatta-host-name">Redhouse Yacht Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn" href="https://www.sailing.org.za/events/373989"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div><a class="landing-event-card-hit" href="https://www.sailing.org.za/events/373989" tabindex="-1" aria-hidden="true"></a></article>
+<article class="sa-home-regatta-card landing-event-card landing-event-card--upcoming" data-landing-event-slot="2" data-state="upcoming" data-event-id="246456"><div class="dev1-upcoming-photo"><img src="/sailing-roundup/issues/2025-12-22/media/2025-12-19-hyc-youth-nationals-hero.jpg" alt="Sailing event photograph" loading="lazy"><a class="sa-home-regatta-event-logo-link" href="https://www.hmyc.org.za/events/384592" aria-label="Flying fifteen &amp; Soling Nationals"><img class="sa-home-regatta-event-logo" src="/dev1/event-logo-clean-2.png" alt="Flying fifteen &amp; Soling Nationals" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a></div><div class="sa-home-regatta-top"><div class="sa-home-regatta-top-main"><div class="sa-home-regatta-title"><a href="https://www.hmyc.org.za/events/384592" style="color:inherit;text-decoration:none">Flying fifteen &amp; Soling Nationals</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill sa-home-regatta-days-pill sa-home-regatta-days-pill--later">14 DAYS TO GO</div></div></div><a class="sa-home-regatta-host" href="/club/hmyc" title="Open club page"><img class="sa-home-regatta-host-logo" src="/api/club-logo/HMYC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">HMYC</div><div class="sa-home-regatta-host-name">Henley Midmar Yacht Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn sa-home-regatta-btn--later" href="https://www.hmyc.org.za/events/384592"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div><a class="landing-event-card-hit" href="https://www.hmyc.org.za/events/384592" tabindex="-1" aria-hidden="true"></a></article>
+<article class="sa-home-regatta-card landing-event-card landing-event-card--upcoming" data-landing-event-slot="3" data-state="upcoming" data-event-id="248485"><div class="dev1-upcoming-photo"><img src="/sailing-roundup/issues/2025-12-08/media/2025-12-08-tsc-cape-classic-hero.jpg" alt="Sailing event photograph" loading="lazy"><a class="sa-home-regatta-event-logo-link" href="https://www.sailing.org.za/events/388299" aria-label="TSC Cape Classic"><img class="sa-home-regatta-event-logo" src="/dev1/event-logo-clean-3.png" alt="TSC Cape Classic" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a></div><div class="sa-home-regatta-top"><div class="sa-home-regatta-top-main"><div class="sa-home-regatta-title"><a href="https://www.sailing.org.za/events/388299" style="color:inherit;text-decoration:none">TSC Cape Classic</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill sa-home-regatta-days-pill sa-home-regatta-days-pill--later">28 DAYS TO GO</div></div></div><a class="sa-home-regatta-host" href="/club/tsc" title="Open club page"><img class="sa-home-regatta-host-logo" src="/api/club-logo/TSC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">TSC</div><div class="sa-home-regatta-host-name">Theewater Sports Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn sa-home-regatta-btn--later" href="https://www.sailing.org.za/events/388299"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div><a class="landing-event-card-hit" href="https://www.sailing.org.za/events/388299" tabindex="-1" aria-hidden="true"></a></article>
+<article class="sa-home-regatta-card landing-event-card landing-event-card--upcoming" data-landing-event-slot="4" data-state="upcoming" data-event-id="45"><div class="dev1-upcoming-photo"><img src="/sailing-roundup/issues/2026-09-14/media/2026-09-13-zvyc-cape-classic-hero.jpg" alt="Sailing event photograph" loading="lazy"><a class="sa-home-regatta-event-logo-link" href="https://www.sailing.org.za/events/344430" aria-label="2026 USSA Sailing Championships"><img class="sa-home-regatta-event-logo" src="/dev1/event-logo-clean-4.png" alt="2026 USSA Sailing Championships" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a></div><div class="sa-home-regatta-top"><div class="sa-home-regatta-top-main"><div class="sa-home-regatta-title"><a href="https://www.sailing.org.za/events/344430" style="color:inherit;text-decoration:none">2026 USSA Sailing Championships</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill sa-home-regatta-days-pill sa-home-regatta-days-pill--later">39 DAYS TO GO</div></div></div><a class="sa-home-regatta-host" href="/club/hmyc" title="Open club page"><img class="sa-home-regatta-host-logo" src="/api/club-logo/HMYC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">HMYC</div><div class="sa-home-regatta-host-name">Henley Midmar Yacht Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn sa-home-regatta-btn--later" href="https://www.sailing.org.za/events/344430"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div><a class="landing-event-card-hit" href="https://www.sailing.org.za/events/344430" tabindex="-1" aria-hidden="true"></a></article>
+<!-- LANDING_EXTRA_UPCOMING_END -->
+<!-- LANDING_EVENT_CARD_END slot=1 -->
+</section></section>
+</main>
+<script src="/js/config.js" defer></script>
+<script src="/js/api.js?v=20260717regatta" defer></script>
+<script src="/js/results.js?v=20260819-ssa-v2" defer></script>
+<script src="/js/session.js?v=20261028_LOGINURL" defer></script>
+<script src="/js/landing-claim-popup.js?v=20260916std2" defer></script>
+<script src="/dev1/landing-roundup-cards.js?v=fouc-20261103" defer></script>
+<script src="/dev1/dockside-chat.js?v=single-avatar-20261031" defer></script>
+<script src="/js/roundup-reactions.js?v=dockside28" defer></script>
+<script src="/js/event-interest.js?v=eci2" defer></script>
+<script src="/dev1/dev1.js?v=fouc-20261103" defer></script>
+</body>
+</html>
