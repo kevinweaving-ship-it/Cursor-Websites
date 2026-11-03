@@ -209,6 +209,7 @@ def client_row(name: str | None) -> dict | None:
     return None
 
 
+# Historical October batch. Not the apply source. Live apply reads netcash_items.
 PENDING_DO = {
     "action_date": "2026-10-05",
     "batch_id": "2571994",
@@ -221,10 +222,121 @@ PENDING_DO = {
     "collected": True,
     "normal_day": DO_DAY,
     "note": (
-        "Same-day batch 2571994 on 5 Oct. "
-        "Client paid/unpaid comes from the Netcash table, not this note."
+        "Historical 5 Oct batch 2571994. "
+        "Apply and the client cycle use the latest Netcash pull, not this note."
     ),
 }
+
+
+def item_outcome(result: str | None) -> str:
+    text = (result or "").strip().lower()
+    if any(word in text for word in ("unpaid", "bounce", "unsuccessful", "insufficient", "reject", "fail")):
+        return "unpaid"
+    if text in {"paid", "collected", "successful", "success", "processed", "ok"} or text.startswith("paid"):
+        return "paid"
+    return "unknown"
+
+
+def match_do_client(account_ref: str | None) -> dict | None:
+    raw = (account_ref or "").strip()
+    if not raw:
+        return None
+    for row in DO_CLIENTS:
+        ref = (row.get("ref") or "").strip()
+        if ref and ref.lower() == raw.lower():
+            return row
+    key = canon_key(raw)
+    for row in DO_CLIENTS:
+        if canon_key(row["name"]) == key or canon_key(row.get("ref")) == key:
+            return row
+    found = client_row(raw)
+    if found and found.get("method") == "debit-order":
+        return found
+    return None
+
+
+def netcash_item_rows(conn: sqlite3.Connection) -> list[dict]:
+    try:
+        found = conn.execute(
+            """SELECT account_ref, amount, action_date, result, batch_id, source
+               FROM netcash_items
+               ORDER BY COALESCE(action_date, ''), id"""
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    rows = []
+    for rec in found:
+        client = match_do_client(rec[0])
+        rows.append(
+            {
+                "account_ref": rec[0],
+                "amount": abs(float(rec[1] or 0)),
+                "action_date": (rec[2] or "")[:10],
+                "result": rec[3],
+                "batch_id": rec[4],
+                "source": rec[5],
+                "outcome": item_outcome(rec[3]),
+                "client": client,
+            }
+        )
+    return rows
+
+
+def pending_from_pull(conn: sqlite3.Connection, today: date | None = None) -> dict:
+    """Latest pulled debit batch. No pull means nothing is marked collected."""
+    today = today or date.today()
+    rows = [
+        row
+        for row in netcash_item_rows(conn)
+        if row["outcome"] in {"paid", "unpaid"} and row.get("client")
+    ]
+    if not rows:
+        action = do_action_date(invoice_day_on(today))
+        return {
+            "action_date": action.isoformat(),
+            "batch_id": None,
+            "status": "awaiting pull",
+            "collected": False,
+            "volume": 0,
+            "amount": 0.0,
+            "unpaid_value": 0.0,
+            "unpaid_volume": 0,
+            "source": "calendar",
+            "note": "No Netcash pull items. Debit orders are not marked collected.",
+        }
+    latest = max(row["action_date"] for row in rows)
+    batch = [row for row in rows if row["action_date"] == latest]
+    paid = [row for row in batch if row["outcome"] == "paid"]
+    unpaid = [row for row in batch if row["outcome"] == "unpaid"]
+    return {
+        "action_date": latest,
+        "batch_id": next((row["batch_id"] for row in reversed(batch) if row.get("batch_id")), None),
+        "status": "Collected" if paid and not unpaid else ("Part collected" if paid else "Unpaid"),
+        "collected": bool(paid),
+        "volume": len(batch),
+        "amount": round(sum(row["amount"] for row in paid), 2),
+        "unpaid_value": round(sum(row["amount"] for row in unpaid), 2),
+        "unpaid_volume": len(unpaid),
+        "source": "netcash_items",
+        "note": "Latest Netcash NIWS pull.",
+    }
+
+
+def drop_phantom_unpaid(conn: sqlite3.Connection) -> int:
+    """Drop 'D/O unpaid …' payment rows that have no Netcash source.
+
+    Those rows are not debt and are not voided in QuickBooks.
+    """
+    try:
+        cur = conn.execute(
+            """DELETE FROM customer_payments
+               WHERE lower(COALESCE(note, '')) LIKE '%d/o unpaid%'
+                 AND lower(COALESCE(source, '')) NOT LIKE '%netcash%'"""
+        )
+    except sqlite3.OperationalError:
+        return 0
+    conn.commit()
+    return cur.rowcount or 0
 
 
 def add_months(day: date, months: int) -> date:
@@ -316,47 +428,81 @@ def apply_named_receipts(conn: sqlite3.Connection) -> int:
     return n
 
 
-def apply_collected_do(conn: sqlite3.Connection, action_date: str, clients: list[dict]) -> int:
-    """Post the full D/O (not the FNB net after fees) as paid against each client."""
-    have = set()
-    try:
-        for paid_on, customer, amount, source in conn.execute(
-            "SELECT paid_on, customer, amount, source FROM customer_payments"
-        ):
-            if source not in {"netcash-do", "qb-do", "qb-do-synth"}:
-                continue
-            have.add((paid_on, canon_key(customer), round(abs(float(amount or 0)), 2)))
-    except sqlite3.OperationalError:
-        have = set()
-    n = 0
-    try:
-        from recon import BATCH_UNPAID
+def apply_collected_do(
+    conn: sqlite3.Connection,
+    action_date: str | None = None,
+    clients: list[dict] | None = None,
+) -> int:
+    """Post paid Netcash pull lines only. Unpaid is not a payment and not a debt row.
 
-        skip = BATCH_UNPAID.get(PENDING_DO.get("batch_id") or "", set())
-    except Exception:
-        skip = set()
-    for row in clients:
-        if canon_key(row["name"]) in skip:
+    `clients` is unused. The old path posted every debit-order client at the
+    book amount for a hardcoded October batch.
+    """
+    del clients
+    drop_phantom_unpaid(conn)
+    try:
+        conn.execute("DELETE FROM customer_payments WHERE source = 'netcash-pull'")
+    except sqlite3.OperationalError:
+        conn.commit()
+        return 0
+    n = 0
+    for row in netcash_item_rows(conn):
+        if row["outcome"] != "paid" or not row.get("client"):
             continue
-        key = (action_date, canon_key(row["name"]), round(abs(float(row["amount"])), 2))
-        if key in have:
+        if action_date and row["action_date"] != action_date:
+            continue
+        amount = round(abs(float(row["amount"])), 2)
+        if amount <= 0.004 or not row["action_date"]:
             continue
         conn.execute(
             """INSERT INTO customer_payments
                (paid_on, customer, amount, note, source, statement_number)
                VALUES (?,?,?,?,?,NULL)""",
             (
-                action_date,
-                row["name"],
-                -abs(float(row["amount"])),
+                row["action_date"],
+                row["client"]["name"],
+                -amount,
                 "Debit order",
-                "netcash-do",
+                "netcash-pull",
             ),
         )
-        have.add(key)
         n += 1
     conn.commit()
     return n
+
+
+def cross_match(conn: sqlite3.Connection) -> dict:
+    """Every paid pull line has a local payment. Unpaid lines do not."""
+    paid_keys = set()
+    try:
+        for paid_on, customer, amount, source in conn.execute(
+            "SELECT paid_on, customer, amount, source FROM customer_payments"
+        ):
+            if source != "netcash-pull":
+                continue
+            paid_keys.add((paid_on, canon_key(customer), round(abs(float(amount or 0)), 2)))
+    except sqlite3.OperationalError:
+        paid_keys = set()
+    missing = 0
+    unpaid_posted = 0
+    checked = 0
+    for row in netcash_item_rows(conn):
+        if row["outcome"] not in {"paid", "unpaid"} or not row.get("client"):
+            continue
+        checked += 1
+        key = (row["action_date"], canon_key(row["client"]["name"]), round(row["amount"], 2))
+        if row["outcome"] == "paid" and key not in paid_keys:
+            missing += 1
+        if row["outcome"] == "unpaid" and key in paid_keys:
+            unpaid_posted += 1
+    if unpaid_posted:
+        raise RuntimeError(f"{unpaid_posted} unpaid Netcash items were posted as payments")
+    return {
+        "checked": checked,
+        "unapplied": missing,
+        "unpaid_posted": unpaid_posted,
+        "phantoms_removed": drop_phantom_unpaid(conn),
+    }
 
 
 def ensure_cycle_invoices(
@@ -619,7 +765,7 @@ def client_accounts(conn: sqlite3.Connection, today: date | None = None) -> dict
     period = period_for(inv_day)
     invoices = _invoices(conn)
     payments = _payments(conn)
-    pending = dict(PENDING_DO)
+    pending = pending_from_pull(conn, today)
     by_key = {}
     for row in SERVICE_CLIENTS:
         by_key[canon_key(row["name"])] = {
@@ -771,14 +917,13 @@ def run_cycle(conn: sqlite3.Connection, today: date | None = None) -> dict:
     created = ensure_cycle_invoices(conn, today)
     created.extend(ensure_cancel_invoices(conn, today))
     receipts = apply_named_receipts(conn)
-    do_n = 0
-    if PENDING_DO.get("collected") and today >= date.fromisoformat(PENDING_DO["action_date"]):
-        do_n = apply_collected_do(conn, PENDING_DO["action_date"], DO_CLIENTS)
+    do_n = apply_collected_do(conn)
+    live = pending_from_pull(conn, today)
     return {
         "invoices_created": len(created),
         "receipts": receipts,
         "debit_orders": do_n,
-        "pending_do": PENDING_DO,
+        "pending_do": live,
         "clients": client_accounts(conn, today),
     }
 
@@ -844,12 +989,38 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK do-not-off-until-collected")
-    # After collection, full D/O (not net of fees) clears the invoice.
-    apply_collected_do(conn, "2026-10-05", [DO_CLIENTS[1]])
+    # After the pull says Dirk was collected, that amount clears the invoice.
+    conn.execute(
+        """CREATE TABLE netcash_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_ref TEXT, service_number TEXT, amount REAL,
+            action_date TEXT, result TEXT, batch_id TEXT, source TEXT
+        )"""
+    )
+    conn.execute(
+        """INSERT INTO netcash_items
+           (account_ref, amount, action_date, result, batch_id, source)
+           VALUES ('DEV001', 399, '2026-10-05', 'paid', 'pull', 'statement')"""
+    )
+    conn.execute(
+        """INSERT INTO customer_payments
+           (paid_on, customer, amount, note, source)
+           VALUES ('2026-10-05','G Cupido',759,'D/O unpaid 438377703','local-phantom')"""
+    )
+    apply_collected_do(conn)
     acc2 = client_accounts(conn, date(2026, 10, 6))
     dirk2 = next(a for a in acc2["accounts"] if a["name"] == "Dirk De Villiers")
+    phantom = conn.execute(
+        "SELECT COUNT(*) FROM customer_payments WHERE note LIKE 'D/O unpaid%'"
+    ).fetchone()[0]
+    unpaid_pay = conn.execute(
+        "SELECT COUNT(*) FROM customer_payments WHERE customer='G Cupido' AND source='netcash-pull'"
+    ).fetchone()[0]
     if not dirk2["nil"]:
         print("FAIL do-clears-invoice", dirk2)
+        failed += 1
+    elif phantom or unpaid_pay:
+        print("FAIL phantom-or-unpaid-posted", phantom, unpaid_pay)
         failed += 1
     else:
         print("OK do-full-amount-nil-vs-inv")

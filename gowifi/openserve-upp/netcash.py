@@ -36,16 +36,33 @@ CREATE TABLE IF NOT EXISTS netcash_items (
     batch_id TEXT,
     source TEXT
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_netcash_items_dedup
-    ON netcash_items (
-        COALESCE(account_ref, ''),
-        COALESCE(action_date, ''),
-        COALESCE(amount, 0),
-        COALESCE(batch_id, ''),
-        COALESCE(result, ''),
-        COALESCE(source, '')
-    );
 """
+
+
+def prepare_items(conn: sqlite3.Connection) -> None:
+    """One row per debit item. A later paid/unpaid replaces the stored result."""
+    conn.executescript(SCHEMA)
+    conn.execute("DROP INDEX IF EXISTS idx_netcash_items_dedup")
+    conn.execute(
+        """DELETE FROM netcash_items
+           WHERE id NOT IN (
+               SELECT MAX(id) FROM netcash_items
+               GROUP BY COALESCE(account_ref, ''),
+                        COALESCE(action_date, ''),
+                        ROUND(COALESCE(amount, 0), 2),
+                        COALESCE(batch_id, '')
+           )"""
+    )
+    conn.execute("DROP INDEX IF EXISTS idx_netcash_items_item")
+    conn.execute(
+        """CREATE UNIQUE INDEX idx_netcash_items_item
+           ON netcash_items (
+               COALESCE(account_ref, ''),
+               COALESCE(action_date, ''),
+               ROUND(COALESCE(amount, 0), 2),
+               COALESCE(batch_id, '')
+           )"""
+    )
 
 
 def _load_env(path: Path = ENV_PATH) -> dict[str, str]:
@@ -209,11 +226,60 @@ def _rows_from_tab(text: str, source: str, batch_id: str | None = None) -> list[
     return rows
 
 
-def _upsert(conn: sqlite3.Connection, rows: list[dict]) -> int:
+def _status_rank(result: str | None) -> int:
+    text = (result or "").strip().lower()
+    if any(word in text for word in ("unpaid", "bounce", "unsuccessful", "insufficient", "reject", "fail")):
+        return 2
+    if text in {"paid", "collected", "successful", "success", "processed", "ok"} or text.startswith("paid"):
+        return 2
+    return 0 if not text else 1
+
+
+def _upsert(conn: sqlite3.Connection, rows: list[dict], locked: set | None = None) -> int:
+    """Insert a new item, or replace its result when a later status arrives.
+
+    `locked` keeps the first status stored in this pull. Pull walks newest day
+    first, so an older statement must not put a stale paid back.
+    """
+    prepare_items(conn)
+    seen = locked if locked is not None else set()
     n = 0
     for row in rows:
-        cur = conn.execute(
-            """INSERT OR IGNORE INTO netcash_items
+        amount = row.get("amount")
+        amount_key = round(float(amount), 2) if amount is not None else 0.0
+        key = (row.get("account_ref") or "", row.get("action_date") or "", amount_key, row.get("batch_id") or "")
+        existing = conn.execute(
+            """SELECT id, result FROM netcash_items
+               WHERE COALESCE(account_ref, '') = ?
+                 AND COALESCE(action_date, '') = ?
+                 AND ROUND(COALESCE(amount, 0), 2) = ?
+                 AND COALESCE(batch_id, '') = ?
+               ORDER BY id DESC LIMIT 1""",
+            (
+                row.get("account_ref") or "",
+                row.get("action_date") or "",
+                amount_key,
+                row.get("batch_id") or "",
+            ),
+        ).fetchone()
+        new_result = row.get("result")
+        if key in seen and _status_rank(new_result) <= _status_rank(existing[1] if existing else None):
+            continue
+        if existing:
+            if _status_rank(new_result) >= _status_rank(existing[1]) and (new_result or "") != (existing[1] or ""):
+                conn.execute(
+                    """UPDATE netcash_items
+                       SET result = ?, source = ?, service_number = COALESCE(?, service_number)
+                       WHERE id = ?""",
+                    (new_result, row.get("source"), row.get("service_number"), existing[0]),
+                )
+                seen.add(key)
+                n += 1
+            elif _status_rank(existing[1]) >= 2:
+                seen.add(key)
+            continue
+        conn.execute(
+            """INSERT INTO netcash_items
                (account_ref, service_number, amount, action_date, result, batch_id, source)
                VALUES (?,?,?,?,?,?,?)""",
             (
@@ -221,12 +287,14 @@ def _upsert(conn: sqlite3.Connection, rows: list[dict]) -> int:
                 row.get("service_number"),
                 row.get("amount"),
                 row.get("action_date"),
-                row.get("result"),
+                new_result,
                 row.get("batch_id"),
                 row.get("source"),
             ),
         )
-        n += cur.rowcount or 0
+        if _status_rank(new_result) >= 2:
+            seen.add(key)
+        n += 1
     return n
 
 
@@ -242,21 +310,23 @@ def _poll(method: str, key: str, token_field: str, token: str, tries: int = 8) -
 
 
 def pull(conn: sqlite3.Connection, days: int = 900) -> dict:
-    conn.executescript(SCHEMA)
+    """Live NIWS_NIF pull. HTTP and SOAP failures raise. The box cron calls this."""
+    prepare_items(conn)
     env = _load_env()
     key = service_key(env)
     if not key:
         return {"ok": False, "error": status(env)["note"], "inserted": 0, "items": 0}
     inserted = 0
     notes: list[str] = []
+    locked: set = set()
     batches = call("RetrieveBatchStatus", {"ServiceKey": key})
     rows = _rows_from_tab(batches, "batch-status")
-    inserted += _upsert(conn, rows)
+    inserted += _upsert(conn, rows, locked)
     notes.append(f"batches={len(rows)}")
 
     unauth = call("RetrieveUnauthorisedBatches", {"ServiceKey": key})
     urows = _rows_from_tab(unauth, "unauthorised")
-    inserted += _upsert(conn, urows)
+    inserted += _upsert(conn, urows, locked)
     notes.append(f"unauthorised={len(urows)}")
 
     today = date.today()
@@ -272,7 +342,7 @@ def pull(conn: sqlite3.Connection, days: int = 900) -> dict:
             continue
         text = _poll("RetrieveMerchantStatement", key, "PollingId", token)
         srows = _rows_from_tab(text, "statement", batch_id=stamp)
-        n = _upsert(conn, srows)
+        n = _upsert(conn, srows, locked)
         inserted += n
         if srows:
             notes.append(f"statement-{stamp}={len(srows)}")
@@ -288,7 +358,7 @@ def pull(conn: sqlite3.Connection, days: int = 900) -> dict:
 
 
 def items_for_export(conn: sqlite3.Connection, limit: int = 80) -> list[dict]:
-    conn.executescript(SCHEMA)
+    prepare_items(conn)
     out = []
     for rec in conn.execute(
         """SELECT account_ref, amount, action_date, result, batch_id, source
@@ -333,6 +403,39 @@ def self_test() -> int:
         failed += 1
     else:
         print("OK status-awaiting-key")
+    mem = sqlite3.connect(":memory:")
+    _upsert(
+        mem,
+        [
+            {
+                "account_ref": "G Cupido",
+                "amount": 759,
+                "action_date": "2026-10-05",
+                "result": "paid",
+                "batch_id": "2571994",
+                "source": "statement",
+            }
+        ],
+    )
+    _upsert(
+        mem,
+        [
+            {
+                "account_ref": "G Cupido",
+                "amount": 759,
+                "action_date": "2026-10-05",
+                "result": "unpaid",
+                "batch_id": "2571994",
+                "source": "statement",
+            }
+        ],
+    )
+    stored = mem.execute("SELECT result, COUNT(*) FROM netcash_items").fetchone()
+    if stored != ("unpaid", 1):
+        print("FAIL upsert-replaces-status", stored)
+        failed += 1
+    else:
+        print("OK upsert-later-status")
     return failed
 
 

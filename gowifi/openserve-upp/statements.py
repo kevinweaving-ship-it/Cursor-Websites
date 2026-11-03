@@ -624,19 +624,25 @@ def _rows(conn: sqlite3.Connection) -> tuple[list[dict], list[dict]]:
                FROM customer_invoices ORDER BY invoice_date"""
         )
     ]
-    payments = [
-        {
-            "paid_on": r[0],
-            "customer": r[1],
-            "amount": r[2],
-            "note": r[3],
-            "source": r[4],
-            "method": r[5] if len(r) > 5 else None,
-        }
-        for r in conn.execute(
-            "SELECT paid_on, customer, amount, note, source, method FROM customer_payments ORDER BY paid_on, id"
+    payments = []
+    for r in conn.execute(
+        "SELECT paid_on, customer, amount, note, source, method FROM customer_payments ORDER BY paid_on, id"
+    ):
+        note = r[3] or ""
+        source = r[4] or ""
+        # A "D/O unpaid …" row with no Netcash source is not a payment and not debt.
+        if "d/o unpaid" in note.lower() and "netcash" not in source.lower():
+            continue
+        payments.append(
+            {
+                "paid_on": r[0],
+                "customer": r[1],
+                "amount": r[2],
+                "note": note,
+                "source": source,
+                "method": r[5] if len(r) > 5 else None,
+            }
         )
-    ]
     return invoices, payments
 
 
@@ -1540,23 +1546,18 @@ def account_as_at(
     method = (book or {}).get("method") or "eft"
     monthly = _money((book or {}).get("amount")) if book else None
     if method == "debit-order":
-        pending_day = date.fromisoformat(PENDING_DO["action_date"])
-        if PENDING_DO.get("collected") and today >= pending_day:
+        from billing import pending_from_pull
+
+        live = pending_from_pull(conn, today)
+        # Only a real pull drives the badge. No pull must not grant grace or
+        # mark the old October batch collected.
+        if live.get("source") == "netcash_items":
             pending = {
-                "action_date": PENDING_DO["action_date"],
+                "action_date": live["action_date"],
                 "amount": monthly,
-                "status": "collected",
-                "reconciled": True,
-                "unpaid_value": PENDING_DO.get("unpaid_value") or 0,
-            }
-        elif not PENDING_DO.get("collected") and (
-            today >= pending_day or today >= date(pending_day.year, pending_day.month, 1)
-        ):
-            pending = {
-                "action_date": PENDING_DO["action_date"],
-                "amount": monthly,
-                "status": "authorised · not collected",
-                "reconciled": False,
+                "status": "collected" if live.get("collected") and not live.get("unpaid_volume") else "part collected",
+                "reconciled": bool(live.get("collected")) and not live.get("unpaid_volume"),
+                "unpaid_value": live.get("unpaid_value") or 0,
             }
     pending_amt = _money((pending or {}).get("amount")) if pending else 0
     due_today = balance

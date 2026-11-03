@@ -627,6 +627,153 @@ def whale_rock_account(conn: sqlite3.Connection, today: date | None = None) -> d
     }
 
 
+POSTS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS qb_posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dedupe TEXT UNIQUE,
+    qb_id TEXT,
+    customer TEXT,
+    amount REAL,
+    paid_on TEXT,
+    posted_at TEXT
+);
+"""
+
+
+def payment_payload(customer_id: str, amount: float, paid_on: str, note: str) -> dict[str, Any]:
+    """Body of a QBO Payment. Collected debit amount only."""
+    return {
+        "CustomerRef": {"value": str(customer_id)},
+        "TotalAmt": round(abs(float(amount)), 2),
+        "TxnDate": paid_on,
+        "PrivateNote": (note or "")[:4000],
+    }
+
+
+def _customer_ids(realm: str, token: str) -> dict[str, str]:
+    from billing import canon_key, display_name
+
+    found: dict[str, str] = {}
+    for row in _query(realm, token, "Customer"):
+        name = display_name(row.get("DisplayName")) or row.get("DisplayName") or ""
+        if row.get("Id") and name:
+            found[canon_key(name)] = str(row["Id"])
+    return found
+
+
+def _post_payment(realm: str, token: str, payload: dict[str, Any]) -> dict[str, Any]:
+    body = json.dumps(payload).encode()
+    last = "QBO payment post failed"
+    for name, base in _hosts():
+        url = f"{base}/{realm}/payment?minorversion=65"
+        req = urllib.request.Request(
+            url,
+            data=body,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+        )
+        ctx = ssl.create_default_context()
+        try:
+            with urllib.request.urlopen(req, timeout=60, context=ctx) as resp:
+                data = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as exc:
+            last = f"QBO payment {exc.code}: {exc.read().decode()[:400]}"
+            continue
+        if TOKEN_PATH.exists():
+            tokens = load_tokens()
+            tokens["api_host"] = name
+            save_tokens(tokens)
+        return data
+    raise RuntimeError(last)
+
+
+def post_collected_payments(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Post one QuickBooks Payment per collected Netcash debit.
+
+    Written: Payment CustomerRef, TotalAmt (amount collected), TxnDate, PrivateNote.
+    Not written: invoices, unpaid or bounce rows, payment voids, Netcash batch files.
+    Read: QBO Customer query, local netcash-pull rows, qb_posts dedupe.
+    """
+    from billing import canon_key, display_name
+
+    try:
+        rows = conn.execute(
+            """SELECT paid_on, customer, amount
+               FROM customer_payments
+               WHERE source='netcash-pull'
+               ORDER BY paid_on, id"""
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    summary = {
+        "ok": True,
+        "posted": 0,
+        "skipped": 0,
+        "writes": "QBO Payment for each collected Netcash debit (customer, amount, date, note).",
+        "read_only": (
+            "Netcash NIWS pull, QBO Invoice and Customer reads, FNB. "
+            "No invoice create, no unpaid payment, no batch upload."
+        ),
+    }
+    if not rows:
+        return summary
+    token, realm = access_token()
+    ids = _customer_ids(realm, token)
+    already = set()
+    for pay in _query(realm, token, "Payment"):
+        name = display_name(((pay.get("CustomerRef") or {}).get("name")) or "")
+        already.add(
+            (
+                str(pay.get("TxnDate") or "")[:10],
+                canon_key(name),
+                round(abs(float(pay.get("TotalAmt") or 0)), 2),
+            )
+        )
+    conn.executescript(POSTS_SCHEMA)
+    missing: list[str] = []
+    for paid_on, customer, amount in rows:
+        amt = round(abs(float(amount or 0)), 2)
+        dedupe = f"netcash-pull:{(paid_on or '')[:10]}:{canon_key(customer)}:{amt:.2f}"
+        if conn.execute("SELECT 1 FROM qb_posts WHERE dedupe=?", (dedupe,)).fetchone():
+            summary["skipped"] += 1
+            continue
+        if ((paid_on or "")[:10], canon_key(customer), amt) in already:
+            conn.execute(
+                """INSERT OR IGNORE INTO qb_posts
+                   (dedupe, qb_id, customer, amount, paid_on, posted_at)
+                   VALUES (?,?,?,?,?,?)""",
+                (dedupe, "", customer, amt, (paid_on or "")[:10], date.today().isoformat()),
+            )
+            summary["skipped"] += 1
+            continue
+        customer_id = ids.get(canon_key(customer))
+        if not customer_id:
+            missing.append(customer or "?")
+            continue
+        note = f"netcash-pull {(paid_on or '')[:10]} {customer} {amt:.2f}"
+        saved = _post_payment(
+            realm,
+            token,
+            payment_payload(customer_id, amt, (paid_on or "")[:10], note),
+        )
+        qb_id = str(((saved.get("Payment") or {}).get("Id")) or "")
+        conn.execute(
+            """INSERT INTO qb_posts (dedupe, qb_id, customer, amount, paid_on, posted_at)
+               VALUES (?,?,?,?,?,?)""",
+            (dedupe, qb_id, customer, amt, (paid_on or "")[:10], date.today().isoformat()),
+        )
+        summary["posted"] += 1
+    conn.commit()
+    if missing:
+        names = ", ".join(sorted(set(missing))[:8])
+        raise RuntimeError(f"QBO customer not found for collected debit: {names}")
+    return summary
+
+
 def pull(conn: sqlite3.Connection) -> dict[str, int]:
     ensure_history_tables(conn)
     token, realm = access_token()

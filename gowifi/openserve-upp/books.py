@@ -470,8 +470,16 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
         refresh_whale_rock(conn)
     except Exception:
         pass
-    from billing import run_cycle
+    from billing import cross_match, drop_phantom_unpaid, run_cycle
+    from netcash import pull as netcash_pull
+    from netcash import status as nc_ready
 
+    nc_state = nc_ready()
+    if not nc_state.get("ready"):
+        raise RuntimeError(nc_state.get("note") or "Put NETCASH_SERVICE_KEY in /root/secrets/netcash.env")
+    pulled = netcash_pull(conn)
+    if not pulled.get("ok"):
+        raise RuntimeError(pulled.get("error") or "Netcash pull failed")
     billing = run_cycle(conn)
     history = history_for_export(conn)
     openserve = conn.execute(
@@ -498,14 +506,6 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
     for row in drafts:
         row.update(prepare_invoice(row))
         row.pop("statement", None)
-    try:
-        from netcash import pull as netcash_pull
-        from netcash import status as nc_ready
-
-        if nc_ready().get("ready"):
-            netcash_pull(conn)
-    except Exception:
-        pass
     nc = netcash_status(conn)
     from ledger import ledger_for_export
     from packages import for_export as packages_for_export
@@ -514,6 +514,15 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
     from statements import ingest as ingest_statements
 
     ingest_statements(conn)
+    drop_phantom_unpaid(conn)
+    matched = cross_match(conn)
+    if matched.get("unapplied"):
+        raise RuntimeError(
+            f"{matched['unapplied']} collected Netcash lines were not applied to clients"
+        )
+    from qb_api import post_collected_payments
+
+    qb_posted = post_collected_payments(conn)
     from recon import batch_items as netcash_batch_items
     ledger = ledger_for_export(conn)
     packages = packages_for_export(conn)
@@ -523,7 +532,13 @@ def books_for_export(conn: sqlite3.Connection) -> dict:
     if drafts:
         next_no = drafts[0]["invoice_number"]
     return {
-        "quickbooks": "skip — FNB + Netcash + Openserve/UISP cover the books",
+        "quickbooks": (
+            "Collected Netcash debits are posted as QuickBooks Payments. "
+            "Unpaid lines, invoices, and Netcash batch uploads are not written."
+        ),
+        "quickbooks_post": qb_posted,
+        "netcash_pull": pulled,
+        "cross_match": matched,
         "company": COMPANY,
         "ledger": ledger,
         "billing": billing.get("clients") if isinstance(billing, dict) else billing,
@@ -659,6 +674,10 @@ def self_test() -> int:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "cycle":
+        db = sqlite3.connect(os.environ.get("UPP_DB", "/root/gowifi-upp/upp.db"))
+        print(books_for_export(db)["quickbooks_post"])
+        raise SystemExit(0)
     if len(sys.argv) > 1 and sys.argv[1] == "ingest-fnb":
         path = Path(sys.argv[2]) if len(sys.argv) > 2 else None
         if not path or not path.exists():
