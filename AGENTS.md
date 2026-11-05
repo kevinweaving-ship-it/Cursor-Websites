@@ -18,6 +18,7 @@ This project uses **split tasks** to avoid agent resource limits and crashes.
 
 ## Resource use / avoiding crashes
 
+- **Credits self-check (Cursor fault, not Kevin):** **`docs/CURSOR_CREDITS_SELF_CHECK.md`**. Live box auto-sends: `python3 sailingsa/deploy/deploy-cursor-credits-live.py` (SSH_LIVE). No Mac. Mail `hi@cursor.com` from `cursor@sailingsa.co.za`, CC Kevin, until credits are passed. Every support refusal is auto-disputed. Dashboard evidence is Cursor reporting its own fuckups — not user error, not disputable. Every mail carries the full account identity block. Rule: `.cursor/rules/credits-self-check.mdc`.
 - **One active agent at a time**: Close other agent chats or Composer sessions while working on this project so resources are not shared and the current agent is less likely to crash.
 - **Keep requests small**: One clear task per message; for big work, ask to "split into steps" and do step 1 only.
 - **Agents**: Use minimal context (targeted reads, small edits, few tool calls per turn). See `.cursor/rules/task-splitting-and-resources.mdc` for the full rule.
