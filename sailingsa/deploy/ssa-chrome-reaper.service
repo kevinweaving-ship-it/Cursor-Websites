@@ -1,0 +1,7 @@
+[Unit]
+Description=Bin leftover headless Chrome folders
+
+[Service]
+Type=oneshot
+Nice=15
+ExecStart=/usr/bin/python3 /var/www/sailingsa/deploy/ssa_headless_chrome.py --sweep --min-age-sec 600 --json

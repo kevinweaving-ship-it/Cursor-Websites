@@ -7,6 +7,8 @@ No silent overwrites.
 No baseline restores.  
 Confirm path before change.
 
+**Disk / Chrome:** Do not add jobs that fill `/tmp` or leave headless Chrome profiles. New browser/scrape/PDF-print code must bin after every run. See **`docs/NO_DISK_FILL_HEADLESS.md`**.
+
 ---
 
 **Server:** `102.218.215.253`  
