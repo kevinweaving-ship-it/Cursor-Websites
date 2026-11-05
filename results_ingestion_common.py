@@ -40,7 +40,7 @@ def normalize_class_label(raw_label: str) -> str:
 
 
 def ensure_class_aliases_table(conn):
-    """Create class_aliases if missing: alias -> class_id for variants (e.g. ILCA 4 -> Ilca 4.7)."""
+    """Create class_aliases if missing: alias -> class_id for variants (e.g. ILCA 4.7 -> ILCA 4)."""
     cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS class_aliases (
@@ -82,7 +82,10 @@ def resolve_class_id(cur, raw_label: str):
     - Normalise: TRIM, collapse whitespace, casefold.
     - Lookup classes.class_name (exact match on normalised).
     - If not found, lookup class_aliases (alias -> class_id).
+    - ILCA 4, ILCA 4.7, ILCA4.7, ILCA 4,7, Laser 4.7 and Laser Radial 4.7
+      resolve to the single existing ILCA 4-family class_id.
     - Return class_id (int) or None. No fuzzy match, no auto-create.
+      Zero or several ILCA 4 family rows return None (review), never a new class.
     """
     norm = normalize_class_label(raw_label)
     if not norm:
@@ -109,7 +112,14 @@ def resolve_class_id(cur, raw_label: str):
     row = cur.fetchone()
     if row:
         return row["class_id"] if isinstance(row, dict) else row[0]
-    return None
+    from ilca4_canonical import ILCA4_CLASS_LOOKUP_SQL, choose_single_class_row, is_ilca4_family_label, lookup_params
+    if not is_ilca4_family_label(raw_label):
+        return None
+    cur.execute(ILCA4_CLASS_LOOKUP_SQL, lookup_params())
+    chosen = choose_single_class_row(cur.fetchall())
+    if not chosen:
+        return None
+    return chosen[0]
 
 
 def get_class_name_by_id(cur, class_id: int) -> str | None:
