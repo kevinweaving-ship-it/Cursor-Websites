@@ -1,0 +1,1025 @@
+{
+  "mode": "replay",
+  "live": false,
+  "note": "Race 3 tracker. Every teleapi point is used for roundings (heading + closest). ST = seconds after first legal starter; OCS boats labelled OCS. Empty cell = GPS not received. Not Nett.",
+  "regatta_id": "2026-08-29-lipton-challenge-cup",
+  "dev_slug": "2026-08-29-lipton-challenge-cup-dev",
+  "event_id": "Lv9A35uOBSBRmGpHgXtH",
+  "fleet": "J22",
+  "watch_path": "https://player.vakaros.com/watch/Lv9A35uOBSBRmGpHgXtH/J22",
+  "race_number": 3,
+  "race_day": 1,
+  "gun_ts_ms": 1787749801000,
+  "gun_sast": "2026-08-26T15:10:01+02:00",
+  "play_start_ts_ms": 1787749791000,
+  "play_start_sast": "2026-08-26T15:09:51+02:00",
+  "first_finish_ts_ms": 1787754101617,
+  "first_finish_sast": "2026-08-26T16:21:41.617000+02:00",
+  "end_ts_ms": 1787754396161,
+  "end_sast": "2026-08-26T16:26:36.161000+02:00",
+  "play_end_ts_ms": 1787754396161,
+  "default_rate": 1,
+  "ocs": [
+    "PYC"
+  ],
+  "exonerated": [
+    "PYC"
+  ],
+  "course": {
+    "id": "quadrangle",
+    "label": "Quadrangle",
+    "note": "Two weather marks upwind and two leewards. Separate start and finish."
+  },
+  "ocs_ts": {
+    "PYC": 1787749800135
+  },
+  "mark1": [
+    {
+      "boat": "FBYC",
+      "ts_ms": 1787750661000
+    },
+    {
+      "boat": "HYC",
+      "ts_ms": 1787750667000
+    },
+    {
+      "boat": "LDYC",
+      "ts_ms": 1787750669000
+    },
+    {
+      "boat": "KYC",
+      "ts_ms": 1787750675000
+    },
+    {
+      "boat": "RNYC",
+      "ts_ms": 1787750688000
+    },
+    {
+      "boat": "RCYC",
+      "ts_ms": 1787750696000
+    },
+    {
+      "boat": "SBYC",
+      "ts_ms": 1787750697000
+    },
+    {
+      "boat": "WBYC",
+      "ts_ms": 1787750703000
+    },
+    {
+      "boat": "UCTYC",
+      "ts_ms": 1787750703000
+    },
+    {
+      "boat": "LYC",
+      "ts_ms": 1787750707000
+    },
+    {
+      "boat": "RCYC Academy",
+      "ts_ms": 1787750710000
+    },
+    {
+      "boat": "PYC",
+      "ts_ms": 1787750715000
+    },
+    {
+      "boat": "BYC",
+      "ts_ms": 1787750720000
+    },
+    {
+      "boat": "IZIVUNGUVUNGU",
+      "ts_ms": 1787750741000
+    },
+    {
+      "boat": "GLYC",
+      "ts_ms": 1787750752000
+    },
+    {
+      "boat": "TSC",
+      "ts_ms": 1787750756000
+    },
+    {
+      "boat": "WYAC",
+      "ts_ms": 1787750762000
+    }
+  ],
+  "boats": {
+    "HYC": {
+      "bow": "32",
+      "club": "HYC",
+      "clubHref": "/club/hyc",
+      "clubLogo": "/artwork/Club%20Logo/HYC.png?v=20260827a",
+      "boatHref": "/boat/j22-1571",
+      "nameHref": "/boat-name/nitro-juice",
+      "title": "Nitro Juice",
+      "nameInner": "<img class=\"rs-boat-sponsor-logo\" src=\"/artwork/Sponsor%20Logo/Nitro.png?v=20260827a\" alt=\"Nitro\" title=\"Nitro\"> Juice",
+      "clubRaw": "HYC",
+      "mapClub": "HYC"
+    },
+    "RCYC": {
+      "bow": "26",
+      "club": "RCYC",
+      "clubHref": "/club/rcyc",
+      "clubLogo": "/artwork/Club%20Logo/RCYC.png?v=20260827a",
+      "boatHref": "/boat/j22-766",
+      "nameHref": "/boat-name/amtec-racing",
+      "title": "Amtec Racing",
+      "nameInner": "<img class=\"rs-boat-sponsor-logo\" src=\"/artwork/Sponsor%20Logo/AMTEC.png?v=20260827a\" alt=\"AMTEC\" title=\"AMTEC\"> Racing",
+      "clubRaw": "RCYC",
+      "mapClub": "RCYC"
+    },
+    "KYC": {
+      "bow": "23",
+      "club": "KYC",
+      "clubHref": "/club/kyc",
+      "clubLogo": "/artwork/Club%20Logo/KYC.png?v=20260827a",
+      "boatHref": "/boat/j22-763",
+      "nameHref": "/boat-name/phantom",
+      "title": "Phantom",
+      "nameInner": "Phantom",
+      "clubRaw": "KYC",
+      "mapClub": "KYC"
+    },
+    "RNYC": {
+      "bow": "28",
+      "club": "RNYC",
+      "clubHref": "/club/rnyc",
+      "clubLogo": "/artwork/Club%20Logo/RNYC.png?v=20260827a",
+      "boatHref": "/boat/j22-768",
+      "nameHref": "/boat-name/ullman-racing",
+      "title": "Ullman Racing",
+      "nameInner": "<img class=\"rs-boat-sponsor-logo\" src=\"/artwork/Sponsor%20Logo/Ullman-Sails.png?v=20260827a\" alt=\"Ullman Sails\" title=\"Ullman Sails\"> Racing",
+      "clubRaw": "RNYC",
+      "mapClub": "RNYC"
+    },
+    "WBYC": {
+      "bow": "52",
+      "club": "WBYC",
+      "clubHref": "/club/wbyc",
+      "clubLogo": "/artwork/Club%20Logo/WBYC.png?v=20260827a",
+      "boatHref": "/boat/j22-1277",
+      "nameHref": "/boat-name/22-ate",
+      "title": "22-ATE",
+      "nameInner": "22-ATE",
+      "clubRaw": "WBYC",
+      "mapClub": "WBYC"
+    },
+    "FBYC": {
+      "bow": "48",
+      "club": "FBYC",
+      "clubHref": "/club/fbyc",
+      "clubLogo": "/artwork/Club%20Logo/FBYC.png?v=20260827a",
+      "boatHref": "/boat/j22-1169",
+      "nameHref": "/boat-name/ullman-sails-camissa",
+      "title": "Ullman Sails Camissa",
+      "nameInner": "<img class=\"rs-boat-sponsor-logo\" src=\"/artwork/Sponsor%20Logo/Ullman-Sails.png?v=20260827a\" alt=\"Ullman Sails\" title=\"Ullman Sails\"> Camissa",
+      "clubRaw": "FBYC",
+      "mapClub": "FBYC"
+    },
+    "SBYC": {
+      "bow": "49",
+      "club": "SBYC",
+      "clubHref": "/club/sbyc",
+      "clubLogo": "/artwork/Club%20Logo/SBYC.png?v=20260827a",
+      "boatHref": "/boat/j22-1175",
+      "nameHref": "/boat-name/nitro-monkey",
+      "title": "Nitro Monkey",
+      "nameInner": "<img class=\"rs-boat-sponsor-logo\" src=\"/artwork/Sponsor%20Logo/Nitro.png?v=20260827a\" alt=\"Nitro\" title=\"Nitro\"> Monkey",
+      "clubRaw": "SBYC",
+      "mapClub": "SBYC"
+    },
+    "PYC": {
+      "bow": "34",
+      "club": "PYC",
+      "clubHref": "/club/pyc",
+      "clubLogo": "/artwork/Club%20Logo/PYC.png?v=20260827a",
+      "boatHref": "/boat/j22-1116",
+      "nameHref": "/boat-name/gday-j",
+      "title": "G'day J",
+      "nameInner": "G'day J",
+      "clubRaw": "PYC",
+      "mapClub": "PYC"
+    },
+    "LDYC": {
+      "bow": "46",
+      "club": "LDYC",
+      "clubHref": "/club/ldyc",
+      "clubLogo": "/artwork/Club%20Logo/LDYC.png?v=20260827a",
+      "boatHref": "/boat/j22-1167",
+      "nameHref": "/boat-name/wildcard",
+      "title": "Wildcard",
+      "nameInner": "Wildcard",
+      "clubRaw": "LDYC",
+      "mapClub": "LDYC"
+    },
+    "GLYC": {
+      "bow": "14",
+      "club": "GLYC",
+      "clubHref": "/club/glyc",
+      "clubLogo": "/artwork/Club%20Logo/GLYC.png?v=20260827a",
+      "boatHref": "/boat/j22-185",
+      "nameHref": "/boat-name/andiamo",
+      "title": "Andiamo",
+      "nameInner": "Andiamo",
+      "clubRaw": "GLYC",
+      "mapClub": "GLYC"
+    },
+    "BYC": {
+      "bow": "44",
+      "club": "BYC",
+      "clubHref": "/club/byc",
+      "clubLogo": "/artwork/Club%20Logo/BYC.png?v=20260827a",
+      "boatHref": "/boat/j22-1139",
+      "nameHref": "/boat-name/h2o-tech",
+      "title": "H2O Tech",
+      "nameInner": "<img class=\"rs-boat-sponsor-logo\" src=\"/artwork/Sponsor%20Logo/H2O.png?v=20260827a\" alt=\"H2O\" title=\"H2O\"> Tech",
+      "clubRaw": "BYC",
+      "mapClub": "BYC"
+    },
+    "TSC": {
+      "bow": "55",
+      "club": "TSC",
+      "clubHref": "/club/tsc",
+      "clubLogo": "/artwork/Club%20Logo/TSC.png?v=20260827a",
+      "boatHref": "/boat/j22-1239",
+      "nameHref": "/boat-name/cacanny",
+      "title": "CaCanny",
+      "nameInner": "CaCanny",
+      "clubRaw": "TSC",
+      "mapClub": "TSC"
+    },
+    "WYAC": {
+      "bow": "43",
+      "club": "WYAC",
+      "clubHref": "/club/wyac",
+      "clubLogo": "/artwork/Club%20Logo/WYAC.png?v=20260827a",
+      "boatHref": "/boat/j22-1138",
+      "nameHref": "/boat-name/laugh-a-minute",
+      "title": "Laugh a minute",
+      "nameInner": "Laugh a minute",
+      "clubRaw": "WYAC",
+      "mapClub": "WYAC"
+    },
+    "RCYC Academy": {
+      "bow": "8",
+      "club": "RCYC",
+      "clubHref": "/club/rcyc",
+      "clubLogo": "/artwork/Club%20Logo/RCYC.png?v=20260827a",
+      "boatHref": "/boat/j22-173",
+      "nameHref": "/boat-name/j-walker",
+      "title": "J-Walker",
+      "nameInner": "J-Walker <img class=\"rs-boat-sponsor-logo\" src=\"/artwork/Sponsor%20Logo/North-Sails.png?v=20260827a\" alt=\"North Sails\" title=\"North Sails\">",
+      "clubRaw": "RCYCA",
+      "mapClub": "RCYCA"
+    },
+    "UCTYC": {
+      "bow": "31",
+      "club": "UCT",
+      "clubHref": "/club/uct",
+      "clubLogo": "/artwork/Club%20Logo/UCT.png?v=20260827a",
+      "boatHref": "/boat/j22-774",
+      "nameHref": "/boat-name/nitro-maverick",
+      "title": "Nitro Maverick",
+      "nameInner": "<img class=\"rs-boat-sponsor-logo\" src=\"/artwork/Sponsor%20Logo/Nitro.png?v=20260827a\" alt=\"Nitro\" title=\"Nitro\"> Maverick",
+      "clubRaw": "UCTYC",
+      "mapClub": "UCT"
+    },
+    "IZIVUNGUVUNGU": {
+      "bow": "63",
+      "club": "IZI",
+      "clubHref": "/club/izi",
+      "clubLogo": "/artwork/Club%20Logo/IZI.png?v=20260827a",
+      "boatHref": "/boat/j22-771",
+      "nameHref": "/boat-name/donna-mia-forever",
+      "title": "Donna Mia Forever",
+      "nameInner": "Donna Mia Forever",
+      "clubRaw": "IZI",
+      "mapClub": "IZI"
+    },
+    "LYC": {
+      "bow": "51",
+      "club": "LYCN",
+      "clubHref": "/club/lycn",
+      "clubLogo": "/artwork/Club%20Logo/LYCN.png?v=20260827a",
+      "boatHref": "/boat/j22-1237",
+      "nameHref": "/boat-name/attacke",
+      "title": "Attacke",
+      "nameInner": "Attacke",
+      "clubRaw": "LYCN",
+      "mapClub": "LYCN"
+    }
+  },
+  "finish": [
+    {
+      "boat": "HYC",
+      "ts_ms": 1787754101617,
+      "lon": 18.475308,
+      "lat": -33.864403
+    },
+    {
+      "boat": "FBYC",
+      "ts_ms": 1787754129665,
+      "lon": 18.475294,
+      "lat": -33.864454
+    },
+    {
+      "boat": "KYC",
+      "ts_ms": 1787754174365,
+      "lon": 18.47529,
+      "lat": -33.864464
+    },
+    {
+      "boat": "LDYC",
+      "ts_ms": 1787754192785,
+      "lon": 18.475301,
+      "lat": -33.864463
+    },
+    {
+      "boat": "UCTYC",
+      "ts_ms": 1787754197403,
+      "lon": 18.47529,
+      "lat": -33.864464
+    },
+    {
+      "boat": "RCYC",
+      "ts_ms": 1787754206770,
+      "lon": 18.475303,
+      "lat": -33.864432
+    },
+    {
+      "boat": "RCYC Academy",
+      "ts_ms": 1787754214437,
+      "lon": 18.475304,
+      "lat": -33.864452
+    },
+    {
+      "boat": "WBYC",
+      "ts_ms": 1787754222726,
+      "lon": 18.475291,
+      "lat": -33.864478
+    },
+    {
+      "boat": "RNYC",
+      "ts_ms": 1787754233372,
+      "lon": 18.475284,
+      "lat": -33.864449
+    },
+    {
+      "boat": "SBYC",
+      "ts_ms": 1787754264152,
+      "lon": 18.4753,
+      "lat": -33.864442
+    },
+    {
+      "boat": "PYC",
+      "ts_ms": 1787754279801,
+      "lon": 18.475299,
+      "lat": -33.86447
+    },
+    {
+      "boat": "BYC",
+      "ts_ms": 1787754315850,
+      "lon": 18.475302,
+      "lat": -33.86446
+    },
+    {
+      "boat": "IZIVUNGUVUNGU",
+      "ts_ms": 1787754326133,
+      "lon": 18.475294,
+      "lat": -33.864462
+    },
+    {
+      "boat": "LYC",
+      "ts_ms": 1787754351092,
+      "lon": 18.475295,
+      "lat": -33.864458
+    },
+    {
+      "boat": "GLYC",
+      "ts_ms": 1787754356905,
+      "lon": 18.475289,
+      "lat": -33.864427
+    },
+    {
+      "boat": "TSC",
+      "ts_ms": 1787754368301,
+      "lon": 18.475301,
+      "lat": -33.86438
+    },
+    {
+      "boat": "WYAC",
+      "ts_ms": 1787754396161,
+      "lon": 18.4753,
+      "lat": -33.864442
+    }
+  ],
+  "jumps": {
+    "gun": 1787749801000,
+    "start": 1787749801000,
+    "finish": 1787754101617
+  },
+  "mark_labels": [
+    "M1",
+    "M2",
+    "M3",
+    "M1",
+    "M2"
+  ],
+  "passes": [
+    {
+      "id": "ST",
+      "label": "ST",
+      "lap": 0,
+      "mark": 0,
+      "boats": [
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787749803378
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787749804009
+        },
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787749804430
+        },
+        {
+          "boat": "SBYC",
+          "ts_ms": 1787749804533
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787749805294
+        },
+        {
+          "boat": "HYC",
+          "ts_ms": 1787749805715
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787749806635
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787749807043
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787749807670
+        },
+        {
+          "boat": "RCYC Academy",
+          "ts_ms": 1787749808407
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787749808769
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787749809261
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787749811437
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787749811721
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787749811772
+        },
+        {
+          "boat": "UCTYC",
+          "ts_ms": 1787749821468
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787749834044,
+          "ocs_ts_ms": 1787749800135
+        }
+      ]
+    },
+    {
+      "id": "L1-1",
+      "label": "M1",
+      "lap": 1,
+      "mark": 1,
+      "boats": [
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787750661000
+        },
+        {
+          "boat": "HYC",
+          "ts_ms": 1787750667000
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787750669000
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787750675000
+        },
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787750688000
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787750696000
+        },
+        {
+          "boat": "SBYC",
+          "ts_ms": 1787750697000
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787750703000
+        },
+        {
+          "boat": "UCTYC",
+          "ts_ms": 1787750703000
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787750707000
+        },
+        {
+          "boat": "RCYC Academy",
+          "ts_ms": 1787750710000
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787750715000
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787750720000
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787750741000
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787750752000
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787750756000
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787750762000
+        }
+      ]
+    },
+    {
+      "id": "L1-2",
+      "label": "M2",
+      "lap": 1,
+      "mark": 2,
+      "boats": [
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787751025000
+        },
+        {
+          "boat": "HYC",
+          "ts_ms": 1787751031000
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787751047000
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787751055000
+        },
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787751065000
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787751083000
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787751088000
+        },
+        {
+          "boat": "UCTYC",
+          "ts_ms": 1787751092000
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787751099000
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787751101000
+        },
+        {
+          "boat": "SBYC",
+          "ts_ms": 1787751101000
+        },
+        {
+          "boat": "RCYC Academy",
+          "ts_ms": 1787751107000
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787751114000
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787751127000
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787751129000
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787751138000
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787751139000
+        }
+      ]
+    },
+    {
+      "id": "L1-3",
+      "label": "M3",
+      "lap": 1,
+      "mark": 3,
+      "boats": [
+        {
+          "boat": "HYC",
+          "ts_ms": 1787752768000
+        },
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787752771000
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787752819000
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787752830000
+        },
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787752849000
+        },
+        {
+          "boat": "UCTYC",
+          "ts_ms": 1787752854000
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787752868000
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787752873000
+        },
+        {
+          "boat": "RCYC Academy",
+          "ts_ms": 1787752875000
+        },
+        {
+          "boat": "SBYC",
+          "ts_ms": 1787752877000
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787752914000
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787752933000
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787752941000
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787752948000
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787752952000
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787752957000
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787752959000
+        }
+      ]
+    },
+    {
+      "id": "L2-1",
+      "label": "M1",
+      "lap": 2,
+      "mark": 1,
+      "boats": [
+        {
+          "boat": "HYC",
+          "ts_ms": 1787753469000
+        },
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787753499000
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787753537000
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787753555000
+        },
+        {
+          "boat": "UCTYC",
+          "ts_ms": 1787753558000
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787753573000
+        },
+        {
+          "boat": "RCYC Academy",
+          "ts_ms": 1787753580000
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787753586000
+        },
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787753596000
+        },
+        {
+          "boat": "SBYC",
+          "ts_ms": 1787753618000
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787753635000
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787753665000
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787753668000
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787753688000
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787753701000
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787753730000
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787753741000
+        }
+      ]
+    },
+    {
+      "id": "L2-2",
+      "label": "M2",
+      "lap": 2,
+      "mark": 2,
+      "boats": [
+        {
+          "boat": "HYC",
+          "ts_ms": 1787753794000
+        },
+        {
+          "boat": "FBYC",
+          "ts_ms": 1787753825000
+        },
+        {
+          "boat": "KYC",
+          "ts_ms": 1787753864000
+        },
+        {
+          "boat": "LDYC",
+          "ts_ms": 1787753878000
+        },
+        {
+          "boat": "UCTYC",
+          "ts_ms": 1787753882000
+        },
+        {
+          "boat": "RCYC",
+          "ts_ms": 1787753893000
+        },
+        {
+          "boat": "RCYC Academy",
+          "ts_ms": 1787753903000
+        },
+        {
+          "boat": "WBYC",
+          "ts_ms": 1787753908000
+        },
+        {
+          "boat": "RNYC",
+          "ts_ms": 1787753917000
+        },
+        {
+          "boat": "SBYC",
+          "ts_ms": 1787753939000
+        },
+        {
+          "boat": "PYC",
+          "ts_ms": 1787753958000
+        },
+        {
+          "boat": "BYC",
+          "ts_ms": 1787753992000
+        },
+        {
+          "boat": "IZIVUNGUVUNGU",
+          "ts_ms": 1787753996000
+        },
+        {
+          "boat": "GLYC",
+          "ts_ms": 1787754012000
+        },
+        {
+          "boat": "LYC",
+          "ts_ms": 1787754024000
+        },
+        {
+          "boat": "TSC",
+          "ts_ms": 1787754051000
+        },
+        {
+          "boat": "WYAC",
+          "ts_ms": 1787754069000
+        }
+      ]
+    }
+  ],
+  "checksum": {
+    "fleet_n": 17,
+    "ok": true,
+    "sha256": "cd44b0e1db2e8ef0",
+    "passes": [
+      {
+        "id": "ST",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "34f988c15b0bea6d"
+      },
+      {
+        "id": "L1-1",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "a4b416618b930c75"
+      },
+      {
+        "id": "L1-2",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "1323c18c12d90487"
+      },
+      {
+        "id": "L1-3",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "4116b13ed11f15df"
+      },
+      {
+        "id": "L2-1",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "af32cd7547248733"
+      },
+      {
+        "id": "L2-2",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "4b0afb4165b4b90a"
+      },
+      {
+        "id": "FIN",
+        "n": 17,
+        "fleet_n": 17,
+        "missing": [],
+        "ok": true,
+        "sha256": "7e22ad312620f873"
+      }
+    ],
+    "gaps": [],
+    "sanity": {
+      "ok": true,
+      "time_fail": [],
+      "place_fail": [],
+      "leg_fail": [],
+      "note": "± from ST to Fin must equal start rank minus finish rank. Pass times must increase. Adjacent legs must sum to Fin−ST."
+    },
+    "note": "Each pass sha256 is boat+ts from tracker GPS (marks) or Firestore (finish). Missing boats are GPS holes or a rounding we did not receive — not filled in. sanity checks place ± and that mark times add up."
+  },
+  "sources": {
+    "guns_finishes_ocs": "Vakaros Firestore races[R3] starts/finishes/ocsParticipants",
+    "start_order": "teleapi GPS start-line crossing. OCS boats use recross after returning to prestart, not the OCS dip.",
+    "marks": "teleapi/trail every GPS point; heading+closest with lap-correct buoy after mark moves. Empty = not received.",
+    "identity": "public Lipton sheet bow/boat/club logos"
+  },
+  "mark_moves": {
+    "note": "Buoy GPS jumps ≥50m (RO tow / wind shift). Roundings use buoy station at boat time.",
+    "by_mark": {},
+    "stations_at_passes": {
+      "L1-1": {
+        "mark": "1",
+        "lat": -33.87892,
+        "lon": 18.48173,
+        "ts_ms": 1787750703000,
+        "gun_s": 902,
+        "fleet_n": 17
+      },
+      "L1-2": {
+        "mark": "2",
+        "lat": -33.86846,
+        "lon": 18.48522,
+        "ts_ms": 1787751099000,
+        "gun_s": 1298,
+        "fleet_n": 17
+      },
+      "L1-3": {
+        "mark": "3",
+        "lat": -33.86388,
+        "lon": 18.47564,
+        "ts_ms": 1787752875000,
+        "gun_s": 3074,
+        "fleet_n": 17
+      },
+      "L2-1": {
+        "mark": "1",
+        "lat": -33.87742,
+        "lon": 18.48091,
+        "ts_ms": 1787753596000,
+        "gun_s": 3795,
+        "fleet_n": 17
+      },
+      "L2-2": {
+        "mark": "2",
+        "lat": -33.86848,
+        "lon": 18.48523,
+        "ts_ms": 1787753917000,
+        "gun_s": 4116,
+        "fleet_n": 17
+      }
+    },
+    "lap_deltas_m": [
+      {
+        "mark": "1",
+        "from": "L1-1",
+        "to": "L2-1",
+        "m": 183.2
+      },
+      {
+        "mark": "2",
+        "from": "L1-2",
+        "to": "L2-2",
+        "m": 2.4
+      }
+    ]
+  }
+}
