@@ -7,6 +7,8 @@ No silent overwrites.
 No baseline restores.  
 Confirm path before change.
 
+**The user only vibe-codes. Agent job = server SSH.** If the live site must change, SSH and apply it. Do not skip deploy or hand commands back.
+
 ---
 
 **Server:** `102.218.215.253`  
