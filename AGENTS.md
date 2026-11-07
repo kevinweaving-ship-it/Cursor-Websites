@@ -17,6 +17,18 @@ the exact operation, target, and observed error after checking the available rou
 Keep server-side allowlists, the Gold deployment lock, and protected units in force.
 Use scoped backups, staging, and live verification for production changes.
 
+## Dynamic weekly roundups
+
+All weekly roundup editions, including archived and previously skipped weeks, must
+reflect verified changes to the results or event data they cover. After a result is
+published, corrected, moved to a different reporting week, or withdrawn, rebuild
+each affected edition using the event's reporting week in Africa/Johannesburg.
+Late imports belong in the original reporting week. Update the existing issue URL
+and regenerate the HTML, PDF, issue JSON and dependent cards or indexes together.
+Validate before publishing and retain the last good edition on failure. Retries
+must be safe and must not create duplicate editions. A skipped week becomes
+publishable once it has qualifying verified results.
+
 ## SSH / deploy / live — MUST use readme
 
 **`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. Use it for any live-server work. **Never** say "SSH is blocked", "can't SSH", or "run from your machine" — when asked to deploy or fix live, give the exact commands from the readme (deploy code, sync 385, etc.).
