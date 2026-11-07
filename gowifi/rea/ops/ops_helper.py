@@ -56,8 +56,10 @@ SA_STATUS = {
     "arial-site-watch",
     "event-whatsapp-ingest",
     "sailingsa-whatsapp-poc",
+    "sailingsa-sas-results",
+    "sailingsa-sas-results.timer",
 }
-SA_CONTROL = {"sailingsa-api", "nginx"}
+SA_CONTROL = {"sailingsa-api", "nginx", "sailingsa-sas-results", "sailingsa-sas-results.timer"}
 # Leftover Arial stack on SailingSA. Bing/Stanford stay up until migrated.
 SA_STOP = {
     "arial-whatsapp-poc",
@@ -119,6 +121,11 @@ BACKUP_TARGETS = {
     "sailingsa-frontend-sandbox": ["/opt/rea-ops/stage/frontend-sandbox/www"],
     "sailingsa-api-sandbox": ["/opt/rea-ops/stage/api-sandbox/api.py"],
     "sailingsa-arial-leftover": ["/opt/arial-whatsapp-poc"],
+    "sailingsa-sas-results": [
+        "/var/www/sailingsa/deploy/sas_results_sync.py",
+        "/etc/systemd/system/sailingsa-sas-results.service",
+        "/etc/systemd/system/sailingsa-sas-results.timer",
+    ],
 }
 
 
@@ -210,7 +217,7 @@ def stop_units() -> set[str]:
 
 
 def op_control(action: str, unit: str) -> dict[str, Any]:
-    if action not in {"restart", "reload", "stop", "disable", "enable"}:
+    if action not in {"restart", "reload", "stop", "disable", "enable", "start"}:
         return {"ok": False, "error": "action_denied"}
     if not UNIT_RE.match(unit):
         return {"ok": False, "error": "unit_denied", "unit": unit}
@@ -226,15 +233,20 @@ def op_control(action: str, unit: str) -> dict[str, Any]:
             return {"ok": False, "error": "unit_denied", "unit": unit, "note": "stop/disable only for confirmed leftover Arial units on SailingSA."}
         if host_id() == "gowifi" and unit == "arial-whatsapp-poc":
             return {"ok": False, "error": "whatsapp_poc_guard", "note": "GoWifi Arial gateway is the live unique-number session. Do not stop it."}
-    elif action in {"restart", "reload"}:
+    elif action in {"restart", "reload", "start"}:
         if unit not in allowed_units(True):
             return {"ok": False, "error": "unit_denied", "unit": unit}
         if unit == "arial-whatsapp-poc":
             return {"ok": False, "error": "whatsapp_poc_guard", "note": "poc restart is denied while the live session is UP. Use status/health only."}
+        if action == "start" and unit not in {"sailingsa-sas-results", "sailingsa-sas-results.timer"}:
+            return {"ok": False, "error": "action_denied", "note": "start is limited to the SAS results collector/timer."}
+        if action == "restart" and unit in {"sailingsa-sas-results", "sailingsa-sas-results.timer"}:
+            # oneshot/timer: restart maps to start
+            action = "start"
     if action == "enable" and unit not in stop_units() | allowed_units(True):
         return {"ok": False, "error": "unit_denied", "unit": unit}
     pre = op_preflight(unit) if unit in allowed_units(False) else {"busy": False}
-    if pre.get("busy") and action in {"restart", "reload", "stop"}:
+    if pre.get("busy") and action in {"restart", "reload", "stop", "start"}:
         return {"ok": False, "error": "unit_busy", "preflight": pre}
     if unit == "nginx" and action == "reload":
         test = run(["nginx", "-t"])
@@ -771,6 +783,72 @@ def op_deploy(kind: str, approved: str = "") -> dict[str, Any]:
                     shutil.copy2(src, dest)
                     copied.append(str(rel))
         return {"ok": True, "copied": copied[:80], "backup": backup, "restarted": False}
+    if kind == "sas-results":
+        if host_id() != "sailingsa":
+            return {"ok": False, "error": "wrong_host"}
+        stage = Path("/opt/rea-ops/stage")
+        mapping = {
+            "sas-results-pr287-sas_results_sync.py": Path("/var/www/sailingsa/deploy/sas_results_sync.py"),
+            "sas_results_sync.py": Path("/var/www/sailingsa/deploy/sas_results_sync.py"),
+            "sas-results-pr287-sailingsa-sas-results.service": Path("/etc/systemd/system/sailingsa-sas-results.service"),
+            "sailingsa-sas-results.service": Path("/etc/systemd/system/sailingsa-sas-results.service"),
+            "sas-results-pr287-sailingsa-sas-results.timer": Path("/etc/systemd/system/sailingsa-sas-results.timer"),
+            "sailingsa-sas-results.timer": Path("/etc/systemd/system/sailingsa-sas-results.timer"),
+        }
+        expected = {
+            "script": "e0cc48863f8b3640ef5646dc41e01fc550abb7256de62b274e5d533e75ff5dd7",
+            "service": "2953e0cb6f790809b3253ad1f64ad6b8043cba9e0fd939b41af73cbcd5ded118",
+            "timer": "876a1de80b11169b5c2e0d8b9db1aef4a0304ac900f15e0790a71252ee262dad",
+        }
+        def pick(*names: str) -> Path | None:
+            for name in names:
+                path = stage / name
+                if path.is_file():
+                    return path
+            return None
+        script = pick("sas-results-pr287-sas_results_sync.py", "sas_results_sync.py")
+        service = pick("sas-results-pr287-sailingsa-sas-results.service", "sailingsa-sas-results.service")
+        timer = pick("sas-results-pr287-sailingsa-sas-results.timer", "sailingsa-sas-results.timer")
+        if not script or not service or not timer:
+            return {"ok": False, "error": "missing_stage", "have": [p.name for p in stage.glob("sas*")]}
+        hashes = {
+            "script": _sha256(script),
+            "service": _sha256(service),
+            "timer": _sha256(timer),
+        }
+        if hashes != expected:
+            return {"ok": False, "error": "hash_mismatch", "expected": expected, "got": hashes, "note": "Refusing deploy of unexpected SAS collector revision."}
+        # basic content guards
+        service_text = service.read_text(encoding="utf-8")
+        timer_text = timer.read_text(encoding="utf-8")
+        if "sas_results_sync.py" not in service_text or "DynamicUser=yes" not in service_text:
+            return {"ok": False, "error": "service_invalid"}
+        if "OnCalendar=*-*-* 05:00:00 Africa/Johannesburg" not in timer_text:
+            return {"ok": False, "error": "timer_invalid"}
+        backup = op_backup("sailingsa-sas-results")
+        dest_script = Path("/var/www/sailingsa/deploy/sas_results_sync.py")
+        dest_service = Path("/etc/systemd/system/sailingsa-sas-results.service")
+        dest_timer = Path("/etc/systemd/system/sailingsa-sas-results.timer")
+        shutil.copy2(script, dest_script)
+        shutil.copy2(service, dest_service)
+        shutil.copy2(timer, dest_timer)
+        os.chmod(dest_script, 0o755)
+        _restore_owner(dest_script, "www-data", "www-data")
+        _apply_sailingsa_acl(dest_script)
+        compile_proc = subprocess.run(["python3", "-m", "py_compile", str(dest_script)], capture_output=True, text=True, timeout=30)
+        if compile_proc.returncode != 0:
+            return {"ok": False, "error": "compile_failed", "stderr": (compile_proc.stderr or "")[-500:], "backup": backup}
+        reload = run(["systemctl", "daemon-reload"])
+        return {
+            "ok": reload.returncode == 0,
+            "kind": "sas-results",
+            "hashes": hashes,
+            "installed": [str(dest_script), str(dest_service), str(dest_timer)],
+            "backup": backup,
+            "daemon_reload": reload.returncode == 0,
+            "restarted": False,
+            "note": "Collector installed. Start sailingsa-sas-results once, then enable the 05:00 SAST timer.",
+        }
     return {"ok": False, "error": "deploy_denied", "kind": kind}
 
 
@@ -916,7 +994,7 @@ def dispatch(tokens: list[str]) -> dict[str, Any]:
         return op_status(args[0])
     if op == "journal" and args:
         return op_journal(args[0], args[1] if len(args) > 1 else "80")
-    if op in {"restart", "reload", "stop", "disable", "enable"} and args:
+    if op in {"restart", "reload", "start", "stop", "disable", "enable"} and args:
         return op_control(op, args[0])
     if op == "decommission" and args:
         return op_decommission(args[0])

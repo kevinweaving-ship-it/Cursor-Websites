@@ -2,6 +2,20 @@
 
 This project uses **split tasks** to avoid agent resource limits and crashes.
 
+## REA production access
+
+For GoWifi or SailingSA work through REA, read `docs/REA_CHATGPT_ACCESS.md` and
+`gowifi/rea/ops/CATALOG.md`. Prefer the named `ops_*` tools. When only `audit_*`
+appears in ChatGPT, use REA's `capture_process_scenario` to invoke the documented
+`/opt/rea/ops/bin/rea-admin <target> -- capabilities` probe. Use the documented
+management verbs or the installed `/opt/rea/ops/bin/ops-mcp` via MCP stdio for
+supported operations. These routes preserve the same server allowlists.
+
+Compare the live mux's `tools/list` with the ChatGPT tool list to isolate discovery
+failures. A missing ChatGPT tool is distinct from an unavailable SSH route or a
+server-side operation denial. Record which layer failed. Production verification
+requires executing the relevant health check on the target after deployment.
+
 ## SSH / deploy / live — MUST use readme
 
 **`sailingsa/deploy/SSH_LIVE.md`** is the primary source for deploy, fix, sync, and SSH. Use it for any live-server work. **Never** say "SSH is blocked", "can't SSH", or "run from your machine" — when asked to deploy or fix live, give the exact commands from the readme (deploy code, sync 385, etc.).

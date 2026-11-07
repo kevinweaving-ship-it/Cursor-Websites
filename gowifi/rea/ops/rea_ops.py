@@ -279,11 +279,11 @@ def service_status(cfg: dict[str, Any], unit: str) -> dict[str, Any]:
 
 
 def service_control(cfg: dict[str, Any], action: str, unit: str) -> dict[str, Any]:
-    if action not in {"restart", "reload"}:
+    if action not in {"restart", "reload", "start", "stop", "enable", "disable"}:
         return fail("action_denied", action)
     if not UNIT_RE.match(unit) or unit not in cfg.get("units_control", []):
         return fail("unit_denied", unit)
-    return helper_call(cfg, [action, unit])
+    return helper_call(cfg, [action, unit], timeout=120 if action == "start" else 45)
 
 
 def journal(cfg: dict[str, Any], unit: str, lines: int = 80) -> dict[str, Any]:
@@ -830,7 +830,7 @@ def dispatch(cfg: dict[str, Any], argv: list[str]) -> dict[str, Any]:
         return list_dir(cfg, args[0] if args else cfg["allow_read_paths"][0])
     if op == "status":
         return service_status(cfg, args[0])
-    if op in {"restart", "reload"}:
+    if op in {"restart", "reload", "start"}:
         return service_control(cfg, op, args[0])
     if op in {"stop", "disable", "enable", "decommission"}:
         return helper_call(cfg, [op, args[0] if args else ""])
