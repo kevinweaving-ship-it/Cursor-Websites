@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "skills": {
+    "motionsites-web-builder": {
+      "source": "Motionsites-AI/claude-skill",
+      "sourceType": "github",
+      "skillPath": "plugins/motionsites-web-builder/skills/motionsites-web-builder/SKILL.md",
+      "computedHash": "7d2baf459c85a21fd7be4f0b4d5eb0f797197129b2886b626bd3a8788286edb4",
+      "installMode": "copy"
+    }
+  }
+}
