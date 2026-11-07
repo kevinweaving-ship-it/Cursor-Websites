@@ -1,0 +1,14 @@
+[Unit]
+Description=Stage South African Sailing result sheets for review
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+StateDirectory=sailingsa-sas-results
+StateDirectoryMode=0750
+Environment=HOME=/var/lib/sailingsa-sas-results
+EnvironmentFile=-/etc/default/sailingsa-sas-results
+ExecStart=/usr/bin/python3 /var/www/sailingsa/deploy/sas_results_sync.py --state-dir /var/lib/sailingsa-sas-results $SAS_RESULTS_BROWSER_ARGS
+TimeoutStartSec=30min

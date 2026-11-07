@@ -17,7 +17,9 @@
     "/opt/arial-whatsapp-poc",
     "/opt/sailingsa-whatsapp-poc",
     "/etc/cron.d",
-    "/etc/systemd/system"
+    "/etc/systemd/system",
+    "/var/www/sailingsa/deploy",
+    "/var/lib/sailingsa-sas-results"
   ],
   "allow_write_paths": [
     "/var/www/sailingsa",
@@ -54,11 +56,15 @@
     "arial-voelklip",
     "arial-site-watch",
     "event-whatsapp-ingest",
-    "sailingsa-whatsapp-poc"
+    "sailingsa-whatsapp-poc",
+    "sailingsa-sas-results",
+    "sailingsa-sas-results.timer"
   ],
   "units_control": [
     "sailingsa-api",
-    "nginx"
+    "nginx",
+    "sailingsa-sas-results",
+    "sailingsa-sas-results.timer"
   ],
   "units_stop": [
     "arial-whatsapp-poc",
@@ -72,14 +78,39 @@
     "/var/www/timadvisor": "www-data:www-data"
   },
   "run_allowlist": [
-    ["python3", "-m", "py_compile"],
-    ["python3", "-m", "compileall"],
-    ["sha256sum"],
-    ["nginx", "-t"],
-    ["git", "status"],
-    ["git", "diff"],
-    ["git", "log"],
-    ["git", "rev-parse"]
+    [
+      "python3",
+      "-m",
+      "py_compile"
+    ],
+    [
+      "python3",
+      "-m",
+      "compileall"
+    ],
+    [
+      "sha256sum"
+    ],
+    [
+      "nginx",
+      "-t"
+    ],
+    [
+      "git",
+      "status"
+    ],
+    [
+      "git",
+      "diff"
+    ],
+    [
+      "git",
+      "log"
+    ],
+    [
+      "git",
+      "rev-parse"
+    ]
   ],
   "http_allow_hosts": [
     "127.0.0.1",
