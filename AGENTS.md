@@ -17,6 +17,21 @@ the exact operation, target, and observed error after checking the available rou
 Keep server-side allowlists, the Gold deployment lock, and protected units in force.
 Use scoped backups, staging, and live verification for production changes.
 
+Do **not** use Box MCP or ask the user to connect Box. “Boxes” means the SSH
+servers (GoWifi, SailingSA, and the rest). Use REA / SSH from the live readme.
+
+## MotionSites (agent-side website research)
+
+The user vibes. MotionSites is a tool for the **agent**, not a settings chore
+for the human. Do not ask them to open Cursor Settings, Connect MCP, or paste
+prompts. When building or visually improving a website, landing page, or hero,
+read **`.agents/skills/motionsites-web-builder/SKILL.md`** and follow it
+(examples, media shelf, numbered spec, screenshot-and-fix).
+
+On SailingSA production pages, stay inside the existing design system and
+locked header unless they explicitly want a cinematic rebuild. Use MotionSites
+for polish, motion, and new marketing pages — not to replace live layout.
+
 ## Dynamic weekly roundups
 
 All weekly roundup editions, including archived and previously skipped weeks, must

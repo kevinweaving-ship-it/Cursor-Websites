@@ -1,0 +1,17 @@
+---
+description: MotionSites is an agent-side research/design tool. User vibes only.
+alwaysApply: true
+---
+
+# MotionSites — agent uses it, user vibes
+
+The human does not configure tools. Do not ask them to Connect MCP, open
+Settings, sign in to MotionSites, or connect Box.
+
+“Boxes” means SSH servers. Use REA / `sailingsa/deploy/SSH_LIVE.md`. Never Box MCP.
+
+When building or visually improving a website, landing, or hero, read
+`.agents/skills/motionsites-web-builder/SKILL.md` and follow that workflow.
+
+SailingSA live pages: keep the design system and locked header unless they
+explicitly ask for a cinematic rebuild.

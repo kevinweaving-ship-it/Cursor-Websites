@@ -58,6 +58,8 @@ BU_PAGE_PROOF_*/
 # Cursor/IDE (avoid index bloat)
 .cursor/*
 !.cursor/mcp.json
+!.cursor/rules/
+!.cursor/rules/motionsites.mdc
 
 # Temp outputs / audits (regenerate as needed)
 AUDIT_*.txt
