@@ -43,6 +43,20 @@ Tunnel deadline is about 120 seconds. Use `ops_jobs` for longer work.
 
 `arial-whatsapp-poc` restart is denied on GoWifi while the live session is UP.
 
+## SAS results collector (SailingSA)
+
+Deploy the staged PR #287 revision, run once, then enable the 05:00 SAST timer:
+
+```text
+/opt/rea/ops/bin/rea-admin sailingsa -- deploy sas-results
+/opt/rea/ops/bin/rea-admin sailingsa -- start sailingsa-sas-results
+/opt/rea/ops/bin/rea-admin sailingsa -- enable sailingsa-sas-results.timer
+/opt/rea/ops/bin/rea-admin sailingsa -- start sailingsa-sas-results.timer
+/opt/rea/ops/bin/rea-admin sailingsa -- status sailingsa-sas-results.timer
+```
+
+Stage files under `/opt/rea-ops/stage/` must match the known PR #287 hashes. The oneshot downloads the latest official sheets into `/var/lib/sailingsa-sas-results/`. Race-row import remains a separate verified step.
+
 ## Safe management interface (ChatGPT / REA process tool)
 
 No connector refresh required. Call as `rea` (NoNewPrivileges). This is

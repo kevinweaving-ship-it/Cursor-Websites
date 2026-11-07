@@ -1,0 +1,9 @@
+[Unit]
+Description=Check the South African Sailing results index daily
+
+[Timer]
+OnCalendar=*-*-* 05:00:00 Africa/Johannesburg
+Persistent=yes
+
+[Install]
+WantedBy=timers.target

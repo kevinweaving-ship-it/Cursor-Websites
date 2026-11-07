@@ -83,6 +83,18 @@ process. Privileged work uses:
    is allowed after `nginx -t`. Do not restart `arial-whatsapp-poc` while UP.
 5. Long work: `ops_jobs` start → status → cancel.
 
+## Tool discovery (ChatGPT Work vs mux)
+
+Live mux `tools/list` returns **201** tools, including all **22** `ops_*`
+tools, on tunnel channel `main` → `/opt/rea/inspect/bin/mcp-mux`. Profile:
+`/opt/openai-tunnel/profiles/rea-box.yaml`. If ChatGPT Work still shows
+zero `ops_*` tools after a connector Refresh + new chat, that is a
+ChatGPT discovery/cache layer failure (known Secure MCP Tunnel issue
+where `server/discover` succeeds but `tools/list` is not applied). Use
+the `rea-admin` / `ops-mcp` fallback below. Cursor’s `rea-gowifi`
+registration on the box should point at `mcp-mux` (not bare `rea mcp`)
+so it receives the same 201-tool catalogue.
+
 ## Safe management interface
 
 No connector refresh is required if ChatGPT can already run
