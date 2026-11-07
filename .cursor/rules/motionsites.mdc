@@ -21,8 +21,20 @@ may use the full cinematic skill. Never invent logos or asset URLs.
 SailingSA live pages: keep the design system and locked header unless they
 explicitly ask for a cinematic rebuild.
 
+**Compact, modern, functional, mobile-portrait-first.** Kevin’s #1 design
+complaint is agents making things large. SailingSA app chrome stays dense
+(body ~14–16px, tight padding, small avatars, slim inputs, results lite
+tables). MotionSites mega type (72–96px / 5–6× body) is only for a new
+marketing hero the user asked for. Screenshot **390×844 first**, then ML,
+then desktop. Clone the working sibling card — do not invent CSS. No large
+blank areas, no giant full-width buttons, no overlay copy that hides the
+photo on MP/ML, no stretched graphs, no overflow tables. Two identical
+visual failures then diagnose; do not spawn another agent for the same
+screenshot job.
+
 Never again (from past chats): Cloud-over-Mac deploys; touch headers or
 gold-header.css; thin-rewrite /dev1/; clobber live api.py with git; substring
 logo matching; homepage fetching all roundup archives; prefilled login
 fields; PUB_ public profiles; Lighthouse on a 502; invent results CSS;
-Box MCP; MotionSites replacing the SailingSA layout.
+Box MCP; MotionSites replacing the SailingSA layout; making app UI large
+when it must be compact; ignoring mobile portrait.
