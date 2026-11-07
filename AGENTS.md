@@ -32,6 +32,30 @@ On SailingSA production pages, stay inside the existing design system and
 locked header unless they explicitly want a cinematic rebuild. Use MotionSites
 for polish, motion, and new marketing pages — not to replace live layout.
 
+### How every page gets built (consistency)
+
+Average AI pages fail for three reasons: a vague plan, fake media, and nobody
+looking. Every visual change follows the same loop:
+
+1. **Brief in one breath:** what/who, three-word mood, one signature, stack
+   (existing SailingSA components vs new marketing page), hero vs full page.
+2. **Study 2–3 closest MotionSites examples** for precision (px, clamp, hex,
+   durations) — never copy their brands or layouts.
+3. **Real media only:** user’s assets, then the skill media shelf, never
+   invented URLs or logos rebuilt from description.
+4. **Numbered spec first** (`.agents/skills/motionsites-web-builder/references/spec-template.md`).
+   No adjective without a value. SailingSA tokens come from
+   `docs/design_system.md` and `sailingsa/frontend/css/main.css` — reuse
+   `.container`, `.card`, `.table`. New sites may pick a palette.
+5. **Build exactly the spec.** One idea on the first screen. Type scale does
+   the work. One material. Entrance choreography (nav → title → sub → CTA).
+   `prefers-reduced-motion`.
+6. **Look and fix:** screenshot desktop + mobile, score the rubric, fix the
+   three weakest scores with numbers, shoot again. Bar is average 8, nothing
+   under 7. Two identical failures then diagnose — do not loop.
+7. **Verify the other surfaces** that share the state (cards, logos, login).
+   Same logo path, same card shell, same empty login fields.
+
 ## Never again (from past chats)
 
 These already happened. Do not repeat them.

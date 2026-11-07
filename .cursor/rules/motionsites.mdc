@@ -11,7 +11,12 @@ Settings, sign in to MotionSites, or connect Box.
 “Boxes” means SSH servers. Use REA / `sailingsa/deploy/SSH_LIVE.md`. Never Box MCP.
 
 When building or visually improving a website, landing, or hero, read
-`.agents/skills/motionsites-web-builder/SKILL.md` and follow that workflow.
+`.agents/skills/motionsites-web-builder/SKILL.md` and follow that workflow:
+
+brief → 2–3 examples → real media → numbered spec → build → screenshot
+loop until average 8 (nothing under 7). No adjective without a value.
+SailingSA reuses design-system tokens and components. New marketing pages
+may use the full cinematic skill. Never invent logos or asset URLs.
 
 SailingSA live pages: keep the design system and locked header unless they
 explicitly ask for a cinematic rebuild.
