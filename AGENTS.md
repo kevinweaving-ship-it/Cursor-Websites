@@ -32,6 +32,21 @@ On SailingSA production pages, stay inside the existing design system and
 locked header unless they explicitly want a cinematic rebuild. Use MotionSites
 for polish, motion, and new marketing pages — not to replace live layout.
 
+## Never again (from past chats)
+
+These already happened. Do not repeat them.
+
+1. **Cloud over Mac for SailingSA.** Live SSH keys and logos live on Kevin’s Mac Mini. Cloud Linux has no `sailingsa_live_key`. Do not deploy SailingSA/GoWifi from Cloud. Do not “rebuild from description”. Exception: the user types Cloud in the same message.
+2. **Do not touch headers.** Master / event / fleet / gold-header / `enforceHeader` / header MutationObservers are locked. “Fix results” is not a license to copy `api.py` or header JS.
+3. **Do not thin-rewrite `/dev1/`.** Live fat `index.html` (~320KB) and `landing-roundup-cards.js` / `dockside-chat.js` are canonical. Delete demo HTML; do not replace the page. `/dev1/` ≠ `/dev-1` sailor embed.
+4. **Do not clobber live with git.** Live `api.py` / homepage / logo generators can be ahead of the repo. Snapshot live first. Diff before copy. After an angry stop, freeze live.
+5. **One logo path.** Parent Event Logo / `_CLUB_EVENT_LOGO_RULES` for every surface. Whole-name match, not substrings (“uct” in “instructor”). Unlock empty logo slots.
+6. **Homepage must not fetch the archive.** Current `feed.json` item + one hero only. Reserve 16:9 before paint. Next **4** upcoming events always. Roundup title lists every event that week.
+7. **Login fields load empty.** No prefilling WhatsApp/email. No user/session/`PUB_` until OAuth or Confirm click. `/sailor/general-public` must 404.
+8. **Diagnose the layer.** Live works / local fails → API/DB/env, not a frontend workaround. Don’t Lighthouse a 502. Don’t invent results-table CSS.
+9. **Cheap models, no loops.** Two identical failures then diagnose. No Max Mode, no extra Cloud agents, no Box MCP.
+10. **MotionSites does not override the design system** on SailingSA production. Cinematic rebuilds only when the user asks. New marketing pages (Aerialnet, etc.) may use the full skill.
+
 ## Dynamic weekly roundups
 
 All weekly roundup editions, including archived and previously skipped weeks, must

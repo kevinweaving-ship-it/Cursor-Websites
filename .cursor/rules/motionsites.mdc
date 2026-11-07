@@ -15,3 +15,9 @@ When building or visually improving a website, landing, or hero, read
 
 SailingSA live pages: keep the design system and locked header unless they
 explicitly ask for a cinematic rebuild.
+
+Never again (from past chats): Cloud-over-Mac deploys; touch headers or
+gold-header.css; thin-rewrite /dev1/; clobber live api.py with git; substring
+logo matching; homepage fetching all roundup archives; prefilled login
+fields; PUB_ public profiles; Lighthouse on a 502; invent results CSS;
+Box MCP; MotionSites replacing the SailingSA layout.
