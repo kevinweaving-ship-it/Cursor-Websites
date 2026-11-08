@@ -1,0 +1,14 @@
+{
+  "event_id": "2026-df95-global-championship",
+  "event_url": null,
+  "dry_run": true,
+  "proposed_attachments": [
+    {
+      "src": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/media/df95-global-2026.png",
+      "credit": "Australian Radio Yachting Association",
+      "role": "hero",
+      "kind": "photo"
+    }
+  ],
+  "note": "Write these back onto the SailingSA event page media pool. Do not PATCH live from this job."
+}

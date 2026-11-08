@@ -1,0 +1,968 @@
+[
+  {
+    "event_id": "2026-df95-global-championship",
+    "name": "DF95 Global Championship",
+    "start_date": "2026-10-16",
+    "end_date": "2026-10-23",
+    "venue": "Theewater Sports Club",
+    "club": null,
+    "club_code": null,
+    "event_url": null,
+    "category": null,
+    "tier": "worlds",
+    "tier_points": 40,
+    "fleets": [
+      {
+        "name": "DF95",
+        "py": false,
+        "class_tags": [
+          "DF95"
+        ],
+        "entries": null,
+        "races_sailed": null,
+        "discards": 0,
+        "top3": [
+          {
+            "rank": 1,
+            "helm": "Craig Richards",
+            "crew": null,
+            "boat": null,
+            "sail_number": null,
+            "club": null,
+            "nation": "GBR",
+            "nett": 29,
+            "nett_display": "29",
+            "race_wins": [],
+            "win_count": 7,
+            "dns_like": [],
+            "boat_class": "DF95"
+          },
+          {
+            "rank": 2,
+            "helm": "Ulf Lindberg",
+            "crew": null,
+            "boat": null,
+            "sail_number": null,
+            "club": null,
+            "nation": "SWE",
+            "nett": 45.4,
+            "nett_display": "45.4",
+            "race_wins": [],
+            "win_count": 0,
+            "dns_like": [],
+            "boat_class": "DF95"
+          },
+          {
+            "rank": 3,
+            "helm": "Odd Ornulf Stray",
+            "crew": null,
+            "boat": null,
+            "sail_number": null,
+            "club": null,
+            "nation": "NOR",
+            "nett": 60,
+            "nett_display": "60",
+            "race_wins": [],
+            "win_count": 0,
+            "dns_like": [],
+            "boat_class": "DF95"
+          }
+        ],
+        "margin": 16.4,
+        "angles": [
+          "defending_champion"
+        ],
+        "from_external": true,
+        "external_source": "https://radiosailing.org.au/news/492"
+      }
+    ],
+    "class_tags": [
+      "DF95"
+    ],
+    "status": {
+      "status": "final",
+      "source": "external",
+      "timestamp": null,
+      "verb": "won",
+      "flags": [
+        "count_conflict_noted",
+        "reconciled_official_msr",
+        "external_after_event_url_gap"
+      ]
+    },
+    "sources": [
+      {
+        "url": "https://radiosailing.org.au/news/492",
+        "label": "Australian Radio Yachting Association",
+        "kind": "article",
+        "facts": {
+          "winner_helm": "Craig Richards",
+          "winner_nation": "GBR",
+          "winner_nett": 29,
+          "second_helm": "Ulf Lindberg",
+          "second_nation": "SWE",
+          "second_nett": 45.4,
+          "third_helm": "Odd Ornulf Stray",
+          "third_nation": "NOR",
+          "third_nett": 60,
+          "defending_champion_retained": true,
+          "qualifier_wins": 7,
+          "qualifier_races_mentioned": 11,
+          "gold_final_wins": 2,
+          "gold_final_races_mentioned": 9,
+          "venue": "Theewater Sports Club",
+          "start_date": "2026-10-16",
+          "end_date": "2026-10-23"
+        }
+      },
+      {
+        "url": "https://mysailingresults.com/api/results/get_results.php?eventid=22056",
+        "label": "mySailingResults / ARYA",
+        "kind": "official_results",
+        "facts": {
+          "winner_helm": "Craig Richards",
+          "winner_nation": "GBR",
+          "winner_nett": 29.0,
+          "second_helm": "Ulf Lindberg",
+          "second_nation": "SWE",
+          "second_nett": 45.4,
+          "third_helm": "Odd Ornulf Stray",
+          "third_nation": "NOR",
+          "third_nett": 60.0,
+          "defending_champion_retained": true,
+          "competitors_entered": 71,
+          "scored_results": 68,
+          "races_completed": 20,
+          "venue": "Theewater Sports Club",
+          "start_date": "2026-10-16",
+          "end_date": "2026-10-23",
+          "sa_best": {
+            "helm": "Roy Gardener",
+            "overall_rank": 10,
+            "fleet": "Gold",
+            "fleet_pos": 10,
+            "nation": "RSA",
+            "nett": 91.0
+          },
+          "sa_silver": {
+            "helm": "Michael Kavanagh",
+            "overall_rank": 19,
+            "fleet": "Silver",
+            "fleet_pos": 2,
+            "nation": "RSA",
+            "nett": 70.0
+          }
+        }
+      }
+    ],
+    "entries_total": 71,
+    "races_held": false,
+    "conflicts": [
+      {
+        "field": "entries",
+        "values": [
+          {
+            "value": 68,
+            "source": "published-roundup-2026-10-26",
+            "url": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/",
+            "note": "mySailingResults cited in published edition"
+          },
+          {
+            "value": 71,
+            "source": "audit-arya-results",
+            "url": "https://radiosailing.org.au/news/492",
+            "note": "ARYA/results page per 2026-10-26 audit"
+          }
+        ],
+        "action": "hold"
+      },
+      {
+        "field": "races_sailed",
+        "values": [
+          {
+            "value": 20,
+            "source": "published-roundup-2026-10-26",
+            "url": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/"
+          },
+          {
+            "value": 16,
+            "source": "audit-official-results",
+            "url": "https://radiosailing.org.au/news/492",
+            "note": "official 16 races completed per audit"
+          }
+        ],
+        "action": "hold"
+      }
+    ],
+    "angles": [
+      "defending_champion"
+    ],
+    "late": false,
+    "tokens": [
+      "10",
+      "11",
+      "16",
+      "19",
+      "2",
+      "20",
+      "29",
+      "45.4",
+      "60",
+      "68",
+      "7",
+      "71",
+      "Craig Richards",
+      "DF95 Global Championship",
+      "GBR",
+      "Gold",
+      "Michael Kavanagh",
+      "NOR",
+      "Odd Ornulf Stray",
+      "Roy Gardener",
+      "SWE",
+      "Silver",
+      "Theewater",
+      "Theewater Sports Club",
+      "Ulf Lindberg",
+      "final"
+    ],
+    "page_title": null,
+    "story_score": 76.0,
+    "story_why": [
+      "tier:worlds=40",
+      "entries:71=20.0",
+      "defending_champion+10",
+      "external+6",
+      "hard_rule:nationals_or_worlds_always_card"
+    ],
+    "slot": "card",
+    "copy": {
+      "headline": "Defending champion keeps the DF95 world crown at Theewater",
+      "kicker": "DF95",
+      "deck": "Theewater Sports Club · 16–23 October 2026",
+      "paras": [
+        "The defending champion, Craig Richards, retained the title on 29 points — winning 7 of 11 qualifying races and 2 gold-fleet finals — ahead of Ulf Lindberg (45.4) and Odd Ornulf Stray (60).",
+        "Official listing: 71 skippers entered and 20 races completed at Theewater Sports Club.",
+        "Fact check: the older edition said 68 sailors and 20 races. The official entry list is 71; 68 skippers appear in the scored results. Races completed remain 20.",
+        "Best South African: Roy Gardener, 10th overall in Gold fleet. Michael Kavanagh was 2nd in Silver fleet (overall 19)."
+      ]
+    },
+    "image": {
+      "role": "hero",
+      "src": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/media/df95-global-2026.png",
+      "fallback": false,
+      "credit": "Australian Radio Yachting Association",
+      "kind": "photo"
+    }
+  },
+  {
+    "event_id": "2026-10-24-vyc-tour-de-vlei",
+    "name": "Tour de Vlei",
+    "start_date": "2026-10-24",
+    "end_date": "2026-10-25",
+    "venue": "VYC",
+    "club": "VYC",
+    "club_code": "VYC",
+    "event_url": "https://sailingsa.co.za/regatta/2026-10-24-vyc-tour-de-vlei",
+    "category": "Dinghy Event",
+    "tier": "club",
+    "tier_points": 5,
+    "fleets": [
+      {
+        "name": "Dinghy",
+        "py": true,
+        "class_tags": [
+          "Dinghy"
+        ],
+        "entries": 38,
+        "races_sailed": 1,
+        "discards": 0,
+        "top3": [
+          {
+            "rank": 1,
+            "helm": "Stephen Du Toit",
+            "crew": null,
+            "boat": null,
+            "sail_number": "907",
+            "club": "VYC",
+            "nation": null,
+            "nett": 1,
+            "nett_display": "1",
+            "race_wins": [
+              "R1"
+            ],
+            "win_count": 1,
+            "dns_like": [],
+            "boat_class": "Extra"
+          },
+          {
+            "rank": 2,
+            "helm": "Brent Gray",
+            "crew": null,
+            "boat": null,
+            "sail_number": "868",
+            "club": "MAC",
+            "nation": null,
+            "nett": 2,
+            "nett_display": "2",
+            "race_wins": [],
+            "win_count": 0,
+            "dns_like": [],
+            "boat_class": "Extra"
+          },
+          {
+            "rank": 3,
+            "helm": "Ryan Collins",
+            "crew": null,
+            "boat": null,
+            "sail_number": "891",
+            "club": "VYC",
+            "nation": null,
+            "nett": 3,
+            "nett_display": "3",
+            "race_wins": [],
+            "win_count": 0,
+            "dns_like": [],
+            "boat_class": "Extra"
+          }
+        ],
+        "margin": 1.0,
+        "angles": [
+          "close_finish",
+          "sweep"
+        ]
+      },
+      {
+        "name": "Multihull",
+        "py": true,
+        "class_tags": [
+          "Multihull"
+        ],
+        "entries": 17,
+        "races_sailed": 1,
+        "discards": 0,
+        "top3": [
+          {
+            "rank": 1,
+            "helm": "John Ryall",
+            "crew": null,
+            "boat": null,
+            "sail_number": "63314",
+            "club": "RCYC",
+            "nation": null,
+            "nett": 1,
+            "nett_display": "1",
+            "race_wins": [
+              "R1"
+            ],
+            "win_count": 1,
+            "dns_like": [],
+            "boat_class": "Hobie 14"
+          },
+          {
+            "rank": 2,
+            "helm": "Bradley Stemmett",
+            "crew": "Saskia Stemmett",
+            "boat": null,
+            "sail_number": "3862",
+            "club": "VYC",
+            "nation": null,
+            "nett": 2,
+            "nett_display": "2",
+            "race_wins": [],
+            "win_count": 0,
+            "dns_like": [],
+            "boat_class": "Dart 18"
+          },
+          {
+            "rank": 3,
+            "helm": "Brent Warren",
+            "crew": null,
+            "boat": null,
+            "sail_number": "2012",
+            "club": "VYC",
+            "nation": null,
+            "nett": 3,
+            "nett_display": "3",
+            "race_wins": [],
+            "win_count": 0,
+            "dns_like": [],
+            "boat_class": "Mosquito"
+          }
+        ],
+        "margin": 1.0,
+        "angles": [
+          "close_finish",
+          "sweep"
+        ]
+      }
+    ],
+    "class_tags": [
+      "Dinghy",
+      "Multihull"
+    ],
+    "status": {
+      "status": "final",
+      "source": "event_url_first",
+      "timestamp": "2026-10-25T17:15:00+02:00",
+      "verb": "won",
+      "flags": []
+    },
+    "sources": [
+      {
+        "url": "https://sailingsa.co.za/regatta/2026-10-24-vyc-tour-de-vlei",
+        "label": "SailingSA results",
+        "kind": "official_results"
+      }
+    ],
+    "entries_total": 55,
+    "races_held": false,
+    "conflicts": [],
+    "angles": [
+      "close_finish",
+      "sweep"
+    ],
+    "late": false,
+    "tokens": [
+      "1",
+      "17",
+      "2",
+      "2012",
+      "3",
+      "38",
+      "3862",
+      "55",
+      "63314",
+      "868",
+      "891",
+      "907",
+      "Bradley Stemmett",
+      "Brent Gray",
+      "Brent Warren",
+      "Dinghy",
+      "John Ryall",
+      "MAC",
+      "Multihull",
+      "R1",
+      "RCYC",
+      "Ryan Collins",
+      "Saskia Stemmett",
+      "Stephen Du Toit",
+      "Tour de Vlei",
+      "VYC",
+      "final"
+    ],
+    "page_title": "2026 Tour de Vlei — Final Results | SailingSA",
+    "story_score": 41.0,
+    "story_why": [
+      "tier:club=5",
+      "entries:55=20.0",
+      "closeness+8",
+      "sweep+6",
+      "event_page_media+2"
+    ],
+    "slot": "card",
+    "copy": {
+      "headline": "Tour de Vlei: Stephen Du Toit (VYC) won",
+      "kicker": "DINGHY / MULTIHULL  ·  VYC",
+      "deck": "VYC · 24–25 October 2026",
+      "paras": [
+        "Stephen Du Toit (VYC) won Dinghy on 1 point. Brent Gray (MAC) was second on 2. John Ryall (RCYC) won Multihull on 1 point. Bradley Stemmett (VYC) / Saskia Stemmett was second on 2. 55 boats."
+      ]
+    },
+    "image": {
+      "role": "hero",
+      "src": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/media/2026-10-24-vyc-tour-de-vlei-hero.png",
+      "fallback": false,
+      "credit": "SailingSA",
+      "kind": "photo"
+    }
+  },
+  {
+    "event_id": "2026-10-24-ullman-sails-womens-series-day-2",
+    "name": "Ullman Sails Women's Series — Day 2",
+    "start_date": "2026-10-24",
+    "end_date": "2026-10-24",
+    "venue": "RCYC",
+    "club": "RCYC",
+    "club_code": "RCYC",
+    "event_url": "https://sailingsa.co.za/regatta/2026-10-24-ullman-sails-womens-series-day-2",
+    "category": "Women’s Events",
+    "tier": "club",
+    "tier_points": 5,
+    "fleets": [
+      {
+        "name": "Non-Spinnaker",
+        "py": false,
+        "class_tags": [
+          "Non-Spinnaker"
+        ],
+        "entries": 7,
+        "races_sailed": 4,
+        "discards": 0,
+        "top3": [
+          {
+            "rank": 1,
+            "helm": "Dr Susan Holloway",
+            "crew": null,
+            "boat": "Jacana",
+            "sail_number": "GBR-5733R",
+            "club": null,
+            "nation": null,
+            "nett": 6,
+            "nett_display": "6",
+            "race_wins": [
+              "R1",
+              "R3",
+              "R4"
+            ],
+            "win_count": 3,
+            "dns_like": [],
+            "boat_class": null
+          },
+          {
+            "rank": 2,
+            "helm": "Mary-Ann Sharwood",
+            "crew": null,
+            "boat": "Keg",
+            "sail_number": "RSA 1555",
+            "club": null,
+            "nation": null,
+            "nett": 12,
+            "nett_display": "12",
+            "race_wins": [],
+            "win_count": 0,
+            "dns_like": [],
+            "boat_class": null
+          },
+          {
+            "rank": 3,
+            "helm": "Azaleah Josephs",
+            "crew": null,
+            "boat": "B&G",
+            "sail_number": "RSA-3272",
+            "club": null,
+            "nation": null,
+            "nett": 13,
+            "nett_display": "13",
+            "race_wins": [
+              "R2"
+            ],
+            "win_count": 1,
+            "dns_like": [],
+            "boat_class": null
+          }
+        ],
+        "margin": 6.0,
+        "angles": [
+          "race_win_streak"
+        ]
+      },
+      {
+        "name": "Spinnaker",
+        "py": false,
+        "class_tags": [
+          "Spinnaker"
+        ],
+        "entries": 10,
+        "races_sailed": 4,
+        "discards": 0,
+        "top3": [
+          {
+            "rank": 1,
+            "helm": "Dale Rae",
+            "crew": null,
+            "boat": "Vulcan",
+            "sail_number": "RSA-31013",
+            "club": null,
+            "nation": null,
+            "nett": 9,
+            "nett_display": "9",
+            "race_wins": [
+              "R3"
+            ],
+            "win_count": 1,
+            "dns_like": [],
+            "boat_class": null
+          },
+          {
+            "rank": 2,
+            "helm": "Judy Provoyeur",
+            "crew": null,
+            "boat": "Jackal",
+            "sail_number": "RSA-630",
+            "club": null,
+            "nation": null,
+            "nett": 11.5,
+            "nett_display": "11.5",
+            "race_wins": [
+              "R2"
+            ],
+            "win_count": 1,
+            "dns_like": [],
+            "boat_class": null
+          },
+          {
+            "rank": 3,
+            "helm": "Linda Raubenheimer",
+            "crew": null,
+            "boat": "Hors d'Oeuvre",
+            "sail_number": "RSA-44",
+            "club": null,
+            "nation": null,
+            "nett": 11.5,
+            "nett_display": "11.5",
+            "race_wins": [],
+            "win_count": 0,
+            "dns_like": [],
+            "boat_class": null
+          }
+        ],
+        "margin": 2.5,
+        "angles": []
+      }
+    ],
+    "class_tags": [
+      "Non-Spinnaker",
+      "Spinnaker"
+    ],
+    "status": {
+      "status": "series_final",
+      "source": "event_url_first",
+      "timestamp": "2026-10-24T14:59:41+02:00",
+      "verb": "won",
+      "flags": [
+        "series_final_from_host_or_label"
+      ]
+    },
+    "sources": [
+      {
+        "url": "https://sailingsa.co.za/regatta/2026-10-24-ullman-sails-womens-series-day-2",
+        "label": "SailingSA results",
+        "kind": "official_results"
+      },
+      {
+        "url": "https://www.rcyc.co.za/ullman-sails-womens-series-race-day-2-photo-gallery",
+        "label": "Royal Cape Yacht Club",
+        "kind": "gallery",
+        "facts": {
+          "gallery_available": true
+        }
+      },
+      {
+        "url": "https://www.rcyc.co.za/24-10-2026-womens-series-day-2-results",
+        "label": "Royal Cape Yacht Club",
+        "kind": "article",
+        "facts": {
+          "host_lists_overall": true,
+          "overall_spin_label": "Ullman Sails Women’s Series Overall Class Spin",
+          "overall_nonspin_label": "Ullman Sails Women’s Series Overall Class Non Spin",
+          "day2_races_listed": [
+            "R3-Spin",
+            "R3-Non Spin",
+            "R4-Spin",
+            "R4-Non Spin"
+          ]
+        }
+      }
+    ],
+    "entries_total": 17,
+    "races_held": false,
+    "conflicts": [],
+    "angles": [
+      "race_win_streak"
+    ],
+    "late": false,
+    "tokens": [
+      "10",
+      "11.5",
+      "12",
+      "13",
+      "17",
+      "4",
+      "6",
+      "7",
+      "9",
+      "Azaleah Josephs",
+      "B&G",
+      "Dale Rae",
+      "Dr Susan Holloway",
+      "GBR-5733R",
+      "Hors d'Oeuvre",
+      "Jacana",
+      "Jackal",
+      "Judy Provoyeur",
+      "Keg",
+      "Linda Raubenheimer",
+      "Mary-Ann Sharwood",
+      "Non-Spinnaker",
+      "R1",
+      "R2",
+      "R3",
+      "R4",
+      "RCYC",
+      "RSA 1555",
+      "RSA-31013",
+      "RSA-3272",
+      "RSA-44",
+      "RSA-630",
+      "Spinnaker",
+      "Ullman Sails Women's Series — Day 2",
+      "Vulcan",
+      "series_final"
+    ],
+    "page_title": "2026 Ullman Sails Women's Series — Day 2 — Provisional Results | SailingSA",
+    "story_score": 33.45,
+    "story_why": [
+      "tier:club=5",
+      "entries:17=14.5",
+      "external+12",
+      "event_page_media+2"
+    ],
+    "slot": "card",
+    "copy": {
+      "headline": "Ullman Sails Women's Series — Day 2: series winners at RCYC",
+      "kicker": "NON-SPINNAKER / SPINNAKER  ·  RCYC",
+      "deck": "RCYC · 24 October 2026",
+      "paras": [
+        "Dr Susan Holloway won the Non-Spinnaker series on 6 points. Mary-Ann Sharwood was second on 12. Dale Rae won the Spinnaker series on 9 points. Judy Provoyeur was second on 11.5. 17 boats."
+      ]
+    },
+    "image": {
+      "role": "hero",
+      "src": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/media/2026-10-24-ullman-sails-womens-series-day-2-hero.jpg",
+      "fallback": false,
+      "credit": "SailingSA",
+      "kind": "photo"
+    }
+  },
+  {
+    "event_id": "2026-10-24-hmyc-dam-bottle-sprints",
+    "name": "Dam Bottle Sprints",
+    "start_date": "2026-10-24",
+    "end_date": "2026-10-25",
+    "venue": "HMYC",
+    "club": "HMYC",
+    "club_code": "HMYC",
+    "event_url": "https://sailingsa.co.za/regatta/2026-10-24-hmyc-dam-bottle-sprints",
+    "category": "Club",
+    "tier": "club",
+    "tier_points": 5,
+    "fleets": [
+      {
+        "name": "Open",
+        "py": true,
+        "class_tags": [
+          "PY (handicap)"
+        ],
+        "entries": 7,
+        "races_sailed": 8,
+        "discards": 1,
+        "top3": [
+          {
+            "rank": 1,
+            "helm": "Alistair Clulow",
+            "crew": null,
+            "boat": null,
+            "sail_number": "4664",
+            "club": "HMYC",
+            "nation": null,
+            "nett": 15.0,
+            "nett_display": "15",
+            "race_wins": [
+              "R7",
+              "R8"
+            ],
+            "win_count": 2,
+            "dns_like": [],
+            "boat_class": "Dart 18"
+          },
+          {
+            "rank": 2,
+            "helm": "Anthony McMillan",
+            "crew": "Zane Gaze",
+            "boat": null,
+            "sail_number": "3872",
+            "club": "HMYC",
+            "nation": null,
+            "nett": 29.0,
+            "nett_display": "29",
+            "race_wins": [
+              "R1",
+              "R2",
+              "R3"
+            ],
+            "win_count": 3,
+            "dns_like": [
+              "R5",
+              "R6",
+              "R7",
+              "R8"
+            ],
+            "boat_class": "Flying 15"
+          },
+          {
+            "rank": 3,
+            "helm": "Bart Fokkens",
+            "crew": null,
+            "boat": null,
+            "sail_number": "3816",
+            "club": "HMYC",
+            "nation": null,
+            "nett": 30.0,
+            "nett_display": "30",
+            "race_wins": [
+              "R5",
+              "R6"
+            ],
+            "win_count": 2,
+            "dns_like": [
+              "R1",
+              "R2",
+              "R3",
+              "R4"
+            ],
+            "boat_class": "Dart 18"
+          }
+        ],
+        "margin": 14.0,
+        "angles": [
+          "consistency_over_race_wins",
+          "split_weekend",
+          "saturday_streak_sunday_dns"
+        ]
+      }
+    ],
+    "class_tags": [
+      "PY (handicap)"
+    ],
+    "status": {
+      "status": "provisional",
+      "source": "event_url_first",
+      "timestamp": "2026-10-31T09:36:05.427251+02:00",
+      "verb": "leads",
+      "flags": []
+    },
+    "sources": [
+      {
+        "url": "https://sailingsa.co.za/regatta/2026-10-24-hmyc-dam-bottle-sprints",
+        "label": "SailingSA results",
+        "kind": "official_results"
+      }
+    ],
+    "entries_total": 7,
+    "races_held": false,
+    "conflicts": [],
+    "angles": [
+      "consistency_over_race_wins",
+      "saturday_streak_sunday_dns",
+      "split_weekend"
+    ],
+    "late": false,
+    "tokens": [
+      "15",
+      "29",
+      "30",
+      "3816",
+      "3872",
+      "4664",
+      "7",
+      "8",
+      "Alistair Clulow",
+      "Anthony McMillan",
+      "Bart Fokkens",
+      "Dam Bottle Sprints",
+      "HMYC",
+      "Open",
+      "PY (handicap)",
+      "R1",
+      "R2",
+      "R3",
+      "R5",
+      "R6",
+      "R7",
+      "R8",
+      "Zane Gaze",
+      "provisional"
+    ],
+    "page_title": "2026 Dam Bottle Sprints — Provisional Results | SailingSA",
+    "story_score": 29.4,
+    "story_why": [
+      "tier:club=5",
+      "entries:7=10.4",
+      "consistency+6",
+      "split_weekend+6",
+      "event_page_media+2"
+    ],
+    "slot": "card",
+    "copy": {
+      "headline": "Dam Bottle Sprints: Alistair Clulow (HMYC) leads the provisional standings",
+      "kicker": "PY (HANDICAP)  ·  HMYC",
+      "deck": "HMYC · 24–25 October 2026",
+      "paras": [
+        "Alistair Clulow leads the provisional standings on 15 points from 7 boats and 8 races. Anthony McMillan won R1–R3 then recorded DNS/DNC codes from R5. Bart Fokkens won R5–R6 after missing Saturday. Alistair Clulow leads on consistency. 7 boats."
+      ]
+    },
+    "image": {
+      "role": "hero",
+      "src": "https://sailingsa.co.za/artwork/Event%20Logo/Dam-Bottle-Sprints.png?v=20261019",
+      "fallback": true,
+      "credit": "HMYC",
+      "kind": "logo"
+    }
+  },
+  {
+    "event_id": "2026-nw-youth-regionals",
+    "name": "NW Youth Regionals Regatta 2026",
+    "start_date": "2026-10-24",
+    "end_date": "2026-10-25",
+    "venue": null,
+    "club": null,
+    "club_code": null,
+    "event_url": null,
+    "category": "Regional Championships",
+    "tier": "provincial",
+    "tier_points": 20,
+    "fleets": [],
+    "class_tags": [],
+    "status": {
+      "status": "awaiting",
+      "source": "none",
+      "timestamp": null,
+      "verb": "awaiting results",
+      "flags": []
+    },
+    "sources": [],
+    "entries_total": null,
+    "races_held": false,
+    "conflicts": [],
+    "angles": [],
+    "late": false,
+    "tokens": [
+      "NW Youth Regionals Regatta 2026",
+      "awaiting"
+    ],
+    "page_title": null,
+    "story_score": 0,
+    "story_why": [
+      "no_results_awaiting"
+    ],
+    "slot": "awaiting",
+    "copy": {
+      "headline": "NW Youth Regionals Regatta 2026 awaiting results",
+      "kicker": "",
+      "deck": "24–25 October 2026",
+      "paras": [
+        "NW Youth Regionals Regatta 2026 listed NW Youth Regionals Regatta 2026 for 24–25 October 2026. SailingSA has not published results."
+      ]
+    },
+    "image": {
+      "role": "hero",
+      "src": "media/2026-nw-youth-regionals-hero.png",
+      "fallback": true,
+      "credit": "",
+      "kind": "text_card",
+      "text": "NW Youth Regionals Regatta 2026"
+    }
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "event_id": "2026-10-24-hmyc-dam-bottle-sprints",
+  "event_url": "https://sailingsa.co.za/regatta/2026-10-24-hmyc-dam-bottle-sprints",
+  "dry_run": true,
+  "proposed_attachments": [
+    {
+      "src": "https://sailingsa.co.za/artwork/Event%20Logo/Dam-Bottle-Sprints.png?v=20261019",
+      "credit": "HMYC",
+      "role": "hero",
+      "kind": "logo"
+    }
+  ],
+  "note": "Write these back onto the SailingSA event page media pool. Do not PATCH live from this job."
+}
