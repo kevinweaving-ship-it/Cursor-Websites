@@ -1,0 +1,18 @@
+---
+description: Mandatory website tools, mobile-first design, verified REA SSH and CI/CD on every development task
+alwaysApply: true
+---
+
+# Website task: mandatory standard workflow
+
+Read `AGENTS.md`, `docs/WEBSITE_DEVELOPMENT_SOP.md`, `docs/DEVELOPMENT_TOOL_ROUTER.md`, applicable locks and `sailingsa/deploy/SSH_LIVE.md` **before** website/UI/feature/bugfix/deployment work. Do not wait for the user to remind you.
+
+- Discover available integrations; choose according to the task: existing working components, MotionSites examples and premium MCP if authenticated, Google Stitch only when connected, GPT review, REA SSH/live inspection, Codex/local Cursor scoped edits, GitHub, true mobile browser, CI.
+- Never confuse checked-in MCP settings with authenticated capabilities or a GitHub merge with deployed production.
+- Plan → validate → surgical change; respect immutable headers and page design, source/API/data contracts, single-file/small scope and server Gold lock.
+- Use **390×844 portrait first**, then landscape and desktop; clone the approved sibling. Compact 14–16px app body, slim forms/tables, not oversized MotionSites cinematic heroes.
+- Check actual screenshots, overflow, complete message text, links/arrows, dynamic loading, console/network, and sibling components.
+- Run `node scripts/check_website_workflow.cjs` and all task-relevant tests. Use GitHub Actions results where available. Test branch UI on preview before any deployment; live smoke afterward.
+- REA SSH is verified through GoWifi. If named commands aren't exposed, consult capabilities via `/opt/rea/ops/bin/rea-admin <target> -- capabilities` through available REA process operations, then use only authorised verbs and documented SSH routes.
+- Diagnose after two identical visual failures; do not launch extra agents blindly.
+- Report precisely: file/commit, test results, deployment status, rollback, and any unverified Google Stitch or premium MotionSites connection.
