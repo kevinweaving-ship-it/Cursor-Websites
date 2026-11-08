@@ -8,11 +8,13 @@ on:
     paths:
       - 'api.py'
       - 'sailingsa/**'
+      - 'gowifi/rea/ops/**'
       - '.github/workflows/sailingsa-ci.yml'
   pull_request:
     paths:
       - 'api.py'
       - 'sailingsa/**'
+      - 'gowifi/rea/ops/**'
       - '.github/workflows/sailingsa-ci.yml'
   workflow_dispatch:
 
@@ -70,5 +72,8 @@ jobs:
           required = ["ops_helper.py", "ops_mcp_server.py", "install-sailingsa-ops.sh"]
           missing = [name for name in required if not (root / name).is_file()]
           assert not missing, f"Missing REA operational safeguards: {missing}"
-          print("PASS: REA ops assets present")
+          import ast
+          helper = root / "ops_helper.py"
+          ast.parse(helper.read_text(encoding="utf-8"), filename=str(helper))
+          print("PASS: REA ops assets and helper syntax")
           PY
