@@ -2,6 +2,8 @@
 
 This project uses **split tasks** to avoid agent resource limits and crashes.
 
+**Mandatory capability routing:** Read `docs/DEVELOPMENT_TOOL_ROUTER.md` before any website, agent-tool, MCP, UI, implementation, or deployment task. It is the integration status ledger and maps MotionSites, Stitch (only if connected), REA, GitHub, Codex, Cursor, and screenshot verification to their appropriate scope. Explicitly verify tool exposure and authentication; a checked-in MCP config does not prove a working session. Existing locks, deployment permissions, and page immutability always take precedence.
+
 ## REA access on GoWifi and SailingSA
 
 Use REA for authorized server work on both boxes. The SSH-backed operations path has
