@@ -90,3 +90,20 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_sailingsa_club_hotfix.py' -v
       - name: Exercise deployment guard regression tests without production access
         run: python -m unittest discover -s tests -p 'test_rea_ops_guards.py' -v
+
+      - name: Roundup asset validation
+        shell: bash
+        run: |
+          node --check sailingsa/frontend/js/landing-roundup-cards.js
+          python - <<'PY'
+          from pathlib import Path
+          js = Path("sailingsa/frontend/js/landing-roundup-cards.js").read_text(encoding="utf-8")
+          css = Path("sailingsa/frontend/sailing-roundup/roundup-editorial-font.css").read_text(encoding="utf-8")
+          assert len(js) < 50000, "Roundup JavaScript contains heavyweight inline CSS/font again"
+          assert 'if (heroes.length) paintAll(heroes);' in js
+          assert js.index('if (heroes.length) paintAll(heroes);') < js.index('fetch(issuePath(firstUrl)')
+          assert 'roundup-editorial-font.css?v=20261108' in js
+          assert css.startswith('@font-face{font-family:RoundupEditorial;')
+          assert 'data:font/ttf;base64,' in css
+          print("PASS: Roundup feed-first rendering, font asset, and lightweight script")
+          PY
