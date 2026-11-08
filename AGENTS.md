@@ -2,6 +2,8 @@
 
 This project uses **split tasks** to avoid agent resource limits and crashes.
 
+**Mandatory website workflow:** Before every website/UI/design/performance/CI/CD task read and execute `docs/WEBSITE_DEVELOPMENT_SOP.md`, together with `docs/DEVELOPMENT_TOOL_ROUTER.md`. This applies automatically: choose available MotionSites examples, Google Stitch when connected, real existing design tokens, REA SSH investigation, branch tests, true mobile screenshots, CI and post-deploy verification according to task scope. Do not require the user to repeat the tool list. Never call a configured but unauthenticated MCP integration functional. GitHub merging does not constitute deployment.
+
 **Mandatory capability routing:** Read `docs/DEVELOPMENT_TOOL_ROUTER.md` before any website, agent-tool, MCP, UI, implementation, or deployment task. It is the integration status ledger and maps MotionSites, Stitch (only if connected), REA, GitHub, Codex, Cursor, and screenshot verification to their appropriate scope. Explicitly verify tool exposure and authentication; a checked-in MCP config does not prove a working session. Existing locks, deployment permissions, and page immutability always take precedence.
 
 ## REA access on GoWifi and SailingSA
