@@ -27,7 +27,7 @@ Status: operative repository workflow. This file routes tasks to existing tools;
 
 - MotionSites skill and rules were added through PR #293; MCP endpoint in `.cursor/mcp.json` is `https://motionsites.ai/api/mcp`. **2026-11-08 verification:** unauthenticated initialize returned HTTP 401 (Bearer required). The free skill is usable from repository content; premium MCP actions remain unverified until an agent completes authentication and a real search.
 - First read bundled `examples/INDEX.md`; select 2–3 close patterns and retain measurable details, not copies of logos or page compositions.
-- Stitch is **optional** and must be discovered and verified at runtime. No Stitch connector was exposed in the 2026-11-08 ChatGPT session. If unavailable, retain a numbered spec and existing application components. Do not create an empty or fake Stitch result.
+- Stitch is **optional** and must be discovered and verified at runtime. The official `@google/stitch@0.12.1` MCP CLI is configured in `.cursor/mcp.json` using `npx -y @google/stitch@0.12.1 mcp start` (requires Node >=20). Configuration is **not** evidence of Google OAuth/API-key authorisation or active tool exposure. No Stitch connector was exposed in the 2026-11-08 ChatGPT session. If unavailable, retain a numbered spec and existing application components. Never fabricate Stitch output.
 - The MotionSites example skill advertises upgrades; commercial messaging in the skill must never be inserted into SailingSA code or user-facing app content.
 - Neither MotionSites nor Stitch owns the SailingSA database or application architecture.
 
@@ -47,7 +47,7 @@ Status: operative repository workflow. This file routes tasks to existing tools;
 - [ ] REA management capabilities enumerated; permission boundaries respected.
 - [ ] MotionSites free skill available to active coding agent.
 - [ ] MotionSites premium MCP authenticated and an actual query executed (otherwise report auth required).
-- [ ] Stitch access discovered, integration mechanism tested (otherwise report not exposed).
+- [ ] Stitch CLI/MCP registered and authenticated in the agent's actual runtime, tool listing successfully tested (otherwise report configured, auth required, or not exposed).
 - [ ] Cursor and Codex each demonstrated the rule/skill is loaded in their **actual** runtime (repository files alone are insufficient).
 - [ ] Browser/Playwright screenshot generated and reviewed for a scoped test.
 - [ ] CI/build and production smoke test performed only if implementation/release actually requested.
