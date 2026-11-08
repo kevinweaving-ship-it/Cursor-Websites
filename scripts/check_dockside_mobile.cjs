@@ -74,13 +74,24 @@ async function run(){
         viewport:innerWidth, documentWidth:document.documentElement.scrollWidth,
         cardExists:!!card, cardRight:r?.right??null,
         textCount:card?.querySelectorAll('.dockside-body').length??0,
+        clampedTexts:[...(card?.querySelectorAll('.dockside-body')||[])].filter(e=>{
+          const css=getComputedStyle(e),clamp=css.webkitLineClamp;
+          return (clamp!=='none'&&clamp!=='unset'&&clamp!=='0') ||
+            css.textOverflow==='ellipsis' || e.scrollHeight>e.clientHeight+1;
+        }).length,
+        newestNav:(()=>{
+          const p=document.getElementById('landing-roundup-prev');
+          const n=document.getElementById('landing-roundup-next');
+          return !!p&&!!n&&p.hidden&&!n.hidden&&!n.disabled&&n.getBoundingClientRect().width>0;
+        })(),
         overflowCount:nodes.length,
         overflowing:nodes.slice(0,4).map(n=>n.className)
       };
     })()`});
     const d=result.result?.result?.value;
     const ok=d?.cardExists && d.textCount>0 && d.viewport===width &&
-      d.documentWidth<=width && d.cardRight<=width+1 && d.overflowCount===0;
+      d.documentWidth<=width && d.cardRight<=width+1 && d.overflowCount===0 &&
+      d.clampedTexts===0 && d.newestNav;
     if(!ok) failed=true;
     console.log((ok?'PASS':'FAIL')+' '+width+'x'+height+' '+JSON.stringify(d));
   }
