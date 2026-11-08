@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+# Find any official Lipton results files
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "find /root /var/www/sailingsa -name '*.pdf' 2>/dev/null | grep -i lipton | head -10; find /root -name '*final*' -o -name '*official*' -o -name '*Overall*' 2>/dev/null | head -20; ls -la /root/lipton-vakaros-archive/"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait

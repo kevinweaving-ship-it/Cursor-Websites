@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+# Check GRAVE_LIPTON_FINAL contents
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "ls -la /root/ssa-r1-backup-20260829T092622Z/scripts/root/GRAVE_LIPTON_FINAL/ 2>/dev/null; cat /root/ssa-r1-backup-20260829T092622Z/scripts/root/GRAVE_LIPTON_FINAL/* 2>/dev/null | head -100"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait

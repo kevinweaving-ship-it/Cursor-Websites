@@ -1,0 +1,19 @@
+#!/usr/bin/expect -f
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn scp -o StrictHostKeyChecking=no sailingsa/deploy/check_tracker_jwalker.py ${user}@${server}:/tmp/
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "python3 /tmp/check_tracker_jwalker.py"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+}
+wait
