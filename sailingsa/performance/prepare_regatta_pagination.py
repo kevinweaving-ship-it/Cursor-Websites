@@ -116,7 +116,7 @@ def patch_landing(text: str) -> str:
             var query = raw.toLowerCase() === 'all' ? '' : raw;
             var target = document.getElementById('public-regattas-list');
             if (!target) return;
-            if (_saRegattaPagerState && _saRegattaPagerState.query === query) return;
+            if (_saRegattaPagerState && _saRegattaPagerState.query === query && target.querySelector('.sa-home-regatta-list')) return;
             _stopRegattaPager();
             if (query && query.length < 2) {
                 target.textContent = 'Type at least 2 characters to search regattas.';
