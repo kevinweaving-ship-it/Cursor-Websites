@@ -105,15 +105,31 @@
   }
 
   function placeArrows() {
-    if (!prevBtn || !nextBtn || prevBtn.hidden) return;
+    if (!prevBtn || !nextBtn || (prevBtn.hidden && nextBtn.hidden)) return;
     var index = parseInt(section.getAttribute("data-roundup-index"), 10) || 0;
     var slide = track.children[index];
-    var hero = slide && slide.querySelector(".landing-roundup-hero");
-    if (!hero) return;
+    if (!slide) return;
     var sec = section.getBoundingClientRect();
-    var box = hero.getBoundingClientRect();
-    if (!box.height || !sec.height) return;
-    var mid = box.top - sec.top + box.height / 2;
+    var hero = slide.querySelector(".landing-roundup-hero");
+    var box = hero && hero.getBoundingClientRect();
+    var mid;
+    if (box && box.height) {
+      mid = box.top - sec.top + box.height / 2;
+    } else {
+      // Some editions have no photo: place navigation in the gap between
+      // the headline and the read-more row, not below the clipped card.
+      var title = slide.querySelector(".landing-roundup-title");
+      var more = slide.querySelector(".landing-roundup-more");
+      var titleBox = title && title.getBoundingClientRect();
+      var moreBox = more && more.getBoundingClientRect();
+      if (titleBox && moreBox && moreBox.top - titleBox.bottom > 30) {
+        mid = (titleBox.bottom + moreBox.top) / 2 - sec.top;
+      } else {
+        mid = moreBox ? moreBox.top - sec.top - 18 : sec.height / 2;
+      }
+    }
+    if (!sec.height || !Number.isFinite(mid)) return;
+    mid = Math.max(18, Math.min(sec.height - 18, mid));
     prevBtn.style.setProperty("top", mid + "px", "important");
     nextBtn.style.setProperty("top", mid + "px", "important");
     prevBtn.style.setProperty("margin-top", "-13px", "important");
@@ -336,11 +352,11 @@
   function renderDots(count, index) {
     var multi = count > 1;
     if (prevBtn) {
-      prevBtn.hidden = !multi;
+      prevBtn.hidden = !multi || index <= 0;
       prevBtn.disabled = index <= 0;
     }
     if (nextBtn) {
-      nextBtn.hidden = !multi;
+      nextBtn.hidden = !multi || index >= count - 1;
       nextBtn.disabled = index >= count - 1;
     }
     if (!dotsHost) return;
