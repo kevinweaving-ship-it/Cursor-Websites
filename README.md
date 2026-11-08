@@ -32,4 +32,4 @@ GitHub Actions: `.github/workflows/website-quality.yml` runs the static contract
 
 ### Integration truthfulness
 
-MotionSites MCP is registered in `.cursor/mcp.json`, but an unauthenticated probe returned HTTP 401 on 8 November 2026. Google Stitch access is not presently proven through this repository. Do not report either premium integration as working without an actual authenticated runtime call. Keep credentials out of commits.
+MotionSites MCP is registered in `.cursor/mcp.json`, but an unauthenticated probe returned HTTP 401 on 8 November 2026. Google Stitch official CLI MCP is now registered in the same Cursor config, pinned to `@google/stitch@0.12.1` (Node >=20). Its Google authentication and actual agent runtime exposure remain unverified. Do not report either premium integration as working without an actual authenticated runtime call. Keep credentials out of commits.
