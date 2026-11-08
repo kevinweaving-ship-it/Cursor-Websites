@@ -25,6 +25,7 @@ GitHub Actions: `.github/workflows/website-quality.yml` runs the static contract
 ## Key references
 
 - [Mobile-first design system](docs/design_system.md)
+- [Portable Google Stitch design context](DESIGN.md)
 - [Live SSH/deployment documentation](sailingsa/deploy/SSH_LIVE.md)
 - [MotionSites agent skill](.agents/skills/motionsites-web-builder/SKILL.md)
 - [MotionSites Cursor rule](.cursor/rules/motionsites.mdc)
