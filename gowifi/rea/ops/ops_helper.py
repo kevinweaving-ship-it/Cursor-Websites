@@ -700,6 +700,8 @@ def op_deploy(kind: str, approved: str = "") -> dict[str, Any]:
     if kind == "frontend-sandbox":
         if host_id() != "sailingsa":
             return {"ok": False, "error": "wrong_host"}
+        production_paths = [API_LIVE, Path("/var/www/sailingsa/index.html"), Path("/var/www/sailingsa/blank.html")]
+        production_before = {str(p): _sha256(p) if p.is_file() else None for p in production_paths}
         root = Path("/opt/rea-ops/stage/frontend-sandbox")
         www = root / "www"
         zpath = root / "fixture.zip"
@@ -724,6 +726,8 @@ def op_deploy(kind: str, approved: str = "") -> dict[str, Any]:
         bak = (www / "backup.bak").exists()
         rollback = op_rollback(backup["backup_id"]) if backup.get("ok") else {"ok": False}
         hero_after = (www / "data" / "hub_hero.json").read_text(encoding="utf-8") if (www / "data" / "hub_hero.json").is_file() else ""
+        production_after = {str(p): _sha256(p) if p.is_file() else None for p in production_paths}
+        production_unchanged = production_before == production_after
         return {
             "ok": (
                 hero.startswith('{"live":true}')
@@ -736,13 +740,15 @@ def op_deploy(kind: str, approved: str = "") -> dict[str, Any]:
                 and "data/hub_hero.json" in unzipped.get("skipped", [])
                 and rollback.get("ok") is True
                 and hero_after.startswith('{"live":true}')
+                and production_unchanged
             ),
             "unzip": unzipped,
             "backup": backup,
             "rollback": rollback,
             "hero_preserved": hero.startswith('{"live":true}'),
             "traversal_blocked": not evil.exists(),
-            "mutated_production": Path("/var/www/sailingsa/rea-ops-probe.html").exists() is False,
+            "mutated_production": not production_unchanged,
+            "production_unchanged": production_unchanged,
             "note": "Isolated under /opt/rea-ops/stage/frontend-sandbox. Production web root was not published to.",
         }
     if kind == "whatsapp-code":
