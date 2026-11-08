@@ -1,5 +1,8 @@
 # EVENTS – Next Phase Notes (DO NOT IMPLEMENT YET)
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+Any future auto-match job must attach results to the SAS listing that **actually ran** (dates + host), not a stale same-series leftover.
+
 Prepared notes for future implementation. Do not execute until master plan approved.
 
 ---

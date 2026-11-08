@@ -1,5 +1,8 @@
 # PDF Conversion Rules
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+This file is **source-file** conversion (scrape JPG→PDF). Event URL print/share is separate: parent `results.pdf` only for a single fleet; **delete** leftover class PDFs and old logos — do not CSS-hide them.
+
 ## Rule: Non-PDF Files Must Be Converted to PDF
 
 **When scraping files from URL source:**

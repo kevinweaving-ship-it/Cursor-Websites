@@ -8,3 +8,8 @@
 - **Allowed classes:** container, card, table, tabs, section. **Forbidden:** raw ol/ul for results, inline CSS, custom page-level fonts or colours.
 
 See: `docs/UI_COMPONENTS_README.md`, `docs/design_system.md`, `.cursor/rules/theme-layout-mandatory.mdc`.
+
+# SAS Low Score Results Pass (LOCKED STD)
+# Pinned chat: https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+# Full rules: docs/SAS_LOW_SCORE_RESULTS_PASS.md
+# Rule 1: match public.events (SAS event that actually ran) before Event URL slug/dates. Daily scrape ≠ matching.

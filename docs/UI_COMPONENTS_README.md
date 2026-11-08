@@ -2,6 +2,9 @@
 
 **Store this in Cursor memory for easy access so layout and pages cannot be broken.**
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+Public Low Point Event URL: std header like 505 Nationals. No extra cards, no Super Admin section, no MM/Facebook. Do not add wrappers or hide replaced logos with CSS.
+
 ---
 
 ## Hard rules

@@ -1,5 +1,8 @@
 # Results Table Render Rules
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+Gold columns: Rank | Class | Sail No | Club | Helm | Crew | R1–RX | Total | Nett. Single fleet = parent Event URL only.
+
 **Purpose**: Ensure all results sheets render consistently across the app. Apply these rules to every results table (index.html popup, regatta/results.html, regatta/class/class-results.html, regatta/class/podium/podium.html).
 
 ## Fleet vs Class (CRITICAL)

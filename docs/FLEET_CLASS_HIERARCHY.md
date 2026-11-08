@@ -1,5 +1,9 @@
 # Fleet/Class Hierarchy Rules
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf
+
+For a sole-class Low Point Event URL, **class = fleet**. Header left = that class logo when the class is in the event name. Never a combined Event Logo naming a class that is not in the event (Mirror-only must not use KZN-Mirror-ILCA artwork). Single fleet → parent URL only.
+
 ## Principle
 
 **Fleet = Parent Class | Class = Sub-Class**

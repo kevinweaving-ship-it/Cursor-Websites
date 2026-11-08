@@ -1,5 +1,8 @@
 # RESULTS Table - GPT Rules & Data Structure
 
+**SAS Low Score Results Pass (LOCKED STD):** **`docs/SAS_LOW_SCORE_RESULTS_PASS.md`** — pinned chat https://cursor.com/agents/bc-01a15515-4c8d-74d1-a6bf-1ba474ec1bcf  
+Low Point: total includes discards; nett = total − discard; penalty = entries+1.
+
 ## Purpose
 Stores individual race results with proper scoring, discards, and sailor information.
 
