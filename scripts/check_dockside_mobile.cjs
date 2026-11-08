@@ -59,10 +59,20 @@ async function run(){
     if(msg.id && pending.has(msg.id)){pending.get(msg.id)(msg);pending.delete(msg.id);}
   };
   let failed=false;
+  // Load once and wait for API-fed discussion content. Repeated navigation
+  // can trigger request delays and gives false negatives on empty threads.
+  await rpc('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await rpc('Page.navigate',{url:target});
+  let loaded=false;
+  for(let attempt=0;attempt<45;attempt++){
+    const check=await rpc('Runtime.evaluate',{expression:"document.querySelectorAll('#dockside-landing .dockside-body').length",returnByValue:true});
+    if(Number(check.result?.result?.value)>0){loaded=true;break;}
+    await sleep(200);
+  }
+  if(!loaded)throw new Error('Dockside discussion did not load within 9 seconds');
   for(const [width,height] of [[320,740],[360,780],[390,844],[430,932],[844,390]]){
     await rpc('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:true});
-    await rpc('Page.navigate',{url:target});
-    await sleep(2200);
+    await sleep(350);
     const result=await rpc('Runtime.evaluate',{returnByValue:true,expression:`(()=>{
       const card=document.querySelector('#dockside-landing');
       const r=card?.getBoundingClientRect();
