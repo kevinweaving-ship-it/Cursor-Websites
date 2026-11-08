@@ -40,6 +40,8 @@ check('MotionSites always-on Cursor rule',rule.includes('alwaysApply: true')&&ru
 try {
   const config=JSON.parse(mcp);
   check('MotionSites MCP registered',config.mcpServers?.MotionSites?.url==='https://motionsites.ai/api/mcp');
+  const stitch=config.mcpServers?.Stitch;
+  check('Google Stitch MCP registered (not proof of authentication)',stitch?.command==='npx'&&Array.isArray(stitch.args)&&stitch.args.includes('@google/stitch@0.12.1')&&stitch.args.includes('mcp')&&stitch.args.includes('start'));
 } catch(e) { check('MCP config valid JSON',false,e.message); }
 check('Dockside comments not clamped',!/\#dockside-landing \.dockside-body\s*\{[^}]*-webkit-line-clamp:\s*3/.test(css)&&!/\#dockside-landing \.dockside-op \.dockside-body\s*\{[^}]*-webkit-line-clamp:\s*3/.test(css));
 check('Roundup arrows have no-hero fallback',roundup.includes('if (box && box.height)')&&roundup.includes('var title = slide.querySelector(".landing-roundup-title")'));
