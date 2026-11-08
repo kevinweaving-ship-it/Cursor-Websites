@@ -2,6 +2,15 @@
   "mcpServers": {
     "MotionSites": {
       "url": "https://motionsites.ai/api/mcp"
+    },
+    "Stitch": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@google/stitch@0.12.1",
+        "mcp",
+        "start"
+      ]
     }
   }
 }
