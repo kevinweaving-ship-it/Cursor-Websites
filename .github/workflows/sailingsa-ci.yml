@@ -11,6 +11,7 @@ on:
       - 'gowifi/rea/ops/**'
       - 'tests/test_rea_ops_guards.py'
       - 'tests/test_sailingsa_club_hotfix.py'
+      - 'tests/test_regatta_pagination_patch.py'
       - '.github/workflows/sailingsa-ci.yml'
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - 'gowifi/rea/ops/**'
       - 'tests/test_rea_ops_guards.py'
       - 'tests/test_sailingsa_club_hotfix.py'
+      - 'tests/test_regatta_pagination_patch.py'
       - '.github/workflows/sailingsa-ci.yml'
   workflow_dispatch:
 
@@ -82,6 +84,8 @@ jobs:
           print("PASS: REA ops assets and helper syntax")
           PY
 
+      - name: Exercise regatta pagination staging guards
+        run: python -m unittest discover -s tests -p 'test_regatta_pagination_patch.py' -v
       - name: Exercise protected backend hotfix staging tests
         run: python -m unittest discover -s tests -p 'test_sailingsa_club_hotfix.py' -v
       - name: Exercise deployment guard regression tests without production access
