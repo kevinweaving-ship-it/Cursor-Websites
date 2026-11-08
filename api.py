@@ -779,6 +779,97 @@ def dev1_sailor_embed(request: Request, embed: Optional[int] = None, sas_id: Opt
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
+def _wind2speed_station_card(station_id: int, source_path: str, default_name: str):
+    """Wind2Speed widgetPage/{id} → knots + direction for a gold wind card."""
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            r = client.get(f"https://wind2speed.africa/apidata/wsdata/{int(station_id)}")
+            r.raise_for_status()
+            payload = r.json()
+        raw = payload.get("data") if isinstance(payload, dict) else None
+        inner = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        stats = inner.get("stats") or {}
+        station = inner.get("station") or {}
+        kmh_kn = 1.852
+
+        def _kn(v):
+            if v is None:
+                return None
+            try:
+                return round(float(v) / kmh_kn, 1)
+            except (TypeError, ValueError):
+                return None
+
+        hour = []
+        for row in inner.get("tableData") or []:
+            if not isinstance(row, dict):
+                continue
+            hour.append(
+                {
+                    "t": row.get("obsTimeLocal"),
+                    "avg_kt": _kn(row.get("windspeedAvg")),
+                    "high_kt": _kn(row.get("windspeedHigh")),
+                    "low_kt": _kn(row.get("windspeedLow")),
+                }
+            )
+        hour.sort(key=lambda p: p.get("t") or "")
+        if hour and hour[-1].get("t"):
+            try:
+                t1 = datetime.fromisoformat(str(hour[-1]["t"]).replace("Z", "").split(".")[0])
+                t0 = t1 - timedelta(hours=1)
+                hour = [
+                    p
+                    for p in hour
+                    if p.get("t")
+                    and datetime.fromisoformat(str(p["t"]).replace("Z", "").split(".")[0]) >= t0
+                ]
+            except Exception:
+                hour = hour[-24:]
+
+        body = {
+            "ok": True,
+            "source": source_path,
+            "station": station.get("nam") or default_name,
+            "code": station.get("cod"),
+            "lr": stats.get("lr"),
+            "wind_kt": stats.get("wslr"),
+            "gust_kt": stats.get("wshlr"),
+            "avg_kt": stats.get("wsa"),
+            "low_kt": stats.get("wsl"),
+            "high_kt": stats.get("wsh"),
+            "wind_dir": stats.get("wdlr"),
+            "wind_dir_name": stats.get("wdlrn"),
+            "avg_dir": stats.get("wda"),
+            "avg_dir_name": stats.get("wdn"),
+            "dir_low": stats.get("wdrl"),
+            "dir_high": stats.get("wdrh"),
+            "wds": stats.get("wds") or [],
+            "wdsm": stats.get("wdsm") or [],
+            "hour": hour,
+            "interval": payload.get("interval") or 40000,
+            "pressure": stats.get("prs"),
+        }
+        return JSONResponse(
+            content=body,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+            },
+        )
+    except Exception as e:
+        return JSONResponse(
+            content={"ok": False, "err": str(e)[:200]},
+            status_code=502,
+            headers={"Cache-Control": "no-store"},
+        )
+
+
+@app.get("/api/wind2speed/mac")
+def api_wind2speed_mac():
+    """MAC Wind2Speed station 3 (W2SMAC01) — knots + direction for the TSL Event URL wind card."""
+    return _wind2speed_station_card(3, "wind2speed.africa/widgetPage/3", "Milnerton Aquatic Club")
+
+
 @app.get("/api/stats")
 async def api_stats():
     """Public stats for /stats page. Registered before /sailor/{slug} so /stats is not caught as slug."""
@@ -12388,6 +12479,20 @@ def _session_role_is_super_admin(request: Request) -> bool:
     return s in ("super_admin", "superadmin")
 
 
+def _session_role_is_admin(request: Request) -> bool:
+    """True if session maps to club/admin (tolerates DB spacing/casing)."""
+    r = _get_session_role(request)
+    if not r:
+        return False
+    s = str(r).strip().lower().replace(" ", "_").replace("-", "_")
+    return s in ("admin", "club_admin", "clubadmin")
+
+
+def _session_can_edit_tsl(request: Request) -> bool:
+    """Super Admin or club admin may edit the TSL Event URL."""
+    return _session_role_is_super_admin(request) or _session_role_is_admin(request)
+
+
 def _require_super_admin(request: Request) -> None:
     """Raise 403 unless the session is super admin (inline result PATCH, etc.)."""
     if not _session_role_is_super_admin(request):
@@ -20652,6 +20757,8 @@ async def login(request: Request):
         
         if not username or not password:
             return {"success": False, "error": "Username and password required"}
+        username = str(username).strip()
+        username = {"jsmit6": "4701"}.get(username.lower(), username)
         
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -21994,8 +22101,15 @@ def _class_logo_url_from_fleet_name(name: str) -> Optional[str]:
         "hobie 16": "/artwork/Class Logo/Hobie-16-Class-Logo.png",
         "df95": "/artwork/Class Logo/DF95-Class-Logo.png",
         "sonnet": "/artwork/Class Logo/Sonnet-Class-Logo.png",
+        "tsl": "/artwork/Class Logo/TSL-Class-Logo.png",
+        "team sailing": "/artwork/Class Logo/TSL-Class-Logo.png",
+        "team sailing league": "/artwork/Class Logo/TSL-Class-Logo.png",
     }
     return file_map.get(key)
+
+
+MAC_TSL_WC_2026_REGATTA_SLUG = "2026-10-17-mac-tsl-wc-team-sailing"
+MAC_TSL_WC_2026_EVENT_LOGO = "/artwork/Event Logo/TSL-Team-Sailing.png"
 
 
 def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[str]:
@@ -22004,6 +22118,8 @@ def _regatta_named_event_logo_url(regatta_id: str, event_name: str) -> Optional[
     en = str(event_name or "").lower()
     if "lipton" in rid or "lipton" in en:
         return "/js/lipton-dev-event-logo.png"
+    if rid == MAC_TSL_WC_2026_REGATTA_SLUG or "team sailing" in en:
+        return MAC_TSL_WC_2026_EVENT_LOGO
     return None
 
 
@@ -24415,6 +24531,25 @@ def _render_result_sheet_fleet(
     scoring_system = fleet.get("scoring_system") or "Appendix A"
     sailed_line = f"Sailed: {races_sailed}, Discards: {discard_count}, To count: {to_count}, Entries: {entries}, Scoring system: {scoring_system}"
 
+    if str(regatta_id or "").strip() == MAC_TSL_WC_2026_REGATTA_SLUG:
+        class_logo_src = _class_logo_url_from_fleet_name(class_canonical or fleet_label or fname)
+        class_logo_col = ""
+        if class_logo_src:
+            class_logo_col = (
+                f'<div class="class-header-logo-col">'
+                f'<img src="{html_module.escape(class_logo_src)}" alt="" class="class-header-logo-img" '
+                'loading="lazy" decoding="async" />'
+                f"</div>"
+            )
+        return (
+            f'<div class="fleet-section">'
+            f'<div class="class-header">'
+            f"{class_logo_col}"
+            f'<div class="class-header-text-col"><div class="fleet-title-row">{fleet_header_html}</div>'
+            f'<div class="sailed-line">{html_module.escape(sailed_line)}</div></div></div>'
+            f"</div>"
+        )
+
     def _row_has_crew(row):
         if (row.get("crew_name") or "").strip():
             return True
@@ -26025,11 +26160,11 @@ def _format_regatta_host_display(abbrev: str, fullname: str, legacy_coalesce: st
 def _format_regatta_status_line(status_word: str, as_at_time) -> str:
     """Format status line per RESULTS_HTML_STATUS_LINE_RULE. as_at_time from API (results table then regattas). No datetime.now/start_date.
     If as_at_time exists and is formattable: 'Results are <Status> as at DD Month YYYY at HH:MM'.
-    If as_at_time is NULL or invalid: 'Results are <Status> (snapshot time not recorded)'."""
+    If as_at_time is NULL or invalid: omit the status line (empty string)."""
     word = (status_word or "Final").strip() or "Final"
     escaped_word = html_module.escape(word)
     if not as_at_time:
-        return f"Results are {escaped_word} (snapshot time not recorded)"
+        return ""
     if hasattr(as_at_time, "strftime"):
         status_date = as_at_time.strftime("%d %B %Y at %H:%M")
         return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
@@ -26048,7 +26183,7 @@ def _format_regatta_status_line(status_word: str, as_at_time) -> str:
             return f"Results are {escaped_word} as at {html_module.escape(status_date)}"
         except Exception:
             pass
-    return f"Results are {escaped_word} (snapshot time not recorded)"
+    return ""
 
 
 def _resolve_class_slug_to_class_id(class_slug: str):
@@ -26312,7 +26447,10 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         host_club_text = _format_regatta_host_display(host_club_abbrev, host_club_fullname, host_club_name or "")
         host_club_html = f'<a href="/club/{html_module.escape(host_club_slug)}">{html_module.escape(host_club_text)}</a>' if host_club_slug and host_club_text else html_module.escape(host_club_text)
         use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
-        is_sa = _session_role_is_super_admin(request)
+        is_mac_tsl_page = str(regatta_id) == MAC_TSL_WC_2026_REGATTA_SLUG
+        is_sa = _session_role_is_super_admin(request) or (
+            is_mac_tsl_page and _session_role_is_admin(request)
+        )
         back_link = f'<a href="/regatta/{html_module.escape(regatta_id)}" class="back-to-home">← Back to full regatta</a>'
         if is_sa:
             back_block = (
@@ -26595,7 +26733,10 @@ def serve_regatta_standalone(slug: str, request: Request):
             if host_club_slug and host_club_text
             else esc_host
         )
-        is_sa = _session_role_is_super_admin(request)
+        is_mac_tsl = str(regatta_id) == MAC_TSL_WC_2026_REGATTA_SLUG
+        is_sa = _session_role_is_super_admin(request) or (
+            is_mac_tsl and _session_role_is_admin(request)
+        )
         is_wc = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
         back_link = '<a href="/" class="back-to-home">← Back to Search</a>'
         if is_sa:
@@ -26739,6 +26880,17 @@ def serve_regatta_standalone(slug: str, request: Request):
             else ""
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        mac_tsl_js = (
+            '<script src="/js/mac-tsl-live-cards.js?v=20261015c" defer></script>'
+            '<script src="/js/mac-tsl-admin.js?v=20261022y" defer></script>'
+            if is_mac_tsl
+            else ""
+        )
+        page_attrs = (
+            ' class="regatta-page" data-mac-tsl="1" data-mac-cam="later"'
+            if is_mac_tsl
+            else ' class="regatta-page"'
+        )
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
@@ -26747,8 +26899,14 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"48x48\" href=\"/favicon-48.png\">"
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
-            f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
+            f"<style>{_RESULT_SHEET_CSS}</style>"
+            + (
+                '<style id="mac-tsl-boot-css">@page{size:A4 landscape;size:297mm 210mm;margin:8mm}</style>'
+                if is_mac_tsl
+                else ""
+            )
+            + "</head><body>"
+            f"<div{page_attrs}>{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}{mac_tsl_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
@@ -27068,6 +27226,20 @@ def serve_robots_txt():
     base = _canonical_base_url()
     body = f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n"
     return Response(content=body, media_type="text/plain", headers={"Cache-Control": "public, max-age=3600"})
+
+# TSL_TEAM_RACING_ROUTES_v1 — extra routes only; does not replace fleet / Appendix A.
+try:
+    from sailingsa.backend.tsl_team_racing import register_tsl_routes
+    register_tsl_routes(
+        app,
+        get_db_connection=get_db_connection,
+        return_db_connection=return_db_connection,
+        is_super_admin=_session_can_edit_tsl,
+        table_exists=table_exists,
+        column_exists=column_exists,
+    )
+except Exception as _tsl_exc:
+    print(f"[tsl] routes not registered: {_tsl_exc}", flush=True)
 
 # Serve /artwork/ from project artwork dir (e.g. TimAdvisor logo) so same-origin requests work
 ARTWORK_DIR = os.path.join(BASE_DIR, "artwork")
