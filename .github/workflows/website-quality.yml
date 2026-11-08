@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'AGENTS.md'
+      - 'DESIGN.md'
       - 'README.md'
       - '.cursor/**'
       - '.agents/skills/motionsites-web-builder/**'
