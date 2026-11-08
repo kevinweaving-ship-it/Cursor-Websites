@@ -19,6 +19,7 @@ const agent=read('AGENTS.md');
 const sop=read('docs/WEBSITE_DEVELOPMENT_SOP.md');
 const router=read('docs/DEVELOPMENT_TOOL_ROUTER.md');
 const design=read('docs/design_system.md');
+const stitchDesign=read('DESIGN.md');
 const mcp=read('.cursor/mcp.json');
 const rule=read('.cursor/rules/motionsites.mdc');
 const skill=read('.agents/skills/motionsites-web-builder/SKILL.md');
@@ -35,6 +36,7 @@ check('SOP requires mobile-first 390x844',sop.includes('390×844'));
 check('SOP requires screenshots and post-deploy verification',/Visual QA/.test(sop)&&/Verify live asset versions/.test(sop));
 check('router covers all tools',['MotionSites','Stitch','REA','GitHub','Codex','Cursor'].every(s=>router.includes(s)));
 check('design system available',design.includes('Source of truth'));
+check('Stitch DESIGN.md respects canonical tokens and mobile master',stitchDesign.includes('docs/design_system.md')&&stitchDesign.includes('390×844')&&stitchDesign.includes('#001f3f')&&stitchDesign.includes('locked'));
 check('MotionSites skill & examples available',skill.includes('MotionSites Web Builder')&&examples.includes('Examples index'));
 check('MotionSites always-on Cursor rule',rule.includes('alwaysApply: true')&&rule.includes('390×844'));
 try {
