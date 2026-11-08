@@ -1,0 +1,11 @@
+---
+description: One logical task per session. Narrow scope to avoid crashes and credit burn.
+alwaysApply: true
+---
+
+# Task splitting and resources
+
+- One logical task per agent session. If the request is large, list short steps and do only the first unless the user asks for more.
+- Use todos for multi-step work. Keep tool use targeted: few reads, small edits, one check pass.
+- One active agent at a time. Do not open extra Composer/Cloud chats for the same job.
+- Close finished chats. Long-running Cloud threads (days/weeks) grow context and drain the pool on every follow-up.
