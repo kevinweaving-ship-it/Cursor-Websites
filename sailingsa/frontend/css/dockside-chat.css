@@ -134,13 +134,8 @@
     border-bottom: 1px solid #e6ebf1;
 }
 
-#dockside-landing .dockside-op .dockside-body {
-    -webkit-line-clamp: 3;
-}
-
 #dockside-landing .dockside-scroll {
     flex: 1 1 auto;
-    max-height: 320px;
     min-height: 0;
 }
 
@@ -207,10 +202,11 @@
 }
 
 #dockside-landing .dockside-body {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    overflow: hidden;
+    display: block;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: initial;
+    overflow: visible;
+    text-overflow: clip;
     margin: 1px 0 0;
     max-width: 100%;
     color: #344054;
