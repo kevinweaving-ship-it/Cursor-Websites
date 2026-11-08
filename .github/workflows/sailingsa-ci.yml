@@ -9,12 +9,14 @@ on:
       - 'api.py'
       - 'sailingsa/**'
       - 'gowifi/rea/ops/**'
+      - 'tests/test_rea_ops_guards.py'
       - '.github/workflows/sailingsa-ci.yml'
   pull_request:
     paths:
       - 'api.py'
       - 'sailingsa/**'
       - 'gowifi/rea/ops/**'
+      - 'tests/test_rea_ops_guards.py'
       - '.github/workflows/sailingsa-ci.yml'
   workflow_dispatch:
 
@@ -77,3 +79,6 @@ jobs:
           ast.parse(helper.read_text(encoding="utf-8"), filename=str(helper))
           print("PASS: REA ops assets and helper syntax")
           PY
+
+      - name: Exercise deployment guard regression tests without production access
+        run: python -m unittest discover -s tests -p 'test_rea_ops_guards.py' -v
