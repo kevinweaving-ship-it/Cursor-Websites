@@ -98,4 +98,13 @@ async function run(){
   if(failed)process.exitCode=1;
 }
 run().catch(e=>{console.error('FAIL:',e.message);process.exitCode=1;})
-.finally(()=>{try{ws?.close()}catch(e){}browser.kill('SIGTERM');fs.rmSync(profile,{recursive:true,force:true});});
+.finally(async()=>{
+  try{ws?.close()}catch(e){}
+  if(browser.exitCode===null){
+    const exited=new Promise(resolve=>browser.once('exit',resolve));
+    browser.kill('SIGTERM');
+    await Promise.race([exited,sleep(1500)]);
+  }
+  try{fs.rmSync(profile,{recursive:true,force:true,maxRetries:12,retryDelay:100});}
+  catch(e){console.warn('WARN: browser profile cleanup failed:',e.message);}
+});
