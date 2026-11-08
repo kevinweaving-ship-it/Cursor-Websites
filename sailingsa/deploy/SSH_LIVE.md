@@ -1,5 +1,8 @@
 # SailingSA Live Server — SSH & Deploy
 
+**Default development/release standard:** `docs/WEBSITE_DEVELOPMENT_SOP.md` and `docs/DEVELOPMENT_TOOL_ROUTER.md` are mandatory for all website changes. First discover REA capabilities rather than claiming SSH is unavailable. Verified on 8 Nov 2026: REA on GoWifi can call `/opt/rea/ops/bin/rea-admin sailingsa -- capabilities`; its configured `sailingsa-publish` SSH route authenticated to the SailingSA host. This access does not waive the Gold lock or allow blind overwrites. Compare live files with repo, make an exact backup, deploy only scoped changes and verify actual mobile screens plus CI. GitHub merge alone does not deploy.
+
+
 ⚠ **PRODUCTION MODE**  
 You are operating on LIVE infrastructure.  
 All edits must be deliberate.  
