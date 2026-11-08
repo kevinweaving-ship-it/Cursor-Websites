@@ -1,0 +1,74 @@
+name: SailingSA CI baseline
+
+on:
+  push:
+    branches:
+      - main
+      - 'audit/**'
+    paths:
+      - 'api.py'
+      - 'sailingsa/**'
+      - '.github/workflows/sailingsa-ci.yml'
+  pull_request:
+    paths:
+      - 'api.py'
+      - 'sailingsa/**'
+      - '.github/workflows/sailingsa-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sailingsa-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-validation:
+    name: Read-only source validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Parse backend without importing or running it
+        shell: bash
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          path = Path("api.py")
+          assert path.is_file(), "api.py missing"
+          ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+          print("PASS: backend syntax")
+          PY
+      - name: Check frontend entrypoint
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("sailingsa/frontend/index.html")
+          assert path.is_file(), "frontend entrypoint missing"
+          text = path.read_text(encoding="utf-8-sig")
+          assert "<!doctype html" in text[:200].lower(), "missing DOCTYPE"
+          assert "<html" in text.lower() and "</html>" in text.lower(), "missing HTML root"
+          assert "<head" in text.lower() and "<body" in text.lower(), "missing document sections"
+          print("PASS: frontend entrypoint")
+          PY
+      - name: Verify deployment protections are versioned
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          root = Path("gowifi/rea/ops")
+          required = ["ops_helper.py", "ops_mcp_server.py", "install-sailingsa-ops.sh"]
+          missing = [name for name in required if not (root / name).is_file()]
+          assert not missing, f"Missing REA operational safeguards: {missing}"
+          print("PASS: REA ops assets present")
+          PY
