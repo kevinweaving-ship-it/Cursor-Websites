@@ -16,4 +16,12 @@
     <loc>https://sailingsa.co.za/sitemap-sailors.xml</loc>
     <lastmod>2026-02-16</lastmod>
   </sitemap>
+  <sitemap>
+    <loc>https://sailingsa.co.za/sitemap-roundups.xml</loc>
+    <lastmod>2026-10-24</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://sailingsa.co.za/sitemap-news.xml</loc>
+    <lastmod>2026-10-24</lastmod>
+  </sitemap>
 </sitemapindex>

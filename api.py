@@ -1671,7 +1671,10 @@ def _regatta_class_results_html():
 
 
 @app.get("/regatta/class/podium/podium.html")
-def _regatta_podium_html():
+def _regatta_podium_html(request: Request):
+    # Empty ?regatta_id= is a soft-404 that Search Console flags. Send it to /events.
+    if not (request.query_params.get("regatta_id") or "").strip():
+        return RedirectResponse(url="/events", status_code=301)
     path = os.path.join(_static_dir(), "regatta", "class", "podium", "podium.html")
     if os.path.isfile(path):
         return FileResponse(path, media_type="text/html")
@@ -1842,7 +1845,9 @@ def _directory_page_html(title: str, items: list, href_key: str, page_title: str
     header = """<!DOCTYPE html>
 <html lang="en-US">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>""" + html_module.escape(page_title) + """</title>
+<title>""" + html_module.escape(page_title) + """ | SailingSA</title>
+<meta name="robots" content="index, follow">
+<meta name="description" content=\"""" + html_module.escape(about_text) + """\">
 <link rel="canonical" href="https://sailingsa.co.za""" + html_module.escape(title) + """">
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
 <link rel="stylesheet" href="/css/main.css">
@@ -1890,7 +1895,7 @@ def _directory_page_html(title: str, items: list, href_key: str, page_title: str
 def _directory_sailors_page():
     """Directory: all sailors, alphabetical by first letter. Links to /sailor/{slug}."""
     items = _directory_sailors()
-    return HTMLResponse(_directory_page_html("/sailors", items, "sailor", "Sailors"))
+    return HTMLResponse(_directory_page_html("/sailors", items, "sailor", "South African Sailors"))
 
 
 @app.get("/regattas", response_class=HTMLResponse)
@@ -26022,6 +26027,41 @@ def _format_regatta_host_display(abbrev: str, fullname: str, legacy_coalesce: st
     return leg
 
 
+def _sportsevent_location(host_club_text: str, province: str | None = None, club_url: str | None = None) -> dict:
+    """Yacht-club location for SportsEvent JSON-LD (sport=Sailing)."""
+    loc: dict = {
+        "@type": ["Place", "SportsOrganization"],
+        "name": host_club_text,
+        "sport": "Sailing",
+        "address": {"@type": "PostalAddress", "addressCountry": "ZA"},
+    }
+    if province:
+        loc["address"]["addressLocality"] = str(province).strip()
+    if club_url:
+        loc["url"] = club_url
+    return loc
+
+
+def _sportsevent_competitors(fleets) -> list:
+    """Podium helm names as Person competitors. Empty if no ranked rows."""
+    out = []
+    seen = set()
+    for fleet in fleets or []:
+        rows = list(fleet.get("rows") or [])
+        def _rank(row):
+            try:
+                return int(row.get("rank") or 99)
+            except (TypeError, ValueError):
+                return 99
+        for row in sorted(rows, key=_rank)[:3]:
+            name = (row.get("helm_name") or "").strip()
+            if not name or name.lower() in seen:
+                continue
+            seen.add(name.lower())
+            out.append({"@type": "Person", "name": name})
+    return out[:12]
+
+
 def _format_regatta_status_line(status_word: str, as_at_time) -> str:
     """Format status line per RESULTS_HTML_STATUS_LINE_RULE. as_at_time from API (results table then regattas). No datetime.now/start_date.
     If as_at_time exists and is formattable: 'Results are <Status> as at DD Month YYYY at HH:MM'.
@@ -26364,7 +26404,12 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         if event_name:
             json_ld["description"] = event_name
         if host_club_text:
-            json_ld["organizer"] = {"@type": "Organization", "name": host_club_text}
+            json_ld["organizer"] = {"@type": "SportsOrganization", "name": host_club_text, "sport": "Sailing"}
+            club_url = f"{base_url}/club/{host_club_slug}" if host_club_slug else None
+            json_ld["location"] = _sportsevent_location(host_club_text, host_club_province, club_url)
+        comps = _sportsevent_competitors(fleets)
+        if comps:
+            json_ld["competitor"] = comps
         wc_prefs = _merge_wc_column_prefs_for_regatta(str(regatta_id)) if use_wc_cols else None
         sa_columns_frag = ""
         if use_wc_cols and is_sa:
@@ -26680,16 +26725,13 @@ def serve_regatta_standalone(slug: str, request: Request):
         if description:
             json_ld["description"] = description
         organizer_name = host_club_text or "SailingSA"
-        json_ld["organizer"] = {"@type": "Organization", "name": organizer_name}
+        json_ld["organizer"] = {"@type": "SportsOrganization", "name": organizer_name, "sport": "Sailing"}
         if host_club_text:
-            address = {"@type": "PostalAddress", "addressCountry": "ZA"}
-            if host_club_province:
-                address["addressLocality"] = host_club_province
-            json_ld["location"] = {
-                "@type": "Place",
-                "name": host_club_text,
-                "address": address,
-            }
+            club_url = f"{base_url}/club/{host_club_slug}" if host_club_slug else None
+            json_ld["location"] = _sportsevent_location(host_club_text, host_club_province, club_url)
+        comps = _sportsevent_competitors(fleets)
+        if comps:
+            json_ld["competitor"] = comps
         use_wc_cols = str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG
         wc_prefs = _merge_wc_column_prefs_for_regatta(str(regatta_id)) if use_wc_cols else None
         sa_columns_frag = ""
@@ -27018,6 +27060,151 @@ _SITEMAP_CACHE_TTL_SEC = 1200  # 20 min
 _sitemap_cache = {"body": None, "expires_at": 0.0}
 
 
+def _roundup_issue_dirs() -> list:
+    dirs = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "sailing-roundup", "issues"),
+        "/var/www/sailingsa/sailing-roundup/issues",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "gowifi", "rea", "sailing-roundup", "public", "issues"),
+    ]
+    static = os.getenv("STATIC_DIR") or ""
+    if static:
+        dirs.insert(1, os.path.join(static, "sailing-roundup", "issues"))
+    return dirs
+
+
+def _roundup_published_issues() -> list:
+    """[{url, lastmod, title, published_at}] from on-disk issue.json, else live archive.json."""
+    out = []
+    seen = set()
+    base = _canonical_base_url().rstrip("/")
+    for root in _roundup_issue_dirs():
+        if not os.path.isdir(root):
+            continue
+        try:
+            names = sorted(os.listdir(root), reverse=True)
+        except OSError:
+            continue
+        for name in names:
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", name):
+                continue
+            path = os.path.join(root, name, "issue.json")
+            html = os.path.join(root, name, "index.html")
+            if not os.path.isfile(path) and not os.path.isfile(html):
+                continue
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    data = json.load(fh)
+            except Exception:
+                data = {}
+            url = f"{base}/sailing-roundup/issues/{name}/"
+            if url in seen:
+                continue
+            seen.add(url)
+            title = (data.get("title") or "Weekend Sailing Roundup").strip()
+            pub = (data.get("edition_date") or name)[:10]
+            out.append({"url": url, "lastmod": pub, "title": f"{title} — {name}", "published_at": pub})
+        if out:
+            return out
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(
+            f"{base}/sailing-roundup/archive.json",
+            headers={"User-Agent": "SailingSA-Sitemap/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            rows = json.loads(resp.read().decode("utf-8", "replace"))
+        if not isinstance(rows, list):
+            return out
+        for row in rows:
+            url = (row.get("url") or "").strip()
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            pub = str(row.get("published_at") or "")[:10]
+            out.append(
+                {
+                    "url": url,
+                    "lastmod": pub or "2000-01-01",
+                    "title": (row.get("title") or "Weekend Sailing Roundup").strip(),
+                    "published_at": pub,
+                }
+            )
+    except Exception as exc:
+        print(f"[sitemap-news] archive fetch: {exc}")
+    return out
+
+
+def _build_news_sitemap_xml() -> str:
+    """Google News sitemap: only weekend-roundup URLs published in the last 48 hours."""
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=48)
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+        'xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">',
+    ]
+    for item in _roundup_published_issues():
+        pub = item.get("published_at") or ""
+        try:
+            pub_dt = datetime.fromisoformat(pub).replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+        # Monday 06:00 SAST ≈ 04:00 UTC; keep the calendar day + 48h from end of that Monday UTC.
+        if pub_dt < cutoff - timedelta(hours=20):
+            continue
+        loc = _sitemap_escape_loc(item["url"])
+        title = _sitemap_escape_loc(item.get("title") or "Weekend Sailing Roundup")
+        pub_iso = f"{pub}T06:00:00+02:00"
+        lines.append("  <url>")
+        lines.append(f"    <loc>{loc}</loc>")
+        lines.append("    <news:news>")
+        lines.append("      <news:publication>")
+        lines.append("        <news:name>SailingSA</news:name>")
+        lines.append("        <news:language>en</news:language>")
+        lines.append("      </news:publication>")
+        lines.append(f"      <news:publication_date>{pub_iso}</news:publication_date>")
+        lines.append(f"      <news:title>{title}</news:title>")
+        lines.append("    </news:news>")
+        lines.append("  </url>")
+    lines.append("</urlset>")
+    return "\n".join(lines)
+
+
+def _build_roundup_sitemap_xml() -> str:
+    base = _canonical_base_url().rstrip("/")
+    entries = [(item["url"].replace(base, "", 1) or "/", item["lastmod"]) for item in _roundup_published_issues()]
+    last = max((e[1] for e in entries), default=datetime.utcnow().strftime("%Y-%m-%d"))
+    prefix = []
+    if not any(p == "/sailing-roundup/" for p, _ in entries):
+        prefix.append(("/sailing-roundup/", last))
+    if not any(p == "/sailing-roundup/latest/" for p, _ in entries):
+        prefix.append(("/sailing-roundup/latest/", last))
+    return _build_urlset_from_entries(prefix + entries)
+
+
+def _build_urlset_from_entries(entries: list) -> str:
+    base = _canonical_base_url().rstrip("/")
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for path_or_url, lastmod in entries:
+        if str(path_or_url).startswith("http"):
+            loc = path_or_url
+        elif path_or_url == "/":
+            loc = base
+        else:
+            loc = f"{base}{path_or_url}"
+        lines.append("  <url>")
+        lines.append(f"    <loc>{_sitemap_escape_loc(loc)}</loc>")
+        lines.append(f"    <lastmod>{lastmod}</lastmod>")
+        lines.append("    <changefreq>weekly</changefreq>")
+        lines.append("  </url>")
+    lines.append("</urlset>")
+    return "\n".join(lines)
+
+
 def _build_sitemap_xml() -> str:
     """Sitemap index (sitemaps.org): points to child urlset files on the site. Called on cache miss."""
     base = _canonical_base_url().rstrip("/")
@@ -27026,7 +27213,9 @@ def _build_sitemap_xml() -> str:
         "sitemap-classes.xml",
         "sitemap-clubs.xml",
         "sitemap-core.xml",
+        "sitemap-news.xml",
         "sitemap-regattas.xml",
+        "sitemap-roundups.xml",
         "sitemap-sailors.xml",
     )
     lines = [
@@ -27062,11 +27251,27 @@ def serve_sitemap_xml():
     return Response(content=body, media_type="application/xml", headers=_SITEMAP_HEADERS)
 
 
+@app.api_route("/sitemap-news.xml", methods=["GET", "HEAD"])
+def serve_sitemap_news_xml():
+    """Google News sitemap: first-party weekend-roundup URLs from the last 48 hours only."""
+    return Response(content=_build_news_sitemap_xml(), media_type="application/xml", headers=_SITEMAP_HEADERS)
+
+
+@app.api_route("/sitemap-roundups.xml", methods=["GET", "HEAD"])
+def serve_sitemap_roundups_xml():
+    """All published weekend-roundup issue URLs (historical depth; not a news sitemap)."""
+    return Response(content=_build_roundup_sitemap_xml(), media_type="application/xml", headers=_SITEMAP_HEADERS)
+
+
 @app.get("/robots.txt")
 def serve_robots_txt():
     """Serve robots.txt: Allow all, point to sitemap. Content-Type: text/plain. Trailing newline for crawl spec."""
     base = _canonical_base_url()
-    body = f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n"
+    body = (
+        f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n"
+        f"Sitemap: {base}/sitemap-roundups.xml\n"
+        f"Sitemap: {base}/sitemap-news.xml\n"
+    )
     return Response(content=body, media_type="text/plain", headers={"Cache-Control": "public, max-age=3600"})
 
 # Serve /artwork/ from project artwork dir (e.g. TimAdvisor logo) so same-origin requests work
