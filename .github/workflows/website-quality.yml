@@ -1,0 +1,82 @@
+name: Website quality
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'README.md'
+      - '.cursor/**'
+      - '.agents/skills/motionsites-web-builder/**'
+      - 'docs/DEVELOPMENT_TOOL_ROUTER.md'
+      - 'docs/WEBSITE_DEVELOPMENT_SOP.md'
+      - 'docs/design_system.md'
+      - 'sailingsa/frontend/**'
+      - 'scripts/check_website_workflow.cjs'
+      - 'scripts/check_dockside_mobile.cjs'
+      - '.github/workflows/website-quality.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'AGENTS.md'
+      - 'README.md'
+      - '.cursor/**'
+      - '.agents/skills/motionsites-web-builder/**'
+      - 'docs/DEVELOPMENT_TOOL_ROUTER.md'
+      - 'docs/WEBSITE_DEVELOPMENT_SOP.md'
+      - 'docs/design_system.md'
+      - 'sailingsa/frontend/**'
+      - 'scripts/check_website_workflow.cjs'
+      - 'scripts/check_dockside_mobile.cjs'
+      - '.github/workflows/website-quality.yml'
+  schedule:
+    - cron: '15 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-contract:
+    name: Repository toolchain & source contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check website tool routing and source invariants
+        run: node scripts/check_website_workflow.cjs
+
+  deployed-mobile-smoke:
+    # This checks deployed production, not pull-request source; run separately
+    # from candidate-branch visual verification.
+    name: Deployed Dockside mobile smoke
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Find Chrome
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            echo "::error::Chrome or Chromium unavailable on runner"
+            exit 1
+          fi
+      - name: Test live mobile viewport, full Dockside text and roundup navigation
+        run: node scripts/check_dockside_mobile.cjs https://sailingsa.co.za/
