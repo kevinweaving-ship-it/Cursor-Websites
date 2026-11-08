@@ -29,7 +29,7 @@ def patch_api(text: str) -> str:
     section = once(section, '    _lim = max(1, min(500, int(limit)))', '    _lim = max(1, min(500, int(limit)))\n    _offset = max(0, min(500, int(offset)))\n    _page_end = min(500, _offset + _lim)', 'offset normalization')
     section = once(section, 'return _cached[:_lim]', 'return _cached[_offset:_page_end]', 'memory page')
     section = once(section, '(_cached_lim >= _lim or _cached_n >= _lim or (_lim >= 100 and _cached_n >= 50))', '(_cached_lim >= _page_end or _cached_n >= _page_end)', 'memory validity')
-    section = once(section, 'if len(disk_data) >= _lim or _lim >= 100:', 'if len(disk_data) >= _page_end or len(disk_data) >= 100:', 'disk validity')
+    section = once(section, 'if len(disk_data) >= _lim or _lim >= 100:', 'if len(disk_data) >= _page_end:', 'disk validity')
     section = once(section, 'return disk_data[:_lim]', 'return disk_data[_offset:_page_end]', 'disk page')
     section = once(section, '''        _sql_lim = _lim
         if _no_filters and _lim < 100:
