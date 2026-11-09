@@ -116,3 +116,7 @@ keys, `/opt/arial-whatsapp-poc/state/auth`, `/etc/arial-whatsapp-poc.env`,
 unrestricted root, public extra services, `chmod 777`, disk/boot/firewall
 changes, destructive database DDL, SSH/auth changes, and bulk system
 deletes. Those need a separate explicit authorization and a reviewed plan.
+
+## Handover rights (2026-11-09)
+
+Verified as `rea`: QuickBooks read + named `qb-correct`, IMAP + locked mail send, DB, services, nginx test, backup/deploy path on both boxes. GitHub HTTPS read works; **SSH write deploy keys still unauthorized**. Evidence: `docs/REA_HANDOVER_ACCEPTANCE_20261109.md`.
