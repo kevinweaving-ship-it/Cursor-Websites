@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Aerial Networks</title>
+  <meta name="description" content="High-site access, mast space and equipment hosting for your network.">
+  <meta name="theme-color" content="#041630">
+  <link rel="canonical" href="https://aerialnet.co.za/">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="icon" href="artwork/aerial-networks-logo-mark.png" type="image/png">
+  <link rel="apple-touch-icon" href="artwork/aerial-networks-logo-mark.png">
+  <link rel="preload" as="image" href="footage/hero-poster.jpg?v=2">
+  <style>
+    :root {
+      --navy: #041630;
+      --orange: #f96e05;
+      --ink: #102033;
+      --muted: #3c5164;
+      --paper: #f4f7fb;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      color: var(--ink);
+      background: var(--paper);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    a { color: inherit; }
+    .site-banner {
+      background: #fff;
+      display: flex;
+      align-items: center;
+      min-height: 76px;
+      padding: calc(10px + env(safe-area-inset-top)) 20px 10px calc(20px + env(safe-area-inset-left));
+    }
+    .site-banner img {
+      display: block;
+      width: min(280px, 70vw);
+      height: auto;
+    }
+    .hero {
+      position: relative;
+      height: min(58vh, 620px);
+      min-height: 220px;
+      color: #fff;
+      background: var(--navy) url("footage/hero-poster.jpg?v=2") center top / cover no-repeat;
+      overflow: hidden;
+    }
+    .hero-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      background: transparent;
+    }
+    .hero-still .hero-video { display: none; }
+    .pitch {
+      background: var(--navy);
+      color: #fff;
+      padding: 16px 20px 14px;
+    }
+    .pitch-inner { width: min(40rem, 100%); }
+    h1 {
+      margin: 0 0 6px;
+      color: #fff;
+      font-size: clamp(1.25rem, 2.6vw, 2rem);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+    }
+    .lead {
+      margin: 0 0 12px;
+      color: #fff;
+      font-size: clamp(0.92rem, 1.6vw, 1.05rem);
+    }
+    .enquire {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 12px 18px;
+      background: var(--orange);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 8px;
+    }
+    .enquire:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 3px;
+    }
+    .note {
+      margin: 8px 0 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 0.78rem;
+    }
+    @media (max-width: 700px) {
+      .pitch { padding: 12px 16px 12px; }
+      h1 { font-size: 1.2rem; }
+      .lead { font-size: 0.9rem; margin-bottom: 8px; }
+      .enquire { min-height: 40px; padding: 8px 14px; }
+    }
+    @media (max-height: 520px) {
+      .site-banner { min-height: 48px; padding-top: 6px; padding-bottom: 6px; }
+      .site-banner img { width: min(190px, 42vw); }
+      .hero { height: 48vh; min-height: 132px; }
+      .pitch { padding: 8px 14px 8px; }
+      h1 { font-size: 1.05rem; margin-bottom: 2px; }
+      .lead { font-size: 0.8rem; margin-bottom: 6px; }
+      .enquire { min-height: 34px; padding: 6px 12px; font-size: 0.88rem; }
+      .note { font-size: 0.68rem; margin-top: 4px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-video { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-banner">
+    <img src="artwork/aerial-networks-logo.png" width="1942" height="809" alt="Aerial Networks">
+  </header>
+  <section class="hero" id="hero" aria-label="Aerial Networks">
+    <video id="hero-video" class="hero-video" poster="footage/hero-poster.jpg?v=2" muted playsinline loop preload="none"></video>
+  </section>
+  <section class="pitch" aria-labelledby="pitch-title">
+    <div class="pitch-inner">
+      <h1 id="pitch-title">High-site infrastructure. Space to connect.</h1>
+      <p class="lead">High-site access, mast space and equipment hosting for your network.</p>
+      <a class="enquire" href="mailto:support@aerialnet.co.za">Enquire about space</a>
+      <p class="note">Illustrative stock footage. Not photographs of Aerial Networks sites.</p>
+    </div>
+  </section>
+  <script>
+    (function () {
+      var video = document.getElementById("hero-video");
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var save = navigator.connection && navigator.connection.saveData;
+      var held = false;
+      function playHero() {
+        held = false;
+        var pending = video.play();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+      function pauseHero() {
+        held = true;
+        video.pause();
+      }
+      window.aerialHero = { play: playHero, pause: pauseHero };
+      if (reduce || save) {
+        document.documentElement.classList.add("hero-still");
+        return;
+      }
+      var mobile = window.matchMedia("(max-width: 700px)").matches;
+      video.src = mobile ? "footage/hero-720.mp4?v=2" : "footage/hero-1080.mp4?v=2";
+      video.muted = true;
+      video.playsInline = true;
+      video.loop = true;
+      playHero();
+      video.addEventListener("error", function () {
+        document.documentElement.classList.add("hero-still");
+      });
+      if ("IntersectionObserver" in window) {
+        var watch = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) video.pause();
+            else if (!held) {
+              var again = video.play();
+              if (again && again.catch) again.catch(function () {});
+            }
+          });
+        }, { threshold: 0.2 });
+        watch.observe(document.getElementById("hero"));
+      }
+    })();
+  </script>
+</body>
+</html>
