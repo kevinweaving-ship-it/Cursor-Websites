@@ -24,6 +24,9 @@ if [ ! -f "$KEY" ]; then
   exit 1
 fi
 
+echo "=== 0) Stage ILCA 4 guard (does not replace live api.py) ==="
+bash sailingsa/deploy/stage_ilca4_incoming.sh "$KEY" "$HOST"
+
 echo "=== 1) Copy api.py to server ==="
 scp -i "$KEY" "$API_PY" "$HOST:/root/incoming/api.py"
 if [ -f regatta_host_code.py ]; then

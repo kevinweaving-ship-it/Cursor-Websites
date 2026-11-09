@@ -41,6 +41,7 @@ do_deploy() {
 
   echo ""
   echo "========== $label =========="
+  bash sailingsa/deploy/stage_ilca4_incoming.sh "$KEY" "$host"
   scp -i "$KEY" "$API_PY" "$host:/root/incoming/api.py"
   ssh -i "$KEY" "$host" "test -x /root/deploy_api_verified.sh && /root/deploy_api_verified.sh" || {
     echo "ERROR: deploy failed on $label or /root/deploy_api_verified.sh missing."
