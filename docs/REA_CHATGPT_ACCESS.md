@@ -6,8 +6,11 @@ connector has rediscovered `ops_*` tools.
 
 ## Architecture
 
-ChatGPT talks only to tunnel channel `main` (`openai-rea-tunnel`). The mux
-exposes REA tools plus `audit_*` and `ops_*`. The tunnel runs as `rea`
+ChatGPT talks only to tunnel channel `main` (`openai-rea-tunnel`). Do not
+add a second MCP channel — ChatGPT does not merge channels. The mux
+exposes REA tools plus `audit_*` and `ops_*`. Live probe on 31 Oct 2026
+(SAST): **201 unique tools** (170 REA + 9 `audit_*` + 22 `ops_*`), zero
+duplicates, tunnel id unchanged. The tunnel runs as `rea`
 (UID 996) with `NoNewPrivileges=yes`, so ChatGPT cannot sudo from that
 process. Privileged work uses:
 
