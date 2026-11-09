@@ -1,0 +1,1354 @@
+{
+  ".agents/skills/motionsites-web-builder/scripts/shoot.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8884265,
+    "ast_hash": "7fe1eb3abf4b883f6b3e0738a2e3810f",
+    "semantic_hash": "7fe1eb3abf4b883f6b3e0738a2e3810f"
+  },
+  ".cursor/mcp.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8884978,
+    "ast_hash": "461b4c451344cfb93b030b48e25d3ef4",
+    "semantic_hash": "461b4c451344cfb93b030b48e25d3ef4"
+  },
+  ".github/workflows/sailingsa-ci.yml": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8885314,
+    "ast_hash": "0a52fbf899656861ae43d416584e9d22",
+    "semantic_hash": "0a52fbf899656861ae43d416584e9d22"
+  },
+  ".github/workflows/website-quality.yml": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8885636,
+    "ast_hash": "5899911f9072f754bb1b72f14d872204",
+    "semantic_hash": "5899911f9072f754bb1b72f14d872204"
+  },
+  ".vendor/pypdf/__init__.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8885903,
+    "ast_hash": "5d31d458b68a758c3adf293a5a54ae9f",
+    "semantic_hash": "5d31d458b68a758c3adf293a5a54ae9f"
+  },
+  ".vendor/pypdf/_cmap.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8886175,
+    "ast_hash": "0e3d9a8937d37df147d256d2e71aff85",
+    "semantic_hash": "0e3d9a8937d37df147d256d2e71aff85"
+  },
+  ".vendor/pypdf/_codecs/__init__.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8886435,
+    "ast_hash": "b1a9342f7c0fdc5e56d8cf399970673b",
+    "semantic_hash": "b1a9342f7c0fdc5e56d8cf399970673b"
+  },
+  ".vendor/pypdf/_codecs/_codecs.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8886714,
+    "ast_hash": "39c554cea5362bb8c96d267a4a8d978c",
+    "semantic_hash": "39c554cea5362bb8c96d267a4a8d978c"
+  },
+  ".vendor/pypdf/_codecs/adobe_glyphs.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.888699,
+    "ast_hash": "fe133d1faed9e105ebaa9372f3523db0",
+    "semantic_hash": "fe133d1faed9e105ebaa9372f3523db0"
+  },
+  ".vendor/pypdf/_codecs/core_font_metrics.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8887284,
+    "ast_hash": "41989c00c878177368cf62f218ef6d23",
+    "semantic_hash": "41989c00c878177368cf62f218ef6d23"
+  },
+  ".vendor/pypdf/_codecs/pdfdoc.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8887837,
+    "ast_hash": "027268df127746368a9e17eb7ba5dba4",
+    "semantic_hash": "027268df127746368a9e17eb7ba5dba4"
+  },
+  ".vendor/pypdf/_codecs/std.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.88883,
+    "ast_hash": "5962d0ff8b666082a5e2568ae4d398df",
+    "semantic_hash": "5962d0ff8b666082a5e2568ae4d398df"
+  },
+  ".vendor/pypdf/_codecs/symbol.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.888858,
+    "ast_hash": "0281123c15a63c75b986ef6414728c75",
+    "semantic_hash": "0281123c15a63c75b986ef6414728c75"
+  },
+  ".vendor/pypdf/_codecs/zapfding.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8888845,
+    "ast_hash": "654bf87641849414e610dedfdbe13f64",
+    "semantic_hash": "654bf87641849414e610dedfdbe13f64"
+  },
+  ".vendor/pypdf/_crypt_providers/__init__.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8889108,
+    "ast_hash": "834bf79c1da499a24f84d989802ecc3d",
+    "semantic_hash": "834bf79c1da499a24f84d989802ecc3d"
+  },
+  ".vendor/pypdf/_crypt_providers/_base.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.888937,
+    "ast_hash": "6ac423bb91ac12571266059f5a0c90f8",
+    "semantic_hash": "6ac423bb91ac12571266059f5a0c90f8"
+  },
+  ".vendor/pypdf/_crypt_providers/_cryptography.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8889625,
+    "ast_hash": "0f1631c0f6f5c7a911ce16ac453ca206",
+    "semantic_hash": "0f1631c0f6f5c7a911ce16ac453ca206"
+  },
+  ".vendor/pypdf/_crypt_providers/_fallback.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8889897,
+    "ast_hash": "32413cad0197c3f45553d92f258bb6ba",
+    "semantic_hash": "32413cad0197c3f45553d92f258bb6ba"
+  },
+  ".vendor/pypdf/_crypt_providers/_pycryptodome.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.889016,
+    "ast_hash": "b7e036e29313fcafbd96f1fb4fc94890",
+    "semantic_hash": "b7e036e29313fcafbd96f1fb4fc94890"
+  },
+  ".vendor/pypdf/_doc_common.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8890414,
+    "ast_hash": "c825254cd31f19327580678486312145",
+    "semantic_hash": "c825254cd31f19327580678486312145"
+  },
+  ".vendor/pypdf/_encryption.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.889066,
+    "ast_hash": "a52adc2a1aa7c77405f40c7434d78aba",
+    "semantic_hash": "a52adc2a1aa7c77405f40c7434d78aba"
+  },
+  ".vendor/pypdf/_font.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8890896,
+    "ast_hash": "6f0f3c6bb560010d5167d02dcab478f6",
+    "semantic_hash": "6f0f3c6bb560010d5167d02dcab478f6"
+  },
+  ".vendor/pypdf/_page.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8891146,
+    "ast_hash": "9f22ebdf7d1e22780fab3ae4f2dcec84",
+    "semantic_hash": "9f22ebdf7d1e22780fab3ae4f2dcec84"
+  },
+  ".vendor/pypdf/_page_labels.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8891385,
+    "ast_hash": "84b56857989df41824922e11c0004e70",
+    "semantic_hash": "84b56857989df41824922e11c0004e70"
+  },
+  ".vendor/pypdf/_protocols.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.889161,
+    "ast_hash": "cfa42ce0dee4f58dd85bf4e210eebad4",
+    "semantic_hash": "cfa42ce0dee4f58dd85bf4e210eebad4"
+  },
+  ".vendor/pypdf/_reader.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8891833,
+    "ast_hash": "2bebadd7cb527526e99b13719fd5abdb",
+    "semantic_hash": "2bebadd7cb527526e99b13719fd5abdb"
+  },
+  ".vendor/pypdf/_text_extraction/__init__.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.889207,
+    "ast_hash": "5071b8e20a54726ab992c1da8de28ab5",
+    "semantic_hash": "5071b8e20a54726ab992c1da8de28ab5"
+  },
+  ".vendor/pypdf/_text_extraction/_layout_mode/__init__.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8892336,
+    "ast_hash": "a913147c5b252785946fe414f52d0d93",
+    "semantic_hash": "a913147c5b252785946fe414f52d0d93"
+  },
+  ".vendor/pypdf/_text_extraction/_layout_mode/_fixed_width_page.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8892636,
+    "ast_hash": "3df2e8d6c5d26e631a66c66bdb9f63f2",
+    "semantic_hash": "3df2e8d6c5d26e631a66c66bdb9f63f2"
+  },
+  ".vendor/pypdf/_text_extraction/_layout_mode/_text_state_manager.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.889293,
+    "ast_hash": "1f497a0def8e4c225a9efaa31b781bf1",
+    "semantic_hash": "1f497a0def8e4c225a9efaa31b781bf1"
+  },
+  ".vendor/pypdf/_text_extraction/_layout_mode/_text_state_params.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8893216,
+    "ast_hash": "586fbfa9eaad9c30031f96e38aebf821",
+    "semantic_hash": "586fbfa9eaad9c30031f96e38aebf821"
+  },
+  ".vendor/pypdf/_text_extraction/_text_extractor.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8893507,
+    "ast_hash": "3d0e3628f64ad295fb5fc11c69d6242d",
+    "semantic_hash": "3d0e3628f64ad295fb5fc11c69d6242d"
+  },
+  ".vendor/pypdf/_utils.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.889377,
+    "ast_hash": "efdfb420ea7c121ed7e1c92b903db577",
+    "semantic_hash": "efdfb420ea7c121ed7e1c92b903db577"
+  },
+  ".vendor/pypdf/_version.py": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8894007,
+    "ast_hash": "f9b68ea43c0cd9567bba4c64bb59a69f",
+    "semantic_hash": "f9b68ea43c0cd9567bba4c64bb59a69f"
+  },
+  ".vendor/pypdf/_writer.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8894243,
+    "ast_hash": "a52d8ca945f0178240dadb574c19753d",
+    "semantic_hash": "a52d8ca945f0178240dadb574c19753d"
+  },
+  ".vendor/pypdf/annotations/__init__.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8894475,
+    "ast_hash": "0a3def7d0fe782fdc695bc300f7348ef",
+    "semantic_hash": "0a3def7d0fe782fdc695bc300f7348ef"
+  },
+  ".vendor/pypdf/annotations/_base.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8894737,
+    "ast_hash": "ffce8e42ff00cf9ba77de9de29b45765",
+    "semantic_hash": "ffce8e42ff00cf9ba77de9de29b45765"
+  },
+  ".vendor/pypdf/annotations/_markup_annotations.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8895001,
+    "ast_hash": "8c880fdd42d87079a4423cea5d968f81",
+    "semantic_hash": "8c880fdd42d87079a4423cea5d968f81"
+  },
+  ".vendor/pypdf/annotations/_non_markup_annotations.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8895264,
+    "ast_hash": "1fffdabd8f69893a0525b51de26594a5",
+    "semantic_hash": "1fffdabd8f69893a0525b51de26594a5"
+  },
+  ".vendor/pypdf/constants.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8895533,
+    "ast_hash": "8442d512249b84e6e37192a8fdd46d72",
+    "semantic_hash": "8442d512249b84e6e37192a8fdd46d72"
+  },
+  ".vendor/pypdf/errors.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8895772,
+    "ast_hash": "676fdadaaee8185d87cf043432c81297",
+    "semantic_hash": "676fdadaaee8185d87cf043432c81297"
+  },
+  ".vendor/pypdf/filters.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8896008,
+    "ast_hash": "a5ee86890c93fbe60aad109394649c9b",
+    "semantic_hash": "a5ee86890c93fbe60aad109394649c9b"
+  },
+  ".vendor/pypdf/generic/__init__.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8896236,
+    "ast_hash": "08c046ee5b13e0a18c41d98efba11735",
+    "semantic_hash": "08c046ee5b13e0a18c41d98efba11735"
+  },
+  ".vendor/pypdf/generic/_appearance_stream.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8896532,
+    "ast_hash": "d391e56e02e8e37ff044019925369ca4",
+    "semantic_hash": "d391e56e02e8e37ff044019925369ca4"
+  },
+  ".vendor/pypdf/generic/_base.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.88968,
+    "ast_hash": "a2fcfd5e48725ffe8bdcd1329573b622",
+    "semantic_hash": "a2fcfd5e48725ffe8bdcd1329573b622"
+  },
+  ".vendor/pypdf/generic/_data_structures.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.889706,
+    "ast_hash": "744eccdbed9e04671e5d3d0923c92d28",
+    "semantic_hash": "744eccdbed9e04671e5d3d0923c92d28"
+  },
+  ".vendor/pypdf/generic/_files.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8897316,
+    "ast_hash": "eef6da8d9c48fcf13a80fae460b366b1",
+    "semantic_hash": "eef6da8d9c48fcf13a80fae460b366b1"
+  },
+  ".vendor/pypdf/generic/_fit.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.889756,
+    "ast_hash": "ae47ceff09506582451b9c99c99b74fd",
+    "semantic_hash": "ae47ceff09506582451b9c99c99b74fd"
+  },
+  ".vendor/pypdf/generic/_image_inline.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8897815,
+    "ast_hash": "872c008c408aa909b19d9847e8634e42",
+    "semantic_hash": "872c008c408aa909b19d9847e8634e42"
+  },
+  ".vendor/pypdf/generic/_image_xobject.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8898075,
+    "ast_hash": "decf5f015eda6686d24ea6e0b26bb842",
+    "semantic_hash": "decf5f015eda6686d24ea6e0b26bb842"
+  },
+  ".vendor/pypdf/generic/_link.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8898325,
+    "ast_hash": "1d1d8ccd1e54df9249fedcddca12a77e",
+    "semantic_hash": "1d1d8ccd1e54df9249fedcddca12a77e"
+  },
+  ".vendor/pypdf/generic/_outline.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8898585,
+    "ast_hash": "301d5aef9ce2de811454326ea978f22d",
+    "semantic_hash": "301d5aef9ce2de811454326ea978f22d"
+  },
+  ".vendor/pypdf/generic/_rectangle.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8898845,
+    "ast_hash": "5e4511fec9be760eb03cf5fdff7fc36f",
+    "semantic_hash": "5e4511fec9be760eb03cf5fdff7fc36f"
+  },
+  ".vendor/pypdf/generic/_utils.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8899097,
+    "ast_hash": "1523b0c389a1a65e5f098618e2bf972a",
+    "semantic_hash": "1523b0c389a1a65e5f098618e2bf972a"
+  },
+  ".vendor/pypdf/generic/_viewerpref.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8899345,
+    "ast_hash": "664de990616f9efbb284b05c24eb3c12",
+    "semantic_hash": "664de990616f9efbb284b05c24eb3c12"
+  },
+  ".vendor/pypdf/pagerange.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.88996,
+    "ast_hash": "811f362c6f3f534f2901b6a0a367c49c",
+    "semantic_hash": "811f362c6f3f534f2901b6a0a367c49c"
+  },
+  ".vendor/pypdf/papersizes.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8899846,
+    "ast_hash": "816b4b232e88e67cfe0d3e02513cb0c0",
+    "semantic_hash": "816b4b232e88e67cfe0d3e02513cb0c0"
+  },
+  ".vendor/pypdf/types.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.890008,
+    "ast_hash": "536f7f324ea45e91507ee0be2e04b9ec",
+    "semantic_hash": "536f7f324ea45e91507ee0be2e04b9ec"
+  },
+  ".vendor/pypdf/xmp.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8900304,
+    "ast_hash": "e9b3bc009557770d8c532d0e267b7974",
+    "semantic_hash": "e9b3bc009557770d8c532d0e267b7974"
+  },
+  ".vendor/typing_extensions.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.890055,
+    "ast_hash": "b362b62b309464c067c563f0bd1ff55a",
+    "semantic_hash": "b362b62b309464c067c563f0bd1ff55a"
+  },
+  "admin_api.py": {
+    "mtime": 1794152594.8415906,
+    "seen": 1794236589.8900762,
+    "ast_hash": "9ef40fd64ce14a45f5316d6948210fdc",
+    "semantic_hash": "9ef40fd64ce14a45f5316d6948210fdc"
+  },
+  "admin_dashboard_v10_script.js": {
+    "mtime": 1794152594.8415906,
+    "seen": 1794236589.890097,
+    "ast_hash": "a4e43b2508780cd3cb7bb59f15e7a27a",
+    "semantic_hash": "a4e43b2508780cd3cb7bb59f15e7a27a"
+  },
+  "admin_support.py": {
+    "mtime": 1794152594.8415906,
+    "seen": 1794236589.8901181,
+    "ast_hash": "c80d5dcc296afd2ede82200ba921519d",
+    "semantic_hash": "c80d5dcc296afd2ede82200ba921519d"
+  },
+  "api.py": {
+    "mtime": 1794152594.849591,
+    "seen": 1794236589.890138,
+    "ast_hash": "8e6b900955616620f1f357cdf9a2ebb1",
+    "semantic_hash": "8e6b900955616620f1f357cdf9a2ebb1"
+  },
+  "api/admin_api.py": {
+    "mtime": 1794152594.849591,
+    "seen": 1794236589.890158,
+    "ast_hash": "9ef40fd64ce14a45f5316d6948210fdc",
+    "semantic_hash": "9ef40fd64ce14a45f5316d6948210fdc"
+  },
+  "api/admin_support.py": {
+    "mtime": 1794152594.849591,
+    "seen": 1794236589.8901794,
+    "ast_hash": "c80d5dcc296afd2ede82200ba921519d",
+    "semantic_hash": "c80d5dcc296afd2ede82200ba921519d"
+  },
+  "api/api.py": {
+    "mtime": 1794152594.8535912,
+    "seen": 1794236589.8902004,
+    "ast_hash": "a7fa4aedc0d51f49ecef27187cc7b32f",
+    "semantic_hash": "a7fa4aedc0d51f49ecef27187cc7b32f"
+  },
+  "api/app.py": {
+    "mtime": 1794152594.8535912,
+    "seen": 1794236589.8902209,
+    "ast_hash": "bfda988dd4da4ddafb5f5b8a82850bb4",
+    "semantic_hash": "bfda988dd4da4ddafb5f5b8a82850bb4"
+  },
+  "api/compare_hyc_regattas.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8902423,
+    "ast_hash": "a75f293ab8965af7afe68d6781a471a9",
+    "semantic_hash": "a75f293ab8965af7afe68d6781a471a9"
+  },
+  "api/ensure_sailor_club_from_results.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8902643,
+    "ast_hash": "0c03cf9ad8b81763a4a1a03908ef3e47",
+    "semantic_hash": "0c03cf9ad8b81763a4a1a03908ef3e47"
+  },
+  "api/fetch_live_proof.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8902857,
+    "ast_hash": "165f9319b13c0cf79c175de7867e2aac",
+    "semantic_hash": "165f9319b13c0cf79c175de7867e2aac"
+  },
+  "api/fix_all_clubs_host_regattas.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8903062,
+    "ast_hash": "c13e24d1124f617a9fcb1853c6f8fc2c",
+    "semantic_hash": "c13e24d1124f617a9fcb1853c6f8fc2c"
+  },
+  "api/fix_hyc_host_club_id.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.890327,
+    "ast_hash": "c13b2054d17129a6bc51b9a4282b66b4",
+    "semantic_hash": "c13b2054d17129a6bc51b9a4282b66b4"
+  },
+  "api/fix_hyc_wrong_host.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.890348,
+    "ast_hash": "9f34d91a4b38353cd8063b4235b513cc",
+    "semantic_hash": "9f34d91a4b38353cd8063b4235b513cc"
+  },
+  "api/modules/__init__.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.890368,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "api/modules/sailor_bio.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8903918,
+    "ast_hash": "566dd0a4eca0d9bb589a83511bca2491",
+    "semantic_hash": "566dd0a4eca0d9bb589a83511bca2491"
+  },
+  "api/report_sailors_missing_club.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8904154,
+    "ast_hash": "812eccd2e53df4e17679b14510314c69",
+    "semantic_hash": "812eccd2e53df4e17679b14510314c69"
+  },
+  "api/report_unresolved_club_raw.py": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.890435,
+    "ast_hash": "faa37251116393dd55970dd53f994c44",
+    "semantic_hash": "faa37251116393dd55970dd53f994c44"
+  },
+  "api/start_api.sh": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8904555,
+    "ast_hash": "ac11fa7b2258a0e790bb10269287c68f",
+    "semantic_hash": "ac11fa7b2258a0e790bb10269287c68f"
+  },
+  "api/var/news_latest_cache.json": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.890476,
+    "ast_hash": "c06c542839ad7411b3d159b972391da1",
+    "semantic_hash": "c06c542839ad7411b3d159b972391da1",
+    "ast_empty": true
+  },
+  "boat-puck/housing/dimensions.json": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8904781,
+    "ast_hash": "f2857b902664a9fe55aa77439ebcb761",
+    "semantic_hash": "f2857b902664a9fe55aa77439ebcb761",
+    "ast_empty": true
+  },
+  "boat-puck/housing/render_packing_mockup.py": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8904796,
+    "ast_hash": "67ce2376d064e4099310902139fd1714",
+    "semantic_hash": "67ce2376d064e4099310902139fd1714"
+  },
+  "components/Card.stories.js": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8905058,
+    "ast_hash": "0a168eb15cc871db01885442bfdc9a32",
+    "semantic_hash": "0a168eb15cc871db01885442bfdc9a32"
+  },
+  "components/EventCard.stories.js": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8905275,
+    "ast_hash": "d7233382a143ae93eaff3f465e79f150",
+    "semantic_hash": "d7233382a143ae93eaff3f465e79f150"
+  },
+  "components/Table.stories.js": {
+    "mtime": 1794152594.8335903,
+    "seen": 1794236589.8905482,
+    "ast_hash": "cecd429fa9f994b7dc3144b152ccb2f2",
+    "semantic_hash": "cecd429fa9f994b7dc3144b152ccb2f2"
+  },
+  "docs/verify_lipton_series_scores.py": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8905692,
+    "ast_hash": "aae0fe40b8a1089f74bb977089975d52",
+    "semantic_hash": "aae0fe40b8a1089f74bb977089975d52"
+  },
+  "gowifi/rea/inspect/etc/inspect.gowifi.json": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8905928,
+    "ast_hash": "02a58862ce25e70556d8f2768b61a7c6",
+    "semantic_hash": "02a58862ce25e70556d8f2768b61a7c6",
+    "ast_empty": true
+  },
+  "gowifi/rea/inspect/etc/inspect.sailingsa.json": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8905942,
+    "ast_hash": "b46ada1281ee021ce31165dd7d780c31",
+    "semantic_hash": "b46ada1281ee021ce31165dd7d780c31",
+    "ast_empty": true
+  },
+  "gowifi/rea/inspect/mcp_mux.py": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8905957,
+    "ast_hash": "b98c4297f046a7b0c5669055fe04edb9",
+    "semantic_hash": "b98c4297f046a7b0c5669055fe04edb9"
+  },
+  "gowifi/rea/ops/etc/ops.gowifi.json": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8906233,
+    "ast_hash": "55cad299db7b8ad1a88cefcf614c9257",
+    "semantic_hash": "55cad299db7b8ad1a88cefcf614c9257",
+    "ast_empty": true
+  },
+  "gowifi/rea/ops/etc/ops.sailingsa.client.json": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8906245,
+    "ast_hash": "8ecde57a626b5c2939a94247b23406f3",
+    "semantic_hash": "8ecde57a626b5c2939a94247b23406f3",
+    "ast_empty": true
+  },
+  "gowifi/rea/ops/etc/ops.sailingsa.json": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8906255,
+    "ast_hash": "3e6d35dde08d4003e0fada8377080164",
+    "semantic_hash": "3e6d35dde08d4003e0fada8377080164",
+    "ast_empty": true
+  },
+  "gowifi/rea/ops/install-admin.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.890627,
+    "ast_hash": "9a7aa4d073a615efa30b1b6659c46c9a",
+    "semantic_hash": "9a7aa4d073a615efa30b1b6659c46c9a"
+  },
+  "gowifi/rea/ops/install-gowifi-ops.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8906546,
+    "ast_hash": "ee41ad3273a549dc06737dfd15c35f31",
+    "semantic_hash": "ee41ad3273a549dc06737dfd15c35f31"
+  },
+  "gowifi/rea/ops/install-sailingsa-ops.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8906798,
+    "ast_hash": "c2b7a43258f553b92cb587614f02bc79",
+    "semantic_hash": "c2b7a43258f553b92cb587614f02bc79"
+  },
+  "gowifi/rea/ops/ops_helper.py": {
+    "mtime": 1794152594.8135896,
+    "seen": 1794236589.890705,
+    "ast_hash": "26aa7cb0c894cc5fad013f58b8c442fb",
+    "semantic_hash": "26aa7cb0c894cc5fad013f58b8c442fb"
+  },
+  "gowifi/rea/ops/ops_mcp_server.py": {
+    "mtime": 1794152594.8135896,
+    "seen": 1794236589.8907309,
+    "ast_hash": "7696998d4b672326edfc1b3f28eaf7a5",
+    "semantic_hash": "7696998d4b672326edfc1b3f28eaf7a5"
+  },
+  "gowifi/rea/ops/rea_admin.py": {
+    "mtime": 1794152594.8135896,
+    "seen": 1794236589.890756,
+    "ast_hash": "7a7afe2bd518fe0ae0f1838cabe3e1bb",
+    "semantic_hash": "7a7afe2bd518fe0ae0f1838cabe3e1bb"
+  },
+  "gowifi/rea/ops/rea_ops.py": {
+    "mtime": 1794152594.8135896,
+    "seen": 1794236589.8907812,
+    "ast_hash": "f02d63d0218d57bbdcc094aaafa6159f",
+    "semantic_hash": "f02d63d0218d57bbdcc094aaafa6159f"
+  },
+  "gowifi/rea/ops/sync-ops.sh": {
+    "mtime": 1794152594.8135896,
+    "seen": 1794236589.8908062,
+    "ast_hash": "ad2d6244a74d4846e4da531a1fbc65ac",
+    "semantic_hash": "ad2d6244a74d4846e4da531a1fbc65ac"
+  },
+  "js/admin-dashboard.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.8908315,
+    "ast_hash": "fcbaa13f8b1eab3e9af0198b7df138ee",
+    "semantic_hash": "fcbaa13f8b1eab3e9af0198b7df138ee"
+  },
+  "js/api.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.8908534,
+    "ast_hash": "232c89a1e95c4033912bfe54be1a3dcc",
+    "semantic_hash": "232c89a1e95c4033912bfe54be1a3dcc"
+  },
+  "js/auth.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.8908753,
+    "ast_hash": "a7e8124c1d55f8cbdf1322d45960ede3",
+    "semantic_hash": "a7e8124c1d55f8cbdf1322d45960ede3"
+  },
+  "js/blank-landing-header.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.890896,
+    "ast_hash": "ccfdc556758183c49c5aca250f84496c",
+    "semantic_hash": "ccfdc556758183c49c5aca250f84496c"
+  },
+  "js/breaking-news-card.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.8909166,
+    "ast_hash": "06feb032c88035f4680b1d87bbc6e644",
+    "semantic_hash": "06feb032c88035f4680b1d87bbc6e644"
+  },
+  "js/config.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.8909369,
+    "ast_hash": "1b4d848f17f3d09ee38047563faba8be",
+    "semantic_hash": "1b4d848f17f3d09ee38047563faba8be"
+  },
+  "js/popup.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.890957,
+    "ast_hash": "35a3d2ace59be90f3e7100932723d657",
+    "semantic_hash": "35a3d2ace59be90f3e7100932723d657"
+  },
+  "js/regatta-sa-toolbar.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.890977,
+    "ast_hash": "99abcd686627f050d4b8732e396b9c87",
+    "semantic_hash": "99abcd686627f050d4b8732e396b9c87"
+  },
+  "js/results.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.8909974,
+    "ast_hash": "f61d8eb5e148bbd69ee12b0d598e4a9b",
+    "semantic_hash": "f61d8eb5e148bbd69ee12b0d598e4a9b"
+  },
+  "js/session.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.8910177,
+    "ast_hash": "2457657a0104041a28b2a918ecb9aaa0",
+    "semantic_hash": "2457657a0104041a28b2a918ecb9aaa0"
+  },
+  "load_events_csv_to_db.py": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.8910382,
+    "ast_hash": "5058823869da4979f7834c5343aea70c",
+    "semantic_hash": "5058823869da4979f7834c5343aea70c"
+  },
+  "package.json": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8910584,
+    "ast_hash": "5b6cd28597d3de6ed7f477e61e31b2df",
+    "semantic_hash": "5b6cd28597d3de6ed7f477e61e31b2df"
+  },
+  "public/components/public-mention-card.js": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.891077,
+    "ast_hash": "0585763e02989d407bd346674184964d",
+    "semantic_hash": "0585763e02989d407bd346674184964d"
+  },
+  "public/js/api.js": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8911006,
+    "ast_hash": "232c89a1e95c4033912bfe54be1a3dcc",
+    "semantic_hash": "232c89a1e95c4033912bfe54be1a3dcc"
+  },
+  "results_ingestion_common.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8911235,
+    "ast_hash": "687bd57c1855dd96aa82e720b4270b67",
+    "semantic_hash": "687bd57c1855dd96aa82e720b4270b67"
+  },
+  "sailingsa/__init__.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8911586,
+    "ast_hash": "99f89e9fe0b97eee3833362aae77a5df",
+    "semantic_hash": "99f89e9fe0b97eee3833362aae77a5df"
+  },
+  "sailingsa/backend/__init__.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8911805,
+    "ast_hash": "5614254661f90e656b0ea78625762505",
+    "semantic_hash": "5614254661f90e656b0ea78625762505"
+  },
+  "sailingsa/backend/tracking_dev2_bootstrap.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.891204,
+    "ast_hash": "a54ae0cbf29710462d69f1458362b35c",
+    "semantic_hash": "a54ae0cbf29710462d69f1458362b35c"
+  },
+  "sailingsa/backend/tracking_dev2_sailfish.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.891228,
+    "ast_hash": "edbe1881c86e196df92e50f18676f620",
+    "semantic_hash": "edbe1881c86e196df92e50f18676f620"
+  },
+  "sailingsa/deploy/.askpass": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8912504,
+    "ast_hash": "e5cc9dc578f474055af2b46e527cb1f5",
+    "semantic_hash": "e5cc9dc578f474055af2b46e527cb1f5"
+  },
+  "sailingsa/deploy/DEPLOY_MANUAL_COMMANDS.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8912735,
+    "ast_hash": "6604181f34ab2267972b1b902288884f",
+    "semantic_hash": "6604181f34ab2267972b1b902288884f"
+  },
+  "sailingsa/deploy/add-auth-proxy.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8912952,
+    "ast_hash": "aa9ed2287069764c52bf651be03dab2a",
+    "semantic_hash": "aa9ed2287069764c52bf651be03dab2a"
+  },
+  "sailingsa/deploy/add-auth-proxy.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.891318,
+    "ast_hash": "32be71fb07cdba186e84541344158810",
+    "semantic_hash": "32be71fb07cdba186e84541344158810"
+  },
+  "sailingsa/deploy/add-nginx-legacy-redirect.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8913393,
+    "ast_hash": "d234c80da2d87a8df927c5036acb0534",
+    "semantic_hash": "d234c80da2d87a8df927c5036acb0534"
+  },
+  "sailingsa/deploy/add-nginx-results-redirect.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8913608,
+    "ast_hash": "d95d401733d72ac503043495525a2bba",
+    "semantic_hash": "d95d401733d72ac503043495525a2bba"
+  },
+  "sailingsa/deploy/add_nginx_api_proxy.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8913827,
+    "ast_hash": "b05151bf44a0a25be4ed9067f623c498",
+    "semantic_hash": "b05151bf44a0a25be4ed9067f623c498"
+  },
+  "sailingsa/deploy/apply-canonical-host.py": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8914053,
+    "ast_hash": "40115ea0b98c4d7db3068d93b41e3aa7",
+    "semantic_hash": "40115ea0b98c4d7db3068d93b41e3aa7"
+  },
+  "sailingsa/deploy/apply-classes-sas-live.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8914266,
+    "ast_hash": "8ad01b357e29b3f231e76fc88a581d9d",
+    "semantic_hash": "8ad01b357e29b3f231e76fc88a581d9d"
+  },
+  "sailingsa/deploy/apply-member-roles-live.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8914487,
+    "ast_hash": "ce5043359c734ea0bfdbcf29d1e700c6",
+    "semantic_hash": "ce5043359c734ea0bfdbcf29d1e700c6"
+  },
+  "sailingsa/deploy/apply-nginx-and-legacy-fix.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8914716,
+    "ast_hash": "431a893891dab6e9d975cb7b64248184",
+    "semantic_hash": "431a893891dab6e9d975cb7b64248184"
+  },
+  "sailingsa/deploy/apply-nginx-class-results-no-cache.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8914936,
+    "ast_hash": "dcccbfe7f7ceaad78fb07c92cbad6f32",
+    "semantic_hash": "dcccbfe7f7ceaad78fb07c92cbad6f32"
+  },
+  "sailingsa/deploy/apply-nginx-fix.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8915164,
+    "ast_hash": "0e19809b0675188249f131c3da075075",
+    "semantic_hash": "0e19809b0675188249f131c3da075075"
+  },
+  "sailingsa/deploy/audit-deploy-config.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8915396,
+    "ast_hash": "1267c5e88645f4e1dc0f039a5cbf9774",
+    "semantic_hash": "1267c5e88645f4e1dc0f039a5cbf9774"
+  },
+  "sailingsa/deploy/audit-sas-id-personal-live.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.891561,
+    "ast_hash": "280433c367d838bf1749351b2ec5bd3a",
+    "semantic_hash": "280433c367d838bf1749351b2ec5bd3a"
+  },
+  "sailingsa/deploy/auto-dr.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8915834,
+    "ast_hash": "4ca4bef4592b5d507c90fd8f4ad47ddd",
+    "semantic_hash": "4ca4bef4592b5d507c90fd8f4ad47ddd"
+  },
+  "sailingsa/deploy/backup-before-commit.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8916051,
+    "ast_hash": "340b8afbbdfb4c002c7344821e2fa8b3",
+    "semantic_hash": "340b8afbbdfb4c002c7344821e2fa8b3"
+  },
+  "sailingsa/deploy/backup-full-snapshot.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.891626,
+    "ast_hash": "5f7f9801dc59c75808716cc209314a7b",
+    "semantic_hash": "5f7f9801dc59c75808716cc209314a7b"
+  },
+  "sailingsa/deploy/backup-live-api.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8916464,
+    "ast_hash": "3e8d8fa6b81604db083714b971c3da98",
+    "semantic_hash": "3e8d8fa6b81604db083714b971c3da98"
+  },
+  "sailingsa/deploy/backup-live-frontend-before-bio.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8916683,
+    "ast_hash": "61a679dceaa80c16fb0ccf92ef4fe099",
+    "semantic_hash": "61a679dceaa80c16fb0ccf92ef4fe099"
+  },
+  "sailingsa/deploy/backup-live-index.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8916905,
+    "ast_hash": "c1844528ff5ffc01db88787e3a1000b1",
+    "semantic_hash": "c1844528ff5ffc01db88787e3a1000b1"
+  },
+  "sailingsa/deploy/backup-local-with-proof.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8917131,
+    "ast_hash": "186ad2e7a024cc1038e099b64a762e52",
+    "semantic_hash": "186ad2e7a024cc1038e099b64a762e52"
+  },
+  "sailingsa/deploy/check_urls.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8917346,
+    "ast_hash": "de8368fe28ac4396c0d5a1c8781fe4bc",
+    "semantic_hash": "de8368fe28ac4396c0d5a1c8781fe4bc"
+  },
+  "sailingsa/deploy/cleanup-legacy-paths.sh": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8917568,
+    "ast_hash": "349e93b9b9131bbf822834ac4ec9b082",
+    "semantic_hash": "349e93b9b9131bbf822834ac4ec9b082"
+  },
+  "sailingsa/deploy/deploy-admin.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.891778,
+    "ast_hash": "305ebf5df9dfd8f652c7a4ad006c11e3",
+    "semantic_hash": "305ebf5df9dfd8f652c7a4ad006c11e3"
+  },
+  "sailingsa/deploy/deploy-api-live-verified.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8917994,
+    "ast_hash": "2c177cdd409fa270af004ef4ef3b2d25",
+    "semantic_hash": "2c177cdd409fa270af004ef4ef3b2d25"
+  },
+  "sailingsa/deploy/deploy-api-live.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8918204,
+    "ast_hash": "c31cb7ec0ba436db6991207b83f1b1bb",
+    "semantic_hash": "c31cb7ec0ba436db6991207b83f1b1bb"
+  },
+  "sailingsa/deploy/deploy-api-only.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.891842,
+    "ast_hash": "5151332691278987465534bede93f7a6",
+    "semantic_hash": "5151332691278987465534bede93f7a6"
+  },
+  "sailingsa/deploy/deploy-dash2-live.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8918633,
+    "ast_hash": "b680dbd61e752e8354615b3e7f46e188",
+    "semantic_hash": "b680dbd61e752e8354615b3e7f46e188"
+  },
+  "sailingsa/deploy/deploy-frontend-only.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8918855,
+    "ast_hash": "9439f7fc4b71765697ea9ef212be4abf",
+    "semantic_hash": "9439f7fc4b71765697ea9ef212be4abf"
+  },
+  "sailingsa/deploy/deploy-landing-fix-live.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.891907,
+    "ast_hash": "3a59599e9170f2fe1a9dea1fc3bbf06f",
+    "semantic_hash": "3a59599e9170f2fe1a9dea1fc3bbf06f"
+  },
+  "sailingsa/deploy/deploy-landing-only-live.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8919306,
+    "ast_hash": "931f958bb92b3bd354fe2bcd81dbf80d",
+    "semantic_hash": "931f958bb92b3bd354fe2bcd81dbf80d"
+  },
+  "sailingsa/deploy/deploy-prod-and-dr-verified.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8919528,
+    "ast_hash": "b681dfd1342e2f894fd10440149b9387",
+    "semantic_hash": "b681dfd1342e2f894fd10440149b9387"
+  },
+  "sailingsa/deploy/deploy-tracking-dev2-live.sh": {
+    "mtime": 1794152594.82959,
+    "seen": 1794236589.8919747,
+    "ast_hash": "aefb19e60a87e2413b25d55dd73660ed",
+    "semantic_hash": "aefb19e60a87e2413b25d55dd73660ed"
+  },
+  "sailingsa/deploy/deploy-with-key.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8919966,
+    "ast_hash": "98a074fc90e8864f50ad5d9ead34dfab",
+    "semantic_hash": "98a074fc90e8864f50ad5d9ead34dfab"
+  },
+  "sailingsa/deploy/deploy_api.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.892019,
+    "ast_hash": "b69392c243f3adc439dc9f077e921e1f",
+    "semantic_hash": "b69392c243f3adc439dc9f077e921e1f"
+  },
+  "sailingsa/deploy/deploy_api_verified.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8920422,
+    "ast_hash": "366f4ac446fad436d24df11996a5094a",
+    "semantic_hash": "366f4ac446fad436d24df11996a5094a"
+  },
+  "sailingsa/deploy/ensure-restart-and-report.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8920653,
+    "ast_hash": "bbbcd29c876c7e005d846aca56339e88",
+    "semantic_hash": "bbbcd29c876c7e005d846aca56339e88"
+  },
+  "sailingsa/deploy/export_regatta_385_data.py": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.892087,
+    "ast_hash": "8b863e531f3a00d2a6f44be5891aef83",
+    "semantic_hash": "8b863e531f3a00d2a6f44be5891aef83"
+  },
+  "sailingsa/deploy/fix-nginx-about.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8921094,
+    "ast_hash": "878706b558895616609920bcbce92026",
+    "semantic_hash": "878706b558895616609920bcbce92026"
+  },
+  "sailingsa/deploy/fix-nginx-auth-proxy-final.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8921323,
+    "ast_hash": "72734f13608190fcb1f1aa611da37dd7",
+    "semantic_hash": "72734f13608190fcb1f1aa611da37dd7"
+  },
+  "sailingsa/deploy/fix-nginx-class.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8921542,
+    "ast_hash": "7b78dc33bb1a950d54814a59130810cc",
+    "semantic_hash": "7b78dc33bb1a950d54814a59130810cc"
+  },
+  "sailingsa/deploy/fix-nginx-club-sitemap.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8921762,
+    "ast_hash": "e9c4c0eae944009dfa6bfa0c1c84c5cd",
+    "semantic_hash": "e9c4c0eae944009dfa6bfa0c1c84c5cd"
+  },
+  "sailingsa/deploy/fix-nginx-directory-routes.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.892198,
+    "ast_hash": "0ce41ec784d9d6571803b42fa0179705",
+    "semantic_hash": "0ce41ec784d9d6571803b42fa0179705"
+  },
+  "sailingsa/deploy/fix-nginx-singular-seo-routes.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8922212,
+    "ast_hash": "3dcf3fd799068999c6c636628c75919c",
+    "semantic_hash": "3dcf3fd799068999c6c636628c75919c"
+  },
+  "sailingsa/deploy/fix-regatta-302-class-id-live.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8922439,
+    "ast_hash": "c17bb08a0e248aed461b1f9524635985",
+    "semantic_hash": "c17bb08a0e248aed461b1f9524635985"
+  },
+  "sailingsa/deploy/fix-restart-sudoers-on-live.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8922663,
+    "ast_hash": "4ca873cec8a9fb8cab717b6c7715992d",
+    "semantic_hash": "4ca873cec8a9fb8cab717b6c7715992d"
+  },
+  "sailingsa/deploy/full-parity-fix.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.892288,
+    "ast_hash": "e322c83af85864ca68cc06e4005e07a2",
+    "semantic_hash": "e322c83af85864ca68cc06e4005e07a2"
+  },
+  "sailingsa/deploy/hard-parity-reset.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8923097,
+    "ast_hash": "054248db5973bb025fc7027e86656eb7",
+    "semantic_hash": "054248db5973bb025fc7027e86656eb7"
+  },
+  "sailingsa/deploy/live-uvicorn-diag.sh": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8923323,
+    "ast_hash": "ae614a5c45a119dbb6022fb338321acc",
+    "semantic_hash": "ae614a5c45a119dbb6022fb338321acc"
+  },
+  "sailingsa/deploy/nginx-add-admin-block.py": {
+    "mtime": 1794152594.8055892,
+    "seen": 1794236589.8923542,
+    "ast_hash": "b78f6959c172a826d9fb58fda6c1fa2d",
+    "semantic_hash": "b78f6959c172a826d9fb58fda6c1fa2d"
+  },
+  "sailingsa/deploy/pre-change-backup.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8923767,
+    "ast_hash": "71f09e86f469777ad5e8a4c23c210d4a",
+    "semantic_hash": "71f09e86f469777ad5e8a4c23c210d4a"
+  },
+  "sailingsa/deploy/push-live.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8923995,
+    "ast_hash": "7105782f976be8c55e4450d858f0ed9a",
+    "semantic_hash": "7105782f976be8c55e4450d858f0ed9a"
+  },
+  "sailingsa/deploy/push-to-cloud.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.892423,
+    "ast_hash": "5ff91a188857741c69e0d8d8b1876c35",
+    "semantic_hash": "5ff91a188857741c69e0d8d8b1876c35"
+  },
+  "sailingsa/deploy/query-live-sas-id-personal.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8924446,
+    "ast_hash": "2a814140c9f18be2696152987accf065",
+    "semantic_hash": "2a814140c9f18be2696152987accf065"
+  },
+  "sailingsa/deploy/refresh-sitemap-cron.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.892467,
+    "ast_hash": "44c3ec7a01e31153843254d52619adcb",
+    "semantic_hash": "44c3ec7a01e31153843254d52619adcb"
+  },
+  "sailingsa/deploy/restart-live.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.89249,
+    "ast_hash": "79485f9964909b99c134d9b3cf7bab4b",
+    "semantic_hash": "79485f9964909b99c134d9b3cf7bab4b"
+  },
+  "sailingsa/deploy/restore-full-snapshot.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8925133,
+    "ast_hash": "8b34aabf3f71a49635d4f9219a870911",
+    "semantic_hash": "8b34aabf3f71a49635d4f9219a870911"
+  },
+  "sailingsa/deploy/run-daily-events-scrape.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8925352,
+    "ast_hash": "b3a3a36552068c6ae44c44eb5307e4a9",
+    "semantic_hash": "b3a3a36552068c6ae44c44eb5307e4a9"
+  },
+  "sailingsa/deploy/run-sas-id-registry-scrape.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8925586,
+    "ast_hash": "3cfd63aa7ff77742ce05dbe118c37392",
+    "semantic_hash": "3cfd63aa7ff77742ce05dbe118c37392"
+  },
+  "sailingsa/deploy/run-weekly-accreditation-sync.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8925807,
+    "ast_hash": "98fddb05670f96011dfa97ce6b1d2be9",
+    "semantic_hash": "98fddb05670f96011dfa97ce6b1d2be9"
+  },
+  "sailingsa/deploy/setup-dashboard-restore-on-live.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8926036,
+    "ast_hash": "311ae282b62637a42e7faf40415aa8d1",
+    "semantic_hash": "311ae282b62637a42e7faf40415aa8d1"
+  },
+  "sailingsa/deploy/setup-events-table-live.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8926265,
+    "ast_hash": "ce3f43727e274765b4ce8670c917ae35",
+    "semantic_hash": "ce3f43727e274765b4ce8670c917ae35"
+  },
+  "sailingsa/deploy/sync-385-local-to-live.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.89265,
+    "ast_hash": "7761bdbccd547edf3069fe885f296fe8",
+    "semantic_hash": "7761bdbccd547edf3069fe885f296fe8"
+  },
+  "sailingsa/deploy/top_regattas_by_entries.py": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.8926728,
+    "ast_hash": "c1af2393e9a0ea3ffe5087be55fbc73d",
+    "semantic_hash": "c1af2393e9a0ea3ffe5087be55fbc73d"
+  },
+  "sailingsa/deploy/unban-whitelist-ip.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.892695,
+    "ast_hash": "7d6a96a6831b8fce0513f2378e563d95",
+    "semantic_hash": "7d6a96a6831b8fce0513f2378e563d95"
+  },
+  "sailingsa/deploy/verify-canonical-and-seo-live.sh": {
+    "mtime": 1794152594.8095894,
+    "seen": 1794236589.892718,
+    "ast_hash": "600e5271db7494091a34412a8b392f1b",
+    "semantic_hash": "600e5271db7494091a34412a8b392f1b"
+  },
+  "sailingsa/frontend/dev1/dev1.js": {
+    "mtime": 1794152594.8135896,
+    "seen": 1794236589.892742,
+    "ast_hash": "df7ffbd7ab3862f82ca5ffe21259db75",
+    "semantic_hash": "df7ffbd7ab3862f82ca5ffe21259db75"
+  },
+  "sailingsa/frontend/dev1/landing-roundup-cards.js": {
+    "mtime": 1794152594.8175898,
+    "seen": 1794236589.8927703,
+    "ast_hash": "260211f9eace5325aea14f0742f9dd4a",
+    "semantic_hash": "260211f9eace5325aea14f0742f9dd4a"
+  },
+  "sailingsa/frontend/js/api.js": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8927968,
+    "ast_hash": "232c89a1e95c4033912bfe54be1a3dcc",
+    "semantic_hash": "232c89a1e95c4033912bfe54be1a3dcc"
+  },
+  "sailingsa/frontend/js/breaking-news-card.js": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.8928232,
+    "ast_hash": "06feb032c88035f4680b1d87bbc6e644",
+    "semantic_hash": "06feb032c88035f4680b1d87bbc6e644"
+  },
+  "sailingsa/frontend/js/landing-roundup-cards.js": {
+    "mtime": 1794152594.82159,
+    "seen": 1794236589.89285,
+    "ast_hash": "7be5fe2845f8d6d303210627110ec8f4",
+    "semantic_hash": "7be5fe2845f8d6d303210627110ec8f4"
+  },
+  "sailingsa/frontend/js/lipton-dev-playback.js": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8928754,
+    "ast_hash": "60da6305a849501723c4d36fb4d698ee",
+    "semantic_hash": "60da6305a849501723c4d36fb4d698ee"
+  },
+  "sailingsa/frontend/js/lipton-dev-races.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929029,
+    "ast_hash": "a3f6d0debce29467faa9e9fffefaa153",
+    "semantic_hash": "a3f6d0debce29467faa9e9fffefaa153",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay-r1.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929043,
+    "ast_hash": "f999d51c61585ffdcec8b682f60dc601",
+    "semantic_hash": "f999d51c61585ffdcec8b682f60dc601",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay-r10.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929052,
+    "ast_hash": "5f978177bfb3475c11aeead3e33c323f",
+    "semantic_hash": "5f978177bfb3475c11aeead3e33c323f",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay-r2.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929064,
+    "ast_hash": "139439af51ac08669742c01f9f633ba3",
+    "semantic_hash": "139439af51ac08669742c01f9f633ba3",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay-r3.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929076,
+    "ast_hash": "ed94c8bd2ac837ad4086a1277cac328b",
+    "semantic_hash": "ed94c8bd2ac837ad4086a1277cac328b",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay-r5.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929086,
+    "ast_hash": "4e554c400dbd6378c30755c162a7805e",
+    "semantic_hash": "4e554c400dbd6378c30755c162a7805e",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay-r6.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929095,
+    "ast_hash": "065bcefeaf3c60b285a9116a117b4fa2",
+    "semantic_hash": "065bcefeaf3c60b285a9116a117b4fa2",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay-r7.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929105,
+    "ast_hash": "b4a3d4a1c54c5c190744069aeb8354d2",
+    "semantic_hash": "b4a3d4a1c54c5c190744069aeb8354d2",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay-r8.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929117,
+    "ast_hash": "1db0119c85bb58c9935128e64b844135",
+    "semantic_hash": "1db0119c85bb58c9935128e64b844135",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay-r9.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929126,
+    "ast_hash": "6f85ef1a64c08389b8ced956201a7591",
+    "semantic_hash": "6f85ef1a64c08389b8ced956201a7591",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-replay.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929136,
+    "ast_hash": "99515cd31813a59cc758da0385146a85",
+    "semantic_hash": "99515cd31813a59cc758da0385146a85",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/lipton-dev-series-scores.json": {
+    "mtime": 1794152594.82559,
+    "seen": 1794236589.8929148,
+    "ast_hash": "f447971773d7c2687918afa2c4849f52",
+    "semantic_hash": "f447971773d7c2687918afa2c4849f52",
+    "ast_empty": true
+  },
+  "sailingsa/frontend/js/regatta-sa-toolbar.js": {
+    "mtime": 1794152594.8855925,
+    "seen": 1794236589.892916,
+    "ast_hash": "99abcd686627f050d4b8732e396b9c87",
+    "semantic_hash": "99abcd686627f050d4b8732e396b9c87"
+  },
+  "sailingsa/frontend/js/tracking-dev2-playback.js": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.892946,
+    "ast_hash": "ecc87255e47ede838afd2c5f2cf42536",
+    "semantic_hash": "ecc87255e47ede838afd2c5f2cf42536"
+  },
+  "sailingsa/frontend/js/tracking-dev2-sailfish.js": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.8929737,
+    "ast_hash": "d4d75a5efec64e65f9f254a2abd5fd09",
+    "semantic_hash": "d4d75a5efec64e65f9f254a2abd5fd09"
+  },
+  "sailingsa/performance/prepare_club_search_hotfix.py": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.8930008,
+    "ast_hash": "0105bd24dc6c8dc00feef46866d5ecbf",
+    "semantic_hash": "0105bd24dc6c8dc00feef46866d5ecbf"
+  },
+  "sailingsa/performance/prepare_regatta_pagination.py": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.8930275,
+    "ast_hash": "06f2430e94055307169f6e7ace2ad62f",
+    "semantic_hash": "06f2430e94055307169f6e7ace2ad62f"
+  },
+  "sailingsa/scripts/sas_member_scrape.py": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.8930526,
+    "ast_hash": "e2a0ead161d747ed2dbcf9a33dbd3316",
+    "semantic_hash": "e2a0ead161d747ed2dbcf9a33dbd3316"
+  },
+  "sailingsa/utils/__init__.py": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.8930793,
+    "ast_hash": "e6f722d2b36009e3a9bf9a724899706f",
+    "semantic_hash": "e6f722d2b36009e3a9bf9a724899706f"
+  },
+  "sailingsa/utils/host_normalizer.py": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.8931062,
+    "ast_hash": "6ccff91f06227a8283b36cd1e803ba63",
+    "semantic_hash": "6ccff91f06227a8283b36cd1e803ba63"
+  },
+  "sailingsa/utils/sitemap_builder.py": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.893142,
+    "ast_hash": "911bb03f8be0838217cad85a25b53088",
+    "semantic_hash": "911bb03f8be0838217cad85a25b53088"
+  },
+  "scripts/check_dockside_mobile.cjs": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.8931684,
+    "ast_hash": "2d67ebb74e417647890d98b8563dc543",
+    "semantic_hash": "2d67ebb74e417647890d98b8563dc543"
+  },
+  "scripts/check_website_workflow.cjs": {
+    "mtime": 1794152594.8895926,
+    "seen": 1794236589.8931935,
+    "ast_hash": "227e51ae0dd199c526620b43cb0b4d55",
+    "semantic_hash": "227e51ae0dd199c526620b43cb0b4d55"
+  },
+  "skills-lock.json": {
+    "mtime": 1794152594.8935926,
+    "seen": 1794236589.8932176,
+    "ast_hash": "28b2f535224c9662e9cb102a85ce5710",
+    "semantic_hash": "28b2f535224c9662e9cb102a85ce5710",
+    "ast_empty": true
+  },
+  "tailwind.config.js": {
+    "mtime": 1794152594.8935926,
+    "seen": 1794236589.893219,
+    "ast_hash": "d5b911d45d42861087754e28d5eb6ffc",
+    "semantic_hash": "d5b911d45d42861087754e28d5eb6ffc"
+  },
+  "tests/test_rea_ops_guards.py": {
+    "mtime": 1794152594.8935926,
+    "seen": 1794236589.8932424,
+    "ast_hash": "bd3f96ac46b8522732f3f0ed66d7386b",
+    "semantic_hash": "bd3f96ac46b8522732f3f0ed66d7386b"
+  },
+  "tests/test_regatta_pagination_patch.py": {
+    "mtime": 1794152594.8935926,
+    "seen": 1794236589.893266,
+    "ast_hash": "e7981907c0a5e9a4ddbaee263be1d477",
+    "semantic_hash": "e7981907c0a5e9a4ddbaee263be1d477"
+  },
+  "tests/test_sailingsa_club_hotfix.py": {
+    "mtime": 1794152594.8935926,
+    "seen": 1794236589.89329,
+    "ast_hash": "8561d22b23cc6ae1945dc2dabe270541",
+    "semantic_hash": "8561d22b23cc6ae1945dc2dabe270541"
+  },
+  "utils/__init__.py": {
+    "mtime": 1794152594.8935926,
+    "seen": 1794236589.893312,
+    "ast_hash": "e6f722d2b36009e3a9bf9a724899706f",
+    "semantic_hash": "e6f722d2b36009e3a9bf9a724899706f"
+  },
+  "utils/sitemap_builder.py": {
+    "mtime": 1794152594.8935926,
+    "seen": 1794236589.893335,
+    "ast_hash": "580f4bce07b552f83acbfae4949f0f2a",
+    "semantic_hash": "580f4bce07b552f83acbfae4949f0f2a"
+  }
+}
