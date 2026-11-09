@@ -79,7 +79,10 @@
     ["git", "status"],
     ["git", "diff"],
     ["git", "log"],
-    ["git", "rev-parse"]
+    ["git", "rev-parse"],
+    ["graphify", "query"],
+    ["graphify", "path"],
+    ["graphify", "explain"]
   ],
   "http_allow_hosts": [
     "127.0.0.1",
