@@ -1,0 +1,11 @@
+diff --git a/api.py b/api.py
+index 50df7e3..81f2df3 100644
+--- a/api.py
++++ b/api.py
+@@ -4357,5 +4357,3 @@ def _events_type_page_html(slug: str, display_name: str, data: dict) -> str:
+ <div id="panel-past" class="events-panel" role="tabpanel"><div class="events-cards" id="cards-past"></div><div class="events-show-more" id="show-more-past"><button type="button" id="btn-more-past">Show More</button></div></div>
+-</div></div>"""
+-    + _seo_discovery_block_html()
+-    + """
++</div></div>""" + _seo_discovery_block_html() + """
+ </main>
