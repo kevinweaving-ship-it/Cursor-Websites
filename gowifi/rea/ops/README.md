@@ -40,6 +40,58 @@ plugin and start a new chat.
 
 See `docs/REA_CHATGPT_ACCESS.md`.
 
+## Graphify (preferred code discovery)
+
+Graphify is the preferred REA/agent path for code discovery on both boxes
+**before** bulk `Read`/`Grep` of large sources. Keep normal source inspection
+as fallback when the graph is missing or a query is insufficient.
+
+### Approved project roots
+
+| Box | Roots |
+| --- | --- |
+| GoWifi | `/opt/arial-whatsapp-poc`, `/opt/aerialnet-arial`, `/opt/rea/work/sailing-roundup` |
+| SailingSA | `/var/www/sailingsa`, `/var/www/timadvisor` |
+
+Each root should have `<root>/graphify-out/graph.json` (AST extract). Rebuild
+with `graphify extract <root> --code-only` when needed (install is separate;
+do not reinstall casually).
+
+### Allowed via `ops_run` only
+
+`run_allowlist` permits only:
+
+- `graphify query`
+- `graphify path`
+- `graphify explain`
+
+Always pass an absolute graph under an approved root (REA does not chdir):
+
+```text
+ops_run argv=["graphify","query","<question>","--graph","/var/www/sailingsa/graphify-out/graph.json","--budget","2000"]
+ops_run argv=["graphify","path","A","B","--graph","/opt/arial-whatsapp-poc/graphify-out/graph.json"]
+ops_run argv=["graphify","explain","symbol","--graph","/opt/aerialnet-arial/graphify-out/graph.json"]
+```
+
+`ops_run` still enforces `allow_read_paths` on absolute `--graph` arguments.
+
+### Denied via `ops_jobs` (Option B)
+
+All Graphify invocations through `ops_jobs` are fail-closed denied
+(`graphify_denied_via_jobs`), including absolute binary paths and
+`python -m graphify[y]`. Non-Graphify jobs are unchanged.
+
+Also denied on `ops_run` (not allowlisted): `extract`, `update`, `cursor`,
+`hook`, and any other Graphify write/install subcommands.
+
+### Agent rule of thumb
+
+1. Prefer `graphify query|path|explain` with `--graph` for architecture /
+   dependency questions.
+2. Fall back to targeted file reads when the graph has no match or you must
+   edit specific lines.
+3. Never use `ops_jobs` for Graphify.
+
 ## Sync after code changes
 
 On each box, as root:
