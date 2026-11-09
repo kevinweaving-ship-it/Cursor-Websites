@@ -25,7 +25,10 @@
     "/var/www/aerialnet/data",
     "/etc/nginx",
     "/etc/systemd/system/arial-whatsapp-poc.service",
-    "/etc/systemd/system/arial-whatsapp-watcher.service"
+    "/etc/systemd/system/arial-whatsapp-watcher.service",
+    "/opt/gowifi-auth",
+    "/opt/gowifi-billing",
+    "/var/lib/gowifi/billing-mail"
   ],
   "allow_write_paths": [
     "/opt/aerialnet-arial",
