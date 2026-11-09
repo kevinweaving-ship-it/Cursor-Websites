@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Marine Megastore Facebook tokens every 15 minutes
+
+[Timer]
+OnBootSec=25
+OnUnitActiveSec=15min
+AccuracySec=30
+Unit=mm-fb-keep-tokens.service
+
+[Install]
+WantedBy=timers.target
