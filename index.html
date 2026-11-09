@@ -4239,7 +4239,13 @@ header.site-header #headerAuth button {
                 </div>
             </section>
             <!-- Latest News – primary feed (Local first, International second; 16:9 thumbs) -->
-            
+            <!-- Sponsors – confirmed commercial partners only -->
+            <section id="landing-sponsors-embed" class="home-intro-box" aria-label="SailingSA sponsors">
+                <h2 class="news-feed-section-header">Sponsors</h2>
+                <p><a href="/sponsors/miller-gold">Miller Gold &amp; Co</a> — jewellery house, est. 1992. Headline sponsor of the <a href="/regatta/2026-09-25-tsc-420-nationals">2026 TSC 420 Nationals</a>.</p>
+                <p><a href="https://www.marinemegastore.co.za/" target="_blank" rel="noopener noreferrer">Marine Megastore</a> — dinghy and marine equipment partner.</p>
+                <p><a href="/sponsors">All SailingSA sponsors</a></p>
+            </section>
 
             <!-- Public View (Not Signed In) -->
             <div id="public-view" style="display: none;"></div>
@@ -4684,6 +4690,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
             var hr = document.querySelector('.search-to-profile-separator');
             if (hr) hr.style.display = isClass ? 'none' : '';
             show(document.getElementById('landing-news-embed'), isHome);
+            show(document.getElementById('landing-sponsors-embed'), isHome);
             var browse = document.querySelector('section.browse-sailingsa');
             if (browse) show(browse, isHome);
             show(document.getElementById('public-view'), !isClass);
@@ -4748,6 +4755,8 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                 }
                 var publicRegattas = document.getElementById('public-regattas-section');
                 if (publicRegattas && publicRegattas.parentNode) publicRegattas.parentNode.removeChild(publicRegattas);
+                var sponsorsEmbed = document.getElementById('landing-sponsors-embed');
+                if (sponsorsEmbed && sponsorsEmbed.parentNode) sponsorsEmbed.parentNode.removeChild(sponsorsEmbed);
             } catch (_) {}
         }
 
