@@ -1,4 +1,12 @@
 User-agent: *
 Allow: /
-
+Disallow: /api/
+Disallow: /auth/
+Disallow: /admin/
+Disallow: /login
+Disallow: /test/
+Disallow: /dev-1
+Disallow: /dev-1/
+Disallow: /signup.html
+Disallow: /profiles
 Sitemap: https://sailingsa.co.za/sitemap.xml
