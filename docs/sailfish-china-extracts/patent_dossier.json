@@ -1,0 +1,250 @@
+{
+  "CN110738023B": {
+    "publication": "CN110738023B",
+    "lang": "zh",
+    "title": "一种将json天气数据转换为jpeg图片的系统及方法",
+    "abstract": "本发明公开了一种将JSON天气数据转换为JPEG图片的系统及方法，用于将以JSON数据格式保存天气数据的源文件变换为JPEG图片形式的目标文件，读取JSON数据的头信息，计算出JSON数据体的最大值、最小值、中间值、最大值与最小值的差值等数据保存至JPEG图片文件的头部，计算JSON数据体中的偏移量差值数据，并转换为四字节数据后保存至JPEG图片文件的数据部分，以最终生成JPEG图片目标文件。由于JPEG图片文件的体积小、传输速度快，且易加密，数据压缩后的JPEG图片文件占用的存储空间小，因此转换后的文件可以节省大量的存储空间和网络流量。",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "刘海岚"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co ltd",
+      "中科三清科技有限公司",
+      "(주)이스트소프트"
+    ],
+    "claims_text": "Claims ( 10 ) 1.一种将JSON天气数据转换为JPEG图片的方法，用于将以JSON数据格式保存天气数据的源文件变换为JPEG图片形式的目标文件，其特征在于，包括如下步骤： 步骤一，加载并读取源文件中的JSON数组，将JSON数组转换为JAVA直接读取的JSON对象； 步骤二，从JSON对象中获取JSON头信息，并暂存入中间文件的数据头对象； 步骤三，从JSON对象中读取列表数据，查找JSON数据体中的天气数据的最大值、最小值，计算最大值与最小值的差值数据和中间值数据，并将最大值、最小值和最大值与最小值的差值数据、中间值数据暂存入中间文件的数据头对象； 步骤四，将中间文件的数据头对象中的数据转换为字节数据，进行加密，保存为目标文件的文件头； 步骤五，读取源文件中的JSON数据体中的数值数据，计算偏移量差值数据，将偏移量差值数据转换为字节数据，得到计算后的差值数据； 步骤六，将计算后的差值数据保存为目标文件的数据部分； 步骤七，完成数据压缩保存，以便于存储和传输。 2.如权利要求1所述的将JSON天气数据转换为JPEG图片的方法，其特征在于，步骤二中的所述JSON头信息包括经度范围值lo1、纬度范围值la1、经度数据精度dx、纬度数据精度dy、经度数值个数nx、纬度数值个数ny、表面类型、天气数据分类、数据长度。 3.如权利要求1所述的将JSON天气数据转换为JPEG图片的方法，其特征在于，步骤二中的所述JSON头信息采用KEY、VALUE键值对格式，所述中间文件的数据头对象采用中间文件约定的数据存储格式。 4.如权利要求1所述的将JSON天气数据转换为JPEG图片的方法，其特征在于，步骤三中的天气数据的最大值为uMax、vMax，最小值为uMin、vMin，最大值与最小值的差值数据为uMod、vMod，其中： uMax–uMin＝uMod (1) vMax–vMin＝vMod (2)。 5.如权利要求4所述的将JSON天气数据转换为JPEG图片的方法，其特征在于，步骤五中计算偏移量差值数据包括如下步骤： 步骤S1，读取源文件中的JSON数据体中的数值数据uData、vData； 步骤S2，计算数值数据的偏移量差值数据uDataMod、vDataMod； 其中：uDataMod＝(uData-uMin)/uMod (3) vDataMod＝(vData-vMin)/vMod (4)。 6.如权利要求5所述的将JSON天气数据转换为JPEG图片的方法，其特征在于，步骤五中的偏移量差值数据为浮点数据，将浮点数据转换为一个四字节数据，所述四字节数据的第一字节存放uDataMod，所述四字节数据的第二字节存放vDataMod，所述四字节数据的第三字节设置为0或者FF，所述四字节数据的第四字节设置为FF。 7.如权利要求6所述的将JSON天气数据转换为JPEG图片的方法，其特征在于，步骤四中的所述JSON头信息中的数据值使用加密算法进行加密，并将密钥写入目标文件的文件头。 8.如权利要求7所述的将JSON天气数据转换为JPEG图片的方法，其特征在于，将转换后的所述四字节数据依次写入目标文件的数据部分，并使用加密算法对写入的数据体进行加密。 9.如权利要求8所述的将JSON天气数据转换为JPEG图片的方法，其特征在于，所述加密算法采用可逆算法RSA；读取目标文件时从文件头内获取所述密钥，利用解密算法解密数据。 10.一种将JSON天气数据转换为JPEG图片的系统，用于实现如权利要求1-9任一项所述的将JSON天气数据转换为JPEG图片的方法，其特征在于，该系统包括： 源文件数据读取模块，用于读取源文件中的JSON对象，并暂存至中间文件； 数据体转换模块，用于计算和转换JSON列表数据和数据体中的数值数据，利用差值算法计算偏移量差值数据，并将计算所得的偏移量差值数据转换为四字节数据； 目标文件生成模块：用于将头部数据和四字节数据写入JPEG图片文件，并加密，所述目标文件为JPEG图片文件； 数据压缩模块：用于对目标文件中的数据部分进行压缩处理。",
+    "cpc_sample": [],
+    "url": "https://patents.google.com/patent/CN110738023B/zh"
+  },
+  "CN110750962A": {
+    "publication": "CN110750962A",
+    "lang": "zh",
+    "title": "天气数据转换方法和系统",
+    "abstract": "本发明涉及一种天气数据转换方法和系统，该方法包括以下步骤：S1，拉取GRIB天气数据：通过NOAA网站开放的GRIB数据下载路径自动下载GRIB数据并保存到本地；S2，GRIB数据解析：解析所下载的GRIB数据文件byte数据，得到分散的单量中间数据文件；S3，中间数据合并：读取需要合并数据的相应的文件头，读取文件数据体，生成字符串后保存到相应的中间文件，并将相应的中间文件按需求合并成一个文件；S4，生成JSON文件：根据web约定，生成JSON文件对应的KEY、VALUE，对应生成JSON信息，并保存到相应的JSON文件，web端根据约定协议读取相应的JSON文件，将GRIB天气数据文件转换为JSON数据文件，用于在web端显示。",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "刘海岚"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co Ltd",
+      "上海眼控科技股份有限公司",
+      "中科三清科技有限公司"
+    ],
+    "claims_text": "Claims ( 10 ) 1.一种天气数据转换方法，其特征在于，所述天气数据转换方法用于将GRIB天气数据文件转换为JSON数据文件，用于在web端显示，包括以下步骤： S1，拉取GRIB天气数据：通过NOAA网站开放的GRIB数据下载路径自动下载GRIB数据并保存到本地； S2，GRIB数据解析：解析所下载的GRIB数据文件byte数据，得到分散的单量中间数据文件； S3，中间数据合并：读取需要合并数据的相应的文件头，读取文件数据体，生成字符串后保存到相应的中间文件，并将相应的中间文件按需求合并成一个文件； S4，生成JSON文件：根据web约定，生成JSON文件对应的KEY、VALUE，对应生成JSON信息，并保存到相应的JSON文件，web端根据约定协议读取相应的JSON文件。 2.如权利要求1所述的天气数据转换方法，其特征在于，所述拉取GRIB天气数据包括以下步骤： 添加天气任务：当所述web端需要相应的天气JSON文件时，所述web端根据时间范围添加相应的数据生成任务； 分解天气任务：当添加所述天气任务时，根据所述天气任务的可选信息，确定从NOAA网站下载所述天气任务的各个详细信息，将所述天气任务分解，生成详细的下载任务； 执行天气任务：所述web端根据分解后的详细任务，根据NOAA网站开放的编码协议文档，选择所需下载的精度，根据所述天气任务的时间范围从NOAA网站自动下载所需的GRIB文件； 得到GRIB文件：将下载的所述GRIB文件保存到本地，并记录所需的天气任务的文件已经下载完成。 3.如权利要求2所述的天气数据转换方法，其特征在于，所述GRIB数据解析还包括通过所述GRIB数据的编码协议读取已下载的文件，根据所述GRIB数据的文件协议对相应参数的编码规范、位规范，解析文件相应的byte数据后获取所需参数和指定类型的单量数据中间文件。 4.如权利要求3所述的天气数据转换方法，其特征在于，所述编码协议包括GRIB数据的参数类型、位置、开头和数据格式的协议。 5.如权利要求3所述的天气数据转换方法，其特征在于，所述单量数据中间文件包括数据头和数据体。 6.如权利要求1所述的天气数据转换方法，其特征在于，所述中间文件包含多个天气参数，分别读取所需合并的数据的数据头和数据体，生成新的字符串。 7.如权利要求6所述的天气数据转换方法，其特征在于，所述步骤S3中，所述文件从不可见的GRIB二进制文件转化为字符串，根据web约定，生成JSON文件。 8.一种天气数据转换系统，其特征在于，包括： GRIB数据拉取模块，用于连接至NOAA网站，并通过NOAA网站上开放的GRIB数据下载路径自动下载GRIB数据文件，将下载的GRIB数据保存到本地； GRIB数据解析模块，与所述GRIB数据拉取模块相连，所述GRIB数据解析模块用于解析所下载的GRIB数据文件，将所述GRIB数据文件分解成分散的单量中间数据文件； 中间数据合并模块，与所述GRIB数据解析模块相连，所述中间数据合并模块用于将需要合并的中间文件按需求合并成一个文件； JSON文件生成模块，与所述中间中间数据合并模块相连，所述JSON文件生成模块与web端网络连接以根据web约定，生成JSON文件对应的KEY、VALUE，对应生成JSON信息，并保存到相应的JSON文件。 9.如权利要求8所述的天气数据转换系统，其特征在于，所述GRIB数据拉取模块包括： 任务添加单元，用于与web端网络连接，以在web端需要相应的天气JSON文件时，添加相应的数据生成任务； 任务分解单元，与所述任务添加单元相连，所述任务分解单元用于从NOAA网站下载需要的天气任务的详细详细，生成详细的下载任务； 任务执行单元，与所述任务分解单元相连，所述任务执行单元用于根据所述详细的下载任务，根据NOAA网站开放的编码协议下载所需的GRIB文件； GRIB文件生成单元，与所述任务执行单元相连，所述GRIB文件生成单元用于将下载的GRIB文件保存到本地，同时记录任务已下载完成。 10.如权利要求9所述的天气数据转换系统，其特征在于，所述GRIB文件生成单元与所述GRIB数据解析模块连接，以便于所述GRIB数据解析模块读取和解析保存到本地的GRIB文件。",
+    "cpc_sample": [],
+    "url": "https://patents.google.com/patent/CN110750962A/zh"
+  },
+  "CN110750962B": {
+    "publication": "CN110750962B",
+    "lang": "zh",
+    "title": "天气数据转换方法和系统",
+    "abstract": "本发明涉及一种天气数据转换方法和系统，该方法包括以下步骤：S1，拉取GRIB天气数据：通过NOAA网站开放的GRIB数据下载路径自动下载GRIB数据并保存到本地；S2，GRIB数据解析：解析所下载的GRIB数据文件byte数据，得到分散的单量中间数据文件；S3，中间数据合并：读取需要合并数据的相应的文件头，读取文件数据体，生成字符串后保存到相应的中间文件，并将相应的中间文件按需求合并成一个文件；S4，生成JSON文件：根据web约定，生成JSON文件对应的KEY、VALUE，对应生成JSON信息，并保存到相应的JSON文件，web端根据约定协议读取相应的JSON文件，将GRIB天气数据文件转换为JSON数据文件，用于在web端显示。",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "刘海岚"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co ltd",
+      "上海眼控科技股份有限公司",
+      "中科三清科技有限公司"
+    ],
+    "claims_text": "Claims ( 9 ) 1.一种天气数据转换方法，其特征在于，所述天气数据转换方法用于将GRIB天气数据文件转换为JSON数据文件，用于在web端显示，包括以下步骤： S1，拉取GRIB天气数据：通过NOAA网站开放的GRIB数据下载路径自动下载GRIB数据并保存到本地； S2，GRIB数据解析：解析所下载的GRIB数据文件byte数据，得到分散的单量中间数据文件； S3，中间数据合并：读取需要合并数据的相应的文件头，读取文件数据体，生成字符串后保存到相应的中间文件，并将相应的中间文件按需求合并成一个文件； S4，生成JSON文件：根据web约定，生成JSON文件对应的KEY、VALUE，对应生成JSON信息，并保存到相应的JSON文件，web端根据约定协议读取相应的JSON文件； 所述拉取GRIB天气数据包括以下步骤： 添加天气任务：当所述web端需要相应的天气JSON文件时，所述web端根据时间范围添加相应的数据生成任务； 分解天气任务：当添加所述天气任务时，根据所述天气任务的可选信息，确定从NOAA网站下载所述天气任务的各个详细信息，将所述天气任务分解，生成详细的下载任务； 执行天气任务：所述web端根据分解后的详细任务，根据NOAA网站开放的编码协议文档，选择所需下载的精度，根据所述天气任务的时间范围从NOAA网站自动下载所需的GRIB文件； 得到GRIB文件：将下载的所述GRIB文件保存到本地，并记录所需的天气任务的文件已经下载完成。 2.如权利要求1所述的天气数据转换方法，其特征在于，所述GRIB数据解析还包括通过所述GRIB数据的编码协议读取已下载的文件，根据所述GRIB数据的文件协议对相应参数的编码规范、位规范，解析文件相应的byte数据后获取所需参数和指定类型的单量数据中间文件。 3.如权利要求2所述的天气数据转换方法，其特征在于，所述编码协议包括GRIB数据的参数类型、位置、开头和数据格式的协议。 4.如权利要求2所述的天气数据转换方法，其特征在于，所述单量数据中间文件包括数据头和数据体。 5.如权利要求1所述的天气数据转换方法，其特征在于，所述中间文件包含多个天气参数，分别读取所需合并的数据的数据头和数据体，生成新的字符串。 6.如权利要求5所述的天气数据转换方法，其特征在于，所述步骤S3中，所述单量中间数据文件从不可见的GRIB二进制文件转化为字符串，根据web约定，生成JSON文件。 7.一种天气数据转换系统，其特征在于，包括： GRIB数据拉取模块，用于连接至NOAA网站，并通过NOAA网站上开放的GRIB数据下载路径自动下载GRIB数据文件，将下载的GRIB数据保存到本地； GRIB数据解析模块，与所述GRIB数据拉取模块相连，所述GRIB数据解析模块用于解析所下载的GRIB数据文件，将所述GRIB数据文件分解成分散的单量中间数据文件； 中间数据合并模块，与所述GRIB数据解析模块相连，所述中间数据合并模块用于将需要合并的中间文件按需求合并成一个文件； JSON文件生成模块，与所述中间数据合并模块相连，所述JSON文件生成模块与web端网络连接以根据web约定，生成JSON文件对应的KEY、VALUE，对应生成JSON信息，并保存到相应的JSON文件。 8.如权利要求7所述的天气数据转换系统，其特征在于，所述GRIB数据拉取模块包括： 任务添加单元，用于与web端网络连接，以在web端需要相应的天气JSON文件时，添加相应的数据生成任务； 任务分解单元，与所述任务添加单元相连，所述任务分解单元用于从NOAA网站下载需要的天气任务的详细数据，生成详细的下载任务； 任务执行单元，与所述任务分解单元相连，所述任务执行单元用于根据所述详细的下载任务，根据NOAA网站开放的编码协议下载所需的GRIB文件； GRIB文件生成单元，与所述任务执行单元相连，所述GRIB文件生成单元用于将下载的GRIB文件保存到本地，同时记录任务已下载完成。 9.如权利要求8所述的天气数据转换系统，其特征在于，所述GRIB文件生成单元与所述GRIB数据解析模块连接，以便于所述GRIB数据解析模块读取和解析保存到本地的GRIB文件。",
+    "cpc_sample": [],
+    "url": "https://patents.google.com/patent/CN110750962B/zh"
+  },
+  "CN113033968A": {
+    "publication": "CN113033968A",
+    "lang": "zh",
+    "title": "一种对帆船比赛中竞赛选手的赛事表现进行评价的方法",
+    "abstract": "本发明公开了一种对帆船竞赛选手的赛事表现进行评价的方法，包括如下步骤：S1,从帆船竞赛管理系统中获取竞赛选手航行的原始数据；S2,根据竞赛选手的航行数据计算竞赛选手的航行得分、起航得分和换弦得分中的一种或多种。本发明提供的一种对帆船竞赛选手的赛事表现进行评价的方法，将竞赛选手的表现通过数据进行量化，普通观看者只需看数据即可准确分析出一个竞赛选手在某一轮竞赛中发挥的优点和缺点，提高了观看者的分析效率。",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "田维宏",
+      "王腾"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co ltd",
+      "Bass Pro Shops, Inc.",
+      "中国科学院自动化研究所"
+    ],
+    "claims_text": "Claims ( 15 ) 1.一种对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，包括如 下步骤： S1,从帆船竞赛管理系统中获取竞赛选手航行的原始数据； S2,根据竞赛选手的原始数据计算竞赛选手的航行得分、起航得分和换弦得分中的一种或多种。 2.如权利要求1所述的对帆船竞赛选手的赛事表现进行评价的方法，其特 征在于，所述原始数据包括航行数据，所述航行数据包括航段编号、对应航段的用时、对应航段的平均速度、对应航段的里程和对应航段的平均有效航速。 3.如权利要求2所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述竞赛选手的航行得分的计算如下： s%*100*α+v%*100*β+l%*100*γ；所述s%为竞赛选手的整轮竞赛中的平均速度在所有竞赛选手中的占比，所述v%为竞赛选手的整轮竞赛中的平均有效航速在所有竞赛选手中的占比，所述l%为竞赛选手的整轮竞赛中的总行驶里程在所有竞赛选手中的占比，所述α、β和γ为权重比。 4.如权利要求3所述的对帆船竞赛选手的赛事表现进行评价的方法，其特 征在于，所述α、β和γ分别为0.2、0.4和0.4。 5.如权利要求3所述的对帆船竞赛选手的赛事表现进行评价的方法，其特 征在于，所述竞赛选手的整轮竞赛中的平均速度在所有竞赛选手中的占比（s%）计算如下： s%=（s-s＇）/（s＂-s＇）; s=（t1*s1+...+tn*sn）/(t1+...+tn)； 所述s为竞赛选手在一整轮竞赛中的平均速度，所述s＇为一轮竞赛中所有竞赛选手的平均速度的最小值，所述s＂为一轮竞赛中所有竞赛选手的平均速度的最大值；所述t1~tn为不同航段的用时，所述s1~sn为不同航段的平均速度； 所述竞赛选手的整轮竞赛中的平均有效航速在所有竞赛选手中的占比（v%）计算如下： v%=（v-v＇）/（v＂-v＇）；v=(t1*v1+...+tn*vn)/(t1 +...+tn)； 所述v为竞赛选手在一整轮竞赛中的平均有效航速；所述v＇为一轮竞赛中所有竞赛选手的平均有效航速的最小值，所述v＂为一轮竞赛中所有竞赛选手的平均有效航速的最大值；所述t1~ tn为不同航段的用时，所述v1~ vn为不同航段的平均有效航速； 所述竞赛选手的整轮竞赛中的总行驶里程在所有竞赛选手中的占比（l%）计算如下： l%=1-（l-l＇）/（l＂-l＇）；l=l1 +...+ln； 所述l为竞赛选手在一整轮竞赛中的总行驶里程，所述l＇为一轮竞赛中所有竞赛选手的总行驶里程的最小值，所述l＂为一轮竞赛中所有竞赛选手的总行驶里程的最大值；所述l1 ~ln分别为不同航段的行驶里程。 6.如权利要求1所述的对帆船竞赛选手的赛事表现进行评价的方法，其特 征在于，所述原始数据还包括起航数据，所述起航数据包括竞赛选手的起航有利侧、竞赛选手的起航有利距离、竞赛选手的起航延迟和竞赛选手的冲出起航线时的实际速度。 7.如权利要求6所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述竞赛选手的起航得分的计算如下：k%*100*δ+t%*100*ε+m%*100*λ； 所述k%为竞赛选手的起航有利距离在所有竞赛选手中的占比，所述t%为竞赛选手的起航延迟在所有竞赛选手中的占比，所述m%为竞赛选手的冲出起航线时的实际速度在所有竞赛选手中的占比，所述δ、ε和λ为权重比。 8.如权利要求7所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述δ、ε和λ分别为0.4、0.3和0.3。 9.如权利要求7所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述竞赛选手的起航有利距离在所有竞赛选手中的占比(k%)的计算如下： k%=（k-k＇）/(k＂-k＇); 所述k为起航有利距离，所述k＇为一轮竞赛中所有竞赛选手的起航有利距离的最小值，所述k＂为一轮竞赛中所有竞赛选手的起航有利距离的最大值； 所述竞赛选手的竞赛选手的起航延迟在所有竞赛选手中的占比(t%)的计算如下： t%=1-(t-t＇）/（t＂-t＇）; 所述t为起航延迟时间，所述t＇为一轮竞赛中所有竞赛选手的起航延迟时间的最小值，所述t＂为一轮竞赛中所有竞赛选手的起航延迟时间的最大值； 所述竞赛选手的冲出起航线时的实际速度在所有竞赛选手中的占比(m%)的计算如下： m%=(m-m＇）/（m＂-m＇）; 所述m为冲出起航线时的实际速度，所述m＇为一轮竞赛中所有竞赛选手的冲出起航线时的实际速度的最小值，所述m＂为一轮竞赛中所有竞赛选手的冲出起航线时的实际速度的最大值。 10.如权利要求9所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述起航有利距离(k)的计算如下：当起航有利侧为航线左侧时：k=i/j*d; 当起航有利侧为航线右侧时：k=（1-i/j）*d; 所述i为起航时起航线右侧的距离，所述j为起航线长度，所述d为有利侧的最大优势距离。 11.如权利要求1所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述原始数据还包括换弦数据，所述换弦数据包括竞赛选手的总换弦数和竞赛选手的操作损失。 12.如权利要求11所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述竞赛选手的换弦得分的计算如下： x%*100*μ+f%*100*σ； 所述x%为竞赛选手整轮竞赛中的总换弦数在所有竞赛选手中的占比，所述f%为竞赛选手整轮竞赛中的操作损失在所有竞赛选手中的占比，所述μ和σ为权重比。 13.如权利要求12所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述μ和σ分别为0.4和0.6。 14.如权利要求12所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述竞赛选手整轮竞赛中的总换弦数在所有竞赛选手中的占比的计算如下： x%=1-（x-x＇）/（x＂-x＇）； 所述x为竞赛选手在一整轮竞赛中的总换弦数，所述 x＇为一轮竞赛中所有竞赛选手的总换弦数的最小值，所述 x＂为一轮竞赛中所有竞赛选手的总换弦数的最大值； 所述竞赛选手整轮竞赛中的操作损失在所有竞赛选手中的占比的计算如下： f%=1-（f-f＇）/（f＂-f＇）； 所述f为竞赛选手在一整轮竞赛中的总操作损失，所述 f＇为一轮竞赛中所有竞赛选手的总操作损失的最小值，所述 f＂为一轮竞赛中所有竞赛选手的总操作损失的最大值。 15.如权利要求1至14任一项所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，将竞赛选手在多轮竞赛中的所述起航得分、航行得分和换弦得分分别进行平均。",
+    "cpc_sample": [
+      "G",
+      "G06",
+      "G06Q",
+      "G06Q10/00",
+      "G06Q10/06",
+      "G06Q10/063",
+      "G06Q10/0639",
+      "G06Q10/06393"
+    ],
+    "url": "https://patents.google.com/patent/CN113033968A/zh"
+  },
+  "CN113033968B": {
+    "publication": "CN113033968B",
+    "lang": "zh",
+    "title": "一种对帆船比赛中竞赛选手的赛事表现进行评价的方法",
+    "abstract": "本发明公开了一种对帆船竞赛选手的赛事表现进行评价的方法，包括如下步骤：S1,从帆船竞赛管理系统中获取竞赛选手航行的原始数据；S2,根据竞赛选手的航行数据计算竞赛选手的航行得分、起航得分和换弦得分中的一种或多种。本发明提供的一种对帆船竞赛选手的赛事表现进行评价的方法，将竞赛选手的表现通过数据进行量化，普通观看者只需看数据即可准确分析出一个竞赛选手在某一轮竞赛中发挥的优点和缺点，提高了观看者的分析效率。",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "田维宏",
+      "王腾"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co ltd",
+      "成都体育学院",
+      "南京知数网络科技有限公司"
+    ],
+    "claims_text": "Claims ( 12 ) 1.一种对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，包括如下步骤： S1,从帆船竞赛管理系统中获取竞赛选手航行的原始数据； S2,根据竞赛选手的原始数据计算竞赛选手的航行得分、起航得分和换弦得分中的一种或多种； 所述原始数据包括航行数据，所述航行数据包括航段编号、对应航段的用时、对应航段的平均速度、对应航段的里程和对应航段的平均有效航速； 所述竞赛选手的航行得分的计算如下： s％*100*α+v％*100*β+l％*100*γ；所述s％为竞赛选手的整轮竞赛中的平均速度在所有竞赛选手中的占比，所述v％为竞赛选手的整轮竞赛中的平均有效航速在所有竞赛选手中的占比，所述l％为竞赛选手的整轮竞赛中的总行驶里程在所有竞赛选手中的占比，所述α、β和γ为权重比； 所述竞赛选手的整轮竞赛中的平均速度在所有竞赛选手中的占比s％计算如下： s％＝(s-s＇)/(s＂-s＇)；s＝(t1*s1+...+tn*sn)/(t1+...+tn)； 所述s为竞赛选手在一整轮竞赛中的平均速度，所述s＇为一轮竞赛中所有竞赛选手的平均速度的最小值，所述s＂为一轮竞赛中所有竞赛选手的平均速度的最大值；所述t1～tn为不同航段的用时，所述s1～sn为不同航段的平均速度； 所述竞赛选手的整轮竞赛中的平均有效航速在所有竞赛选手中的占比v％计算如下： v％＝(v-v＇)/(v＂-v＇)；v＝(t1*v1+...+tn*vn)/(t1+...+tn)； 所述v为竞赛选手在一整轮竞赛中的平均有效航速；所述v＇为一轮竞赛中所有竞赛选手的平均有效航速的最小值，所述v＂为一轮竞赛中所有竞赛选手的平均有效航速的最大值；所述t1～tn为不同航段的用时，所述v1～vn为不同航段的平均有效航速； 所述竞赛选手的整轮竞赛中的总行驶里程在所有竞赛选手中的占比l％计算如下： l％＝1-(l-l＇)/(l＂-l＇)；l＝l1+...+ln； 所述l为竞赛选手在一整轮竞赛中的总行驶里程，所述l＇为一轮竞赛中所有竞赛选手的总行驶里程的最小值，所述l＂为一轮竞赛中所有竞赛选手的总行驶里程的最大值；所述l1～ln分别为不同航段的行驶里程。 2.如权利要求1所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述α、β和γ分别为0.2、0.4和0.4。 3.如权利要求1所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述原始数据还包括起航数据，所述起航数据包括竞赛选手的起航有利侧、竞赛选手的起航有利距离、竞赛选手的起航延迟和竞赛选手的冲出起航线时的实际速度。 4.如权利要求3所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述竞赛选手的起航得分的计算如下： k％*100*δ+t％*100*ε+m％*100*λ； 所述k％为竞赛选手的起航有利距离在所有竞赛选手中的占比，所述t％为竞赛选手的起航延迟在所有竞赛选手中的占比，所述m％为竞赛选手的冲出起航线时的实际速度在所有竞赛选手中的占比，所述δ、ε和λ为权重比。 5.如权利要求4所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述δ、ε和λ分别为0.4、0.3和0.3。 6.如权利要求4所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述竞赛选手的起航有利距离在所有竞赛选手中的占比k％的计算如下： k％＝(k-k＇)/(k＂-k＇)； 所述k为起航有利距离，所述k＇为一轮竞赛中所有竞赛选手的起航有利距离的最小值，所述k＂为一轮竞赛中所有竞赛选手的起航有利距离的最大值； 所述竞赛选手的竞赛选手的起航延迟在所有竞赛选手中的占比t％的计算如下： t％＝1-(t-t＇)/(t＂-t＇)； 所述t为起航延迟时间，所述t＇为一轮竞赛中所有竞赛选手的起航延迟时间的最小值，所述t＂为一轮竞赛中所有竞赛选手的起航延迟时间的最大值； 所述竞赛选手的冲出起航线时的实际速度在所有竞赛选手中的占比m％的计算如下： m％＝(m-m＇)/(m＂-m＇)； 所述m为冲出起航线时的实际速度，所述m＇为一轮竞赛中所有竞赛选手的冲出起航线时的实际速度的最小值，所述m＂为一轮竞赛中所有竞赛选手的冲出起航线时的实际速度的最大值。 7.如权利要求6所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述起航有利距离k的计算如下： 当起航有利侧为航线左侧时：k＝i/j*d； 当起航有利侧为航线右侧时：k＝(1-i/j)*d； 所述i为起航时起航线右侧的距离，所述j为起航线长度，所述d为有利侧的最大优势距离。 8.如权利要求1所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述原始数据还包括换弦数据，所述换弦数据包括竞赛选手的总换弦数和竞赛选手的操作损失。 9.如权利要求8所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述竞赛选手的换弦得分的计算如下： x％*100*μ+f％*100*σ； 所述x％为竞赛选手整轮竞赛中的总换弦数在所有竞赛选手中的占比，所述f％为竞赛选手整轮竞赛中的操作损失在所有竞赛选手中的占比，所述μ和σ为权重比。 10.如权利要求9所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述μ和σ分别为0.4和0.6。 11.如权利要求9所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，所述竞赛选手整轮竞赛中的总换弦数在所有竞赛选手中的占比的计算如下： x％＝1-(x-x＇)/(x＂-x＇)； 所述x为竞赛选手在一整轮竞赛中的总换弦数，所述x＇为一轮竞赛中所有竞赛选手的总换弦数的最小值，所述x＂为一轮竞赛中所有竞赛选手的总换弦数的最大值； 所述竞赛选手整轮竞赛中的操作损失在所有竞赛选手中的占比的计算如下： f％＝1-(f-f＇)/(f＂-f＇)； 所述f为竞赛选手在一整轮竞赛中的总操作损失，所述f＇为一轮竞赛中所有竞赛选手的总操作损失的最小值，所述f＂为一轮竞赛中所有竞赛选手的总操作损失的最大值。 12.如权利要求1至11任一项所述的对帆船竞赛选手的赛事表现进行评价的方法，其特征在于，将竞赛选手在多轮竞赛中的所述起航得分、航行得分和换弦得分分别进行平均。",
+    "cpc_sample": [
+      "G",
+      "G06",
+      "G06Q",
+      "G06Q10/00",
+      "G06Q10/06",
+      "G06Q10/063",
+      "G06Q10/0639",
+      "G06Q10/06393"
+    ],
+    "url": "https://patents.google.com/patent/CN113033968B/zh"
+  },
+  "CN114690225A": {
+    "publication": "CN114690225A",
+    "lang": "en",
+    "title": "Identification method for moving object bypassing target",
+    "abstract": "The invention discloses a method for identifying a moving object bypassing a target, which comprises a starting point, an end point and at least one target point, wherein the target point is provided with a GPS positioning device, the method also comprises a server and a data analysis system, the server is used for receiving and storing positioning information sent by the GPS positioning device, the data analysis system is provided with an auxiliary line at the position of the target point, the auxiliary line passes through the target point, and the data analysis system identifies the condition that the moving object passes through the auxiliary line. The method for identifying the moving object bypassing the target can accurately identify the situation that the moving object such as a sailing boat and the like bypasses the target.",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "顾俊"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co ltd",
+      "Michael Henry Reifer",
+      "Roland Stelzer"
+    ],
+    "claims_text": "Claims ( 8 ) 1. A recognition method for a moving object bypassing a target comprises a starting point, a destination point and at least one target point, wherein the target point is provided with a GPS positioning device, the recognition method further comprises a server and a data analysis system, the server is used for receiving and storing positioning information sent by the GPS positioning device, the recognition method is characterized in that the data analysis system is provided with an auxiliary line at the position of the target point, the auxiliary line passes through the target point, and the data analysis system recognizes the condition that the moving object passes through the auxiliary line. 2. The method for identifying the moving object bypassing the object according to claim 1, wherein an angle is formed between the object point and two adjacent front and rear points along a direction from the start point to the end point of the moving object, and the auxiliary line is on the same straight line with an angular bisector of the angle. 3. The method for identifying the moving object bypassing a target according to claim 2, wherein when the start point, the target point and the end point are on the same straight line, the included angle is 180 degrees, and the auxiliary line is perpendicular to a connecting line of the start point and the end point. 4. The method for identifying a moving object bypassing a target according to claim 2, wherein when the start point, the target point and the end point are on the same straight line and the start point and the end point are on the same point, the included angle is 360 degrees, and the auxiliary line is on the same straight line as the connecting line of the start point and the target point. 5. The method of claim 2, wherein the number of the target points is two, the start point and the end point are symmetrically located at two sides of a connecting line of the two target points, and the auxiliary line is on the same straight line with the connecting line of the two target points. 6. The method for identifying the moving object bypassing the target according to any one of claims 1 to 5, wherein the data analysis system is provided with a correction area by taking a target point as a center, the radius of the correction area is R, the positioning error of the GPS positioning device is X meters, the frequency of sending the positioning information by the GPS positioning device is Z pieces/second, and when the speed of the moving object is Y meters/second, the algorithm of R is as follows: r = 。 7. The method for identifying the moving object bypassing the target according to claim 6, wherein the number of the target points is two, the starting point and the end point are the same point, the two target points are not on the same straight line with the starting point, a connecting line between the starting point and a midpoint between the two target points is a reference line, a foot from a trajectory of the moving object to the reference line in the correction area is a connecting point, a distance from the starting point to the connecting point is a movement distance, and when the movement distance is the maximum, the corresponding moving object passes through the auxiliary line. 8. The method according to claim 6, wherein the number of the target points is two, the start point and the end point are symmetrically located at two sides of a connecting line of the two target points, respectively, and the motion trajectory of the moving object intersects with a reverse extension line of the connecting line of the two targets in the correction area.",
+    "cpc_sample": [
+      "G",
+      "G01",
+      "G01S",
+      "G01S19/00",
+      "G01S19/38",
+      "G01S19/39",
+      "G01S19/42"
+    ],
+    "url": "https://patents.google.com/patent/CN114690225A/en"
+  },
+  "CN114690225B": {
+    "publication": "CN114690225B",
+    "lang": "zh",
+    "title": "一种运动对象绕过目标的识别方法",
+    "abstract": "本发明公开了一种运动对象绕过目标的识别方法，包含起点、终点和至少一个目标点，所述目标点设有GPS定位设备，还包括服务器和数据分析系统，所述服务器用于接收和存储GPS定位设备发送的定位信息，所述数据分析系统在目标点位置设置有一条辅助线，所述辅助线通过目标点，所述数据分析系统识别运动对象通过辅助线的情况。本发明提供的一种运动对象绕过目标的识别方法，可以对帆船等运动对象绕过目标的情况进行更精确的识别。",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "顾俊"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co ltd",
+      "福建（泉州）哈工大工程技术研究院",
+      "芜湖哈特机器人产业技术研究院有限公司"
+    ],
+    "claims_text": "Claims ( 6 ) 1.一种运动对象绕过目标的识别方法，包含起点、终点和至少一个目标点，所述目标点设有GPS定位设备，还包括服务器和数据分析系统，所述服务器用于接收和存储GPS定位设备发送的定位信息，其特征在于，所述数据分析系统在目标点位置设置有一条辅助线，所述辅助线通过目标点，所述数据分析系统识别运动对象通过辅助线的情况，沿着所述运动对象由起点至终点的方向，所述目标点与相邻的前后两点之间形成夹角，所述辅助线与夹角的角平分线在同一直线上，所述数据分析系统以目标点为圆心设有纠正区域，所述纠正区域的半径为R,所述GPS定位设备的定位误差为X米,所述GPS定位设备发送定位信息的频率为Z条/秒，当运动对象的速度为Y米/秒时，所述R的算法是： 。 2.如权利要求1所述的运动对象绕过目标的识别方法，其特征在于，当所述起点、目标点和终点在同一条直线上时，所述夹角为180度，所述辅助线与起点和终点的连线垂直。 3.如权利要求1所述的运动对象绕过目标的识别方法，其特征在于，当所述起点、目标点和终点在同一条直线上、且起点和终点为同一点时，所述夹角为360度，所述辅助线与起点和目标点的连线在同一直线上。 4.如权利要求1所述的运动对象绕过目标的识别方法，其特征在于，所述目标点的数量为两个，所述起点和终点分别对称位于两个目标点的连线的两侧，所述辅助线与两个目标点的连线在同一直线上。 5.如权利要求1所述的运动对象绕过目标的识别方法，其特征在于，所述目标点的数量为两个，所述起点和终点为同一点，两个所述目标点与起点不在同一条直线上，所述起点到两个目标点的中点之间的连线为基准线，在所述纠正区域内运动对象的轨迹到基准线的垂足为连接点，所述起点到连接点的距离为移动距，所述移动距最大时，对应运动对象通过所述辅助线。 6.如权利要求1所述的运动对象绕过目标的识别方法，其特征在于，所述目标点的数量为两个，所述起点和终点分别对称位于两个目标点的连线的两侧，运动对象的运动轨迹在所述纠正区域内与两个目标的连线的反向延长线相交。",
+    "cpc_sample": [
+      "G",
+      "G01",
+      "G01S",
+      "G01S19/00",
+      "G01S19/38",
+      "G01S19/39",
+      "G01S19/42"
+    ],
+    "url": "https://patents.google.com/patent/CN114690225B/zh"
+  },
+  "CN220137400U": {
+    "publication": "CN220137400U",
+    "lang": "zh",
+    "title": "基于gps的定位设备及系统",
+    "abstract": "本实用新型提供一种基于GPS的定位设备及系统，包括GPS芯片、陀螺仪模块和GPRS通讯模块。GPS芯片包括本地存储器，当定位设备于离线状态的情况下，GPS芯片将获取到的数据集合缓存至本地存储器。陀螺仪模块电性连接GPS芯片，陀螺仪模块用于获取定位设备的姿态信息、定位信息和漂移信息，其中数据集合至少包括姿态信息、定位信息和漂移信息。GPRS通讯模块电性连接GPS芯片，GPS芯片通过GPRS通讯模块以预设频率将数据集合发送至远端，本实用新型提出的定位设备具有高集成度，能够实时将获取到将数据集合发送至远端，有效提高定位功能。",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "田维宏"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co ltd"
+    ],
+    "claims_text": "Claims ( 10 ) 1.一种基于GPS的定位设备，其特征在于，所述定位设备包括： GPS芯片，包括本地存储器，当所述定位设备于离线状态的情况下，所述GPS芯片将获取到的数据集合缓存至所述本地存储器； 陀螺仪模块，电性连接所述GPS芯片，所述陀螺仪模块用于获取所述定位设备的姿态信息、定位信息和漂移信息，其中所述数据集合至少包括所述姿态信息、所述定位信息和所述漂移信息； GPRS通讯模块，电性连接所述GPS芯片，所述GPS芯片通过所述GPRS通讯模块以预设频率将所述数据集合发送至远端。 2.根据权利要求1所述的定位设备，其特征在于，所述定位设备还包括： 蓝牙模块，电性连接所述GPS芯片，所述GPS芯片通过所述蓝牙模块收发所述数据集合于蓝牙耳机或智能手表。 3.根据权利要求2所述的定位设备，其特征在于，所述定位设备还包括： 报警模块，电性连接所述GPS芯片，当所述报警模块接收到报警信息时，所述GPS芯片通过所述GPRS通讯模块以10hz频率将所述数据集合或所述报警信息发送至远端。 4.根据权利要求3所述的定位设备，其特征在于，所述报警模块为按键。 5.根据权利要求3所述的定位设备，其特征在于，定位设备还包括： 电源模块，电性连接所述GPS芯片元，所述电源模块向所述陀螺仪模块、所述GPRS通讯模块、所述蓝牙模块及所述报警模块提供相应的电能。 6.一种基于GPS的定位系统，其特征在于，所述定位系统包括： GPS芯片，包括本地存储器，当所述定位系统于离线状态的情况下，所述GPS芯片将获取到的数据集合缓存至所述本地存储器； 陀螺仪模块，电性连接所述GPS芯片，所述陀螺仪模块用于获取所述定位设备的姿态信息、定位信息和漂移信息，其中所述数据集合至少包括所述姿态信息、所述定位信息和所述漂移信息； GPRS通讯模块，电性连接所述GPS芯片，所述GPS芯片通过所述GPRS通讯模块以预设频率将所述数据集合发送至远端； 服务器，当所述定位系统由所述离线状态转换至在线状态的情况下，所述GPS芯片通过所述GPRS通讯模块将所述数据集合自动发送至所述服务器。 7.根据权利要求6所述的定位系统，其特征在于，所述定位系统还包括： 蓝牙模块，电性连接所述GPS芯片，所述GPS芯片通过所述蓝牙模块收发所述数据集合于蓝牙耳机或智能手表。 8.根据权利要求7所述的定位系统，其特征在于，所述定位系统还包括： 报警模块，电性连接所述GPS芯片，当所述报警模块接收到报警信息时，所述GPS芯片通过所述GPRS通讯模块以10hz频率将所述数据集合或所述报警信息发送至远端。 9.根据权利要求8所述的定位系统，其特征在于，所述报警模块为按键。 10.根据权利要求8所述的定位系统，其特征在于，定位系统还包括： 电源模块，电性连接所述GPS芯片，所述电源模块向所述陀螺仪模块、所述GPRS通讯模块、所述蓝牙模块及所述报警模块提供相应的电能。",
+    "cpc_sample": [],
+    "url": "https://patents.google.com/patent/CN220137400U/zh"
+  },
+  "CN220874741U": {
+    "publication": "CN220874741U",
+    "lang": "zh",
+    "title": "一种定位系统用的信号基站",
+    "abstract": "本实用新型公开了一种定位系统用的信号基站，包括防护环、防护外壳和底座，所述底座的正面安装有防护环，所述防护环的外壁安装有防护外壳，所述防护环的外壁开设有一组L型安装槽，所述L型安装槽的内壁开设有限制槽。本实用新型通过将防护外壳内壁的固定块插入L型安装槽内，推动防护外壳使固定块到达L型安装槽的拐角处，通过限制槽、限制杆、限制块和压力弹簧的设置，转动防护外壳带动固定块移动，使固定块对限制块进行挤压，进而能够使限制块缩回限制槽的内部，固定块通过限制块的范围后，压力弹簧会推动限制块返回原位，进而能够通过限制块对固定块进行限制，进而能够在定位系统用的信号基站的使用过程中，便于保证其检修便捷性。",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "田维宏",
+      "高翔"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co ltd"
+    ],
+    "claims_text": "Claims ( 7 ) 1.一种定位系统用的信号基站，包括防护环(1)、防护外壳(2)和底座(3)，其特征在于：所述底座(3)的正面安装有防护环(1)，所述防护环(1)的外壁安装有防护外壳(2)； 所述防护环(1)的外壁开设有一组L型安装槽(101)，所述L型安装槽(101)的内壁开设有限制槽(102)，所述限制槽(102)的内壁安装有一组限制杆(103)，所述限制杆(103)外壁的尾端安装有限制块(104)，且限制块(104)外壁的前端安装于限制槽(102)的内壁； 所述限制块(104)的一端安装有压力弹簧(105)，且压力弹簧(105)的内壁安装于限制杆(103)的外壁，所述限制块(104)的外壁安装有固定块(106)，且固定块(106)的一端安装于防护外壳(2)的内壁。 2.根据权利要求1所述的一种定位系统用的信号基站，其特征在于：所述防护外壳(2)正面的顶部嵌合安装有观察窗(201)，防护外壳(2)正面的底部开设有若干个通孔(202)，通孔(202)的内壁均安装有状态显示灯(203)。 3.根据权利要求1所述的一种定位系统用的信号基站，其特征在于：所述底座(3)的外壁安装有若干个安装块(301)，安装块(301)的正面螺纹贯穿安装有固定螺栓(302)。 4.根据权利要求1所述的一种定位系统用的信号基站，其特征在于：所述防护环(1)的外壁开设有若干组第一散热孔(401)。 5.根据权利要求1所述的一种定位系统用的信号基站，其特征在于：所述防护外壳(2)的外壁开设有若干组第二散热孔(501)，且第二散热孔(501)的一端设置于第一散热孔(401)的另一端。 6.根据权利要求1所述的一种定位系统用的信号基站，其特征在于：所述防护外壳(2)的外壁安装有一组固定架(601)，固定架(601)的内壁开设有滑槽(602)，且滑槽(602)内壁设置于第二散热孔(501)的另一端。 7.根据权利要求6所述的一种定位系统用的信号基站，其特征在于：所述滑槽(602)的内壁安装有滤网架(701)，滤网架(701)的内壁安装有防尘滤网(702)，滤网架(701)的顶部安装有把手(703)。",
+    "cpc_sample": [
+      "Y",
+      "Y02",
+      "Y02D",
+      "Y02D30/00",
+      "Y02D30/70"
+    ],
+    "url": "https://patents.google.com/patent/CN220874741U/zh"
+  },
+  "CN220874872U": {
+    "publication": "CN220874872U",
+    "lang": "en",
+    "title": "GPS positioning equipment with protective structure",
+    "abstract": "The utility model discloses GPS positioning equipment with a protective structure, which comprises a protective shell, a buffer support rod and a buffer support block, wherein an anti-collision buffer assembly is arranged on the inner wall of the protective shell, the anti-collision buffer assembly comprises the buffer support shell, the buffer support rod is arranged on the outer wall of the buffer support shell in a penetrating manner, and the buffer support rod moves relative to the buffer support shell. According to the GPS module, the protection shell is arranged outside the GPS module main body, the buffer supporting shell is used for bearing part of the buffer assembly, the buffer supporting rod is used for supporting the GPS module main body, the movable through hole is used for enabling the buffer supporting rod to extend out of the buffer supporting shell to move, if collision occurs, impact force can be transmitted to the buffer supporting shell through the protection shell, the buffer supporting shell is matched with the buffer supporting block to enable the first spring and the second spring to deform, and the third spring and the fourth spring can deform, so that the impact force is effectively relieved, and effective anti-collision buffer protection of the GPS positioning equipment is achieved.",
+    "priority": "",
+    "filing": "",
+    "publication_date": "",
+    "grant": "",
+    "inventors": [
+      "田维宏",
+      "高翔"
+    ],
+    "assignee_original": [
+      "Shenzhen Swordfish Sports Communication Co ltd"
+    ],
+    "claims_text": "Claims ( 7 ) 1. GPS positioning equipment with protective structure, including protecting sheathing (1), buffering branch shell (2), buffering branch (3) and buffering branch piece (4), its characterized in that: an anti-collision buffer assembly is arranged on the inner wall of the protective shell (1), the anti-collision buffer assembly comprises a buffer support shell (2), a buffer support rod (3) is arranged on the outer wall of the buffer support shell (2) in a penetrating manner, and the buffer support rod (3) moves relative to the buffer support shell (2); The one end of buffering branch (3) is installed buffering branch piece (4), first spring (5) are installed to the outer wall of buffering branch piece (4), second spring (6) are installed to the outer wall of buffering branch piece (4), and second spring (6) are located one side of first spring (5), the outer wall of buffering branch shell (2) is equipped with activity perforation (7). 2. A GPS positioning device with a guard structure according to claim 1, characterized in that: the other end of the buffer supporting rod (3) is provided with a GPS module main body (8), and the outer wall of the GPS module main body (8) is provided with a connecting port (9). 3. A GPS positioning device with a guard structure according to claim 2, characterized in that: the top of the GPS module main body (8) is provided with a third spring (10), and the bottom of the GPS module main body (8) is provided with a fourth spring (11). 4. A GPS positioning device with a guard structure according to claim 2, characterized in that: the bottom of the GPS module main body (8) is provided with a fixed chuck (12), and the outer wall of the fixed chuck (12) is sleeved with a fixed bottom frame (13). 5. The GPS positioning device with guard structure according to claim 4, wherein: the outer wall of the fixed bottom frame (13) is provided with a mounting supporting edge (14), and the top of the mounting supporting edge (14) is provided with a reserved mounting hole (15). 6. The GPS positioning device with guard structure according to claim 4, wherein: the inside of fixed chuck (12) is equipped with accomodates room (16), and the outer wall of accomodating room (16) runs through and installs fixed fixture block (17), and fixed fixture block (17) are flexible relative accomodating room (16), and anticreep piece (18) is installed to one end of fixed fixture block (17), and fifth spring (19) are installed to the outer wall of anticreep piece (18). 7. The GPS positioning device with guard structure according to claim 4, wherein: the outer wall of the fixed bottom frame (13) is provided with a fixed clamping hole (20).",
+    "cpc_sample": [],
+    "url": "https://patents.google.com/patent/CN220874872U/en"
+  }
+}
