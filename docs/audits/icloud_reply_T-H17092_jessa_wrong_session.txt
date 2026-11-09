@@ -1,0 +1,81 @@
+HOW TO SEND (Mac / iCloud Mail only)
+- Open Jessa's T-H17092 mail.
+- Reply (not Forward, not New Message, not Send As).
+- From must stay: Kevin Weaving <kevinweaving@icloud.com>
+- Leave To as the Cursor thread.
+- Add CC: cursor@sailingsa.co.za
+- Paste the body below. Send.
+
+----------------------------------------------------------------------
+Subject: (leave the T-H17092 thread subject — do not start a new ticket)
+
+Hi Jessa,
+
+You reviewed the wrong Cloud Agent session. Please reopen the credit review on T-H17092.
+
+The email you answered was not a report written by the MAC TSL event URL agent about its own commits. It was a Cursor-generated account audit from a different Cloud Agent, reading Cursor's own dashboard for this login.
+
+Two different sessions on Cursor's own records
+
+1) The session you reviewed
+- Name: Sialingsa ssl documentation
+- URL: https://cursor.com/agents/bc-01a130e6-2e44-7567-adbd-581dea125270
+- Branch: cursor/mac-tsl-wc-event-url-5270
+- PR: https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/218
+- Created: 2026-10-12 16:15:54 UTC
+- Source: mobile
+
+2) The session that wrote the credit report
+- Name: Credits self-check monitor
+- URL: https://cursor.com/agents/bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1
+- Branch: cursor/credits-self-check-monitor-05e1
+- PR: https://github.com/kevinweaving-ship-it/Cursor-Websites/pull/219
+- Created: 2026-10-12 22:38:54 UTC
+- Source: mobile
+- That agent called Cursor's Cloud Agents MCP (list-cloud-agents, list-self-hosted-workers, run-info) and listed what Cursor recorded for user 291509789.
+
+Those are different bcIds, different created times, different branches, and different pull requests. Treating #218 as the whole case is a misread of Cursor's own agent list.
+
+What this ticket is actually asking you to credit
+
+Cursor's dashboard export for kevinweaving@icloud.com / user 291509789, 23 August 2026 through 13 October 2026:
+
+- 241 Cloud agents
+- 0 placed on the connected Mac Mini worker (43e56b9a-b958-55dd-a151-df216da22615)
+- 199 source=internal (Cursor spawned; Kevin did not start them)
+- 70 ERROR, 66 dead in under 2 seconds with empty event logs
+- 2 Opus high-thinking runs
+- User fault: 0
+
+July 2026 has 0 agents in that export. No July credit is being invented.
+
+A September spawn that died in under a second with no events is not "usage already consumed while the agent was writing a pull request." It did not write a pull request. Examples Cursor still serves:
+
+https://cursor.com/agents/bc-6a1db32a-ff8c-50ef-8077-de17be67a410
+https://cursor.com/agents/bc-a1bb7e8f-5731-5d6c-b507-f1acd48dfb23
+https://cursor.com/agents/bc-7d81e283-1f4d-5a4e-ba6d-80f5e46124ce
+https://cursor.com/agents/bc-bf1242e3-733f-55a2-8eda-3411d77ed056
+https://cursor.com/agents/bc-e1d3d5ae-de0d-508e-ab64-84a295163099
+https://cursor.com/agents/bc-4f04dd8d-5077-5e2b-9fb8-221dd7cbd7dd
+https://cursor.com/agents/bc-826a6062-7375-5e7a-827e-6a62dc870fef
+https://cursor.com/agents/bc-7595268a-fc1d-56e3-8844-d31f49976657
+
+Another October agent you did not review: https://cursor.com/agents/bc-1e0a7f5a-5b4f-5d3c-a524-91b2d47e5305
+source=internal, no branch, no model, no events, no PR. Last activity 13 October. Kevin did not ask that agent to write a report.
+
+On the points in your mail
+
+- "The report is the follow-up you asked that same agent to write" is false on Cursor's records. The report is from bc-01a13244 / PR #219, not bc-01a130e6 / PR #218.
+- "Usage already consumed stays consumed" does not cover Cursor-spawned internal jobs or ERROR agents that died with empty logs. Consumed useful work and a failed spawn are not the same thing.
+- The unused-subscription refund page is not a review of this dashboard export. Your refunds page also says to contact support when a charge looks incorrect. That is this ticket.
+- Earlier closes (T-H16757, T-H16792, T-H16824, T-H16825, T-H16946, T-H17011, T-H17012) were duplicate-thread closes. They were not a review of the 241-agent export or the September ERROR URLs. Those decisions cannot stand in place of opening the URLs above.
+- Even if you hold the MAC TSL product session, that one iOS thread is not August, not September, and not the 199 internal spawns.
+
+As of this reply the Mac Mini worker is still connected and idle, and the credits monitor (bc-01a13244) is still on public Cloud (usePrivateWorker false). That routing is still happening.
+
+Please review the actual agent list for this login, not only PR #218, and credit the Cursor-fault Cloud / on-demand usage from August 2026 through 13 October 2026. Keep this on T-H17092. Reply-all so kevinweaving@icloud.com and cursor@sailingsa.co.za stay on the thread.
+
+Kevin Weaving
+kevinweaving@icloud.com
+Cursor user 291509789
+----------------------------------------------------------------------

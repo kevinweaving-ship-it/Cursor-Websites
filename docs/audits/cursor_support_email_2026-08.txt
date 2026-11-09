@@ -1,0 +1,20 @@
+Dear Accounts,
+
+Please open a fresh reference for leftover idle sessions between 23 August and 31 August 2026 on login kevinweaving@icloud.com.
+
+T-H16750 is an October reset review. This memo is the last week of August. There were no failed spawns in this window (ERROR = 0). Fifty-three sessions sat idle. Forty-two were created internally.
+
+Kindly credit idle/internal usage for that week and reply-all to kevinweaving@icloud.com with the new reference.
+
+Customer: Kevin Weaving
+Mailbox: kevinweaving@icloud.com
+Cursor id: 291509789
+First row: 2026-08-23T16:00:56Z
+Last row: 2026-08-31T23:34:51Z
+Sessions: 53   Idle leftovers: 42   Failed spawns: 0   Hours: 1863.4
+
+Yours faithfully,
+Kevin Weaving
+
+
+[dry-run] From=Kevin Weaving <cursor@sailingsa.co.za> To=hi@cursor.com Cc=kevinweaving@icloud.com Subject=Accounts memo 23–31 Aug 2026: leftover idle sessions (ref AUG-IDLE-53)
