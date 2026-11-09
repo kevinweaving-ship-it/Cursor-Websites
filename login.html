@@ -565,7 +565,7 @@
             console.log('[DEBUG] login.html: DOMContentLoaded fired');
             try {
                 var params = new URLSearchParams(window.location.search);
-                var urlReturnTo = params.get('returnTo');
+                var urlReturnTo = params.get('returnTo') || params.get('next');
                 if (urlReturnTo) sessionStorage.setItem('auth_returnTo', urlReturnTo);
             } catch (e) {}
             // Load stored credentials and auto-populate
@@ -839,12 +839,14 @@
                 returnTo = sessionStorage.getItem('auth_returnTo');
                 if (!returnTo && typeof URLSearchParams !== 'undefined') {
                     var params = new URLSearchParams(window.location.search);
-                    returnTo = params.get('returnTo') || null;
+                    returnTo = params.get('returnTo') || params.get('next') || null;
                 }
             } catch (err) {}
             try { sessionStorage.removeItem('auth_returnTo'); } catch (e) {}
             var target = returnTo;
-            if (target) {
+            if (target && target.charAt(0) === '/') {
+                /* same-origin relative path, e.g. /club-manage */
+            } else if (target) {
                 try {
                     var u = new URL(target);
                     if (u.origin !== window.location.origin) target = null;
