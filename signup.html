@@ -1,12 +1,3499 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0;url=/login.html">
-  <title>Sign up — SailingSA</title>
-  <link rel="canonical" href="https://sailingsa.co.za/login.html">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - SailingSA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #e9edf3;
+            padding: 10px;
+            margin-top: -60px;
+        }
+        .login-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            max-width: 420px;
+            width: 100%;
+            max-height: calc(100vh - 20px);
+            box-shadow: 0 18px 60px rgba(0,0,0,.45);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        @media (max-width: 767px) {
+            .login-container {
+                padding: 0.75rem;
+            }
+            .logo-section {
+                margin: -0.75rem -0.75rem 0.4rem -0.75rem !important;
+                padding: 0.3rem 0.6rem 0.4rem 0.6rem !important;
+                width: calc(100% + 1.5rem) !important;
+                text-align: center !important;
+            }
+            .login-logo-full {
+                max-height: 35px !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+                display: block !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+            }
+            .logo-section p {
+                font-size: 11px;
+                padding-top: 0.25rem;
+            }
+            .btn-group {
+                gap: 6px;
+                margin-top: 0.5rem;
+            }
+            .btn-login {
+                padding: 9px 14px;
+                min-height: 38px;
+                font-size: 13px;
+            }
+            .form-group {
+                margin-bottom: 0.6rem;
+            }
+            .form-group input,
+            .form-group select {
+                padding: 9px 11px;
+                font-size: 16px;
+            }
+            .divider {
+                margin: 0.6rem 0;
+            }
+        }
+        @media (min-width: 768px) {
+            .login-container {
+                max-width: 420px;
+                padding: 2.5rem;
+                max-height: none;
+            }
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 0.75rem;
+        }
+        .logo-section {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin: -1rem -1rem 0.5rem -1rem !important;
+            padding: 0.4rem 0.75rem 0.5rem 0.75rem !important;
+            background: #1a365d !important;
+            border-radius: 12px 12px 0 0 !important;
+            width: calc(100% + 2rem) !important;
+            box-sizing: border-box !important;
+            text-align: center !important;
+        }
+        .login-logo-full {
+            width: auto !important;
+            max-width: 75% !important;
+            height: auto !important;
+            max-height: 40px !important;
+            display: block !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding: 0 !important;
+            position: relative !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+        }
+        .login-header h1 {
+            color: #1a365d;
+            margin-bottom: 0.5rem;
+            font-size: 24px;
+        }
+        .login-header h2 {
+            color: #1a365d;
+            margin-bottom: 0.5rem;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .login-header p {
+            color: white;
+            font-weight: bold;
+            margin: 0;
+            padding-top: 0.75rem;
+        }
+        .logo-section p {
+            color: white !important;
+            font-weight: bold;
+            margin: 0;
+            padding-top: 0.35rem;
+            text-align: center;
+            font-size: 12px;
+            line-height: 1.2;
+        }
+        .login-section {
+            display: none;
+        }
+        .login-section.active {
+            display: block;
+        }
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 0.75rem;
+        }
+        .divider {
+            text-align: center;
+            margin: 0.75rem 0;
+            position: relative;
+            color: #666;
+            font-size: 13px;
+        }
+        .divider::before,
+        .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background: #ddd;
+        }
+        .divider::before {
+            left: 0;
+        }
+        .divider::after {
+            right: 0;
+        }
+        .forgot-password-link {
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+        .forgot-password-link a {
+            color: #1a365d;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .forgot-password-link a:hover {
+            text-decoration: underline;
+        }
+        .register-link {
+            text-align: center;
+            margin-top: 0.75rem;
+        }
+        .register-link a {
+            color: #1a365d;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+        .btn-login {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            min-height: 40px;
+        }
+        .btn-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+        .btn-login:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .btn-google { 
+            background: white; 
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .btn-google:hover {
+            background: #f5f5f5;
+        }
+        .btn-facebook { background: #1877F2; }
+        .btn-register { background: #DC143C; color: white; }
+        .btn-email { background: #808080; }
+        .btn-username { background: #1a365d; }
+        .btn-primary { background: #1a365d; color: white; }
+        .btn-secondary { background: transparent; color: #1a365d; border: 1px solid #1a365d; }
+        .btn-back {
+            background: #ccc;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 0.75rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0;
+            margin-top: 0;
+            color: #1a365d;
+            font-weight: bold;
+            font-size: 14px;
+            text-align: center;
+            width: 100%;
+            order: 1;
+            line-height: 1;
+            padding-bottom: 0.25rem;
+        }
+        .form-group input {
+            order: 2;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+            order: 2;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #1a365d;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1a365d;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
+        .success-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .login-replacement-active .login-page {
+            min-height: 100vh;
+            margin-top: 0;
+            padding: 16px;
+            background: linear-gradient(180deg, #e8eef5 0%, #d9e2ec 100%);
+        }
+        .login-replacement-active .login-container {
+            position: relative;
+            max-width: 440px;
+            width: 100%;
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            max-height: none;
+            overflow: visible;
+        }
+        .login-replacement-active .logo-section {
+            display: none !important;
+        }
+        .login-home-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: #003366;
+            border: 1.5px solid #c62828;
+            color: #fff;
+        }
+        .login-home-logo {
+            display: block;
+            width: auto;
+            height: 40px;
+            max-width: 150px;
+            object-fit: contain;
+        }
+        .login-home-link {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            color: #fff !important;
+            font-size: 24px;
+            font-weight: 800;
+            text-decoration: none;
+            letter-spacing: 0.02em;
+        }
+        .login-art-card {
+            position: relative;
+            overflow: hidden;
+            padding: 18px 22px 22px;
+            border-radius: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.98) 58%, rgba(255,255,255,0.2) 100%);
+            min-height: auto;
+        }
+        .login-art-card::before {
+            content: '';
+            position: absolute;
+            top: 54px;
+            right: 0;
+            width: 45%;
+            height: 250px;
+            background-image:
+                linear-gradient(270deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.75) 100%),
+                url("https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic%20white%20sailboat%20on%20bright%20blue%20ocean%20near%20dramatic%20mountain%20coastline%2C%20clean%20sky%2C%20high-end%20editorial%20travel%20photography%2C%20crisp%20water%20spray%2C%20elegant%20sailing%20scene&image_size=portrait_16_9");
+            background-size: cover;
+            background-position: center center;
+            clip-path: polygon(34% 0, 100% 0, 100% 100%, 0 100%);
+            pointer-events: none;
+        }
+        .login-art-brand,
+        .login-art-socials,
+        .login-art-fields,
+        .signup-step-card > * {
+            position: relative;
+            z-index: 1;
+        }
+        .login-art-brand {
+            max-width: 64%;
+            margin-bottom: 16px;
+            padding-top: 4px;
+        }
+        .login-art-logo {
+            display: block;
+            width: 100%;
+            max-width: 270px;
+            height: auto;
+        }
+        .login-art-title {
+            margin: 12px 0 0;
+            color: #08184a;
+            font-size: 22px;
+            line-height: 1.05;
+            letter-spacing: 0.02em;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .login-replacement-active #errorMessage {
+            position: relative;
+            z-index: 2;
+            margin-bottom: 16px;
+            border-radius: 14px;
+            border: 1px solid #ef9a9a;
+            background: rgba(255, 235, 238, 0.96);
+        }
+        .login-art-socials {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .login-social-button {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 14px;
+            width: 100%;
+            min-height: 58px;
+            padding: 0 18px;
+            border-radius: 6px;
+            border: 1px solid #d2d7e0;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(8, 24, 74, 0.08);
+        }
+        .login-social-button svg {
+            width: 28px;
+            height: 28px;
+            flex: 0 0 28px;
+        }
+        .login-social-button span {
+            flex: 1;
+            text-align: center;
+            padding-right: 24px;
+        }
+        .login-social-google {
+            background: #fff;
+            color: #1d2a57;
+        }
+        .login-social-facebook {
+            background: #0f39c9;
+            border-color: #0f39c9;
+            color: #fff;
+        }
+        .login-social-apple {
+            background: #000;
+            border-color: #000;
+            color: #fff;
+        }
+        .login-art-divider {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+            color: #7d8198;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .login-art-divider::before,
+        .login-art-divider::after {
+            content: '';
+            flex: 1 1 auto;
+            height: 1px;
+            background: #d8dbe4;
+        }
+        .login-art-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .login-art-field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .login-art-field-label {
+            color: #08184a;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .login-art-input-wrap {
+            display: flex;
+            align-items: center;
+            min-height: 48px;
+            border: 1px solid #d3d7e0;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.96);
+        }
+        .login-art-input-wrap svg {
+            flex: 0 0 22px;
+            width: 22px;
+            height: 22px;
+            margin: 0 16px;
+        }
+        .login-art-input-wrap input {
+            flex: 1;
+            border: 0;
+            background: transparent;
+            padding: 0 14px 0 0;
+            height: 46px;
+            font-size: 16px;
+            color: #1d2a57;
+            box-shadow: none;
+        }
+        .login-art-input-wrap input::placeholder {
+            color: #a0a4b4;
+        }
+        .login-art-submit {
+            width: 100%;
+            min-height: 50px;
+            margin-top: 4px;
+            border: 0;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #027c99 0%, #0a95b3 100%);
+            color: #fff;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 10px 24px rgba(2, 124, 153, 0.18);
+        }
+        .login-art-forgot {
+            margin-top: 10px;
+            text-align: center;
+        }
+        .login-art-forgot a {
+            color: #0b84a2;
+            font-size: 15px;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .signup-step-card h2 {
+            margin: 0 0 8px;
+            color: #08184a;
+            font-size: 22px;
+            line-height: 1.05;
+            letter-spacing: 0.02em;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .signup-step-card p {
+            margin-top: 0;
+            color: #6b7288;
+        }
+        .signup-step-card .btn-group {
+            position: relative;
+            z-index: 1;
+        }
+        .signup-step-card .form-group label {
+            text-align: left;
+        }
+        .signup-step-card #searchResults {
+            position: relative;
+            z-index: 1;
+            margin-top: 12px;
+        }
+        body.signup-confirm-wide .login-container {
+            max-width: min(720px, 100%);
+        }
+        #confirmProfile .login-art-card {
+            overflow: visible;
+            background: #fff;
+            padding: 14px 8px 16px;
+        }
+        #confirmProfile .login-art-card::before { display: none; }
+        #profileDetails .ssa-dev1-inject { margin: 0 0 10px 0; max-width: 100%; }
+        #profileDetails .ssa-dev1-inject main,
+        #profileDetails .ssa-dev1-inject .main-column,
+        #profileDetails .ssa-dev1-inject .container {
+            width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important;
+        }
+        #profileDetails .ssa-dev1-inject .sa-approved-sailor-card { margin-top: 0; }
+        #profileDetails a.sa-claim-banner { pointer-events: none; cursor: default; }
+        .confirm-id-card {
+            margin: 0 0 12px 0;
+            padding: 12px 12px 10px;
+            background: #fff;
+            border: 2px solid #001f3f;
+            border-radius: 12px;
+            box-sizing: border-box;
+        }
+        .confirm-id-name {
+            margin: 0 0 8px 0;
+            color: #08184a;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            line-height: 1.15;
+        }
+        .confirm-id-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 0 0 10px 0;
+        }
+        .confirm-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin: 0;
+            padding: 4px 9px;
+            min-height: 26px;
+            border-radius: 999px;
+            border: 1px solid #94a3b8;
+            background: #f8fafc;
+            color: #001f3f;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .confirm-pill--navy { background: #001f3f; border-color: #001f3f; color: #fff; }
+        .confirm-pill--teal { background: #0d9488; border-color: #0d9488; color: #fff; }
+        .confirm-classes-label {
+            margin: 0 0 6px 0;
+            color: #08184a;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .confirm-class-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .confirm-class-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            padding: 6px 8px;
+            border: 1px solid #d6deea;
+            border-radius: 10px;
+            background: #f7fafc;
+            box-sizing: border-box;
+        }
+        .confirm-class-chip {
+            display: inline-flex;
+            flex-direction: row;
+            align-items: center;
+            flex: 0 0 auto;
+            min-width: 0;
+            text-decoration: none;
+            color: inherit;
+        }
+        .confirm-class-ico {
+            display: block;
+            width: 44px;
+            height: 28px;
+            object-fit: contain;
+            object-position: center;
+            flex: 0 0 auto;
+        }
+        .confirm-class-name {
+            display: none;
+            font-size: 10px;
+            font-weight: 800;
+            color: #08184a;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+        .confirm-class-row .confirm-pill { flex: 0 0 auto; }
+        #confirmProfile .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+        #confirmProfile .btn-primary {
+            background: linear-gradient(90deg, #027c99 0%, #0a95b3 100%);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .signup-splash-card {
+            position: relative;
+            overflow: hidden;
+            padding: 18px 18px 16px;
+            background: linear-gradient(180deg, #003366 0%, #002952 52%, #001f3f 100%);
+            color: #fff;
+            border-radius: 16px;
+            border: 1.5px solid #c62828;
+            box-shadow: 0 18px 40px rgba(0, 51, 102, 0.28);
+        }
+        .signup-splash-hero {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 250px;
+            margin-bottom: 14px;
+        }
+        .signup-splash-logo {
+            width: 128px;
+            max-width: 40%;
+            height: auto;
+            display: block;
+            margin: 0 auto 16px;
+            position: relative;
+            z-index: 3;
+        }
+        .signup-splash-boat {
+            position: absolute;
+            top: -18px;
+            right: -28px;
+            width: 56%;
+            height: 112%;
+            z-index: 0;
+            background-image:
+                linear-gradient(270deg, rgba(0, 51, 102, 0.05) 0%, rgba(0, 51, 102, 0.92) 100%),
+                url("https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic%20white%20monohull%20sailboat%20on%20deep%20blue%20water%20with%20mountain%20coastline%2C%20South%20African%20style%20coast%2C%20bright%20daylight%2C%20clean%20sky%2C%20editorial%20sports%20photography&image_size=portrait_4_3");
+            background-size: cover;
+            background-position: center top;
+            clip-path: polygon(26% 0, 100% 0, 100% 100%, 0 100%);
+            pointer-events: none;
+        }
+        .signup-splash-kicker,
+        .signup-splash-subbar,
+        .signup-splash-copy,
+        .signup-splash-actions,
+        .signup-splash-footer {
+            position: relative;
+            z-index: 2;
+        }
+        .signup-splash-kicker {
+            width: 100%;
+            max-width: none;
+            margin: 42px 0 0;
+            font-size: 68px;
+            line-height: 0.9;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: #f6f6f6;
+            text-align: center;
+            text-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+        .signup-splash-subbar {
+            margin: 0 0 16px;
+            padding: 10px 14px;
+            background: #FFD400;
+            color: #111;
+            border-radius: 4px;
+            font-size: 18px;
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+        .signup-splash-copy {
+            margin: 0 0 14px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.92);
+        }
+        .signup-splash-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .signup-splash-button {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            min-height: 58px;
+            padding: 0 12px 0 16px;
+            border: 0;
+            border-radius: 20px;
+            color: #06142f;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+        }
+        .signup-splash-button svg {
+            width: 28px;
+            height: 28px;
+            flex: 0 0 28px;
+        }
+        .signup-splash-button-label {
+            flex: 1 1 auto;
+            text-align: center;
+            padding-left: 4px;
+        }
+        .signup-splash-button-arrow {
+            width: 46px;
+            height: 46px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            font-weight: 400;
+            line-height: 1;
+            color: #fff;
+            background: #003366;
+            flex: 0 0 46px;
+        }
+        .signup-splash-button--google {
+            background: #fff;
+            color: #07142e;
+        }
+        .signup-splash-button--facebook {
+            background: #0f57d7;
+            color: #fff;
+        }
+        .signup-splash-button--apple {
+            background: #000;
+            color: #fff;
+        }
+        .signup-splash-button--disabled {
+            background: #d9dde5 !important;
+            color: #6d7485 !important;
+            border-color: #c5cad6 !important;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .signup-splash-button--disabled svg {
+            opacity: 0.65;
+        }
+        .signup-splash-button--disabled .signup-splash-button-arrow {
+            background: #b4bac7;
+            color: #f4f6fa;
+        }
+        .signup-splash-button--email {
+            background: #FFD400;
+            color: #111;
+        }
+        .signup-splash-separator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 6px 0;
+            color: #FFD400;
+            font-size: 18px;
+            font-weight: 900;
+            justify-content: center;
+        }
+        .signup-splash-separator::before,
+        .signup-splash-separator::after {
+            content: '';
+            flex: 1 1 auto;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(198,40,40,0) 0%, rgba(198,40,40,1) 100%);
+        }
+        .signup-splash-separator::after {
+            background: linear-gradient(90deg, rgba(198,40,40,1) 0%, rgba(198,40,40,0) 100%);
+        }
+        .signup-splash-footer {
+            margin-top: 12px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.92);
+            text-transform: uppercase;
+        }
+        .signup-splash-footer strong {
+            color: #FFD400;
+        }
+        @media (max-width: 480px) {
+            .login-replacement-active .login-page {
+                padding: 0;
+            }
+            .login-home-bar {
+                margin-bottom: 4px;
+                padding: 8px 10px;
+                border-radius: 0;
+            }
+            .login-home-logo {
+                height: 34px;
+                max-width: 128px;
+            }
+            .login-home-link {
+                min-height: 36px;
+                font-size: 20px;
+            }
+            .login-art-card {
+                padding: 10px 12px 12px;
+            }
+            .login-art-card::before {
+                top: 48px;
+                width: 42%;
+                height: 176px;
+            }
+            .login-art-brand {
+                max-width: 61%;
+                margin-bottom: 10px;
+            }
+            .login-art-title {
+                font-size: 15px;
+                margin-top: 8px;
+            }
+            .login-social-button {
+                min-height: 42px;
+                padding: 0 12px;
+                font-size: 11px;
+            }
+            .login-social-button svg {
+                width: 22px;
+                height: 22px;
+                flex-basis: 22px;
+            }
+            .login-social-button span {
+                padding-right: 4px;
+            }
+            .login-art-divider {
+                margin: 10px 0;
+                font-size: 12px;
+            }
+            .login-art-field {
+                gap: 5px;
+            }
+            .login-art-field-label {
+                font-size: 11px;
+            }
+            .login-art-input-wrap {
+                min-height: 40px;
+            }
+            .login-art-input-wrap svg {
+                width: 18px;
+                height: 18px;
+                margin: 0 12px;
+            }
+            .login-art-input-wrap input {
+                height: 38px;
+                font-size: 16px;
+            }
+            .login-art-submit {
+                min-height: 44px;
+                font-size: 15px;
+            }
+            .login-art-forgot a {
+                font-size: 14px;
+            }
+            .signup-step-card h2 {
+                font-size: 18px;
+            }
+            .signup-splash-card {
+                padding: 14px 12px 14px;
+                border-radius: 0;
+            }
+            .signup-splash-hero {
+                min-height: 184px;
+                margin-bottom: 10px;
+            }
+            .signup-splash-logo {
+                width: 82px;
+                margin: 0 auto 10px;
+                position: relative;
+                z-index: 3;
+            }
+            .signup-splash-boat {
+                top: -10px;
+                right: -18px;
+                width: 52%;
+                height: 108%;
+                z-index: 0;
+            }
+            .signup-splash-kicker {
+                font-size: 36px;
+                width: 100%;
+                max-width: none;
+                margin-top: 28px;
+            }
+            .signup-splash-subbar {
+                margin-bottom: 12px;
+                padding: 8px 10px;
+                font-size: 13px;
+            }
+            .signup-splash-copy {
+                margin-bottom: 10px;
+                font-size: 12px;
+            }
+            .signup-splash-actions {
+                gap: 10px;
+            }
+            .signup-splash-button {
+                min-height: 48px;
+                padding: 0 10px 0 12px;
+                border-radius: 18px;
+                font-size: 11px;
+            }
+            .signup-splash-button svg {
+                width: 24px;
+                height: 24px;
+                flex-basis: 24px;
+            }
+            .signup-splash-button-arrow {
+                width: 40px;
+                height: 40px;
+                flex-basis: 40px;
+                font-size: 30px;
+            }
+            .signup-splash-separator {
+                margin: 4px 0;
+                font-size: 15px;
+            }
+            .signup-splash-footer {
+                margin-top: 10px;
+                font-size: 12px;
+            }
+
+            /* Easy signup field flow */
+            #regDataForm .form-group { position: relative; }
+            #regDataForm .reg-field-row {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            #regDataForm .reg-field-row input {
+                flex: 1;
+                min-width: 0;
+            }
+            #regDataForm .reg-tick {
+                flex: 0 0 1.75rem;
+                width: 1.75rem;
+                height: 1.75rem;
+                border-radius: 50%;
+                border: 2px solid #cbd5e1;
+                background: #f8fafc;
+                color: transparent;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.95rem;
+                font-weight: 800;
+                line-height: 1;
+            }
+            #regDataForm .reg-tick.is-ok {
+                border-color: #16a34a;
+                background: #16a34a;
+                color: #fff;
+            }
+            #regDataForm .reg-tick.is-bad {
+                border-color: #dc2626;
+                background: #fee2e2;
+                color: #dc2626;
+            }
+            #regDataForm .reg-tick.is-skip {
+                border-color: #94a3b8;
+                background: #e2e8f0;
+                color: #475569;
+                font-size: 0.65rem;
+                font-weight: 700;
+            }
+            #regDataForm input.reg-ok { border-color: #16a34a !important; }
+            #regDataForm input.reg-bad { border-color: #dc2626 !important; }
+            #regIssuesBox {
+                display: none;
+                margin: 0 0 0.85rem;
+                padding: 0.75rem 0.85rem;
+                background: #fef2f2;
+                border: 1px solid #fecaca;
+                border-radius: 8px;
+                color: #7f1d1d;
+                font-size: 0.9rem;
+            }
+            #regIssuesBox.show { display: block; }
+            #regIssuesBox ul { margin: 0.35rem 0 0 1.1rem; padding: 0; }
+            #regIssuesBox li { margin: 0.2rem 0; }
+            #regIssuesBox a {
+                color: #b91c1c;
+                font-weight: 700;
+                text-decoration: underline;
+                cursor: pointer;
+            }
+
+            /* Loud Google — hard to miss */
+            .reg-google-loud {
+                margin: 0 0 1.1rem;
+                padding: 1rem 1rem 1.05rem;
+                background: linear-gradient(135deg, #fef08a 0%, #fde047 55%, #facc15 100%);
+                border: 3px solid #ca8a04;
+                border-radius: 12px;
+                box-shadow: 0 6px 18px rgba(202, 138, 4, 0.45);
+            }
+            .reg-google-loud-title {
+                margin: 0 0 0.55rem;
+                font-size: 1.05rem;
+                font-weight: 900;
+                color: #713f12;
+                text-align: center;
+                letter-spacing: 0.02em;
+            }
+            .reg-google-loud-sub {
+                margin: 0 0 0.75rem;
+                font-size: 0.88rem;
+                font-weight: 700;
+                color: #854d0e;
+                text-align: center;
+                line-height: 1.35;
+            }
+            .reg-google-loud-btn {
+                display: flex;
+                width: 100%;
+                align-items: center;
+                justify-content: center;
+                gap: 0.65rem;
+                padding: 1rem 1.1rem;
+                font-size: 1.12rem;
+                font-weight: 900;
+                line-height: 1.2;
+                border: 2px solid #1f2937;
+                border-radius: 10px;
+                background: #fff;
+                color: #111827;
+                cursor: pointer;
+                box-shadow: 0 3px 0 #1f2937;
+            }
+            .reg-google-loud-btn:active {
+                transform: translateY(2px);
+                box-shadow: 0 1px 0 #1f2937;
+            }
+            .reg-google-loud-btn svg {
+                width: 1.35rem;
+                height: 1.35rem;
+                flex-shrink: 0;
+            }
+            .confirm-google-loud {
+                margin-bottom: 0.85rem !important;
+                padding: 1rem 1.1rem !important;
+                font-size: 1.08rem !important;
+                font-weight: 900 !important;
+                border: 3px solid #ca8a04 !important;
+                background: linear-gradient(135deg, #fef08a, #fde047) !important;
+                color: #713f12 !important;
+                box-shadow: 0 4px 12px rgba(202, 138, 4, 0.4) !important;
+            }
+            #regProgressHint {
+                margin: 0 0 0.75rem;
+                font-size: 0.85rem;
+                color: #334155;
+            }
+        }
+
+            .reg-dob-format {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.35rem;
+                margin: 0.45rem 0 0.55rem;
+                flex-wrap: wrap;
+            }
+            .reg-dob-format-part {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                min-width: 4.5rem;
+            }
+            .reg-dob-format-part span:first-child {
+                font-size: 0.68rem;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                color: #475569;
+            }
+            .reg-dob-format-part span:last-child {
+                margin-top: 0.2rem;
+                padding: 0.35rem 0.55rem;
+                min-width: 4.2rem;
+                text-align: center;
+                border: 2px solid #cbd5e1;
+                border-radius: 8px;
+                background: #f8fafc;
+                font-size: 0.95rem;
+                font-weight: 700;
+                color: #0f172a;
+            }
+            .reg-dob-format-sep {
+                font-size: 1.25rem;
+                font-weight: 900;
+                color: #64748b;
+                margin-top: 0.85rem;
+            }
+            #regDobHelp {
+                font-size: 0.88rem !important;
+                color: #334155 !important;
+                font-weight: 600;
+            }
+
+            /* Loud social sign-up — Google + Facebook */
+            .reg-social-loud {
+                margin: 0 0 1.15rem;
+                padding: 1.05rem 1rem 1.1rem;
+                background: linear-gradient(160deg, #fef08a 0%, #fde68a 40%, #bfdbfe 100%);
+                border: 4px solid #ca8a04;
+                border-radius: 14px;
+                box-shadow: 0 8px 22px rgba(202, 138, 4, 0.42);
+            }
+            .reg-social-loud-title {
+                margin: 0 0 0.35rem;
+                font-size: 1.15rem;
+                font-weight: 900;
+                color: #713f12;
+                text-align: center;
+                letter-spacing: 0.03em;
+                text-transform: uppercase;
+            }
+            .reg-social-loud-sub {
+                margin: 0 0 0.85rem;
+                font-size: 0.92rem;
+                font-weight: 700;
+                color: #1e3a8a;
+                text-align: center;
+                line-height: 1.35;
+            }
+            .reg-social-loud-stack {
+                display: flex;
+                flex-direction: column;
+                gap: 0.65rem;
+            }
+            .reg-social-loud-btn {
+                display: flex;
+                width: 100%;
+                align-items: center;
+                justify-content: center;
+                gap: 0.7rem;
+                padding: 1.05rem 1.15rem;
+                font-size: 1.14rem;
+                font-weight: 900;
+                line-height: 1.2;
+                border-radius: 11px;
+                cursor: pointer;
+                border: 3px solid #1f2937;
+                box-shadow: 0 4px 0 #1f2937;
+            }
+            .reg-social-loud-btn:active {
+                transform: translateY(2px);
+                box-shadow: 0 2px 0 #1f2937;
+            }
+            .reg-social-loud-btn svg {
+                width: 1.45rem;
+                height: 1.45rem;
+                flex-shrink: 0;
+            }
+            .reg-social-loud-btn--google {
+                background: #fff;
+                color: #111827;
+            }
+            .reg-social-loud-btn--facebook {
+                background: #1877F2;
+                color: #fff;
+                border-color: #0b4fbf;
+                box-shadow: 0 4px 0 #0b4fbf;
+            }
+            .reg-social-loud-btn--facebook:active {
+                box-shadow: 0 2px 0 #0b4fbf;
+            }
+            .confirm-social-loud {
+                display: flex;
+                flex-direction: column;
+                gap: 0.55rem;
+                margin-bottom: 0.75rem;
+                width: 100%;
+            }
+            .confirm-social-loud .reg-social-loud-btn {
+                font-size: 1.05rem;
+                padding: 0.95rem 1rem;
+            }
+
+            /* Compact welcome splash */
+            .signup-splash-card {
+                padding-bottom: 0.75rem !important;
+            }
+            .signup-splash-kicker {
+                font-size: 1.65rem !important;
+                margin-bottom: 0.35rem !important;
+            }
+            .signup-splash-subbar {
+                font-size: 1rem !important;
+                padding: 8px 12px !important;
+                margin-bottom: 10px !important;
+            }
+            .signup-splash-copy {
+                margin: 0 0 12px !important;
+                font-size: 1.05rem !important;
+                font-weight: 900 !important;
+                color: #fef08a !important;
+                text-align: center;
+                line-height: 1.25;
+            }
+            .signup-splash-actions {
+                gap: 10px !important;
+            }
+            .signup-splash-button {
+                min-height: 62px !important;
+                font-size: 15px !important;
+                border: 3px solid rgba(0,0,0,0.15);
+            }
+            .signup-splash-button--google {
+                border-color: #ca8a04 !important;
+                box-shadow: 0 6px 0 #ca8a04, 0 10px 24px rgba(0,0,0,0.25) !important;
+            }
+            .signup-splash-button--facebook {
+                border-color: #0b4fbf !important;
+                box-shadow: 0 6px 0 #0b4fbf, 0 10px 24px rgba(0,0,0,0.25) !important;
+            }
+            .signup-splash-button-label {
+                text-transform: none !important;
+                font-size: 1.02rem !important;
+            }
+            .signup-splash-button--email-lite {
+                min-height: 46px !important;
+                background: transparent !important;
+                color: rgba(255,255,255,0.95) !important;
+                border: 2px solid rgba(255,255,255,0.55) !important;
+                box-shadow: none !important;
+                font-size: 0.92rem !important;
+                font-weight: 700 !important;
+            }
+            .signup-splash-button--email-lite .signup-splash-button-arrow {
+                display: none !important;
+            }
+            .signup-splash-button--email-lite svg {
+                width: 22px !important;
+                height: 22px !important;
+            }
+            .signup-splash-separator {
+                margin: 2px 0 !important;
+                font-size: 0.85rem !important;
+                color: rgba(255,255,255,0.75) !important;
+                font-weight: 700 !important;
+            }
+            .signup-splash-separator::before,
+            .signup-splash-separator::after {
+                background: rgba(255,255,255,0.35) !important;
+                height: 1px !important;
+            }
+            .signup-splash-footer {
+                display: none !important;
+            }
+            .signup-splash-apple-hidden {
+                display: none !important;
+            }
+
+            /* Sign-in / sign-up page switch links */
+            .auth-page-switch {
+                text-align: center;
+                margin-top: 1rem;
+                padding-top: 0.75rem;
+                border-top: 1px solid rgba(0,0,0,0.08);
+                font-size: 0.95rem;
+                color: #64748b;
+            }
+            .auth-page-switch a {
+                color: #1a365d;
+                font-weight: 700;
+                margin-left: 0.35rem;
+                text-decoration: none;
+            }
+            .auth-page-switch a:hover {
+                text-decoration: underline;
+            }
+            .signup-splash-card .auth-page-switch {
+                border-top-color: rgba(255,255,255,0.25);
+                color: rgba(255,255,255,0.85);
+            }
+            .signup-splash-card .auth-page-switch a {
+                color: #fef08a;
+            }
+    </style>
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
-<body>
-  <p><a href="/login.html">Continue to sign in or register</a></p>
+<body class="login-replacement-active">
+    <div class="login-page">
+        <div class="login-container">
+            <div class="logo-section">
+                <img src="assets/logos/sailingsa-results-logo.png" alt="SailingSA Results" class="login-logo-full" style="display: block !important; margin-left: auto !important; margin-right: auto !important; position: relative !important; left: 50% !important; transform: translateX(-50%) !important;">
+                <p style="color: white; font-weight: bold; margin: 0; padding-top: 0.75rem; text-align: center;">Join SailingSA</p>
+            </div>
+
+            <!-- Back / Cancel: return to originating page without signing in -->
+            <div style="margin-bottom: 0;">
+                <div class="login-home-bar">
+                    <img src="/assets/logos/Live/logo-wordmark-on-color.png?v=20260813-signup-oncolor" alt="SailingSA" class="login-home-logo">
+                    <a href="#" id="backToPageLink" class="login-home-link" onclick="goBackToReturnUrl(); return false;">Home</a>
+                </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="error-message"></div>
+
+            <!-- Main Login Form (Canonical Structure) -->
+            <div id="initialChoice" class="login-section active">
+                <div class="signup-splash-card">
+                    <div class="signup-splash-hero">
+                        <img src="/assets/logos/Live/logo-wordmark-on-color.png?v=20260813-signup-oncolor" alt="SailingSA" class="signup-splash-logo">
+                        <div class="signup-splash-boat"></div>
+                        <h1 class="signup-splash-kicker">
+                            Welcome
+                        </h1>
+                    </div>
+                    <div class="signup-splash-subbar">Free sign-up · 30 seconds</div>
+                    <p class="signup-splash-copy">Sign up with Google or Facebook ↓</p>
+                    <div class="signup-splash-actions">
+                        <button type="button" class="signup-splash-button signup-splash-button--google" onclick="loginWithGoogle()">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                            </svg>
+                            <span class="signup-splash-button-label">Sign up with Google</span>
+                            <span class="signup-splash-button-arrow" aria-hidden="true">›</span>
+                        </button>
+                        <button type="button" class="signup-splash-button signup-splash-button--facebook" onclick="loginWithFacebook()">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <circle cx="12" cy="12" r="12" fill="white"/>
+                                <path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#0F39C9"/>
+                            </svg>
+                            <span class="signup-splash-button-label">Sign up with Facebook</span>
+                            <span class="signup-splash-button-arrow" aria-hidden="true">›</span>
+                        </button>
+                        <div class="signup-splash-separator">or</div>
+                        <button type="button" class="signup-splash-button signup-splash-button--email-lite" onclick="showRegistrationForm(event)">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <path d="M4 6.5H20C20.83 6.5 21.5 7.17 21.5 8V16C21.5 16.83 20.83 17.5 20 17.5H4C3.17 17.5 2.5 16.83 2.5 16V8C2.5 7.17 3.17 6.5 4 6.5Z" stroke="currentColor" stroke-width="1.8"/>
+                                <path d="M3 8L12 14L21 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span class="signup-splash-button-label">Sign up with email</span>
+                        </button>
+                    <div class="auth-page-switch">
+                        <span>Already registered?</span>
+                        <a href="/login.html" id="goToLoginLink" onclick="goToLogin(event)">Sign in</a>
+                    </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registration: Find Profile -->
+            <div id="registrationForm" class="login-section">
+                <div class="login-art-card signup-step-card">
+                    <div class="login-art-brand">
+                        <img src="/assets/logos/Live/logo-wordmark-on-white.png?v=20260801-solid-darkblue" alt="SailingSA" class="login-art-logo">
+                        <h1 class="login-art-title">Create Your Account</h1>
+                    </div>
+
+                    <h2>Find Your Profile</h2>
+                    <p>Search by SAS ID or Name &amp; Surname</p>
+                    <form id="searchProfileForm" onsubmit="handleProfileSearch(event)">
+                        <div class="login-art-fields">
+                            <div class="login-art-field">
+                                <label class="login-art-field-label" for="searchInput">SAS ID or Name &amp; Surname</label>
+                                <div class="login-art-input-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M11 4.5C7.41 4.5 4.5 7.41 4.5 11C4.5 14.59 7.41 17.5 11 17.5C12.54 17.5 13.96 16.97 15.08 16.08L18.5 19.5" stroke="#1D2A57" stroke-width="1.8" stroke-linecap="round"/>
+                                        <circle cx="11" cy="11" r="6.5" stroke="#1D2A57" stroke-width="1.8"/>
+                                    </svg>
+                                    <input type="text" id="searchInput" placeholder="SAS ID or Name &amp; Surname" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="login-art-submit">Continue</button>
+                        </div>
+                    </form>
+                    <div class="login-art-forgot">
+                        <a href="#" onclick="goBackToReturnUrl(); return false;">Home</a>
+                    </div>
+                    <div class="auth-page-switch" style="margin-top:0.75rem;border-top:none;padding-top:0;">
+                        <span>Already registered?</span>
+                        <a href="/login.html" onclick="goToLogin(event)">Sign in</a>
+                    </div>
+                    <div id="searchResults"></div>
+                </div>
+            </div>
+
+            <!-- Confirm Profile -->
+            <div id="confirmProfile" class="login-section">
+                <div class="login-art-card signup-step-card">
+                    <h2>Confirm Your Profile</h2>
+                    <div id="profileDetails"></div>
+                    <div class="confirm-social-loud" id="confirmSocialLoud">
+                        <button type="button" class="reg-social-loud-btn reg-social-loud-btn--google" onclick="loginWithGoogle()">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                            Sign up with Google — fastest
+                        </button>
+                        <button type="button" class="reg-social-loud-btn reg-social-loud-btn--facebook" onclick="loginWithFacebook()">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="white"/><path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#1877F2"/></svg>
+                            Sign up with Facebook — easy
+                        </button>
+                    </div>
+                    <div class="btn-group" id="profileConfirmButtons">
+                        <button class="btn-login btn-primary" onclick="handleProfileConfirm('me', currentProfile?.sas_id || '')">This is me — use email form</button>
+                        <button class="btn-login btn-secondary" onclick="handleProfileConfirm('child', currentProfile?.sas_id || '')">This is my child / family member</button>
+                        <button class="btn-login btn-back" onclick="showRegistrationForm()">Not me</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Relationship Form -->
+            <div id="relationshipForm" class="login-section">
+                <div class="login-art-card signup-step-card">
+                    <h2>Relationship</h2>
+                    <form id="relationshipFormElement" onsubmit="handleRelationshipSubmit(event)">
+                        <div class="form-group">
+                            <label for="relationshipSelect">Relationship</label>
+                            <select id="relationshipSelect" required>
+                                <option value="">Select relationship</option>
+                                <option value="parent">Parent / Guardian</option>
+                                <option value="child">Child</option>
+                                <option value="sibling">Sibling</option>
+                                <option value="grandparent">Grandparent</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="consentCheckbox" required>
+                                I have consent to manage this profile
+                            </label>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn-login btn-primary">Continue</button>
+                            <button type="button" class="btn-login btn-back" onclick="showConfirmProfile()">Back</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Registration Data Form (Email, WhatsApp, Password) -->
+            <div id="registrationDataForm" class="login-section">
+                <div class="login-art-card signup-step-card">
+                <h2 id="regFormTitle">Complete Your Registration</h2>
+                <p id="regFormIntro" style="color: #666; margin-bottom: 1rem; font-size: 0.9rem;">Please provide the following information to complete your account setup:</p>
+                <div id="googleSignupNotice" style="display: none; margin-bottom: 1rem; padding: 0.75rem 0.9rem; border-radius: 10px; background: #eef4ff; color: #1a365d; font-size: 0.88rem; line-height: 1.4;">
+                    Your Google account has already been authenticated. Complete the profile link below to create your SailingSA account.
+                </div>
+                
+                <div class="reg-social-loud" id="regSocialLoud">
+                    <p class="reg-social-loud-title">⚡ Easiest — Google or Facebook</p>
+                    <p class="reg-social-loud-sub">About 30 seconds · no password to remember · tap one:</p>
+                    <div class="reg-social-loud-stack">
+                        <button type="button" class="reg-social-loud-btn reg-social-loud-btn--google" onclick="loginWithGoogle()">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                            Sign up with Google
+                        </button>
+                        <button type="button" class="reg-social-loud-btn reg-social-loud-btn--facebook" onclick="loginWithFacebook()">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="white"/><path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#1877F2"/></svg>
+                            Sign up with Facebook
+                        </button>
+                    </div>
+                </div>
+                <p style="margin:0 0 0.65rem;text-align:center;font-size:0.85rem;font-weight:700;color:#64748b;">— or fill in the email form below —</p>
+                <form id="regDataForm" novalidate autocomplete="on" onsubmit="handleRegistrationData(event)">
+                    <p id="regProgressHint">Green tick = done. Fields with <span style="color:#dc2626">*</span> are required.</p>
+                    <div id="regIssuesBox" role="alert" aria-live="polite"></div>
+
+                    <div class="form-group" id="regNameGroup">
+                        <label for="regFullName">Your name <span style="color:#666;">(from your phone if available)</span></label>
+                        <div class="reg-field-row">
+                            <input type="text" id="regFullName" name="name" autocomplete="name"
+                                   placeholder="Name Surname" tabindex="1"
+                                   oninput="refreshRegFieldStatuses()">
+                            <span class="reg-tick" id="tick-regFullName" aria-hidden="true">✓</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="regEmailGroup">
+                        <label for="regEmail" id="regEmailLabel">Email Address <span style="color: red;">*</span></label>
+                        <div class="reg-field-row">
+                            <input type="email" id="regEmail" name="email" required
+                                   autocomplete="email" inputmode="email" enterkeyhint="next"
+                                   placeholder="your.email@example.com" tabindex="2"
+                                   oninput="validateRegistrationEmail()">
+                            <span class="reg-tick" id="tick-regEmail" aria-hidden="true">✓</span>
+                        </div>
+                        <div id="reg-email-error" style="margin-top: 0.4rem; font-size: 0.75rem; color: #dc3545; display: none;">
+                            Not a valid email yet
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" id="regPasswordGroup">
+                        <label for="regPassword">Password <span style="color: red;">*</span></label>
+                        <div class="reg-field-row">
+                            <input type="password" id="regPassword" name="password" required
+                                   autocomplete="new-password" enterkeyhint="next"
+                                   placeholder="At least 7 characters" tabindex="3"
+                                   oninput="validateRegistrationPassword()">
+                            <span class="reg-tick" id="tick-regPassword" aria-hidden="true">✓</span>
+                        </div>
+                        <div id="reg-password-rules" style="margin-top: 0.4rem; font-size: 0.75rem; color: #666; line-height: 1.3;">
+                            <div id="reg-rule-length" style="color: #999;">✓ At least 7 characters (needed)</div>
+                            <div id="reg-rule-capital" style="color: #999;">○ Capital letter (nice to have)</div>
+                            <div id="reg-rule-special" style="color: #999;">○ Special character (nice to have)</div>
+                            <div id="reg-rule-number" style="color: #999;">○ A number (nice to have)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" id="regPasswordConfirmGroup">
+                        <label for="regPasswordConfirm">Confirm Password <span style="color: red;">*</span></label>
+                        <div class="reg-field-row">
+                            <input type="password" id="regPasswordConfirm" name="passwordConfirm" required
+                                   autocomplete="new-password" enterkeyhint="next"
+                                   placeholder="Type the same password again" tabindex="4"
+                                   oninput="checkRegistrationPasswordMatch()">
+                            <span class="reg-tick" id="tick-regPasswordConfirm" aria-hidden="true">✓</span>
+                        </div>
+                        <div id="reg-password-match" style="margin-top: 0.4rem; font-size: 0.75rem; display: none;"></div>
+                    </div>
+                    
+                    <div class="form-group" id="regWhatsAppGroup">
+                        <label for="regWhatsApp" id="regWhatsAppLabel">WhatsApp / phone <span style="color: red;">*</span></label>
+                        <div class="reg-field-row">
+                            <input type="tel" id="regWhatsApp" name="tel" autocomplete="tel" inputmode="tel" required
+                                   enterkeyhint="next" placeholder="082 123 4567" tabindex="5"
+                                   oninput="formatRegistrationWhatsApp(this)">
+                            <span class="reg-tick" id="tick-regWhatsApp" aria-hidden="true">✓</span>
+                        </div>
+                        <div id="regWhatsAppHelp" style="margin-top: 0.4rem; font-size: 0.75rem; color: #666;">
+                            Required — 10 digits (e.g. 082 123 4567). Your phone can suggest your number.
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" id="regDobGroup">
+                        <label for="regDob">Date of birth <span style="color: red;">*</span></label>
+                        <div class="reg-dob-format" aria-hidden="true">
+                            <div class="reg-dob-format-part"><span>Year</span><span>1998</span></div>
+                            <div class="reg-dob-format-sep">/</div>
+                            <div class="reg-dob-format-part"><span>Month</span><span>03</span></div>
+                            <div class="reg-dob-format-sep">/</div>
+                            <div class="reg-dob-format-part"><span>Day</span><span>15</span></div>
+                        </div>
+                        <div class="reg-field-row">
+                            <input type="date" id="regDob" name="bday" autocomplete="bday" required
+                                   enterkeyhint="done" tabindex="6"
+                                   title="Year, then Month, then Day"
+                                   oninput="refreshRegFieldStatuses()" onchange="refreshRegFieldStatuses()">
+                            <span class="reg-tick" id="tick-regDob" aria-hidden="true">✓</span>
+                        </div>
+                        <div id="regDobHelp" style="margin-top: 0.4rem; line-height: 1.45;">
+                            Tap the field above, then choose <b>Year</b> → <b>Month</b> → <b>Day</b>.
+                            Example: <b>1998 / 03 / 15</b> (15 March 1998).
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="regClubGroup">
+                        <label>Club</label>
+                        <div id="regClubNow" style="display:flex;align-items:center;gap:6px;min-height:22px;font-size:13px;font-weight:700;color:#001f3f;"></div>
+                    </div>
+                    
+                    <div class="form-group" id="regAvatarGroup">
+                        <label>Profile photo <span style="color:#64748b;font-weight:600;">(optional)</span></label>
+                        <div id="regAvatarCrop"></div>
+                    </div>
+
+                    <div class="form-group" id="regSkipperGroup">
+                        <h3 style="margin:8px 0 4px;color:#001f3f;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;">Optional extras</h3>
+                        <label for="regSkipperFile">SAMSA Skippers certificate</label>
+                        <input id="regSkipperFile" type="file" accept="image/jpeg,image/png,application/pdf" tabindex="7">
+                        <div style="margin-top:0.35rem;font-size:0.75rem;color:#666;">Upload a photo or PDF if you got Skippers from a SAMSA authorised college. Skip if you do not have one.</div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button type="submit" id="regSubmitBtn" class="btn-login btn-primary" tabindex="8">
+                            Complete Registration
+                        </button>
+                        <button type="button" class="btn-login btn-back" onclick="showConfirmProfile()" tabindex="9">Back</button>
+                    </div>
+                </form>
+                </div>
+            </div>
+
+            <!-- Verification Options (kept for backward compatibility, but not used for new registrations) -->
+            <div id="verificationOptions" class="login-section" style="display: none;">
+                <div class="login-art-card signup-step-card">
+                <h2>Verify Your Account</h2>
+                <p>Choose a verification method:</p>
+                <div class="btn-group">
+                    <button class="btn-login btn-google" onclick="handleGoogleVerification()">
+                        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        Google
+                    </button>
+                    <button class="btn-login btn-facebook" onclick="handleFacebookVerification()">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        Facebook
+                    </button>
+                </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="login-section">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="login-section">
+                <div class="login-art-card signup-step-card">
+                <div class="success-message">
+                    <h3>Success!</h3>
+                    <p>Redirecting to SailingSA...</p>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/avatar-crop.js"></script>
+    <script>
+        window.API_BASE = window.location.origin;
+        let currentProfile = null;
+        let registrationRelationship = null;
+        let claimSelectedSasId = '';
+
+        // Debug logging initialization
+        console.log('[DEBUG] login.html: Script loading...');
+        console.log('[DEBUG] login.html: Current URL:', window.location.href);
+        console.log('[DEBUG] login.html: API_BASE:', window.API_BASE || API_BASE);
+
+        /* entry_how_claim_v1 */
+        var claimEntry = 'direct';
+        var claimSearchQuery = '';
+        var claimSailorName = '';
+        function plainSignupError(raw) {
+            var e = String(raw || '').trim();
+            var el = e.toLowerCase();
+            if (!e) return 'Something went wrong — please try again';
+            if (el.indexOf('more target columns') >= 0 || el.indexOf('login_method') >= 0)
+                return 'Sign-up hit a server problem. Please use Sign up with Google, or try again in a minute.';
+            if (el.indexOf('already') >= 0 && (el.indexOf('email') >= 0 || el.indexOf('exist') >= 0 || el.indexOf('claim') >= 0))
+                return (e.indexOf('Sign in') >= 0) ? e : (e + ' — try Sign in instead');
+            if (el.indexOf('password') >= 0) return 'Check your password (and that both password fields match).';
+            if (el.indexOf('whatsapp') >= 0 || el.indexOf('phone') >= 0)
+                return 'WhatsApp number looks wrong — use 10 digits like 082 123 4567, or leave it blank.';
+            if (el.indexOf('insert') >= 0 || el.indexOf('syntax') >= 0 || el.indexOf('sql') >= 0)
+                return 'Could not create your account right now. Please try Sign up with Google.';
+            return e.length > 160 ? e.slice(0, 160) : e;
+        }
+
+        function trackClaimFunnel(stepKey, stableEntityId, okFlag, errCode, metaValue) {
+            try {
+                var meta = (metaValue && typeof metaValue === 'object') ? Object.assign({}, metaValue) : {};
+                if (!meta.entry) meta.entry = claimEntry;
+                if (claimSearchQuery && !meta.search_query) meta.search_query = claimSearchQuery;
+                if (claimSailorName && !meta.sailor_name && !meta.name) meta.sailor_name = claimSailorName;
+                var ent = stableEntityId != null ? String(stableEntityId) : '';
+                const body = {
+                    funnel_name: 'claim_profile',
+                    step_key: String(stepKey || ''),
+                    sas_id: (/^\d+$/.test(ent) ? ent : ''),
+                    stable_entity_id: ent,
+                    url_path: (window.location && window.location.pathname) ? String(window.location.pathname) : '',
+                    ok: okFlag !== false,
+                    error_code: errCode != null ? String(errCode) : '',
+                    meta: meta
+                };
+                fetch(window.location.origin + '/api/funnel-event', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                }).catch(function() {});
+            } catch (e) {}
+        }
+        
+        // Check if already logged in on page load
+        window.addEventListener('DOMContentLoaded', async function() {
+            try { setTimeout(wireRegFormFieldFlow, 150); } catch (eFlow0) {}
+            console.log('[DEBUG] login.html: DOMContentLoaded fired');
+            var urlName = '';
+            try {
+                var params = new URLSearchParams(window.location.search);
+                var urlReturnTo = params.get('returnTo');
+                if (urlReturnTo) sessionStorage.setItem('auth_returnTo', urlReturnTo);
+                var urlSasId = params.get('sas_id') || params.get('sasId') || params.get('sas') || '';
+                urlName = params.get('name') || params.get('q') || params.get('sailor') || '';
+                var isSignupBanner = params.get('signup') === '1' || params.get('signup') === 'true';
+                if (urlSasId) claimEntry = 'sailor_claim';
+                else if (isSignupBanner) claimEntry = 'signup_banner';
+                else claimEntry = 'direct';
+                if (urlName) claimSailorName = String(urlName);
+                if (urlSasId) {
+                    claimSelectedSasId = String(urlSasId);
+                    trackClaimFunnel('claim_page_loaded', claimSelectedSasId, true, '', { returnTo: urlReturnTo || '', name: urlName || '', entry: claimEntry });
+                } else {
+                    trackClaimFunnel('claim_page_loaded', '', true, '', { returnTo: urlReturnTo || '', name: urlName || '', entry: claimEntry });
+                }
+            } catch (e) {}
+            // Check for explicit callback session only; don't hijack Sign Up entry.
+            await checkExistingSession();
+
+            if (getSocialSignupContext()) {
+                showRegistrationForm();
+            } else {
+                if (claimSelectedSasId || urlName) {
+                    showRegistrationForm();
+                    try {
+                        var searchInput = document.getElementById('searchInput');
+                        var fill = urlName || claimSelectedSasId;
+                        if (searchInput && fill) searchInput.value = fill;
+                    } catch (e2) {}
+                    try {
+                        var query = claimSelectedSasId || urlName;
+                        const results = await searchProfiles(query);
+                        var picked = null;
+                        function matchSas(list) {
+                            if (!claimSelectedSasId || !list) return null;
+                            return list.find(function(r) {
+                                return String(r.sas_id || r.sasId || r.sa_sailing_id || '') === String(claimSelectedSasId);
+                            }) || null;
+                        }
+                        if (results && results.length) {
+                            picked = matchSas(results);
+                            if (!picked && results.length === 1) picked = results[0];
+                        }
+                        if (!picked && urlName && claimSelectedSasId && query !== urlName) {
+                            const byName = await searchProfiles(urlName);
+                            picked = matchSas(byName);
+                            if (!picked && byName && byName.length === 1) picked = byName[0];
+                            if (!picked && byName && byName.length > 1) {
+                                displayProfileResults(byName);
+                            }
+                        }
+                        if (picked) {
+                            currentProfile = picked;
+                            claimSailorName = currentProfile.full_name || ((currentProfile.first_name||'') + ' ' + (currentProfile.last_name||'')).trim() || claimSailorName;
+                            trackClaimFunnel('sailor_preselected', currentProfile.sas_id || claimSelectedSasId, true, '', { sailor_name: claimSailorName, entry: claimEntry });
+                            displayProfileConfirmation(currentProfile);
+                        } else if (results && results.length > 1) {
+                            displayProfileResults(results);
+                        }
+                    } catch (e3) {}
+                } else {
+                    // Signup page starts on the signup artwork / choice screen.
+                    showInitialChoice();
+                }
+            }
+        });
+        
+        // Toggle password visibility
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('passwordInput');
+            const showPasswordCheckbox = document.getElementById('showPasswordCheckbox');
+            if (passwordInput && showPasswordCheckbox) {
+                passwordInput.type = showPasswordCheckbox.checked ? 'text' : 'password';
+            }
+        }
+        
+        // Make function globally accessible
+        window.togglePasswordVisibility = togglePasswordVisibility;
+        
+        // Store credentials in localStorage
+        function storeCredentials(username, password) {
+            const rememberCredentials = document.getElementById('rememberCredentials');
+            if (rememberCredentials && rememberCredentials.checked) {
+                try {
+                    // Store credentials (in production, consider encrypting the password)
+                    localStorage.setItem('saved_username', username);
+                    localStorage.setItem('saved_password', password); // Note: In production, consider encryption
+                    localStorage.setItem('remember_credentials', 'true');
+                    console.log('[DEBUG] Credentials stored in localStorage');
+                } catch (error) {
+                    console.error('[DEBUG] Failed to store credentials:', error);
+                }
+            } else {
+                // Clear stored credentials if "Remember" is unchecked
+                clearStoredCredentials();
+            }
+        }
+        
+        // Load stored credentials and populate form
+        function loadStoredCredentials() {
+            try {
+                const rememberCredentials = localStorage.getItem('remember_credentials');
+                if (rememberCredentials === 'true') {
+                    const savedUsername = localStorage.getItem('saved_username');
+                    const savedPassword = localStorage.getItem('saved_password');
+                    
+                    if (savedUsername && document.getElementById('usernameInput')) {
+                        document.getElementById('usernameInput').value = savedUsername;
+                    }
+                    
+                    if (savedPassword && document.getElementById('passwordInput')) {
+                        document.getElementById('passwordInput').value = savedPassword;
+                    }
+                    
+                    // Check the "Remember credentials" checkbox
+                    const rememberCheckbox = document.getElementById('rememberCredentials');
+                    if (rememberCheckbox) {
+                        rememberCheckbox.checked = true;
+                    }
+                    
+                    console.log('[DEBUG] Stored credentials loaded and populated');
+                }
+            } catch (error) {
+                console.error('[DEBUG] Failed to load stored credentials:', error);
+            }
+        }
+        
+        // Clear stored credentials
+        function clearStoredCredentials() {
+            try {
+                localStorage.removeItem('saved_username');
+                localStorage.removeItem('saved_password');
+                localStorage.removeItem('remember_credentials');
+                console.log('[DEBUG] Stored credentials cleared');
+            } catch (error) {
+                console.error('[DEBUG] Failed to clear stored credentials:', error);
+            }
+        }
+        
+        // Try auto-login with stored credentials
+        async function tryAutoLogin() {
+            try {
+                try {
+                    if (sessionStorage.getItem('disable_auto_login_once') === 'true') {
+                        console.log('[DEBUG] Auto-login suppressed for this tab');
+                        return;
+                    }
+                } catch (eAutoSuppress) {}
+                // Check if we should try auto-login (only if credentials are stored)
+                const rememberCredentials = localStorage.getItem('remember_credentials');
+                if (rememberCredentials !== 'true') {
+                    return; // Don't auto-login if credentials aren't stored
+                }
+                
+                const savedUsername = localStorage.getItem('saved_username');
+                const savedPassword = localStorage.getItem('saved_password');
+                
+                if (!savedUsername || !savedPassword) {
+                    return; // No stored credentials
+                }
+                
+                // Check if there's already a valid session
+                const session = await checkSession();
+                if (session && session.valid) {
+                    console.log('[DEBUG] Valid session exists, skipping auto-login');
+                    return;
+                }
+                
+                console.log('[DEBUG] Attempting auto-login with stored credentials');
+                
+                // Try to login with stored credentials
+                const result = await loginWithUsernamePassword(savedUsername, savedPassword);
+                
+                if (result.success) {
+                    console.log('[DEBUG] Auto-login successful');
+                    storeSession(result.session || result.session_token);
+                    redirectToLandingPage();
+                } else {
+                    console.log('[DEBUG] Auto-login failed:', result.error);
+                    // Clear invalid credentials
+                    clearStoredCredentials();
+                }
+            } catch (error) {
+                console.error('[DEBUG] Auto-login error:', error);
+                // Clear credentials on error
+                clearStoredCredentials();
+            }
+        }
+
+        function storeSession(sessionToken) {
+            // Store session token in cookie and localStorage
+            if (sessionToken) {
+                document.cookie = `session=${sessionToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+                localStorage.setItem('session', sessionToken);
+                console.log('[DEBUG] Session stored:', sessionToken);
+            }
+        }
+        
+        function clearSession() {
+            // Clear session from cookie and localStorage
+            document.cookie = "session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            localStorage.removeItem('session');
+            console.log('[DEBUG] Session cleared');
+        }
+        
+        async function checkExistingSession() {
+            try {
+                // Check for session in URL parameter first (from Facebook redirect)
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionToken = urlParams.get('session');
+                
+                if (sessionToken) {
+                    // New session from redirect - store it
+                    storeSession(sessionToken);
+                    // Remove from URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    // Check if valid and redirect
+                    const session = await checkSession();
+                    if (session && session.valid) {
+                        redirectToLandingPage();
+                        return;
+                    }
+                }
+                
+                // Check existing session from cookie/storage
+                const existingToken = document.cookie.split('; ').find(row => row.startsWith('session='))?.split('=')[1] || localStorage.getItem('session');
+                
+                if (existingToken) {
+                    // Check if session is still valid
+                    const session = await checkSession();
+                    if (session && session.valid) {
+                        console.log('[DEBUG] Existing valid session found on signup page; keeping signup screen visible');
+                        return;
+                    } else {
+                        // Session expired or invalid - clear it
+                        clearSession();
+                    }
+                }
+                
+                // No valid session - show login form
+                console.log('[DEBUG] No valid session, showing login form');
+            } catch (error) {
+                console.warn('[DEBUG] Session check failed:', error);
+                // On error, clear any stored session and show login form
+                clearSession();
+            }
+        }
+
+        function showSection(sectionId) {
+            console.log('[DEBUG] showSection: Showing section:', sectionId);
+            document.querySelectorAll('.login-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+                document.body.classList.toggle('signup-confirm-wide', sectionId === 'confirmProfile');
+                console.log('[DEBUG] showSection: Section', sectionId, 'is now active');
+            } else {
+                console.error('[DEBUG] showSection: Section', sectionId, 'not found!');
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => errorDiv.classList.remove('show'), 5000);
+        }
+
+        function showInitialChoice() {
+            showSection('initialChoice');
+        }
+
+        function showLoginOptions() {
+            showSection('loginOptions');
+        }
+
+        function showUsernamePasswordLogin() {
+            showSection('usernamePasswordLogin');
+        }
+
+        function showRegistrationForm(e) {
+            if (e) e.preventDefault();
+            var btns = document.getElementById('profileConfirmButtons');
+            if (btns) btns.style.display = '';
+            showSection('registrationForm');
+        }
+
+        function handleForgotPassword(e) {
+            e.preventDefault();
+            // TODO: Implement forgot password flow
+            showError('Password reset functionality coming soon. Please contact support.');
+        }
+
+        function showConfirmProfile() {
+            showSection('confirmProfile');
+        }
+
+        function showRelationshipForm() {
+            showSection('relationshipForm');
+        }
+
+        function showVerificationOptions() {
+            showSection('verificationOptions');
+        }
+
+        function showLoading() {
+            showSection('loadingState');
+        }
+        
+        function hideLoading() {
+            // Hide loading by showing the appropriate section
+            // Don't hide if we're about to show another section
+        }
+
+        function showSuccess() {
+            showSection('successState');
+            setTimeout(() => {
+                redirectToLandingPage();
+            }, 2000);
+        }
+        
+        function hideError() {
+            const errorDiv = document.getElementById('errorMessage');
+            if (errorDiv) {
+                errorDiv.classList.remove('show');
+                errorDiv.textContent = '';
+            }
+        }
+
+        function _allowedReturnHost(hostname) {
+            var h = (hostname || '').toLowerCase();
+            return h === 'sailingsa.co.za' || h === 'www.sailingsa.co.za' || h === 'timadvisor.co.za' || h === 'www.timadvisor.co.za' || h === window.location.hostname;
+        }
+        function _sessionTokenForHandoff() {
+            try {
+                var fromCookie = document.cookie.split('; ').find(function(row) { return row.indexOf('session=') === 0; });
+                if (fromCookie) return decodeURIComponent((fromCookie.split('=')[1] || ''));
+            } catch (e) {}
+            try { return localStorage.getItem('session') || ''; } catch (e2) { return ''; }
+        }
+        function goBackToReturnUrl() {
+            var returnTo = null;
+            try {
+                returnTo = sessionStorage.getItem('auth_returnTo');
+                if (!returnTo && typeof URLSearchParams !== 'undefined') {
+                    var params = new URLSearchParams(window.location.search);
+                    returnTo = params.get('returnTo') || null;
+                }
+            } catch (err) {}
+            try { sessionStorage.removeItem('auth_returnTo'); } catch (e) {}
+            var target = returnTo;
+            if (target) {
+                try {
+                    var u = new URL(target);
+                    if (!_allowedReturnHost(u.hostname)) target = null;
+                    else if (u.origin !== window.location.origin) {
+                        var tok = _sessionTokenForHandoff();
+                        if (tok) { u.searchParams.set('session', tok); target = u.toString(); }
+                    }
+                } catch (err) { target = null; }
+            }
+            if (!target) {
+                var ref = document.referrer;
+                if (ref && (ref.indexOf('login') === -1)) target = ref;
+            }
+            if (!target) {
+                target = window.location.origin + '/';
+            }
+            window.location.replace(target);
+        }
+
+        function redirectToLandingPage() {
+            console.log('[DEBUG] redirectToLandingPage: Called');
+            var stored = null;
+            try { stored = sessionStorage.getItem('auth_returnTo'); } catch (e) {}
+            if (stored) {
+                try { sessionStorage.setItem('auth_returnTo', stored); } catch (e2) {}
+                goBackToReturnUrl();
+                return;
+            }
+            const landingUrl = window.location.origin + '/';
+            console.log('[DEBUG] redirectToLandingPage: Redirecting to:', landingUrl);
+            window.location.replace(landingUrl);
+        }
+
+        function getGoogleSignupContext() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const googleId = (params.get('google_id') || '').trim();
+                if (!params.get('google_signup') || !googleId) {
+                    return null;
+                }
+                return {
+                    googleId: googleId,
+                    googleEmail: (params.get('google_email') || '').trim(),
+                    googleEmailVerified: (params.get('google_email_verified') || '').trim(),
+                    googleName: (params.get('google_name') || '').trim(),
+                    googleGivenName: (params.get('google_given_name') || '').trim(),
+                    googleFamilyName: (params.get('google_family_name') || '').trim(),
+                    googlePicture: (params.get('google_picture') || '').trim()
+                };
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function getFacebookSignupContext() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const facebookId = (params.get('facebook_id') || '').trim();
+                if (!params.get('facebook_signup') || !facebookId) {
+                    return null;
+                }
+                return {
+                    facebookId: facebookId,
+                    facebookEmail: (params.get('facebook_email') || '').trim(),
+                    facebookName: (params.get('facebook_name') || '').trim(),
+                    facebookFirstName: (params.get('facebook_first_name') || '').trim(),
+                    facebookLastName: (params.get('facebook_last_name') || '').trim(),
+                    facebookPicture: (params.get('facebook_picture') || '').trim()
+                };
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function getSocialSignupContext() {
+            const googleSignup = getGoogleSignupContext();
+            if (googleSignup) {
+                return {
+                    provider: 'google',
+                    email: googleSignup.googleEmail || '',
+                    emailVerified: googleSignup.googleEmailVerified || '',
+                    name: googleSignup.googleName || '',
+                    firstName: googleSignup.googleGivenName || '',
+                    lastName: googleSignup.googleFamilyName || '',
+                    picture: googleSignup.googlePicture || '',
+                    raw: googleSignup
+                };
+            }
+            const facebookSignup = getFacebookSignupContext();
+            if (facebookSignup) {
+                return {
+                    provider: 'facebook',
+                    email: facebookSignup.facebookEmail || '',
+                    emailVerified: '',
+                    name: facebookSignup.facebookName || '',
+                    firstName: facebookSignup.facebookFirstName || '',
+                    lastName: facebookSignup.facebookLastName || '',
+                    picture: facebookSignup.facebookPicture || '',
+                    raw: facebookSignup
+                };
+            }
+            return null;
+        }
+
+        function isGoogleSignupMode() {
+            return !!getSocialSignupContext();
+        }
+
+
+        function buildLoginUrl() {
+            var u = new URL((window.location.origin || '') + '/login.html');
+            var returnTo = getAuthReturnToValue();
+            if (returnTo) u.searchParams.set('returnTo', returnTo);
+            return u.toString();
+        }
+
+        function goToLogin(e) {
+            if (e) e.preventDefault();
+            window.location.href = buildLoginUrl();
+        }
+        window.goToLogin = goToLogin;
+
+        function getAuthReturnToValue() {
+            try {
+                const stored = sessionStorage.getItem('auth_returnTo');
+                if (stored) return stored;
+            } catch (e) {}
+            try {
+                const params = new URLSearchParams(window.location.search);
+                return params.get('returnTo') || '';
+            } catch (e2) {}
+            return '';
+        }
+
+        // Login functions
+        function loginWithGoogle() {
+            try {
+                const oauthUrl = new URL((window.location.origin || '') + '/auth/google');
+                oauthUrl.searchParams.set('flow', 'signup');
+                const returnTo = getAuthReturnToValue();
+                if (returnTo) {
+                    oauthUrl.searchParams.set('returnTo', returnTo);
+                }
+                window.location.href = oauthUrl.toString();
+            } catch (error) {
+                console.error('[ERROR] Failed to start Google sign up:', error);
+                showError('Failed to start Google sign up. Please try again.');
+            }
+        }
+
+        function loginWithFacebook() {
+            console.log('[DEBUG] loginWithFacebook() function called');
+            try {
+                const oauthUrl = new URL((window.location.origin || '') + '/auth/facebook');
+                oauthUrl.searchParams.set('flow', 'signup');
+                const returnTo = getAuthReturnToValue();
+                if (returnTo) {
+                    oauthUrl.searchParams.set('returnTo', returnTo);
+                }
+                console.log('[DEBUG] Redirecting to:', oauthUrl.toString());
+                window.location.href = oauthUrl.toString();
+            } catch (error) {
+                console.error('[ERROR] Failed to redirect:', error);
+                showError('Failed to start Facebook login. Please try again.');
+            }
+        }
+        
+        // Make function globally accessible for onclick handlers
+        window.loginWithFacebook = loginWithFacebook;
+
+        function loginWithApple() {
+            showError('Apple sign up is not configured yet. Use Google or Email for now.');
+        }
+        window.loginWithApple = loginWithApple;
+        window.loginWithGoogle = loginWithGoogle;
+
+
+        async function handleUsernamePasswordLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('usernameInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+
+            if (!username || !password) {
+                showError('Please enter both WhatsApp No or SAS ID and password');
+                return;
+            }
+
+            // Store credentials if "Remember" is checked
+            storeCredentials(username, password);
+
+            // Auto-detect if input is SAS ID (numeric) or WhatsApp number (starts with +)
+            // The backend will handle the lookup
+
+            showLoading();
+
+            try {
+                console.log('[DEBUG] handleUsernamePasswordLogin: Calling loginWithUsernamePassword');
+                const result = await loginWithUsernamePassword(username, password);
+                console.log('[DEBUG] handleUsernamePasswordLogin: Login result:', result);
+
+                if (result.success) {
+                    console.log('[DEBUG] handleUsernamePasswordLogin: Login successful, storing session');
+                    storeSession(result.session || result.session_token);
+                    goBackToReturnUrl();
+                } else {
+                    console.error('[DEBUG] handleUsernamePasswordLogin: Login failed:', result.error);
+                    showError(result.error || 'Login failed. Please check your credentials.');
+                }
+            } catch (error) {
+                console.error('[DEBUG] handleUsernamePasswordLogin: Exception caught:', error);
+                console.error('[DEBUG] handleUsernamePasswordLogin: Stack trace:', error.stack);
+                showError(error.message && error.message.indexOf('HTTP') === -1 ? error.message : 'Login failed. Please try again.');
+            }
+        }
+
+        // Registration functions
+        async function handleProfileSearch(e) {
+            e.preventDefault();
+            const query = document.getElementById('searchInput').value.trim();
+
+            if (!query) {
+                showError('Please enter a SAS ID or Name & Surname');
+                return;
+            }
+
+            console.log('[DEBUG] handleProfileSearch: Starting search with query:', query);
+            showLoading();
+            hideError();
+            try {
+                claimSearchQuery = String(query || '').trim();
+                if (claimSearchQuery) trackClaimFunnel('sailor_search', claimSelectedSasId || '', true, '', { query: claimSearchQuery, entry: claimEntry });
+            } catch (eSearch) {}
+
+            try {
+                const results = await searchProfiles(query);
+                console.log('[DEBUG] handleProfileSearch: Search results:', results);
+                console.log('[DEBUG] handleProfileSearch: Results length:', results ? results.length : 0);
+                console.log('[DEBUG] handleProfileSearch: First result:', results && results.length > 0 ? results[0] : 'none');
+
+                // Hide loading before showing results
+                const loadingSection = document.getElementById('loadingState');
+                if (loadingSection) {
+                    loadingSection.classList.remove('active');
+                }
+
+                if (!results || results.length === 0) {
+                    console.log('[DEBUG] handleProfileSearch: No results, showing error');
+                    showError('No profiles found. Please try again or create a new account.');
+                    showRegistrationForm();
+                } else if (results.length === 1) {
+                    currentProfile = results[0];
+                    console.log('[DEBUG] handleProfileSearch: Single result found, displaying confirmation');
+                    console.log('[DEBUG] handleProfileSearch: Profile data:', JSON.stringify(currentProfile, null, 2));
+                    displayProfileConfirmation(currentProfile);
+                } else {
+                    console.log('[DEBUG] handleProfileSearch: Multiple results found, displaying list');
+                    displayProfileResults(results);
+                }
+            } catch (error) {
+                console.error('[DEBUG] handleProfileSearch: Search failed:', error);
+                console.error('[DEBUG] handleProfileSearch: Error details:', error.message, error.stack);
+                
+                // Hide loading on error
+                const loadingSection = document.getElementById('loadingState');
+                if (loadingSection) {
+                    loadingSection.classList.remove('active');
+                }
+                
+                showError('Search failed. Please try again.');
+                showRegistrationForm();
+            }
+        }
+
+        function injectDev1ConfirmCard(detailsDiv, sasId, fallbackHtml) {
+            if (!detailsDiv) return;
+            detailsDiv.innerHTML = fallbackHtml || '';
+            if (!sasId || sasId === 'N/A') return;
+            var wrap = document.createElement('div');
+            wrap.className = 'ssa-dev1-inject';
+            wrap.innerHTML = '<div style="padding:8px;color:#64748b;font-size:13px;">Loading profile…</div>';
+            detailsDiv.innerHTML = '';
+            detailsDiv.appendChild(wrap);
+            fetch('/dev-1?embed=1&sas_id=' + encodeURIComponent(String(sasId)), { credentials: 'same-origin', cache: 'no-store' })
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    var box = document.createElement('div');
+                    box.innerHTML = html;
+                    var lock = box.querySelector('#dev1-viewport-locks');
+                    if (lock) {
+                        if (!document.getElementById('dev1-viewport-locks')) document.head.appendChild(lock);
+                        else if (lock.parentNode) lock.parentNode.removeChild(lock);
+                    }
+                    var codes = [];
+                    box.querySelectorAll('script').forEach(function(sc) {
+                        if (!sc.src) codes.push(sc.textContent || '');
+                        if (sc.parentNode) sc.parentNode.removeChild(sc);
+                    });
+                    wrap.innerHTML = '';
+                    while (box.firstChild) wrap.appendChild(box.firstChild);
+                    var scoped = {
+                        getElementById: function(id) {
+                            try { return wrap.querySelector('[id="' + String(id).replace(/"/g, '') + '"]'); } catch (e) { return null; }
+                        },
+                        querySelector: function(sel) { return wrap.querySelector(sel); },
+                        querySelectorAll: function(sel) { return wrap.querySelectorAll(sel); },
+                        createElement: function(t) { return document.createElement(t); },
+                        createTextNode: function(t) { return document.createTextNode(t); },
+                        addEventListener: function(t, fn, opt) { return document.addEventListener(t, fn, opt); },
+                        removeEventListener: function(t, fn, opt) { return document.removeEventListener(t, fn, opt); },
+                        get body() { return document.body; },
+                        get documentElement() { return document.documentElement; },
+                        get head() { return document.head; }
+                    };
+                    codes.forEach(function(code) {
+                        if (!code || !String(code).trim()) return;
+                        try { (new Function('document', 'window', code))(scoped, window); } catch (e) {}
+                    });
+                    wrap.querySelectorAll('a.sa-claim-banner').forEach(function(a) {
+                        a.removeAttribute('href');
+                        a.setAttribute('role', 'presentation');
+                    });
+                })
+                .catch(function() {
+                    detailsDiv.innerHTML = fallbackHtml || '';
+                });
+        }
+
+        function displayProfileConfirmation(profile) {
+            console.log('[DEBUG] displayProfileConfirmation: Called with profile:', profile);
+            currentProfile = profile;
+            
+            // Check if profile already has a login account
+            if (profile.has_existing_login) {
+                console.log('[DEBUG] displayProfileConfirmation: Profile has existing login, showing message');
+                displayExistingAccountMessage(profile);
+                return;
+            }
+            
+            console.log('[DEBUG] displayProfileConfirmation: Profile does not have existing login, showing confirmation');
+            const detailsDiv = document.getElementById('profileDetails');
+            
+            // Get name - handle both API formats
+            const first = profile.first_name || profile.first_names || '';
+            const last = profile.last_name || profile.surname || '';
+            const fullName = (first && last) ? (last + ', ' + first) :
+                           (profile.full_name ||
+                           (profile.firstName && profile.surname ? `${profile.firstName} ${profile.surname}` : '') ||
+                           'Name not available');
+            const club = profile.primary_club || profile.club || '';
+            const province = profile.province || '';
+            
+            // Get SAS ID - handle both formats (kept for claim/auth; not painted when pause on)
+            const sasId = profile.sas_id || profile.sasId || 'N/A';
+            // PUBLIC_SAS_ID_PAUSE: omit entire visible SAS ID pill on confirm card
+            const hidePublicSasIds = (typeof window.sailingsaHidePublicSasIds === 'function' ? window.sailingsaHidePublicSasIds() : (window.__SSA_HIDE_PUBLIC_SAS_IDS !== false));
+            
+            // Format age - show "15/15" when only year of birth available
+            let ageDisplay = '';
+            if (profile.age !== undefined && profile.age !== null) {
+                if (profile.year_of_birth && !profile.date_of_birth) {
+                    // Only year of birth - show as "15/15" format
+                    const currentYear = new Date().getFullYear();
+                    const age = currentYear - profile.year_of_birth;
+                    ageDisplay = `${age}/${age + 1}`;
+                } else {
+                    // Exact age available
+                    ageDisplay = String(profile.age);
+                }
+            } else if (profile.year_of_birth) {
+                // Calculate from year of birth
+                const currentYear = new Date().getFullYear();
+                const age = currentYear - profile.year_of_birth;
+                ageDisplay = `${age}/${age + 1}`;
+            }
+            
+            let classesHtml = '';
+            function esc(s) {
+                if (s == null || s === '') return '';
+                return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+            function classSlug(n) {
+                return String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            }
+            function classLogoSrc(n) {
+                var file = String(n || '').replace(/\s+fleet\s*$/i, '').trim().replace(/\s+/g, '-').replace(/\//g, '-');
+                if (!file) return '';
+                return '/artwork/Class Logo/' + file + '-Class-Logo.png';
+            }
+            if (profile.classes && Array.isArray(profile.classes) && profile.classes.length > 0) {
+                classesHtml = '<div class="confirm-classes-label">Classes</div><div class="confirm-class-list">';
+                profile.classes.forEach(function(cls) {
+                    var className = cls.class_name || cls.class || '';
+                    var count = cls.count || 0;
+                    var lastDate = '';
+                    if (cls.last_date) {
+                        try { lastDate = new Date(cls.last_date).toLocaleDateString('en-GB'); } catch (_) {}
+                    }
+                    var slug = classSlug(className);
+                    var href = slug ? ('/class/' + slug) : '#';
+                    var logo = classLogoSrc(className);
+                    classesHtml += '<div class="confirm-class-row">' +
+                        '<a class="confirm-class-chip" href="' + esc(href) + '" title="' + esc(className) + '">' +
+                        (logo ? '<img class="confirm-class-ico" src="' + esc(logo) + '" alt="' + esc(className) + '" title="' + esc(className) + '" loading="lazy" onerror="this.style.display=\'none\'; var n=this.nextElementSibling; if(n) n.style.display=\'block\';">' : '') +
+                        '<span class="confirm-class-name"' + (logo ? '' : ' style="display:block"') + '>' + esc(className) + '</span></a>' +
+                        (count > 0 ? '<span class="confirm-pill confirm-pill--teal">×' + esc(String(count)) + '</span>' : '') +
+                        (lastDate ? '<span class="confirm-pill">' + esc(lastDate) + '</span>' : '') +
+                        '</div>';
+                });
+                classesHtml += '</div>';
+            } else {
+                classesHtml = '<div class="confirm-classes-label">Classes</div><div class="confirm-class-list"><span class="confirm-pill">None listed</span></div>';
+            }
+            detailsDiv.innerHTML = '<div class="confirm-id-card">' +
+                '<div class="confirm-id-name">' + esc(fullName) + '</div>' +
+                '<div class="confirm-id-meta">' +
+                ((!hidePublicSasIds && sasId && sasId !== 'N/A') ? '<span class="confirm-pill confirm-pill--navy">SAS ' + esc(String(sasId)) + '</span>' : '') +
+                (ageDisplay ? '<span class="confirm-pill">Age ' + esc(ageDisplay) + '</span>' : '') +
+                (club ? '<span class="confirm-pill">' + esc(String(club)) + '</span>' : '') +
+                (province ? '<span class="confirm-pill">' + esc(String(province)) + '</span>' : '') +
+                '</div>' + classesHtml + '</div>';
+            console.log('[DEBUG] displayProfileConfirmation: Profile HTML set, showing confirm section');
+            showConfirmProfile();
+        }
+        
+        function displayExistingAccountMessage(profile) {
+            console.log('[DEBUG] displayExistingAccountMessage: Called with profile:', profile);
+            const detailsDiv = document.getElementById('profileDetails');
+            if (!detailsDiv) {
+                console.error('[DEBUG] displayExistingAccountMessage: profileDetails div not found!');
+                return;
+            }
+            function esc(s) {
+                if (s == null || s === '') return '';
+                return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+            const fullName = profile.full_name ||
+                           (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : '') ||
+                           'Name not available';
+            const sasId = profile.sas_id || profile.sasId || 'N/A';
+            // PUBLIC_SAS_ID_PAUSE: omit entire visible SAS ID line on already-claimed card
+            var hidePublicSasIds = (typeof window.sailingsaHidePublicSasIds === 'function' ? window.sailingsaHidePublicSasIds() : (window.__SSA_HIDE_PUBLIC_SAS_IDS !== false));
+            var btns = document.getElementById('profileConfirmButtons');
+            if (btns) btns.style.display = 'none';
+            detailsDiv.innerHTML =
+                '<div style="padding:1rem;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;margin-bottom:0.75rem;">' +
+                '<h3 style="margin:0 0 0.5rem;color:#9a3412;font-size:1rem;">This profile is already claimed</h3>' +
+                '<p style="margin:0.25rem 0;color:#9a3412;"><strong>' + esc(fullName) + '</strong></p>' +
+                (hidePublicSasIds ? '' : ('<p style="margin:0.25rem 0;color:#9a3412;">SAS ID: ' + esc(String(sasId)) + '</p>')) +
+                '<p style="margin:0.75rem 0 0;color:#9a3412;">If this is you, sign in. You cannot claim it again. Family linking will come later.</p>' +
+                '<div style="display:flex;gap:0.75rem;justify-content:center;margin-top:0.75rem;flex-wrap:wrap;">' +
+                '<button type="button" class="btn-login btn-primary" onclick="redirectToLogin()">Sign in</button>' +
+                '<button type="button" class="btn-login btn-back" onclick="showRegistrationForm()">Find another profile</button>' +
+                '</div></div>';
+            showConfirmProfile();
+        }
+        
+        function redirectToLogin() {
+            window.location.href = buildLoginUrl();
+        }
+
+        function displayProfileResults(results) {
+            console.log('[DEBUG] displayProfileResults: Called with', results.length, 'results');
+            
+            // Hide loading
+            const loadingSection = document.getElementById('loadingState');
+            if (loadingSection) {
+                loadingSection.classList.remove('active');
+            }
+            
+            // Show registration form section (which contains searchResults)
+            showRegistrationForm();
+            
+            const resultsDiv = document.getElementById('searchResults');
+            if (!resultsDiv) {
+                console.error('[DEBUG] displayProfileResults: searchResults div not found!');
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<h3>Select your profile:</h3>';
+            
+            results.forEach((profile, index) => {
+                console.log(`[DEBUG] displayProfileResults: Processing result ${index}:`, profile);
+                
+                // Get name - handle both API formats
+                const fullName = profile.full_name || 
+                               (profile.first_name && profile.last_name ? `${profile.first_name} ${profile.last_name}` : '') ||
+                               (profile.firstName && profile.surname ? `${profile.firstName} ${profile.surname}` : '') ||
+                               'Name not available';
+                
+                // Get SAS ID (kept for select/confirm; not painted when pause on)
+                const sasId = profile.sas_id || profile.sasId || 'N/A';
+                // PUBLIC_SAS_ID_PAUSE: omit entire visible SAS ID segment on result pick cards
+                const hidePublicSasIds = (typeof window.sailingsaHidePublicSasIds === 'function' ? window.sailingsaHidePublicSasIds() : (window.__SSA_HIDE_PUBLIC_SAS_IDS !== false));
+                
+                // Format classes - show all classes
+                let classesDisplay = 'N/A';
+                if (profile.classes && Array.isArray(profile.classes) && profile.classes.length > 0) {
+                    const classNames = profile.classes.map(cls => {
+                        const className = cls.class_name || cls.class || '';
+                        const count = cls.count || 0;
+                        return count > 0 ? `${className} (${count})` : className;
+                    }).filter(Boolean);
+                    classesDisplay = classNames.length > 0 ? classNames.join(', ') : 'N/A';
+                } else if (profile.class) {
+                    classesDisplay = profile.class;
+                }
+                
+                const yob = profile.year_of_birth || (profile.date_of_birth ? String(profile.date_of_birth).slice(0, 4) : '');
+                const claimed = !!profile.has_existing_login;
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 1rem; margin: 0.5rem 0; background: #f5f5f5; border-radius: 8px; cursor: pointer;';
+                div.innerHTML =
+                    '<p><strong>' + String(fullName).replace(/</g, '&lt;') + '</strong>' +
+                    (claimed ? ' <span style="color:#9a3412;font-size:12px;font-weight:700;">Already claimed</span>' : '') +
+                    '</p>' +
+                    (hidePublicSasIds
+                        ? (yob ? ('<p>Born ' + String(yob).replace(/</g, '&lt;') + '</p>') : '')
+                        : ('<p>SAS ID: ' + String(sasId).replace(/</g, '&lt;') +
+                    (yob ? ' · Born ' + String(yob).replace(/</g, '&lt;') : '') + '</p>')) +
+                    '<p>Class: ' + String(classesDisplay).replace(/</g, '&lt;') + '</p>';
+                div.onclick = () => {
+                    console.log('[DEBUG] displayProfileResults: Profile clicked:', profile);
+                    try {
+                        currentProfile = profile;
+                        claimSelectedSasId = String(profile.sas_id || profile.sasId || claimSelectedSasId || '');
+                        claimSailorName = profile.full_name || ((profile.first_name||'') + ' ' + (profile.last_name||'')).trim() || claimSailorName;
+                        trackClaimFunnel('sailor_selected', claimSelectedSasId, true, '', {
+                            sailor_name: claimSailorName,
+                            search_query: claimSearchQuery || '',
+                            entry: claimEntry
+                        });
+                    } catch (eSel) {}
+                    displayProfileConfirmation(profile);
+                };
+                resultsDiv.appendChild(div);
+            });
+            
+            console.log('[DEBUG] displayProfileResults: Finished displaying', results.length, 'results');
+        }
+
+        function handleThisIsMe() {
+            // This function is kept for backward compatibility but now uses handleProfileConfirm
+            handleProfileConfirm('me', currentProfile?.sas_id || '');
+        }
+
+        function handleProfileConfirm(relationship, sasId) {
+            console.log('[DEBUG] handleProfileConfirm: Called with', { relationship, sasId });
+            
+            if (!currentProfile && sasId) {
+                currentProfile = { sas_id: sasId };
+            }
+            
+            if (!currentProfile) {
+                showError('No profile selected. Please try again.');
+                return;
+            }
+            if (currentProfile.has_existing_login) {
+                displayExistingAccountMessage(currentProfile);
+                return;
+            }
+            
+            // Set relationship
+            registrationRelationship = relationship === 'me' ? 'self' : relationship;
+            try {
+                trackClaimFunnel('sailor_preselected', currentProfile.sas_id || sasId || claimSelectedSasId || '', true, '', { relationship: registrationRelationship });
+            } catch (e) {}
+            
+            // If "This is me", skip relationship form and go straight to registration data
+            if (relationship === 'me') {
+                console.log('[DEBUG] handleProfileConfirm: This is me - showing registration data form');
+                showRegistrationDataForm();
+            } else {
+                // For child/family member, show relationship form first
+                console.log('[DEBUG] handleProfileConfirm: Child/family - showing relationship form');
+                showRelationshipForm();
+            }
+        }
+
+        function showRegistrationDataForm() {
+            console.log('[DEBUG] showRegistrationDataForm: Showing registration data form');
+            showSection('registrationDataForm');
+            try {
+                trackClaimFunnel('registration_started', (currentProfile && currentProfile.sas_id) ? currentProfile.sas_id : (claimSelectedSasId || ''), true, '', {});
+            } catch (e) {}
+            
+            // Reset form
+            const form = document.getElementById('regDataForm');
+            if (form) {
+                form.reset();
+                try { form.dataset.flowWired = ''; } catch (eRw) {}
+            }
+            try { setTimeout(wireRegFormFieldFlow, 30); } catch (eFlow) {}
+            
+            // Reset submit button state
+            const submitBtn = document.getElementById('regSubmitBtn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+            
+            // Clear any validation messages
+            const matchDiv = document.getElementById('reg-password-match');
+            if (matchDiv) {
+                matchDiv.style.display = 'none';
+            }
+            
+            // Clear email error message
+            const emailErrorDiv = document.getElementById('reg-email-error');
+            if (emailErrorDiv) {
+                emailErrorDiv.style.display = 'none';
+            }
+
+            const socialSignup = getSocialSignupContext();
+            const regEmail = document.getElementById('regEmail');
+            if (socialSignup && regEmail && !regEmail.value) {
+                regEmail.value = socialSignup.email || '';
+            }
+
+            configureRegistrationFormForContext(socialSignup);
+
+            try {
+                var clubEl = document.getElementById('regClubNow');
+                if (clubEl) {
+                    var p = currentProfile || {};
+                    var code = String(p.primary_club || p.club || '').trim();
+                    var name = String(p.club_name || p.club_fullname || '').trim();
+                    if (code) {
+                        var ico = '<img src="/api/club-logo/' + encodeURIComponent(code.toUpperCase()) + '" alt="" style="width:22px;height:22px;object-fit:contain" onerror="this.style.display=\'none\'">';
+                        clubEl.innerHTML = ico + '<span>' + String(code).replace(/</g,'') + (name && name.toLowerCase() !== code.toLowerCase() ? ' ' + String(name).replace(/</g,'') : '') + '</span>';
+                    } else {
+                        clubEl.textContent = 'No club on SAS record';
+                    }
+                }
+                var dobEl = document.getElementById('regDob');
+                if (dobEl && currentProfile && currentProfile.date_of_birth) {
+                    var d = String(currentProfile.date_of_birth).slice(0, 10);
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) dobEl.value = d;
+                }
+            } catch (_) {}
+
+            updateRegistrationSubmitButton();
+            try {
+                var avHost = document.getElementById('regAvatarCrop');
+                if (avHost && window.SSAAvatarCrop) {
+                    window.__ssaSignupCrop = window.SSAAvatarCrop.mount(avHost, {
+                        defaultSrc: '/assets/avatars/default-youth.png'
+                    });
+                }
+            } catch (_) {}
+            
+            // Reset email field border
+            const emailInput = document.getElementById('regEmail');
+            if (emailInput) {
+                emailInput.style.borderColor = '#ddd';
+            }
+            
+            // Reset password rule colors
+            const rules = ['reg-rule-length', 'reg-rule-capital', 'reg-rule-special', 'reg-rule-number'];
+            rules.forEach(ruleId => {
+                const rule = document.getElementById(ruleId);
+                if (rule) {
+                    rule.style.color = '#999';
+                }
+            });
+            
+            // Trigger initial validation check after a short delay to ensure DOM is ready
+            setTimeout(() => {
+                updateRegistrationSubmitButton();
+            }, 100);
+        }
+
+        function configureRegistrationFormForContext(socialSignup) {
+            const title = document.getElementById('regFormTitle');
+            const intro = document.getElementById('regFormIntro');
+            const googleNotice = document.getElementById('googleSignupNotice');
+            const emailLabel = document.getElementById('regEmailLabel');
+            const emailInput = document.getElementById('regEmail');
+            const passwordGroup = document.getElementById('regPasswordGroup');
+            const passwordInput = document.getElementById('regPassword');
+            const passwordConfirmGroup = document.getElementById('regPasswordConfirmGroup');
+            const passwordConfirmInput = document.getElementById('regPasswordConfirm');
+            const whatsappLabel = document.getElementById('regWhatsAppLabel');
+            const whatsappInput = document.getElementById('regWhatsApp');
+            const whatsappHelp = document.getElementById('regWhatsAppHelp');
+            const submitBtn = document.getElementById('regSubmitBtn');
+
+            if (socialSignup) {
+                const providerLabel = socialSignup.provider === 'facebook' ? 'Facebook' : 'Google';
+                if (title) title.textContent = `Complete Your ${providerLabel} Sign Up`;
+                if (intro) intro.textContent = `${providerLabel} has already authenticated this user. Link the sailor profile below to finish creating the account.`;
+                if (googleNotice) {
+                    googleNotice.style.display = 'block';
+                    googleNotice.textContent = `Your ${providerLabel} account has already been authenticated. Complete the profile link below to create your SailingSA account.`;
+                }
+                if (emailLabel) emailLabel.innerHTML = `${providerLabel} Email <span style="color: red;">*</span>`;
+                if (emailInput) {
+                    emailInput.value = socialSignup.email || '';
+                    emailInput.readOnly = !!socialSignup.email;
+                    emailInput.required = !socialSignup.email;
+                }
+                if (passwordGroup) passwordGroup.style.display = 'none';
+                if (passwordInput) {
+                    passwordInput.value = '';
+                    passwordInput.required = false;
+                }
+                if (passwordConfirmGroup) passwordConfirmGroup.style.display = 'none';
+                if (passwordConfirmInput) {
+                    passwordConfirmInput.value = '';
+                    passwordConfirmInput.required = false;
+                }
+                if (whatsappLabel) whatsappLabel.innerHTML = 'WhatsApp Number <span style="color: #666;">(optional)</span>';
+                if (whatsappInput) whatsappInput.required = false;
+                if (whatsappHelp) whatsappHelp.textContent = 'Optional. If entered, use 082 123 4567 (10 digits).';
+                if (submitBtn) submitBtn.textContent = `Create Account With ${providerLabel}`;
+                return;
+            }
+
+            if (title) title.textContent = 'Complete Your Registration';
+            if (intro) intro.textContent = 'Please provide the following information to complete your account setup:';
+            if (googleNotice) googleNotice.style.display = 'none';
+            if (emailLabel) emailLabel.innerHTML = 'Email Address <span style="color: red;">*</span>';
+            if (emailInput) {
+                emailInput.readOnly = false;
+                emailInput.required = true;
+            }
+            if (passwordGroup) passwordGroup.style.display = '';
+            if (passwordInput) passwordInput.required = true;
+            if (passwordConfirmGroup) passwordConfirmGroup.style.display = '';
+            if (passwordConfirmInput) passwordConfirmInput.required = true;
+            if (whatsappLabel) whatsappLabel.innerHTML = 'WhatsApp Number <span style="color: #666;">(optional)</span>';
+            if (whatsappInput) whatsappInput.required = false;
+            if (whatsappHelp) whatsappHelp.textContent = 'Optional. Format if entered: 082 123 4567 (10 digits)';
+            if (submitBtn) submitBtn.textContent = 'Complete Registration';
+        }
+
+        function handleRelationshipSubmit(e) {
+            e.preventDefault();
+            const relationship = document.getElementById('relationshipSelect').value;
+            const consent = document.getElementById('consentCheckbox').checked;
+
+            if (!consent) {
+                showError('You must provide consent to manage this profile');
+                return;
+            }
+
+            registrationRelationship = relationship;
+            console.log('[DEBUG] handleRelationshipSubmit: Setting relationship to', relationship, ', showing registration form');
+            showRegistrationDataForm();
+        }
+
+
+        var REG_FIELD_ORDER = ['regFullName', 'regEmail', 'regPassword', 'regPasswordConfirm', 'regWhatsApp', 'regDob', 'regSkipperFile', 'regSubmitBtn'];
+
+        function setRegTick(inputId, state) {
+            var tick = document.getElementById('tick-' + inputId);
+            var input = document.getElementById(inputId);
+            if (tick) {
+                tick.classList.remove('is-ok', 'is-bad', 'is-skip');
+                if (state === 'ok') {
+                    tick.classList.add('is-ok');
+                    tick.textContent = '✓';
+                } else if (state === 'bad') {
+                    tick.classList.add('is-bad');
+                    tick.textContent = '!';
+                } else if (state === 'skip') {
+                    tick.classList.add('is-skip');
+                    tick.textContent = 'skip';
+                } else {
+                    tick.textContent = '✓';
+                }
+            }
+            if (input && input.tagName === 'INPUT') {
+                input.classList.remove('reg-ok', 'reg-bad');
+                if (state === 'ok') input.classList.add('reg-ok');
+                if (state === 'bad') input.classList.add('reg-bad');
+            }
+        }
+
+        function refreshRegFieldStatuses() {
+            var socialSignup = (typeof getSocialSignupContext === 'function') ? getSocialSignupContext() : null;
+            var nameEl = document.getElementById('regFullName');
+            var nameVal = (nameEl && nameEl.value || '').trim();
+            if (nameVal.length >= 2) setRegTick('regFullName', 'ok');
+            else if (nameVal.length === 1) setRegTick('regFullName', 'bad');
+            else setRegTick('regFullName', 'skip');
+
+            var email = document.getElementById('regEmail')?.value || '';
+            var effectiveEmail = socialSignup ? (socialSignup.email || email || '') : email;
+            if (!effectiveEmail) setRegTick('regEmail', '');
+            else if (typeof isValidEmail === 'function' && isValidEmail(effectiveEmail)) setRegTick('regEmail', 'ok');
+            else setRegTick('regEmail', 'bad');
+
+            var password = document.getElementById('regPassword')?.value || '';
+            if (socialSignup) setRegTick('regPassword', 'skip');
+            else if (!password) setRegTick('regPassword', '');
+            else if (password.length >= 7) setRegTick('regPassword', 'ok');
+            else setRegTick('regPassword', 'bad');
+
+            var confirm = document.getElementById('regPasswordConfirm')?.value || '';
+            if (socialSignup) setRegTick('regPasswordConfirm', 'skip');
+            else if (!confirm) setRegTick('regPasswordConfirm', '');
+            else if (password.length >= 7 && password === confirm) setRegTick('regPasswordConfirm', 'ok');
+            else setRegTick('regPasswordConfirm', 'bad');
+
+            var wa = (document.getElementById('regWhatsApp')?.value || '').replace(/\D/g, '');
+            if (!wa) setRegTick('regWhatsApp', '');
+            else if (wa.length === 10) setRegTick('regWhatsApp', 'ok');
+            else setRegTick('regWhatsApp', 'bad');
+
+            var dob = document.getElementById('regDob')?.value || '';
+            if (!dob) setRegTick('regDob', '');
+            else if (/^\d{4}-\d{2}-\d{2}$/.test(dob)) setRegTick('regDob', 'ok');
+            else setRegTick('regDob', 'bad');
+
+            updateRegistrationSubmitButton();
+        }
+
+        function collectRegFormIssues() {
+            var issues = [];
+            var socialSignup = (typeof getSocialSignupContext === 'function') ? getSocialSignupContext() : null;
+            var email = (document.getElementById('regEmail')?.value || '').trim();
+            var effectiveEmail = (socialSignup ? (socialSignup.email || email || '') : email).trim();
+            var password = document.getElementById('regPassword')?.value || '';
+            var confirm = document.getElementById('regPasswordConfirm')?.value || '';
+            var wa = (document.getElementById('regWhatsApp')?.value || '').replace(/\D/g, '');
+
+            if (!socialSignup) {
+                if (!isValidEmail(effectiveEmail)) {
+                    issues.push({ id: 'regEmail', msg: 'Enter a valid email (your phone can suggest it)' });
+                }
+                if (password.length < 7) {
+                    issues.push({ id: 'regPassword', msg: 'Password needs at least 7 characters' });
+                }
+                if (password.length >= 7 && password !== confirm) {
+                    issues.push({ id: 'regPasswordConfirm', msg: 'Confirm password must match' });
+                }
+            } else if (effectiveEmail && !isValidEmail(effectiveEmail)) {
+                issues.push({ id: 'regEmail', msg: 'Email looks wrong' });
+            }
+            if (wa.length !== 10) {
+                issues.push({ id: 'regWhatsApp', msg: 'Enter your WhatsApp / phone — 10 digits like 082 123 4567' });
+            }
+            var dob = (document.getElementById('regDob')?.value || '').trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+                issues.push({ id: 'regDob', msg: 'Enter date of birth — Year / Month / Day (e.g. 1998 / 03 / 15)' });
+            }
+            return issues;
+        }
+
+        function showRegIssuesAndFocus(issues) {
+            var box = document.getElementById('regIssuesBox');
+            if (!box) {
+                if (issues.length) showError(issues[0].msg);
+                return;
+            }
+            if (!issues.length) {
+                box.classList.remove('show');
+                box.innerHTML = '';
+                return;
+            }
+            var html = '<b>Almost there — please fix:</b><ul>';
+            issues.forEach(function (it) {
+                html += '<li><a href="javascript:void(0)" data-focus="' + it.id + '">' + it.msg + '</a></li>';
+            });
+            html += '</ul>';
+            box.innerHTML = html;
+            box.classList.add('show');
+            box.querySelectorAll('a[data-focus]').forEach(function (a) {
+                a.addEventListener('click', function () {
+                    var el = document.getElementById(a.getAttribute('data-focus'));
+                    if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+                });
+            });
+            var first = document.getElementById(issues[0].id);
+            if (first) {
+                try { first.focus(); } catch (e) {}
+                try { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e2) {}
+            }
+            showError(issues[0].msg);
+        }
+
+        function focusNextRegField(currentId) {
+            var order = REG_FIELD_ORDER;
+            var ix = order.indexOf(currentId);
+            for (var i = ix + 1; i < order.length; i++) {
+                var el = document.getElementById(order[i]);
+                if (!el) continue;
+                if (el.disabled) continue;
+                if (el.offsetParent === null && el.id !== 'regSubmitBtn') continue;
+                try { el.focus(); } catch (e) {}
+                return;
+            }
+        }
+
+        function wireRegFormFieldFlow() {
+            var form = document.getElementById('regDataForm');
+            if (!form || form.dataset.flowWired === '1') return;
+            form.dataset.flowWired = '1';
+            form.addEventListener('keydown', function (ev) {
+                if (ev.key !== 'Enter') return;
+                var t = ev.target;
+                if (!t || !t.id) return;
+                if (t.id === 'regSubmitBtn' || t.tagName === 'BUTTON') return;
+                if (t.tagName === 'TEXTAREA') return;
+                ev.preventDefault();
+                focusNextRegField(t.id);
+            });
+            // Prefill name from selected sailor so the row is ready
+            try {
+                var nameEl = document.getElementById('regFullName');
+                if (nameEl && !nameEl.value) {
+                    var nm = (typeof claimSailorName !== 'undefined' && claimSailorName) ? claimSailorName : '';
+                    if (!nm && typeof currentProfile !== 'undefined' && currentProfile) {
+                        nm = currentProfile.name || currentProfile.full_name || [currentProfile.first_name, currentProfile.surname].filter(Boolean).join(' ');
+                    }
+                    if (nm) nameEl.value = String(nm).trim();
+                }
+            } catch (ePref) {}
+            refreshRegFieldStatuses();
+        }
+
+        function validateRegistrationEmail() {
+            const email = document.getElementById('regEmail')?.value || '';
+            const errorDiv = document.getElementById('reg-email-error');
+            const emailInput = document.getElementById('regEmail');
+            
+            // Check if email is valid
+            const isValid = isValidEmail(email);
+            
+            if (errorDiv) {
+                if (email.length > 0 && !isValid) {
+                    errorDiv.style.display = 'block';
+                } else {
+                    errorDiv.style.display = 'none';
+                }
+                try { refreshRegFieldStatuses(); } catch (eTick) {}
+            }
+            
+            updateRegistrationSubmitButton();
+        }
+        
+        function isValidEmail(email) {
+            if (!email || email.length === 0) {
+                return false;
+            }
+            
+            // Cannot be numbers only
+            if (/^\d+$/.test(email)) {
+                return false;
+            }
+            
+            // Must contain @
+            if (!email.includes('@')) {
+                return false;
+            }
+            
+            // Must contain at least one .
+            if (!email.includes('.')) {
+                return false;
+            }
+            
+            // @ must not be at start or end
+            const atIndex = email.indexOf('@');
+            if (atIndex === 0 || atIndex === email.length - 1) {
+                return false;
+            }
+            
+            // . must come after @
+            const dotIndex = email.lastIndexOf('.');
+            if (dotIndex <= atIndex) {
+                return false;
+            }
+            
+            // Must have characters before @
+            if (email.substring(0, atIndex).trim().length === 0) {
+                return false;
+            }
+            
+            // Must have characters between @ and .
+            if (email.substring(atIndex + 1, dotIndex).trim().length === 0) {
+                return false;
+            }
+            
+            // Must have characters after last .
+            if (email.substring(dotIndex + 1).trim().length === 0) {
+                return false;
+            }
+            
+            // Basic email regex pattern
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(email)) {
+                return false;
+            }
+            
+            return true;
+        }
+        
+        function validateRegistrationPassword() {
+            const password = document.getElementById('regPassword')?.value || '';
+            const rules = {
+                length: password.length >= 7,
+                capital: /[A-Z]/.test(password),
+                special: /[#@!$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+                number: /[0-9]/.test(password)
+            };
+            
+            const ruleLength = document.getElementById('reg-rule-length');
+            const ruleCapital = document.getElementById('reg-rule-capital');
+            const ruleSpecial = document.getElementById('reg-rule-special');
+            const ruleNumber = document.getElementById('reg-rule-number');
+            
+            if (ruleLength) {
+                ruleLength.style.color = rules.length ? '#28a745' : '#999';
+                ruleLength.textContent = (rules.length ? '✓' : '○') + ' At least 7 characters (needed)';
+            }
+            if (ruleCapital) {
+                ruleCapital.style.color = rules.capital ? '#28a745' : '#999';
+                ruleCapital.textContent = (rules.capital ? '✓' : '○') + ' Capital letter (nice to have)';
+            }
+            if (ruleSpecial) {
+                ruleSpecial.style.color = rules.special ? '#28a745' : '#999';
+                ruleSpecial.textContent = (rules.special ? '✓' : '○') + ' Special character (nice to have)';
+            }
+            if (ruleNumber) {
+                ruleNumber.style.color = rules.number ? '#28a745' : '#999';
+                ruleNumber.textContent = (rules.number ? '✓' : '○') + ' A number (nice to have)';
+            }
+            try { refreshRegFieldStatuses(); } catch (eTickP) {}
+            
+            checkRegistrationPasswordMatch();
+            updateRegistrationSubmitButton();
+        }
+        
+        function checkRegistrationPasswordMatch() {
+            const password = document.getElementById('regPassword')?.value || '';
+            const confirm = document.getElementById('regPasswordConfirm')?.value || '';
+            const matchDiv = document.getElementById('reg-password-match');
+            
+            if (!matchDiv) return;
+            
+            if (confirm.length === 0) {
+                matchDiv.style.display = 'none';
+                return;
+            }
+            
+            matchDiv.style.display = 'block';
+            if (password === confirm) {
+                matchDiv.textContent = '✓ Passwords match';
+                matchDiv.style.color = '#28a745';
+            } else {
+                matchDiv.textContent = '✗ Passwords do not match';
+                matchDiv.style.color = '#dc2626';
+            }
+            try { refreshRegFieldStatuses(); } catch (eTickM) {}
+            updateRegistrationSubmitButton();
+        }
+        
+        function formatRegistrationWhatsApp(input) {
+            // Remove all non-digits
+            let value = input.value.replace(/\D/g, '');
+            
+            // Limit to 10 digits
+            if (value.length > 10) {
+                value = value.substring(0, 10);
+            }
+            
+            // Format as 082 123 4567
+            if (value.length >= 3) {
+                value = value.substring(0, 3) + ' ' + value.substring(3);
+            }
+            if (value.length >= 7) {
+                value = value.substring(0, 7) + ' ' + value.substring(7);
+            }
+            
+            input.value = value;
+            try { refreshRegFieldStatuses(); } catch (eTickW) {}
+            updateRegistrationSubmitButton();
+        }
+        
+        function updateRegistrationSubmitButton() {
+            const socialSignup = getSocialSignupContext();
+            const password = document.getElementById('regPassword')?.value || '';
+            const confirm = document.getElementById('regPasswordConfirm')?.value || '';
+            const whatsapp = document.getElementById('regWhatsApp')?.value || '';
+            const email = document.getElementById('regEmail')?.value || '';
+            const effectiveEmail = socialSignup ? (socialSignup.email || email || '') : email;
+            const whatsappDigits = whatsapp.replace(/\D/g, '');
+            
+            console.log('[DEBUG] updateRegistrationSubmitButton: Current values:', {
+                passwordLength: password.length,
+                confirmLength: confirm.length,
+                whatsapp: whatsapp,
+                email: email
+            });
+            
+            const passwordValid = socialSignup ? true : (
+                password.length >= 7 &&
+                password === confirm
+            );
+            
+            const whatsappValid = (whatsappDigits.length === 10);
+            const emailValid = isValidEmail(effectiveEmail);
+            const dob = document.getElementById('regDob')?.value || '';
+            const dobValid = /^\d{4}-\d{2}-\d{2}$/.test(dob);
+            
+            const allValid = passwordValid && whatsappValid && emailValid && dobValid;
+            
+            console.log('[DEBUG] updateRegistrationSubmitButton: Validation results:', {
+                passwordValid,
+                whatsappValid,
+                emailValid,
+                allValid: allValid
+            });
+            
+            const submitBtn = document.getElementById('regSubmitBtn');
+            if (submitBtn) {
+                const wasDisabled = submitBtn.disabled;
+                // Always allow tap — incomplete fields show a fix-list and jump to the first issue
+                submitBtn.disabled = false;
+                submitBtn.setAttribute('data-all-valid', allValid ? '1' : '0');
+                console.log('[DEBUG] updateRegistrationSubmitButton: Button state changed from', wasDisabled, 'to', submitBtn.disabled, '(disabled=' + submitBtn.disabled + ', allValid=' + allValid + ')');
+            } else {
+                console.error('[DEBUG] updateRegistrationSubmitButton: Submit button not found!');
+            }
+        }
+        
+        async function handleRegistrationData(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            console.log('[DEBUG] handleRegistrationData: Called');
+            
+            if (!currentProfile) {
+                showError('No profile selected. Please try again.');
+                return;
+            }
+            try { wireRegFormFieldFlow(); } catch (eWire) {}
+            var _issuesEarly = collectRegFormIssues();
+            if (_issuesEarly.length) {
+                try { trackClaimFunnel('validation_error', currentProfile.sas_id || claimSelectedSasId || '', false, 'form_incomplete', { count: _issuesEarly.length }); } catch (eIss) {}
+                showRegIssuesAndFocus(_issuesEarly);
+                return;
+            }
+            showRegIssuesAndFocus([]);
+            try {
+                var _em = '';
+                try { _em = (document.getElementById('regEmail') || document.getElementById('emailInput') || document.getElementById('email') || {}).value || ''; } catch (eEm) {}
+                trackClaimFunnel('submission_attempted', currentProfile.sas_id || claimSelectedSasId || '', true, '', {
+                    email: String(_em || '').trim().slice(0, 120),
+                    sailor_name: claimSailorName || '',
+                    entry: claimEntry
+                });
+            } catch (e0) {}
+            
+            const email = document.getElementById('regEmail')?.value || '';
+            const password = document.getElementById('regPassword')?.value || '';
+            const whatsapp = document.getElementById('regWhatsApp')?.value || '';
+            const whatsappDigits = whatsapp.replace(/\D/g, '');
+            const googleSignup = getGoogleSignupContext();
+            const facebookSignup = getFacebookSignupContext();
+            const socialSignup = getSocialSignupContext();
+            const effectiveEmail = (socialSignup ? (socialSignup.email || email || '') : email).trim();
+            
+            console.log('[DEBUG] handleRegistrationData: Form values:', {
+                email,
+                passwordLength: password.length,
+                whatsapp,
+                whatsappDigits,
+                sasId: currentProfile.sas_id,
+                relationship: registrationRelationship || 'self'
+            });
+            
+            // Validate (easy rules — length + match; strength tips are optional)
+            if (!socialSignup && password.length < 7) {
+                try { trackClaimFunnel('validation_error', currentProfile.sas_id || claimSelectedSasId || '', false, 'password_requirements', {}); } catch (e1) {}
+                showRegIssuesAndFocus(collectRegFormIssues());
+                return;
+            }
+            if (!socialSignup && password !== (document.getElementById('regPasswordConfirm')?.value || '')) {
+                try { trackClaimFunnel('validation_error', currentProfile.sas_id || claimSelectedSasId || '', false, 'password_mismatch', {}); } catch (e1b) {}
+                showRegIssuesAndFocus(collectRegFormIssues());
+                return;
+            }
+            
+            if (whatsappDigits.length !== 10) {
+                try { trackClaimFunnel('validation_error', currentProfile.sas_id || claimSelectedSasId || '', false, 'whatsapp_digits', {}); } catch (e2) {}
+                showRegIssuesAndFocus(collectRegFormIssues());
+                return;
+            }
+            
+            if (!isValidEmail(effectiveEmail)) {
+                try { trackClaimFunnel('validation_error', currentProfile.sas_id || claimSelectedSasId || '', false, 'email_invalid', {}); } catch (e3) {}
+                showError('Please enter a valid email address');
+                return;
+            }
+            const dob = document.getElementById('regDob')?.value || '';
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+                try { trackClaimFunnel('validation_error', currentProfile.sas_id || claimSelectedSasId || '', false, 'dob_missing', {}); } catch (eDob) {}
+                showRegIssuesAndFocus(collectRegFormIssues());
+                return;
+            }
+
+            if (googleSignup && (!googleSignup.googleEmailVerified || !['1', 'true', 'yes', 'on'].includes(String(googleSignup.googleEmailVerified).toLowerCase()))) {
+                try { trackClaimFunnel('validation_error', currentProfile.sas_id || claimSelectedSasId || '', false, 'google_unverified', {}); } catch (e4) {}
+                showError('Google account email must be verified before creating an account');
+                return;
+            }
+            
+            if (!currentProfile.sas_id) {
+                try { trackClaimFunnel('validation_error', claimSelectedSasId || '', false, 'sas_id_missing', {}); } catch (e5) {}
+                showError('No SAS ID selected. Please try again.');
+                return;
+            }
+            if (currentProfile.has_existing_login) {
+                hideLoading();
+                displayExistingAccountMessage(currentProfile);
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const API_BASE = window.location.origin;
+                const endpoint = googleSignup
+                    ? `${API_BASE}/api/google/confirm-link`
+                    : (facebookSignup ? `${API_BASE}/api/facebook/confirm-link` : `${API_BASE}/api/register-account`);
+                console.log('[DEBUG] handleRegistrationData: Calling API:', endpoint);
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sas_id: currentProfile.sas_id,
+                        relationship: registrationRelationship || 'self',
+                        email: effectiveEmail,
+                        password: password,
+                        whatsapp: whatsappDigits,
+                        date_of_birth: dob,
+                        google_id: googleSignup ? googleSignup.googleId : '',
+                        google_email: googleSignup ? (googleSignup.googleEmail || effectiveEmail) : '',
+                        google_email_verified: googleSignup ? (googleSignup.googleEmailVerified || '') : '',
+                        google_name: googleSignup ? googleSignup.googleName : '',
+                        google_given_name: googleSignup ? googleSignup.googleGivenName : '',
+                        google_family_name: googleSignup ? googleSignup.googleFamilyName : '',
+                        google_picture: googleSignup ? googleSignup.googlePicture : '',
+                        facebook_id: facebookSignup ? facebookSignup.facebookId : '',
+                        facebook_email: facebookSignup ? (facebookSignup.facebookEmail || effectiveEmail) : '',
+                        facebook_name: facebookSignup ? facebookSignup.facebookName : '',
+                        facebook_first_name: facebookSignup ? facebookSignup.facebookFirstName : '',
+                        facebook_last_name: facebookSignup ? facebookSignup.facebookLastName : '',
+                        profile_pic: facebookSignup ? facebookSignup.facebookPicture : ''
+                    })
+                });
+                
+                console.log('[DEBUG] handleRegistrationData: Response status:', response.status);
+                const data = await response.json();
+                console.log('[DEBUG] handleRegistrationData: Response data:', data);
+                
+                if (data.error) {
+                    try { trackClaimFunnel('verification_failed', currentProfile.sas_id || claimSelectedSasId || '', false, String(data.error || '').slice(0, 120), {}); } catch (e6) {}
+                    showError(plainSignupError(data.error));
+                    return;
+                }
+                
+                if (data.success) {
+                    // Store session and redirect
+                    if (data.session_token) {
+                        storeSession(data.session_token);
+                    }
+                    try {
+                        if (window.__ssaSignupCrop && window.__ssaSignupCrop.hasCustom()) {
+                            var blob = await window.__ssaSignupCrop.getBlob();
+                            if (blob) {
+                                var fd = new FormData();
+                                fd.append('file', blob, 'avatar.png');
+                                await fetch((window.location.origin || '') + '/api/me/avatar', {
+                                    method: 'POST',
+                                    credentials: 'include',
+                                    body: fd
+                                });
+                            }
+                        }
+                    } catch (_) {}
+                    try {
+                        var skip = document.getElementById('regSkipperFile');
+                        if (skip && skip.files && skip.files[0]) {
+                            var sfd = new FormData();
+                            sfd.append('file', skip.files[0], skip.files[0].name || 'skipper-cert');
+                            await fetch((window.location.origin || '') + '/api/me/skipper-cert', {
+                                method: 'POST',
+                                credentials: 'include',
+                                body: sfd
+                            });
+                        }
+                    } catch (_) {}
+                    try {
+                        trackClaimFunnel('verification_succeeded', currentProfile.sas_id || claimSelectedSasId || '', true, '', {});
+                        trackClaimFunnel('account_created', currentProfile.sas_id || claimSelectedSasId || '', true, '', {});
+                        trackClaimFunnel('claim_completed', currentProfile.sas_id || claimSelectedSasId || '', true, '', {});
+                    } catch (e7) {}
+                    showSuccess();
+                } else {
+                    try { trackClaimFunnel('verification_failed', currentProfile.sas_id || claimSelectedSasId || '', false, 'registration_failed', {}); } catch (e8) {}
+                    showError('Registration failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('[DEBUG] handleRegistrationData: Error:', error);
+                try { trackClaimFunnel('verification_failed', currentProfile.sas_id || claimSelectedSasId || '', false, 'network_error', {}); } catch (e9) {}
+                showError('Failed to complete registration. Please try again.');
+            }
+        }
+
+        function handleEmailVerification() {
+            // TODO: Implement email verification
+            showError('Email verification - Coming soon');
+        }
+
+        function handleGoogleVerification() {
+            loginWithGoogle();
+        }
+
+        function handleFacebookVerification() {
+            // Use same Facebook login flow for registration
+            console.log('[DEBUG] handleFacebookVerification() function called');
+            loginWithFacebook();
+        }
+
+        // Make functions globally accessible
+        window.handleProfileConfirm = handleProfileConfirm;
+        window.showRegistrationDataForm = showRegistrationDataForm;
+        window.validateRegistrationEmail = validateRegistrationEmail;
+        window.isValidEmail = isValidEmail;
+        window.validateRegistrationPassword = validateRegistrationPassword;
+        window.checkRegistrationPasswordMatch = checkRegistrationPasswordMatch;
+        window.formatRegistrationWhatsApp = formatRegistrationWhatsApp;
+        window.updateRegistrationSubmitButton = updateRegistrationSubmitButton;
+    </script>
 </body>
 </html>
