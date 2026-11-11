@@ -20,6 +20,12 @@ class QualsPageTests(unittest.TestCase):
         self.assertEqual(quals.calendar_ymd(TODAY, date(2025, 12, 31)), (0, -10, -11))
         self.assertEqual(quals.calendar_ymd(TODAY, date(2029, 6, 3)), (2, 6, 23))
 
+    def test_format_left_drops_zero_units(self):
+        self.assertEqual(quals.format_left(2, 4, 7), "2y4m7d")
+        self.assertEqual(quals.format_left(2, 0, 17), "2y17d")
+        self.assertEqual(quals.format_left(0, -10, -11), "-10m11d")
+        self.assertEqual(quals.format_left(2, 6, 23), "2y6m23d")
+
     def test_tables_mark_unknown_first_issue_and_sort_columns(self):
         rows = [
             {
@@ -51,15 +57,15 @@ class QualsPageTests(unittest.TestCase):
             },
         ]
         html = quals.render_quals_html(rows, today=TODAY)
-        self.assertIn("Not recorded", html)
-        self.assertIn("First issued", html)
-        self.assertIn("Renewals", html)
-        self.assertIn("Years left", html)
-        self.assertIn("Months left", html)
-        self.assertIn("Days left", html)
-        self.assertIn('data-sort="years_left"', html)
-        self.assertIn('data-years_left="2"', html)
-        self.assertIn('data-days_left="17"', html)
+        self.assertNotIn("Not recorded", html)
+        self.assertNotIn("First issued", html)
+        self.assertNotIn("Renewals", html)
+        self.assertNotIn("Years left", html)
+        self.assertIn(">2y17d<", html)
+        self.assertIn(">-10m11d<", html)
+        self.assertIn('data-sort="left"', html)
+        elfie_days = str((date(2028, 11, 28) - TODAY).days)
+        self.assertIn(f'data-left="{elfie_days}"', html)
         self.assertIn(">Current<", html)
         self.assertIn(">Expired<", html)
         self.assertIn(">No date<", html)

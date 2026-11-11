@@ -16,20 +16,26 @@ from zoneinfo import ZoneInfo
 _INSTRUCTOR_ORDER = ("ASSIST_INSTR", "INSTR_DINGHY", "INSTR_KEEL", "SENIOR_INSTR")
 
 _PAGE_CSS = """
-.quals-page { padding-top: 0.5rem; padding-bottom: 1rem; }
-@media (min-width: 769px) {
-  .quals-page { padding-top: 0.75rem; padding-bottom: 1.5rem; }
-}
-.quals-page .card { background:#fff; border:2px solid #001f3f; border-radius:8px; box-shadow:0 1px 3px rgba(0,31,63,0.08); padding:0.5rem 0.75rem; margin-bottom:16px; }
-.quals-page .section-title { font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; color:#001f3f; border-bottom:2px solid #001f3f; margin:0 0 0.5rem 0; padding-bottom:0.25rem; }
-.quals-page .quals-note { font-size:0.875rem; line-height:1.4; color:#334155; margin:0; }
+.quals-page { padding-top: 0.35rem; padding-bottom: 0.75rem; font-size: 14px; line-height: 1.3; }
+.quals-page .card { background:#fff; border:2px solid #001f3f; border-radius:8px; box-shadow:0 1px 3px rgba(0,31,63,0.08); padding:0.4rem 0.5rem; margin-bottom:0.5rem; }
+.quals-page .section-title { font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; color:#001f3f; border-bottom:2px solid #001f3f; margin:0 0 0.35rem 0; padding-bottom:0.2rem; line-height:1.2; }
+.quals-page .quals-note { font-size:13px; line-height:1.35; color:#334155; margin:0; }
 .quals-page .table-container { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-.quals-page .stats-table { width:100%; border-collapse:collapse; font-size:0.875rem; }
-.quals-page .stats-table th, .quals-page .stats-table td { padding:0.4rem 0.6rem; text-align:left; border-bottom:1px solid #e0e0e0; white-space:nowrap; }
-.quals-page .stats-table th { min-height:44px; background:#f1f5f9; font-weight:600; color:#001f3f; border-bottom:2px solid #001f3f; }
+.quals-page .stats-table { width:100%; border-collapse:collapse; font-size:14px; line-height:1.25; }
+.quals-page .stats-table th, .quals-page .stats-table td { padding:0.28rem 0.35rem; text-align:left; border-bottom:1px solid #e0e0e0; white-space:nowrap; }
+.quals-page .stats-table th { height:44px; background:#f1f5f9; font-weight:600; color:#001f3f; border-bottom:2px solid #001f3f; }
+.quals-page .stats-table th:first-child, .quals-page .stats-table td:first-child { position:sticky; left:0; z-index:1; }
+.quals-page .stats-table td:first-child { background:#fff; }
+.quals-page .stats-table th:first-child { z-index:2; }
 .quals-page .stats-table a { color:#001f3f; font-weight:600; text-decoration:underline; }
 .quals-page .stats-table th[data-sort] { cursor:pointer; user-select:none; }
 .quals-page .stats-table th[data-sort]:hover { text-decoration:underline; }
+.site-footer-about { text-align:center; padding:0.75rem 0.5rem; font-size:13px; color:#666; border-top:1px solid #e0e0e0; margin-top:0.75rem; }
+@media (min-width: 769px) {
+  .quals-page { padding-top: 0.75rem; padding-bottom: 1.5rem; }
+  .quals-page .card { padding:0.5rem 0.75rem; margin-bottom:16px; }
+  .quals-page .stats-table th, .quals-page .stats-table td { padding:0.35rem 0.5rem; }
+}
 """
 
 _HEADER = """<!DOCTYPE html>
@@ -108,18 +114,25 @@ document.getElementById("year").textContent = new Date().getFullYear();
     if (months < 0) { years -= 1; months += 12; }
     return [sign * years, sign * months, sign * days];
   }
+  function fmtLeft(parts){
+    var neg = parts[0] < 0 || parts[1] < 0 || parts[2] < 0;
+    var y = Math.abs(parts[0]), m = Math.abs(parts[1]), d = Math.abs(parts[2]);
+    var s = "";
+    if (y) s += y + "y";
+    if (m) s += m + "m";
+    if (d || !s) s += d + "d";
+    return neg ? "-" + s : s;
+  }
   function paint(){
     var today = new Date(); today.setHours(0,0,0,0);
     document.querySelectorAll('tr[data-expires]:not([data-expires=""])').forEach(function(tr){
       var exp = parseISO(tr.getAttribute("data-expires"));
       var parts = ymd(today, exp);
-      ["years_left","months_left","days_left"].forEach(function(key, i){
-        tr.setAttribute("data-" + key, String(parts[i]));
-        var cell = tr.querySelector('[data-col="' + key + '"]');
-        if (cell) cell.textContent = String(parts[i]);
-      });
-      var status = parts[0] < 0 || parts[1] < 0 || parts[2] < 0 ? "Expired" : "Current";
-      if (parts[0] === 0 && parts[1] === 0 && parts[2] === 0) status = "Current";
+      var days = Math.round((exp.getTime() - today.getTime()) / 86400000);
+      tr.setAttribute("data-left", String(days));
+      var cell = tr.querySelector('[data-col="left"]');
+      if (cell) cell.textContent = fmtLeft(parts);
+      var status = days < 0 ? "Expired" : "Current";
       var rank = status === "Current" ? "2" : "0";
       tr.setAttribute("data-status", rank);
       var sc = tr.querySelector('[data-col="status"]');
@@ -232,6 +245,20 @@ def _status_rank(status: str) -> str:
     return {"Current": "2", "No date": "1", "Expired": "0"}.get(status, "1")
 
 
+def format_left(years: int, months: int, days: int) -> str:
+    """Compact signed span, for example 2y4m7d. Zero units are left out."""
+    negative = years < 0 or months < 0 or days < 0
+    parts: list[str] = []
+    if abs(years):
+        parts.append(f"{abs(years)}y")
+    if abs(months):
+        parts.append(f"{abs(months)}m")
+    if abs(days) or not parts:
+        parts.append(f"{abs(days)}d")
+    text = "".join(parts)
+    return f"-{text}" if negative else text
+
+
 def render_quals_html(rows: list, today: date | None = None, error: str | None = None) -> str:
     today = today or johannesburg_today()
     if error:
@@ -243,9 +270,8 @@ def render_quals_html(rows: list, today: date | None = None, error: str | None =
     grouped = _group_rows(rows or [])
     parts = [
         '<div class="card"><h2 class="section-title">Qualifications</h2>'
-        '<p class="quals-note">First issued and renewals are not on the SAS record. '
-        'Term from is this 4-year window. Time left updates while this page is open. '
-        'Click a column to sort, click again to reverse.</p></div>'
+        '<p class="quals-note">Time left is counted from today, for example 2y4m7d, and updates while this page is open. '
+        'From is the start of this 4-year window. Click a column to sort.</p></div>'
     ]
     parts.append(_summary_table(grouped, today))
     for role_code, label, people in grouped:
@@ -255,8 +281,7 @@ def render_quals_html(rows: list, today: date | None = None, error: str | None =
 
 def _wrap(body: str) -> str:
     footer = (
-        '</div></main><footer class="site-footer-about" style="text-align:center;padding:2rem 1rem;'
-        'font-size:0.9rem;color:#666;border-top:1px solid #e0e0e0;margin-top:2rem;">'
+        '</div></main><footer class="site-footer-about">'
         'SailingSA – South African Sailing Results Database © <span id="year"></span></footer>'
     )
     return _HEADER + body + footer + _FOOTER_SCRIPT
@@ -354,23 +379,19 @@ def _role_table(code: str, label: str, people: list, today: date) -> str:
         '<div class="table-container"><table class="table stats-table" data-default-sort="status" data-default-dir="desc">'
         "<thead><tr>"
         '<th data-sort="name">Name</th>'
-        '<th data-sort="sas_id">SAS ID</th>'
-        '<th data-sort="club">Club</th>'
-        '<th data-sort="first_issued">First issued</th>'
-        '<th data-sort="renewals">Renewals</th>'
-        '<th data-sort="term_from">Term from</th>'
-        '<th data-sort="expires">Expires</th>'
+        '<th data-sort="left">Left</th>'
         '<th data-sort="status">Status</th>'
-        '<th data-sort="years_left">Years left</th>'
-        '<th data-sort="months_left">Months left</th>'
-        '<th data-sort="days_left">Days left</th>'
+        '<th data-sort="expires">Expires</th>'
+        '<th data-sort="sas_id">SAS</th>'
+        '<th data-sort="club">Club</th>'
+        '<th data-sort="term_from">From</th>'
         "</tr></thead><tbody>"
     )
     body = []
     for row in ordered:
         body.append(_person_row(row, names, today))
     if not body:
-        body.append("<tr><td colspan=\"11\">No one on this qualification.</td></tr>")
+        body.append('<tr><td colspan="7">No one on this qualification.</td></tr>')
     return head + "".join(body) + "</tbody></table></div></div>"
 
 
@@ -387,10 +408,11 @@ def _person_row(row: dict, names: dict, today: date) -> str:
     status = _status(expires, today)
     if expires:
         years, months, days = calendar_ymd(today, expires)
-        y_txt, m_txt, d_txt = str(years), str(months), str(days)
+        left_txt = format_left(years, months, days)
+        left_sort = str((expires - today).days)
     else:
-        years = months = days = ""
-        y_txt = m_txt = d_txt = "—"
+        left_txt = "—"
+        left_sort = ""
     slug = _slug_from_name(full_name)
     if slug and names.get(full_name.lower(), 0) > 1 and sas_id:
         slug = f"{slug}-{sas_id}"
@@ -400,21 +422,16 @@ def _person_row(row: dict, names: dict, today: date) -> str:
         name_html = _esc(full_name or sas_id or "—")
     return (
         f'<tr data-name="{_esc(full_name.lower())}" data-sas_id="{_esc(sas_id)}" '
-        f'data-club="{_esc(club.lower())}" data-first_issued="" data-renewals="" '
+        f'data-club="{_esc(club.lower())}" '
         f'data-term_from="{_esc(_iso(awarded))}" data-expires="{_esc(_iso(expires))}" '
-        f'data-status="{_status_rank(status)}" data-years_left="{years}" '
-        f'data-months_left="{months}" data-days_left="{days}">'
+        f'data-status="{_status_rank(status)}" data-left="{left_sort}">'
         f"<td>{name_html}</td>"
+        f'<td data-col="left">{_esc(left_txt)}</td>'
+        f'<td data-col="status">{_esc(status)}</td>'
+        f"<td>{_esc(_fmt_date(expires))}</td>"
         f"<td>{_esc(sas_id or '—')}</td>"
         f"<td>{_esc(club or '—')}</td>"
-        f'<td data-col="first_issued">Not recorded</td>'
-        f'<td data-col="renewals">Not recorded</td>'
         f"<td>{_esc(_fmt_date(awarded))}</td>"
-        f"<td>{_esc(_fmt_date(expires))}</td>"
-        f'<td data-col="status">{_esc(status)}</td>'
-        f'<td data-col="years_left">{y_txt}</td>'
-        f'<td data-col="months_left">{m_txt}</td>'
-        f'<td data-col="days_left">{d_txt}</td>'
         "</tr>"
     )
 
