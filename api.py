@@ -1907,6 +1907,24 @@ def _directory_clubs_page():
     return HTMLResponse(_directory_page_html("/clubs", items, "club", "Clubs"))
 
 
+@app.get("/quals", response_class=HTMLResponse)
+@app.get("/sailingsa/quals", response_class=HTMLResponse)
+def quals_page():
+    """Accreditation tables. /quals and /sailingsa/quals are the same page."""
+    from sailingsa.backend.quals_page import render_quals_page
+    conn = None
+    try:
+        conn = get_db_connection()
+        html = render_quals_page(conn)
+    except Exception:
+        logging.getLogger("sailingsa").exception("quals page")
+        html = render_quals_page(None, error="unavailable")
+    finally:
+        if conn is not None:
+            return_db_connection(conn)
+    return HTMLResponse(html)
+
+
 @app.get("/classes", response_class=HTMLResponse)
 def _directory_classes_page(request: Request):
     """Directory: all classes rendered by API route. Links to /class/{id}-{slug}."""
