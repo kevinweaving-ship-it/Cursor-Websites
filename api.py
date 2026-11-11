@@ -1907,10 +1907,17 @@ def _directory_clubs_page():
     return HTMLResponse(_directory_page_html("/clubs", items, "club", "Clubs"))
 
 
+@app.get("/quals/", include_in_schema=False)
+@app.get("/sailingsa/quals", include_in_schema=False)
+@app.get("/sailingsa/quals/", include_in_schema=False)
+def quals_canonical_redirect():
+    """One public path: /quals. No trailing slash, no /sailingsa prefix."""
+    return RedirectResponse(url="/quals", status_code=301)
+
+
 @app.get("/quals", response_class=HTMLResponse)
-@app.get("/sailingsa/quals", response_class=HTMLResponse)
 def quals_page():
-    """Accreditation tables. /quals and /sailingsa/quals are the same page."""
+    """Accreditation tables at /quals."""
     from sailingsa.backend.quals_page import render_quals_page
     conn = None
     try:

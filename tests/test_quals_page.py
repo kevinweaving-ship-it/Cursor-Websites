@@ -65,6 +65,12 @@ class QualsPageTests(unittest.TestCase):
         self.assertIn(">No date<", html)
         self.assertIn('href="/sailor/elfie-holden"', html)
         self.assertIn('href="https://sailingsa.co.za/quals"', html)
+        self.assertIn('id="menuBtn"', html)
+        self.assertIn('class="nav-menu-overlay"', html)
+        self.assertIn('href="/about"', html)
+        self.assertNotIn("https://sailingsa.co.za/events", html)
+        self.assertNotIn("nav-inline", html)
+        self.assertNotIn("/sailingsa/quals", html)
         # Current row is rendered before the expired row inside the senior table.
         senior = html.split('id="qual-SENIOR_INSTR"', 1)[1]
         self.assertLess(senior.find("Elfie Holden"), senior.find("Robert Holden"))

@@ -9,14 +9,17 @@ from __future__ import annotations
 import html as html_module
 import re
 from datetime import date, datetime
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 # Instructor tickets first; every other role still gets its own table.
 _INSTRUCTOR_ORDER = ("ASSIST_INSTR", "INSTR_DINGHY", "INSTR_KEEL", "SENIOR_INSTR")
 
 _PAGE_CSS = """
-.site-header a, .site-header a:hover, .site-header a:focus { color: #fff; }
-.quals-page { padding-top: 0.75rem; padding-bottom: 1.5rem; }
+.quals-page { padding-top: 0.5rem; padding-bottom: 1rem; }
+@media (min-width: 769px) {
+  .quals-page { padding-top: 0.75rem; padding-bottom: 1.5rem; }
+}
 .quals-page .card { background:#fff; border:2px solid #001f3f; border-radius:8px; box-shadow:0 1px 3px rgba(0,31,63,0.08); padding:0.5rem 0.75rem; margin-bottom:16px; }
 .quals-page .section-title { font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; color:#001f3f; border-bottom:2px solid #001f3f; margin:0 0 0.5rem 0; padding-bottom:0.25rem; }
 .quals-page .quals-note { font-size:0.875rem; line-height:1.4; color:#334155; margin:0; }
@@ -40,17 +43,53 @@ _HEADER = """<!DOCTYPE html>
 <style>""" + _PAGE_CSS + """</style>
 </head>
 <body>
-<header class="site-header"><div class="container" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.75rem;">
-<a href="/" class="logo js-go-home" title="Home"><img src="/assets/logos/sailingsa-logo.png" alt="SailingSA Logo"></a>
-<nav class="nav-inline" aria-label="Main" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-right:auto;"><a href="/">Home</a><a href="/sailors">Sailors</a><a href="/regattas">Regattas</a><a href="/classes">Classes</a><a href="/clubs">Clubs</a><a href="https://sailingsa.co.za/events">Events</a><a href="/about">About</a></nav>
-<div class="header-auth" style="margin-left:auto;"></div>
-</div></header>
+<header class="site-header">
+<div class="container">
+<a href="/" class="logo js-go-home" id="headerLogoLink" title="Home"><img src="/assets/logos/sailingsa-logo.png" alt="SailingSA Logo"></a>
+<div class="header-auth" id="headerAuth"></div>
+<button class="menu-btn" id="menuBtn" type="button" aria-label="Open menu"><span class="menu-icon"></span></button>
+</div>
+<nav id="navMenuOverlay" class="nav-menu-overlay" aria-hidden="true" style="display:none;">
+<a href="/">Sailor</a>
+<a href="/" data-mode="regatta">Regatta</a>
+<a href="/about">About</a>
+</nav>
+</header>
 <main class="main-content"><div class="container quals-page">
 """
 
 _FOOTER_SCRIPT = """
 <script>
 document.getElementById("year").textContent = new Date().getFullYear();
+(function(){
+  document.addEventListener("click", function (e) {
+    var a = e.target && e.target.closest && e.target.closest("a.js-go-home");
+    if (!a) return;
+    try { sessionStorage.setItem("sailingsa_home_from_logo", "1"); } catch (err) {}
+  }, true);
+  var logo = document.getElementById("headerLogoLink");
+  if (logo) logo.setAttribute("href", "/");
+  var menuBtn = document.getElementById("menuBtn");
+  var overlay = document.getElementById("navMenuOverlay");
+  if (menuBtn && overlay) {
+    menuBtn.addEventListener("click", function() {
+      var hidden = overlay.style.display === "none";
+      overlay.style.display = hidden ? "flex" : "none";
+      overlay.setAttribute("aria-hidden", hidden ? "false" : "true");
+      menuBtn.setAttribute("aria-label", hidden ? "Close menu" : "Open menu");
+    });
+    overlay.addEventListener("click", function(e) {
+      if (e.target.tagName === "A") overlay.style.display = "none";
+    });
+  }
+  var regattaLink = overlay && overlay.querySelector('a[data-mode="regatta"]');
+  if (regattaLink) {
+    regattaLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      window.location.href = "/?mode=regatta";
+    });
+  }
+})();
 (function(){
   function numOrStr(a){ var v = a; if (typeof v === "string" && /^-?\\d+$/.test(v)) return parseInt(v,10); return v; }
   function cmp(a,b,dir){ var aa = numOrStr(a), bb = numOrStr(b); if (aa < bb) return dir===1 ? -1 : 1; if (aa > bb) return dir===1 ? 1 : -1; return 0; }
@@ -204,10 +243,9 @@ def render_quals_html(rows: list, today: date | None = None, error: str | None =
     grouped = _group_rows(rows or [])
     parts = [
         '<div class="card"><h2 class="section-title">Qualifications</h2>'
-        '<p class="quals-note">First issued and the number of renewals are not on the SAS record. '
-        'Term from is the start of the current 4-year accreditation. '
-        'Years, months and days left are counted from today and refresh while this page is open. '
-        'Click a column name to sort. Click it again to reverse the order.</p></div>'
+        '<p class="quals-note">First issued and renewals are not on the SAS record. '
+        'Term from is this 4-year window. Time left updates while this page is open. '
+        'Click a column to sort, click again to reverse.</p></div>'
     ]
     parts.append(_summary_table(grouped, today))
     for role_code, label, people in grouped:
@@ -357,7 +395,7 @@ def _person_row(row: dict, names: dict, today: date) -> str:
     if slug and names.get(full_name.lower(), 0) > 1 and sas_id:
         slug = f"{slug}-{sas_id}"
     if full_name and slug:
-        name_html = f'<a href="/sailor/{_esc(slug)}">{_esc(full_name)}</a>'
+        name_html = f'<a href="/sailor/{quote(slug, safe="")}">{_esc(full_name)}</a>'
     else:
         name_html = _esc(full_name or sas_id or "—")
     return (
