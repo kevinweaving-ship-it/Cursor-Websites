@@ -299,3 +299,6 @@ api_restore_8001/
 
 # macOS AppleDouble / resource fork files inside tracked dirs
 **/._*
+
+# Roundup photo-manifest tests (not one-off app scripts)
+!sailing-roundup/tests/test_external_photos.py

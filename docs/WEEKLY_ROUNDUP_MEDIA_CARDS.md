@@ -25,3 +25,25 @@ Rebuild an edition when a result it covers is published, corrected, moved to ano
 Also reopen any card that still has `needs_external`, an empty `image`, or `enrichment` of `degraded`, and run the photo search again. The 2 November 2026 issue is in that state: the ILCA Masters story is already written from its results URL, and the card has no photo.
 
 If a rebuild fails, keep the last good edition. A retry must not publish a duplicate.
+
+## Grok Bot photo manifest
+
+Grok Bot writes `/workspace/roundup-photos/MANIFEST.md` on its own box and adds rows on Mondays at about 08:00 SAST. `sailing-roundup.timer` checks that manifest on every run, not only on Mondays.
+
+Sync it into `/opt/rea/work/sailing-roundup/external-photos/` when `ROUNDUP_PHOTOS_RSYNC` is set (an rsync source such as `user@grok-bot:/workspace/roundup-photos/`). Then run:
+
+```text
+python3 /opt/rea/work/sailing-roundup/external_photos.py --roundup-root /opt/rea/work/sailing-roundup
+```
+
+The script in this repo is `sailing-roundup/external_photos.py`. Copy it into the live job directory with the rest of that job. Each row has edition, event id, local file, image URL, source_url, caption, and credit. A row with a cell `EXCLUDED` is skipped.
+
+For every event in every edition that still has `needs_external` or a null `hero_image`, a matching edition and event id:
+
+- downloads the image URL when it returns an image, otherwise uses the synced file
+- saves `issues/{edition}/media/{event-id}-hero.jpg` (or the real image extension)
+- adds the hero image block and sets `event_verified` true, `category` `on-water`, and `verification` `reviewed_source_and_pixels`
+- copies the first new lead photo into `feed.json` as `image`, `image_caption`, and `image_focus` when that card has no image
+- sets `needs_external` false
+
+Result tables, story paragraphs, and winner lines are not edited. Logos, flags, and profile pictures are rejected. An edition that fails to match a photo is left as it was.
