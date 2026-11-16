@@ -9589,6 +9589,32 @@ async def profile_requests(request: Request, call_next):
         n_queries = getattr(_db_tls, "db_query_count", 0)
         print(f"REQ {req_id}: total_db_queries={n_queries}", flush=True)
         log_endpoint_timing(req_id, endpoint, duration, status_code)
+        # Site-wide Mac fix: defer blocking body scripts on HTMLResponse pages
+        # (clubs/classes/events/directories) the same way as /.
+        try:
+            ctype = (response.headers.get("content-type") or "").lower()
+            if isinstance(response, HTMLResponse) and "text/html" in ctype:
+                body = response.body
+                if isinstance(body, memoryview):
+                    body = body.tobytes()
+                if isinstance(body, (bytes, bytearray)) and body:
+                    raw = body.decode("utf-8", errors="replace")
+                    if "session.js" in raw or "<script" in raw:
+                        fixed = _optimize_index_html_for_first_paint(raw)
+                        if fixed != raw:
+                            headers = {
+                                k: v
+                                for k, v in response.headers.items()
+                                if k.lower() not in ("content-length", "content-type")
+                            }
+                            return HTMLResponse(
+                                content=fixed,
+                                status_code=response.status_code,
+                                headers=headers,
+                                media_type="text/html",
+                            )
+        except Exception:
+            pass
         return response
     except Exception as e:
         duration = time.time() - start
