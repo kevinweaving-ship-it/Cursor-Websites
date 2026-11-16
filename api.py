@@ -22131,6 +22131,47 @@ print(f"[STATIC DEBUG] STATIC_DIR = {STATIC_DIR}")
 print(f"[STATIC DEBUG] INDEX_PATH = {_INDEX_HTML_PATH}")
 
 
+def _optimize_index_html_for_first_paint(html: str) -> str:
+    """Defer body scripts and put head CSS before sync head JS (Mac cold-load fix)."""
+    try:
+        here = Path(__file__).resolve().parent
+        # Repo: api.py at root; live: /var/www/sailingsa/api/api.py
+        for candidate in (
+            here,
+            here.parent,
+            here / "sailingsa",
+            here.parent / "sailingsa",
+            here / "scripts",
+            here.parent / "scripts",
+        ):
+            path = str(candidate)
+            if path not in sys.path:
+                sys.path.insert(0, path)
+        from optimize_index_script_loading import optimize_html  # type: ignore
+
+        return optimize_html(html, extract=False)
+    except Exception:
+        return html
+
+def _serve_index_html_file():
+    """Serve index.html with non-blocking body scripts so first paint is not stuck on Mac."""
+    if not os.path.isfile(_INDEX_HTML_PATH):
+        raise HTTPException(status_code=404, detail="index.html not found")
+    try:
+        raw = Path(_INDEX_HTML_PATH).read_text(encoding="utf-8")
+    except OSError:
+        return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
+    html = _optimize_index_html_for_first_paint(raw)
+    return HTMLResponse(
+        content=html,
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+        },
+    )
+
+
 def _normalise_class_slug_for_lookup(slug: str) -> str:
     """Normalise URL slug for class_name lookup: lowercase, hyphen to space."""
     if not slug or not isinstance(slug, str):
@@ -22201,9 +22242,7 @@ def root_maybe_redirect_sas_id(
         if canonical_slug:
             return RedirectResponse(url=f"/sailor/{canonical_slug}", status_code=301)
         return RedirectResponse(url="/", status_code=302)
-    if os.path.isfile(_INDEX_HTML_PATH):
-        return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
-    raise HTTPException(status_code=404, detail="index.html not found")
+    return _serve_index_html_file()
 
 
 def index_html_maybe_redirect_sas_id(
@@ -22218,9 +22257,7 @@ def index_html_maybe_redirect_sas_id(
         if canonical_slug:
             return RedirectResponse(url=f"/sailor/{canonical_slug}", status_code=301)
         return RedirectResponse(url="/", status_code=302)
-    if os.path.isfile(_INDEX_HTML_PATH):
-        return FileResponse(_INDEX_HTML_PATH, media_type="text/html")
-    raise HTTPException(status_code=404, detail="index.html not found")
+    return _serve_index_html_file()
 
 
 def _get_sailor_regattas_for_seo(sas_id: str, limit: int = 30):
