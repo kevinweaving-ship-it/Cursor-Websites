@@ -1,0 +1,426 @@
+/* Event Interest — Upcoming card cluster + class picker popup (Stage 3).
+   Does not alter card chrome, orange bar, title/host structure. */
+
+.sa-home-regatta-top-main {
+  position: relative;
+}
+
+/* Title-row controls: total (if any) + Interested — top right only */
+.eci-interest-top {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 22px;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.eci-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.eci-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  color: #21356b;
+  font: 800 10px/1.1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: nowrap;
+}
+
+.eci-total-ico {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Class logos wrap directly below the Interested controls. */
+.eci-logos {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 0;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+.eci-logos-row { width: 100%; min-width: 0; box-sizing: border-box; }
+.eci-logos-top {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-items: center;
+  align-items: start;
+  gap: 4px;
+}
+.eci-logos-scroll {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+.eci-logos-scroll > .eci-logo-item {
+  flex: 0 0 calc((100% - 8px) / 3);
+  scroll-snap-align: start;
+}
+
+.eci-logo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.eci-logo-item img,
+.landing-event-card img.eci-logo-img {
+  display: block;
+  width: 24px !important;
+  height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  object-fit: contain !important;
+  background: transparent;
+}
+
+.eci-logo-miss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  color: #475569;
+  font: 800 7px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.eci-logo-n {
+  color: #334155;
+  font: 700 9px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.02em;
+  max-width: 28px;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.eci-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 9px;
+  border: 1.5px solid #166534;
+  border-radius: 6px;
+  background: #166534;
+  color: #fff;
+  font: 800 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
+}
+
+.eci-btn:hover {
+  background: #14532d;
+}
+
+.eci-btn:focus-visible {
+  outline: 2px solid #0b3d91;
+  outline-offset: 2px;
+}
+
+.eci-btn.is-mine {
+  background: #166534;
+  color: #fff;
+  border-color: #14532d;
+}
+
+.eci-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.eci-title-pad {
+  padding-right: var(--eci-pad, 0px) !important;
+  box-sizing: border-box;
+}
+
+/* Popup */
+.eci-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.eci-scrim.is-open {
+  display: flex;
+}
+
+.eci-popup {
+  width: min(380px, 100%);
+  max-height: min(80vh, 560px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #8aa2c6;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+  padding: 14px;
+  box-sizing: border-box;
+}
+
+.eci-popup-title {
+  margin: 0 0 2px;
+  color: #142c78;
+  font: 800 15px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.eci-popup-sub {
+  margin: 0 0 12px;
+  color: #64748b;
+  font: 500 12px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.eci-popup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.eci-popup-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  cursor: pointer;
+  color: #334155;
+  font: 700 10px/1.15 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-align: center;
+}
+
+.eci-popup-item.is-selected {
+  border-color: #0b3d91;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1px #0b3d91;
+}
+
+.eci-popup-item img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.eci-popup-item .eci-popup-missing {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #475569;
+  font: 800 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.eci-popup-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.eci-popup-actions button {
+  flex: 1;
+  height: 34px;
+  border-radius: 6px;
+  font: 700 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.eci-popup-confirm {
+  border: 1px solid #0b3d91;
+  background: #0b3d91;
+  color: #fff;
+}
+
+.eci-popup-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.eci-popup-withdraw {
+  border: 1px solid #94a3b8;
+  background: #fff;
+  color: #334155;
+}
+
+.eci-popup-close {
+  border: 1px solid #94a3b8;
+  background: #fff;
+  color: #334155;
+}
+
+.eci-popup-empty {
+  margin: 8px 0 0;
+  color: #64748b;
+  font: 500 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.eci-popup-error {
+  margin: 8px 0 0;
+  color: #166534;
+  font: 600 12px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@media (max-width: 420px) {
+  .eci-popup-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.eci-popup-search {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  font: 14px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.eci-popup-search[hidden] { display: none; }
+.eci-popup-other { justify-content: center; min-height: 58px; }
+
+/* Upcoming cards: date, DAYS TO GO, then club logo — same left edge. */
+.temp-landing-hero-image .landing-event-card--upcoming .sa-home-regatta-top,
+.temp-landing-secondary-image .landing-event-card--upcoming .sa-home-regatta-top,
+#landing-event-hero-2 .landing-event-card--upcoming .sa-home-regatta-top,
+.landing-top-row > .temp-landing-hero-image .landing-event-card--upcoming .sa-home-regatta-top,
+.landing-event-card--upcoming .sa-home-regatta-top,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-top {
+  grid-template-columns: 104px minmax(0, 1fr) !important;
+  grid-template-areas: "logo main" "actions actions" !important;
+  align-items: start !important;
+  column-gap: 14px !important;
+  row-gap: 6px !important;
+}
+@media (max-width: 480px) {
+  .temp-landing-hero-image .landing-event-card--upcoming .sa-home-regatta-top,
+  .temp-landing-secondary-image .landing-event-card--upcoming .sa-home-regatta-top,
+  #landing-event-hero-2 .landing-event-card--upcoming .sa-home-regatta-top,
+  .landing-top-row > .temp-landing-hero-image .landing-event-card--upcoming .sa-home-regatta-top,
+  .landing-event-card--upcoming .sa-home-regatta-top,
+  .landing-event-card[data-state="upcoming"] .sa-home-regatta-top {
+    grid-template-columns: 82px minmax(0, 1fr) !important;
+    column-gap: 10px !important;
+    row-gap: 8px !important;
+  }
+}
+.temp-landing-hero-image .landing-event-card--upcoming .sa-home-regatta-host,
+.temp-landing-secondary-image .landing-event-card--upcoming .sa-home-regatta-host,
+#landing-event-hero-2 .landing-event-card--upcoming .sa-home-regatta-host,
+.landing-event-card--upcoming .sa-home-regatta-host,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-host,
+.landing-event-card--upcoming .sa-home-regatta-top-main > .sa-home-regatta-host {
+  grid-area: auto !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  justify-self: start !important;
+  align-self: start !important;
+  margin: 4px 0 0 0 !important;
+  padding: 0 !important;
+  width: auto !important;
+  max-width: 100%;
+}
+.temp-landing-hero-image .landing-event-card--upcoming .sa-home-regatta-host-logo,
+.temp-landing-secondary-image .landing-event-card--upcoming .sa-home-regatta-host-logo,
+#landing-event-hero-2 .landing-event-card--upcoming .sa-home-regatta-host-logo,
+.landing-event-card--upcoming .sa-home-regatta-host-logo,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-host-logo {
+  object-position: left center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.landing-event-card--upcoming .sa-home-regatta-meta,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-meta,
+.sa-home-regatta-meta--stacked {
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-start !important;
+  gap: 3px !important;
+  margin-top: 4px;
+  padding-left: 0 !important;
+}
+.landing-event-card--upcoming .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill,
+.sa-home-regatta-meta--stacked .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill {
+  padding-left: 0 !important;
+}
+.landing-event-card--upcoming .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
+.sa-home-regatta-meta--stacked .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before {
+  content: none !important;
+  width: 0;
+}
+.temp-landing-hero-image .landing-event-card--upcoming .sa-home-regatta-days-pill,
+.temp-landing-secondary-image .landing-event-card--upcoming .sa-home-regatta-days-pill,
+#landing-event-hero-2 .landing-event-card--upcoming .sa-home-regatta-days-pill,
+.landing-event-card--upcoming .sa-home-regatta-days-pill,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-days-pill,
+.sa-home-regatta-meta--stacked .sa-home-regatta-days-pill {
+  margin-left: 0 !important;
+  align-self: flex-start;
+}
+.sa-home-regatta-dates,
+.landing-event-card .sa-home-regatta-dates,
+.sa-home-regatta-date-pill,
+.landing-event-card .sa-home-regatta-date-pill {
+  display: block;
+  background: none !important;
+  color: #334155 !important;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.25;
+  white-space: nowrap;
+  padding: 0 !important;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
