@@ -32,23 +32,32 @@
     }
   }
 
-  function dateShort(d) {
+  function parseYmd(d) {
     var s = ymdSlice(d);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
     var y = parseInt(s.slice(0, 4), 10);
     var m = parseInt(s.slice(5, 7), 10) - 1;
     var day = parseInt(s.slice(8, 10), 10);
-    if (m < 0 || m > 11 || !day || !y) return s;
-    return day + " " + MONTHS[m] + " " + y;
+    if (m < 0 || m > 11 || !day || !y) return null;
+    return { y: y, m: m, d: day, yy: String(y).slice(-2) };
   }
 
-  /** Same range as sa-home-regatta search cards: "28 Nov 2026 → 29 Nov 2026". */
+  function dateShort(d) {
+    var p = parseYmd(d);
+    if (!p) return ymdSlice(d) || "";
+    return p.d + " " + MONTHS[p.m] + " " + p.yy;
+  }
+
+  /** Compact MP range: "28-29 Nov 26" / "28 Nov 26". */
   function formatRange(startDate, endDate) {
-    var sd = ymdSlice(startDate);
-    var ed = ymdSlice(endDate);
-    if (!sd && !ed) return "";
-    if (sd && ed && sd !== ed) return dateShort(sd) + " \u2192 " + dateShort(ed);
-    return dateShort(ed || sd);
+    var a = parseYmd(startDate);
+    var b = parseYmd(endDate || startDate);
+    if (!a && !b) return "";
+    if (!a) return dateShort(endDate);
+    if (!b || (a.y === b.y && a.m === b.m && a.d === b.d)) return dateShort(startDate);
+    if (a.y === b.y && a.m === b.m) return a.d + "-" + b.d + " " + MONTHS[a.m] + " " + a.yy;
+    if (a.y === b.y) return a.d + " " + MONTHS[a.m] + "-" + b.d + " " + MONTHS[b.m] + " " + a.yy;
+    return dateShort(startDate) + "-" + dateShort(endDate);
   }
 
   function normName(s) {
@@ -154,6 +163,9 @@
       } else {
         main.appendChild(meta);
       }
+    }
+    if (meta.className.indexOf("sa-home-regatta-meta--stacked") === -1) {
+      meta.className += " sa-home-regatta-meta--stacked";
     }
     var existing = meta.querySelector("[data-eci-event-dates]");
     if (existing) {

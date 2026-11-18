@@ -323,7 +323,29 @@
 .eci-popup-search[hidden] { display: none; }
 .eci-popup-other { justify-content: center; min-height: 58px; }
 
-/* Start/end range on upcoming homepage cards — same compact meta as search cards. */
+/* Upcoming cards: date on its own line, DAYS TO GO under it. Compact MP. */
+.landing-event-card--upcoming .sa-home-regatta-meta,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-meta,
+.sa-home-regatta-meta--stacked {
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-start !important;
+  gap: 3px !important;
+  margin-top: 4px;
+}
+.landing-event-card--upcoming .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill,
+.sa-home-regatta-meta--stacked .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill {
+  padding-left: 0 !important;
+}
+.landing-event-card--upcoming .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
+.landing-event-card[data-state="upcoming"] .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
+.sa-home-regatta-meta--stacked .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
+.sa-home-regatta-meta-pill.sa-home-regatta-date-pill:before {
+  content: none !important;
+  width: 0;
+}
 .sa-home-regatta-date-pill,
 .landing-event-card .sa-home-regatta-date-pill {
   font-size: 11px;
@@ -333,15 +355,4 @@
   text-transform: none;
   line-height: 1.2;
   white-space: nowrap;
-}
-.sa-home-regatta-meta-pill.sa-home-regatta-date-pill:before {
-  content: none !important;
-  width: 0;
-}
-@media (max-width: 480px) {
-  .sa-home-regatta-date-pill,
-  .landing-event-card .sa-home-regatta-date-pill {
-    font-size: 11px;
-    white-space: normal;
-  }
 }

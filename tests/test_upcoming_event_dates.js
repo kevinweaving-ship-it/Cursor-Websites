@@ -7,9 +7,10 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg || "assertion failed");
 }
 
-assert(dates.formatRange("2026-11-28", "2026-11-29") === "28 Nov 2026 → 29 Nov 2026", "range");
-assert(dates.formatRange("2026-11-28", "2026-11-28") === "28 Nov 2026", "same day");
-assert(dates.formatRange("2026-12-09", "2026-12-15") === "9 Dec 2026 → 15 Dec 2026", "ussa");
+assert(dates.formatRange("2026-11-28", "2026-11-29") === "28-29 Nov 26", "range");
+assert(dates.formatRange("2026-11-28", "2026-11-28") === "28 Nov 26", "same day");
+assert(dates.formatRange("2026-12-09", "2026-12-15") === "9-15 Dec 26", "ussa");
+assert(dates.formatRange("2026-11-28", "2026-12-02") === "28 Nov-2 Dec 26", "cross month");
 assert(dates.formatRange("", "") === "", "empty");
 
 var events = [

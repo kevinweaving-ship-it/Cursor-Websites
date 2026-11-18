@@ -501,22 +501,31 @@
     }
   }
 
-  function eciDateShort(d) {
+  function eciParseYmd(d) {
     var s = eciYmd(d);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
     var y = parseInt(s.slice(0, 4), 10);
     var m = parseInt(s.slice(5, 7), 10) - 1;
     var day = parseInt(s.slice(8, 10), 10);
-    if (m < 0 || m > 11 || !day || !y) return s;
-    return day + " " + ECI_MONTHS[m] + " " + y;
+    if (m < 0 || m > 11 || !day || !y) return null;
+    return { y: y, m: m, d: day, yy: String(y).slice(-2) };
+  }
+
+  function eciDateShort(d) {
+    var p = eciParseYmd(d);
+    if (!p) return eciYmd(d) || "";
+    return p.d + " " + ECI_MONTHS[p.m] + " " + p.yy;
   }
 
   function eciFormatRange(startDate, endDate) {
-    var sd = eciYmd(startDate);
-    var ed = eciYmd(endDate);
-    if (!sd && !ed) return "";
-    if (sd && ed && sd !== ed) return eciDateShort(sd) + " \u2192 " + eciDateShort(ed);
-    return eciDateShort(ed || sd);
+    var a = eciParseYmd(startDate);
+    var b = eciParseYmd(endDate || startDate);
+    if (!a && !b) return "";
+    if (!a) return eciDateShort(endDate);
+    if (!b || (a.y === b.y && a.m === b.m && a.d === b.d)) return eciDateShort(startDate);
+    if (a.y === b.y && a.m === b.m) return a.d + "-" + b.d + " " + ECI_MONTHS[a.m] + " " + a.yy;
+    if (a.y === b.y) return a.d + " " + ECI_MONTHS[a.m] + "-" + b.d + " " + ECI_MONTHS[b.m] + " " + a.yy;
+    return eciDateShort(startDate) + "-" + eciDateShort(endDate);
   }
 
   function eciNormName(s) {
@@ -584,6 +593,9 @@
       var title = qs(card, ".sa-home-regatta-title");
       if (title && title.nextSibling) main.insertBefore(meta, title.nextSibling);
       else main.appendChild(meta);
+    }
+    if (meta.className.indexOf("sa-home-regatta-meta--stacked") === -1) {
+      meta.className += " sa-home-regatta-meta--stacked";
     }
     var existing = qs(meta, "[data-eci-event-dates]");
     if (existing) {
