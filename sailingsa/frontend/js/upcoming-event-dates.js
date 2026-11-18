@@ -169,7 +169,9 @@
     }
     var existing = meta.querySelector("[data-eci-event-dates]");
     if (existing) {
-      existing.textContent = range;
+      if (existing.textContent !== range) existing.textContent = range;
+      existing.className = "sa-home-regatta-meta-pill sa-home-regatta-date-pill";
+      existing.removeAttribute("style");
       return true;
     }
     var pill = card.ownerDocument.createElement("div");
@@ -259,6 +261,7 @@
   root.UpcomingEventDates = api;
 
   function boot() {
+    if (root.EventInterest) return;
     try {
       paintAll();
     } catch (_) {}

@@ -430,6 +430,18 @@
     }
 
     card.__eciSnap = snap;
+    eciLockDatePill(card);
+  }
+
+  function eciLockDatePill(card) {
+    var pill = qs(card, "[data-eci-event-dates]");
+    if (!pill) return;
+    pill.className = "sa-home-regatta-meta-pill sa-home-regatta-date-pill";
+    pill.removeAttribute("style");
+    var meta = qs(card, ".sa-home-regatta-meta");
+    if (meta && meta.className.indexOf("sa-home-regatta-meta--stacked") === -1) {
+      meta.className += " sa-home-regatta-meta--stacked";
+    }
   }
 
   function emptySnap() {
@@ -599,7 +611,9 @@
     }
     var existing = qs(meta, "[data-eci-event-dates]");
     if (existing) {
-      existing.textContent = range;
+      if (existing.textContent !== range) existing.textContent = range;
+      existing.className = "sa-home-regatta-meta-pill sa-home-regatta-date-pill";
+      existing.removeAttribute("style");
       return true;
     }
     var pill = document.createElement("div");
@@ -615,12 +629,6 @@
   }
 
   function paintUpcomingDates(root) {
-    if (global.UpcomingEventDates && typeof global.UpcomingEventDates.paintAll === "function") {
-      try {
-        global.UpcomingEventDates.paintAll(root);
-        return;
-      } catch (_) {}
-    }
     var cards = qsa(root || document, ".landing-event-card--upcoming, .landing-event-card[data-state='upcoming'], .sa-home-regatta-card[data-state='upcoming']");
     if (!cards.length) return;
     var today = eciTodaySast();
