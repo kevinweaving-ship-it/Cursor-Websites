@@ -218,7 +218,25 @@
     else meta.insertBefore(line, meta.firstChild);
     if (startDate) card.setAttribute("data-start-date", ymdSlice(startDate));
     if (endDate || startDate) card.setAttribute("data-end-date", ymdSlice(endDate || startDate));
+    stackHost(card);
     return true;
+  }
+
+  function stackHost(card) {
+    if (!card || !card.querySelector) return;
+    var main = card.querySelector(".sa-home-regatta-top-main");
+    var host = card.querySelector(".sa-home-regatta-host");
+    var meta = card.querySelector(".sa-home-regatta-meta");
+    if (!main || !host) return;
+    if (host.parentNode !== main) {
+      if (meta && meta.parentNode === main) {
+        if (meta.nextSibling) main.insertBefore(host, meta.nextSibling);
+        else main.appendChild(host);
+      } else {
+        main.appendChild(host);
+      }
+    }
+    host.style.gridArea = "auto";
   }
 
   function upcomingCards(root) {

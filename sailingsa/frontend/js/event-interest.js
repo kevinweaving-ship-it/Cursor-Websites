@@ -646,7 +646,24 @@
     else meta.insertBefore(line, meta.firstChild);
     if (startDate) card.setAttribute("data-start-date", eciYmd(startDate));
     if (endDate || startDate) card.setAttribute("data-end-date", eciYmd(endDate || startDate));
+    eciStackHost(card);
     return true;
+  }
+
+  function eciStackHost(card) {
+    var main = qs(card, ".sa-home-regatta-top-main");
+    var host = qs(card, ".sa-home-regatta-host");
+    var meta = qs(card, ".sa-home-regatta-meta");
+    if (!main || !host) return;
+    if (host.parentNode !== main) {
+      if (meta && meta.parentNode === main) {
+        if (meta.nextSibling) main.insertBefore(host, meta.nextSibling);
+        else main.appendChild(host);
+      } else {
+        main.appendChild(host);
+      }
+    }
+    host.style.gridArea = "auto";
   }
 
   function paintUpcomingDates(root) {
@@ -655,6 +672,7 @@
     var today = eciTodaySast();
     function apply(events) {
       cards.forEach(function (card) {
+        eciStackHost(card);
         var sd = eciYmd(card.getAttribute("data-start-date"));
         var ed = eciYmd(card.getAttribute("data-end-date"));
         if (sd || ed) {
@@ -663,6 +681,7 @@
         }
         var ev = eciPickEvent(events, card, today);
         if (ev) eciEnsureDateLine(card, ev.start_date, ev.end_date || ev.start_date);
+        else eciStackHost(card);
       });
     }
     if (eciEventsCache) {
@@ -699,6 +718,7 @@
     if (opts.apiBase != null) API_BASE = String(opts.apiBase);
     ensureScrim();
     mountAll(opts.root || document);
+    qsa(opts.root || document, ".landing-event-card--upcoming, .landing-event-card[data-state='upcoming']").forEach(eciStackHost);
     paintUpcomingDates(opts.root || document);
     if (!global.__eciResizeBound) {
       global.__eciResizeBound = true;
