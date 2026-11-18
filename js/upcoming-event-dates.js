@@ -146,15 +146,45 @@
     return null;
   }
 
+  function isDaysPill(el) {
+    return !!(el && String(el.className || "").indexOf("sa-home-regatta-days-pill") !== -1);
+  }
+
+  function daysToGo(startDate) {
+    var a = parseYmd(startDate);
+    var t = parseYmd(todayYmdSast());
+    if (!a || !t) return null;
+    var n = Math.round((Date.UTC(a.y, a.m, a.d) - Date.UTC(t.y, t.m, t.d)) / 86400000);
+    if (n < 0) return null;
+    var text = n === 0 ? "TODAY" : n === 1 ? "1 DAY TO GO" : n + " DAYS TO GO";
+    var cls = "sa-home-regatta-meta-pill sa-home-regatta-days-pill";
+    cls += n <= 7 ? " sa-home-regatta-days-pill--soon" : " sa-home-regatta-days-pill--later";
+    return { text: text, className: cls };
+  }
+
+  function ensureDaysPill(meta, startDate, doc) {
+    var days = meta.querySelector(".sa-home-regatta-days-pill");
+    if (days) return days;
+    var parts = daysToGo(startDate);
+    if (!parts) return null;
+    days = doc.createElement("div");
+    days.className = parts.className;
+    days.textContent = parts.text;
+    meta.appendChild(days);
+    return days;
+  }
+
   function ensureDatePill(card, startDate, endDate) {
     if (!card || !card.querySelector) return false;
     var range = formatRange(startDate, endDate);
     if (!range) return false;
     var main = card.querySelector(".sa-home-regatta-top-main");
     if (!main) return false;
+    var doc = card.ownerDocument || (typeof document !== "undefined" ? document : null);
+    if (!doc) return false;
     var meta = card.querySelector(".sa-home-regatta-meta");
     if (!meta) {
-      meta = card.ownerDocument.createElement("div");
+      meta = doc.createElement("div");
       meta.className = "sa-home-regatta-meta";
       var title = card.querySelector(".sa-home-regatta-title");
       if (title) {
@@ -168,19 +198,24 @@
       meta.className += " sa-home-regatta-meta--stacked";
     }
     var existing = meta.querySelector("[data-eci-event-dates]");
+    if (existing && isDaysPill(existing)) {
+      existing.removeAttribute("data-eci-event-dates");
+      existing = null;
+    }
+    var days = ensureDaysPill(meta, startDate, doc);
     if (existing) {
-      if (existing.textContent !== range) existing.textContent = range;
-      existing.className = "sa-home-regatta-meta-pill sa-home-regatta-date-pill";
+      existing.className = "sa-home-regatta-dates";
+      existing.textContent = range;
       existing.removeAttribute("style");
+      if (days && existing.nextSibling !== days) meta.insertBefore(existing, days);
       return true;
     }
-    var pill = card.ownerDocument.createElement("div");
-    pill.className = "sa-home-regatta-meta-pill sa-home-regatta-date-pill";
-    pill.setAttribute("data-eci-event-dates", "1");
-    pill.textContent = range;
-    var days = meta.querySelector(".sa-home-regatta-days-pill");
-    if (days) meta.insertBefore(pill, days);
-    else meta.insertBefore(pill, meta.firstChild);
+    var line = doc.createElement("div");
+    line.className = "sa-home-regatta-dates";
+    line.setAttribute("data-eci-event-dates", "1");
+    line.textContent = range;
+    if (days) meta.insertBefore(line, days);
+    else meta.insertBefore(line, meta.firstChild);
     if (startDate) card.setAttribute("data-start-date", ymdSlice(startDate));
     if (endDate || startDate) card.setAttribute("data-end-date", ymdSlice(endDate || startDate));
     return true;

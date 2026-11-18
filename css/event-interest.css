@@ -323,15 +323,7 @@
 .eci-popup-search[hidden] { display: none; }
 .eci-popup-other { justify-content: center; min-height: 58px; }
 
-/* Upcoming cards: date on its own line, DAYS TO GO under it. Compact MP. */
-.landing-event-card--upcoming,
-.landing-event-card[data-state="upcoming"] {
-  overflow: visible;
-}
-.landing-event-card--upcoming .sa-home-regatta-top-main,
-.landing-event-card[data-state="upcoming"] .sa-home-regatta-top-main {
-  overflow: visible;
-}
+/* Upcoming cards: plain date text, DAYS TO GO pill stays a pill under it. */
 .landing-event-card--upcoming .sa-home-regatta-meta,
 .landing-event-card[data-state="upcoming"] .sa-home-regatta-meta,
 .sa-home-regatta-meta--stacked {
@@ -339,14 +331,8 @@
   flex-direction: column !important;
   flex-wrap: nowrap !important;
   align-items: flex-start !important;
-  gap: 4px !important;
+  gap: 3px !important;
   margin-top: 4px;
-  padding-left: 0;
-  padding-right: 0 !important;
-  overflow: visible !important;
-  max-width: 100%;
-  position: relative;
-  z-index: 2;
 }
 .landing-event-card--upcoming .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill,
 .landing-event-card[data-state="upcoming"] .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill,
@@ -355,30 +341,26 @@
 }
 .landing-event-card--upcoming .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
 .landing-event-card[data-state="upcoming"] .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
-.sa-home-regatta-meta--stacked .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before,
-.sa-home-regatta-meta-pill.sa-home-regatta-date-pill:before {
+.sa-home-regatta-meta--stacked .sa-home-regatta-meta-pill + .sa-home-regatta-meta-pill:before {
   content: none !important;
   width: 0;
 }
+.sa-home-regatta-dates,
+.landing-event-card .sa-home-regatta-dates,
 .sa-home-regatta-date-pill,
 .landing-event-card .sa-home-regatta-date-pill {
-  display: inline-flex !important;
-  align-items: center;
-  flex: 0 0 auto !important;
-  box-sizing: border-box;
-  width: max-content !important;
-  max-width: none !important;
-  min-width: 0;
-  margin: 0;
-  padding: 2px 8px 2px 8px !important;
-  border-radius: 4px;
-  background: #001f3f;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  display: block;
+  background: none !important;
+  color: #334155 !important;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
   text-transform: none;
-  line-height: 1.2;
-  white-space: nowrap !important;
-  overflow: visible !important;
+  line-height: 1.25;
+  white-space: nowrap;
+  padding: 0 !important;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
