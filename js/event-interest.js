@@ -476,29 +476,181 @@
       });
   }
 
-  function paintUpcomingDates(root) {
-    function run() {
-      try {
-        if (global.UpcomingEventDates && typeof global.UpcomingEventDates.paintAll === "function") {
-          global.UpcomingEventDates.paintAll(root);
+  var ECI_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var eciEventsCache = null;
+  var eciEventsPending = null;
+
+  function eciYmd(d) {
+    if (d == null || d === "") return "";
+    return String(d).slice(0, 10);
+  }
+
+  function eciTodaySast() {
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Africa/Johannesburg",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+    } catch (_) {
+      var t = new Date();
+      var m = t.getMonth() + 1;
+      var d = t.getDate();
+      return t.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (d < 10 ? "0" : "") + d;
+    }
+  }
+
+  function eciDateShort(d) {
+    var s = eciYmd(d);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || "";
+    var y = parseInt(s.slice(0, 4), 10);
+    var m = parseInt(s.slice(5, 7), 10) - 1;
+    var day = parseInt(s.slice(8, 10), 10);
+    if (m < 0 || m > 11 || !day || !y) return s;
+    return day + " " + ECI_MONTHS[m] + " " + y;
+  }
+
+  function eciFormatRange(startDate, endDate) {
+    var sd = eciYmd(startDate);
+    var ed = eciYmd(endDate);
+    if (!sd && !ed) return "";
+    if (sd && ed && sd !== ed) return eciDateShort(sd) + " \u2192 " + eciDateShort(ed);
+    return eciDateShort(ed || sd);
+  }
+
+  function eciNormName(s) {
+    return String(s || "")
+      .replace(/&amp;/gi, "&")
+      .replace(/&#039;|&apos;/gi, "'")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }
+
+  function eciCardTitle(card) {
+    var t = qs(card, ".sa-home-regatta-title");
+    return t ? String(t.textContent || "").replace(/\s+/g, " ").trim() : "";
+  }
+
+  function eciCardRegattaId(card) {
+    var links = qsa(card, "a[href]");
+    var i;
+    for (i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute("href") || "";
+      var m = href.match(/\/regatta\/([^/?#]+)/);
+      if (m) {
+        try {
+          return decodeURIComponent(m[1]);
+        } catch (_) {
+          return m[1];
         }
+      }
+    }
+    return "";
+  }
+
+  function eciPickEvent(events, card, today) {
+    var title = eciNormName(eciCardTitle(card));
+    var rid = String(eciCardRegattaId(card) || "").trim();
+    var best = null;
+    var i;
+    for (i = 0; i < (events || []).length; i++) {
+      var e = events[i];
+      if (!e) continue;
+      var name = eciNormName(e.event_name);
+      var erid = String(e.regatta_id || "").trim();
+      var sd = eciYmd(e.start_date);
+      var score = 0;
+      if (rid && erid && rid === erid) score += 100;
+      if (title && name && title === name) score += 50;
+      if (!score) continue;
+      if (sd && sd >= today) score += 10;
+      else if (sd) score -= 5;
+      if (!best || score > best.score) best = { score: score, e: e };
+    }
+    return best && best.score > 0 ? best.e : null;
+  }
+
+  function eciEnsureDatePill(card, startDate, endDate) {
+    var range = eciFormatRange(startDate, endDate);
+    if (!range) return false;
+    var main = qs(card, ".sa-home-regatta-top-main");
+    if (!main) return false;
+    var meta = qs(card, ".sa-home-regatta-meta");
+    if (!meta) {
+      meta = document.createElement("div");
+      meta.className = "sa-home-regatta-meta";
+      var title = qs(card, ".sa-home-regatta-title");
+      if (title && title.nextSibling) main.insertBefore(meta, title.nextSibling);
+      else main.appendChild(meta);
+    }
+    var existing = qs(meta, "[data-eci-event-dates]");
+    if (existing) {
+      existing.textContent = range;
+      return true;
+    }
+    var pill = document.createElement("div");
+    pill.className = "sa-home-regatta-meta-pill sa-home-regatta-date-pill";
+    pill.setAttribute("data-eci-event-dates", "1");
+    pill.textContent = range;
+    var days = qs(meta, ".sa-home-regatta-days-pill");
+    if (days) meta.insertBefore(pill, days);
+    else meta.insertBefore(pill, meta.firstChild);
+    if (startDate) card.setAttribute("data-start-date", eciYmd(startDate));
+    if (endDate || startDate) card.setAttribute("data-end-date", eciYmd(endDate || startDate));
+    return true;
+  }
+
+  function paintUpcomingDates(root) {
+    if (global.UpcomingEventDates && typeof global.UpcomingEventDates.paintAll === "function") {
+      try {
+        global.UpcomingEventDates.paintAll(root);
+        return;
       } catch (_) {}
     }
-    if (global.UpcomingEventDates) {
-      run();
+    var cards = qsa(root || document, ".landing-event-card--upcoming, .landing-event-card[data-state='upcoming'], .sa-home-regatta-card[data-state='upcoming']");
+    if (!cards.length) return;
+    var today = eciTodaySast();
+    function apply(events) {
+      cards.forEach(function (card) {
+        var sd = eciYmd(card.getAttribute("data-start-date"));
+        var ed = eciYmd(card.getAttribute("data-end-date"));
+        if (sd || ed) {
+          eciEnsureDatePill(card, sd, ed || sd);
+          return;
+        }
+        var ev = eciPickEvent(events, card, today);
+        if (ev) eciEnsureDatePill(card, ev.start_date, ev.end_date || ev.start_date);
+      });
+    }
+    if (eciEventsCache) {
+      apply(eciEventsCache);
       return;
     }
-    if (typeof document === "undefined") return;
-    var existing = document.querySelector("script[data-upcoming-event-dates]");
-    if (existing) {
-      existing.addEventListener("load", run);
+    if (eciEventsPending) {
+      eciEventsPending.then(apply);
       return;
     }
-    var s = document.createElement("script");
-    s.src = "/js/upcoming-event-dates.js?v=eci3";
-    s.setAttribute("data-upcoming-event-dates", "1");
-    s.onload = run;
-    (document.head || document.documentElement).appendChild(s);
+    eciEventsPending = fetch("/api/events?blank_hub=1", {
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("events " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        eciEventsCache = Array.isArray(data) ? data : (data && data.events) || [];
+        eciEventsPending = null;
+        return eciEventsCache;
+      })
+      .catch(function () {
+        eciEventsPending = null;
+        return [];
+      });
+    eciEventsPending.then(apply);
   }
 
   function init(opts) {
