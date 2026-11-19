@@ -60,6 +60,10 @@ BU_PAGE_PROOF_*/
 !.cursor/mcp.json
 !.cursor/rules/
 !.cursor/rules/motionsites.mdc
+!.cursor/rules/graphify.mdc
+
+# Graphify local AST cache (rebuildable; keep graph.json / report)
+graphify-out/cache/
 
 # Temp outputs / audits (regenerate as needed)
 AUDIT_*.txt
