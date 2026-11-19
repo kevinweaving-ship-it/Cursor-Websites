@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "rea-gowifi": {
+      "command": "ssh",
+      "args": [
+        "-i",
+        "/REPLACE/WITH/HOME/.ssh/rea_gowifi",
+        "-o",
+        "IdentitiesOnly=yes",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=15",
+        "rea@box.gowifi.co.za",
+        "/opt/rea/bin/rea",
+        "mcp"
+      ]
+    }
+  }
+}
