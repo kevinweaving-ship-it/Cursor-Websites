@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+# Find Sailwave or official results
+set timeout 30
+set password "TimAdd#072082"
+set server "102.218.215.253"
+set user "root"
+
+spawn ssh -o StrictHostKeyChecking=no ${user}@${server} "find /root /var/www/sailingsa -name '*sailwave*' -o -name '*blw*' -o -name '*2026*lipton*' 2>/dev/null | head -30; ls -la /root/*results* 2>/dev/null | head -10; cat /root/README_FIRST_FOR_CURSOR.txt 2>/dev/null"
+expect {
+    -re "assword" { send "$password\r"; exp_continue }
+    eof { }
+    timeout { puts "ERROR: timeout"; exit 1 }
+}
+wait
