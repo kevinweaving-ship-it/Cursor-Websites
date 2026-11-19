@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Weekly Roundup DEV1 card preview — 2026-10-26</title>
+<style>
+/* Same landing card classes as /dev1/. Mobile portrait first (390px). */
+html,body{margin:0;background:#e8eef3;font:16px/1.4 Arial,sans-serif}
+#landing-top-card{background:#001f3f;color:#f4eee4;max-width:390px;margin:0 auto;position:relative}
+.landing-roundup-viewport{position:relative}
+.landing-roundup-slide{padding:12px 12px 34px;box-sizing:border-box}
+.landing-roundup-series{margin:0 0 6px;font:700 11px/1.25 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#f4eee4}
+.landing-roundup-edition{margin-left:8px;font:400 10px/1 Georgia,serif;letter-spacing:.02em;text-transform:none;color:#f4eee4}
+.landing-roundup-date{margin:0;position:absolute;top:12px;right:16px;font:600 13px/1.35 system-ui,sans-serif;color:#f4eee4}
+.landing-roundup-hero{margin:12px 0 0;position:relative}
+.landing-roundup-hero img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
+.landing-roundup-title{position:absolute;left:16px;right:16px;bottom:56px;z-index:2;margin:0;font:700 26px/1.15 Georgia,serif;color:#fff;text-shadow:0 1px 8px rgba(0,31,63,.8)}
+.landing-roundup-dots{position:absolute;left:0;right:0;bottom:48px;z-index:6;display:flex;justify-content:center;gap:8px}
+.landing-roundup-dot{flex:0 0 8px;width:8px;height:8px;border-radius:50%;border:0;padding:0;background:rgba(244,238,228,.45)}
+.landing-roundup-dot.is-active{background:#f4eee4}
+.landing-roundup-arrow{position:absolute;z-index:7;width:44px;height:44px;border-radius:50%;border:1px solid rgba(229,195,148,.9);background:rgba(0,31,63,.62);color:#e5c394;font:600 20px/24px Georgia,serif}
+.landing-roundup-arrow.is-next{right:8px;top:46%}
+#landing-roundup-actions{display:flex;align-items:center;gap:7px;padding:8px 12px 12px;min-height:44px}
+.roundup-reacts button{min-height:44px;min-width:44px;background:none;border:0;color:#e5c394}
+.landing-roundup-more{margin:0 0 0 auto}
+.landing-roundup-more a{color:#e5c394;font:700 11px/1.4 system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;min-height:44px;display:flex;align-items:center}
+</style>
+</head>
+<body>
+<section id="landing-top-card" class="landing-top-card" aria-label="Weekly Roundup">
+  <div class="landing-roundup-viewport" id="landing-roundup-viewport">
+    <div class="landing-roundup-track" id="landing-roundup-track">
+      <article class="landing-roundup-slide" data-issue-url="https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/">
+        <p class="landing-roundup-series">Weekly Roundup<span class="landing-roundup-edition">Edition 187</span></p>
+        <p class="landing-roundup-date">19–25 October 2026</p>
+        <div class="landing-roundup-hero">
+          <img src="https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/media/df95-global-2026.png" alt="2026 DF95 Global Championship">
+          <h2 class="landing-roundup-title">Defending champion keeps the DF95 world crown at Theewater</h2>
+        </div>
+      </article>
+    </div>
+    <button type="button" class="landing-roundup-arrow is-next" aria-label="Next Weekly Roundup">›</button>
+    <div class="landing-roundup-dots" id="landing-roundup-dots">
+      <button type="button" class="landing-roundup-dot is-active" aria-current="true"></button>
+      <button type="button" class="landing-roundup-dot"></button>
+      <button type="button" class="landing-roundup-dot"></button>
+    </div>
+  </div>
+  <div id="landing-roundup-actions">
+    <div class="roundup-reacts">
+      <button type="button" aria-label="Like">♡</button>
+      <button type="button" aria-label="Comment">💬</button>
+    </div>
+    <p class="landing-roundup-more"><a href="https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/">Read the full roundup →</a></p>
+  </div>
+</section>
+</body>
+</html>

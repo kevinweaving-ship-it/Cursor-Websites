@@ -1,0 +1,38 @@
+{
+  "event_id": "2026-df95-global-championship",
+  "field_conflicts": [
+    {
+      "field": "entries",
+      "values": [
+        {
+          "value": 68,
+          "source": "published-roundup-2026-10-26",
+          "url": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/",
+          "note": "mySailingResults cited in published edition"
+        },
+        {
+          "value": 71,
+          "source": "audit-arya-results",
+          "url": "https://radiosailing.org.au/news/492",
+          "note": "ARYA/results page per 2026-10-26 audit"
+        }
+      ]
+    },
+    {
+      "field": "races_sailed",
+      "values": [
+        {
+          "value": 20,
+          "source": "published-roundup-2026-10-26",
+          "url": "https://sailingsa.co.za/sailing-roundup/issues/2026-10-26/"
+        },
+        {
+          "value": 16,
+          "source": "audit-official-results",
+          "url": "https://radiosailing.org.au/news/492",
+          "note": "official 16 races completed per audit"
+        }
+      ]
+    }
+  ]
+}

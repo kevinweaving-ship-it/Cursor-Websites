@@ -1,0 +1,43 @@
+{
+  "entries_total": 17,
+  "races_total": 4,
+  "regatta_id": "2026-10-24-ullman-sails-womens-series-day-2",
+  "result_name": "2026 Ullman Sails Women's Series — Day 2",
+  "event_name": "2026 Ullman Sails Women's Series — Day 2",
+  "start_date": "2026-10-24",
+  "end_date": "2026-10-24",
+  "result_status": "Provisional",
+  "as_at_time": "2026-10-24T14:59:41+02:00",
+  "host_club_code": "RCYC",
+  "host_club_name": "RCYC",
+  "host_club_id": 11,
+  "fleet_classes": [],
+  "fleet_stats": [
+    {
+      "class_name": "Non Spinnaker — Series overall (23 May–24 Oct)",
+      "class_slug": "non-spinnaker--series-overall-23-may24-oct",
+      "path": "/class/non-spinnaker--series-overall-23-may24-oct",
+      "entries": 7,
+      "races_depth": 4,
+      "fleet_label": "Non Spinnaker — Series overall (23 May–24 Oct)"
+    },
+    {
+      "class_name": "Spinnaker — Series overall (23 May–24 Oct)",
+      "class_slug": "spinnaker--series-overall-23-may24-oct",
+      "path": "/class/spinnaker--series-overall-23-may24-oct",
+      "entries": 10,
+      "races_depth": 4,
+      "fleet_label": "Spinnaker — Series overall (23 May–24 Oct)"
+    }
+  ],
+  "fleet_count": 2,
+  "entries_checksum_ok": true,
+  "blank_hub_news_badge_label": null,
+  "blank_hub_news_image_url": null,
+  "blank_hub_news_album": [],
+  "blank_hub_news_show_hero": true,
+  "mm_live_fb_feed": false,
+  "mm_feed_source": "",
+  "mm_fb_page": "",
+  "mm_clip_urls": []
+}

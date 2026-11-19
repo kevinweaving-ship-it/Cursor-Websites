@@ -1,0 +1,35 @@
+{
+  "url": "https://radiosailing.org.au/news/492",
+  "title": "Richards Conquers Theewaterskloof to Retain DF95 Global Title",
+  "outlet": "Australian Radio Yachting Association",
+  "event_id": "2026-df95-global-championship",
+  "quotes": [
+    "Great Britain's Craig Richards successfully defended his title",
+    "Held at Theewater Sports Club near Villiersdorp from 16–23 October",
+    "The defending champion established his authority early, winning seven of the 11 qualifying races before adding another two victories during the nine-race Gold Fleet finals",
+    "Finishing on just 29 nett points, Richards secured the championship ahead of Sweden's Ulf Lindberg on 45.4 points, with Norway's Odd Ornulf Stray completing the podium on 60 points."
+  ],
+  "facts": {
+    "winner_helm": "Craig Richards",
+    "winner_nation": "GBR",
+    "winner_nett": 29,
+    "second_helm": "Ulf Lindberg",
+    "second_nation": "SWE",
+    "second_nett": 45.4,
+    "third_helm": "Odd Ornulf Stray",
+    "third_nation": "NOR",
+    "third_nett": 60,
+    "defending_champion_retained": true,
+    "qualifier_wins": 7,
+    "qualifier_races_mentioned": 11,
+    "gold_final_wins": 2,
+    "gold_final_races_mentioned": 9,
+    "venue": "Theewater Sports Club",
+    "start_date": "2026-10-16",
+    "end_date": "2026-10-23"
+  },
+  "images": [
+    "https://radiosailing.org.au/_media/uploads/organisations/3/news/dfglob1-20261024001642-b356df.png",
+    "https://radiosailing.org.au/_media/uploads/organisations/3/news/dfglob3-20261024001715-3ba2d7.png"
+  ]
+}

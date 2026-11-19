@@ -1,0 +1,42 @@
+{
+  "url": "https://mysailingresults.com/api/results/get_results.php?eventid=22056",
+  "page_url": "https://radiosailing.org.au/results/22056",
+  "event_page": "https://mysailingresults.com/dev/event/22056",
+  "title": "2026 DF95 Global Championship Results",
+  "outlet": "mySailingResults / ARYA",
+  "event_id": "2026-df95-global-championship",
+  "facts": {
+    "winner_helm": "Craig Richards",
+    "winner_nation": "GBR",
+    "winner_nett": 29.0,
+    "second_helm": "Ulf Lindberg",
+    "second_nation": "SWE",
+    "second_nett": 45.4,
+    "third_helm": "Odd Ornulf Stray",
+    "third_nation": "NOR",
+    "third_nett": 60.0,
+    "defending_champion_retained": true,
+    "competitors_entered": 71,
+    "scored_results": 68,
+    "races_completed": 20,
+    "venue": "Theewater Sports Club",
+    "start_date": "2026-10-16",
+    "end_date": "2026-10-23",
+    "sa_best": {
+      "helm": "Roy Gardener",
+      "overall_rank": 10,
+      "fleet": "Gold",
+      "fleet_pos": 10,
+      "nation": "RSA",
+      "nett": 91.0
+    },
+    "sa_silver": {
+      "helm": "Michael Kavanagh",
+      "overall_rank": 19,
+      "fleet": "Silver",
+      "fleet_pos": 2,
+      "nation": "RSA",
+      "nett": 70.0
+    }
+  }
+}

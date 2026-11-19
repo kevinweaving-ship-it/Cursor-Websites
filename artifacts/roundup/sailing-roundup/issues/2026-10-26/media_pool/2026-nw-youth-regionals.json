@@ -1,0 +1,14 @@
+{
+  "event_id": "2026-nw-youth-regionals",
+  "event_url": null,
+  "dry_run": true,
+  "proposed_attachments": [
+    {
+      "src": "media/2026-nw-youth-regionals-hero.png",
+      "credit": "",
+      "role": "hero",
+      "kind": "text_card"
+    }
+  ],
+  "note": "Write these back onto the SailingSA event page media pool. Do not PATCH live from this job."
+}
