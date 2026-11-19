@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · UniFi</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<style>
+:root {
+  --bg:#ffffff; --card:#ffffff; --line:#d5deea; --text:#0b1f44; --muted:#4a5d7a;
+  --ok:#1a8f4a; --bad:#c62828; --warn:#c77800; --acc:#123a7a; --pad:16px;
+  --ml:844px;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:var(--acc); text-decoration:none; }
+a:hover { text-decoration:underline; }
+header.app {
+  position:sticky; top:0; z-index:5;
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:10px max(var(--pad), env(safe-area-inset-right)) 12px max(var(--pad), env(safe-area-inset-left));
+}
+.bar { display:flex; flex-direction:column; gap:6px; }
+header.app h1 { margin:0; font-size:22px; color:var(--acc); }
+header.app .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+.nav { display:flex; flex-wrap:wrap; gap:4px 16px; }
+.nav a { color:var(--acc); font-size:14px; min-height:40px; display:inline-flex; align-items:center; }
+main {
+  padding:12px max(var(--pad), env(safe-area-inset-right)) 32px max(var(--pad), env(safe-area-inset-left));
+  width:100%;
+}
+.banner {
+  margin:0 0 12px; padding:12px 14px; border:1px solid var(--line); border-radius:12px;
+  background:#fff8e8; color:var(--text);
+}
+.banner.ok { background:#eef8f1; }
+.banner strong { color:var(--warn); }
+.banner.ok strong { color:var(--ok); }
+.v.ok { color:var(--ok); font-weight:700; }
+.v.bad { color:var(--bad); font-weight:700; }
+.counts { color:var(--muted); font-size:13px; margin:0 0 10px; }
+h2 {
+  margin:18px 0 8px; font-size:13px; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--acc);
+}
+.card {
+  width:100%; margin:0 0 10px; padding:12px 14px;
+  background:var(--card); color:var(--text);
+  border:1px solid var(--line); border-radius:12px;
+}
+.name { font-weight:700; font-size:16px; color:var(--acc); }
+.meta { color:var(--muted); font-size:13px; margin-top:4px; }
+.k { font-size:11px; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); }
+.v { margin-top:2px; }
+.row { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.share {
+  display:flex; flex-wrap:wrap; gap:10px 16px; margin-top:10px;
+  padding-top:10px; border-top:1px solid var(--line);
+}
+.share label {
+  display:inline-flex; align-items:center; gap:8px; min-height:40px;
+  font-size:14px; font-weight:700; color:var(--acc); cursor:pointer;
+}
+.share input { width:18px; height:18px; accent-color:var(--acc); }
+.empty { color:var(--muted); padding:20px 0; }
+a.card { display:block; color:inherit; }
+a.card:hover { text-decoration:none; border-color:var(--acc); }
+.grid3 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+table.dev { width:100%; border-collapse:collapse; font-size:13px; }
+table.dev th {
+  text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase;
+  letter-spacing:.04em; font-weight:700; padding:6px 6px 8px 0; border-bottom:1px solid var(--line);
+}
+table.dev td { padding:7px 8px 7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+table.dev tr:last-child td { border-bottom:0; }
+table.dev td.ok { color:var(--ok); font-weight:700; }
+table.dev td.bad { color:var(--bad); font-weight:700; }
+.gauges { display:flex; flex-direction:column; gap:0; }
+.gauge.stale { opacity:.72; }
+.gauge.stale .name::after { content:" · stale"; color:var(--warn); font-weight:700; font-size:13px; }
+.meter { margin-top:10px; }
+.meter-head {
+  display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+  min-height:22px;
+}
+.meter-read { font-size:14px; color:var(--text); text-align:right; }
+.meter-read b { font-size:16px; color:var(--acc); }
+.meter-track {
+  margin-top:6px; height:10px; border-radius:6px; background:var(--line); overflow:hidden;
+}
+.meter-fill { height:100%; width:0; border-radius:6px; background:var(--ok); }
+.meter-fill.warn { background:var(--warn); }
+.meter-fill.bad { background:var(--bad); }
+.meter-fill.empty { width:0; }
+.sparks { display:flex; gap:10px; margin-top:10px; }
+.spark-col { flex:1; min-width:0; }
+.spark-col .k { margin-bottom:2px; }
+svg.spark { display:block; width:100%; height:36px; color:var(--acc); }
+.spark-empty { height:36px; color:var(--muted); font-size:14px; display:flex; align-items:center; }
+@media (max-width: 480px) {
+  .meter-head { flex-wrap:wrap; }
+  .meter-read { width:100%; text-align:left; }
+}
+@media (min-width: 600px) {
+  header.app, main {
+    width:100%; max-width:var(--ml);
+    margin-left:auto; margin-right:auto;
+  }
+  header.app { padding:12px 20px; }
+  .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; gap:16px; }
+  main { padding:14px 20px 36px; }
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="bar">
+    <div>
+      <h1 id="title">UniFi</h1>
+      <div class="sub" id="sub">Own dash · click a router for its child URL</div>
+    </div>
+    <nav class="nav">
+      <a href="/dash/unifi.html" id="back">UniFi</a>
+      <a href="/dash/#/">Home</a>
+      <a href="/dash/clients.html">Clients</a>
+      <a href="/dash/accounts.html">Accounts</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="banner" id="banner">Loading Site Manager…</div>
+  <div class="counts" id="counts"></div>
+  <h2 id="section">Site Manager hosts</h2>
+  <div id="list"></div>
+  <h2 id="share-head">Share</h2>
+  <div class="card">
+    <div class="meta">Ticks stay on this browser. Landing does not read them yet.</div>
+    <div class="meta" id="share-note"></div>
+  </div>
+</main>
+<script>
+const KEY = "gowifi-unifi-share";
+const HIST_MAX = 90;
+const STALE_MS = 10000;
+let HOSTS = [];
+let CURRENT = null;
+let CONNECTOR = null;
+let HISTORY = {};
+let LAST_OK_MS = 0;
+let LAST_AS_AT = "";
+let STALE = false;
+
+function loadShare() {
+  try { return JSON.parse(localStorage.getItem(KEY) || "{}") || {}; }
+  catch { return {}; }
+}
+function saveShare(share) {
+  localStorage.setItem(KEY, JSON.stringify(share));
+}
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[c]));
+}
+function fmtAsAt(s) {
+  const raw = String(s || "").trim();
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  return m ? (m[1] + " " + m[2]) : raw;
+}
+function statusLabel(state) {
+  if (state === "connected") return { text:"Online", cls:"ok" };
+  if (state === "disconnected") return { text:"Offline", cls:"bad" };
+  return { text: state || "unknown", cls:"" };
+}
+function wanStatus(s) {
+  const low = String(s || "").toLowerCase();
+  if (low === "online" || low === "up") return { text:"Online", cls:"ok" };
+  if (low === "offline" || low === "down") return { text:"Offline", cls:"bad" };
+  return { text: s || "unknown", cls:"" };
+}
+function mbpsText(n) {
+  if (n == null || n === "") return "—";
+  const v = Number(n);
+  if (!Number.isFinite(v)) return "—";
+  return v.toFixed(2);
+}
+function usedPct(used, cap) {
+  if (used == null || used === "" || cap == null || cap === "" || !Number(cap)) return null;
+  const v = Number(used);
+  if (!Number.isFinite(v)) return null;
+  return Math.round(Math.max(0, Math.min(100, v / Number(cap) * 100)) * 10) / 10;
+}
+function mergeGauges(base, live) {
+  if (!live || !live.length) return base || [];
+  if (!base || !base.length) return live;
+  const byId = Object.fromEntries(live.map(g => [g.id, g]));
+  return base.map(g => {
+    const n = byId[g.id];
+    if (!n) return g;
+    const down = n.used_down_mbps;
+    const up = n.used_up_mbps;
+    return Object.assign({}, g, n, {
+      name: g.name,
+      capacity_down_mbps: g.capacity_down_mbps,
+      capacity_up_mbps: g.capacity_up_mbps,
+      used_down_mbps: down,
+      used_up_mbps: up,
+      used_down_pct: usedPct(down, g.capacity_down_mbps),
+      used_up_pct: usedPct(up, g.capacity_up_mbps)
+    });
+  });
+}
+function pushHist(gauges) {
+  (gauges || []).forEach(g => {
+    if (!HISTORY[g.id]) HISTORY[g.id] = { down: [], up: [] };
+    HISTORY[g.id].down.push(g.used_down_mbps);
+    HISTORY[g.id].up.push(g.used_up_mbps);
+    if (HISTORY[g.id].down.length > HIST_MAX) HISTORY[g.id].down.shift();
+    if (HISTORY[g.id].up.length > HIST_MAX) HISTORY[g.id].up.shift();
+  });
+}
+function sparkline(values) {
+  const nums = (values || []).map(v => (v == null || v === "" ? null : Number(v)))
+    .filter(v => v != null && Number.isFinite(v));
+  if (!nums.length) return `<div class="spark-empty">—</div>`;
+  const w = 120, h = 36, pad = 2;
+  const min = Math.min(0, ...nums);
+  const max = Math.max(...nums);
+  const span = max - min || 1;
+  const step = (w - pad * 2) / Math.max(values.length - 1, 1);
+  const pts = values.map((v, i) => {
+    const n = v == null || v === "" ? null : Number(v);
+    if (n == null || !Number.isFinite(n)) return null;
+    const x = pad + i * step;
+    const y = h - pad - ((n - min) / span) * (h - pad * 2);
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).filter(Boolean).join(" ");
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="1.5" points="${pts}"/></svg>`;
+}
+function paintBar(label, used, cap, pct, statusCls) {
+  const hasUsed = used != null && used !== "" && Number.isFinite(Number(used));
+  const hasCap = cap != null && cap !== "" && Number(cap);
+  const width = hasUsed && hasCap && pct != null ? Math.max(0, Math.min(100, Number(pct))) : 0;
+  let fillCls = "empty";
+  if (hasUsed && hasCap) {
+    fillCls = statusCls === "bad" ? "bad" : (width >= 80 ? "warn" : "");
+  }
+  const capTxt = hasCap
+    ? ("of " + cap + " · " + (pct != null ? Number(pct).toFixed(1) + "%" : "—"))
+    : "capacity not in API";
+  return `<div class="meter">
+    <div class="meter-head">
+      <div class="k">${esc(label)}</div>
+      <div class="meter-read"><b>${esc(mbpsText(used))}</b> Mbps <span class="meta">${esc(capTxt)}</span></div>
+    </div>
+    <div class="meter-track"><div class="meter-fill ${fillCls}" style="width:${hasUsed && hasCap ? width : 0}%"></div></div>
+  </div>`;
+}
+function lteStatus(g, st) {
+  if (g.kind !== "lte") return st.text;
+  if (st.text === "Online" && g.failover_active === false) return "Online · Standby";
+  if (st.text === "Online" && g.failover_active === true) return "Online · Failed over";
+  return st.text;
+}
+function paintGauges(gauges, stale) {
+  if (!gauges || !gauges.length) return "";
+  return `<h2>WAN gauges</h2><div class="gauges">` + gauges.map(g => {
+    const st = wanStatus(g.status);
+    const statusTxt = lteStatus(g, st);
+    const bits = g.kind === "lte"
+      ? [g.operator, g.signal, g.ip].filter(Boolean)
+      : [
+          g.kind === "fibre" ? "fibre" : "",
+          g.ip,
+          g.latency_ms != null ? (Number(g.latency_ms) + " ms") : ""
+        ].filter(Boolean);
+    const hist = HISTORY[g.id] || { down: [], up: [] };
+    return `<article class="card gauge${stale ? " stale" : ""}">
+      <div class="row">
+        <div>
+          <div class="name">${esc(g.name)}</div>
+          ${bits.length ? `<div class="meta">${esc(bits.join(" · "))}</div>` : ""}
+        </div>
+        <div>
+          <div class="k">Status</div>
+          <div class="v ${st.cls}">${esc(statusTxt)}</div>
+        </div>
+      </div>
+      ${paintBar("Down", g.used_down_mbps, g.capacity_down_mbps, g.used_down_pct, st.cls)}
+      ${paintBar("Up", g.used_up_mbps, g.capacity_up_mbps, g.used_up_pct, st.cls)}
+      <div class="sparks">
+        <div class="spark-col"><div class="k">Down · this page</div>${sparkline(hist.down)}</div>
+        <div class="spark-col"><div class="k">Up · this page</div>${sparkline(hist.up)}</div>
+      </div>
+    </article>`;
+  }).join("") + `</div>`;
+}
+
+function childParam() {
+  return new URLSearchParams(location.search).get("h") || "";
+}
+function childHref(h) {
+  return "/dash/unifi.html?h=" + encodeURIComponent(h.slug || h.id);
+}
+function paintList() {
+  const share = loadShare();
+  const live = HOSTS.filter(Boolean);
+  document.getElementById("title").textContent = "UniFi";
+  document.getElementById("sub").textContent = "Own dash · click a router for its child URL";
+  document.getElementById("section").textContent = "Site Manager hosts";
+  document.getElementById("counts").textContent = live.length
+    ? (live.length + " hosts · " + live.filter(h => h.state==="connected").length + " online · " + live.filter(h => h.state==="disconnected").length + " offline · UISP radios stay on Home")
+    : "No hosts";
+  document.getElementById("list").innerHTML = live.map(h => {
+    const landing = !!(share[h.id] && share[h.id].landing);
+    const st = statusLabel(h.state);
+    const bits = [h.hardware, h.isp, (h.apps||[]).join(" · ")].filter(Boolean);
+    const clients = [];
+    if (h.wifi_clients != null) clients.push(h.wifi_clients + " wifi");
+    if (h.wired_clients != null) clients.push(h.wired_clients + " wired");
+    const dev = h.devices || {};
+    const extra = [];
+    if (dev.devices) extra.push(dev.online + "/" + dev.devices + " devices online");
+    if (h.wan_uptime != null) extra.push("WAN uptime " + Number(h.wan_uptime).toFixed(1) + "%");
+    if (h.device_state === "updateAvailable") extra.push("update available");
+    return `<article class="card" data-id="${esc(h.id)}">
+      <a class="row" href="${esc(childHref(h))}">
+        <div>
+          <div class="name">${esc(h.name)}</div>
+          <div class="meta">${esc(bits.join(" · "))}${clients.length ? " · " + esc(clients.join(" · ")) : ""}</div>
+          ${extra.length ? `<div class="meta">${esc(extra.join(" · "))}</div>` : ""}
+        </div>
+        <div>
+          <div class="k">Status</div>
+          <div class="v ${st.cls}">${esc(st.text)}</div>
+        </div>
+      </a>
+      <div class="share">
+        <label><input type="checkbox" data-share="landing" ${landing ? "checked" : ""}> Landing</label>
+      </div>
+    </article>`;
+  }).join("") || `<div class="empty">No hosts from UniFi.</div>`;
+  const n = live.filter(h => share[h.id] && share[h.id].landing).length;
+  document.getElementById("share-note").textContent =
+    n ? (n + " ticked for landing — not published") : "Nothing ticked";
+}
+function paintChild(h, connector) {
+  const share = loadShare();
+  const landing = !!(share[h.id] && share[h.id].landing);
+  const st = statusLabel(h.state);
+  document.title = "GoWifi · " + (h.name || "UniFi");
+  document.getElementById("title").textContent = h.name || "UniFi";
+  document.getElementById("sub").textContent = "Child URL · data from this machine";
+  document.getElementById("section").textContent = "This machine";
+  document.getElementById("counts").textContent = childHref(h);
+  const fields = [
+    ["Status", st.text, st.cls],
+    ["Hardware", h.hardware || h.shortname || ""],
+    ["Firmware", h.firmware || ""],
+    ["ISP", h.isp || ""],
+    ["Timezone", h.timezone || ""],
+    ["Apps", (h.apps || []).join(" · ")],
+    ["Wi‑Fi clients", h.wifi_clients != null ? String(h.wifi_clients) : ""],
+    ["Wired clients", h.wired_clients != null ? String(h.wired_clients) : ""],
+  ].filter(r => r[1]);
+  const gaugesHtml = paintGauges(h.gauges || [], STALE);
+  const wans = gaugesHtml ? "" : (h.wans || []).map(w => {
+    const bits = [w.isp, w.external_ip, w.uptime != null ? ("uptime " + Number(w.uptime).toFixed(1) + "%") : "", w.port_up === true ? "port up" : w.port_up === false ? "port down" : ""].filter(Boolean);
+    return `<div class="card"><div class="k">${esc(w.name)}</div><div class="v">${esc(bits.join(" · "))}</div></div>`;
+  }).join("");
+  const rows = ((h.devices || {}).rows) || [];
+  const table = rows.length
+    ? `<div class="card"><table class="dev"><thead><tr><th>Device</th><th>Model</th><th>Status</th><th>Version</th><th>IP</th></tr></thead><tbody>` +
+      rows.map(d => `<tr><td>${esc(d.name)}${d.is_console ? " · console" : ""}</td><td>${esc(d.model)}</td><td class="${d.status==="online"?"ok":d.status==="offline"?"bad":""}">${esc(d.status)}</td><td>${esc(d.version)}</td><td>${esc(d.ip)}</td></tr>`).join("") +
+      `</tbody></table></div>`
+    : `<div class="empty">No devices on this host.</div>`;
+  const conn = connector && connector.ok
+    ? `<div class="meta">Network app ${esc(connector.application_version || "")}</div>`
+    : (connector && connector.error ? `<div class="meta">Connector: ${esc(connector.error)}</div>` : "");
+  const gaugesErr = connector && connector.gauges_error
+    ? `<div class="meta">Gauges: ${esc(connector.gauges_error)}</div>` : "";
+  document.getElementById("list").innerHTML =
+    `<div class="card" data-id="${esc(h.id)}">
+      <div class="grid3">${fields.map(f => `<div><div class="k">${esc(f[0])}</div><div class="v ${f[2]||""}">${esc(f[1])}</div></div>`).join("")}</div>
+      ${conn}${gaugesErr}
+      <div class="share"><label><input type="checkbox" data-share="landing" ${landing ? "checked" : ""}> Landing</label></div>
+    </div>` +
+    gaugesHtml +
+    (wans ? `<h2>WAN</h2>${wans}` : "") +
+    `<h2>Devices</h2>${table}`;
+  document.getElementById("share-note").textContent =
+    landing ? "Ticked for landing — not published" : "Nothing ticked";
+}
+
+document.getElementById("list").addEventListener("change", ev => {
+  const input = ev.target.closest("input[data-share]");
+  if (!input) return;
+  const card = input.closest("[data-id]");
+  if (!card) return;
+  const share = loadShare();
+  const id = card.getAttribute("data-id");
+  share[id] = share[id] || {};
+  share[id][input.getAttribute("data-share")] = input.checked;
+  saveShare(share);
+  if (CURRENT) paintChild(CURRENT, CONNECTOR);
+  else paintList();
+});
+
+const want = childParam();
+const POLL_MS = 2000;
+const api = "/dash/api/unifi" + (want ? ("?h=" + encodeURIComponent(want)) : "");
+function setLiveBanner(kind, asAt, stale) {
+  const banner = document.getElementById("banner");
+  LAST_AS_AT = fmtAsAt(asAt || LAST_AS_AT);
+  if (stale) {
+    banner.className = "banner";
+    banner.innerHTML = "<strong>Stale.</strong> as at " + esc(LAST_AS_AT);
+    return;
+  }
+  banner.className = "banner ok";
+  banner.innerHTML = "<strong>Live from " + kind + ".</strong> as at " + esc(LAST_AS_AT);
+}
+function markStale() {
+  STALE = true;
+  if (CURRENT) paintChild(CURRENT, CONNECTOR);
+  setLiveBanner(want ? "this machine" : "Site Manager", LAST_AS_AT, true);
+}
+function pollTick() {
+  if (document.hidden) {
+    if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+    return;
+  }
+  if (want && CURRENT) {
+    fetch(api + "&live=1", { credentials:"same-origin", cache:"no-store" })
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.ok) { markStale(); return; }
+        STALE = false;
+        LAST_OK_MS = Date.now();
+        CURRENT.gauges = mergeGauges(CURRENT.gauges, data.gauges || []);
+        pushHist(CURRENT.gauges);
+        paintChild(CURRENT, CONNECTOR);
+        setLiveBanner("this machine", data.as_at);
+      })
+      .catch(() => { markStale(); });
+    return;
+  }
+  if (!want) {
+    fetch("/dash/api/unifi", { credentials:"same-origin", cache:"no-store" })
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.live) { markStale(); return; }
+        STALE = false;
+        LAST_OK_MS = Date.now();
+        HOSTS = data.hosts || [];
+        paintList();
+        setLiveBanner("Site Manager", data.as_at);
+      })
+      .catch(() => { markStale(); });
+  }
+}
+fetch(api, { credentials:"same-origin", cache:"no-store" })
+  .then(r => r.json().then(data => ({ ok:r.ok, data })))
+  .then(({ data }) => {
+    const banner = document.getElementById("banner");
+    if (!data || !data.live || (want && !data.host)) {
+      banner.className = "banner";
+      banner.innerHTML = "<strong>Not live from UniFi.</strong> " + esc(data && data.error || "No summary");
+      HOSTS = [];
+      if (!want) paintList();
+      return;
+    }
+    if (want) {
+      CURRENT = data.host;
+      CONNECTOR = data.connector || null;
+      LAST_OK_MS = Date.now();
+      STALE = false;
+      pushHist(CURRENT.gauges || []);
+      paintChild(CURRENT, CONNECTOR);
+      setLiveBanner("this machine", data.as_at);
+      setInterval(pollTick, POLL_MS);
+      return;
+    }
+    HOSTS = data.hosts || [];
+    LAST_OK_MS = Date.now();
+    STALE = false;
+    paintList();
+    setLiveBanner("Site Manager", data.as_at);
+    setInterval(pollTick, POLL_MS);
+  })
+  .catch(err => {
+    document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong> " + esc(err.message || err);
+    HOSTS = [];
+    if (!want) paintList();
+  });
+</script>
+</body>
+</html>

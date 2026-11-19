@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoWiFi Box QuickBooks callback</title>
+<link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<header>
+  <div class="brand">GoWifi (Pty) Ltd</div>
+</header>
+<main class="card">
+  <h1 id="title">Wrong page</h1>
+  <p id="msg">This page only saves the bounce-back from Intuit. Open <a href="connect.html">Connect</a> instead.</p>
+</main>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var title = document.getElementById("title");
+  var el = document.getElementById("msg");
+  if (q.get("error")) {
+    title.textContent = "Intuit error";
+    el.textContent = (q.get("error_description") || q.get("error") || "Intuit sent an error") + ". Open Connect and try again.";
+    return;
+  }
+  if (q.get("code")) {
+    title.textContent = "Saving…";
+    el.textContent = "Authorisation received. Saving on the box…";
+    fetch("/legal/qb-token", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({code: q.get("code"), realmId: q.get("realmId"), state: q.get("state")})
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      title.textContent = d.ok ? "Connected" : "Not saved";
+      el.textContent = d.ok
+        ? "Connected. You can close this tab."
+        : ((d.error || "Could not save tokens.") + " Open Connect and click the button once more.");
+    }).catch(function () {
+      title.textContent = "Not saved";
+      el.textContent = "Could not reach the box.";
+    });
+  }
+})();
+</script>
+</body>
+</html>
