@@ -1,0 +1,27 @@
+Aerial Networks hero footage
+
+These clips are illustrative stock scenes. They are not photographs of Aerial Networks sites.
+
+License: Pexels License
+https://www.pexels.com/license/
+Free to use and edit. Attribution is not required. Unaltered copies must not be sold on their own.
+
+Sources
+1. Opening landscape and return landscape
+   https://www.pexels.com/video/drone-video-of-a-communication-tower-in-an-open-field-12915608/
+   Video id 12915608
+   Used from 0.6s (opening) and from 15.2s (return to the landscape).
+
+2. Closer mast
+   https://www.pexels.com/video/arc-shot-by-drone-of-a-communication-tower-4916490/
+   Video id 4916490
+   Used from 3.0s, full frame so the top of the mast stays in shot.
+
+3. Equipment racks
+   https://www.pexels.com/video/database-storage-of-a-server-5028622/
+   Video id 5028622
+   The clip stays on two equipment racks. Used from 11.0s, scaled to the full frame so the racks are not tightly cropped. No wide datacentre shot is in this file.
+
+Edit
+Silent. About 23.9 seconds. Each shot slowed to 1.15x. Crossfades are 1.2 seconds: landscape, mast, racks, landscape. The last 1.2 seconds fade back to the opening frame so the loop joins smoothly.
+Web files: hero-1080.mp4 (1920x1080 H.264, under 8 MB), hero-720.mp4 (1280x720 H.264), hero-poster.jpg.
