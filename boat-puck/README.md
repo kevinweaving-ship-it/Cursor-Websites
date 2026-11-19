@@ -27,6 +27,7 @@ See [`NORTH_STAR.md`](NORTH_STAR.md).
 | `gnss-50hz-lock.md` | GNSS **≥25 Hz** Atlas parity; **50 Hz** stretch (UM980) |
 | `chat-reassess-gnss-2026-09.md` | Full paste rescore after unlocking 50 Hz hard bar |
 | `puck-components-buy-list.md` | **Puck parts + prices + buy URLs** |
+| `china-orders/` | **China samples** — Dev/Lucas chats + Google Sheet rows |
 | `alibaba-gnss-eval-2026-09.md` | Alibaba GNSS paste set — price/size; Puck vs committee base |
 | `sailteck-research.md` | Sailteck Race/GPS Compass ID; twin-wedge housing lookalikes |
 | `bom-puck-screen-cost.md` | Cost summary Puck vs Screen (loud speaker on 2a) |
