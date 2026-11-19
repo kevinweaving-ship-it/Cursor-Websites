@@ -57,3 +57,19 @@ Redhouse event 168679 /regatta/2026-10-31-ec-dinghy-regionals has 24 rows, artif
 The daily SAS loader preservation fix for stable results_url survived the next import.
 
 No shared API/frontend changes, existing URL rewrites or service restarts are authorized by the historical-results import task.
+
+## Current continuation instruction — 19 November 2026
+Run the ingestion task in Cursor on Kevin's Mac Mini local/Remote-SSH workspace with its existing SSH configuration, or in a runtime exposing the authenticated REA connector. A cloud pod lacking those bindings cannot gain them merely by pulling this file. Do not copy private keys, disable host checking, or broaden service privileges. Use existing Mac/SSH runbooks; do not repeatedly retry unauthenticated pod SSH.
+
+Read the complete server handoff and parsing/scoring/identity runbooks before writes. Inspect current live task state; do not assume earlier counts mean validation or publication. Continue the 724 backlog and new-source registers, highest validated readiness then newest date, skipping blocked cases into a precise manual queue.
+
+DATA-ONLY: use existing ingestion/result/profile/roundup workflows; no shared API/frontend/routing/service configuration changes, no URL rewrites, no service restarts. Scoped backups, atomic transactions, exclusive ingestion lock, source-version and duplicate guards, checkpoints, bounded retries, health checks before/after. Preserve source scoring and verify races/codes/discards/total/nett/rank/count. Verified SAS identities else established Temp workflow; RSA/ZAR DF95 Globals exception applies. Preserve parent/fleet scopes, stable URLs, confirmed host club metadata/logos, provenance and separate source origin from sanction status. Rebuild original affected reporting weeks (Africa/Johannesburg), preserving last-good editions on failure; verify results/profiles/HTML/PDF/cards publicly. A shared-code blocker holds that case only.
+
+Additional discovery inputs on SailingSA:
+- reports/GOOGLE_SOURCE_CLAIMS_CHECK_20261119.md
+- tasks/google-source-leads-20261119.json
+- tasks/further-source-discovery-20261119.json
+- reports/FURTHER_SOURCE_DISCOVERY_20261119.md
+All below /var/lib/sailingsa-results-backfill/. These are source leads, not a count of missing events. Validate against live data. FBYC handicap views and provisional/final snapshots must not become duplicate parent events. Official SAS 2015/2016 Youth PDFs remain SAS sources. Hunter archive needs exact event dates; ABYC 2014 Hobie summary lacks race-by-race scores, so do not fabricate them.
+
+Report actual archived, audited, duplicates, published and manual counts separately. No blanket publication enablement before existing validation gates pass.
