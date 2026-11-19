@@ -111,7 +111,7 @@ change hosting-console credentials.
 
 ## Denied on purpose
 
-`/root/secrets`, `/root/gowifi-upp`, Mail-in-a-Box mail data, TLS private
+`/root/secrets`, `/root/gowifi-upp`, Mail-in-a-Box mail other than the billing bind at `/var/lib/gowifi/billing-mail` (openserve@, accounts@, and Openserve attachments), TLS private
 keys, `/opt/arial-whatsapp-poc/state/auth`, `/etc/arial-whatsapp-poc.env`,
 unrestricted root, public extra services, `chmod 777`, disk/boot/firewall
 changes, destructive database DDL, SSH/auth changes, and bulk system
