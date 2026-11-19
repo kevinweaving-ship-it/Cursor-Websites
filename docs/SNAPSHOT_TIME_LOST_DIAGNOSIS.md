@@ -1,6 +1,8 @@
 # Diagnosis: Where Snapshot Time Is Lost (Results Import Pipeline)
 
-**Symptom:** The results sheet clearly states e.g. "Results are provisional as of 14:20 on February 15, 2026", but `regattas.as_at_time` and `results.as_at_time` are NULL, so the header shows "(snapshot time not recorded)" or a wrong fallback.
+**Symptom:** The results sheet clearly states e.g. "Results are provisional as of 14:20 on February 15, 2026", but `regattas.as_at_time` and `results.as_at_time` are NULL.
+
+**Retired display (do not use):** `(snapshot time not recorded)`. If `as_at_time` is NULL, omit the status line. Canonical line is only `Results are [Provisional|Final] as at DD Month YYYY at HH:MM` (`docs/RESULTS_HTML_STATUS_LINE_RULE.md`).
 
 **Conclusion:** The snapshot timestamp is **never parsed by code** and **never written to the DB** in the current import pipeline. It exists only on the source document; no step in the pipeline extracts it or persists it.
 
