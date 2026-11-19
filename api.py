@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Body, Query, Request, File, UploadFile
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response, FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -35,6 +35,19 @@ try:
     from modules.sailor_bio import build_sailor_bio_from_db
 except ImportError:
     build_sailor_bio_from_db = None  # module not deployed (e.g. missing sailingsa/api/modules/)
+
+try:
+    from sailingsa.backend.weather_agromet import history_payload as _agromet_history_payload
+except ImportError:
+    _agromet_root = os.path.dirname(os.path.abspath(__file__))
+    if os.path.basename(_agromet_root) == "api":
+        _agromet_root = os.path.dirname(_agromet_root)
+    if _agromet_root not in sys.path:
+        sys.path.insert(0, _agromet_root)
+    try:
+        from sailingsa.backend.weather_agromet import history_payload as _agromet_history_payload
+    except ImportError:
+        _agromet_history_payload = None
 
 NAME_SIM_THRESHOLD = 0.75
 
@@ -24322,6 +24335,19 @@ def _wc_fleet_editable_cell(
     return f'<span class="wc-sa-edit-hide">{public_inner_html}</span>' + inp
 
 
+_MIDMAR_CUP_REGATTA_ID = "2026-09-19-hmyc-midmar-cup"
+
+
+def _midmar_fleet_header_results_status_html(regatta_id) -> str:
+    """Midmar fleet header, under sailed-line: Results are Provisional + date, no time."""
+    if str(regatta_id or "").strip() != _MIDMAR_CUP_REGATTA_ID:
+        return ""
+    return (
+        '<div class="sailed-line fleet-results-status">Results are Provisional</div>'
+        '<div class="sailed-line fleet-results-as-at">19 Sep 2026</div>'
+    )
+
+
 def _render_result_sheet_fleet(
     fleet: dict,
     standalone_class_page: bool = False,
@@ -24657,7 +24683,8 @@ def _render_result_sheet_fleet(
         f'<div class="class-header">'
         f"{class_logo_col}"
         f'<div class="class-header-text-col"><div class="fleet-title-row">{fleet_header_html}</div>'
-        f'<div class="sailed-line">{html_module.escape(sailed_line)}</div></div></div>'
+        f'<div class="sailed-line">{html_module.escape(sailed_line)}</div>'
+        f"{_midmar_fleet_header_results_status_html(regatta_id)}</div></div>"
         f'<div class="table-wrapper">{table_html}</div></div>'
     )
 
@@ -24772,8 +24799,14 @@ _SECTION_HEADING_ROW_UNIFIED_CSS = """
 """
 
 _CLUB_PAGE_CSS = """
+.club-page { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1rem 2rem; box-sizing: border-box; }
 .club-page .card.stats-section { background: #fff; border: 2px solid #001f3f; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
 .club-page .section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 2px solid #001f3f; padding-bottom: 0.35rem; margin-bottom: 0.75rem; color: #001f3f; }
+.club-page .club-live-media { width: 100%; box-sizing: border-box; display: flex; flex-direction: column; gap: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.club-page .club-live-media .ssa-regatta-slot-card { margin-top: 0; width: 100%; max-width: 100%; }
+.club-page .club-live-media .mm-lipton-reels,
+.club-page .club-live-media .club-hyc-cam,
+.club-page .club-live-media .club-live-cam { margin-top: 10px; width: 100%; }
 """ + _SECTION_HEADING_ROW_UNIFIED_CSS + """
 .club-sailors-filter-input { padding: 0.5rem 1rem; border: 2px solid #001f3f; border-radius: 999px; font-size: 1rem; box-sizing: border-box; min-height: 44px; }
 .club-sailors-carousel-controls { margin-bottom: 0.5rem; }
@@ -26000,8 +26033,12 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
         f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
         "<link rel=\"stylesheet\" href=\"/css/main.css?v=13\">"
+        '<link rel="stylesheet" href="/css/mm-lipton-reels.css?v=clubwx18">'
         f"<style>body{{font-family:system-ui,sans-serif;margin:2rem;color:#1a2750;}}a{{color:#1a2750;}}{_CLUB_PAGE_CSS}</style></head><body>"
-        f"<div class=\"club-page\">{body}</div>{_seo_discovery_block_html()}</body></html>"
+        f"<div class=\"club-page\">{body}</div>"
+        '<script src="/js/live-cam-sources.js?v=clubwx18" defer></script>'
+        '<script src="/js/club-live-media.js?v=clubwx18" defer></script>'
+        f"{_seo_discovery_block_html()}</body></html>"
     )
     return HTMLResponse(doc)
 
@@ -26065,6 +26102,131 @@ def _resolve_class_slug_to_class_id(class_slug: str):
             return (None, None)
     class_id, class_name = _get_class_by_name_slug(s)
     return (class_id, class_name)
+
+
+@app.get("/api/weather/agromet-midmar/history")
+def api_weather_agromet_midmar_history(hours: int = Query(12, ge=1, le=48)):
+    """HMYC venue wind from UKZN Agromet Midmar (same card as ZVYC/HYC)."""
+    if _agromet_history_payload is None:
+        return JSONResponse({"ok": False, "slug": "agromet-midmar", "count": 0, "readings": [], "err": "agromet module missing"})
+    return JSONResponse(_agromet_history_payload(hours))
+
+
+@app.get("/api/club-cam/hmyc")
+def api_club_cam_hmyc():
+    """HMYC club cam is a still (about 1 min), not a live stream."""
+    try:
+        from sailingsa.backend.weather_agromet import snapshot_status as _hmyc_cam_status
+    except ImportError:
+        _hmyc_cam_status = None
+    if _hmyc_cam_status is None:
+        return JSONResponse({"ok": False, "kind": "snapshot", "label": "Club cam", "interval_sec": 60, "err": "agromet module missing"})
+    return JSONResponse(_hmyc_cam_status())
+
+
+@app.get("/api/weather/hyc/history")
+def api_weather_hyc_history(hours: int = Query(12, ge=1, le=48)):
+    """HYC venue wind from WU PWS IOVERS2 (mph → knots). Catalog: /api/weather/clubs/HYC/stations."""
+    try:
+        from sailingsa.backend.weather_hyc import history_payload as _hyc_wx
+    except ImportError:
+        _hyc_wx = None
+    if _hyc_wx is None:
+        return JSONResponse({"ok": False, "slug": "pws-iovers2", "count": 0, "readings": [], "err": "hyc weather module missing"})
+    return JSONResponse(_hyc_wx(hours))
+
+
+@app.get("/api/club-cam/hyc")
+def api_club_cam_hyc(request: Request):
+    """HYC Cam 5 live pass-through from the club NVR. Super-admin can hide it."""
+    try:
+        from sailingsa.backend import club_cam_hyc as _hyc_cam
+    except ImportError:
+        _hyc_cam = None
+    if _hyc_cam is None:
+        return JSONResponse({"ok": False, "kind": "live", "live": False, "visible": False, "err": "hyc cam module missing"})
+    can = _session_role_is_super_admin(request)
+    allowed = _hyc_cam.is_visible() or can
+    return JSONResponse(_hyc_cam.status_payload(allowed=allowed, can_toggle=can))
+
+
+@app.get("/api/club-cam/hyc/live")
+def api_club_cam_hyc_live(request: Request, u: str = Query("")):
+    """Pass-through of the NVR Cam 5 live feed (HLS / MJPEG / MP4)."""
+    try:
+        from sailingsa.backend import club_cam_hyc as _hyc_cam
+    except ImportError:
+        _hyc_cam = None
+    if _hyc_cam is None:
+        raise HTTPException(status_code=503, detail="hyc cam module missing")
+    if not (_hyc_cam.is_visible() or _session_role_is_super_admin(request)):
+        raise HTTPException(status_code=404, detail="live cam hidden")
+    target = (u or "").strip()
+    if target:
+        if not _hyc_cam.allowed_upstream(target):
+            raise HTTPException(status_code=400, detail="bad upstream")
+    else:
+        target = _hyc_cam.live_url()
+    fp, ctype, err = _hyc_cam.open_live(target, timeout=None)
+    if fp is None:
+        raise HTTPException(status_code=502, detail=err or "nvr live failed")
+    kind = _hyc_cam.stream_kind(target)
+    if kind == "hls" or "mpegurl" in (ctype or "").lower():
+        try:
+            body = fp.read()
+        finally:
+            try:
+                fp.close()
+            except OSError:
+                pass
+        text = body.decode("utf-8", "replace")
+        if text.lstrip().startswith("#EXTM3U"):
+            text = _hyc_cam.rewrite_hls_playlist(text, target)
+            return Response(
+                content=text,
+                media_type="application/vnd.apple.mpegurl",
+                headers={"Cache-Control": "no-store, max-age=0"},
+            )
+        return Response(content=body, media_type=ctype or "application/octet-stream", headers={"Cache-Control": "no-store"})
+
+    def _gen():
+        try:
+            while True:
+                chunk = fp.read(16384)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            try:
+                fp.close()
+            except OSError:
+                pass
+
+    media = ctype or ("multipart/x-mixed-replace" if kind == "mjpeg" else "application/octet-stream")
+    return StreamingResponse(_gen(), media_type=media, headers={"Cache-Control": "no-store, max-age=0"})
+
+
+@app.get("/api/club-cam/hyc/snapshot")
+def api_club_cam_hyc_snapshot(request: Request):
+    """Old snapshot path — same live pass-through."""
+    return api_club_cam_hyc_live(request, u="")
+
+
+@app.patch("/api/super-admin/club-cam/hyc")
+async def api_super_admin_club_cam_hyc(request: Request, body: dict = Body(...)):
+    _require_super_admin(request)
+    try:
+        from sailingsa.backend import club_cam_hyc as _hyc_cam
+    except ImportError:
+        _hyc_cam = None
+    if _hyc_cam is None:
+        raise HTTPException(status_code=503, detail="hyc cam module missing")
+    visible = bool((body or {}).get("visible"))
+    _hyc_cam.set_visible(visible)
+    payload = _hyc_cam.status_payload(allowed=True, can_toggle=True)
+    payload["ok"] = True
+    payload["visible"] = visible
+    return JSONResponse(payload)
 
 
 @app.get("/api/class/resolve-slug/{slug}")
