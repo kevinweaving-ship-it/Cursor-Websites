@@ -1,0 +1,4827 @@
+{
+  "schema": "sailingsa.cursor_credits_audit.v1",
+  "auditedAt": "2026-10-12T22:45:00Z",
+  "auditor": "credits-self-check-monitor",
+  "account": {
+    "name": "Kevin Weaving",
+    "email": "kevinweaving@icloud.com",
+    "ccEmail": "kevinweaving@icloud.com",
+    "caseMailbox": "cursor@sailingsa.co.za",
+    "cursorUserId": 291509789,
+    "owningUserId": 291509789,
+    "repo": "github.com/kevinweaving-ship-it/Cursor-Websites",
+    "dashboard": "https://cursor.com/dashboard",
+    "agents": "https://cursor.com/agents",
+    "billing": "https://cursor.com/dashboard/billing",
+    "usage": "https://cursor.com/settings/usage",
+    "environment": "https://cursor.com/dashboard/cloud-agents/environments/e/d2dd94a0-9f0b-11f1-a7d1-d6b4613131ce",
+    "environmentPublicId": "d2dd94a0-9f0b-11f1-a7d1-d6b4613131ce",
+    "environmentVersionId": "d2f0a7fb-9f0b-11f1-a7d1-d6b4613131ce"
+  },
+  "mail": {
+    "from": "cursor@sailingsa.co.za",
+    "to": [
+      "hi@cursor.com"
+    ],
+    "cc": [
+      "kevinweaving@icloud.com"
+    ],
+    "supportPolicy": "https://cursor.com/help/account-and-billing/refunds"
+  },
+  "workerAtAudit": {
+    "displayName": "Kevin - Mac Mini",
+    "workerId": "43e56b9a-b958-55dd-a151-df216da22615",
+    "machineDisplayName": "Kevin - Mac Mini",
+    "machineId": "317bc7fbbf808a6cf3ded36d6ceb835a2d434f23562987f506c32dedbb987350",
+    "connected": true,
+    "isInUse": false,
+    "eligibleForSubagent": true,
+    "note": "Mac Mini worker was idle while public-cloud agents were created. Cloud-over-Mac is a platform routing fault."
+  },
+  "summary": {
+    "agentsAudited": 241,
+    "cursorFault": 241,
+    "userFault": 0,
+    "running": 1,
+    "idle": 170,
+    "error": 70,
+    "onMacWorker": 0,
+    "onPublicCloud": 241,
+    "sources": {
+      "mobile": 24,
+      "internal": 199,
+      "desktop": 16,
+      "web": 2
+    },
+    "models": {
+      "cursor-grok-4.6-high-fast": 18,
+      "(none)": 199,
+      "grok-4.7": 4,
+      "cursor-grok-4.6-high": 9,
+      "claude-4.5-opus-high-thinking": 2,
+      "default": 7,
+      "cursor-grok-4.5-high-fast": 2
+    },
+    "reasonCounts": {
+      "public_cloud_not_mac_worker": 241,
+      "unsolicited_internal_spawn": 199,
+      "left_idle_over_48h": 20,
+      "instant_error": 68,
+      "internal_spawn_fail": 69,
+      "premium_model_against_account_defaults": 2,
+      "cloud_over_mac": 1,
+      "required_cc_omitted": 1,
+      "extra_cloud_after_october_filed": 1
+    },
+    "period": {
+      "from": "2026-08-23T16:00:56Z",
+      "to": "2026-10-12T22:38:54Z"
+    },
+    "instantErrorsLt2s": 66,
+    "internalSpawns": 199,
+    "opusRuns": 2
+  },
+  "monthlyReset": {
+    "from": "2026-10-01T00:00:00Z",
+    "to": "2026-10-12T22:45:00Z",
+    "agents": 23,
+    "onMacWorker": 0,
+    "onMacWorkerPct": 0.0,
+    "legitimateCloudPct": 0.0,
+    "userAskedCount": 10,
+    "userAskedPct": 43.5,
+    "internalCount": 13,
+    "internalFuckupPct": 56.5,
+    "cloudOverMacCount": 7,
+    "cloudOverMacPct": 30.4,
+    "desktopCloudCount": 3,
+    "desktopCloudPct": 13.0,
+    "creditPct": 100.0,
+    "hours": 258.3,
+    "internalHoursPct": 60.3,
+    "cloudOverMacHoursPct": 36.6,
+    "desktopCloudHoursPct": 3.1,
+    "allTimeAgents": 241,
+    "allTimeFailedSpawnPct": 29.0,
+    "allTimeInternalPct": 82.6
+  },
+  "verdict": "All 241 Cloud agents in this environment are Cursor-platform waste, not user error. Zero used the connected Mac Mini worker. 199 were unsolicited internal spawns. 66 ERROR agents died in under 2 seconds with empty dashboard event logs (spawn/infra failure). Two mobile runs used claude-4.5-opus-high-thinking against the account credit-burn rule. Request billing review and credit of wasted Cloud/on-demand usage.",
+  "agents": [
+    {
+      "bcId": "bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1",
+      "name": "Credits self-check monitor",
+      "status": "RUNNING",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-10-12T22:38:54Z",
+      "updatedAt": "2026-10-12T23:32:00Z",
+      "durationSec": 116.447,
+      "branchName": "cursor/credits-self-check-monitor-05e1",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "cloud_over_mac",
+        "required_cc_omitted",
+        "extra_cloud_after_october_filed"
+      ],
+      "note": "Queued for next fuckup report. Do not open a new ticket."
+    },
+    {
+      "bcId": "bc-1e0a7f5a-5b4f-5d3c-a524-91b2d47e5305",
+      "name": "Verify TSL vs Dart sheets",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-12T19:17:59Z",
+      "updatedAt": "2026-10-12T22:24:19Z",
+      "durationSec": 11179.794,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1e0a7f5a-5b4f-5d3c-a524-91b2d47e5305",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a130e6-2e44-7567-adbd-581dea125270",
+      "name": "Sialingsa ssl documentation",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-10-12T16:15:54Z",
+      "updatedAt": "2026-10-12T22:31:57Z",
+      "durationSec": 22562.815,
+      "branchName": "cursor/mac-tsl-wc-event-url-5270",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a130e6-2e44-7567-adbd-581dea125270",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a130d1-fb1a-7420-91ed-41bc64e3218e",
+      "name": "Timadvisor asia trip url",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-10-12T15:53:50Z",
+      "updatedAt": "2026-10-12T15:59:51Z",
+      "durationSec": 360.588,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a130d1-fb1a-7420-91ed-41bc64e3218e",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-58b1055d-5dcc-5719-afee-0ef18b811450",
+      "name": "Review keypad logo video",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-12T07:08:23Z",
+      "updatedAt": "2026-10-12T07:09:25Z",
+      "durationSec": 62.122,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-58b1055d-5dcc-5719-afee-0ef18b811450",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-c0b08992-8c33-5e4d-ab5e-d4a17497145f",
+      "name": "Review keypad login video",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-12T06:39:35Z",
+      "updatedAt": "2026-10-12T06:40:10Z",
+      "durationSec": 35.226,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-c0b08992-8c33-5e4d-ab5e-d4a17497145f",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a00dc83d-5465-5efe-ae74-232f7d780f88",
+      "name": "Verify new keypad logo",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-12T06:35:04Z",
+      "updatedAt": "2026-10-12T07:04:40Z",
+      "durationSec": 1775.355,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a00dc83d-5465-5efe-ae74-232f7d780f88",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-dffec32a-f4d4-4207-bdb3-261c387a588c",
+      "name": "Club event administration",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "grok-4.7",
+      "createdAt": "2026-10-11T06:33:57Z",
+      "updatedAt": "2026-10-11T08:08:58Z",
+      "durationSec": 5700.825,
+      "branchName": "cursor/fix-sas-scrapes-588c",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-dffec32a-f4d4-4207-bdb3-261c387a588c",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a12790-3245-7b1f-be13-14473a5bf886",
+      "name": "GoWifi Arial functions",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-10-10T20:45:24Z",
+      "updatedAt": "2026-10-12T13:37:38Z",
+      "durationSec": 147134.532,
+      "branchName": "cursor/aerialnet-hansekop-voelklip-f886",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a12790-3245-7b1f-be13-14473a5bf886",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a126f6-5e61-7a0c-9d9a-6e6f7173ae04",
+      "name": "Bottle results table width",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-10-10T17:57:24Z",
+      "updatedAt": "2026-10-10T17:57:34Z",
+      "durationSec": 9.94,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a126f6-5e61-7a0c-9d9a-6e6f7173ae04",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-47befc92-d42a-57e3-8d2a-c614dbc7a415",
+      "name": "Watch table overwrite",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-10T06:54:50Z",
+      "updatedAt": "2026-10-10T12:30:54Z",
+      "durationSec": 20164.285,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-47befc92-d42a-57e3-8d2a-c614dbc7a415",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a1248b-05f3-7f36-9eb2-2be2a306a65f",
+      "name": "HMYC PY scores",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-10-10T06:40:53Z",
+      "updatedAt": "2026-10-12T05:56:58Z",
+      "durationSec": 170164.7,
+      "branchName": "cursor/hmyc-club-py-event-dev-a65f",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a1248b-05f3-7f36-9eb2-2be2a306a65f",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a11cf9-f818-7348-9a52-4999bf49fe15",
+      "name": "Dinghy sailing binoculars",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-10-08T19:25:08Z",
+      "updatedAt": "2026-10-08T19:30:37Z",
+      "durationSec": 329.205,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a11cf9-f818-7348-9a52-4999bf49fe15",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-efe76c2c-b061-4b64-bebd-0307c2f89870",
+      "name": "Aerialnet landing page security",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "grok-4.7",
+      "createdAt": "2026-10-08T09:47:33Z",
+      "updatedAt": "2026-10-08T14:00:22Z",
+      "durationSec": 15169.576,
+      "branchName": "cursor/aerialnet-landing-9870",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-efe76c2c-b061-4b64-bebd-0307c2f89870",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-eb667ecc-4645-5137-9c34-8dbd63726c6b",
+      "name": "Live GSC and Googlebot check",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-08T07:29:31Z",
+      "updatedAt": "2026-10-08T07:29:52Z",
+      "durationSec": 20.635,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-eb667ecc-4645-5137-9c34-8dbd63726c6b",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-db3f8576-5e01-5c38-9419-04f60ee5fb68",
+      "name": "Find dash password in transcript",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-07T19:00:29Z",
+      "updatedAt": "2026-10-07T19:03:47Z",
+      "durationSec": 197.715,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-db3f8576-5e01-5c38-9419-04f60ee5fb68",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-6ceba54c-554b-59fd-ac9d-cb75a557d982",
+      "name": "Extract box SSH method",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-05T10:51:04Z",
+      "updatedAt": "2026-10-05T10:54:06Z",
+      "durationSec": 182.218,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-6ceba54c-554b-59fd-ac9d-cb75a557d982",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e3a5bffa-7e2a-5adf-ad70-72651fb7c648",
+      "name": "Extract box SSH method",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-05T10:49:44Z",
+      "updatedAt": "2026-10-05T10:50:47Z",
+      "durationSec": 63.593,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e3a5bffa-7e2a-5adf-ad70-72651fb7c648",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-67b4b569-c47d-5738-bcee-a957ab352bf7",
+      "name": "Deploy GoWiFi dash to box",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-05T10:48:57Z",
+      "updatedAt": "2026-10-05T10:49:11Z",
+      "durationSec": 13.751,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-67b4b569-c47d-5738-bcee-a957ab352bf7",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-82396ee7-7642-5198-8773-dfb1225b6704",
+      "name": "Find GoWiFi box SSH",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-05T07:35:27Z",
+      "updatedAt": "2026-10-05T07:38:22Z",
+      "durationSec": 174.842,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-82396ee7-7642-5198-8773-dfb1225b6704",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-abda7437-9eba-5c4b-a9cd-3a330bcb1314",
+      "name": "Review invoice walkthrough video",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-04T17:53:20Z",
+      "updatedAt": "2026-10-04T17:53:58Z",
+      "durationSec": 38.964,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-abda7437-9eba-5c4b-a9cd-3a330bcb1314",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-2aebeda6-f110-40a4-9343-bd7ea7565cae",
+      "name": "Sailwave system rule integration",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "grok-4.7",
+      "createdAt": "2026-10-04T11:14:17Z",
+      "updatedAt": "2026-10-04T13:29:17Z",
+      "durationSec": 8099.466,
+      "branchName": "cursor/ilca-4-canonical-5cae",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-2aebeda6-f110-40a4-9343-bd7ea7565cae",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-02275728-cca4-5ae2-8bd6-04c2e7384b51",
+      "name": "Browser-check live HPP fetch",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-10-03T16:36:20Z",
+      "updatedAt": "2026-10-09T18:49:52Z",
+      "durationSec": 526412.506,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-02275728-cca4-5ae2-8bd6-04c2e7384b51",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-a12e94df-0d54-5d89-b82b-7c3000db8b8c",
+      "name": "Scan 420 event-url chat",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-26T17:34:34Z",
+      "updatedAt": "2026-09-26T17:35:08Z",
+      "durationSec": 34.309,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a12e94df-0d54-5d89-b82b-7c3000db8b8c",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-47309587-5542-5698-8df8-d21a6fc973d7",
+      "name": "Scan parent chat for 420 sheet",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-26T17:34:33Z",
+      "updatedAt": "2026-09-26T17:36:19Z",
+      "durationSec": 106.112,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-47309587-5542-5698-8df8-d21a6fc973d7",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-f8f73c9d-3918-593d-bf84-9cce62d56ba3",
+      "name": "Browser 420 URL now",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-25T15:24:49Z",
+      "updatedAt": "2026-09-26T17:47:24Z",
+      "durationSec": 94955.098,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-f8f73c9d-3918-593d-bf84-9cce62d56ba3",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-65ac6742-1520-4991-a196-6b7962ae0122",
+      "name": "GpsGate integration plan",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "grok-4.7",
+      "createdAt": "2026-09-24T07:02:47Z",
+      "updatedAt": "2026-10-07T12:07:02Z",
+      "durationSec": 1141455.198,
+      "branchName": "cursor/gpsgate-readonly-client-0122",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-65ac6742-1520-4991-a196-6b7962ae0122",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-ad3702bd-6035-5fd6-aa7f-738eac681bc2",
+      "name": "Extract gold Event URL format from chats",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-22T19:34:33Z",
+      "updatedAt": "2026-09-22T19:36:31Z",
+      "durationSec": 118.183,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-ad3702bd-6035-5fd6-aa7f-738eac681bc2",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-45f0e063-e3b3-5b38-9d6a-82f53996521a",
+      "name": "Read Dart Nationals Event URL transcript",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-22T19:05:03Z",
+      "updatedAt": "2026-09-22T19:07:46Z",
+      "durationSec": 163.407,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-45f0e063-e3b3-5b38-9d6a-82f53996521a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-d47063cd-9582-5f4b-8f44-2ae3095756d6",
+      "name": "Find TK and header fuckup",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-22T19:05:02Z",
+      "updatedAt": "2026-09-22T19:09:17Z",
+      "durationSec": 255.466,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-d47063cd-9582-5f4b-8f44-2ae3095756d6",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a0c96e-d428-7343-9fc6-6cec859e508a",
+      "name": "Gowifi uisp read-only integration",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-09-22T14:04:39Z",
+      "updatedAt": "2026-10-09T18:55:20Z",
+      "durationSec": 1486240.334,
+      "branchName": "cursor/gowifi-upp-sync-508a",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a0c96e-d428-7343-9fc6-6cec859e508a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-2e8d749c-6d9f-4af6-9477-5418afb5ec11",
+      "name": "SailingSA sponsors",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high",
+      "createdAt": "2026-09-22T08:22:41Z",
+      "updatedAt": "2026-09-22T13:28:56Z",
+      "durationSec": 18374.923,
+      "branchName": "cursor/sponsors-sailingsa-ec11",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-2e8d749c-6d9f-4af6-9477-5418afb5ec11",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-6753f015-dd7f-5a8e-bf3e-a4ce79b74902",
+      "name": "Browser-test Dart auto-rank",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-21T13:41:29Z",
+      "updatedAt": "2026-09-21T13:41:30Z",
+      "durationSec": 0.789,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-6753f015-dd7f-5a8e-bf3e-a4ce79b74902",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a0c100-a0a6-7ab7-b7e6-efb7d51288bf",
+      "name": "HMYC Dart National",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-09-20T22:47:19Z",
+      "updatedAt": "2026-09-24T17:20:21Z",
+      "durationSec": 325981.976,
+      "branchName": "cursor/hmyc-dart-nationals-event-88bf",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a0c100-a0a6-7ab7-b7e6-efb7d51288bf",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-4b99268f-12b1-5a51-ab3a-6d680c83a3fb",
+      "name": "Mac Mini GSC OAuth via worker",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-20T18:33:15Z",
+      "updatedAt": "2026-09-20T18:33:22Z",
+      "durationSec": 7.321,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-4b99268f-12b1-5a51-ab3a-6d680c83a3fb",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-370f19c9-8d0b-5073-b92e-d83747ed8636",
+      "name": "Mac Mini GSC OAuth",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-20T18:32:53Z",
+      "updatedAt": "2026-09-20T18:33:03Z",
+      "durationSec": 9.79,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-370f19c9-8d0b-5073-b92e-d83747ed8636",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-9d3a35a8-437b-529a-8017-d410d82aea3d",
+      "name": "Google OAuth consent browser",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-20T18:18:26Z",
+      "updatedAt": "2026-09-20T18:18:26Z",
+      "durationSec": 0.559,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-9d3a35a8-437b-529a-8017-d410d82aea3d",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-46743cb2-6a78-5122-9e0b-9e396d1aaff3",
+      "name": "Mac Chrome GSC cleanup",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-20T18:06:31Z",
+      "updatedAt": "2026-09-20T18:06:32Z",
+      "durationSec": 1.302,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-46743cb2-6a78-5122-9e0b-9e396d1aaff3",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-1ba21a46-8a88-5f69-8018-207d522a1d8b",
+      "name": "Mac GSC sitemap cleanup",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-20T18:06:07Z",
+      "updatedAt": "2026-09-20T18:06:17Z",
+      "durationSec": 9.73,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1ba21a46-8a88-5f69-8018-207d522a1d8b",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-9f84c68a-97ff-5b61-bde4-cb70aea45c1a",
+      "name": "Browser-check Midmar card",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-19T15:38:50Z",
+      "updatedAt": "2026-09-19T15:38:51Z",
+      "durationSec": 0.562,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-9f84c68a-97ff-5b61-bde4-cb70aea45c1a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-c9a319e2-caa3-5542-86a9-f62e3c6cec5a",
+      "name": "Test Midmar SA video drop",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-19T12:17:19Z",
+      "updatedAt": "2026-09-19T12:17:20Z",
+      "durationSec": 0.675,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-c9a319e2-caa3-5542-86a9-f62e3c6cec5a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-76e6fbc8-63b9-560e-a41b-cd6c9ed43b75",
+      "name": "Verify Puffin Ullman divider",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-19T09:14:06Z",
+      "updatedAt": "2026-09-19T09:14:06Z",
+      "durationSec": 0.556,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-76e6fbc8-63b9-560e-a41b-cd6c9ed43b75",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a0b5d8-44c3-7f98-b893-00b7feeb9019",
+      "name": "Production API downtime",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-09-18T18:47:25Z",
+      "updatedAt": "2026-09-22T13:29:49Z",
+      "durationSec": 326543.893,
+      "branchName": "cursor/api-restart-grace-9019",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a0b5d8-44c3-7f98-b893-00b7feeb9019",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-2e399690-25ad-5773-9474-db3d5df42aff",
+      "name": "Cursor how to target Mac worker",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T14:20:27Z",
+      "updatedAt": "2026-09-18T14:22:04Z",
+      "durationSec": 97.485,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-2e399690-25ad-5773-9474-db3d5df42aff",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-2372107a-4791-5552-a635-0d1cbfba9433",
+      "name": "Mac GSC first-run pull",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T14:19:34Z",
+      "updatedAt": "2026-09-18T14:19:43Z",
+      "durationSec": 8.854,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-2372107a-4791-5552-a635-0d1cbfba9433",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-180ef875-c6a7-5b36-9c1d-d476a1489c18",
+      "name": "Mac GSC Chrome inspect",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T14:19:26Z",
+      "updatedAt": "2026-09-18T14:19:27Z",
+      "durationSec": 0.58,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-180ef875-c6a7-5b36-9c1d-d476a1489c18",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-23ab3191-9e3d-5361-b518-441a638afc74",
+      "name": "Mac GSC first-run pull",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T14:19:20Z",
+      "updatedAt": "2026-09-18T14:19:22Z",
+      "durationSec": 1.859,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-23ab3191-9e3d-5361-b518-441a638afc74",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-1a1ee55c-5597-5c32-b187-8c6914373865",
+      "name": "Mac GSC first-run pull",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T14:19:02Z",
+      "updatedAt": "2026-09-18T14:19:02Z",
+      "durationSec": 0.548,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1a1ee55c-5597-5c32-b187-8c6914373865",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-baa3fa59-1cab-528b-bca9-acd2a16df172",
+      "name": "Search Mac Mini GSC setup",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T14:09:04Z",
+      "updatedAt": "2026-09-18T14:10:31Z",
+      "durationSec": 86.21,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-baa3fa59-1cab-528b-bca9-acd2a16df172",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-6dead1cc-b825-5652-9417-5e89e9dab649",
+      "name": "Cursor worker targeting docs",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T14:06:38Z",
+      "updatedAt": "2026-09-18T14:08:39Z",
+      "durationSec": 120.125,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-6dead1cc-b825-5652-9417-5e89e9dab649",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-9039dbcb-99ec-5927-8d14-d484e64edafd",
+      "name": "Summarize GSC sample transcript",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T14:05:25Z",
+      "updatedAt": "2026-09-18T14:06:15Z",
+      "durationSec": 50.333,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-9039dbcb-99ec-5927-8d14-d484e64edafd",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-df6c1b74-65b5-5e1e-9427-dcea5ac02a0b",
+      "name": "Extract GSC URL samples",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T08:15:27Z",
+      "updatedAt": "2026-09-18T08:16:30Z",
+      "durationSec": 62.868,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-df6c1b74-65b5-5e1e-9427-dcea5ac02a0b",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-52893ece-4a76-5dbc-9623-1777655047ce",
+      "name": "Verify Midmar MP table scroll",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-18T05:55:25Z",
+      "updatedAt": "2026-09-18T05:55:26Z",
+      "durationSec": 0.901,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-52893ece-4a76-5dbc-9623-1777655047ce",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-1acc1b1d-6937-59e6-9666-9b8664b65768",
+      "name": "Browse live HYC disclaimer",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T19:18:01Z",
+      "updatedAt": "2026-09-17T19:18:01Z",
+      "durationSec": 0.674,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1acc1b1d-6937-59e6-9666-9b8664b65768",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-fea1e594-9a45-5b21-957e-c3a52e679139",
+      "name": "Resubmit GSC sitemap",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T18:57:51Z",
+      "updatedAt": "2026-09-17T18:57:52Z",
+      "durationSec": 0.536,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-fea1e594-9a45-5b21-957e-c3a52e679139",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-8e2e5ee9-8130-5bd1-beb5-edcae6574eda",
+      "name": "Resubmit GSC sitemap",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T18:57:44Z",
+      "updatedAt": "2026-09-17T18:57:45Z",
+      "durationSec": 0.562,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-8e2e5ee9-8130-5bd1-beb5-edcae6574eda",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-4b3e73bd-f4b0-5bfe-9e40-a5089aad1e49",
+      "name": "Resubmit GSC sitemap",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T18:57:38Z",
+      "updatedAt": "2026-09-17T18:57:39Z",
+      "durationSec": 0.85,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-4b3e73bd-f4b0-5bfe-9e40-a5089aad1e49",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a0b0b4-cf24-7b21-80ec-4a2b03bbbaea",
+      "name": "Google indexing process",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-09-17T18:50:39Z",
+      "updatedAt": "2026-10-08T10:13:55Z",
+      "durationSec": 1783396.45,
+      "branchName": "cursor/sitemap-canonical-fix-baea",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a0b0b4-cf24-7b21-80ec-4a2b03bbbaea",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-4bfcd957-5574-51d8-a9d0-a17ec47d72f4",
+      "name": "Verify disclaimer style",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T18:48:30Z",
+      "updatedAt": "2026-09-17T18:48:32Z",
+      "durationSec": 1.384,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-4bfcd957-5574-51d8-a9d0-a17ec47d72f4",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e85e0486-9784-57d0-85f7-968ffdeb652e",
+      "name": "Verify disclaimer style",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T18:48:20Z",
+      "updatedAt": "2026-09-17T18:48:21Z",
+      "durationSec": 0.985,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e85e0486-9784-57d0-85f7-968ffdeb652e",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-1000b568-322b-5c4f-ad8b-09fd859a53a5",
+      "name": "Verify HYC club cam in browser",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T14:15:39Z",
+      "updatedAt": "2026-09-17T14:15:40Z",
+      "durationSec": 0.591,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1000b568-322b-5c4f-ad8b-09fd859a53a5",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-eff0280a-0c5e-58f2-a214-753ab7a22e19",
+      "name": "Browse live HYC club cam",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T13:27:00Z",
+      "updatedAt": "2026-09-17T13:27:05Z",
+      "durationSec": 5.162,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-eff0280a-0c5e-58f2-a214-753ab7a22e19",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-935b6911-c0b2-50de-a692-4640958fe604",
+      "name": "Browser-test live HYC page",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T12:42:32Z",
+      "updatedAt": "2026-09-17T12:42:33Z",
+      "durationSec": 0.543,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-935b6911-c0b2-50de-a692-4640958fe604",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-4d3c6673-11cd-5c6e-a722-0aa76cb3d6fd",
+      "name": "Verify HMYC vs ZVYC club cards",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T11:21:02Z",
+      "updatedAt": "2026-09-17T11:21:03Z",
+      "durationSec": 1.22,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-4d3c6673-11cd-5c6e-a722-0aa76cb3d6fd",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-91ee5171-a8ee-4e16-9b65-16b425bd781c",
+      "name": "Club weather cam cards",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high",
+      "createdAt": "2026-09-17T10:39:08Z",
+      "updatedAt": "2026-09-19T08:16:21Z",
+      "durationSec": 164232.848,
+      "branchName": "cursor/club-wx-cam-hyc-hmyc-781c",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-91ee5171-a8ee-4e16-9b65-16b425bd781c",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a9ed36ed-4df5-51a3-899a-0bb991dd2ffa",
+      "name": "Browser-check live class 420",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-17T09:41:49Z",
+      "updatedAt": "2026-09-17T09:41:53Z",
+      "durationSec": 3.922,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a9ed36ed-4df5-51a3-899a-0bb991dd2ffa",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a0ae33-786d-7ed9-8ac0-c7f8470c1a87",
+      "name": "Event URL preloading",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-09-17T07:10:04Z",
+      "updatedAt": "2026-10-03T05:09:16Z",
+      "durationSec": 1375151.576,
+      "branchName": "cursor/tsc-420-nationals-event-url-1a87",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a0ae33-786d-7ed9-8ac0-c7f8470c1a87",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-f637a009-5d67-5050-b137-37c15f1cecd8",
+      "name": "Fix live WhatsApp session",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-16T20:30:19Z",
+      "updatedAt": "2026-09-16T20:32:58Z",
+      "durationSec": 159.42,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-f637a009-5d67-5050-b137-37c15f1cecd8",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-1701d2d4-b2e4-5a7e-8ee9-1808e472f977",
+      "name": "Test sailor claim popup",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-16T07:55:05Z",
+      "updatedAt": "2026-09-16T07:55:06Z",
+      "durationSec": 0.589,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1701d2d4-b2e4-5a7e-8ee9-1808e472f977",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-9992d91a-63c5-5edc-b65b-786799fd5d00",
+      "name": "Phone test WC Event URL",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-15T21:46:01Z",
+      "updatedAt": "2026-09-15T21:46:02Z",
+      "durationSec": 0.809,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-9992d91a-63c5-5edc-b65b-786799fd5d00",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-6b1ae304-0669-5e9c-940f-d8749d6e9c51",
+      "name": "Test WC Event URL mobile",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-15T21:45:50Z",
+      "updatedAt": "2026-09-15T21:45:51Z",
+      "durationSec": 0.552,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-6b1ae304-0669-5e9c-940f-d8749d6e9c51",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-ddd7ee8d-210e-5bba-90ac-5e84dc2ac131",
+      "name": "Test WC Event URL mobile",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-15T21:45:44Z",
+      "updatedAt": "2026-09-15T21:45:45Z",
+      "durationSec": 0.696,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-ddd7ee8d-210e-5bba-90ac-5e84dc2ac131",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-1a489e74-54be-5d1e-af78-66e3c388d03e",
+      "name": "WC MP sticky screenshots",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-15T21:11:49Z",
+      "updatedAt": "2026-09-15T21:11:49Z",
+      "durationSec": 0.524,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1a489e74-54be-5d1e-af78-66e3c388d03e",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-737c9b39-c6e4-5ab2-b74f-4522484bf2ba",
+      "name": "Test WC MP sticky",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-15T21:11:39Z",
+      "updatedAt": "2026-09-15T21:11:39Z",
+      "durationSec": 0.9,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-737c9b39-c6e4-5ab2-b74f-4522484bf2ba",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a5ab4f82-0686-5751-8492-4077de3ae1df",
+      "name": "Test WC MP sticky scroll",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-15T21:11:30Z",
+      "updatedAt": "2026-09-15T21:11:31Z",
+      "durationSec": 0.56,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a5ab4f82-0686-5751-8492-4077de3ae1df",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-31396de9-cbba-50b4-bdb2-bb9f50321c52",
+      "name": "Check Extra fleet codes",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-15T11:34:02Z",
+      "updatedAt": "2026-09-15T11:34:02Z",
+      "durationSec": 0.581,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-31396de9-cbba-50b4-bdb2-bb9f50321c52",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-eb49178b-1578-550a-88a6-a877dea2c3cd",
+      "name": "Fill Google Sheet orders",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-15T10:40:24Z",
+      "updatedAt": "2026-09-15T10:40:24Z",
+      "durationSec": 0.524,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-eb49178b-1578-550a-88a6-a877dea2c3cd",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-87196dcc-c30f-4ddf-93d6-8e68d085098e",
+      "name": "Lora RTK racing requirements",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high",
+      "createdAt": "2026-09-15T10:00:16Z",
+      "updatedAt": "2026-09-15T11:29:38Z",
+      "durationSec": 5361.929,
+      "branchName": "cursor/china-orders-dev-whatsapp-098e",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-87196dcc-c30f-4ddf-93d6-8e68d085098e",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a446318f-5cf8-4660-989c-7b9df03c6fec",
+      "name": "Club permanent features",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high",
+      "createdAt": "2026-09-14T10:46:13Z",
+      "updatedAt": "2026-09-15T08:43:14Z",
+      "durationSec": 79021.664,
+      "branchName": "cursor/club-zvyc-live-wx-cam-6fec",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a446318f-5cf8-4660-989c-7b9df03c6fec",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-6a1db32a-ff8c-50ef-8077-de17be67a410",
+      "name": "Browser check live URL",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-13T16:42:29Z",
+      "updatedAt": "2026-09-13T16:42:30Z",
+      "durationSec": 0.445,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-6a1db32a-ff8c-50ef-8077-de17be67a410",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e1d3d5ae-de0d-508e-ab64-84a295163099",
+      "name": "Browser-check live 420",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-13T16:41:30Z",
+      "updatedAt": "2026-09-13T16:41:31Z",
+      "durationSec": 0.477,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e1d3d5ae-de0d-508e-ab64-84a295163099",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-1d5f14e1-d31e-5800-a010-ce458f374a88",
+      "name": "Check Cape Classic LIVE card",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-13T09:34:36Z",
+      "updatedAt": "2026-09-13T09:34:37Z",
+      "durationSec": 0.943,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1d5f14e1-d31e-5800-a010-ce458f374a88",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-253db329-d14f-53d7-8c7b-f2c297cbc803",
+      "name": "Summarize MM FB live chats",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-13T08:20:22Z",
+      "updatedAt": "2026-09-13T08:21:56Z",
+      "durationSec": 94.877,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-253db329-d14f-53d7-8c7b-f2c297cbc803",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-ef42058a-ffb4-5725-9bdd-67a370b2ba65",
+      "name": "Summarize MM FB live chats",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-13T08:19:40Z",
+      "updatedAt": "2026-09-13T08:20:01Z",
+      "durationSec": 21.458,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-ef42058a-ffb4-5725-9bdd-67a370b2ba65",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-8ea55cbc-6356-44c1-b113-91884abeb106",
+      "name": "Mm live event fb feed",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high",
+      "createdAt": "2026-09-13T08:12:26Z",
+      "updatedAt": "2026-09-13T11:46:52Z",
+      "durationSec": 12865.071,
+      "branchName": "cursor/mm-live-own-card-b106",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-8ea55cbc-6356-44c1-b113-91884abeb106",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a164f9cc-1969-5854-90b5-7409eaa02260",
+      "name": "Browser-check 420 ZVSC logos",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-12T16:35:46Z",
+      "updatedAt": "2026-09-12T16:35:47Z",
+      "durationSec": 1.563,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a164f9cc-1969-5854-90b5-7409eaa02260",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b0926aed-4fa4-5b81-ab50-713be5041bc9",
+      "name": "Browser-test live sailor search",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-12T12:32:12Z",
+      "updatedAt": "2026-09-12T12:32:12Z",
+      "durationSec": 0.544,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b0926aed-4fa4-5b81-ab50-713be5041bc9",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-7598a680-fcbf-5d45-902b-cbf9eb7b52c9",
+      "name": "Browser-test live sailor search",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-12T12:31:59Z",
+      "updatedAt": "2026-09-12T12:32:00Z",
+      "durationSec": 0.519,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-7598a680-fcbf-5d45-902b-cbf9eb7b52c9",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-09d63818-9c4f-5afc-ac7a-4ba309ea73f1",
+      "name": "Browser-test live sailor search",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-12T12:31:43Z",
+      "updatedAt": "2026-09-12T12:31:44Z",
+      "durationSec": 0.528,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-09d63818-9c4f-5afc-ac7a-4ba309ea73f1",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-33094673-12f2-500e-836d-507a1e9db3f3",
+      "name": "Review Josh search video",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-12T11:56:47Z",
+      "updatedAt": "2026-09-12T11:56:48Z",
+      "durationSec": 0.569,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-33094673-12f2-500e-836d-507a1e9db3f3",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a4ab3e7a-9588-50ce-9cc5-071bace17375",
+      "name": "Test Josh sailor search",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-12T11:52:31Z",
+      "updatedAt": "2026-09-12T11:52:32Z",
+      "durationSec": 0.915,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a4ab3e7a-9588-50ce-9cc5-071bace17375",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-2b74608d-9bf2-5640-808b-4039005073ee",
+      "name": "Test Josh sailor search",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-12T11:52:18Z",
+      "updatedAt": "2026-09-12T11:52:19Z",
+      "durationSec": 0.892,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-2b74608d-9bf2-5640-808b-4039005073ee",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a1bb7e8f-5731-5d6c-b507-f1acd48dfb23",
+      "name": "Verify MM reel thumbs play",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-12T09:12:14Z",
+      "updatedAt": "2026-09-12T09:12:15Z",
+      "durationSec": 0.458,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a1bb7e8f-5731-5d6c-b507-f1acd48dfb23",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-7c368e5d-c537-5fb3-9d07-b08fc25090ca",
+      "name": "Verify MM reel thumbs play",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-12T09:12:03Z",
+      "updatedAt": "2026-09-12T09:12:06Z",
+      "durationSec": 2.465,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-7c368e5d-c537-5fb3-9d07-b08fc25090ca",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-8bf0c9e5-f214-53b8-aa1f-8148823036a4",
+      "name": "Hub search click tests",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-11T20:29:26Z",
+      "updatedAt": "2026-09-11T20:29:26Z",
+      "durationSec": 0.674,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-8bf0c9e5-f214-53b8-aa1f-8148823036a4",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e763b273-8a1f-5fcc-b12f-9e150e5a3e14",
+      "name": "Hub search click tests",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-11T20:29:16Z",
+      "updatedAt": "2026-09-11T20:29:17Z",
+      "durationSec": 0.603,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e763b273-8a1f-5fcc-b12f-9e150e5a3e14",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-ab2295c4-0187-5d24-bd96-986cc54582f3",
+      "name": "Hub search click tests",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-11T20:29:03Z",
+      "updatedAt": "2026-09-11T20:29:03Z",
+      "durationSec": 0.518,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-ab2295c4-0187-5d24-bd96-986cc54582f3",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-323f4043-ffe9-5ee3-b06a-11595bf54926",
+      "name": "Open live claim popup MP",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-11T15:22:00Z",
+      "updatedAt": "2026-09-11T15:22:01Z",
+      "durationSec": 1.65,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-323f4043-ffe9-5ee3-b06a-11595bf54926",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b0cb2a04-7e94-5878-9e02-7ab7d9d776ba",
+      "name": "Open live claim popup MP",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-11T15:21:48Z",
+      "updatedAt": "2026-09-11T15:21:48Z",
+      "durationSec": 0.696,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b0cb2a04-7e94-5878-9e02-7ab7d9d776ba",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e7d5913b-27d3-5346-8aca-ca6cbd83e393",
+      "name": "Verify claim popup on live",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-11T12:51:47Z",
+      "updatedAt": "2026-09-11T12:51:48Z",
+      "durationSec": 0.632,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e7d5913b-27d3-5346-8aca-ca6cbd83e393",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-fe421418-c28d-5447-a424-339083800b50",
+      "name": "Summarize ops chats",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-11T10:58:26Z",
+      "updatedAt": "2026-09-11T10:58:51Z",
+      "durationSec": 25.35,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-fe421418-c28d-5447-a424-339083800b50",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-9393d8b3-7b4b-5979-9708-b123a821561a",
+      "name": "Summarize signup chats",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-11T10:58:25Z",
+      "updatedAt": "2026-09-11T10:58:52Z",
+      "durationSec": 26.135,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-9393d8b3-7b4b-5979-9708-b123a821561a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-14853ecc-50f3-4117-b1b1-af62e77f92ab",
+      "name": "Sign up functionality",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high",
+      "createdAt": "2026-09-11T09:47:25Z",
+      "updatedAt": "2026-10-10T07:36:11Z",
+      "durationSec": 2497725.776,
+      "branchName": "cursor/traffic-claim-card-92ab",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-14853ecc-50f3-4117-b1b1-af62e77f92ab",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-fb7b0552-7d91-56f7-9fa8-4d306113f127",
+      "name": "Fill Google Sheet Cursor tab",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-11T08:18:46Z",
+      "updatedAt": "2026-09-11T08:18:47Z",
+      "durationSec": 1.368,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-fb7b0552-7d91-56f7-9fa8-4d306113f127",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a08c45-2dad-7cbb-967f-3e422ecc86b2",
+      "name": "ZVYC CC print share",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-09-10T17:02:21Z",
+      "updatedAt": "2026-09-13T17:12:37Z",
+      "durationSec": 259816.819,
+      "branchName": "cursor/zvyc-cc-print-share-86b2",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a08c45-2dad-7cbb-967f-3e422ecc86b2",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-23ffb191-52ab-591e-8422-a995bafe8632",
+      "name": "Browser-test Event Reels clips",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-10T06:30:11Z",
+      "updatedAt": "2026-09-10T06:30:12Z",
+      "durationSec": 1.148,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-23ffb191-52ab-591e-8422-a995bafe8632",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-bf1242e3-733f-55a2-8eda-3411d77ed056",
+      "name": "Open live R7 top clip",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-10T02:19:28Z",
+      "updatedAt": "2026-09-10T02:19:28Z",
+      "durationSec": 0.462,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-bf1242e3-733f-55a2-8eda-3411d77ed056",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-026f8228-e388-5020-9543-5be2116983f7",
+      "name": "Summarize Lipton event chat",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T23:53:54Z",
+      "updatedAt": "2026-09-09T23:58:25Z",
+      "durationSec": 271.484,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-026f8228-e388-5020-9543-5be2116983f7",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a08895-fae2-75b0-8df1-c505478158c6",
+      "name": "Lipton tracking overlay data",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-09-09T23:52:06Z",
+      "updatedAt": "2026-09-10T17:42:45Z",
+      "durationSec": 64239.304,
+      "branchName": "cursor/lipton-r7-start-overlay-58c6",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a08895-fae2-75b0-8df1-c505478158c6",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-3621cac7-4449-5ed7-8c29-24fa171280e2",
+      "name": "Test Lipton MM play expand",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T17:43:50Z",
+      "updatedAt": "2026-09-09T17:43:51Z",
+      "durationSec": 0.745,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-3621cac7-4449-5ed7-8c29-24fa171280e2",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-4b41e2b1-3a51-5d7a-a0c9-3820f9f03319",
+      "name": "Test Lipton MM play expand",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T17:43:33Z",
+      "updatedAt": "2026-09-09T17:43:34Z",
+      "durationSec": 1.257,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-4b41e2b1-3a51-5d7a-a0c9-3820f9f03319",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-3a4a1081-1c1b-5c7d-b610-7f7edc05d346",
+      "name": "Verify Lipton MM thumbs",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T15:10:09Z",
+      "updatedAt": "2026-09-09T15:10:11Z",
+      "durationSec": 1.184,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-3a4a1081-1c1b-5c7d-b610-7f7edc05d346",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-4f04dd8d-5077-5e2b-9fb8-221dd7cbd7dd",
+      "name": "Screenshot Lipton event URL",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T13:22:24Z",
+      "updatedAt": "2026-09-09T13:22:25Z",
+      "durationSec": 0.488,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-4f04dd8d-5077-5e2b-9fb8-221dd7cbd7dd",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b8137a57-e0c8-52f8-a282-45fe44f38a06",
+      "name": "Screenshot Lipton event URL",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T13:22:15Z",
+      "updatedAt": "2026-09-09T13:22:15Z",
+      "durationSec": 0.543,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b8137a57-e0c8-52f8-a282-45fe44f38a06",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-281608ee-aa08-5dbd-8ff9-238c005e946d",
+      "name": "Screenshot live event logos",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T12:18:47Z",
+      "updatedAt": "2026-09-09T12:18:48Z",
+      "durationSec": 1.028,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-281608ee-aa08-5dbd-8ff9-238c005e946d",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-7595268a-fc1d-56e3-8844-d31f49976657",
+      "name": "Live MM card visual test",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T11:32:00Z",
+      "updatedAt": "2026-09-09T11:32:00Z",
+      "durationSec": 0.499,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-7595268a-fc1d-56e3-8844-d31f49976657",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b3ec8a9e-e55d-563a-9815-6dad7a49a7bc",
+      "name": "Live MM card visual test",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T11:31:47Z",
+      "updatedAt": "2026-09-09T11:31:48Z",
+      "durationSec": 0.594,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b3ec8a9e-e55d-563a-9815-6dad7a49a7bc",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-92cf6a78-7cfd-5447-bbab-6c3674c546db",
+      "name": "Live MM card visual test",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T11:31:34Z",
+      "updatedAt": "2026-09-09T11:31:35Z",
+      "durationSec": 0.508,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-92cf6a78-7cfd-5447-bbab-6c3674c546db",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-d444cac9-4ca5-5695-a139-2e4339e19ebe",
+      "name": "Screenshot live Arial layout",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T10:17:07Z",
+      "updatedAt": "2026-09-09T10:17:07Z",
+      "durationSec": 0.594,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-d444cac9-4ca5-5695-a139-2e4339e19ebe",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-5037d96d-76c5-58e3-8c28-0c75f285651f",
+      "name": "Open live Arial pages",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T10:16:54Z",
+      "updatedAt": "2026-09-09T10:16:55Z",
+      "durationSec": 0.662,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-5037d96d-76c5-58e3-8c28-0c75f285651f",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b7dc6960-417c-56e1-803f-1e9189686cbb",
+      "name": "Verify live MM logo card",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T09:44:12Z",
+      "updatedAt": "2026-09-09T09:44:13Z",
+      "durationSec": 0.683,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b7dc6960-417c-56e1-803f-1e9189686cbb",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-71dbbc98-d5ce-502b-8ed4-1d53697f4641",
+      "name": "Extract MM agent note",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T09:02:26Z",
+      "updatedAt": "2026-09-09T09:04:23Z",
+      "durationSec": 116.833,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-71dbbc98-d5ce-502b-8ed4-1d53697f4641",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-cd971081-2029-57fb-bc50-94fbde5abf4c",
+      "name": "Extract note from this run",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-09T09:02:26Z",
+      "updatedAt": "2026-09-09T09:04:46Z",
+      "durationSec": 139.694,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-cd971081-2029-57fb-bc50-94fbde5abf4c",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-5802ebfe-3d1a-5d8e-831e-795529414be9",
+      "name": "Test Stanford camera page",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-08T14:16:12Z",
+      "updatedAt": "2026-09-08T14:16:12Z",
+      "durationSec": 0.536,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-5802ebfe-3d1a-5d8e-831e-795529414be9",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-256ed182-eb3f-51c4-b6f4-3b5daf05c4f8",
+      "name": "Compare event headers mobile",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-08T12:45:42Z",
+      "updatedAt": "2026-09-08T12:45:43Z",
+      "durationSec": 0.523,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-256ed182-eb3f-51c4-b6f4-3b5daf05c4f8",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-826a6062-7375-5e7a-827e-6a62dc870fef",
+      "name": "Chrome DevTools on desktop",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-08T11:56:54Z",
+      "updatedAt": "2026-09-08T11:56:55Z",
+      "durationSec": 0.495,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-826a6062-7375-5e7a-827e-6a62dc870fef",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-7d81e283-1f4d-5a4e-ba6d-80f5e46124ce",
+      "name": "Open Chrome on Mac",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-08T11:56:15Z",
+      "updatedAt": "2026-09-08T11:56:15Z",
+      "durationSec": 0.46,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-7d81e283-1f4d-5a4e-ba6d-80f5e46124ce",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-5089e3bf-6295-579a-9c31-35aa9e976461",
+      "name": "Browser-test live Lipton page",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-08T11:41:26Z",
+      "updatedAt": "2026-09-08T11:41:27Z",
+      "durationSec": 0.987,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-5089e3bf-6295-579a-9c31-35aa9e976461",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-2126b49e-f73e-4094-bf51-9eab5e648009",
+      "name": "ZVYC cape classic event content",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high",
+      "createdAt": "2026-09-08T09:13:11Z",
+      "updatedAt": "2026-09-10T12:39:26Z",
+      "durationSec": 185175.592,
+      "branchName": "cursor/mm-lipton-event-reels-8009",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-2126b49e-f73e-4094-bf51-9eab5e648009",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-35f87c3c-2cab-5ce0-80fb-f9ab6cfe58ee",
+      "name": "Verify Bing garage tile gone",
+      "status": "ERROR",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-07T19:40:44Z",
+      "updatedAt": "2026-09-07T19:40:45Z",
+      "durationSec": 0.599,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-35f87c3c-2cab-5ce0-80fb-f9ab6cfe58ee",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "instant_error",
+        "internal_spawn_fail",
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a07d4d-a98a-7aeb-9200-c80ddfdb64f7",
+      "name": "CBI Home setup step 2",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-09-07T19:17:18Z",
+      "updatedAt": "2026-09-16T16:09:43Z",
+      "durationSec": 766344.207,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a07d4d-a98a-7aeb-9200-c80ddfdb64f7",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-68f47643-92d2-5b42-87ba-5610cccaad23",
+      "name": "Hunt Wear OS watch candidates",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-07T01:02:26Z",
+      "updatedAt": "2026-09-07T01:04:42Z",
+      "durationSec": 136.473,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-68f47643-92d2-5b42-87ba-5610cccaad23",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-113cff4a-d2e6-58bf-934f-0d6c5b1dbfa7",
+      "name": "Hunt Alibaba sailing watches",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-07T01:01:37Z",
+      "updatedAt": "2026-09-07T01:02:02Z",
+      "durationSec": 25.12,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-113cff4a-d2e6-58bf-934f-0d6c5b1dbfa7",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-0881625a-56a8-5175-8520-f48fa8ff956d",
+      "name": "Hunt better GNSS OEMs",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-06T22:36:35Z",
+      "updatedAt": "2026-09-06T22:39:09Z",
+      "durationSec": 153.84,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-0881625a-56a8-5175-8520-f48fa8ff956d",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-3ecea6d2-f63e-5655-b3f3-b0b0f7b8e012",
+      "name": "Hunt cheaper RTK+LoRa",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-06T22:36:35Z",
+      "updatedAt": "2026-09-06T22:40:39Z",
+      "durationSec": 243.378,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-3ecea6d2-f63e-5655-b3f3-b0b0f7b8e012",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a06e3b-5746-7155-a179-2b97963d17e0",
+      "name": "Work done",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "claude-4.5-opus-high-thinking",
+      "createdAt": "2026-09-04T21:02:59Z",
+      "updatedAt": "2026-09-15T08:43:31Z",
+      "durationSec": 906032.246,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a06e3b-5746-7155-a179-2b97963d17e0",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "premium_model_against_account_defaults",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-a8a9f90c-f954-5000-9dc1-eaede673b4eb",
+      "name": "Verify rotate tiles only",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-04T08:02:37Z",
+      "updatedAt": "2026-09-04T08:12:19Z",
+      "durationSec": 581.972,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a8a9f90c-f954-5000-9dc1-eaede673b4eb",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-d366fdc6-f102-5ed6-8711-871fb58a51ea",
+      "name": "Measure Board vs R1 height",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-04T07:50:06Z",
+      "updatedAt": "2026-09-04T07:58:39Z",
+      "durationSec": 512.802,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-d366fdc6-f102-5ed6-8711-871fb58a51ea",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-9f819018-1efd-5233-bd02-8c83dec80b9a",
+      "name": "Verify flag and R rows",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-04T07:36:41Z",
+      "updatedAt": "2026-09-04T07:43:17Z",
+      "durationSec": 395.821,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-9f819018-1efd-5233-bd02-8c83dec80b9a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-159560e9-380a-5418-b08f-6b8539fb49a5",
+      "name": "Verify phone chrome visible",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-04T07:27:34Z",
+      "updatedAt": "2026-09-04T07:35:04Z",
+      "durationSec": 449.949,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-159560e9-380a-5418-b08f-6b8539fb49a5",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-fbd59907-ccd7-5649-b671-13078428781a",
+      "name": "Drag live slider pad",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-04T07:14:04Z",
+      "updatedAt": "2026-09-04T07:25:01Z",
+      "durationSec": 657.306,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-fbd59907-ccd7-5649-b671-13078428781a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-cdeb8434-4a82-5cbc-86bd-ce5785708fda",
+      "name": "Measure map and R row",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-04T07:00:22Z",
+      "updatedAt": "2026-09-04T07:11:51Z",
+      "durationSec": 689.107,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-cdeb8434-4a82-5cbc-86bd-ce5785708fda",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-176f5b87-5b4c-5645-8c6a-38f584706589",
+      "name": "Verify v44 chrome layout",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-04T06:45:45Z",
+      "updatedAt": "2026-09-04T06:58:06Z",
+      "durationSec": 740.301,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-176f5b87-5b4c-5645-8c6a-38f584706589",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e91169fa-bf5a-5d1a-9e80-3890edddddf9",
+      "name": "Verify DEV tap map slider",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-04T06:29:39Z",
+      "updatedAt": "2026-09-04T06:44:11Z",
+      "durationSec": 872.287,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e91169fa-bf5a-5d1a-9e80-3890edddddf9",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a069cc-bcd1-790b-8083-448b6d9232a9",
+      "name": "Regatta racing system",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "default",
+      "createdAt": "2026-09-04T00:23:41Z",
+      "updatedAt": "2026-09-15T04:57:29Z",
+      "durationSec": 966827.644,
+      "branchName": "cursor/boat-puck-gopro-housing-32a9",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a069cc-bcd1-790b-8083-448b6d9232a9",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-b8e24de7-1066-5827-bf07-b02a6b3e7c25",
+      "name": "Browser-measure live DEV map",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T21:58:02Z",
+      "updatedAt": "2026-09-03T22:07:46Z",
+      "durationSec": 583.664,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b8e24de7-1066-5827-bf07-b02a6b3e7c25",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-81ce43e6-3cd4-581c-bf52-5c71da75bea8",
+      "name": "See current live map",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T21:50:20Z",
+      "updatedAt": "2026-09-03T21:51:33Z",
+      "durationSec": 72.893,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-81ce43e6-3cd4-581c-bf52-5c71da75bea8",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b63c8646-58b6-54ee-9e2b-5655e86ca8ea",
+      "name": "Measure v29 map height",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T21:39:28Z",
+      "updatedAt": "2026-09-03T21:45:45Z",
+      "durationSec": 377.214,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b63c8646-58b6-54ee-9e2b-5655e86ca8ea",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-bc6232d8-57de-559d-aa49-db3817142140",
+      "name": "Measure live map and console",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T21:27:08Z",
+      "updatedAt": "2026-09-03T21:37:09Z",
+      "durationSec": 601.472,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-bc6232d8-57de-559d-aa49-db3817142140",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-ee559b85-11e3-5d8b-bd56-3029ab40a480",
+      "name": "Screenshot pinned tall map",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T21:22:28Z",
+      "updatedAt": "2026-09-03T21:23:37Z",
+      "durationSec": 69.294,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-ee559b85-11e3-5d8b-bd56-3029ab40a480",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b9559626-e743-572a-97e2-a9bc173f4275",
+      "name": "Recheck map height after v27",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T21:17:19Z",
+      "updatedAt": "2026-09-03T21:21:10Z",
+      "durationSec": 230.828,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b9559626-e743-572a-97e2-a9bc173f4275",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b8cf5be1-8f47-5cb4-bb26-b6e7066e4327",
+      "name": "Verify tall map zoom rotate",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T21:13:26Z",
+      "updatedAt": "2026-09-03T21:15:04Z",
+      "durationSec": 97.953,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b8cf5be1-8f47-5cb4-bb26-b6e7066e4327",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-64056e56-aea3-5b5b-b222-6dee87eb576d",
+      "name": "Open live DEV map page",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T21:06:50Z",
+      "updatedAt": "2026-09-03T21:11:00Z",
+      "durationSec": 250.654,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-64056e56-aea3-5b5b-b222-6dee87eb576d",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-4fba36f5-d5bf-5e28-850d-e8ef170521f0",
+      "name": "Re-test live DEV after v25",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T21:04:48Z",
+      "updatedAt": "2026-09-03T21:06:23Z",
+      "durationSec": 94.753,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-4fba36f5-d5bf-5e28-850d-e8ef170521f0",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a8020f4a-0865-51bd-9658-fc61f95e9b74",
+      "name": "Check console and load hang",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T20:51:10Z",
+      "updatedAt": "2026-09-03T21:02:01Z",
+      "durationSec": 650.256,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a8020f4a-0865-51bd-9658-fc61f95e9b74",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b4583260-9fee-56f5-8e8b-6316224e543e",
+      "name": "Verify camera grid on voelklip",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T15:13:36Z",
+      "updatedAt": "2026-09-03T15:16:59Z",
+      "durationSec": 202.976,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b4583260-9fee-56f5-8e8b-6316224e543e",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-0630a0ee-23c9-513c-a676-505f4a4e87fa",
+      "name": "Find Camera 01 card at page bottom",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T14:49:18Z",
+      "updatedAt": "2026-09-03T14:59:04Z",
+      "durationSec": 585.686,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-0630a0ee-23c9-513c-a676-505f4a4e87fa",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-3be71a11-80fa-5157-bb29-f3c37f6567d3",
+      "name": "Test Camera 01 box on voelklip page",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T14:37:30Z",
+      "updatedAt": "2026-09-03T14:46:18Z",
+      "durationSec": 528.888,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-3be71a11-80fa-5157-bb29-f3c37f6567d3",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-9b788391-0522-58f0-94c0-c4b41a206191",
+      "name": "Test Camera 01 stream in browser",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T14:33:38Z",
+      "updatedAt": "2026-09-03T14:35:41Z",
+      "durationSec": 122.403,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-9b788391-0522-58f0-94c0-c4b41a206191",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-c3e1c725-d54a-5dfc-9e96-dd96848a0c6c",
+      "name": "View voelklip page baseline",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T14:21:50Z",
+      "updatedAt": "2026-09-03T14:24:20Z",
+      "durationSec": 150.198,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-c3e1c725-d54a-5dfc-9e96-dd96848a0c6c",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-f556e5ff-1e89-5a4a-aaa2-9d536548b6e9",
+      "name": "Verify rich sailor cards in search",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T01:40:10Z",
+      "updatedAt": "2026-09-03T01:42:29Z",
+      "durationSec": 138.778,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-f556e5ff-1e89-5a4a-aaa2-9d536548b6e9",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-781e07a9-4537-582f-ac8e-a121e0058f84",
+      "name": "Verify rich sailor cards work",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T01:26:14Z",
+      "updatedAt": "2026-09-03T01:33:39Z",
+      "durationSec": 445.107,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-781e07a9-4537-582f-ac8e-a121e0058f84",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-6d95a0dc-3b8e-5b10-b582-80b5cd3e58df",
+      "name": "Test sailingsa.co.za sailor search",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-03T01:20:18Z",
+      "updatedAt": "2026-09-03T01:24:13Z",
+      "durationSec": 234.106,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-6d95a0dc-3b8e-5b10-b582-80b5cd3e58df",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a064c1-98a0-7432-b157-40ec5351284d",
+      "name": "Url version regression",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "claude-4.5-opus-high-thinking",
+      "createdAt": "2026-09-03T00:53:25Z",
+      "updatedAt": "2026-09-03T05:31:01Z",
+      "durationSec": 16656.156,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a064c1-98a0-7432-b157-40ec5351284d",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "premium_model_against_account_defaults"
+      ]
+    },
+    {
+      "bcId": "bc-54b4a3a8-28f8-4678-a6f7-538f83dc26a4",
+      "name": "Instruction content review",
+      "status": "ERROR",
+      "source": "web",
+      "model": "cursor-grok-4.5-high-fast",
+      "createdAt": "2026-09-02T15:03:06Z",
+      "updatedAt": "2026-09-02T15:13:08Z",
+      "durationSec": 601.666,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-54b4a3a8-28f8-4678-a6f7-538f83dc26a4",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-8853f842-f2ac-535d-8213-62d7b08994d8",
+      "name": "Verify breaker card UI",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-02T14:29:38Z",
+      "updatedAt": "2026-09-02T14:34:30Z",
+      "durationSec": 292.117,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-8853f842-f2ac-535d-8213-62d7b08994d8",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-c9df8247-a051-510d-bd48-fcc9c8a7f9f4",
+      "name": "Browser-check current LCD",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-02T11:40:46Z",
+      "updatedAt": "2026-09-02T11:50:47Z",
+      "durationSec": 601.413,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-c9df8247-a051-510d-bd48-fcc9c8a7f9f4",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-907cdb1e-d268-59c1-ba40-12568f87f104",
+      "name": "Browser-check Arial LCD logo",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-02T10:03:34Z",
+      "updatedAt": "2026-09-02T10:11:30Z",
+      "durationSec": 475.251,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-907cdb1e-d268-59c1-ba40-12568f87f104",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-aed499e9-4e2c-5d14-9ff9-29f07038e29a",
+      "name": "Browser-check live Arial keypad",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T23:35:01Z",
+      "updatedAt": "2026-09-01T23:37:52Z",
+      "durationSec": 170.377,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-aed499e9-4e2c-5d14-9ff9-29f07038e29a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-9af30a8e-2eaa-5209-80e1-b2aa7ce6b95d",
+      "name": "Browser-check Arial keypad",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T23:21:46Z",
+      "updatedAt": "2026-09-01T23:23:21Z",
+      "durationSec": 95.366,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-9af30a8e-2eaa-5209-80e1-b2aa7ce6b95d",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-3dc28c96-6488-50a6-a39f-d0c3c2bca9bf",
+      "name": "Screenshot live LCD colors",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T17:49:37Z",
+      "updatedAt": "2026-09-01T17:53:02Z",
+      "durationSec": 204.979,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-3dc28c96-6488-50a6-a39f-d0c3c2bca9bf",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-0438551f-9e4b-56c5-9ea8-d50af02567f5",
+      "name": "Screenshot live Arial keypad",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T17:44:36Z",
+      "updatedAt": "2026-09-01T17:47:23Z",
+      "durationSec": 166.971,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-0438551f-9e4b-56c5-9ea8-d50af02567f5",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-9054a4d7-f6b5-4c0b-a92c-c61d53958f49",
+      "name": "Aerial networks",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-09-01T16:54:51Z",
+      "updatedAt": "2026-10-02T18:39:48Z",
+      "durationSec": 2684697.249,
+      "branchName": "cursor/arial-dev-olarm-8f49",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-9054a4d7-f6b5-4c0b-a92c-c61d53958f49",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-0b177673-b1b0-5f50-a2d8-703a52069a03",
+      "name": "Verify site in browser",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T16:42:33Z",
+      "updatedAt": "2026-09-01T17:19:31Z",
+      "durationSec": 2217.54,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-0b177673-b1b0-5f50-a2d8-703a52069a03",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-8ee9b7f0-4a3d-5b36-8547-f25367c9b620",
+      "name": "Browser verify all URLs",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T16:23:23Z",
+      "updatedAt": "2026-09-01T16:42:24Z",
+      "durationSec": 1140.36,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-8ee9b7f0-4a3d-5b36-8547-f25367c9b620",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-51151d4c-a9eb-5866-95da-1b9b5bf2da6f",
+      "name": "Visual check live site",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T16:02:13Z",
+      "updatedAt": "2026-09-01T16:14:18Z",
+      "durationSec": 724.712,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-51151d4c-a9eb-5866-95da-1b9b5bf2da6f",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-7eb7ca29-8049-55ae-9a3c-003a09dfca0a",
+      "name": "Browser test Lipton + homepage",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T15:24:39Z",
+      "updatedAt": "2026-09-01T16:21:56Z",
+      "durationSec": 3436.937,
+      "branchName": "cursor/sailfish-china-research-925c",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-7eb7ca29-8049-55ae-9a3c-003a09dfca0a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a31f3a51-8c05-557c-af77-b7e0d5f65bc1",
+      "name": "Browser test live homepage",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T14:36:41Z",
+      "updatedAt": "2026-09-01T14:53:53Z",
+      "durationSec": 1032.468,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a31f3a51-8c05-557c-af77-b7e0d5f65bc1",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-94ebcc0a-ef50-5312-9006-5edc74060105",
+      "name": "Verify R1 finish ranks live",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T12:25:44Z",
+      "updatedAt": "2026-09-01T12:48:51Z",
+      "durationSec": 1386.47,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-94ebcc0a-ef50-5312-9006-5edc74060105",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-c08229a6-6688-5119-82ba-a9b827dd685a",
+      "name": "Verify live after deploy",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T12:03:31Z",
+      "updatedAt": "2026-09-01T12:22:01Z",
+      "durationSec": 1110.626,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-c08229a6-6688-5119-82ba-a9b827dd685a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-71c0625d-9910-5bcd-84c4-09376bcedb85",
+      "name": "Browser verify dev2 live",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T11:48:18Z",
+      "updatedAt": "2026-09-01T12:02:37Z",
+      "durationSec": 859.163,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-71c0625d-9910-5bcd-84c4-09376bcedb85",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-f5f36a6a-6aba-5dfe-baf3-830b0e011b54",
+      "name": "Test play button on live",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T08:46:42Z",
+      "updatedAt": "2026-09-01T09:08:22Z",
+      "durationSec": 1300.397,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-f5f36a6a-6aba-5dfe-baf3-830b0e011b54",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-abe53867-3e82-55bb-b119-1af555bc681a",
+      "name": "Retest buttons and overlay",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T08:00:02Z",
+      "updatedAt": "2026-09-01T08:20:15Z",
+      "durationSec": 1213.309,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-abe53867-3e82-55bb-b119-1af555bc681a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-0a05b2cb-7550-546c-affb-3c98d6f0d3f9",
+      "name": "Test dev2 buttons and overlay",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T07:36:58Z",
+      "updatedAt": "2026-09-01T07:56:49Z",
+      "durationSec": 1191.326,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-0a05b2cb-7550-546c-affb-3c98d6f0d3f9",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01c8fa9c-78e8-58d4-9a4e-9e71bd41c41b",
+      "name": "Hard refresh dev2v3 page",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T07:09:42Z",
+      "updatedAt": "2026-09-01T07:23:53Z",
+      "durationSec": 850.815,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01c8fa9c-78e8-58d4-9a4e-9e71bd41c41b",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-8e5c492b-c5ad-5381-b340-94fff1bfd190",
+      "name": "Verify dev2 Sailfish layout",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T07:07:40Z",
+      "updatedAt": "2026-09-01T07:08:54Z",
+      "durationSec": 74.195,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-8e5c492b-c5ad-5381-b340-94fff1bfd190",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-4e7c5dc5-3e77-51e9-a386-f927c4f66911",
+      "name": "Browser check dev2 page",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T06:42:15Z",
+      "updatedAt": "2026-09-01T07:06:11Z",
+      "durationSec": 1436.044,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-4e7c5dc5-3e77-51e9-a386-f927c4f66911",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-48f4bfb2-19bc-52e1-ad10-62d1f9f266a6",
+      "name": "Find tracking-dev2 and Lipton data",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-09-01T05:48:56Z",
+      "updatedAt": "2026-09-01T05:53:33Z",
+      "durationSec": 276.559,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-48f4bfb2-19bc-52e1-ad10-62d1f9f266a6",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-aa5d2344-282f-5d7d-bfb5-c96aa45ccdc1",
+      "name": "Capture Sailfish WS traffic",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-31T23:34:51Z",
+      "updatedAt": "2026-08-31T23:44:05Z",
+      "durationSec": 554.29,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-aa5d2344-282f-5d7d-bfb5-c96aa45ccdc1",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-b61a760e-108a-5c6e-b985-383b41163c40",
+      "name": "Capture open_trac WS traffic",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-31T23:30:58Z",
+      "updatedAt": "2026-08-31T23:34:27Z",
+      "durationSec": 209.449,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-b61a760e-108a-5c6e-b985-383b41163c40",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-8653716b-facd-5d91-9769-c67ea814bbda",
+      "name": "Capture open_trac WS traffic",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-31T23:12:17Z",
+      "updatedAt": "2026-08-31T23:29:33Z",
+      "durationSec": 1036.649,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-8653716b-facd-5d91-9769-c67ea814bbda",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-60bdfe83-857f-53e2-ab38-692c1be02447",
+      "name": "Screenshot Sailfish open_trac",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-31T22:55:06Z",
+      "updatedAt": "2026-08-31T23:05:40Z",
+      "durationSec": 633.686,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-60bdfe83-857f-53e2-ab38-692c1be02447",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-74a8b1d8-5b6c-5a66-adf0-20eae5241054",
+      "name": "Screenshot Sailfish traj UIs",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-31T22:32:33Z",
+      "updatedAt": "2026-08-31T22:52:00Z",
+      "durationSec": 1166.643,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-74a8b1d8-5b6c-5a66-adf0-20eae5241054",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a059c0-3782-7ed0-9b05-b6fbb4a4925c",
+      "name": "Sailfish website data extraction",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "default",
+      "createdAt": "2026-08-31T21:36:06Z",
+      "updatedAt": "2026-09-03T20:12:27Z",
+      "durationSec": 254181.029,
+      "branchName": "cursor/sailfish-china-research-925c",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a059c0-3782-7ed0-9b05-b6fbb4a4925c",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-1de8b47e-692f-5194-b6a2-24ec56daa74d",
+      "name": "Test Lipton page for flashing",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-29T16:56:46Z",
+      "updatedAt": "2026-08-29T16:58:46Z",
+      "durationSec": 120.358,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1de8b47e-692f-5194-b6a2-24ec56daa74d",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-f6cb11a6-6f58-5a7b-b2f6-0510f408dac2",
+      "name": "Summarize Lipton results chat",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-29T13:23:05Z",
+      "updatedAt": "2026-08-29T13:25:40Z",
+      "durationSec": 154.672,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-f6cb11a6-6f58-5a7b-b2f6-0510f408dac2",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-47a3f578-93cb-5c65-bf2f-9c07f847a610",
+      "name": "Screenshot DEV vs Vakaros maps",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-29T12:07:59Z",
+      "updatedAt": "2026-08-29T12:17:01Z",
+      "durationSec": 542.05,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-47a3f578-93cb-5c65-bf2f-9c07f847a610",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-7bcbf616-db71-5765-ab09-451bd9e6f8ab",
+      "name": "Prove live DEV rendered DOM",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-29T11:48:46Z",
+      "updatedAt": "2026-08-29T12:02:07Z",
+      "durationSec": 800.664,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-7bcbf616-db71-5765-ab09-451bd9e6f8ab",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-fa129012-a250-4db7-b452-9c717cfe8582",
+      "name": "Liptop results R7 R8 R9",
+      "status": "IDLE",
+      "source": "web",
+      "model": "cursor-grok-4.5-high-fast",
+      "createdAt": "2026-08-29T11:42:19Z",
+      "updatedAt": "2026-09-10T12:40:10Z",
+      "durationSec": 1040271.3,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-fa129012-a250-4db7-b452-9c717cfe8582",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-a3bd7c60-0e32-5246-ab48-2e5a897c87ae",
+      "name": "Verify -dev page render",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-29T11:23:54Z",
+      "updatedAt": "2026-08-29T11:30:30Z",
+      "durationSec": 396.317,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a3bd7c60-0e32-5246-ab48-2e5a897c87ae",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-af95cb76-6a75-5d2c-9eb3-57242f45a2ac",
+      "name": "Browser check Lipton URLs",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T20:30:25Z",
+      "updatedAt": "2026-08-28T20:31:11Z",
+      "durationSec": 45.879,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-af95cb76-6a75-5d2c-9eb3-57242f45a2ac",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-7d781721-8e4e-532e-90dc-ab80a1945a73",
+      "name": "Browser check Lipton pages",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T20:29:40Z",
+      "updatedAt": "2026-08-28T20:30:09Z",
+      "durationSec": 28.446,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-7d781721-8e4e-532e-90dc-ab80a1945a73",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-f95ee4f1-40c5-5a63-8c50-66ff0b064c6b",
+      "name": "Browser check Lipton pages",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T20:28:19Z",
+      "updatedAt": "2026-08-28T20:28:32Z",
+      "durationSec": 13.244,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-f95ee4f1-40c5-5a63-8c50-66ff0b064c6b",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-160ec84c-eab7-50e8-a9ab-88277e64863c",
+      "name": "Browser check Lipton URLs",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T20:27:03Z",
+      "updatedAt": "2026-08-28T20:28:11Z",
+      "durationSec": 67.595,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-160ec84c-eab7-50e8-a9ab-88277e64863c",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-92117a88-940c-5e3d-9b6e-2836f4e200e5",
+      "name": "Browser check Lipton pages",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T20:23:57Z",
+      "updatedAt": "2026-08-28T20:26:54Z",
+      "durationSec": 176.409,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-92117a88-940c-5e3d-9b6e-2836f4e200e5",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-6e0952c1-bc4b-5c9c-8a9f-e366a7dee015",
+      "name": "Browser check Lipton URLs",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T20:21:09Z",
+      "updatedAt": "2026-08-28T20:23:13Z",
+      "durationSec": 124.33,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-6e0952c1-bc4b-5c9c-8a9f-e366a7dee015",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-4eafada3-7b10-5617-ae72-450cceb44537",
+      "name": "Browser check Lipton URLs",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T20:08:48Z",
+      "updatedAt": "2026-08-28T20:21:00Z",
+      "durationSec": 731.768,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-4eafada3-7b10-5617-ae72-450cceb44537",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e04950d9-b187-5fa1-a9b9-c885c0dd7f90",
+      "name": "Browser check Lipton dev R4",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T19:43:44Z",
+      "updatedAt": "2026-08-28T19:43:50Z",
+      "durationSec": 6.644,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e04950d9-b187-5fa1-a9b9-c885c0dd7f90",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-2465d8ad-ea43-5041-890c-1ce2806d0e63",
+      "name": "Check Lipton layout jump",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T16:31:36Z",
+      "updatedAt": "2026-08-28T16:43:09Z",
+      "durationSec": 693.855,
+      "branchName": "cursor/lipton-sim-race-mode-340f",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-2465d8ad-ea43-5041-890c-1ce2806d0e63",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-2fe4270e-85f0-594a-b94a-d50573d98873",
+      "name": "Browser-check lockup and banner",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T10:11:06Z",
+      "updatedAt": "2026-08-28T10:17:35Z",
+      "durationSec": 388.572,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-2fe4270e-85f0-594a-b94a-d50573d98873",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-c7df7de7-3d37-5719-8be4-f1714e2db5fb",
+      "name": "Browser-check R1 under C",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-28T09:48:17Z",
+      "updatedAt": "2026-08-28T09:56:09Z",
+      "durationSec": 472.001,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-c7df7de7-3d37-5719-8be4-f1714e2db5fb",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e5398834-f58d-5743-a81b-981fe32dd610",
+      "name": "Deploy timing vs UI gaps",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T22:39:51Z",
+      "updatedAt": "2026-08-27T22:41:45Z",
+      "durationSec": 114.251,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e5398834-f58d-5743-a81b-981fe32dd610",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-99aa5bb2-4ba5-5983-ad69-5120b7b77e5f",
+      "name": "Explain checksum gap mismatch",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T22:37:32Z",
+      "updatedAt": "2026-08-27T22:39:15Z",
+      "durationSec": 103.387,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-99aa5bb2-4ba5-5983-ad69-5120b7b77e5f",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-406c4d85-23f7-527c-b233-00ce220f8483",
+      "name": "Checksum progress R2-R5",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T22:33:36Z",
+      "updatedAt": "2026-08-27T22:34:27Z",
+      "durationSec": 51.292,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-406c4d85-23f7-527c-b233-00ce220f8483",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-75392bb0-2aa4-5bc5-b992-ea2cb4031859",
+      "name": "Summarize Lipton agent transcript",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T22:03:05Z",
+      "updatedAt": "2026-08-27T22:04:27Z",
+      "durationSec": 82.352,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-75392bb0-2aa4-5bc5-b992-ea2cb4031859",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a0453b-317a-75bf-896d-d035d463a99e",
+      "name": "Cursor mac operational status",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "default",
+      "createdAt": "2026-08-27T21:58:23Z",
+      "updatedAt": "2026-08-29T15:05:48Z",
+      "durationSec": 148044.876,
+      "branchName": "cursor/lipton-lap-mark-checksum-a99e",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a0453b-317a-75bf-896d-d035d463a99e",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-f39947ab-1961-5fd0-ada9-1f5270ada03d",
+      "name": "Test Lipton -dev map",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T19:35:29Z",
+      "updatedAt": "2026-08-27T19:48:59Z",
+      "durationSec": 809.964,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-f39947ab-1961-5fd0-ada9-1f5270ada03d",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-1c519180-7f90-5934-bba7-5e6fa30cb267",
+      "name": "Test GPS canvas boats move",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T19:23:02Z",
+      "updatedAt": "2026-08-27T19:24:52Z",
+      "durationSec": 110.335,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-1c519180-7f90-5934-bba7-5e6fa30cb267",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-43023f43-09d3-5d79-ad61-c1768e41b4e3",
+      "name": "Open live -dev and record gaps",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T19:13:21Z",
+      "updatedAt": "2026-08-27T19:22:36Z",
+      "durationSec": 554.849,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-43023f43-09d3-5d79-ad61-c1768e41b4e3",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-6e479bf3-5754-5f86-a170-31de018b9bb9",
+      "name": "Browser-test Lipton Play/map",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T18:52:45Z",
+      "updatedAt": "2026-08-27T19:05:18Z",
+      "durationSec": 752.893,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-6e479bf3-5754-5f86-a170-31de018b9bb9",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01d1a5c9-0c98-5f47-9b57-ae5ad6ea034e",
+      "name": "Inspect live Lipton -dev page",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T18:41:42Z",
+      "updatedAt": "2026-08-27T18:50:19Z",
+      "durationSec": 517.676,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01d1a5c9-0c98-5f47-9b57-ae5ad6ea034e",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a17e9648-cfd5-5f5d-a5f3-a9e33e47fd7f",
+      "name": "Open Lipton -dev in browser",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T18:30:17Z",
+      "updatedAt": "2026-08-27T18:40:11Z",
+      "durationSec": 594.753,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a17e9648-cfd5-5f5d-a5f3-a9e33e47fd7f",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-bf0744bf-ec67-57c6-9e45-f49fb08bff4a",
+      "name": "Extract Vakaros AP T-",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T16:17:52Z",
+      "updatedAt": "2026-08-27T16:19:57Z",
+      "durationSec": 124.483,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-bf0744bf-ec67-57c6-9e45-f49fb08bff4a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-a674b988-407e-512d-905e-3e6870ffab82",
+      "name": "Summarize Lipton agent",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T15:33:47Z",
+      "updatedAt": "2026-08-27T15:34:43Z",
+      "durationSec": 55.641,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a674b988-407e-512d-905e-3e6870ffab82",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-6dd7e69d-b7f5-5b31-8122-0ff64831a945",
+      "name": "Summarize R4/R5 agent",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T15:33:47Z",
+      "updatedAt": "2026-08-27T15:36:03Z",
+      "durationSec": 136.466,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-6dd7e69d-b7f5-5b31-8122-0ff64831a945",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-00d854ab-cc23-46d9-b285-9bbdce2e340f",
+      "name": "Lipton cup Dev Aug 26",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-08-27T15:32:24Z",
+      "updatedAt": "2026-09-05T10:07:27Z",
+      "durationSec": 758102.809,
+      "branchName": "cursor/lipton-sim-race-mode-340f",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-00d854ab-cc23-46d9-b285-9bbdce2e340f",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-a05d9385-fc6e-45ce-9e43-fb268d0fcc78",
+      "name": "Mac storage cleanup",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high",
+      "createdAt": "2026-08-27T15:00:19Z",
+      "updatedAt": "2026-08-27T15:00:37Z",
+      "durationSec": 17.572,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-a05d9385-fc6e-45ce-9e43-fb268d0fcc78",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-dddc3f92-7e41-5739-a799-6056b90e6b3a",
+      "name": "Summarize Lipton agent",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T14:21:25Z",
+      "updatedAt": "2026-08-27T14:25:12Z",
+      "durationSec": 227.654,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-dddc3f92-7e41-5739-a799-6056b90e6b3a",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e81b2620-0769-5e6b-9ebf-087d106e0794",
+      "name": "Summarize camera agent",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-27T14:21:24Z",
+      "updatedAt": "2026-08-27T14:22:01Z",
+      "durationSec": 37.66,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e81b2620-0769-5e6b-9ebf-087d106e0794",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e2ed19dc-ddc3-41ac-88c6-86a751e43dbb",
+      "name": "Unclear task instruction",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "cursor-grok-4.6-high",
+      "createdAt": "2026-08-27T14:19:07Z",
+      "updatedAt": "2026-09-03T05:39:29Z",
+      "durationSec": 573621.307,
+      "branchName": "cursor/lipton-2026-r4-wyac-3dbb",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e2ed19dc-ddc3-41ac-88c6-86a751e43dbb",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-01a03ef9-f587-796f-83cc-1305528bd6bb",
+      "name": "Lipton scoring checksum",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "cursor-grok-4.6-high-fast",
+      "createdAt": "2026-08-26T16:49:25Z",
+      "updatedAt": "2026-10-05T08:19:11Z",
+      "durationSec": 3425386.708,
+      "branchName": "cursor/lipton-2026-sailed-line-fix-d6bb",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a03ef9-f587-796f-83cc-1305528bd6bb",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    },
+    {
+      "bcId": "bc-01a03ca5-ef5c-7438-b5f5-30a255e58002",
+      "name": "Table mountain camera control",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "default",
+      "createdAt": "2026-08-26T05:58:23Z",
+      "updatedAt": "2026-08-27T15:34:11Z",
+      "durationSec": 120948.121,
+      "branchName": "cursor/cpt-cam-panomax-8002",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a03ca5-ef5c-7438-b5f5-30a255e58002",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-e9f9b20d-0554-5f94-9a98-e8d8b35667c2",
+      "name": "Open /traffic logged in",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-25T18:00:17Z",
+      "updatedAt": "2026-08-25T18:06:44Z",
+      "durationSec": 386.728,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-e9f9b20d-0554-5f94-9a98-e8d8b35667c2",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-00a7387a-e1a8-5ef0-af99-61d7e34e90f9",
+      "name": "Browse /traffic dashboard",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-25T17:53:32Z",
+      "updatedAt": "2026-08-25T17:58:52Z",
+      "durationSec": 319.489,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-00a7387a-e1a8-5ef0-af99-61d7e34e90f9",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a039df-b1d2-767e-aba5-2bd153bdea6b",
+      "name": "Sailingsa traffic activity",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "default",
+      "createdAt": "2026-08-25T17:02:37Z",
+      "updatedAt": "2026-08-26T13:34:30Z",
+      "durationSec": 73912.982,
+      "branchName": "cursor/site-traffic-tracking-ea6b",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a039df-b1d2-767e-aba5-2bd153bdea6b",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-633b1e1a-9d13-5f2e-b33d-9a9c6cdc1017",
+      "name": "Browser test homepage fix",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-24T06:01:00Z",
+      "updatedAt": "2026-08-24T06:22:31Z",
+      "durationSec": 1290.161,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-633b1e1a-9d13-5f2e-b33d-9a9c6cdc1017",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-38f26cdb-1549-5cd0-b6e4-5954bb808fc5",
+      "name": "Browser audit /events",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-23T18:07:49Z",
+      "updatedAt": "2026-08-23T18:12:04Z",
+      "durationSec": 255.297,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-38f26cdb-1549-5cd0-b6e4-5954bb808fc5",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-24e31e61-b20c-5c6b-961b-23289387c2bc",
+      "name": "Browser audit /events",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-23T18:06:01Z",
+      "updatedAt": "2026-08-23T18:07:28Z",
+      "durationSec": 87.503,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-24e31e61-b20c-5c6b-961b-23289387c2bc",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-2091b1c1-8d6d-5a4f-b9e3-2bc915259311",
+      "name": "Browser audit /events",
+      "status": "IDLE",
+      "source": "internal",
+      "model": null,
+      "createdAt": "2026-08-23T18:00:41Z",
+      "updatedAt": "2026-08-23T18:05:45Z",
+      "durationSec": 304.08,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-2091b1c1-8d6d-5a4f-b9e3-2bc915259311",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "unsolicited_internal_spawn",
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-29a4a175-68a1-44ed-aaf3-cabb8f0dc1b4",
+      "name": "Server events page (fork)",
+      "status": "IDLE",
+      "source": "desktop",
+      "model": "default",
+      "createdAt": "2026-08-23T17:14:15Z",
+      "updatedAt": "2026-08-24T06:34:03Z",
+      "durationSec": 47988.203,
+      "branchName": null,
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-29a4a175-68a1-44ed-aaf3-cabb8f0dc1b4",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker"
+      ]
+    },
+    {
+      "bcId": "bc-01a02f5a-7fd8-71f2-815a-c490cd00f371",
+      "name": "Server events page",
+      "status": "IDLE",
+      "source": "mobile",
+      "model": "default",
+      "createdAt": "2026-08-23T16:00:56Z",
+      "updatedAt": "2026-08-26T13:34:36Z",
+      "durationSec": 250419.568,
+      "branchName": "cursor/events-sas-date-fixes-f371",
+      "usePrivateWorker": false,
+      "url": "https://cursor.com/agents/bc-01a02f5a-7fd8-71f2-815a-c490cd00f371",
+      "blame": "cursor_platform",
+      "userBlame": false,
+      "reasons": [
+        "public_cloud_not_mac_worker",
+        "left_idle_over_48h"
+      ]
+    }
+  ],
+  "pendingIncidents": [
+    {
+      "at": "2026-10-12T23:32:00Z",
+      "bcId": "bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1",
+      "name": "Credits self-check monitor",
+      "includeIn": "next_fuckup_report",
+      "sent": false,
+      "url": "https://cursor.com/agents/bc-01a13244-d4f6-71ba-9fed-f8ab7d7305e1",
+      "facts": [
+        "Same monitor stayed on public Cloud (usePrivateWorker=false) after October was already filed on T-H16750.",
+        "Required Cc kevinweaving@icloud.com was omitted on August and September letters to hi@cursor.com.",
+        "Follow-up burned more Cloud instead of a one-line yes/no on the CC question.",
+        "Mac Mini worker was the standing rule. This run is Cloud-over-Mac. This is why Kevin needs this tool; it has to stop."
+      ]
+    }
+  ]
+}
