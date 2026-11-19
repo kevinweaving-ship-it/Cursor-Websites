@@ -1,0 +1,574 @@
+"""Compact portrait print stylesheet for standalone /regatta result sheets.
+
+Print test / example sheet:
+https://sailingsa.co.za/regatta/2025-12-19-hyc-youth-nationals
+(7 fleets, 12 races, Age + Crew — A4 landscape so the race grid fits, SA.)
+
+Print and Save-as-PDF both use this CSS on the live HTML tables so sailor / club /
+class / sail links stay real hyperlinks in the PDF (not a screenshot).
+
+Pagination (A4):
+- Page 1 always starts with the event header + first fleet.
+- The next fleet stays on that page only if the whole fleet fits; otherwise it
+  moves to the next page. Same rule for every following fleet.
+- A fleet header must never sit on one page with its results table on the next.
+- A fleet is never split across two pages. If it does not fit the leftover space,
+  the whole fleet (header + table) moves to the next page. If it is taller than
+  one A4 page, it is tightened so it still stays on a single page.
+- Every page footer (one small line): event name + the results URL. The URL is a
+  real link in Print-to-PDF; on paper it can be typed to open the same sheet.
+- Print button offers Printer or PDF. Both publish the same standalone A4
+  document (header + fleets + footer only). Layout does not follow the screen
+  URL (mobile stack, live cards, site chrome).
+- Page is A4 portrait or landscape automatically from table fit: each fleet's
+  columns are given a minimum readable width (mm). If any fleet is wider than
+  A4 portrait (194mm), the sheet is landscape; otherwise portrait.
+"""
+
+PRINT_COMPACT_CSS = """
+@page { size: A4 portrait; margin: 8mm 8mm 14mm; }
+.ssa-print-page-footer { display: none !important; }
+html.ssa-printing .site-header, html.ssa-printing footer, html.ssa-printing .site-footer,
+html.ssa-printing .app-footer, html.ssa-printing .action-buttons, html.ssa-printing .back-to-home,
+html.ssa-printing .regatta-back-row, html.ssa-printing .regatta-source-banner,
+html.ssa-printing .regatta-sa-mode-wrap, html.ssa-printing .regatta-live-wx,
+html.ssa-printing .regatta-live-track, html.ssa-printing .regatta-live-clip,
+html.ssa-printing .mm-lipton-reels, html.ssa-printing #mmLiptonReels,
+html.ssa-printing .cape-crew { display: none !important; }
+html.ssa-printing .header, html.ssa-printing .header.header--lipton {
+  display: grid !important;
+  grid-template-columns: auto minmax(0,1fr) auto !important;
+  grid-template-rows: auto !important;
+}
+html.ssa-printing th.class-col, html.ssa-printing td.class-col { display: none !important; }
+html.ssa-printing .ssa-print-page-footer { display: flex !important; position: static !important; margin-top: 8px !important; }
+@media print {
+  html, body { background: #fff !important; color: #1a2750 !important; margin: 0 !important; padding: 0 !important; }
+  .site-header, footer, .site-footer, .app-footer, .action-buttons, .back-to-home,
+  .regatta-back-row, .regatta-source-banner,
+  .regatta-sa-mode-wrap, .regatta-wc-icons-row, .regatta-sa-columns-panel, .regatta-sa-hub-news-wrap,
+  .mm-lipton-reels, #mmLiptonReels, .regatta-live-wx, .regatta-live-track, .regatta-live-clip,
+  .cape-crew, .cape-crew-sa, .seo-discovery-block, .regatta-name-editor, .host-club-sa-edit-hit,
+  .fleet-sa-edit-hit, .regatta-host-picker, .wc-late-entry-strip, .wc-entry-holds-panel,
+  .wc-fleet-icons-toggle-row { display: none !important; }
+  .regatta-name-view { display: block !important; }
+  .host-club-wrap .host-club-public-nav, .fleet-title-public-nav { display: inline !important; }
+
+  .regatta-page { max-width: none !important; width: 100% !important; padding: 0 !important; margin: 0 !important; display: block !important; }
+  .regatta-header-wrap { width: 100% !important; margin: 0 !important; }
+
+  /* Event header: left event logo | centre details | right host — same as the URL, not the stacked MP layout */
+  .header, .header.header--lipton {
+    display: grid !important;
+    grid-template-columns: 72px minmax(0,1fr) 72px !important;
+    grid-template-rows: auto !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    column-gap: 6px !important;
+    row-gap: 0 !important;
+    padding: 3px 5px !important;
+    margin: 0 0 6px 0 !important;
+    border-width: 1.5px !important;
+    border-radius: 6px !important;
+    page-break-after: avoid;
+    break-after: avoid-page;
+  }
+  .regatta-header-wrap {
+    page-break-after: avoid;
+    break-after: avoid-page;
+  }
+  .regatta-header-logo-col {
+    display: flex !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    padding: 0 !important;
+    width: 72px !important;
+    min-width: 72px !important;
+  }
+  .regatta-header-main-col {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: stretch !important;
+    padding: 0 6px !important;
+    width: 100% !important;
+    text-align: center !important;
+  }
+  .regatta-header-club-logo-col {
+    display: flex !important;
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    padding: 0 !important;
+    width: 72px !important;
+    min-width: 72px !important;
+  }
+  .regatta-header-logo-img, .regatta-header-left-logo-img { max-height: 40px !important; max-width: 72px !important; height: auto !important; width: auto !important; }
+  .regatta-header-club-logo-img { max-height: 40px !important; max-width: 72px !important; height: auto !important; width: auto !important; }
+  .regatta-name { font-size: 11pt !important; line-height: 1.15 !important; margin: 0 0 1px 0 !important; text-align: center !important; width: 100% !important; }
+  .host-club, .regatta-venue, .regatta-lipton-venue-line, .regatta-lipton-host-line { font-size: 8pt !important; line-height: 1.2 !important; margin: 0 0 1px 0 !important; text-align: center !important; width: 100% !important; }
+  .status-line { font-size: 7.5pt !important; line-height: 1.2 !important; margin: 2px 0 0 0 !important; text-align: center !important; width: 100% !important; }
+  .regatta-live-board-row { display: none !important; }
+
+  /* Tight gap: main header → first fleet. Keep each fleet together so a
+     leftover sliver never gets a header with the table on the next page.
+     If the next fleet does not fit, the whole fleet moves to the next page. */
+  .fleet-section {
+    display: inline-block !important;
+    width: 100% !important;
+    margin-top: 6px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+    page-break-before: auto;
+    break-before: auto;
+  }
+  .regatta-page > .fleet-section:first-of-type {
+    margin-top: 6px !important;
+    page-break-before: avoid !important;
+    break-before: avoid-page !important;
+  }
+  .fleet-section.ssa-print-new-page {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+  .fleet-section tbody {
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+  }
+
+  /* Fleet card: one centred line — small class chip (event-list size) + title + sailed */
+  .class-header, .class-header--with-logos {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    grid-template-columns: none !important;
+    grid-template-rows: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    justify-items: center !important;
+    column-gap: 6px !important;
+    row-gap: 0 !important;
+    gap: 6px !important;
+    padding: 2px 6px !important;
+    margin: 0 !important;
+    border-width: 1.5px !important;
+    border-radius: 6px !important;
+    font-size: 9pt !important;
+    page-break-after: avoid;
+    break-after: avoid-page;
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+  .class-header-logo-col { display: flex !important; grid-column: auto !important; grid-row: auto !important; justify-content: center !important; padding: 0 !important; min-width: 0 !important; }
+  .class-header-logo-img, .class-header-class-icon-img {
+    max-height: 22px !important;
+    max-width: 48px !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+  .class-header-club-logo-col { display: none !important; }
+  .class-header-main-col, .class-header-text-col {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+  }
+  .fleet-title-row { font-size: 9pt !important; font-weight: 700 !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
+  .sailed-line { font-size: 7pt !important; margin: 0 !important; line-height: 1.15 !important; white-space: nowrap !important; }
+
+  /* Rank table: smaller type, full cell text (no clip). Class is already on
+     the fleet card so that column is dropped to free width for helm + races. */
+  .table-wrapper {
+    overflow: visible !important;
+    margin-top: 3px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    page-break-before: avoid !important;
+    break-before: avoid-page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+  }
+  .table-wrapper table, table.fleet-results-table, .fleet-section .table-wrapper table.fleet-results-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    border: 0.7pt solid #1a2750 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+  }
+  th, td {
+    padding: 1.5px 2px !important;
+    font-size: 5.5pt !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    font-stretch: condensed;
+    letter-spacing: -0.01em !important;
+    border: 0.5pt solid #1a2750 !important;
+    background: #fff !important;
+  }
+  th {
+    background: #e9eefb !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+  }
+  td { text-align: center !important; }
+  td.helm-col, th.helm-col, td.crew-col, th.crew-col { text-align: left !important; }
+  tr.medal-gold td { background: #D4AF37 !important; }
+  tr.medal-silver td { background: #D7D7D7 !important; }
+  tr.medal-bronze td { background: #CE8946 !important; }
+  html.ssa-print-landscape th, html.ssa-print-landscape td { font-size: 7pt !important; }
+  html.ssa-print-landscape .race-col { font-size: 6.5pt !important; width: 4.15% !important; }
+  html.ssa-print-landscape .helm-col { width: 17% !important; }
+  html.ssa-print-landscape .fleet-section:has(th.crew-col) .helm-col { width: 13% !important; }
+  html.ssa-print-landscape .fleet-section:has(th.crew-col) .race-col { width: 3.65% !important; }
+  .fleet-results-table th.class-col, .fleet-results-table td.class-col,
+  th.class-col, td.class-col { display: none !important; }
+  .rank-col, .total-col, .nett-col { width: 3.3% !important; }
+  .wc-meta-col { width: 3% !important; }
+  .sail-col { width: 5.4% !important; }
+  .club-col { width: 4.2% !important; }
+  .helm-col { width: 16.5% !important; }
+  th.crew-col, td.crew-col { width: 12.5% !important; }
+  .fleet-section:has(th.crew-col) .helm-col { width: 12.5% !important; }
+  .fleet-section:has(th.crew-col) .race-col { width: 3.35% !important; }
+  .race-col {
+    width: 3.85% !important;
+    padding-left: 0.5px !important;
+    padding-right: 0.5px !important;
+    font-size: 5.1pt !important;
+    letter-spacing: -0.03em !important;
+  }
+  .fleet-results-table .wc-score { font-size: inherit !important; font-weight: 600 !important; }
+  .fleet-results-table .wc-code { font-size: 5pt !important; margin-left: 1px !important; opacity: 1 !important; }
+  .fleet-results-table tbody tr, .fleet-results-table tbody td,
+  html.ssa-printing .fleet-results-table tbody tr, html.ssa-printing .fleet-results-table tbody td {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    font-size: 5.5pt !important;
+    line-height: 1.25 !important;
+  }
+  .rs-club-row-logo, .rs-boat-sponsor-logo, .fleet-results-table .rs-club-row-logo,
+  .fleet-results-table .rs-boat-sponsor-logo { display: none !important; }
+  .rs-club-with-logo, .rs-boat-name-sponsors { white-space: nowrap !important; }
+  thead { display: table-header-group; }
+  tbody { page-break-inside: avoid !important; break-inside: avoid-page !important; }
+  tr { page-break-inside: avoid; break-inside: avoid; }
+  .fleet-section.ssa-print-fit-1 th, .fleet-section.ssa-print-fit-1 td { font-size: 5.8pt !important; padding: 0 1px !important; line-height: 1.08 !important; }
+  .fleet-section.ssa-print-fit-2 th, .fleet-section.ssa-print-fit-2 td { font-size: 5.2pt !important; padding: 0 !important; line-height: 1.05 !important; }
+  .fleet-section.ssa-print-fit-3 th, .fleet-section.ssa-print-fit-3 td { font-size: 4.6pt !important; padding: 0 !important; line-height: 1.02 !important; }
+
+  a, a:visited { color: #0000ee !important; text-decoration: underline !important; }
+  html, body, .regatta-page {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Small repeating footer: event name + URL on one line (clickable in PDF). */
+  .ssa-print-page-footer {
+    display: flex !important;
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 2px 0 0 !important;
+    border-top: 0.4pt solid #1a2750 !important;
+    background: #fff !important;
+    color: #1a2750 !important;
+    font-size: 6.5pt !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    align-items: baseline !important;
+    gap: 6px !important;
+    z-index: 9999 !important;
+  }
+  .ssa-print-footer-name { font-weight: 700 !important; flex: 0 0 auto !important; }
+  .ssa-print-page-footer a, .ssa-print-page-footer a:visited {
+    color: #0000ee !important;
+    text-decoration: underline !important;
+    font-weight: 400 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+}
+#ssaPrintChooser { display: none; position: fixed; inset: 0; z-index: 2147483000; align-items: center; justify-content: center; background: rgba(0,31,63,.45); }
+#ssaPrintChooser.is-open { display: flex; }
+#ssaPrintChooser .card { max-width: 56rem; width: 96%; padding: 16px; }
+#ssaPrintChooser .ssa-print-chooser-note { font-size: 13px; color: #1a2750; margin: 0 0 8px; line-height: 1.35; }
+#ssaPrintChooser .ssa-print-chooser-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 12px; }
+#ssaPrintChooser .ssa-pdf-frame { width: 100%; height: 62vh; border: 1px solid #1a2750; background: #fff; margin: 0; }
+#ssaPrintChooser a.action-button { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+""".strip()
+
+def _document_css() -> str:
+    text = PRINT_COMPACT_CSS
+    start = text.find("@media print {")
+    end = text.find("\n#ssaPrintChooser")
+    inner = text[start + len("@media print {") : end if end > 0 else None].rstrip()
+    if inner.endswith("}"):
+        inner = inner[: inner.rfind("}")].rstrip()
+    return "@page { size: A4 portrait; margin: 8mm 8mm 14mm; }\n" + inner
+
+
+PRINT_DOCUMENT_CSS = _document_css()
+
+# Minimum readable print widths (mm) at ~6.5pt. Class is hidden on the sheet.
+PRINT_COL_MIN_MM = {
+    "class": 0,
+    "race": 11,
+    "helm": 30,
+    "crew": 26,
+    "sail": 12,
+    "club": 11,
+    "rank": 8,
+    "total": 8,
+    "nett": 8,
+    "disc": 8,
+    "boat": 22,
+    "meta": 9,
+}
+PRINT_COL_OTHER_MM = 10
+PRINT_A4_PORTRAIT_CONTENT_MM = 194  # 210mm minus 8mm side margins
+
+
+def print_col_need_mm(kind: str) -> int:
+    return PRINT_COL_MIN_MM.get(kind, PRINT_COL_OTHER_MM)
+
+
+def print_table_need_mm(kinds: list) -> int:
+    return sum(print_col_need_mm(k) for k in kinds)
+
+
+def print_orientation_for_tables(tables: list) -> str:
+    worst = max((print_table_need_mm(cols) for cols in tables), default=0)
+    return "landscape" if worst > PRINT_A4_PORTRAIT_CONTENT_MM else "portrait"
+
+
+def _print_orientation_js() -> str:
+    need_js = "".join(f"if(kind==='{k}')return {mm};" for k, mm in PRINT_COL_MIN_MM.items())
+    return (
+        "function printHeaderKind(el){"
+        "var c=el.className||'';"
+        "if(/\\bclass-col\\b/.test(c))return 'class';"
+        "if(/\\brace-col\\b/.test(c))return 'race';"
+        "if(/\\bhelm-col\\b/.test(c))return 'helm';"
+        "if(/\\bcrew-col\\b/.test(c))return 'crew';"
+        "if(/\\bsail-col\\b/.test(c))return 'sail';"
+        "if(/\\bclub-col\\b/.test(c))return 'club';"
+        "if(/\\brank-col\\b/.test(c))return 'rank';"
+        "if(/\\btotal-col\\b/.test(c))return 'total';"
+        "if(/\\bnett-col\\b/.test(c))return 'nett';"
+        "if(/\\bdisc-col\\b/.test(c))return 'disc';"
+        "if(/\\bboat-name-col\\b/.test(c))return 'boat';"
+        "if(/\\bwc-meta-col\\b/.test(c))return 'meta';"
+        "var t=(el.textContent||'').replace(/\\s+/g,' ').trim().toLowerCase();"
+        "if(t==='class')return 'class';"
+        "if(/^r\\d+$/.test(t))return 'race';"
+        "if(t==='helm')return 'helm';"
+        "if(t==='crew')return 'crew';"
+        "if(t==='sail no'||t==='sail'||t==='sailno')return 'sail';"
+        "if(t==='club')return 'club';"
+        "if(t==='rank')return 'rank';"
+        "if(t==='total')return 'total';"
+        "if(t==='nett')return 'nett';"
+        "if(t==='disc'||t==='discard')return 'disc';"
+        "if(t==='boat name'||t==='boat')return 'boat';"
+        "if(t==='age'||t==='bow'||t==='bow no'||t==='jib'||t==='jib no'||t==='hull'||t==='hull no')return 'meta';"
+        "return 'other';"
+        "}"
+        "function printColNeedMm(kind){"
+        + need_js
+        + f"return {PRINT_COL_OTHER_MM};"
+        "}"
+        "function printTableNeedMm(t){"
+        "var need=0,cells=t.querySelectorAll('thead th');"
+        "if(!cells.length)cells=t.querySelectorAll('tbody tr:first-child td');"
+        "cells.forEach(function(el){need+=printColNeedMm(printHeaderKind(el));});"
+        "return need;"
+        "}"
+        "function printOrientation(){"
+        "var worst=0;"
+        "document.querySelectorAll('.fleet-section table').forEach(function(t){"
+        "var n=printTableNeedMm(t);if(n>worst)worst=n;"
+        "});"
+        f"return worst>{PRINT_A4_PORTRAIT_CONTENT_MM}?'landscape':'portrait';"
+        "}"
+    )
+
+
+PRINT_PAGINATE_JS = (
+    _print_orientation_js()
+    + r"""
+function pagePx(orient){var h=(orient==='landscape')?(210-8-14):(297-8-14);return h*96/25.4;}
+function fleetH(el){
+  var rows=el.querySelectorAll('table.fleet-results-table tbody tr').length;
+  return 42+16+rows*13;
+}
+function clearPrintPages(){
+  document.querySelectorAll('.fleet-section').forEach(function(el){
+    el.classList.remove('ssa-print-new-page','ssa-print-fit-1','ssa-print-fit-2','ssa-print-fit-3');
+  });
+}
+function keepFleetsOnOnePage(){
+  clearPrintPages();
+  var page=pagePx(printOrientation())-8;
+  var used=document.querySelector('.regatta-header-wrap,.header')?58:0;
+  document.querySelectorAll('.fleet-section').forEach(function(el,i){
+    var h=fleetH(el);
+    if(h>page){
+      el.classList.add(h>page*1.35?'ssa-print-fit-3':h>page*1.15?'ssa-print-fit-2':'ssa-print-fit-1');
+      h=page;
+    }
+    if(i===0){used+=h;return;}
+    if(used+h>page){el.classList.add('ssa-print-new-page');used=h;}
+    else used+=h;
+  });
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function eventName(){var n=document.querySelector('.regatta-name');return (n&&n.textContent||document.title||'').replace(/\\s*\\|\\s*SailingSA\\s*$/i,'').replace(/\\s+/g,' ').trim();}
+function buildPrintDoc(){
+  var name=eventName(),url=sheetUrl()||location.href,cssEl=document.getElementById('ssaPrintDocumentCss');
+  var orient=printOrientation();
+  var css=cssEl?cssEl.textContent:'';
+  css=css.replace('A4 portrait','A4 '+orient);
+  var chunks=[],hdr=document.querySelector('.regatta-header-wrap');
+  if(hdr){var h=hdr.cloneNode(true);h.querySelectorAll('.regatta-back-row,.back-to-home,.regatta-sa-mode-wrap,.regatta-live-board-row,.regatta-name-editor,.regatta-sa-hub-news-wrap').forEach(function(n){n.remove();});chunks.push(h.outerHTML);}
+  document.querySelectorAll('.regatta-page > .fleet-section').forEach(function(sec){
+    if(sec.classList.contains('cape-crew'))return;
+    var c=sec.cloneNode(true);
+    c.querySelectorAll('script,.fleet-sa-edit-hit,.wc-sa-ac-wrap,.wc-rank-action-pop,.regatta-sa-columns-panel,.wc-late-entry-strip').forEach(function(n){n.remove();});
+    chunks.push(c.outerHTML);
+  });
+  chunks.push('<div class=\"ssa-print-page-footer\"><span class=\"ssa-print-footer-name\">'+esc(name)+'</span><a class=\"ssa-print-footer-url\" href=\"'+esc(url)+'\">'+esc(url)+'</a></div>');
+  return '<!DOCTYPE html><html class=\"ssa-print-'+orient+'\" data-ssa-print-orient=\"'+orient+'\"><head><meta charset=\"UTF-8\"><base href=\"'+esc(location.origin)+'/\"><title>'+esc(name)+'</title><style>'+css+'</style></head><body class=\"ssa-print-doc\">'+chunks.join('')+'</body></html>';
+}
+function paginatePrintDoc(doc){
+  var orient=(doc.documentElement.getAttribute('data-ssa-print-orient')||'portrait');
+  var page=pagePx(orient)-8,used=58;
+  doc.querySelectorAll('.fleet-section').forEach(function(el,i){
+    var h=fleetH(el);
+    if(h>page){el.classList.add('ssa-print-fit-1');h=page;}
+    if(i===0){used+=h;return;}
+    if(used+h>page){el.classList.add('ssa-print-new-page');used=h;}else used+=h;
+  });
+}
+function openPrintSheet(){
+  var w=window.open('', 'ssaRegattaPrint');
+  if(!w){window.print();return;}
+  w.document.open();w.document.write(buildPrintDoc());w.document.close();
+  function go(){try{paginatePrintDoc(w.document);}catch(e){}w.focus();w.print();}
+  var imgs=[].slice.call(w.document.images||[]),left=0;
+  imgs.forEach(function(im){if(!im.complete){left+=1;im.onload=im.onerror=function(){left-=1;if(left<=0)go();};}});
+  if(!left)setTimeout(go,200);else setTimeout(go,1500);
+}
+function openChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.add('is-open');}
+function closeChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.remove('is-open');}
+window.ssaRegattaPrint=openChooser;
+window.ssaRegattaPrintSheet=openPrintSheet;
+document.addEventListener('click',function(ev){
+  var t=ev.target;if(!t||!t.getAttribute)return;
+  var act=t.getAttribute('data-ssa-print');
+  if(act==='printer'||act==='pdf'){ev.preventDefault();closeChooser();openPrintSheet();return;}
+  if(act==='cancel'||(t.id==='ssaPrintChooser'&&t.classList.contains('is-open')))closeChooser();
+});
+""".replace("\n", "")
+)
+
+
+def print_share_bar_html() -> str:
+    """Print + Share: open the server-made results.pdf for this parent or child URL."""
+    return (
+        '<style id="ssa-print-compact">' + PRINT_COMPACT_CSS + "</style>"
+        '<div id="ssaPrintChooser" role="dialog" aria-label="Results PDF">'
+        '<div class="card">'
+        '<div class="section-title">Results PDF</div>'
+        '<p class="ssa-print-chooser-note">Server-made A4 sheet for this URL. Landscape if the table is too wide for portrait. Each fleet stays on one page.</p>'
+        '<iframe id="ssaPdfFrame" class="ssa-pdf-frame" title="Results PDF"></iframe>'
+        '<div class="ssa-print-chooser-actions">'
+        '<button type="button" class="action-button" data-ssa-print="cancel">Close</button>'
+        '<button type="button" class="action-button" data-ssa-print="share">Share</button>'
+        '<a class="action-button" id="ssaPdfDownload" href="#" download>Download</a>'
+        '<button type="button" class="action-button" data-ssa-print="printer">Print</button>'
+        "</div></div></div>"
+        '<div class="action-buttons">'
+        '<button type="button" class="action-button" onclick="window.ssaRegattaPrint&&window.ssaRegattaPrint()">Print</button>'
+        '<button type="button" class="action-button" id="regattaShareBtn">Share</button>'
+        "</div>"
+        "<script>(function(){"
+        "function sheetUrl(){"
+        "var c=document.querySelector('link[rel=\"canonical\"]');"
+        "if(c&&c.href&&c.href.indexOf('http')===0)return c.href.split('#')[0].split('?')[0];"
+        "var u=(location.href||'').split('#')[0].split('?')[0];"
+        "if(u.indexOf('http')===0)return u;"
+        "var p=location.pathname||'';"
+        "if(p.indexOf('/regatta/')===0)return 'https://sailingsa.co.za'+p.replace(/\\/+$/,'');"
+        "return '';"
+        "}"
+        "function pdfPath(){"
+        "var p=(location.pathname||'').replace(/\\/+$/,'');"
+        "if(p.indexOf('/regatta/')!==0)return '';"
+        "if(/\\/results\\.pdf$/i.test(p))return p;"
+        "return p+'/results.pdf';"
+        "}"
+        "function pdfAbs(){"
+        "var p=pdfPath();if(!p)return '';"
+        "if(p.indexOf('http')===0)return p;"
+        "return (location.origin||'https://sailingsa.co.za')+p;"
+        "}"
+        "function sharePdf(){"
+        "var t=document.title||'SailingSA',u=pdfAbs()||sheetUrl()||location.href;"
+        "if(navigator.share){navigator.share({title:t,url:u}).catch(function(){});return;}"
+        "var b=document.getElementById('regattaShareBtn');"
+        "function copied(){if(b){b.textContent='PDF link copied';setTimeout(function(){b.textContent='Share';},1600);}}"
+        "if(navigator.clipboard&&navigator.clipboard.writeText){"
+        "navigator.clipboard.writeText(u).then(copied).catch(function(){prompt('Copy this PDF link:',u);});"
+        "return;}"
+        "prompt('Copy this PDF link:',u);"
+        "}"
+        "function openChooser(){"
+        "var el=document.getElementById('ssaPrintChooser');if(!el)return;"
+        "var u=pdfPath();if(!u)return;"
+        "var fr=document.getElementById('ssaPdfFrame');"
+        "var dl=document.getElementById('ssaPdfDownload');"
+        "if(fr)fr.src=u+'?t='+Date.now();"
+        "if(dl){dl.setAttribute('href',u+'?download=1');dl.setAttribute('download','');}"
+        "el.classList.add('is-open');"
+        "}"
+        "function closeChooser(){var el=document.getElementById('ssaPrintChooser');if(el)el.classList.remove('is-open');}"
+        "function printPdf(){"
+        "var fr=document.getElementById('ssaPdfFrame');"
+        "try{if(fr&&fr.contentWindow){fr.contentWindow.focus();fr.contentWindow.print();return;}}catch(e){}"
+        "var u=pdfAbs();if(u)window.open(u,'_blank');"
+        "}"
+        "window.ssaRegattaPrint=openChooser;"
+        "document.addEventListener('click',function(ev){"
+        "var t=ev.target;if(!t||!t.getAttribute)return;"
+        "var act=t.getAttribute('data-ssa-print');"
+        "if(act==='printer'){ev.preventDefault();printPdf();return;}"
+        "if(act==='share'){ev.preventDefault();sharePdf();return;}"
+        "if(act==='cancel'||(t.id==='ssaPrintChooser'&&t.classList.contains('is-open')))closeChooser();"
+        "});"
+        "var b=document.getElementById('regattaShareBtn');"
+        "if(b)b.addEventListener('click',function(){sharePdf();});"
+        "})();</script>"
+    )
