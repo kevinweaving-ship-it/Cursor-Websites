@@ -52,6 +52,7 @@ scp -i "$KEY" -o StrictHostKeyChecking=no \
   "root@${SERVER}:${WEB_ROOT}/sailingsa/backend/tracking_dev2_sailfish.py"
 
 echo "=== 4) api.py (verified deploy) ==="
+bash "$PROJECT_ROOT/sailingsa/deploy/stage_ilca4_incoming.sh" "$KEY" "root@${SERVER}"
 scp -i "$KEY" -o StrictHostKeyChecking=no \
   "$PROJECT_ROOT/api.py" "root@${SERVER}:/root/incoming/api.py"
 ssh -i "$KEY" -o StrictHostKeyChecking=no "root@${SERVER}" \

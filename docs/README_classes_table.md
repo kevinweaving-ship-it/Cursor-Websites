@@ -51,7 +51,7 @@ CREATE TABLE class_aliases (
 1. ✅ **Read `docs/ALL_COLUMN_RULES_REFERENCE.md`** - Master reference for ALL columns
 2. ✅ **Read `docs/CLASSES_TABLE_AUTHORITATIVE_SOURCE.md`** - Authoritative source explanation
 3. ✅ **Check existing correct examples** in database
-4. ✅ **Verify format consistency** (e.g., `29Er` not `29er`, `Ilca 4.7` not `Ilca 4`)
+4. ✅ **Verify format consistency** (e.g., `29Er` not `29er`). **ILCA 4** is the canonical class name. `ILCA 4.7`, `Ilca 4.7`, `ILCA4.7`, `ILCA 4,7`, `Laser 4.7` and `Laser Radial 4.7` are aliases of that same class_id, not a second class.
 
 ## 🚨 CLASS NAME CAPITALIZATION RULE - FREQUENTLY VIOLATED
 
@@ -76,7 +76,7 @@ CREATE TABLE class_aliases (
 
 **Column Rules**:
 - **`class_name`**: ⚠️ **AUTHORITATIVE SOURCE** - All `results.class_canonical` must match EXACTLY (case-sensitive, no variations)
-  - Format must be consistent: `29Er` (not `29er`), `Ilca 4.7` (not `Ilca 4`)
+  - Format must be consistent: `29Er` (not `29er`). ILCA 4 canonical name is `ILCA 4` (not a separate `Ilca 4.7` class)
   - If PDF shows wrong class (e.g., "Lazer 7"), correct to valid class ("ILCA 7")
   - Invalid `class_canonical` breaks HTML filtering - results won't be found in search
 - **`crew_policy`**: Valid values: 'single', 'double', 'Crewed', or NULL
@@ -85,7 +85,7 @@ CREATE TABLE class_aliases (
 
 **Pre-Entry Validation**:
 - [ ] Verify `class_name` format matches existing (case-sensitive)
-- [ ] If adding new class, ensure format is consistent (e.g., `Ilca 4.7` not `Ilca 4`)
+- [ ] If adding an ILCA 4 result, canonical `class_name` is `ILCA 4`. Keep `ILCA 4.7` / `Laser 4.7` as aliases. Do not create a second class.
 
 **Post-Entry Validation** (MANDATORY after results import):
 - [ ] Run `admin/tools/update_sailors_in_class.sql` - **MANDATORY** - Update unique sailor counts per class

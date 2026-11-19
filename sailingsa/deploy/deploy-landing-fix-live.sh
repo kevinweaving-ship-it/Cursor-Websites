@@ -47,6 +47,7 @@ echo "=== 2) Upload + extract frontend ==="
 "
 
 echo "=== 3) Deploy api.py ==="
+bash "$PROJECT_ROOT/sailingsa/deploy/stage_ilca4_incoming.sh" "$KEY" "${USER}@${SERVER}"
 "${SCP[@]}" "$PROJECT_ROOT/api.py" "${USER}@${SERVER}:/root/incoming/api.py"
 "${SSH[@]}" "${USER}@${SERVER}" "/root/deploy_api_verified.sh"
 
