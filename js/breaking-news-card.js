@@ -3930,6 +3930,55 @@
       '-std-category" name="category" maxlength="500" value="' +
       escapeHtml(cat).replace(/"/g, '&quot;') +
       '" placeholder="e.g. Regional, Nationals" aria-label="Category"></div>' +
+      (function () {
+        var hasRid = String(summary.regatta_id || '').trim();
+        if (!hasRid) return '';
+        var on =
+          summary.mm_live_fb_feed === true ||
+          summary.mm_live_fb_feed === 1 ||
+          String(summary.mm_live_fb_feed || '').toLowerCase() === 'on';
+        return (
+          '<div class="bn-card__sa-field bn-card__sa-field--mm-feed">' +
+          '<label for="' +
+          NS +
+          '-std-mm-feed">Live video</label>' +
+          '<select id="' +
+          NS +
+          '-std-mm-feed" name="mm_live_fb_feed" aria-label="Live video card">' +
+          '<option value="OFF"' +
+          (!on ? ' selected' : '') +
+          '>OFF</option>' +
+          '<option value="ON"' +
+          (on ? ' selected' : '') +
+          '>ON</option></select>' +
+          '<label for="' +
+          NS +
+          '-std-mm-source">Feed source</label>' +
+          '<select id="' +
+          NS +
+          '-std-mm-source" name="mm_feed_source">' +
+          '<option value="sailingsa">SailingSA</option>' +
+          '<option value="marine-megastore" selected>Marine Megastore</option>' +
+          '<option value="other">Other</option></select>' +
+          '<label for="' +
+          NS +
+          '-std-mm-page">Facebook page</label>' +
+          '<input id="' +
+          NS +
+          '-std-mm-page" name="mm_fb_page" type="text" maxlength="200" value="' +
+          escapeHtml(String(summary.mm_fb_page || 'marin.megastoresa')) +
+          '">' +
+          '<label for="' +
+          NS +
+          '-std-mm-urls">Facebook clip URLs</label>' +
+          '<textarea id="' +
+          NS +
+          '-std-mm-urls" name="mm_clip_urls" rows="3">' +
+          escapeHtml((summary.mm_clip_urls || []).join('\n')) +
+          '</textarea>' +
+          '<span class="bn-card__sa-hint">ON inserts the live video card on the event page between Event Header and Fleet 1. One Facebook URL per line.</span></div>'
+        );
+      })() +
       '<div class="bn-card__sa-dates">' +
       '<div class="bn-card__sa-field"><label>Start date</label>' +
       '<input type="date" name="start_date" value="' +
@@ -4067,6 +4116,26 @@
         }
         return;
       }
+      var mmCal = formEl.querySelector('[name="mm_live_fb_feed"]');
+      var calRid = String(summary.regatta_id || '').trim();
+      if (mmCal && calRid) {
+        try {
+          await fetch(
+            b + '/api/super-admin/regatta/' + encodeURIComponent(calRid) + '/mm-live-fb-feed',
+            {
+              method: 'PATCH',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                mm_live_fb_feed: String(mmCal.value || '').toUpperCase() === 'ON',
+                feed_source: (formEl.querySelector('[name="mm_feed_source"]') || {}).value || 'marine-megastore',
+                fb_page: (formEl.querySelector('[name="mm_fb_page"]') || {}).value || '',
+                clip_urls: (formEl.querySelector('[name="mm_clip_urls"]') || {}).value || ''
+              })
+            }
+          );
+        } catch (eMm) {}
+      }
       exitBnSaInlineEdit(root);
       try {
         localStorage.setItem('sailsa_hub_news_dirty', String(Date.now()));
@@ -4140,6 +4209,60 @@
         '</option>';
     }
     badgeSelectHtml += '</select></div>';
+
+    var showMmFeed = false;
+    try {
+      var slotSec = root.closest('[data-bn-slot]');
+      var slotName = slotSec ? String(slotSec.getAttribute('data-bn-slot') || '') : '';
+      showMmFeed = slotName === 'upcoming-events' || curBadge === 'Upcoming Event';
+    } catch (eSlotMm) {}
+    var mmOn =
+      summary.mm_live_fb_feed === true ||
+      summary.mm_live_fb_feed === 1 ||
+      String(summary.mm_live_fb_feed || '').toLowerCase() === 'on';
+    var mmFeedHtml = '';
+    if (showMmFeed) {
+      mmFeedHtml =
+        '<div class="bn-card__sa-field bn-card__sa-field--mm-feed">' +
+        '<label for="' +
+        NS +
+        '-sa-mm-feed">Live video</label>' +
+        '<select id="' +
+        NS +
+        '-sa-mm-feed" name="mm_live_fb_feed" aria-label="Live video card">' +
+        '<option value="OFF"' +
+        (!mmOn ? ' selected' : '') +
+        '>OFF</option>' +
+        '<option value="ON"' +
+        (mmOn ? ' selected' : '') +
+        '>ON</option></select>' +
+        '<label for="' +
+        NS +
+        '-sa-mm-source">Feed source</label>' +
+        '<select id="' +
+        NS +
+        '-sa-mm-source" name="mm_feed_source">' +
+        '<option value="sailingsa">SailingSA</option>' +
+        '<option value="marine-megastore" selected>Marine Megastore</option>' +
+        '<option value="other">Other</option></select>' +
+        '<label for="' +
+        NS +
+        '-sa-mm-page">Facebook page</label>' +
+        '<input id="' +
+        NS +
+        '-sa-mm-page" name="mm_fb_page" type="text" maxlength="200" value="' +
+        escapeHtml(String(summary.mm_fb_page || 'marin.megastoresa')) +
+        '">' +
+        '<label for="' +
+        NS +
+        '-sa-mm-urls">Facebook clip URLs</label>' +
+        '<textarea id="' +
+        NS +
+        '-sa-mm-urls" name="mm_clip_urls" rows="3">' +
+        escapeHtml((summary.mm_clip_urls || []).join('\n')) +
+        '</textarea>' +
+        '<span class="bn-card__sa-hint">ON inserts the live video card on the event page between Event Header and Fleet 1. One Facebook URL per line.</span></div>';
+    }
 
     var clubHtml =
       '<div class="bn-card__sa-field bn-card__sa-club-field"><label for="' +
@@ -4265,6 +4388,7 @@
       '-sa-open-url="events">Open</button>' +
       '</div></div>' +
       badgeSelectHtml +
+      mmFeedHtml +
       clubHtml +
       '<div class="bn-card__sa-field"><label>Results</label>' +
       '<select name="result_status" aria-label="Final, Provisional, or None">' +
@@ -4494,6 +4618,16 @@
       var cev = String(ceIn.value || '').trim();
       body.card_calendar_url = cev || null;
     }
+    var mmIn = formEl.querySelector('[name="mm_live_fb_feed"]');
+    if (mmIn) {
+      body.mm_live_fb_feed = String(mmIn.value || '').toUpperCase() === 'ON';
+    }
+    var mmSrcIn = formEl.querySelector('[name="mm_feed_source"]');
+    if (mmSrcIn) body.feed_source = String(mmSrcIn.value || '').trim();
+    var mmPageIn = formEl.querySelector('[name="mm_fb_page"]');
+    if (mmPageIn) body.fb_page = String(mmPageIn.value || '').trim();
+    var mmUrlsIn = formEl.querySelector('[name="mm_clip_urls"]');
+    if (mmUrlsIn) body.clip_urls = String(mmUrlsIn.value || '');
     if (root._bncardHubManual && typeof root._bncardHubManual === 'object') {
       body.blank_hub_sa_manual_entries = root._bncardHubManual;
     }

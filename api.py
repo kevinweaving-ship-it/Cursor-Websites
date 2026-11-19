@@ -22,7 +22,7 @@ import hashlib
 import html as html_module
 import json
 import difflib
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, quote
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
@@ -16558,6 +16558,12 @@ def _regatta_results_summary_payload(regatta_id: str) -> Optional[dict]:
                 elif not isinstance(raw_al, list):
                     out["blank_hub_news_album"] = []
 
+            out["mm_live_fb_feed"] = _mm_live_fb_is_enabled(rid)
+            mm_payload = _mm_feed_payload(rid)
+            out["mm_feed_source"] = mm_payload.get("feed_source")
+            out["mm_fb_page"] = mm_payload.get("fb_page")
+            out["mm_clip_urls"] = [v.get("url") for v in (mm_payload.get("videos") or []) if v.get("url")]
+
             entries_total = 0
             races_total = 0
             fleet_stats: list = []
@@ -19940,6 +19946,957 @@ async def api_super_admin_regatta_event_name_patch(request: Request, regatta_id:
     return {"ok": True, "event_name": name}
 
 
+# Manual-URL MM video card for Lipton + Cape Classic only. No Graph / schema.
+_MM_FEED_ALLOWED = {
+    "2026-08-29-lipton-challenge-cup",
+    "2026-09-13-zvyc-cape-classic",
+}
+_MM_FEED_SOURCES = ("sailingsa", "marine-megastore", "other")
+_MM_FEED_SOURCE_PAGES = {
+    "sailingsa": "",
+    "marine-megastore": "marin.megastoresa",
+    "other": "",
+}
+_MM_LIVE_FB_ON = set(_MM_FEED_ALLOWED)
+_MM_FB_VIDEO_ID_RE = re.compile(
+    r"(?:/videos/|/reel/|/reels/|/watch/?\?v=)(\d+)|/share/v/([A-Za-z0-9]+)/?",
+    re.I,
+)
+
+
+def _mm_feed_json_path() -> Path:
+    here = Path(__file__).resolve().parent
+    if "/var/www/sailingsa" in str(here):
+        return Path("/var/www/sailingsa/api/data/event_fb_feeds.json")
+    return here / "sailingsa" / "deploy" / "event_fb_feeds.json"
+
+
+def _mm_feed_read() -> dict:
+    try:
+        p = _mm_feed_json_path()
+        if p.is_file():
+            data = json.loads(p.read_text(encoding="utf-8") or "{}")
+            return data if isinstance(data, dict) else {}
+    except Exception as e:
+        print(f"[mm_feed] read failed: {e}", flush=True)
+    return {}
+
+
+def _mm_feed_write(regatta_id: str, row: dict) -> None:
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        return
+    p = _mm_feed_json_path()
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        data = _mm_feed_read()
+        data[rid] = row
+        tmp = p.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        tmp.replace(p)
+    except Exception as e:
+        print(f"[mm_feed] write failed: {e}", flush=True)
+
+
+def _mm_feed_row(regatta_id: str) -> dict:
+    rid = str(regatta_id or "").strip()
+    raw = _mm_feed_read().get(rid)
+    return raw if isinstance(raw, dict) else {}
+
+
+def _mm_parse_video_id(url: str) -> str:
+    raw = (url or "").strip()
+    if not raw:
+        return ""
+    m = _MM_FB_VIDEO_ID_RE.search(raw)
+    if not m:
+        return raw[-24:]
+    return (m.group(1) or m.group(2) or "").strip()
+
+
+def _mm_embed_src(url: str) -> str:
+    href = (url or "").strip()
+    if not href:
+        return ""
+    return "https://www.facebook.com/plugins/video.php?href=" + quote(href, safe="") + "&show_text=false"
+
+
+def _mm_stamp_from_iso(value: str) -> str:
+    raw = (value or "").strip()
+    if len(raw) < 16:
+        return ""
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return dt.strftime("%d %b · %H:%M")
+    except Exception:
+        return raw[:16]
+
+
+def _mm_normalize_video(item: dict) -> Optional[dict]:
+    if not isinstance(item, dict):
+        return None
+    url = str(item.get("url") or item.get("permalink") or "").strip()
+    if not url:
+        return None
+    vid = str(item.get("id") or _mm_parse_video_id(url) or url).strip()
+    permalink = str(item.get("permalink") or url).strip()
+    embed = str(item.get("embed_url") or "").strip() or _mm_embed_src(permalink or url)
+    started = str(item.get("started_at") or "").strip()
+    title = str(item.get("title") or "").strip()
+    return {
+        "id": vid,
+        "url": url,
+        "permalink": permalink,
+        "embed_url": embed,
+        "title": title,
+        "fb_title": str(item.get("fb_title") or title).strip(),
+        "fb_sub": str(item.get("fb_sub") or "").strip(),
+        "fb_owner_logo": str(item.get("fb_owner_logo") or "").strip(),
+        "fb_page": str(item.get("fb_page") or "").strip(),
+        "play_url": str(item.get("play_url") or "").strip(),
+        "started_at": started,
+        "track_offset_ms": int(item.get("track_offset_ms") or 0),
+        "is_live": bool(item.get("is_live")),
+        "stamp": str(item.get("stamp") or _mm_stamp_from_iso(started)),
+        "thumb": str(item.get("thumb") or "").strip(),
+        "width": int(item["width"]) if str(item.get("width") or "").isdigit() else item.get("width") or 0,
+        "height": int(item["height"]) if str(item.get("height") or "").isdigit() else item.get("height") or 0,
+        "aspect": str(item.get("aspect") or "").strip(),
+    }
+
+
+def _mm_sorted_newest(videos: list) -> list:
+    live = [v for v in videos if v.get("is_live")]
+    rest = [v for v in videos if not v.get("is_live")]
+    rest.sort(key=lambda v: str(v.get("started_at") or ""), reverse=True)
+    return live + rest
+
+
+def _mm_videos_from_clip_urls(raw, existing: list) -> list:
+    by_url = {}
+    for item in existing or []:
+        n = _mm_normalize_video(item)
+        if n:
+            by_url[n["url"]] = n
+    lines = []
+    if isinstance(raw, str):
+        lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+    elif isinstance(raw, list):
+        for item in raw:
+            if isinstance(item, str) and item.strip():
+                lines.append(item.strip())
+            elif isinstance(item, dict) and (item.get("url") or item.get("permalink")):
+                n = _mm_normalize_video(item)
+                if n:
+                    by_url[n["url"]] = n
+    out = []
+    seen = set()
+    for url in lines:
+        prev = by_url.get(url)
+        if prev:
+            if url not in seen:
+                out.append(prev)
+                seen.add(url)
+            continue
+        n = _mm_normalize_video({"url": url, "permalink": url})
+        if n and url not in seen:
+            out.append(n)
+            seen.add(url)
+    if not lines and existing:
+        return [_mm_normalize_video(v) for v in existing if _mm_normalize_video(v)]
+    return out
+
+
+def _mm_feed_payload(regatta_id: str) -> dict:
+    rid = str(regatta_id or "").strip()
+    row = _mm_feed_row(rid)
+    source = str(row.get("feed_source") or "marine-megastore").strip() or "marine-megastore"
+    if source not in _MM_FEED_SOURCES:
+        source = "marine-megastore"
+    page = str(row.get("fb_page") or _MM_FEED_SOURCE_PAGES.get(source) or "").strip()
+    videos = []
+    for item in row.get("videos") or []:
+        n = _mm_normalize_video(item)
+        if n:
+            videos.append(n)
+    videos = _mm_sorted_newest(videos)
+    start, end = _mm_regatta_date_window(rid)
+    videos = [v for v in videos if _mm_video_matches_event(v, start, end)]
+    videos = _mm_apply_page_chrome(videos)
+    enabled = _mm_live_fb_is_enabled(rid)
+    return {
+        "enabled": enabled,
+        "feed_source": source,
+        "fb_page": page,
+        "videos": videos,
+    }
+
+
+def _mm_live_fb_parse_on(raw) -> bool:
+    if raw is True or raw == 1:
+        return True
+    if raw is False or raw == 0 or raw is None:
+        return False
+    return str(raw).strip().lower() in ("1", "true", "on", "yes")
+
+
+def _mm_live_fb_is_enabled(regatta_id: str) -> bool:
+    rid = str(regatta_id or "").strip()
+    if rid not in _MM_FEED_ALLOWED:
+        return False
+    row = _mm_feed_row(rid)
+    if "enabled" in row:
+        return bool(row.get("enabled"))
+    return rid in _MM_LIVE_FB_ON
+
+
+def _mm_live_fb_set_enabled(regatta_id: str, enabled: bool) -> bool:
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        raise HTTPException(status_code=400, detail="regatta_id required")
+    if rid not in _MM_FEED_ALLOWED:
+        raise HTTPException(status_code=400, detail="MM video card is limited to Lipton and Cape Classic")
+    if table_exists("regattas"):
+        try:
+            found = q("SELECT 1 FROM regattas WHERE regatta_id = %s LIMIT 1", rid)
+            if not found:
+                raise HTTPException(status_code=404, detail="regatta not found")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    on = bool(enabled)
+    if on:
+        _MM_LIVE_FB_ON.add(rid)
+    else:
+        _MM_LIVE_FB_ON.discard(rid)
+    row = _mm_feed_row(rid)
+    row["enabled"] = on
+    if not row.get("feed_source"):
+        row["feed_source"] = "marine-megastore"
+    if not row.get("fb_page"):
+        row["fb_page"] = _MM_FEED_SOURCE_PAGES["marine-megastore"]
+    if not isinstance(row.get("videos"), list):
+        row["videos"] = []
+    _mm_feed_write(rid, row)
+    return on
+
+
+def _mm_feed_save_fields(regatta_id: str, body: dict) -> dict:
+    rid = str(regatta_id or "").strip()
+    if rid not in _MM_FEED_ALLOWED:
+        turning_on = False
+        if "mm_live_fb_feed" in body or "enabled" in body:
+            turning_on = _mm_live_fb_parse_on(body.get("mm_live_fb_feed", body.get("enabled")))
+        if turning_on:
+            raise HTTPException(status_code=400, detail="MM video card is limited to Lipton and Cape Classic")
+        return {"ok": True, "mm_live_fb_feed": False}
+    row = _mm_feed_row(rid)
+    if "mm_live_fb_feed" in body or "enabled" in body:
+        raw = body.get("mm_live_fb_feed")
+        if raw is None:
+            raw = body.get("enabled")
+        row["enabled"] = _mm_live_fb_parse_on(raw)
+        if row["enabled"]:
+            _MM_LIVE_FB_ON.add(rid)
+        else:
+            _MM_LIVE_FB_ON.discard(rid)
+    elif "enabled" not in row:
+        row["enabled"] = rid in _MM_LIVE_FB_ON
+    source = body.get("feed_source") or body.get("mm_feed_source")
+    if source is not None:
+        src = str(source).strip().lower().replace(" ", "-")
+        if src in ("sailing-sa", "sailing_sa"):
+            src = "sailingsa"
+        if src not in _MM_FEED_SOURCES:
+            raise HTTPException(status_code=400, detail="feed_source must be sailingsa, marine-megastore, or other")
+        row["feed_source"] = src
+        if src != "other" and not body.get("fb_page"):
+            row["fb_page"] = _MM_FEED_SOURCE_PAGES.get(src) or row.get("fb_page") or ""
+    if "fb_page" in body:
+        row["fb_page"] = str(body.get("fb_page") or "").strip()
+    if "clip_urls" in body or "videos" in body:
+        existing = row.get("videos") if isinstance(row.get("videos"), list) else []
+        row["videos"] = _mm_videos_from_clip_urls(body.get("clip_urls", body.get("videos")), existing)
+    if not row.get("feed_source"):
+        row["feed_source"] = "marine-megastore"
+    if not row.get("fb_page") and row["feed_source"] == "marine-megastore":
+        row["fb_page"] = "marin.megastoresa"
+    _mm_feed_write(rid, row)
+    payload = _mm_feed_payload(rid)
+    return {
+        "ok": True,
+        "mm_live_fb_feed": payload["enabled"],
+        "feed_source": payload["feed_source"],
+        "fb_page": payload["fb_page"],
+        "videos": payload["videos"],
+    }
+
+
+def _mm_live_fb_card_html(regatta_id: str) -> str:
+    rid_raw = str(regatta_id or "").strip()
+    rid = html_module.escape(rid_raw)
+    payload = _mm_feed_payload(rid_raw)
+    initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
+    source = payload.get("feed_source") or "marine-megastore"
+    is_lipton = rid_raw == "2026-08-29-lipton-challenge-cup"
+    extra_cls = " mm-live-fb-card--lipton" if is_lipton else ""
+    reels_img = (
+        '<img class="mm-live-fb-brand mm-live-fb-brand--reels" src="/assets/adverts/mm-powered-by-event-reels.png?v=mmcap1" alt="Powered by Marine Megastore Event Reels" width="160" height="107" style="max-width:160px !important;max-height:72px !important;width:auto !important;height:auto !important;" loading="lazy" decoding="async">'
+    )
+    live_img = (
+        ""
+        if is_lipton
+        else '<img class="mm-live-fb-brand mm-live-fb-brand--live" src="/assets/adverts/mm-powered-by-live.png?v=mmcap1" alt="Powered by Marine Megastore Live Streaming" width="160" height="107" style="max-width:160px !important;max-height:72px !important;width:auto !important;height:auto !important;" loading="lazy" decoding="async">'
+    )
+    brand = (
+        '<a class="mm-live-fb-brand-link" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        f"{reels_img}{live_img}"
+        "</a>"
+    )
+    titles = (
+        ""
+        if is_lipton
+        else (
+            '<h2 class="section-title mm-live-fb-title--live">LIVE VIDEO</h2>'
+            '<h2 class="section-title mm-live-fb-title--reels">EVENT REELS</h2>'
+        )
+    )
+    expanded_brand = brand if is_lipton else ""
+    return (
+        f'<section class="card mm-live-fb-card mm-live-fb-card--compact{extra_cls}" id="mmLiveFbCard" '
+        f'data-regatta-id="{rid}" data-mm-source="{html_module.escape(source)}" '
+        f'data-mm-initial="{initial}" aria-label="Marine Megastore video">'
+        '<div class="mm-live-fb-compact">'
+        f"{brand}"
+        '<div data-mm-compact></div>'
+        "</div>"
+        '<div class="mm-live-fb-expanded">'
+        '<div class="mm-live-fb-expanded-bar">'
+        f"{expanded_brand}{titles}"
+        '<div class="mm-live-fb-expanded-actions">'
+        '<button type="button" class="mm-live-fb-fs" data-mm-fs>Fullscreen</button>'
+        '<button type="button" class="mm-live-fb-hide" data-mm-hide>Hide</button>'
+        "</div></div>"
+        '<div data-mm-expanded></div>'
+        "</div>"
+        "</section>"
+    )
+
+
+_LIPTON_MM_REGATTA_ID = "2026-08-29-lipton-challenge-cup"
+_LIPTON_MM_REELS_VIDEOS = (
+    {
+        "id": "2622643364847262",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-1st-downwind/2622643364847262/",
+        "permalink": "https://www.facebook.com/reel/2622643364847262/",
+        "title": "Lipton Race 7 1st downwind",
+        "fb_title": "Lipton Race 7 1st downwind",
+        "fb_sub": "Marine Megastore was live",
+        "fb_owner_logo": "/assets/adverts/mm-lipton/fb-page-marine-megastore.jpg",
+        "started_at": "2026-08-28T16:19:00+02:00",
+        "track_offset_ms": 36000,
+        "stamp": "28 Aug · 16:19",
+        "thumb": "/assets/adverts/mm-lipton/2622643364847262.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "2410502969472697",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-1st-top/2410502969472697/",
+        "permalink": "https://www.facebook.com/reel/2410502969472697/",
+        "title": "Lipton Race 7 1st top",
+        "fb_title": "Lipton Race 7 1st top",
+        "started_at": "2026-08-28T16:12:00+02:00",
+        "track_offset_ms": -88000,
+        "stamp": "28 Aug · 16:12",
+        "thumb": "/assets/adverts/mm-lipton/2410502969472697.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1014880974840710",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-7-start/1014880974840710/",
+        "permalink": "https://www.facebook.com/reel/1014880974840710/",
+        "title": "Lipton Race 7 Start",
+        "fb_title": "Lipton Race 7 Start",
+        "started_at": "2026-08-28T15:55:00+02:00",
+        "track_offset_ms": 24200,
+        "stamp": "28 Aug · 15:55",
+        "thumb": "/assets/adverts/mm-lipton/1014880974840710.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "26023759437321260",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r5/26023759437321260/",
+        "permalink": "https://www.facebook.com/reel/26023759437321260/",
+        "title": "Lipton R5",
+        "fb_title": "Lipton R5",
+        "started_at": "2026-08-27T16:47:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "27 Aug · 16:47",
+        "thumb": "/assets/adverts/mm-lipton/26023759437321260.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1587763379559775",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-5/1587763379559775/",
+        "permalink": "https://www.facebook.com/reel/1587763379559775/",
+        "title": "Lipton Race 5",
+        "fb_title": "Lipton Race 5",
+        "started_at": "2026-08-27T16:03:00+02:00",
+        "track_offset_ms": -42000,
+        "stamp": "27 Aug · 16:03",
+        "thumb": "/assets/adverts/mm-lipton/1587763379559775.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "4518629078350390",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r5-start/4518629078350390/",
+        "permalink": "https://www.facebook.com/reel/4518629078350390/",
+        "title": "Lipton R5 Start",
+        "fb_title": "Lipton R5 Start",
+        "started_at": "2026-08-27T15:48:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "27 Aug · 15:48",
+        "thumb": "/assets/adverts/mm-lipton/4518629078350390.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1751846282795149",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r4-finish/1751846282795149/",
+        "permalink": "https://www.facebook.com/reel/1751846282795149/",
+        "title": "Lipton R4 Finish",
+        "fb_title": "Lipton R4 Finish",
+        "started_at": "2026-08-27T15:24:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "27 Aug · 15:24",
+        "thumb": "/assets/adverts/mm-lipton/1751846282795149.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "2111285223132517",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r4-2nd-quad/2111285223132517/",
+        "permalink": "https://www.facebook.com/reel/2111285223132517/",
+        "title": "Lipton R4 2nd Quad",
+        "fb_title": "Lipton R4 2nd Quad",
+        "started_at": "2026-08-27T15:03:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "27 Aug · 15:03",
+        "thumb": "/assets/adverts/mm-lipton/2111285223132517.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1588170962712352",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race4/1588170962712352/",
+        "permalink": "https://www.facebook.com/reel/1588170962712352/",
+        "title": "Lipton race4",
+        "fb_title": "Lipton race4",
+        "started_at": "2026-08-27T14:36:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "27 Aug · 14:36",
+        "thumb": "/assets/adverts/mm-lipton/1588170962712352.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1582165340314238",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-4-1st-windward/1582165340314238/",
+        "permalink": "https://www.facebook.com/reel/1582165340314238/",
+        "title": "Lipton race 4 1st windward",
+        "fb_title": "Lipton race 4 1st windward",
+        "started_at": "2026-08-27T14:16:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "27 Aug · 14:16",
+        "thumb": "/assets/adverts/mm-lipton/1582165340314238.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1079923421076157",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-4-start/1079923421076157/",
+        "permalink": "https://www.facebook.com/reel/1079923421076157/",
+        "title": "Lipton Race 4 start",
+        "fb_title": "Lipton Race 4 start",
+        "started_at": "2026-08-27T13:52:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "27 Aug · 13:52",
+        "thumb": "/assets/adverts/mm-lipton/1079923421076157.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "983599421402934",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-day3/983599421402934/",
+        "permalink": "https://www.facebook.com/reel/983599421402934/",
+        "title": "Lipton day3",
+        "fb_title": "Lipton day3",
+        "started_at": "2026-08-27T12:49:00+02:00",
+        "stamp": "27 Aug · 12:49",
+        "thumb": "/assets/adverts/mm-lipton/983599421402934.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "825961863876577",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r3-3rd-downwind/825961863876577/",
+        "permalink": "https://www.facebook.com/reel/825961863876577/",
+        "title": "Lipton R3 3rd Downwind",
+        "fb_title": "Lipton R3 3rd Downwind",
+        "started_at": "2026-08-26T16:12:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "26 Aug · 16:12",
+        "thumb": "/assets/adverts/mm-lipton/825961863876577.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1530770848344300",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r3-downwind-2/1530770848344300/",
+        "permalink": "https://www.facebook.com/reel/1530770848344300/",
+        "title": "Lipton R3 Downwind 2",
+        "fb_title": "Lipton R3 Downwind 2",
+        "started_at": "2026-08-26T15:51:00+02:00",
+        "track_offset_ms": 1524000,
+        "stamp": "26 Aug · 15:51",
+        "thumb": "/assets/adverts/mm-lipton/1530770848344300.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1802153794291569",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-3-leeward-1/1802153794291569/",
+        "permalink": "https://www.facebook.com/reel/1802153794291569/",
+        "title": "Lipton Race 3 leeward 1",
+        "fb_title": "Lipton Race 3 leeward 1",
+        "started_at": "2026-08-26T15:34:00+02:00",
+        "track_offset_ms": -252000,
+        "stamp": "26 Aug · 15:34",
+        "thumb": "/assets/adverts/mm-lipton/1802153794291569.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1813350889838726",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-3-windward-1/1813350889838726/",
+        "permalink": "https://www.facebook.com/reel/1813350889838726/",
+        "title": "Lipton Race 3 windward 1",
+        "fb_title": "Lipton Race 3 windward 1",
+        "started_at": "2026-08-26T15:24:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "26 Aug · 15:24",
+        "thumb": "/assets/adverts/mm-lipton/1813350889838726.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1025386753667866",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-3-start/1025386753667866/",
+        "permalink": "https://www.facebook.com/reel/1025386753667866/",
+        "title": "Lipton Race 3 start",
+        "fb_title": "Lipton Race 3 start",
+        "started_at": "2026-08-26T15:07:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "26 Aug · 15:07",
+        "thumb": "/assets/adverts/mm-lipton/1025386753667866.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "940083808452432",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r2-finish/940083808452432/",
+        "permalink": "https://www.facebook.com/reel/940083808452432/",
+        "title": "Lipton R2 Finish",
+        "fb_title": "Lipton R2 Finish",
+        "started_at": "2026-08-26T14:42:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "26 Aug · 14:42",
+        "thumb": "/assets/adverts/mm-lipton/940083808452432.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "942850414812890",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-2-2nd-leeward/942850414812890/",
+        "permalink": "https://www.facebook.com/reel/942850414812890/",
+        "title": "Lipton Race 2 2nd leeward",
+        "fb_title": "Lipton Race 2 2nd leeward",
+        "started_at": "2026-08-26T14:16:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "26 Aug · 14:16",
+        "thumb": "/assets/adverts/mm-lipton/942850414812890.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "3239679922895545",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-race-2-2nd-lap/3239679922895545/",
+        "permalink": "https://www.facebook.com/reel/3239679922895545/",
+        "title": "Lipton Race 2 2nd Lap",
+        "fb_title": "Lipton Race 2 2nd Lap",
+        "started_at": "2026-08-26T14:04:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "26 Aug · 14:04",
+        "thumb": "/assets/adverts/mm-lipton/3239679922895545.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+    {
+        "id": "1384453329808359",
+        "url": "https://www.facebook.com/marin.megastoresa/videos/lipton-r2/1384453329808359/",
+        "permalink": "https://www.facebook.com/reel/1384453329808359/",
+        "title": "Lipton R2",
+        "fb_title": "Lipton R2",
+        "started_at": "2026-08-26T13:45:00+02:00",
+        "track_offset_ms": 0,
+        "stamp": "26 Aug · 13:45",
+        "thumb": "/assets/adverts/mm-lipton/1384453329808359.jpg",
+        "width": 1280,
+        "height": 720,
+        "aspect": "16:9",
+    },
+)
+_LIPTON_MM_REELS_CSS = (
+    ".regatta-page>.regatta-header-wrap{order:1}"
+    ".regatta-page>.mm-lipton-reels{order:2}"
+    ".regatta-page>.fleet-section{order:3}"
+    ".regatta-page>.action-buttons{order:10}"
+    ".regatta-page[data-live-lipton=\"1\"]>.mm-lipton-reels,.regatta-page[data-live-race-underway=\"1\"]>.mm-lipton-reels,.regatta-page[data-live-board-page-status=\"RACING\"]>.mm-lipton-reels{order:2}"
+    ".regatta-page[data-live-lipton=\"1\"]>.regatta-live-wx,.regatta-page[data-live-race-underway=\"1\"]>.regatta-live-wx,.regatta-page[data-live-board-page-status=\"RACING\"]>.regatta-live-wx{order:4}"
+    ".mm-lipton-reels{display:block!important;width:100%;margin:10px 0 0 0;padding:6px;background:#dce6ef!important;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box;overflow-anchor:none}"
+    ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-expanded,"
+    ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-hide,"
+    ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-expanded-bar,"
+    ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-player-wrap,"
+    ".mm-lipton-reels:not(.mm-lipton-reels--expanded) .mm-lipton-reels-stage{display:none!important}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-compact{display:none!important}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-expanded{display:block!important}"
+    ".mm-lipton-reels-compact{display:flex;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;gap:6px;min-width:0;overflow:hidden}"
+    ".mm-lipton-reels-brand{display:block;flex:0 0 auto;line-height:0;overflow:hidden;border:2px solid #001f3f;border-radius:8px;background:#001f3f;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}"
+    ".mm-lipton-reels-brand img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;border:0}"
+    ".mm-lipton-reels-rail-wrap{position:relative;flex:1 1 auto;min-width:0;height:100%;overflow:hidden}"
+    ".mm-lipton-reels-rail,"
+    ".mm-lipton-reels-compact [data-mm-compact]{display:flex;flex-wrap:nowrap;align-items:stretch;gap:6px;min-width:0;height:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain}"
+    ".mm-lipton-reels-compact [data-mm-compact]::-webkit-scrollbar{display:none}"
+    ".mm-lipton-reels-rail-btn{position:absolute;top:50%;transform:translateY(-50%);z-index:4;width:44px;height:44px;margin:0;padding:0;border:0;border-radius:0;background:none!important;color:#fff;font-size:2rem;line-height:1;font-weight:700;cursor:pointer;text-shadow:0 1px 3px rgba(0,0,0,.9);-webkit-appearance:none;appearance:none;box-shadow:none}"
+    ".mm-lipton-reels-rail-btn--prev{left:4px}"
+    ".mm-lipton-reels-rail-btn--next{right:4px}"
+    ".mm-lipton-reels-rail-btn[hidden]{display:none!important}"
+    ".mm-lipton-reels-tile{display:block;flex:0 0 auto;min-width:0;scroll-snap-align:start}"
+    ".mm-lipton-reels-thumb{position:relative;display:block;width:100%;height:100%;padding:0;border:2px solid #001f3f;border-radius:8px;background:#0b1c33;overflow:hidden;cursor:pointer;min-height:44px;box-shadow:0 1px 3px rgba(0,31,63,0.14);box-sizing:border-box}"
+    ".mm-lipton-reels-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;display:block}"
+    ".mm-lipton-reels-thumb img{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;object-position:center;pointer-events:none;display:block}"
+    ".mm-lipton-reels-thumb--latest{container-type:size;display:flex;flex-direction:column}"
+    ".mm-lipton-reels-clip-chrome{position:relative;top:auto;left:auto;right:auto;width:100%;flex:0 0 auto;z-index:1;display:flex;align-items:flex-start;gap:clamp(4px,4cqh,8px);padding:clamp(4px,5cqh,8px) clamp(6px,5cqw,10px);box-sizing:border-box;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.58) 0%,rgba(0,0,0,.2) 72%,rgba(0,0,0,0) 100%)}"
+    ".mm-lipton-reels-thumb--latest .mm-lipton-reels-owner-logo{position:relative!important;inset:auto!important;flex:0 0 auto;width:clamp(14px,20cqh,28px)!important;height:clamp(14px,20cqh,28px)!important;max-width:none;max-height:none;border:0;border-radius:50%;object-fit:cover!important;object-position:center;display:block}"
+    ".mm-lipton-reels-clip-copy{min-width:0;flex:1 1 auto;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);line-height:1.15}"
+    ".mm-lipton-reels-clip-title{font-size:clamp(8px,8cqh,13px);font-weight:700;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;line-height:1.2;max-height:2.4em;max-width:14ch}"
+    ".mm-lipton-reels-clip-sub{font-size:clamp(7px,6.5cqh,11px);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.95}"
+    ".mm-lipton-reels-clip-chrome--overlay{position:absolute!important;top:0;left:0;right:auto;bottom:auto;z-index:5;width:auto;max-width:none;flex:0 0 auto;gap:var(--mm-chrome-gap,4px);padding:var(--mm-chrome-pad,4px 6px);pointer-events:none;background:none!important;background-image:none!important;box-shadow:none!important}"
+    ".mm-lipton-reels-clip-chrome--overlay .mm-lipton-reels-owner-logo{position:relative!important;inset:auto!important;flex:0 0 auto;width:var(--mm-chrome-logo,20px)!important;height:var(--mm-chrome-logo,20px)!important;max-width:none;max-height:none;border:0;border-radius:50%;object-fit:cover!important;object-position:center;display:block}"
+    ".mm-lipton-reels-clip-chrome--overlay .mm-lipton-reels-clip-title{font-size:var(--mm-chrome-title,11px)!important;max-width:14ch}"
+    ".mm-lipton-reels-clip-chrome--overlay .mm-lipton-reels-clip-sub{font-size:var(--mm-chrome-sub,9px)!important}"
+    ".mm-lipton-reels-hud{position:absolute;inset:0;z-index:5;pointer-events:none}"
+    ".mm-lipton-reels-player-ui{position:absolute;inset:0;z-index:4;background:none!important;background-image:none!important;pointer-events:auto}"
+    ".mm-lipton-reels-player-hud{position:absolute;inset:0;opacity:0;transition:opacity .28s ease;pointer-events:none;background:none!important}"
+    ".mm-lipton-reels-player-ui--on .mm-lipton-reels-player-hud{opacity:1;pointer-events:auto}"
+    ".mm-lipton-reels-player-toggle{position:absolute;left:50%;top:50%;z-index:1;display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:0;padding:0;transform:translate(-50%,-50%);border-radius:50%;background:transparent;-webkit-appearance:none;appearance:none;border:3px solid #00B4FF;cursor:pointer;box-sizing:border-box;box-shadow:0 0 8px #00B4FF}"
+    ".mm-lipton-reels-icon-play{display:block;width:0;height:0;margin:0 0 0 3px;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff}"
+    ".mm-lipton-reels-icon-pause{display:none;align-items:stretch;justify-content:center;gap:4px;width:14px;height:16px}"
+    ".mm-lipton-reels-icon-pause>span{display:block;width:4px;height:16px;background:#fff;border-radius:1px}"
+    ".mm-lipton-reels-player-toggle.is-playing .mm-lipton-reels-icon-play{display:none}"
+    ".mm-lipton-reels-player-toggle.is-playing .mm-lipton-reels-icon-pause{display:flex}"
+    ".mm-lipton-reels-player-bar{position:absolute;left:8px;right:8px;bottom:8px;display:flex;align-items:center;gap:8px;background:none!important}"
+    ".mm-lipton-reels-player-time{color:#fff;font-size:12px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.85);min-width:4.8em;white-space:nowrap}"
+    ".mm-lipton-reels-player-seek{flex:1 1 auto;min-width:0;height:18px;margin:0;padding:0;background:none;accent-color:#00B4FF}"
+    ".mm-lipton-reels-player-mute{min-width:44px;min-height:44px;margin:0;padding:0;border:0;background:none;color:#fff;font-size:18px;line-height:1;cursor:pointer;text-shadow:0 1px 2px rgba(0,0,0,.85)}"
+    ".mm-lipton-reels-skip{position:absolute;top:50%;z-index:3;width:44px;height:44px;margin:0;padding:0;border:0;background:none!important;color:#fff;font-size:2rem;font-weight:700;line-height:1;cursor:pointer;text-shadow:0 1px 3px rgba(0,0,0,.9);-webkit-appearance:none;appearance:none;transform:translateY(-50%);pointer-events:auto;opacity:1}"
+    ".mm-lipton-reels-skip--prev{left:4px}"
+    ".mm-lipton-reels-skip--next{right:4px}"
+    ".mm-lipton-reels-skip[hidden]{display:none!important}"
+    ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play{position:relative;left:auto;top:auto;z-index:1;width:44px;height:44px;margin:auto;padding:0;transform:none;border-radius:50%;background:transparent;border:3px solid #00B4FF;pointer-events:none;box-sizing:border-box;box-shadow:0 0 8px #00B4FF;flex:0 0 auto}"
+    ".mm-lipton-reels-thumb--latest .mm-lipton-reels-play:after{content:\"\";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}"
+    ".mm-lipton-reels-thumb-ph{display:block;width:100%;height:100%;background:#0b1c33}"
+    ".mm-lipton-reels-thumb-hit{position:absolute;inset:0;z-index:2;margin:0;padding:0;border:0;background:transparent;cursor:pointer;min-height:44px}"
+    ".mm-lipton-reels-expanded{position:relative}"
+    ".mm-lipton-reels-expanded-bar{position:absolute;top:0;right:0;z-index:6;display:flex;justify-content:flex-end;align-items:flex-start;margin:0;padding:0;min-height:0;pointer-events:none}"
+    ".mm-lipton-reels-hide{pointer-events:auto;min-height:44px;min-width:44px;margin:0;padding:0 6px;border:0;background:none;color:#64748b;font-size:0.68rem;font-weight:500;letter-spacing:0.04em;line-height:1;cursor:pointer;-webkit-appearance:none;appearance:none}"
+    ".mm-lipton-reels-player-wrap{position:relative;width:100%;aspect-ratio:var(--mm-aspect,16/9);overflow:hidden;border-radius:8px;background:#001018;border:2px solid #001f3f;scroll-margin-top:72px}"
+    ".mm-lipton-reels-stage{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;background:#001018;transition:transform .28s ease}"
+    ".mm-lipton-reels-stage iframe,.mm-lipton-reels-stage video{position:absolute;inset:0;z-index:0;width:100%;height:100%;border:0;object-fit:cover;background:#001018;filter:none;opacity:1}"
+    ".mm-lipton-reels-stage video::-webkit-media-controls,.mm-lipton-reels-stage video::-webkit-media-controls-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-enclosure,.mm-lipton-reels-stage video::-webkit-media-controls-panel,.mm-lipton-reels-stage video::-webkit-media-controls-start-playback-button,.mm-lipton-reels-stage video::-webkit-media-controls-overlay-play-fill{display:none!important;opacity:0!important;-webkit-appearance:none}"
+    ".mm-lipton-reels-video-hold{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}"
+    ".mm-lipton-reels-track{position:absolute;left:0;right:0;bottom:0;height:var(--mm-track-h,58%);z-index:3;pointer-events:none;display:none;background:none}"
+    ".mm-lipton-reels-track[data-mm-track-on]{display:block}"
+    ".mm-lipton-reels-track canvas{display:block;width:100%;height:100%}"
+    ".mm-lipton-reels-hero-ui{position:absolute;inset:0;z-index:2}"
+    ".mm-lipton-reels-hero-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center;pointer-events:none;border:0;display:block;background:#0b1c33}"
+    ".mm-lipton-reels-stage .mm-lipton-reels-play{position:absolute;left:50%;top:50%;z-index:3;width:44px;height:44px;margin:0;padding:0;transform:translate(-50%,-50%);border-radius:50%;background:transparent;border:3px solid #00B4FF;pointer-events:none;box-sizing:border-box;box-shadow:0 0 8px #00B4FF}"
+    ".mm-lipton-reels-stage .mm-lipton-reels-play:after{content:\"\";position:absolute;left:54%;top:50%;width:0;height:0;border-style:solid;border-width:10px 0 10px 16px;border-color:transparent transparent transparent #fff;transform:translate(-30%,-50%)}"
+    ".mm-lipton-reels-stage--playing .mm-lipton-reels-hero-ui{display:none!important}"
+    ".mm-lipton-reels-days{margin-top:6px;overflow-anchor:none}"
+    ".mm-lipton-reels-day{margin:0;padding:0}"
+    ".mm-lipton-reels-day+.mm-lipton-reels-day{margin-top:10px;padding-top:10px;border-top:4px solid #001f3f}"
+    ".mm-lipton-reels-day-label,.mm-lipton-reels-race-label{margin:0 0 6px;color:#001f3f;font-size:0.72rem;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;line-height:1.2}"
+    ".mm-lipton-reels-race{margin:0;padding:0}"
+    ".mm-lipton-reels-race+.mm-lipton-reels-race{margin-top:10px;padding-top:10px;border-top:4px solid #001f3f}"
+    ".mm-lipton-reels-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:0;overflow-anchor:none}"
+    ".mm-lipton-reels-grid-item{min-width:0}"
+    ".mm-lipton-reels-waiting{margin:0;font-size:0.85rem;color:#334155}"
+    "@media (orientation:landscape) and (max-height:540px){"
+    "body:has(.mm-lipton-reels--expanded) .site-header{display:none!important}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-days,.mm-lipton-reels--expanded .mm-lipton-reels-grid{display:none!important}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-expanded-bar,.mm-lipton-reels--expanded .mm-lipton-reels-hide{display:none!important}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-player-wrap{position:fixed;inset:0;z-index:2147483000;width:100vw;height:100dvh;max-width:none;border-radius:0;border:0;aspect-ratio:auto}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-stage{position:absolute;inset:0;z-index:0}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-stage video{z-index:0}"
+    ".mm-lipton-reels--expanded .mm-lipton-reels-hud{position:fixed;inset:0;z-index:2147483000;-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}"
+    "}"
+    "@media (min-width:720px){.mm-lipton-reels-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}"
+    "@media (min-width:1024px){.mm-lipton-reels-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}"
+    "@media (max-width:768px){"
+    ".header.header--lipton{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto auto auto!important;justify-items:center!important;align-items:center!important;column-gap:0!important;row-gap:6px!important;padding:8px 6px}"
+    ".header.header--lipton .regatta-header-logo-col,.header.header--lipton .regatta-header-club-logo-col{display:flex!important;justify-content:center!important;align-items:center!important;justify-self:center!important;align-self:center!important;width:auto!important;max-width:100%;margin:0 auto;padding:2px}"
+    ".header.header--lipton .regatta-header-logo-col{grid-column:1!important;grid-row:1!important}"
+    ".header.header--lipton .regatta-header-main-col{grid-column:1!important;grid-row:2!important;justify-self:center!important;align-self:center!important;width:100%;max-width:100%;text-align:center}"
+    ".header.header--lipton .regatta-header-club-logo-col{grid-column:1!important;grid-row:3!important}"
+    ".header.header--lipton .regatta-header-logo-col .regatta-header-logo-link,.header.header--lipton .regatta-header-club-logo-col .regatta-header-logo-link{margin:0 auto;justify-content:center!important}"
+    ".header.header--lipton .regatta-header-logo-img,.header.header--lipton .regatta-header-left-logo-img{max-height:min(22vw,96px)!important;max-width:min(70vw,280px)!important;margin:0 auto}"
+    ".header.header--lipton .regatta-header-club-logo-img{max-height:min(18vw,80px)!important;max-width:min(42vw,160px)!important;margin:0 auto}"
+    ".header.header--lipton .host-club,.header.header--lipton .regatta-lipton-venue-line,.header.header--lipton .regatta-lipton-host-line,.header.header--lipton .status-line{text-align:center;width:100%;white-space:normal!important;overflow:visible!important}"
+    "}"
+    ".header.header--lipton .regatta-lipton-venue-cohost .regatta-lipton-host-logo{height:auto!important;width:auto!important;max-height:24px!important;max-width:64.5px!important}"
+    "@media print{.mm-lipton-reels{display:none!important}}"
+)
+
+
+def _mm_as_date(value):
+    d = _event_date_only(value)
+    if d is not None:
+        return d
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).date()
+    except Exception:
+        pass
+    try:
+        return datetime.strptime(raw[:10], "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
+def _mm_regatta_date_window(regatta_id: str):
+    """Event start/end dates for the regatta. None, None if unknown."""
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        return None, None
+    try:
+        if not table_exists("regattas"):
+            return None, None
+        row = one(
+            "SELECT start_date, end_date FROM regattas WHERE CAST(regatta_id AS text) = %s LIMIT 1",
+            rid,
+        )
+    except Exception:
+        return None, None
+    if not row:
+        return None, None
+    start = _mm_as_date(row[0] if not isinstance(row, dict) else row.get("start_date"))
+    end = _mm_as_date(row[1] if not isinstance(row, dict) else row.get("end_date")) or start
+    return start, end
+
+
+def _mm_video_matches_event(item, start, end) -> bool:
+    """Keep a clip only when its date sits inside the event window."""
+    if start is None and end is None:
+        return True
+    vd = _mm_as_date((item or {}).get("started_at"))
+    if vd is None:
+        return False
+    if start is not None and vd < start:
+        return False
+    if end is not None and vd > end:
+        return False
+    return True
+
+
+# Lipton 2026 J22 guns + finish from tracking-dev replay (packed GPS).
+_LIPTON_MM_RACE_GUNS = (
+    (1, "2026-08-26T11:30:01+02:00", "2026-08-26T13:02:33+02:00"),
+    (2, "2026-08-26T13:20:01+02:00", "2026-08-26T14:47:26+02:00"),
+    (3, "2026-08-26T15:10:01+02:00", "2026-08-26T16:26:36+02:00"),
+    (4, "2026-08-27T13:55:01+02:00", "2026-08-27T15:33:04+02:00"),
+    (5, "2026-08-27T15:50:01+02:00", "2026-08-27T17:09:28+02:00"),
+    (6, "2026-08-28T14:05:01+02:00", "2026-08-28T15:07:02+02:00"),
+    (7, "2026-08-28T15:57:01+02:00", "2026-08-28T17:20:37+02:00"),
+    (8, "2026-08-29T10:30:01+02:00", "2026-08-29T11:52:18+02:00"),
+    (9, "2026-08-29T12:15:01+02:00", "2026-08-29T13:28:27+02:00"),
+    (10, "2026-08-29T13:50:01+02:00", "2026-08-29T15:05:44+02:00"),
+)
+
+
+def _mm_as_dt(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _mm_lipton_clip_race(item) -> tuple:
+    """Map a clip to Race 1–10 from its label, else tracking gun/finish window."""
+    title = f"{(item or {}).get('title') or ''} {(item or {}).get('fb_title') or ''}"
+    labeled = re.search(r"\b(?:race|r)\s*(10|[1-9])\b", title, re.I)
+    if labeled:
+        n = int(labeled.group(1))
+        return n, f"Race {n}"
+    t = _mm_as_dt((item or {}).get("started_at"))
+    races = []
+    for n, gun, finish in _LIPTON_MM_RACE_GUNS:
+        gdt = _mm_as_dt(gun)
+        fdt = _mm_as_dt(finish)
+        if gdt is not None and fdt is not None:
+            races.append((n, gdt, fdt))
+    if t is not None:
+        for n, gun, finish in races:
+            start = gun - timedelta(minutes=25)
+            end = finish + timedelta(minutes=20)
+            if start <= t < end:
+                return n, f"Race {n}"
+    day = re.search(r"\bday\s*(\d+)\b", title, re.I)
+    if day:
+        return 0, f"Day {day.group(1)}"
+    return 0, "Other"
+
+
+def _mm_apply_page_chrome(videos: list) -> list:
+    """Paint FB page chrome (logo / live label / title) onto every clip from that fetch."""
+    page_logo = ""
+    page_sub = ""
+    page = ""
+    for v in videos or []:
+        if not page_logo:
+            page_logo = str((v or {}).get("fb_owner_logo") or "").strip()
+        if not page_sub:
+            page_sub = str((v or {}).get("fb_sub") or "").strip()
+        if not page:
+            page = str((v or {}).get("fb_page") or "").strip()
+    out = []
+    for v in videos or []:
+        row = dict(v or {})
+        if not str(row.get("fb_owner_logo") or "").strip() and page_logo:
+            row["fb_owner_logo"] = page_logo
+        if not str(row.get("fb_sub") or "").strip() and page_sub:
+            row["fb_sub"] = page_sub
+        if not str(row.get("fb_page") or "").strip() and page:
+            row["fb_page"] = page
+        if not str(row.get("fb_title") or "").strip():
+            row["fb_title"] = str(row.get("title") or "").strip()
+        out.append(row)
+    return out
+
+
+def _lipton_mm_reels_payload() -> dict:
+    start, end = _mm_regatta_date_window(_LIPTON_MM_REGATTA_ID)
+    videos = []
+    for item in _LIPTON_MM_REELS_VIDEOS:
+        url = str(item.get("url") or "")
+        if "timadvisor" in url.lower() or "marin.megastoresa" not in url.lower():
+            continue
+        if not _mm_video_matches_event(item, start, end):
+            continue
+        row = dict(item)
+        row["embed_url"] = _mm_embed_src(url)
+        row["play_url"] = "/assets/adverts/mm-lipton/" + str(item.get("id") or "") + ".mp4"
+        row["is_live"] = bool(item.get("is_live"))
+        row["fb_page"] = str(item.get("fb_page") or "marin.megastoresa").strip()
+        race_n, race_label = _mm_lipton_clip_race(row)
+        row["race"] = race_n
+        row["race_label"] = race_label
+        videos.append(row)
+    videos.sort(key=lambda v: str(v.get("started_at") or ""), reverse=True)
+    return {"videos": _mm_apply_page_chrome(videos)}
+
+
+def _lipton_mm_reels_card_html(regatta_id: str) -> str:
+    """Lipton 2026 only. Empty for every other regatta_id."""
+    if str(regatta_id or "").strip() != _LIPTON_MM_REGATTA_ID:
+        return ""
+    payload = _lipton_mm_reels_payload()
+    initial = html_module.escape(json.dumps(payload, separators=(",", ":")), quote=True)
+    brand = (
+        '<a class="mm-lipton-reels-brand" href="https://marinemegastore.co.za" target="_blank" rel="noopener noreferrer">'
+        '<img src="/assets/adverts/mm-powered-by-event-reels.png?v=mmr2" '
+        'alt="Powered by Marine Megastore Event Reels" width="320" height="213" '
+        'loading="lazy" decoding="async">'
+        "</a>"
+    )
+    return (
+        f"<style>{_LIPTON_MM_REELS_CSS}</style>"
+        f'<section class="card mm-lipton-reels mm-lipton-reels--compact" id="mmLiptonReels" '
+        f'data-regatta-id="{html_module.escape(_LIPTON_MM_REGATTA_ID)}" data-mm-initial="{initial}" '
+        'aria-label="Marine Megastore Event Reels">'
+        '<div class="mm-lipton-reels-compact">'
+        f"{brand}"
+        '<div class="mm-lipton-reels-rail-wrap">'
+        '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--prev" data-mm-rail-prev aria-label="Previous clips" hidden>‹</button>'
+        '<div class="mm-lipton-reels-rail" data-mm-compact></div>'
+        '<button type="button" class="mm-lipton-reels-rail-btn mm-lipton-reels-rail-btn--next" data-mm-rail-next aria-label="Next clips" hidden>›</button>'
+        "</div>"
+        "</div>"
+        "</section>"
+    )
+
+
+
+@app.patch("/api/super-admin/regatta/{regatta_id}/mm-live-fb-feed")
+async def api_super_admin_regatta_mm_live_fb_feed(request: Request, regatta_id: str, body: dict = Body(...)):
+    if not _session_role_is_super_admin(request):
+        raise HTTPException(status_code=403, detail="super_admin only")
+    rid = str(regatta_id or "").strip()
+    if not rid:
+        raise HTTPException(status_code=400, detail="regatta_id required")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="JSON object expected")
+    raw = body.get("mm_live_fb_feed")
+    if raw is None:
+        raw = body.get("enabled")
+    if raw is not None:
+        body = dict(body)
+        body["mm_live_fb_feed"] = raw
+    return _mm_feed_save_fields(rid, body)
+
+
 @app.post("/api/super-admin/regatta/{regatta_id}/breaking-news-meta")
 @app.patch("/api/super-admin/regatta/{regatta_id}/breaking-news-meta")
 async def api_super_admin_regatta_breaking_news_meta(request: Request, regatta_id: str, body: dict = Body(...)):
@@ -19990,7 +20947,18 @@ async def api_super_admin_regatta_breaking_news_meta(request: Request, regatta_i
     finally:
         cur.close()
         return_db_connection(conn)
-    return {"ok": True, "blank_hub_news_badge_label": val}
+    out = {"ok": True, "blank_hub_news_badge_label": val}
+    if isinstance(body, dict) and (
+        "mm_live_fb_feed" in body or "feed_source" in body or "mm_feed_source" in body or "clip_urls" in body or "fb_page" in body
+    ):
+        try:
+            mm_out = _mm_feed_save_fields(rid, body)
+            out.update(mm_out)
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[api_super_admin_regatta_breaking_news_meta] mm_live_fb_feed {e}", flush=True)
+    return out
 
 
 @app.get("/api/super-admin/clubs-search")
@@ -23479,6 +24447,25 @@ def _regatta_sa_toolbar_html(regatta_id: str) -> str:
         '<option value="Archive">Archive</option>'
         '<option value="Upcoming Event">Upcoming Event</option>'
         "</select>"
+        '<label class="regatta-hub-news-type-label" for="regattaMmLiveFbFeed">Live video</label>'
+        '<select id="regattaMmLiveFbFeed" class="regatta-hub-news-type-select" name="mm_live_fb_feed" '
+        'aria-label="Live video card">'
+        '<option value="OFF">OFF</option>'
+        '<option value="ON">ON</option>'
+        "</select>"
+        '<label class="regatta-hub-news-type-label" for="regattaMmFeedSource">Feed source</label>'
+        '<select id="regattaMmFeedSource" class="regatta-hub-news-type-select" name="mm_feed_source" '
+        'aria-label="Facebook feed source">'
+        '<option value="sailingsa">SailingSA</option>'
+        '<option value="marine-megastore" selected>Marine Megastore</option>'
+        '<option value="other">Other</option>'
+        "</select>"
+        '<label class="regatta-hub-news-type-label" for="regattaMmFbPage">Facebook page</label>'
+        '<input id="regattaMmFbPage" class="regatta-hub-news-type-select" name="mm_fb_page" '
+        'type="text" maxlength="200" placeholder="marin.megastoresa" autocomplete="off" />'
+        '<label class="regatta-hub-news-type-label" for="regattaMmClipUrls">Facebook clip URLs</label>'
+        '<textarea id="regattaMmClipUrls" class="regatta-mm-clip-urls" name="mm_clip_urls" rows="3" '
+        'placeholder="One Facebook URL per line"></textarea>'
         "</div>"
     )
 
@@ -24272,6 +25259,64 @@ _RESULT_SHEET_CSS = (
     ".wc-sa-ac-list li:hover,.wc-sa-ac-list li.wc-sa-ac-li-active{background:#e0e7ff}"
     ".wc-sa-ac-list .wc-sa-ac-li-sub{font-size:11px;font-weight:500;color:#64748b}"
     ".regatta-page--super-admin-edit .wc-sa-ac-wrap .wc-result-field-input{min-width:5rem}"
+)
+
+_MM_LIVE_FB_CSS = (
+    ".mm-live-fb-card{width:100%;margin:16px 0 0 0;padding:0.5rem 0.75rem;background:#ffffff;border:2px solid #001f3f;border-radius:8px;box-shadow:0 1px 3px rgba(0,31,63,0.08);box-sizing:border-box}"
+    ".mm-live-fb-card .section-title{margin:0;padding:0;font-size:0.85rem;font-weight:700;letter-spacing:0.02em;text-transform:uppercase;color:#001f3f;border:0}"
+    ".mm-live-fb-compact{display:flex;align-items:center;gap:0.75rem}"
+    ".mm-live-fb-card--expanded .mm-live-fb-compact{display:none}"
+    ".mm-live-fb-card--compact .mm-live-fb-expanded{display:none}"
+    ".mm-live-fb-brand-link{display:block;flex:1 1 auto;min-width:0;max-width:58%;line-height:0}"
+    ".mm-live-fb-brand{display:block;width:auto;max-width:160px;max-height:72px;height:auto;object-fit:contain}"
+    ".mm-live-fb-card:not(.mm-live-fb-card--live) .mm-live-fb-brand--live,.mm-live-fb-card--live .mm-live-fb-brand--reels{display:none}"
+    ".mm-live-fb-card:not(.mm-live-fb-card--live) .mm-live-fb-title--live,.mm-live-fb-card--live .mm-live-fb-title--reels{display:none}"
+    ".mm-live-fb-compact-preview{flex:0 0 42%;max-width:12.5rem}"
+    ".mm-live-fb-thumb{position:relative;display:block;padding:0;border:2px solid #001f3f;border-radius:6px;background:#e9eefb;width:100%;aspect-ratio:16/9;overflow:hidden;cursor:pointer}"
+    ".mm-live-fb-thumb img{width:100%;height:100%;object-fit:cover;display:block}"
+    ".mm-live-fb-thumb-ph{display:block;width:100%;height:100%;background:#e9eefb}"
+    ".mm-live-fb-thumb-ph:after{content:'';position:absolute;left:50%;top:42%;width:0;height:0;border-style:solid;border-width:8px 0 8px 14px;border-color:transparent transparent transparent #001f3f;transform:translate(-40%,-50%)}"
+    ".mm-live-fb-thumb-stamp{position:absolute;left:0;right:0;bottom:0;background:rgba(0,31,63,0.82);color:#fff;font-size:0.62rem;font-weight:700;padding:0.12rem 0.2rem}"
+    ".mm-live-fb-live-flag{position:absolute;top:4px;left:4px;background:#b91c1c;color:#fff;font-size:0.62rem;font-weight:800;letter-spacing:0.04em;padding:0.1rem 0.28rem;border-radius:3px}"
+    ".mm-live-fb-expanded-bar{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.45rem}"
+    ".mm-live-fb-expanded-actions{display:flex;gap:0.4rem}"
+    ".mm-live-fb-hide,.mm-live-fb-fs{font-size:0.8rem;font-weight:700;color:#001f3f;background:#fff;border:2px solid #001f3f;border-radius:6px;padding:0.28rem 0.55rem;cursor:pointer}"
+    ".mm-live-fb-stage{position:relative;width:100%;max-height:52vh;aspect-ratio:var(--mm-aspect,16/9);max-width:min(100%,calc(52vh * 16 / 9));margin:0 auto;overflow:hidden;border-radius:6px;background:#001018}"
+    ".mm-live-fb-stage--portrait{max-width:min(100%,calc(52vh * 9 / 16))}"
+    ".mm-live-fb-stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}"
+    ".mm-live-fb-watch{display:inline-block;margin:0.35rem 0 0.15rem;font-size:0.85rem;font-weight:600;color:#001f3f}"
+    ".mm-live-fb-carousel{display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;margin-top:0.55rem;padding-bottom:0.2rem}"
+    ".mm-live-fb-carousel [role=listitem]{flex:0 0 calc((100% - 0.45rem) / 2);scroll-snap-align:start}"
+    ".mm-live-fb-thumb--on{outline:2px solid #2563eb;outline-offset:1px}"
+    ".mm-live-fb-waiting{margin:0;font-size:0.85rem;color:#334155}"
+    ".regatta-mm-clip-urls{width:min(100%,16rem);min-height:3.4rem;font:inherit;font-size:0.8rem}"
+    ".mm-live-fb-card--fs-fallback{position:fixed;inset:0;z-index:80;margin:0;border-radius:0;background:#fff;padding:0.75rem;overflow:auto}"
+    ".mm-live-fb-card--fs-fallback .mm-live-fb-stage{max-height:none;max-width:100%;height:auto}"
+    "@media (max-width:480px){.mm-live-fb-card{padding:0.45rem 0.6rem;margin-top:10px}.mm-live-fb-brand{max-width:160px}.mm-live-fb-compact-preview{max-width:9.5rem}}"
+    "@media (min-width:600px){.mm-live-fb-card{padding:0.5rem 0.85rem}.mm-live-fb-brand{max-width:160px;max-height:72px}.mm-live-fb-carousel [role=listitem]{flex-basis:calc((100% - 1.35rem) / 4)}}"
+    "@media (min-width:900px){.mm-live-fb-carousel [role=listitem]{flex-basis:calc((100% - 1.8rem) / 5)}}"
+    ".mm-live-fb-card--lipton{padding:0.35rem;overflow:hidden;max-width:100%;box-sizing:border-box}"
+    ".mm-live-fb-card--lipton.mm-live-fb-card--compact .mm-live-fb-expanded{display:none!important}"
+    ".mm-live-fb-card--lipton .mm-live-fb-brand--live{display:none!important}"
+    ".header--lipton .regatta-header-club-logo-col--caption,.header--lipton .regatta-header-club-logo-caption{display:none!important}"
+    ".mm-live-fb-card--lipton .mm-live-fb-compact{display:grid!important;grid-template-columns:minmax(0,42%) minmax(0,58%)!important;gap:0.3rem;align-items:center;max-width:100%;min-width:0}"
+    ".mm-live-fb-card--lipton .mm-live-fb-compact>*{min-width:0;max-width:100%;overflow:hidden}"
+    ".mm-live-fb-card--lipton .mm-live-fb-brand-link{display:flex;align-items:center;max-width:160px!important;width:auto;min-width:0;line-height:0;overflow:hidden}"
+    ".mm-live-fb-card--lipton .mm-live-fb-brand{display:block;width:auto!important;max-width:160px!important;height:auto!important;max-height:72px!important;object-fit:contain;object-position:left center}"
+    ".mm-live-fb-card--lipton [data-mm-compact]{min-width:0;display:flex;overflow:hidden;max-width:100%}"
+    ".mm-live-fb-card--lipton .mm-live-fb-compact-preview{flex:1;max-width:100%;width:100%;display:flex}"
+    ".mm-live-fb-card--lipton .mm-live-fb-thumb--hero{width:100%;height:auto;max-width:100%;max-height:6.5rem!important;aspect-ratio:16/9!important;align-self:center;border-radius:6px;overflow:hidden}"
+    ".mm-live-fb-card--lipton .mm-live-fb-thumb--hero img{width:100%!important;height:100%!important;max-height:6.5rem!important;object-fit:cover;max-width:100%;display:block}"
+    ".mm-live-fb-card--lipton .mm-live-fb-title--live,.mm-live-fb-card--lipton .mm-live-fb-title--reels{display:none!important}"
+    ".mm-live-fb-card--lipton .mm-live-fb-expanded-bar{align-items:center;gap:0.35rem;margin:0 0 0.35rem 0}"
+    ".mm-live-fb-card--lipton .mm-live-fb-expanded-bar .mm-live-fb-brand-link{flex:0 1 auto;max-width:160px!important;min-width:0}"
+    ".mm-live-fb-card--lipton .mm-live-fb-expanded-bar .mm-live-fb-brand{max-width:160px!important;max-height:48px!important}"
+    ".mm-live-fb-card--lipton .mm-live-fb-stage{max-width:100%;margin:0;aspect-ratio:var(--mm-aspect,16/9)}"
+    ".mm-live-fb-card--lipton .mm-live-fb-watch{margin:0.25rem 0 0.1rem}"
+    ".mm-live-fb-card--lipton .mm-live-fb-carousel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0.35rem;overflow-x:auto;margin-top:0.35rem;scroll-snap-type:none}"
+    ".mm-live-fb-card--lipton .mm-live-fb-carousel [role=listitem]{flex:none;min-width:0}"
+    ".mm-live-fb-card--lipton .mm-live-fb-carousel .mm-live-fb-thumb{width:100%;max-width:100%}"
+    "@media (max-width:480px){.mm-live-fb-card--lipton{padding:0.3rem}.mm-live-fb-card--lipton .mm-live-fb-brand-link,.mm-live-fb-card--lipton .mm-live-fb-brand{max-width:140px!important;max-height:64px!important}.mm-live-fb-card--lipton .mm-live-fb-compact-preview{max-width:100%}}"
 )
 
 
@@ -26390,7 +27435,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
-        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm1" defer></script>' if is_sa else ""
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{html_module.escape(class_name)} – {escaped_title} | SailingSA</title>"
@@ -26730,7 +27775,16 @@ def serve_regatta_standalone(slug: str, request: Request):
                 "})();</script>"
             )
         print_btn = '<div class="action-buttons"><button class="action-button" onclick="window.print()">Print</button></div>'
-        body_html = header_html + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
+        mm_feed_on = False
+        mm_card = ""
+        mm_card_js = ""
+        if str(regatta_id) == "2026-08-29-lipton-challenge-cup":
+            mm_card = _lipton_mm_reels_card_html(str(regatta_id))
+            mm_card_js = (
+                '<script src="/js/mm-lipton-track-overlay.js?v=mmr103" defer></script>'
+                '<script src="/js/mm-lipton-reels-card.js?v=mmr103" defer></script>'
+            )
+        body_html = header_html + mm_card + sa_columns_frag + "\n" + fleet_joined + "\n" + print_btn
         seo_sailors = _regatta_seo_sailors_nav_html(str(regatta_id))
         seo_disc = _seo_discovery_block_html()
         wc_club_edit_script = (
@@ -26738,7 +27792,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             if str(regatta_id) == WC_DINGHY_CHAMPS_REGATTA_SLUG and is_sa
             else ""
         )
-        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
+        sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js?v=mm2" defer></script>' if is_sa else ""
         doc = (
             "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
@@ -26748,7 +27802,7 @@ def serve_regatta_standalone(slug: str, request: Request):
             "<link rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"/favicon-192.png\">"
             f"<script type=\"application/ld+json\">{json.dumps(json_ld)}</script>"
             f"<style>{_RESULT_SHEET_CSS}</style></head><body>"
-            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{sa_toolbar_js}"
+            f"<div class=\"regatta-page\">{body_html}</div>{seo_sailors}{seo_disc}{wc_club_edit_script}{mm_card_js}{sa_toolbar_js}"
             "</body></html>"
         )
         print("REGATTA: total route time", round(time.time() - start_time, 3))
