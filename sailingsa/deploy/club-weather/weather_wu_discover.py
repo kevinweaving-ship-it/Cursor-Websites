@@ -1,6 +1,7 @@
 """Discover Weather Underground / Weather.com PWS fetch credentials from the live dashboard.
 
-WU rotates the browser apiKey embedded in https://www.wunderground.com/dashboard/pws/{STATION}.
+WU rotates the browser key embedded in https://www.wunderground.com/dashboard/pws/{STATION}.
+The dashboard bootstrap now publishes it as API_KEY (the old apiKey= query is an ads key and 401s).
 The old hardcoded web key (e1f10a…) now 401s while the station is still CONNECTED on the site.
 
 This module:
@@ -46,7 +47,7 @@ PROBE_STATION = "IOVERS2"
 REQUIRED_SCRAPE: dict[str, Any] = {
     "dashboard_url": "https://www.wunderground.com/dashboard/pws/{STATION}",
     "api_key": {
-        "where": "dashboard HTML (apiKey=… / \"apiKey\":\"…\" / PWS observation URLs)",
+        "where": "dashboard HTML (\"API_KEY\":\"…\" bootstrap, then apiKey= / \"apiKey\" / PWS URLs)",
         "purpose": "authorize api.weather.com PWS observations",
     },
     "endpoints": {
@@ -134,31 +135,27 @@ def _fingerprint(text: str, keys: list[str], current: str, day: str) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:24]
 
 
-def scrape_dashboard_keys(station_id: str = PROBE_STATION) -> dict[str, Any]:
-    """Pull apiKeys and PWS URLs from the public WU dashboard HTML."""
-    sid = (station_id or PROBE_STATION).strip().upper() or PROBE_STATION
-    url = DASHBOARD.format(station=sid)
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": UA,
-            "Accept": "text/html,application/xhtml+xml",
-            "Accept-Language": "en-US,en;q=0.9",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        text = resp.read().decode("utf-8", "replace")
+def extract_dashboard_keys(text: str) -> tuple[list[str], str, str]:
+    """Keys from dashboard HTML, current path, day path.
 
-    keys = set(re.findall(r"apiKey=([A-Za-z0-9]{20,})", text, flags=re.I))
+    The live dashboard puts the PWS key in a bootstrap object as API_KEY.
+    apiKey= query strings on the same page are ads/config keys and 401 on
+    api.weather.com PWS observations, so API_KEY is tried first.
+    """
+    bootstrap = re.findall(r'"API_KEY"\s*:\s*"([A-Za-z0-9]{20,})"', text)
+    keys = set(bootstrap)
+    keys |= set(re.findall(r"apiKey=([A-Za-z0-9]{20,})", text, flags=re.I))
     keys |= set(re.findall(r'"apiKey"\s*:\s*"([A-Za-z0-9]{20,})"', text))
     keys |= set(re.findall(r"'apiKey'\s*:\s*'([A-Za-z0-9]{20,})'", text))
     # Next.js / embedded JSON blobs often hold the browser key after redesigns.
     for m in re.finditer(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', text, flags=re.I | re.S):
         keys |= set(re.findall(r'"apiKey"\s*:\s*"([A-Za-z0-9]{20,})"', m.group(1)))
+        keys |= set(re.findall(r'"API_KEY"\s*:\s*"([A-Za-z0-9]{20,})"', m.group(1)))
     for m in re.finditer(r'<script[^>]+type="application/json"[^>]*>(.*?)</script>', text, flags=re.I | re.S):
         chunk = m.group(1)
-        if "apiKey" in chunk or "weather.com" in chunk:
+        if "apiKey" in chunk or "API_KEY" in chunk or "weather.com" in chunk:
             keys |= set(re.findall(r'"apiKey"\s*:\s*"([A-Za-z0-9]{20,})"', chunk))
+            keys |= set(re.findall(r'"API_KEY"\s*:\s*"([A-Za-z0-9]{20,})"', chunk))
 
     urls = sorted(set(re.findall(r"https://api\.weather\.com[^\"'\s<>]+", text)))
     preferred: list[str] = []
@@ -175,11 +172,30 @@ def scrape_dashboard_keys(station_id: str = PROBE_STATION) -> dict[str, Any]:
         elif "/observations/all/1day" in u:
             day = u.split("?", 1)[0]
 
-    # Prefer keys already bound to PWS observation URLs (e.g. ff90…), then others.
+    # PWS bootstrap key, then keys already bound to observation URLs, then the rest.
     ordered: list[str] = []
-    for k in preferred + sorted(keys):
+    for k in list(bootstrap) + preferred + sorted(keys):
         if k not in ordered:
             ordered.append(k)
+    return ordered, current, day
+
+
+def scrape_dashboard_keys(station_id: str = PROBE_STATION) -> dict[str, Any]:
+    """Pull apiKeys and PWS URLs from the public WU dashboard HTML."""
+    sid = (station_id or PROBE_STATION).strip().upper() or PROBE_STATION
+    url = DASHBOARD.format(station=sid)
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": UA,
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "en-US,en;q=0.9",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        text = resp.read().decode("utf-8", "replace")
+
+    ordered, current, day = extract_dashboard_keys(text)
     fp = _fingerprint(text, ordered, current, day)
     return {
         "station_id": sid,

@@ -32,7 +32,8 @@ auto-discovers the browser key from the live dashboard when env keys are missing
 ## WU site watch + autofix
 
 `weather_wu_discover.py` knows the scrape contract (`REQUIRED_SCRAPE`): dashboard URL, browser
-`apiKey`, current/1-day observation endpoints, and observation fields (`obsTimeUtc`, wind, temp…).
+`API_KEY` (the `apiKey=` query on the same page is an ads key and is not used first),
+current/1-day observation endpoints, and observation fields (`obsTimeUtc`, wind, temp…).
 
 | Trigger | Action |
 |---------|--------|
