@@ -42,6 +42,14 @@ The public HCG HTML bulletin URL returned **403** from this environment. Retry f
 - Group: [Προβληματική Λευκάδα](https://www.facebook.com/groups/991205502037297/).
 - Quote used by aromalefkadas: April-morning dump at the mole. Need the original post and comments to pin **which April** and any named tug / skipper.
 
+## 3c. Bruce travel Nov 2020 – Apr 2022
+
+Family recollection only: SA **Nov 2020**, one Europe return, left SA **Apr 2022**. Not a passport stamp. Would pin:
+
+- whether “here” in Nov 2020 was SA or Vlycho;
+- the month of the one return trip (April 2021 would matter);
+- whether April 2022 was France (Bastide des Planets) or Lefkada.
+
 ## 4. Var association registry — ECO-VIE 2008
 
 - **pref-associations@var.gouv.fr** (Draguignan district).

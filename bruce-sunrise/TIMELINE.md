@@ -17,8 +17,11 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 | 2020-01-31 / 2020-12-31 | established | UK leaves the EU; Brexit transition ends. Relevant to flag choice, not proof of a flag change. |
 | **2020-08-01** | established | Poland’s **REJA24** recreational register (vessels ≤24 m) takes effect. Earliest date this hull *could* have received a `POL######` number under the current system. |
 | **2020-08-05** | established | Last Wayback capture of sunriseadventureboat.com: still **Port Vauban, Antibes**, bunks & breakfast. Domain later died. |
+| **2020-11** | family | Bruce **arrives in South Africa**. Not a passport stamp; family recollection. Last public French berth was three months earlier. |
+| between Nov 2020 and Apr 2022 | family | One return trip **to Europe**; month unknown. |
 | ~2021-12 or earlier | supported | iLefkada (day of sinking) says the large Polish-flagged hull had been moored in Vlycho **more than two years**. That is a reporter’s estimate, not a port-entry log. |
-| some April (year open) | supported (local) | Residents quoted 18 Dec 2023: found tied at the Vlycho mole one April morning, no name, no owner; “they brought it here to sink.” |
+| **2022-04** | family | Bruce **leaves South Africa for Europe**. Leading candidate for the locals’ “one April morning” dump at the Vlycho mole — not proved. He may have gone to France, not Greece. |
+| some April (2021 / 2022 / 2023) | supported (local) | Residents quoted 18 Dec 2023: found tied at the Vlycho mole one April morning, no name, no owner; “they brought it here to sink.” Year still not in that quote. |
 | **2023-12-18** | established | Partial sinking at the **concrete quay inside Vlycho port**. Polish-flagged hull takes on water; French-flagged ~10 m **Cape Horn (TL)** alongside is forced under. Photos show tarps, rust, listing against the jetty. No injuries. Petroleum boom. Nydri opens **Penal Code 277 §1A** (causing a shipwreck) plus PD 55/1998. Locals call her an abandoned rotten hulk. |
 | 2023-12-19 | established | Kathimerini restates the Coast Guard bulletin (Polish + French flags, water ingress, pressure on the second hull). |
 | 2024-02-25 | supported | Local account: wreck still opposite the pharmacy in Vlycho. |

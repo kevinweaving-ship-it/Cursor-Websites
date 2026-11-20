@@ -21,7 +21,7 @@ Interactive summary: [MV Sunrise investigation canvas](https://cursor.com/canvas
 
 ## Hypothesis (not a finding)
 
-Long abandonment in Vlycho **holds**. She was **already against the concrete quay** when the Coast Guard was called. Locals said she had been **brought to the mole one April morning to sink** — year and who towed her are open. ECO-VIE is a **2008** association at Bruce’s hamlet, **not** a shell created after the sinking; a later title dump into it is still open. A claim that she **sank somewhere else** has **no public insurance file**. Scores: [`HYPOTHESIS.md`](HYPOTHESIS.md).
+Long abandonment **holds**. Locals: dumped on the mole **one April morning** (year not in the quote). Family: Bruce in **South Africa from Nov 2020**, one Europe trip in between, **left SA for Europe April 2022** — that April is the leading dump candidate, not proved. ECO-VIE is a **2008** association, not a post-sinking shell. No public insurance file. Scores: [`HYPOTHESIS.md`](HYPOTHESIS.md).
 
 ## What is still open
 
@@ -30,7 +30,7 @@ Long abandonment in Vlycho **holds**. She was **already against the concrete qua
 3. **Whether ECO-VIE of Roquebrune is the entity Greece served**, and who its officers were at transfer, sinking, and notice.
 4. **Sale versus related-entity transfer** — same-address evidence is not a bill of sale.
 5. **Exact Polish registration date** — only a window is proven (see [`POLAND_FLAG.md`](POLAND_FLAG.md)).
-6. **Which April** she was put on the mole (local testimony).
+6. **Which April** she was put on the mole — quote unnamed; family travel makes **April 2022** the leading candidate.
 7. **Nydri Penal Code 277 file** outcome.
 8. **Any hull / P&I policy and notice of loss** — not on the public web.
 

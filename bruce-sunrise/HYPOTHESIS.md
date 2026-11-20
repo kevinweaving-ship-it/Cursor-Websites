@@ -40,11 +40,31 @@ The second boat is the French-flagged ~10 m motor cruiser with **Cape Horn** and
 >
 > Found tied at the mole here in Vlycho, one April morning, with no name and no owner; they brought it here to sink; the goal was achieved.
 
-That is **local testimony of a tow to the mole to die**, not a Coast Guard finding. It does **not** name the month-year (April 2021, 2022 or 2023). It does **not** name who towed her. Photos on 18 Dec show **SUNRISE** on the bow, so “without name” means no papers / no master on arrival, or the name was not obvious that morning — not that the hull was anonymous in December.
+That is **local testimony of a tow to the mole to die**, not a Coast Guard finding. It does **not** name the year. Photos on 18 Dec show **SUNRISE** on the bow, so “without name” means no papers / no master on arrival — not that the hull was anonymous in December.
 
-A same-day drag on 18 Dec is **unlikely**: the Coast Guard was called because two boats already berthed in the port were going under, not because a hull was being moved.
+**Family travel (not a stamp).** Reading “got here Nov 2020” as **South Africa** (speaker in Johannesburg):
 
-Best fit with what is on file: **she sat in the bay for years; at some April she was (or was said to have been) put on the mole; on 18 Dec 2023 the leak became a recorded casualty at that quay.** The April tow is a lead to put to Nydri and to the Vlycho association, not a proved act.
+| When | Where Bruce was |
+| --- | --- |
+| to **5 Aug 2020** | Publicly still Antibes (charter site) |
+| **Nov 2020** | Arrives in South Africa |
+| Nov 2020 – Apr 2022 | Mostly SA; **one** trip back to Europe, month unknown |
+| **Apr 2022** | Leaves SA for Europe |
+
+If “here” meant Vlycho, not SA, say so — that would put the hull in the Ionian in Nov 2020 instead.
+
+Against the unnamed April dump:
+
+| Candidate | Fit |
+| --- | --- |
+| **April 2021** | Bruce is mostly in SA. Only fits if that was the one Europe trip. |
+| **April 2022** | **Leading candidate.** He left SA for Europe that month. Still not proved he went to Vlycho rather than France, or that he was the one who tied her to the mole. |
+| **April 2023** | After he is already back in Europe. Possible; family note does not cover 2022–23. |
+| April 2024 | **Wrong boat** (UK-flagged Vlycho sinking, 20 Apr 2024). |
+
+If Bruce was in SA from Nov 2020, the hull was already without him in the Med for long stretches. That **strengthens abandonment**. It does not by itself date the mole tow. The one Europe trip between Nov 2020 and Apr 2022 is the other window in which he could have moved her France → Vlycho, which would match iLefkada’s “in the bay more than two years” by Dec 2023.
+
+A same-day drag on 18 Dec 2023 is **unlikely**: the Coast Guard was called because two boats already berthed in the port were going under.
 
 ## 3. Which day she actually sank — **18 Dec is the official casualty; the rot is older**
 
