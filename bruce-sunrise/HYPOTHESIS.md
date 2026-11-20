@@ -66,7 +66,7 @@ If Bruce was in Hermanus from Nov 2020, the hull was already without him in the 
 
 A same-day drag on 18 Dec 2023 is **unlikely**: the Coast Guard was called because two boats already berthed in the port were going under.
 
-**Mooring ball vs quay.** Family: she had been on a ball, then against the wall. Street View **closes the wall window**: **not there May 2019**; **already there, still floating, May 2023**. Maxar **21 Oct 2022** still looks like ordinary yachts at this berth (**supported**) — see [`SATELLITE.md`](SATELLITE.md). That would put the wall **after 21 Oct 2022**, by May 2023, and raise **April 2023** for the mole tow. A same-day storm-drag to the quay on 18 Dec is **out**.
+**Mooring ball vs quay.** Family: she had been on a ball, then against the wall. **No public Maxar frame shows a 20 m hull on a Vlycho buoy.** Inner-bay mosaics: **2 Aug 2020** (France week) and **21 Oct 2022** are yacht-sized boats on balls only; **28 Aug 2025** has the wreck **on the pier**. See [`SATELLITE.md`](SATELLITE.md). Street View still closes the **wall**: empty May 2019, occupied May 2023. Oct 2022 she is on **neither** wall nor ball in this bay — that fights iLefkada’s “two years in the bay” unless the reporter over-estimated or she sat in another inlet. A same-day storm-drag to the quay on 18 Dec is **out**.
 
 ## 3. Which day she actually sank — **18 Dec is the official casualty; the rot is older**
 

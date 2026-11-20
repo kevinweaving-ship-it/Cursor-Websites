@@ -44,7 +44,7 @@ Long abandonment **holds**. Locals: dumped on the mole **one April morning** (ye
 | [`CHRONOLOGY.md`](CHRONOLOGY.md) | Purchase-to-date story; where they lived (Roquebrune / Antibes / Hermanus / Vlycho) |
 | [`DIGEST.md`](DIGEST.md) | Extra local dump scored: fact vs useful vs reject (mooring ball, blogs, insurance) |
 | [`STREETVIEW.md`](STREETVIEW.md) | Google Street View at the Vlycho quay: not there May 2019; May 2023 afloat; Jul 2024 wreck; Jul 2026 still there |
-| [`SATELLITE.md`](SATELLITE.md) | What has more photos/year than Google; Maxar 2 Aug 2020 / 21 Oct 2022 / 28 Aug 2025 |
+| [`SATELLITE.md`](SATELLITE.md) | Cadence vs Google; bay mosaics: **no** 20 m hull on a Vlycho buoy in the public Maxar dates |
 | [`TIMELINE.md`](TIMELINE.md) | Dated events, verified vs inferred |
 | [`POLAND_FLAG.md`](POLAND_FLAG.md) | Why Poland, and when the flag can have changed |
 | [`FRANCE_ENTITIES.md`](FRANCE_ENTITIES.md) | ECO-VIE, Building Solutions, GFA des Planets, Clos Saint Pierre |

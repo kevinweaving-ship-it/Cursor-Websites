@@ -49,11 +49,27 @@ Crops in [`photos/`](photos/).
 | 21 Oct 2022 | [`wayback-vlycho-20221021-quay.jpg`](photos/wayback-vlycho-20221021-quay.jpg), [`…-quay-north.jpg`](photos/wayback-vlycho-20221021-quay-north.jpg) | Same wall packed with **white yachts**. **No** lone pale hull with a boom. |
 | 28 Aug 2025 | [`wayback-vlycho-20250828-wreck.jpg`](photos/wayback-vlycho-20250828-wreck.jpg), [`…-z17-wreck.jpg`](photos/wayback-vlycho-20250828-z17-wreck.jpg) | **One** large pale hull at that wall, **boom** in the water. Matches the listed wreck. |
 
-If that Oct 2022 read holds, the **wall** arrival tightens to **after 21 Oct 2022 and by May 2023**. That **raises April 2023** for the mole tow and **weakens April 2021 / April 2022 as wall dates** (she would already have been sitting there by the Oct 2022 mosaic). She can still have been on a **ball** in 2021–22; these tiles show balls in the bay but no obvious 20 m hull on the frames checked.
+If that Oct 2022 read holds, the **wall** arrival tightens to **after 21 Oct 2022 and by May 2023**. That **raises April 2023** for the mole tow and **weakens April 2021 / April 2022 as wall dates**.
+
+## Bay / mooring buoys — looked, not found
+
+Family: she sat on a **ball in the bay**, then was moved to the pier. The Maxar mosaics cover the **whole inner bay** (village quay, laid moorings, south shallows, north toward Vliho Yacht Club / Geni). Capture date is the same on the water as on the wall.
+
+Yellow bar on the crops is **20 m** (Sunrise’s recorded length) at that zoom.
+
+| Date | File | What is in the bay | 20 m wooden trawler on a buoy? |
+| --- | --- | --- | --- |
+| **2 Aug 2020** | [`bay-20200802-moorings-20m.jpg`](photos/bay-20200802-moorings-20m.jpg), [`bay-20200802-z17.jpg`](photos/bay-20200802-z17.jpg) | Yacht-sized boats on balls. Empty south shallows. | **No.** She was still advertised at Port Vauban. |
+| **21 Oct 2022** | [`bay-20221021-moorings-20m.jpg`](photos/bay-20221021-moorings-20m.jpg), [`bay-20221021-z18-wide.jpg`](photos/bay-20221021-z18-wide.jpg) | Same mooring field, still yacht-sized. North pontoons: ordinary yachts. No hull matching the later wreck’s length. | **No.** Not on a ball, not on the pier. |
+| **28 Aug 2025** | [`bay-20250828-moorings-20m.jpg`](photos/bay-20250828-moorings-20m.jpg), [`bay-20250828-z18.jpg`](photos/bay-20250828-z18.jpg) | Wreck **on the pier** with a boom. Balls still yacht-sized. | **No** — she is already at the wall. |
+
+There is **no public 30 cm frame of Sunrise on a Vlycho buoy**. The ball period, if it happened, sits in the **Maxar gap after 2 Aug 2020 and before 21 Oct 2022** (or she was not in this bay on those two days). iLefkada’s “more than two years in the bay” by 18 Dec 2023 would need her here from ~Dec 2021 — **that is not visible on 21 Oct 2022**. Tag: **supported absence on these mosaics**, not a proof she never used a ball.
+
+Nydri harbour and other Lefkada inlets were **not** searched.
 
 ## What to open next
 
-1. **Planet monthly mosaics** for April 2021, April 2022, April 2023, and Oct 2022–May 2023 — only dataset with both cadence and 3 m.
-2. **Copernicus Browser** Sentinel-2 true-colour, cloud-filtered, 2021–May 2023 — cheap “is the wall occupied” blob check; do not treat a 2-pixel blob as ID.
-3. **Maxar Discover** for any extra 30 cm scene between Oct 2022 and May 2023 (Earth/ESRI may have skipped it).
-4. Earth Pro slider on the **basin**, not only the road.
+1. **Planet monthly mosaics of the mooring field** 2021–Apr 2023 — only remaining way to see a 20 m hull on a ball. Maxar/Earth/ESRI have no extra 30 cm pass in that gap at this pin.
+2. **Copernicus Browser** Sentinel-2 true-colour, cloud-filtered, 2021–May 2023 — blob check only; 10 m cannot ID a buoyed hull.
+3. **Maxar Discover** for any extra 30 cm scene Aug 2020–May 2023 that the Vivid mosaic skipped.
+4. Nydri / other Lefkada inlets — not searched.
