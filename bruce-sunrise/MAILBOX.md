@@ -1,81 +1,69 @@
 # Mailbox — investigation@sailingsa.co.za
 
-**Purpose:** outbound address for French / Greek / Polish record requests on MV SUNRISE. Drafts: [`REQUESTS.md`](REQUESTS.md).
+**Purpose:** outbound address for French / Greek / Polish record requests. Drafts: [`REQUESTS.md`](REQUESTS.md).
 
-## What this Cloud run found (21 Nov 2026, Africa/Johannesburg)
+## Access path (do not invent a block)
 
-| Check | Result |
+Per **`docs/CURSOR_RESULTS_BACKFILL_CURRENT.md`**, **`sailingsa/deploy/SSH_LIVE.md`**, **`docs/REA_CHATGPT_ACCESS.md`**, **`gowifi/rea/ops/README.md`**:
+
+- Both boxes are reachable through **REA on GoWifi** (`/opt/rea/ops/bin/rea-admin …`, `ops_*`, `capture_process_scenario`) and through **`~/.ssh/sailingsa_live_key` on the Mac Mini**.
+- Do **not** diagnose access from a Cloud Linux pod alone. Missing tools in one Cursor runtime ≠ absent server access.
+- Mail for the estate lives on **GoWifi Mail-in-a-Box**: `box.gowifi.co.za` (`102.209.119.186`). Web admin: https://box.gowifi.co.za/admin
+- REA ops config allow-reads include `/home/user-data/www` on GoWifi. Mail-in-a-Box **mail data** remains a deliberate deny for unrestricted dump (`docs/REA_CHATGPT_ACCESS.md`); creating a user is a normal MiaB admin / root mail action, not a dump of mailboxes.
+
+## DNS fact (checked 21 Nov 2026)
+
+| Record | `sailingsa.co.za` |
 | --- | --- |
-| `sailingsa.co.za` **MX** | **None.** Dig returns no MX. Web A = `102.218.215.253`. |
-| GoWifi mail host | `box.gowifi.co.za` → `102.209.119.186`. `gowifi.co.za` MX already points here. |
-| MiaB admin HTTPS | `https://box.gowifi.co.za/admin` → **200** |
-| SMTP 25 from Cloud | Timed out on both IPs (expected; use submission **587** from the Mac) |
-| SSH from this Cloud VM | Ports **22 open**, **Permission denied** (no `sailingsa_live_key` / REA key on Cloud) |
-| REA | Mail-in-a-Box mail data is **denied** on purpose (`docs/REA_CHATGPT_ACCESS.md`) |
+| A | `102.218.215.253` (SailingSA web) |
+| MX | **none** right now |
+| NS | GoDaddy `ns77` / `ns78.domaincontrol.com` |
+| GoWifi mail MX | `gowifi.co.za` → `10 box.gowifi.co.za.` |
 
-So: create the mailbox on **GoWifi Mail-in-a-Box**, then point **DNS MX** at it. Do this from **This Mac** (keys live there). Do not invent that the address already works.
+Until MX points at `box.gowifi.co.za`, new `@sailingsa.co.za` users on MiaB will not receive external mail reliably.
 
----
-
-## Create the address (Mac)
-
-### 1. Host the domain on Mail-in-a-Box (if not already)
-
-Open: https://box.gowifi.co.za/admin → **Mail** → **Mail Domains**
-
-- Add **`sailingsa.co.za`** if missing.
-- Open the **DNS** checklist for that domain (MiaB shows the exact MX / SPF / DKIM / DMARC lines).
-
-### 2. Add the user
-
-**UI:** Mail → Users → Add  
-Email: **`investigation@sailingsa.co.za`**  
-Password: generate a long random one; store in your password manager (not in this public repo).
-
-**API (same box, from Mac):**
+## Create the user (Mac or REA-capable session)
 
 ```bash
-# Replace ADMIN_EMAIL / ADMIN_PASS with the MiaB admin login (never commit them).
-curl -sS -u 'ADMIN_EMAIL:ADMIN_PASS' \
-  -d 'email=investigation@sailingsa.co.za&password=GENERATE_A_LONG_PASSWORD' \
+# 1) Confirm Mac / REA session has the key
+ls -la ~/.ssh/sailingsa_live_key
+
+# 2) Reach GoWifi (documented host)
+ssh -i ~/.ssh/sailingsa_live_key root@102.209.119.186 'hostname; which mailinabox >/dev/null; ls /home/user-data/mail/mailboxes 2>/dev/null | head'
+
+# 3) Add domain if missing, then user (MiaB management API — admin login from Mac secrets, never commit)
+curl -sS -u "$MIAB_ADMIN:$MIAB_PASS" \
+  https://box.gowifi.co.za/admin/mail/domains
+curl -sS -u "$MIAB_ADMIN:$MIAB_PASS" \
+  -d 'email=investigation@sailingsa.co.za&password='"$NEW_PASS" \
   https://box.gowifi.co.za/admin/mail/users/add
+
+# Or UI: https://box.gowifi.co.za/admin → Mail → Users → Add investigation@sailingsa.co.za
 ```
 
-Optional alias later: `investigation+greece@…` etc. — MiaB supports plus-addressing if the catch-all / user is set that way; otherwise one inbox is enough.
-
-### 3. DNS at GoDaddy (ns77 / ns78.domaincontrol.com)
-
-Until MX exists, mail to `@sailingsa.co.za` will **not** land in MiaB (some MTAs may try the A record; SailingSA host has **no** SMTP on 25 from outside).
-
-Add what MiaB’s DNS page prints. Minimum:
+Then GoDaddy DNS for `sailingsa.co.za` (copy exact lines from MiaB DNS checklist):
 
 | Type | Name | Value |
 | --- | --- | --- |
-| **MX** | `@` | `box.gowifi.co.za` priority **10** |
-| **TXT** (SPF) | `@` | as MiaB shows (usually includes `box.gowifi.co.za`) |
-| **TXT** (DKIM) | MiaB hostname | as MiaB shows |
-| **TXT** (DMARC) | `_dmarc` | as MiaB shows (start `p=none` if unsure) |
-
-Do **not** remove the existing Google site-verification TXT.
-
-Propagate, then:
+| MX | `@` | `box.gowifi.co.za` priority **10** |
+| TXT SPF / DKIM / DMARC | as MiaB prints | — |
 
 ```bash
 dig +short MX sailingsa.co.za
 # expect: 10 box.gowifi.co.za.
 ```
 
-### 4. Client
+Webmail: https://box.gowifi.co.za/mail — user `investigation@sailingsa.co.za`.
 
-- Webmail: https://box.gowifi.co.za/mail (or MiaB’s webmail URL)
-- Or IMAP/SMTP: host `box.gowifi.co.za`, IMAP 993, SMTP **587** STARTTLS, user `investigation@sailingsa.co.za`
+## Status this Cloud Agent run (tool binding only)
 
-Send a test to your own iCloud / Gmail, then reply, before any FOI.
+This chat is a **Cloud Linux** agent. Observed here:
 
----
+- REA MCP tools (`capture_process_scenario`, `ops_*`) are **not bound** in the tool list
+- `CreateAgent` / `Task` `self_hosted_worker` placement is **not available** (Task only accepts `same_machine` | `new_cloud_vm`)
+- Mac Mini worker **`43e56b9a-b958-55dd-a151-df216da22615`** is **connected, approved, idle**
+- Pod has **no** `~/.ssh/sailingsa_live_key`
 
-## After it works
+That is a **runtime binding gap**. It is **not** “SSH is blocked” and not “boxes have no email.” Fix: open/continue this task on the **Mac Mini worker**, or bind the **REA** connector so `rea-admin` / MiaB admin can run.
 
-1. Send the three letters in [`REQUESTS.md`](REQUESTS.md) (France first if only one trip).
-2. File every reply PDF under `bruce-sunrise/replies/` (gitignored if personal).
-3. Update [`OPEN_RECORDS.md`](OPEN_RECORDS.md) when a document closes.
+After create: send letters in [`REQUESTS.md`](REQUESTS.md); update this file’s status line to **mailbox live**.
