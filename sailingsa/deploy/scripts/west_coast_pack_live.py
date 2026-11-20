@@ -502,6 +502,62 @@ def sync_tcf(replay: dict, id_to_label: dict[int, str], setups: list[dict]) -> d
     return tcf
 
 
+
+def sync_yb_proj(replay: dict, id_to_label: dict[int, str], setups: list[dict]) -> dict:
+    """Pull YB Leaderboard projected elapsed (seconds) per boat for ORC calc."""
+    pack_keys = list((replay.get("boats") or {}).keys())
+    proj: dict[str, dict] = {}
+    # Map setup team id -> pack key using same setups + id_to_label
+    id_to_key: dict[int, str] = {}
+    for setup in setups or []:
+        for t in setup.get("teams") or []:
+            if (t.get("type") or "").upper() == "COMMITTEE":
+                continue
+            if t.get("id") is None:
+                continue
+            tid = int(t["id"])
+            label = (t.get("sail") or t.get("name") or "").strip()
+            key = match_pack_key(label, pack_keys) if label else None
+            if not key:
+                lab = id_to_label.get(tid)
+                key = match_pack_key(lab or "", pack_keys) if lab else None
+            if key:
+                id_to_key[tid] = key
+    for race_key in RACE_KEYS:
+        try:
+            lb = fetch_json(f"JSON/{race_key}/Leaderboard")
+        except Exception as e:
+            log(f"Leaderboard {race_key} failed: {e}")
+            continue
+        for tag in lb.get("tags") or []:
+            for team in tag.get("teams") or []:
+                tid = int(team.get("id"))
+                key = id_to_key.get(tid)
+                if not key:
+                    continue
+                # Prefer scored projected elapsed when present
+                e_s = team.get("eElapsedS")
+                e_r = team.get("eElapsedR")
+                dtf = team.get("dtf")
+                if e_s is None and e_r is None:
+                    continue
+                prev = proj.get(key) or {}
+                # Keep the shorter projected scored elapsed (freshest / primary tag)
+                cand = {
+                    "eElapsedS": int(e_s) if e_s is not None else prev.get("eElapsedS"),
+                    "eElapsedR": int(e_r) if e_r is not None else prev.get("eElapsedR"),
+                    "dtf": int(dtf) if dtf is not None else prev.get("dtf"),
+                    "rankR": team.get("rankR"),
+                }
+                if key not in proj or (
+                    cand.get("eElapsedS") is not None
+                    and (prev.get("eElapsedS") is None or cand["eElapsedS"] <= prev["eElapsedS"])
+                ):
+                    proj[key] = cand
+    replay["yb_proj"] = proj
+    return proj
+
+
 def sync_retired(replay: dict, id_to_label: dict[int, str], setups: list[dict]) -> list[str]:
     """Write replay['retired'] from YB RaceSetup status=RETIRED."""
     pack_keys = list((replay.get("boats") or {}).keys())
@@ -586,6 +642,7 @@ def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict], setu
     rounded = sync_rounded_at(replay, setups or [], id_to_label)
     retired = sync_retired(replay, id_to_label, setups or [])
     tcf_map = sync_tcf(replay, id_to_label, setups or [])
+    yb_proj = sync_yb_proj(replay, id_to_label, setups or [])
     atomic_write(replay_path, replay)
     atomic_write(trail_path, trail)
     try:
@@ -593,7 +650,7 @@ def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict], setu
         os.chown(trail_path, -1, os.stat(DATA).st_gid)
     except Exception:
         pass
-    return {"fleet": fleet, "added": added_total, "end_ts_ms": end_ts, "boats_mapped": len(label_to_key), "unchanged": unchanged, "retired": retired, "marks": marks_info, "rounded": len(rounded), "tcf": len(tcf_map)}
+    return {"fleet": fleet, "added": added_total, "end_ts_ms": end_ts, "boats_mapped": len(label_to_key), "unchanged": unchanged, "retired": retired, "marks": marks_info, "rounded": len(rounded), "tcf": len(tcf_map), "yb_proj": len(yb_proj)}
 
 
 def load_race_tracks(race_key: str) -> tuple[dict[int, str], list[dict], list[str], dict]:
