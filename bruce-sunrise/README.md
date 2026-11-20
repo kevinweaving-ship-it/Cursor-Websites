@@ -53,7 +53,8 @@ Long abandonment **holds**. Locals: dumped on the mole **one April morning** (ye
 | [`GREECE.md`](GREECE.md) | Port, casualty, abandonment, two tows, Law 2881, notice 1643, both empty 2026 tenders |
 | [`HYPOTHESIS.md`](HYPOTHESIS.md) | Abandonment / jetty / flag / ECO-VIE / insurance scores |
 | [`OPEN_RECORDS.md`](OPEN_RECORDS.md) | Documents to request next |
-| [`REQUESTS.md`](REQUESTS.md) | Ready-to-send letters (FR / GR / PL) from investigation@sailingsa.co.za |
+| [`REQUESTS.md`](REQUESTS.md) | Letter framing and send order |
+| [`EMAILS.md`](EMAILS.md) | Full bilingual drafts + verified To/Cc for France, Poland, Lefkada Port Fund |
 | [`MAILBOX.md`](MAILBOX.md) | Create that mailbox on GoWifi MiaB + GoDaddy MX (none yet) |
 | [`SOURCES.md`](SOURCES.md) | URL index |
 
