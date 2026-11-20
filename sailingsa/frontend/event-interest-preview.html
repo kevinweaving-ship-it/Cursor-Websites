@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage 3 — Event Interest preview (NOT LIVE)</title>
+<link rel="stylesheet" href="css/event-interest.css">
+<style>
+  /* Preview chrome + compact live-like Upcoming card layout (isolated; not production) */
+  html, body { margin: 0; padding: 0; background: #dbe4f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .s3-banner { margin: 0; padding: 10px 14px; background: #7c2d12; color: #fff7ed; font: 700 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .s3-banner small { display: block; font-weight: 500; opacity: .92; margin-top: 4px; }
+  .s3-frame { margin: 18px auto 28px; padding: 0 10px; box-sizing: border-box; }
+  .s3-frame[data-vp="1280"] { width: 1280px; }
+  .s3-frame[data-vp="480"] { width: 480px; }
+  .s3-frame[data-vp="390"] { width: 390px; }
+  .s3-label { margin: 0 0 8px; color: #0f172a; font: 800 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+  .s3-note { margin: 0 0 12px; padding: 8px 10px; background: #fff; border: 1px dashed #94a3b8; border-radius: 6px; color: #334155; font-size: 12px; line-height: 1.4; }
+  .s3-frame[data-vp="1280"] .s3-col { width: calc((100% - 16px) / 2); margin-left: auto; }
+  .s3-frame[data-vp="480"] .s3-col, .s3-frame[data-vp="390"] .s3-col { width: 100%; }
+
+  .temp-landing-hero-image { width: 100%; margin: 0; }
+  .landing-event-card + .landing-event-card { margin-top: 12px; }
+  .sa-home-regatta-card {
+    background: #fff; border: 2px solid #8aa2c6; border-radius: 6px;
+    box-shadow: 0 2px 3px rgba(15,23,42,.06); padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 8px; overflow: hidden;
+    box-sizing: border-box; width: 100%; color: #142c78; position: relative;
+  }
+  .sa-home-regatta-top {
+    display: grid !important;
+    grid-template-columns: 82px minmax(0, 1fr) !important;
+    grid-template-areas: "logo main" "logo host" "actions actions" !important;
+    gap: 8px 10px !important; align-items: start !important;
+  }
+  .sa-home-regatta-event-logo-link { grid-area: logo; line-height: 0; text-decoration: none; }
+  .sa-home-regatta-event-logo { display: block; width: 78px !important; height: 58px !important; object-fit: contain !important; }
+  .sa-home-regatta-top-main { grid-area: main; min-width: 0; position: relative; }
+  .sa-home-regatta-title { font-size: 14px; font-weight: 900; color: #142c78; line-height: 1.15; margin: 0; }
+  .sa-home-regatta-title a { color: inherit; text-decoration: none; }
+  .sa-home-regatta-meta { margin-top: 6px; }
+  .sa-home-regatta-days-pill {
+    display: inline-flex; padding: 2px 7px; border-radius: 4px; background: #c2410c; color: #fff;
+    font-size: 10px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+  }
+  .sa-home-regatta-host {
+    grid-area: host; display: flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; min-width: 0;
+  }
+  .sa-home-regatta-host-logo { width: 36px !important; height: 36px !important; object-fit: contain !important; }
+  .sa-home-regatta-host-code { font-weight: 800; font-size: 12px; color: #142c78; }
+  .sa-home-regatta-host-name { font-size: 11px; color: #5b6780; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sa-home-regatta-actions { grid-area: actions; width: 100%; }
+  .sa-home-regatta-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 9px 14px; border-radius: 6px; border: 1px solid #a5d7de; background: #f9ffff;
+    color: #0f6d7a; font-weight: 900; font-size: 12px; text-decoration: none; width: 100%; box-sizing: border-box;
+  }
+  .sa-home-regatta-btn--upcoming { background: #c2410c; border-color: #c2410c; color: #fff; }
+</style>
+</head>
+<body>
+  <p class="s3-banner">
+    STAGE 3 FRONTEND PREVIEW ONLY — not live, not deployed.
+    <small>Mock API responses for layout/interaction. Counts/classes come from the mock Stage 2 contract (not fabricated in the UI). No production files served.</small>
+  </p>
+
+  <div class="s3-frame" data-vp="1280" id="frame-1280">
+    <div class="s3-label">Viewport 1280px</div>
+    <p class="s3-note">Desktop upcoming column. Button always present. Logos ~14px with counts; +N overflow. Click + Interested for class picker.</p>
+    <div class="s3-col" data-mount></div>
+  </div>
+  <div class="s3-frame" data-vp="480" id="frame-480">
+    <div class="s3-label">Viewport 480px</div>
+    <p class="s3-note">Button + total prioritized; miniature logos when space allows.</p>
+    <div class="s3-col" data-mount></div>
+  </div>
+  <div class="s3-frame" data-vp="390" id="frame-390">
+    <div class="s3-label">Viewport 390px</div>
+    <p class="s3-note">Narrow: keep + Interested obvious; drop logos rather than crowding the button.</p>
+    <div class="s3-col" data-mount></div>
+  </div>
+
+<script>
+window.EventInterestAutoInit = false;
+
+/* Mock Stage 2 API — preview only. UI never invents classes/counts itself. */
+(function () {
+  var STORE = {
+    "168679": {
+      event_id: 168679,
+      total_interested: 26,
+      classes: [
+        { class_identifier: "ilca-7", class_display_name: "ILCA 7", class_id: 46, interested_count: 8, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/ILCA-7-Class-Logo.png" },
+        { class_identifier: "finn", class_display_name: "Finn", class_id: 9, interested_count: 6, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Finn-Class-Logo.png" },
+        { class_identifier: "mirror", class_display_name: "Mirror", class_id: 2, interested_count: 5, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Mirror-Class-Logo.png" },
+        { class_identifier: "ilca-6", class_display_name: "ILCA 6", class_id: 45, interested_count: 4, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/ILCA-6-Class-Logo.png" },
+        { class_identifier: "sonnet", class_display_name: "Sonnet", class_id: 10, interested_count: 3, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Sonnet-Class-Logo.png" }
+      ],
+      mine: null,
+      edition: [
+        { class_identifier: "finn", class_display_name: "Finn", class_id: 9, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Finn-Class-Logo.png", interested_count: 6 },
+        { class_identifier: "ilca-7", class_display_name: "ILCA 7", class_id: 46, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/ILCA-7-Class-Logo.png", interested_count: 8 },
+        { class_identifier: "junior", class_display_name: "Junior", class_id: null, logo_path: null, interested_count: 0 },
+        { class_identifier: "mirror", class_display_name: "Mirror", class_id: 2, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Mirror-Class-Logo.png", interested_count: 5 },
+        { class_identifier: "ilca-6", class_display_name: "ILCA 6", class_id: 45, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/ILCA-6-Class-Logo.png", interested_count: 4 },
+        { class_identifier: "sonnet", class_display_name: "Sonnet", class_id: 10, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Sonnet-Class-Logo.png", interested_count: 3 }
+      ]
+    },
+    "246456": {
+      event_id: 246456,
+      total_interested: 12,
+      classes: [
+        { class_identifier: "flying-15", class_display_name: "Flying 15", class_id: 206, interested_count: 7, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Flying-Fifteen-Class-Logo.png" },
+        { class_identifier: "soling", class_display_name: "Soling", class_id: 69, interested_count: 5, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Soling-Class-Logo.png" }
+      ],
+      mine: { status: "active", class_identifier: "flying-15", class_id: 206, interested: true },
+      edition: [
+        { class_identifier: "flying-15", class_display_name: "Flying 15", class_id: 206, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Flying-Fifteen-Class-Logo.png", interested_count: 7 },
+        { class_identifier: "soling", class_display_name: "Soling", class_id: 69, logo_path: "https://sailingsa.co.za/artwork/Class%20Logo/Soling-Class-Logo.png", interested_count: 5 }
+      ]
+    },
+    "248485": { event_id: 248485, total_interested: 0, classes: [], mine: null, edition: [] },
+    "45": { event_id: 45, total_interested: 0, classes: [], mine: null, edition: [] }
+  };
+
+  function snap(id) {
+    var s = STORE[String(id)];
+    if (!s) return null;
+    return {
+      event_id: s.event_id,
+      total_interested: s.total_interested,
+      classes: s.classes.slice().sort(function (a, b) { return b.interested_count - a.interested_count; }),
+      mine: s.mine
+    };
+  }
+
+  function recompute(id) {
+    var s = STORE[String(id)];
+    if (!s) return;
+    // In preview mock, classes[] already holds non-zero buckets only.
+    s.total_interested = s.classes.reduce(function (n, c) { return n + (c.interested_count || 0); }, 0);
+    s.edition.forEach(function (e) {
+      var hit = s.classes.find(function (c) { return c.class_identifier === e.class_identifier; });
+      e.interested_count = hit ? hit.interested_count : 0;
+    });
+  }
+
+  var realFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    var url = typeof input === "string" ? input : (input && input.url) || "";
+    var method = ((init && init.method) || "GET").toUpperCase();
+    var path = url.replace(/^https?:\/\/[^/]+/, "");
+
+    function json(data, status) {
+      return Promise.resolve(new Response(JSON.stringify(data), {
+        status: status || 200,
+        headers: { "Content-Type": "application/json" }
+      }));
+    }
+
+    var batch = path.match(/^\/api\/events\/interest\?ids=([^&]+)/);
+    if (method === "GET" && batch) {
+      var ids = decodeURIComponent(batch[1]).split(",");
+      var events = {};
+      ids.forEach(function (id) {
+        var s = snap(id.trim());
+        if (s) events[String(s.event_id)] = s;
+      });
+      return json({ events: events });
+    }
+
+    var one = path.match(/^\/api\/events\/(\d+)\/interest$/);
+    if (method === "GET" && one) {
+      var s = snap(one[1]);
+      return s ? json(s) : json({ detail: "Event not found" }, 404);
+    }
+
+    var classes = path.match(/^\/api\/events\/(\d+)\/interest\/classes$/);
+    if (method === "GET" && classes) {
+      var st = STORE[classes[1]];
+      if (!st) return json({ detail: "Event not found" }, 404);
+      return json({
+        event_id: st.event_id,
+        total_interested: st.total_interested,
+        classes: st.edition.slice()
+      });
+    }
+
+    var post = path.match(/^\/api\/events\/(\d+)\/interest$/);
+    if (method === "POST" && post && path.indexOf("withdraw") === -1) {
+      var body = {};
+      try { body = JSON.parse((init && init.body) || "{}"); } catch (e) {}
+      var store = STORE[post[1]];
+      if (!store) return json({ detail: "Event not found" }, 404);
+      if (!store.edition.length) return json({ detail: "Class is not configured for this event" }, 400);
+      var ident = String(body.class_identifier || "").toLowerCase();
+      var ed = store.edition.find(function (c) { return c.class_identifier === ident; });
+      if (!ed) return json({ detail: "Class is not configured for this event" }, 400);
+      var prev = store.mine && store.mine.interested ? store.mine.class_identifier : null;
+      if (prev && prev !== ident) {
+        store.classes.forEach(function (c) {
+          if (c.class_identifier === prev) c.interested_count = Math.max(0, c.interested_count - 1);
+        });
+        store.classes = store.classes.filter(function (c) { return c.interested_count > 0; });
+      }
+      if (!prev) {
+        var bucket = store.classes.find(function (c) { return c.class_identifier === ident; });
+        if (bucket) bucket.interested_count += 1;
+        else store.classes.push({
+          class_identifier: ed.class_identifier,
+          class_display_name: ed.class_display_name,
+          class_id: ed.class_id,
+          interested_count: 1,
+          logo_path: ed.logo_path
+        });
+      } else if (prev === ident) {
+        /* idempotent */
+      } else {
+        var b2 = store.classes.find(function (c) { return c.class_identifier === ident; });
+        if (b2) b2.interested_count += 1;
+        else store.classes.push({
+          class_identifier: ed.class_identifier,
+          class_display_name: ed.class_display_name,
+          class_id: ed.class_id,
+          interested_count: 1,
+          logo_path: ed.logo_path
+        });
+      }
+      store.mine = { status: "active", class_identifier: ident, class_id: ed.class_id, interested: true };
+      recompute(post[1]);
+      return json(snap(post[1]));
+    }
+
+    var wd = path.match(/^\/api\/events\/(\d+)\/interest\/withdraw$/);
+    if (method === "POST" && wd) {
+      var stw = STORE[wd[1]];
+      if (!stw) return json({ detail: "Event not found" }, 404);
+      if (!stw.mine || !stw.mine.interested) return json({ detail: "No interest to withdraw" }, 404);
+      var prevId = stw.mine.class_identifier;
+      stw.classes.forEach(function (c) {
+        if (c.class_identifier === prevId) c.interested_count = Math.max(0, c.interested_count - 1);
+      });
+      stw.classes = stw.classes.filter(function (c) { return c.interested_count > 0; });
+      stw.mine = { status: "withdrawn", class_identifier: prevId, class_id: null, interested: false };
+      recompute(wd[1]);
+      return json(snap(wd[1]));
+    }
+
+    return realFetch(input, init);
+  };
+})();
+</script>
+
+<script>
+(function () {
+  var m = /(?:\?|&)vp=(\d+)/.exec(location.search || "");
+  if (m) {
+    document.querySelectorAll(".s3-frame").forEach(function (f) {
+      if (f.getAttribute("data-vp") !== m[1]) f.style.display = "none";
+    });
+  }
+})();
+</script>
+
+<script type="text/plain" id="card-section-src"><section id="temp-landing-hero-image" class="temp-landing-hero-image" aria-label="Upcoming events" data-landing-event-card="1">
+<!-- LANDING_EVENT_CARD_BEGIN slot=1 -->
+<!-- LANDING_EXTRA_UPCOMING_BEGIN -->
+<article class="sa-home-regatta-card landing-event-card landing-event-card--upcoming" data-landing-event-slot="1" data-event-id="168679" data-state="upcoming"><div class="sa-home-regatta-top"><a class="sa-home-regatta-event-logo-link" href="https://www.sailing.org.za/events/373989" aria-label="2026 EC Dinghy Regionals"><img class="sa-home-regatta-event-logo" src="https://sailingsa.co.za/artwork/Event Logo/SAS-EC-Champs-Eastern-Cape.png" alt="2026 EC Dinghy Regionals" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a><div class="sa-home-regatta-top-main"><div class="sa-home-regatta-title"><a href="https://www.sailing.org.za/events/373989" style="color:inherit;text-decoration:none">2026 EC Dinghy Regionals</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill sa-home-regatta-days-pill">2 DAYS TO GO</div></div></div><a class="sa-home-regatta-host" href="/club/ryc" title="Open club page"><img class="sa-home-regatta-host-logo" src="https://sailingsa.co.za/api/club-logo/RYC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">RYC</div><div class="sa-home-regatta-host-name">Redhouse Yacht Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn sa-home-regatta-btn--upcoming" href="https://www.sailing.org.za/events/373989"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div></article>
+<article class="sa-home-regatta-card landing-event-card landing-event-card--upcoming" data-landing-event-slot="2" data-event-id="246456" data-state="upcoming"><div class="sa-home-regatta-top"><a class="sa-home-regatta-event-logo-link" href="https://www.hmyc.org.za/events/384592" aria-label="Flying fifteen &amp; Soling Nationals"><img class="sa-home-regatta-event-logo" src="https://sailingsa.co.za/artwork/Event Logo/Soling-Flying-15-National-Championships.png" alt="Flying fifteen &amp; Soling Nationals" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a><div class="sa-home-regatta-top-main"><div class="sa-home-regatta-title"><a href="https://www.hmyc.org.za/events/384592" style="color:inherit;text-decoration:none">Flying fifteen &amp; Soling Nationals</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill sa-home-regatta-days-pill sa-home-regatta-days-pill--later">16 DAYS TO GO</div></div></div><a class="sa-home-regatta-host" href="/club/hmyc" title="Open club page"><img class="sa-home-regatta-host-logo" src="https://sailingsa.co.za/api/club-logo/HMYC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">HMYC</div><div class="sa-home-regatta-host-name">Henley Midmar Yacht Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn sa-home-regatta-btn--later" href="https://www.hmyc.org.za/events/384592"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div></article>
+<article class="sa-home-regatta-card landing-event-card landing-event-card--upcoming" data-landing-event-slot="3" data-event-id="248485" data-state="upcoming"><div class="sa-home-regatta-top"><a class="sa-home-regatta-event-logo-link" href="https://www.sailing.org.za/events/388299" aria-label="TSC Cape Classic"><img class="sa-home-regatta-event-logo" src="https://sailingsa.co.za/artwork/Event Logo/Cape-Classic-Series.png" alt="TSC Cape Classic" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a><div class="sa-home-regatta-top-main"><div class="sa-home-regatta-title"><a href="https://www.sailing.org.za/events/388299" style="color:inherit;text-decoration:none">TSC Cape Classic</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill sa-home-regatta-days-pill sa-home-regatta-days-pill--later">30 DAYS TO GO</div></div></div><a class="sa-home-regatta-host" href="/club/tsc" title="Open club page"><img class="sa-home-regatta-host-logo" src="https://sailingsa.co.za/api/club-logo/TSC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">TSC</div><div class="sa-home-regatta-host-name">Theewater Sports Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn sa-home-regatta-btn--later" href="https://www.sailing.org.za/events/388299"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div></article>
+<article class="sa-home-regatta-card landing-event-card landing-event-card--upcoming" data-landing-event-slot="4" data-event-id="45" data-state="upcoming"><div class="sa-home-regatta-top"><a class="sa-home-regatta-event-logo-link" href="https://www.sailing.org.za/events/344430" aria-label="2026 USSA Sailing Championships"><img class="sa-home-regatta-event-logo" src="https://sailingsa.co.za/artwork/Event Logo/TSL-Team-Sailing.png" alt="2026 USSA Sailing Championships" width="78" height="58" loading="lazy" decoding="async" style="width:78px;height:58px;max-width:78px;max-height:58px;object-fit:contain"></a><div class="sa-home-regatta-top-main"><div class="sa-home-regatta-title"><a href="https://www.sailing.org.za/events/344430" style="color:inherit;text-decoration:none">2026 USSA Sailing Championships</a></div><div class="sa-home-regatta-meta"><div class="sa-home-regatta-meta-pill sa-home-regatta-days-pill sa-home-regatta-days-pill--later">41 DAYS TO GO</div></div></div><a class="sa-home-regatta-host" href="/club/hmyc" title="Open club page"><img class="sa-home-regatta-host-logo" src="https://sailingsa.co.za/api/club-logo/HMYC" alt="" width="76" height="36" loading="lazy" decoding="async" style="width:76px;height:36px;max-width:76px;max-height:36px;object-fit:contain"><div class="sa-home-regatta-host-text"><div class="sa-home-regatta-host-code">HMYC</div><div class="sa-home-regatta-host-name">Henley Midmar Yacht Club</div></div></a><div class="sa-home-regatta-actions"><a class="sa-home-regatta-btn sa-home-regatta-btn--later" href="https://www.sailing.org.za/events/344430"><span class="sa-home-regatta-btn-ico"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h6v1.8c0 2.3-1.4 4-3 4.6v2h2v1.6H6V10.9h2v-2c-1.6-.6-3-2.3-3-4.6V2.5Z"></path><path d="M5 3.4H3.2c0 1.7.7 2.9 2.1 3.4"></path><path d="M11 3.4h1.8c0 1.7-.7 2.9-2.1 3.4"></path></svg></span>Upcoming event</a></div></div></article>
+<!-- LANDING_EXTRA_UPCOMING_END -->
+<!-- LANDING_EVENT_CARD_END slot=1 -->
+</section></script>
+
+<script src="js/event-interest.js"></script>
+<script>
+(function () {
+  var html = document.getElementById("card-section-src").textContent;
+  document.querySelectorAll("[data-mount]").forEach(function (mount) {
+    mount.innerHTML = html;
+  });
+  // Unique section ids per frame
+  document.querySelectorAll(".s3-frame").forEach(function (frame, i) {
+    var sec = frame.querySelector("section.temp-landing-hero-image");
+    if (sec) sec.id = "temp-landing-hero-image-" + frame.getAttribute("data-vp");
+  });
+  window.EventInterest.init({ root: document });
+  document.documentElement.setAttribute('data-s3-ready','1');
+})();
+</script>
+</body>
+</html>
