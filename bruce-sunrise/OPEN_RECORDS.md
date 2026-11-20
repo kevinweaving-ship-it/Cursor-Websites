@@ -41,7 +41,7 @@ The public HCG HTML bulletin URL returned **403** from this environment. Retry f
 
 - Google Street View at **105 Επαρ.Οδ. Λευκάδας–Βασιλικής**: **not there May 2019**; afloat at wall **May 2023**; wreck **Jul 2024** and **Jul 2026**. See [`STREETVIEW.md`](STREETVIEW.md).
 - **Satellite ranking:** [`SATELLITE.md`](SATELLITE.md). Google Earth is **not** denser than ESRI here. **More photos/year:** Sentinel-2 (~144 days, 10 m) and Planet (daily, 3 m). High-res Maxar captures at this quay: **2 Aug 2020**, **21 Oct 2022**, **28 Aug 2025**.
-- **Still useful:** **Planet** monthly mosaics of the mooring field 2021–Apr 2023 — the only free-looking 2 m EU mosaic (**VHR 2021**) **blanks the water**. Maxar Discover / SkyWatch for extra 30 cm days. AIS for POL000AYP not found. Nydri not searched.
+- **Planet AI is working.** Show the **wreck on the pier first** (size lock), then the **buoy field**, then the **move**. Prompts in [`SATELLITE.md`](SATELLITE.md). Maxar Discover / SkyWatch still useful for extra 30 cm days. AIS for POL000AYP not found. Nydri not searched.
 
 ## 3b. Facebook group thread — 18 Dec 2023
 

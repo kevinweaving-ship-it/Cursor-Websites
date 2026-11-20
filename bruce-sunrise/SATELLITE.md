@@ -76,14 +76,24 @@ Working assumption from family/locals: she **was** on a ball in this bay, then d
 | **Copernicus VHR 2021** (EU 2 m mosaic, veg season 2020–22) | **Free, looked.** Land and the quay strip are there; **the mooring field is blanked** (NoData). It is a land-cover product. Cannot see a buoy. Crop: [`bay-vhr2021-quay-water-masked.jpg`](photos/bay-vhr2021-quay-water-masked.jpg). |
 | **Copernicus VHR 2018** | Same water cut-out. Too early anyway (still Scotland/France). |
 | **Sentinel-2** | Plenty of dates, **10 m**. A 20 m hull is two pixels. Cannot honestly ID a buoyed trawler. |
-| **Planet PlanetScope** | **Daily, 3 m.** Right resolution for a buoyed 20 m hull. **No account on this case — skipped.** There is no public no-login Planet globe for Greece. |
+| **Planet PlanetScope** | **Daily, 3 m.** Right resolution for a buoyed 20 m hull. **Planet AI is working** (user). Do **not** start in the empty bay. Show the **wreck on the pier first** so it locks size, then walk it back onto the buoys. Prompts below. |
 | **Maxar / Airbus archive** (Discover, SkyWatch) | May have extra 30 cm days that never made it into Google/ESRI. Paid browse/order. |
 | **AIS / MarineTraffic** | No public hit on **POL000AYP**. An abandoned boat often has the transponder off. |
 | **Apple / Bing / Cadastre** | One mosaic, or too early. Not a 2021–22 time series. |
 
 ## What to open next
 
-1. **Planet — skipped.** Needs a sign-in. None on this case. No-login 10 m maps (Sentinel-2 / EOX cloudless) were pulled for 2020–2023; a 20 m hull is two dots. They cannot date the buoy. The live sharp stack remains Maxar 2 Aug 2020 / 21 Oct 2022 plus Street View May 2023.
+1. **Planet AI — wreck first, then the buoy, then the move.** Paste in this order. Do not let it hunt the whole Ionian.
+
+**Prompt 1 — lock the wreck (size and place)**
+
+> Vlycho / Vliho, Lefkada, Greece. Concrete village quay at about 38.6825 N, 20.6989 E (road 105 Επαρ.Οδ. Λευκάδας–Βασιλικής). From May 2023 a ~20 m / 70 ft cream wooden motor vessel, converted trawler, sits against that wall, still floating. By late 2024 / 2025 it is listing with a boom. That hull is MV SUNRISE. Show the pier on PlanetScope. Measure its length on the image. That size is the target. Ignore the small white yachts.
+
+**Prompt 2 — find that same hull on a buoy, then the drag to the pier**
+
+> Same vessel, same size as the wreck you just measured. Search only Vlycho inner bay, water east of that quay (about 38.6815–38.686 N, 20.6995–20.705 E). Monthly mosaics August 2020 to May 2023. Find the first month that oblong sits on a mooring buoy, the last month it is still on a buoy, and the first month it is against the pier. Show a before/after: buoy position → pier position. She was not on this quay in May 2019 and not in this bay on Maxar 2 Aug 2020 (still in France). Maxar 21 Oct 2022 did not show a 20 m hull here — check whether Planet disagrees.
+
+A hit: same ~20 m oblong on the balls for months, then on the wall. Small yachts on buoys are not her. One cloudy month is not a move.
 2. **Copernicus Browser** Sentinel-2 true-colour, cloud-filtered, 2021–May 2023 — blob check only; 10 m cannot ID a buoyed hull.
 3. **Maxar Discover** for any extra 30 cm scene Aug 2020–May 2023 that the Vivid mosaic skipped.
 4. Nydri / other Lefkada inlets — not searched.
