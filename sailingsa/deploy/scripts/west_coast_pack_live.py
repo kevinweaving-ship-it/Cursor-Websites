@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Refresh SailingSA West Coast Live GPS packs from Yellowbrick BIN (server-side only).
 
-Writes /var/www/sailingsa/data/west-coast-{all,ab,c}-replay.json + trail.json.
+Writes /var/www/sailingsa/data/west-coast-{all,ab}-replay.json + trail.json.
 YB URLs never appear in the public page; this job pulls positions for the map packer.
-Live: /usr/local/bin/west_coast_pack_live.py + /etc/cron.d/sailingsa_west_coast_gps (every minute).
 """
 from __future__ import annotations
 
@@ -258,26 +257,245 @@ def merge_moments_into_pack(
     sail: str,
     moments: list[dict],
 ) -> int:
-    """Return count of newly appended gps fixes."""
+    """Return count of newly appended or corrected gps fixes.
+
+    YB often republishes a corrected lat/lon under the same `at` second.
+    Treat same-timestamp moves as updates, not duplicates to skip.
+    """
     fixes = replay.setdefault("gps_fixes", {}).setdefault(sail, [])
     added = 0
-    last = last_fix_ms(fixes)
     moments = sorted(moments or [], key=lambda m: int(m.get("at") or 0))
     for m in moments:
         at_s = int(m["at"])
         ts_ms = at_s * 1000
-        if ts_ms <= last:
-            continue
         lat = float(m["lat"])
         lon = float(m["lon"])
+        if fixes and int(fixes[-1][0]) == ts_ms:
+            prev_lat, prev_lon = float(fixes[-1][1]), float(fixes[-1][2])
+            if abs(prev_lat - lat) < 1e-7 and abs(prev_lon - lon) < 1e-7:
+                continue
+            fixes[-1] = [ts_ms, lat, lon]
+            place_on_trail(trail, sail, ts_ms, lat, lon)
+            added += 1
+            continue
+        if fixes and ts_ms < int(fixes[-1][0]):
+            # Ignore out-of-order older points; history already packed.
+            continue
+        if fixes and ts_ms == int(fixes[-1][0]):
+            continue
         fixes.append([ts_ms, lat, lon])
         place_on_trail(trail, sail, ts_ms, lat, lon)
-        last = ts_ms
         added += 1
     return added
 
 
-def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict]) -> dict:
+
+
+def _named_course_nodes(setup: dict) -> list[dict]:
+    nodes = ((setup.get("course") or {}).get("nodes")) or []
+    out = []
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        lat = n.get("lat")
+        lon = n.get("lon")
+        if lat is None or lon is None:
+            continue
+        out.append({"name": (n.get("name") or "").strip(), "lat": float(lat), "lon": float(lon)})
+    return out
+
+
+def _pick_mark(nodes: list[dict], *needles: str) -> dict | None:
+    for needle in needles:
+        want = needle.lower()
+        for n in nodes:
+            if want in (n.get("name") or "").lower():
+                return {"lat": n["lat"], "lon": n["lon"]}
+    return None
+
+
+def _course_polyline(nodes: list[dict]) -> list[list[float]]:
+    return [[n["lat"], n["lon"]] for n in nodes]
+
+
+def sync_course_marks(
+    replay: dict,
+    trail: dict,
+    setups: list[dict],
+    fleet: str,
+) -> dict:
+    """Update waypoint / finish / trail.marks / courses from live YB RaceSetup."""
+    by_key = {}
+    for setup in setups or []:
+        # Heuristic: wcor26_c has Virtual Mark C
+        nodes = _named_course_nodes(setup)
+        names = " ".join((n.get("name") or "") for n in nodes).lower()
+        if "virtual mark c" in names or "mark c" in names:
+            by_key["c"] = setup
+        else:
+            by_key.setdefault("ab", setup)
+
+    ab_nodes = _named_course_nodes(by_key.get("ab") or (setups[0] if setups else {}))
+    c_nodes = _named_course_nodes(by_key.get("c") or {})
+
+    ab_mark = _pick_mark(ab_nodes, "virtual mark a", "virtual mark", "mark a") or (
+        ab_nodes[len(ab_nodes) // 2] if ab_nodes else None
+    )
+    c_mark = _pick_mark(c_nodes, "virtual mark c", "mark c") or ab_mark
+    finish = _pick_mark(ab_nodes, "finish") or _pick_mark(c_nodes, "finish")
+    if finish is None and ab_nodes:
+        finish = {"lat": ab_nodes[-1]["lat"], "lon": ab_nodes[-1]["lon"]}
+
+    # Fleet default turning mark
+    if fleet == "c":
+        default_mark = c_mark or ab_mark
+    else:
+        default_mark = ab_mark or c_mark
+
+    if default_mark:
+        replay["waypoint"] = {"lat": default_mark["lat"], "lon": default_mark["lon"]}
+        wbb = replay.setdefault("waypoint_by_boat", {})
+        for sail, meta in (replay.get("boats") or {}).items():
+            fleet_name = str((meta or {}).get("fleet") or "").lower()
+            use = c_mark if ("class c" in fleet_name or fleet_name == "c") and c_mark else default_mark
+            if use:
+                wbb[sail] = {"lat": use["lat"], "lon": use["lon"]}
+
+    if finish:
+        replay["finish_target"] = {"lat": finish["lat"], "lon": finish["lon"]}
+
+    courses = {}
+    if ab_nodes:
+        courses["ab"] = _course_polyline(ab_nodes)
+    if c_nodes:
+        courses["c"] = _course_polyline(c_nodes)
+    if courses:
+        replay["courses"] = courses
+        # Keep a flat list for the active fleet polyline
+        replay["course_nodes"] = courses.get(fleet) or courses.get("ab") or courses.get("c")
+
+    # Static trail marks (sampleAt supports plain lat/lon numbers).
+    # Always expose BOTH class turning marks on all/ab packs so the map
+    # shows Virtual Mark A (1) and Virtual Mark C (C), plus Finish (2).
+    marks = trail.setdefault("marks", {})
+    labels: dict[str, str] = {}
+    if fleet == "c":
+        if c_mark:
+            marks["1"] = {"lat": c_mark["lat"], "lon": c_mark["lon"]}
+            labels["1"] = "1"
+        if ab_mark and ab_mark is not c_mark:
+            marks["A"] = {"lat": ab_mark["lat"], "lon": ab_mark["lon"]}
+            labels["A"] = "A"
+        if finish:
+            marks["2"] = {"lat": finish["lat"], "lon": finish["lon"]}
+            labels["2"] = "F"
+        # Drop stale keys from older packs
+        for stale in list(marks.keys()):
+            if stale not in labels:
+                marks.pop(stale, None)
+    else:
+        # all / ab — primary Mark A as "1", Class C mark as "C", Finish as "2"
+        if ab_mark:
+            marks["1"] = {"lat": ab_mark["lat"], "lon": ab_mark["lon"]}
+            labels["1"] = "1"
+        if c_mark and (
+            not ab_mark
+            or abs(c_mark["lat"] - ab_mark["lat"]) > 1e-5
+            or abs(c_mark["lon"] - ab_mark["lon"]) > 1e-5
+        ):
+            marks["C"] = {"lat": c_mark["lat"], "lon": c_mark["lon"]}
+            labels["C"] = "C"
+        if finish:
+            marks["2"] = {"lat": finish["lat"], "lon": finish["lon"]}
+            labels["2"] = "F"
+        for stale in list(marks.keys()):
+            if stale not in labels:
+                marks.pop(stale, None)
+
+    trail["mark_labels"] = labels
+    replay["mark_labels"] = labels
+
+    return {
+        "waypoint": replay.get("waypoint"),
+        "finish": replay.get("finish_target"),
+        "courses": list(courses.keys()),
+        "marks": sorted(labels.keys()),
+        "labels": labels,
+    }
+
+
+def sync_rounded_at(replay: dict, setups: list[dict], id_to_label: dict[int, str]) -> dict:
+    """Fill rounded_at from YB Zegments when a boat has completed the turning-mark segment."""
+    import time
+
+    pack_keys = list((replay.get("boats") or {}).keys())
+    rounded = dict(replay.get("rounded_at") or {})
+    # Race keys from setups associated urls are unknown here; try both.
+    for race_key in RACE_KEYS:
+        try:
+            zeg = fetch_json(f"JSON/{race_key}/Zegments?{int(time.time())}")
+        except Exception:
+            continue
+        for tag in zeg.get("tags") or []:
+            for team in tag.get("teams") or []:
+                name = (team.get("name") or "").strip()
+                marker = (team.get("markerText") or "").strip()
+                # map to pack sail via RaceSetup labels preferred
+                key = None
+                # try sail from id_to_label by matching name later; use markerText bow then name
+                for cand in (name, marker):
+                    key = match_pack_key(cand, pack_keys)
+                    if key:
+                        break
+                if not key:
+                    # match boat title
+                    for sail, meta in (replay.get("boats") or {}).items():
+                        if (meta or {}).get("title") == name:
+                            key = sail
+                            break
+                if not key:
+                    continue
+                segs = team.get("segments") or {}
+                # any completed segment to a course node that isn't finish counts as mark 1 rounding
+                for seg in segs.values():
+                    stop = seg.get("stop")
+                    node = seg.get("courseNodeId")
+                    if stop and node:
+                        # YB stop is ms
+                        ts = int(stop) if int(stop) > 10_000_000_000 else int(stop) * 1000
+                        prev = rounded.get(key)
+                        if prev is None or ts < int(prev):
+                            rounded[key] = ts
+                latest = team.get("latest") or {}
+                # if latest node is past first mark (has rounded), keep existing
+                if latest.get("at") and latest.get("courseNodeId") and key in rounded:
+                    pass
+    replay["rounded_at"] = rounded
+    return rounded
+
+def sync_retired(replay: dict, id_to_label: dict[int, str], setups: list[dict]) -> list[str]:
+    """Write replay['retired'] from YB RaceSetup status=RETIRED."""
+    pack_keys = list((replay.get("boats") or {}).keys())
+    retired: list[str] = []
+    seen: set[str] = set()
+    for setup in setups or []:
+        for t in setup.get("teams") or []:
+            if (t.get("type") or "").upper() == "COMMITTEE":
+                continue
+            if str(t.get("status") or "").upper() != "RETIRED":
+                continue
+            label = (t.get("sail") or t.get("name") or "").strip()
+            key = match_pack_key(label, pack_keys) if label else None
+            if not key and t.get("id") is not None:
+                lab = id_to_label.get(int(t["id"]))
+                key = match_pack_key(lab or "", pack_keys) if lab else None
+            if key and key not in seen:
+                retired.append(key)
+                seen.add(key)
+    replay["retired"] = retired
+    return retired
+
+def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict], setups: list[dict] | None = None) -> dict:
     replay_path = DATA / f"west-coast-{fleet}-replay.json"
     trail_path = DATA / f"west-coast-{fleet}-trail.json"
     if not replay_path.exists() or not trail_path.exists():
@@ -304,8 +522,8 @@ def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict]) -> d
             max_ts = max(max_ts, int(fixes[-1][0]))
 
     # Also advance end to wall-clock capped by newest fix (do not invent future)
-    if max_ts <= int(replay.get("end_ts_ms") or 0) and added_total == 0:
-        return {"fleet": fleet, "added": 0, "end_ts_ms": replay.get("end_ts_ms"), "unchanged": True}
+    # Always rewrite packs so Last-Modified/ETag change and browsers pick up.
+    unchanged = added_total == 0 and max_ts <= int(replay.get("end_ts_ms") or 0)
 
     # Snap end to step grid
     gun = int(trail["grid_start_ts_ms"] if trail.get("grid_start_ts_ms") is not None else trail["gun_ts_ms"])
@@ -335,6 +553,9 @@ def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict]) -> d
             while len(series.setdefault("lon", [])) < n:
                 series["lon"].append(None)
 
+    marks_info = sync_course_marks(replay, trail, setups or [], fleet)
+    rounded = sync_rounded_at(replay, setups or [], id_to_label)
+    retired = sync_retired(replay, id_to_label, setups or [])
     atomic_write(replay_path, replay)
     atomic_write(trail_path, trail)
     try:
@@ -342,11 +563,11 @@ def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict]) -> d
         os.chown(trail_path, -1, os.stat(DATA).st_gid)
     except Exception:
         pass
-    return {"fleet": fleet, "added": added_total, "end_ts_ms": end_ts, "boats_mapped": len(label_to_key)}
+    return {"fleet": fleet, "added": added_total, "end_ts_ms": end_ts, "boats_mapped": len(label_to_key), "unchanged": unchanged, "retired": retired, "marks": marks_info, "rounded": len(rounded)}
 
 
-def load_race_tracks(race_key: str) -> tuple[dict[int, str], list[dict], list[str]]:
-    """Return (id->sail, tracks, source_parts) for one YB race key."""
+def load_race_tracks(race_key: str) -> tuple[dict[int, str], list[dict], list[str], dict]:
+    """Return (id->sail, tracks, source_parts, setup) for one YB race key."""
     setup = fetch_json(f"JSON/{race_key}/RaceSetup")
     id_to_label = team_sail_map(setup)
     by_id: dict[int, dict] = {}
@@ -373,7 +594,7 @@ def load_race_tracks(race_key: str) -> tuple[dict[int, str], list[dict], list[st
         log(f"{race_key} LatestPositions3 failed: {e}")
     # Prefix track ids with race-key namespace only when ids collide across races
     # with different sails — here AB and C use distinct team ids, so keep raw ids.
-    return id_to_label, list(by_id.values()), source_parts
+    return id_to_label, list(by_id.values()), source_parts, setup
 
 
 def main() -> int:
@@ -381,8 +602,10 @@ def main() -> int:
         id_to_label: dict[int, str] = {}
         tracks: list[dict] = []
         source_parts: list[str] = []
+        setups: list[dict] = []
         for race_key in RACE_KEYS:
-            labels, race_tracks, parts = load_race_tracks(race_key)
+            labels, race_tracks, parts, setup = load_race_tracks(race_key)
+            setups.append(setup)
             # Merge labels; if same team id maps to different sails, keep first (AB)
             for tid, sail in labels.items():
                 id_to_label.setdefault(tid, sail)
@@ -405,7 +628,7 @@ def main() -> int:
             raise RuntimeError("no BIN tracks decoded")
         results = []
         for fleet in ("all", "ab", "c"):
-            results.append(pack_fleet(fleet, id_to_label, tracks))
+            results.append(pack_fleet(fleet, id_to_label, tracks, setups))
         log(f"ok source={source} teams={len(id_to_label)} tracks={len(tracks)} {results}")
         print(json.dumps({"ok": True, "source": source, "results": results}))
         return 0
