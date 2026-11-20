@@ -504,11 +504,14 @@ def sync_tcf(replay: dict, id_to_label: dict[int, str], setups: list[dict]) -> d
 
 
 def sync_yb_proj(replay: dict, id_to_label: dict[int, str], setups: list[dict]) -> dict:
-    """Pull YB Leaderboard projected elapsed (seconds) per boat for ORC calc."""
+    """YB Leaderboard: distance proj + CLASS A/B/C ORC ranks (RCYC-style)."""
     pack_keys = list((replay.get("boats") or {}).keys())
     proj: dict[str, dict] = {}
-    # Map setup team id -> pack key using same setups + id_to_label
+    orc_class: dict[str, str] = {}
+    orc_rank: dict[str, int] = {}
     id_to_key: dict[int, str] = {}
+    tag_meta: dict[int, dict] = {}
+
     for setup in setups or []:
         for t in setup.get("teams") or []:
             if (t.get("type") or "").upper() == "COMMITTEE":
@@ -523,6 +526,22 @@ def sync_yb_proj(replay: dict, id_to_label: dict[int, str], setups: list[dict]) 
                 key = match_pack_key(lab or "", pack_keys) if lab else None
             if key:
                 id_to_key[tid] = key
+        for tg in setup.get("tags") or []:
+            if tg.get("id") is not None:
+                tag_meta[int(tg["id"])] = tg
+
+    def norm_class(name: str) -> str | None:
+        u = (name or "").upper()
+        if "CLASS A" in u:
+            return "CLASS A"
+        if "CLASS B" in u:
+            return "CLASS B"
+        if "CLASS C" in u:
+            return "CLASS C"
+        if "MULTI" in u:
+            return "MULTIHULL"
+        return None
+
     for race_key in RACE_KEYS:
         try:
             lb = fetch_json(f"JSON/{race_key}/Leaderboard")
@@ -530,32 +549,47 @@ def sync_yb_proj(replay: dict, id_to_label: dict[int, str], setups: list[dict]) 
             log(f"Leaderboard {race_key} failed: {e}")
             continue
         for tag in lb.get("tags") or []:
+            tag_id = int(tag["id"]) if tag.get("id") is not None else None
+            meta = tag_meta.get(tag_id) or {}
+            tag_name = str(meta.get("name") or tag.get("name") or "")
+            cls = norm_class(tag_name)
+            handicap = str(meta.get("handicap") or tag.get("type") or "").upper()
             for team in tag.get("teams") or []:
-                tid = int(team.get("id"))
+                tid = int(team["id"])
                 key = id_to_key.get(tid)
                 if not key:
                     continue
-                # Prefer scored projected elapsed when present
-                e_s = team.get("eElapsedS")
-                e_r = team.get("eElapsedR")
-                dtf = team.get("dtf")
-                if e_s is None and e_r is None:
-                    continue
-                prev = proj.get(key) or {}
-                # Keep the shorter projected scored elapsed (freshest / primary tag)
-                cand = {
-                    "eElapsedS": int(e_s) if e_s is not None else prev.get("eElapsedS"),
-                    "eElapsedR": int(e_r) if e_r is not None else prev.get("eElapsedR"),
-                    "dtf": int(dtf) if dtf is not None else prev.get("dtf"),
-                    "rankR": team.get("rankR"),
-                }
-                if key not in proj or (
-                    cand.get("eElapsedS") is not None
-                    and (prev.get("eElapsedS") is None or cand["eElapsedS"] <= prev["eElapsedS"])
-                ):
-                    proj[key] = cand
+                e_s, e_r, dtf = team.get("eElapsedS"), team.get("eElapsedR"), team.get("dtf")
+                # All-boats / LEVEL tag → distance projection fields
+                if cls is None and handicap in ("LEVEL", ""):
+                    slot = proj.setdefault(key, {})
+                    if e_s is not None:
+                        slot["eElapsedS"] = int(e_s)
+                    if e_r is not None:
+                        slot["eElapsedR"] = int(e_r)
+                    if dtf is not None:
+                        slot["dtf"] = int(dtf)
+                    if team.get("rankR") is not None:
+                        slot["rankR"] = int(team["rankR"])
+                # CLASS A/B/C / Multihull with TCF2 → division + ORC place
+                if cls:
+                    orc_class[key] = cls
+                    if team.get("rankS") is not None:
+                        orc_rank[key] = int(team["rankS"])
+                    # keep elapsed from class tag if all-boats missing
+                    slot = proj.setdefault(key, {})
+                    if slot.get("eElapsedS") is None and e_s is not None:
+                        slot["eElapsedS"] = int(e_s)
+                    if slot.get("eElapsedR") is None and e_r is not None:
+                        slot["eElapsedR"] = int(e_r)
+                    if slot.get("dtf") is None and dtf is not None:
+                        slot["dtf"] = int(dtf)
+
     replay["yb_proj"] = proj
-    return proj
+    replay["orc_class"] = orc_class
+    replay["orc_rank"] = orc_rank
+    return {"proj": len(proj), "classes": len(orc_class), "orc_rank": len(orc_rank)}
+
 
 
 def sync_retired(replay: dict, id_to_label: dict[int, str], setups: list[dict]) -> list[str]:
@@ -650,7 +684,7 @@ def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict], setu
         os.chown(trail_path, -1, os.stat(DATA).st_gid)
     except Exception:
         pass
-    return {"fleet": fleet, "added": added_total, "end_ts_ms": end_ts, "boats_mapped": len(label_to_key), "unchanged": unchanged, "retired": retired, "marks": marks_info, "rounded": len(rounded), "tcf": len(tcf_map), "yb_proj": len(yb_proj)}
+    return {"fleet": fleet, "added": added_total, "end_ts_ms": end_ts, "boats_mapped": len(label_to_key), "unchanged": unchanged, "retired": retired, "marks": marks_info, "rounded": len(rounded), "tcf": len(tcf_map), "yb_proj": yb_proj}
 
 
 def load_race_tracks(race_key: str) -> tuple[dict[int, str], list[dict], list[str], dict]:
