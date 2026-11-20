@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -14,7 +15,6 @@ HEADER = ROOT / "data/wc_regatta_header_icons.json"
 PDF = ROOT / "js/regatta-pdf-share.js"
 HUBS = [ROOT / "index.html", ROOT / "blank.html"]
 HELPER_MARK = "from parent_event_logo import"
-JS_MARK = "PARENT_EVENT_LOGO_TRUTH_v1"
 V5_MARK = "sa:regattaLogo:event:v5:"
 
 
@@ -98,18 +98,39 @@ def patch_header() -> None:
     print("header written")
 
 
+FLEET_CLASS_MARK = 'Fleet header left of "Fleet" keeps the Class Logo.'
+
+
+def replace_parent_truth_block(txt: str, extra: str) -> str:
+    """Put the fleet-keeps-class-logo script into regatta-pdf-share.js.
+
+    Replaces an already appended PARENT_EVENT_LOGO_TRUTH block in place.
+    Leaves every other IIFE in that file alone.
+    """
+    block = "/* PARENT_EVENT_LOGO_TRUTH_v5 */\n" + extra.strip() + "\n"
+    start = txt.find("/* PARENT_EVENT_LOGO_TRUTH")
+    if start == -1:
+        return txt.rstrip() + "\n\n" + block + "\n"
+    end = txt.find("})();", start)
+    if end == -1:
+        raise SystemExit("parent-truth block has no closer")
+    end += len("})();")
+    if FLEET_CLASS_MARK in txt[start:end]:
+        return txt
+    return txt[:start] + block + txt[end:]
+
+
 def append_event_js() -> None:
-    js_path = Path("/tmp/parent-event-logo-truth.js")
+    repo_js = Path(__file__).resolve().parent.parent / "frontend/js/parent-event-logo-truth.js"
+    js_path = repo_js if repo_js.is_file() else Path("/tmp/parent-event-logo-truth.js")
     extra = js_path.read_text(encoding="utf-8")
     txt = PDF.read_text(encoding="utf-8")
-    if JS_MARK in txt:
-        print("pdf-share already has parent-truth JS")
+    new = replace_parent_truth_block(txt, extra)
+    if new == txt:
+        print("pdf-share fleet class logo already kept")
         return
-    PDF.write_text(
-        txt.rstrip() + "\n\n/* " + JS_MARK + " */\n" + extra + "\n",
-        encoding="utf-8",
-    )
-    print("pdf-share appended", PDF, "bytes", PDF.stat().st_size)
+    PDF.write_text(new, encoding="utf-8")
+    print("pdf-share parent-truth updated", PDF, "bytes", PDF.stat().st_size)
 
 
 def patch_hubs() -> None:
@@ -188,5 +209,15 @@ def main() -> None:
     print("APPLY_OK")
 
 
+def fleet_class_logo_only() -> None:
+    """Replace the fleet-logo block in live regatta-pdf-share.js and nothing else."""
+    bak(PDF)
+    append_event_js()
+    print("FLEET_CLASS_LOGO_OK")
+
+
 if __name__ == "__main__":
-    main()
+    if "--fleet-class-logo" in sys.argv:
+        fleet_class_logo_only()
+    else:
+        main()

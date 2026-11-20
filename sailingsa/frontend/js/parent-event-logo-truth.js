@@ -1,7 +1,7 @@
-/* Parent-truth on /regatta/{id}: Event Logo left is the only event mark.
- * Single-class named events: replace Open/class mark in the fleet header
- * left slot with the same Event Logo, smaller and in line. Do not leave
- * that slot empty. Multi-class events keep fleet class marks.
+/* Parent header left stays the Event Logo.
+ * Fleet header left of "Fleet" keeps the Class Logo.
+ * Open (no class mark) on a single-fleet page still uses the Event Logo
+ * so that slot is not empty. Multi-class pages keep every fleet mark.
  * Do not edit gold api.py.
  */
 (function () {
@@ -17,6 +17,9 @@
   }
   function isClassLogo(path) {
     return norm(path).indexOf("/artwork/class logo/") !== -1;
+  }
+  function isOpenClassLogo(path) {
+    return norm(path).indexOf("open-class-logo") !== -1;
   }
   function leftImg() {
     return document.querySelector(
@@ -58,11 +61,15 @@
   }
   function paintFleetEventLogo(eventSrc) {
     var marks = fleetMarkImgs();
-    if (uniqueClassSrcs(marks).length > 1) return;
+    var multi = uniqueClassSrcs(marks).length > 1;
     for (var i = 0; i < marks.length; i++) {
       var img = marks[i];
       var cur = img.getAttribute("src") || img.src || "";
-      if (isClassLogo(cur) || !cur || img.getAttribute("data-sa-event-logo-superseded") === "1") {
+      if (isClassLogo(cur) && !isOpenClassLogo(cur)) {
+        showCol(img);
+        continue;
+      }
+      if (!multi && (isOpenClassLogo(cur) || !cur || img.getAttribute("data-sa-event-logo-superseded") === "1")) {
         img.src = eventSrc;
         img.alt = img.alt && !/open/i.test(img.alt) ? img.alt : "Event";
         img.removeAttribute("title");
@@ -89,14 +96,6 @@
     var css = document.createElement("style");
     css.id = "sa-parent-event-logo-fleet-css";
     css.textContent =
-      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Class Logo']," +
-      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Class%20Logo']," +
-      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Class%20Logo']," +
-      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) .class-header-logo-col>img.class-header-logo-img[src*='Class Logo']," +
-      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) img.rs-fleet-title-logo[src*='Class Logo']," +
-      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) img.rs-fleet-title-logo[src*='Class%20Logo']," +
-      "html:has(.regatta-header-left-logo-img[src*='Event Logo']) img.rs-fleet-title-logo[src*='Class%20Logo']," +
-      "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) img.rs-fleet-title-logo[src*='Class Logo']," +
       "html:has(.regatta-header-left-logo-img[src*='Event Logo']) img.class-header-logo-img[src*='Open-Class-Logo']," +
       "html:has(.regatta-header-left-logo-img[src*='Event%20Logo']) img.class-header-logo-img[src*='Open-Class-Logo']," +
       "html:has(.regatta-header-left-logo-img[src*='Event Logo']) img.rs-fleet-title-logo[src*='Open-Class-Logo']," +

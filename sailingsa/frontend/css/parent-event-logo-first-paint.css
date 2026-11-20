@@ -1,16 +1,7 @@
-/* PARENT_EVENT_LOGO_FIRST_PAINT_v1
-   Gold api.py still writes the fleet Class Logo (French Open) into the HTML.
-   Refresh paints that before deferred JS. Hide it here (head stylesheet)
-   when parent left is Event Logo. Dam Bottle fleet stays hidden until boot.
+/* PARENT_EVENT_LOGO_FIRST_PAINT_v2
+   Fleet header keeps the Class Logo. Hide only the Open placeholder
+   until the script swaps that one mark. Dam Bottle fleet stays hidden until boot.
 */
-html:has(.regatta-header-left-logo-img[src*="Event Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Class Logo"],
-html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Class%20Logo"],
-html:has(.regatta-header-left-logo-img[src*="Event Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Class%20Logo"],
-html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) .class-header-logo-col > img.class-header-logo-img[src*="Class Logo"],
-html:has(.regatta-header-left-logo-img[src*="Event Logo"]) img.rs-fleet-title-logo[src*="Class Logo"],
-html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) img.rs-fleet-title-logo[src*="Class%20Logo"],
-html:has(.regatta-header-left-logo-img[src*="Event Logo"]) img.rs-fleet-title-logo[src*="Class%20Logo"],
-html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) img.rs-fleet-title-logo[src*="Class Logo"],
 html:has(.regatta-header-left-logo-img[src*="Event Logo"]) img.class-header-logo-img[src*="Open-Class-Logo"],
 html:has(.regatta-header-left-logo-img[src*="Event%20Logo"]) img.class-header-logo-img[src*="Open-Class-Logo"],
 html:has(.regatta-header-left-logo-img[src*="Event Logo"]) img.rs-fleet-title-logo[src*="Open-Class-Logo"],
