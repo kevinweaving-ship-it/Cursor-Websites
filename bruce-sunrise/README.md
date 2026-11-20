@@ -46,6 +46,7 @@ Long abandonment **holds**. Locals: dumped on the mole **one April morning** (ye
 | [`STREETVIEW.md`](STREETVIEW.md) | Google Street View at the Vlycho quay: not there May 2019; May 2023 afloat; Jul 2024 wreck; Jul 2026 still there |
 | [`SATELLITE.md`](SATELLITE.md) | Cadence vs Google; bay mosaics: **no** 20 m hull on a Vlycho buoy in the public Maxar dates |
 | [`PLANET.md`](PLANET.md) | Planet AI monthly log: candidates not IDs; Dec 2020 first blob; wall window May–Jun 2023 |
+| [`AIS.md`](AIS.md) | UK MMSI **235025548** / call **MZQY5** (claimed); Polish **POL000AYP** (established); reject other SUNRISE MMSIs |
 | [`TIMELINE.md`](TIMELINE.md) | Dated events, verified vs inferred |
 | [`POLAND_FLAG.md`](POLAND_FLAG.md) | Why Poland, and when the flag can have changed |
 | [`FRANCE_ENTITIES.md`](FRANCE_ENTITIES.md) | ECO-VIE, Building Solutions, GFA des Planets, Clos Saint Pierre |

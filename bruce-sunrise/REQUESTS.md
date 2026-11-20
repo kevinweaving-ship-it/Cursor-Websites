@@ -6,6 +6,15 @@
 
 Tone: polite public-records request. Separate **Bruce’s public “captain and owner”**, **ECO-VIE as Greece’s named shipowner**, and **Polish register `POL000AYP`**. Insurance fraud is **not** alleged in these letters.
 
+**Radio / AIS IDs** (see [`AIS.md`](AIS.md)):
+
+| ID | Value | Use in letters |
+| --- | --- | --- |
+| Polish registry | **`POL000AYP`** | Always — established |
+| Claimed prior UK MMSI | **`235025548`** | Ask whether it appears on the ownership / radio papers |
+| Claimed prior UK call sign | **`MZQY5`** | Same |
+| Claimed last UK AIS | Nice / Antibes **Sep–Oct 2019**, type Dive Vessel | Context only; not independently re-verified this pass |
+
 Copy each block into a new mail. Attach nothing on first contact unless the form requires it (Poland PDF form).
 
 ---
@@ -72,6 +81,7 @@ I request access to documents held by the Δημοτικό Λιμενικό Τα
 - Flag / registry: Poland / POL000AYP
 - Length / material: 20 m / wood (Appendix A, Decision 27/2026)
 - Location: λιμένας Βλυχού, Lefkada
+- Prior UK radio identity (if present in your file): MMSI 235025548, call sign MZQY5
 
 Please provide copies (or certified extracts) of:
 
@@ -162,12 +172,14 @@ Please issue an electronic signed full historical extract (odpis pełny) for rec
 
 POL000AYP
 Name: MV SUNRISE (as recorded in Greek Lefkada Port Fund Appendix A)
+Prior UK AIS identity (to check against your file): MMSI 235025548, call sign MZQY5 (claimed; last public AIS said Nice/Antibes Sep–Oct 2019)
 
 I need the complete history from first Polish registration, including:
 - first registration date and office
 - owner (właściciel) and operator (armator) at each amendment
 - dates of every ownership change
 - previous registry / hull identifiers if recorded
+- any MMSI / call sign / radio licence recorded for this hull (UK or Polish)
 
 Purpose: identification of the registered owner at the casualty of 18 December 2023 in Vlycho, Lefkada, Greece, and of the shipowner named in Greek notice 1643/5-9-2025 (ECO-VIE Association, France).
 
