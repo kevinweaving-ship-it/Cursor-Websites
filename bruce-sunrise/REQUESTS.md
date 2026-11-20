@@ -1,204 +1,181 @@
 # Record-request letters — MV SUNRISE
 
-**From (once live):** `investigation@sailingsa.co.za`  
-**Mailbox setup:** [`MAILBOX.md`](MAILBOX.md)  
-**Do not send** until MX + mailbox work and a test round-trip succeeds.
+**From:** `investigation@sailingsa.co.za`  
+**Mailbox:** [`MAILBOX.md`](MAILBOX.md) (user exists on GoWifi; add **MX** before expecting replies)
 
-Tone: polite public-records request. Separate **Bruce’s public “captain and owner”**, **ECO-VIE as Greece’s named shipowner**, and **Polish register `POL000AYP`**. Insurance fraud is **not** alleged in these letters.
+**Tone (what we are saying):** We are interested in this particular boat and its owner. Here is the history we have. We understand she is now sunk at Vlycho; we have photographs and details and can share them. We are trying to work out how she moved from the UK AIS period in France (Antibes / Nice) to Greece, after which we lost track. Bruce Weaving publicly identified himself as captain and owner; the charter traded under Sunrise Adventures Ltd. Greece later named the French association **ECO-VIE** (loi 1901 — officers not on the public Journal officiel). That association’s declared seat is at **Bastide des Planets**, the same hamlet as Bruce’s recorded farm / SCI / GFA addresses. We start with the French association file so we can see the officers and whether it is the same person. We are offering what we know; we are **not** alleging fraud in these letters.
 
-**Radio / AIS IDs** (see [`AIS.md`](AIS.md)):
+Keep separate in every letter: (1) Bruce’s **public** ownership statement, (2) Greece’s named shipowner **ECO-VIE**, (3) Polish registry **`POL000AYP`**.
 
-| ID | Value | Use in letters |
-| --- | --- | --- |
-| Polish registry | **`POL000AYP`** | Always — established |
-| Claimed prior UK MMSI | **`235025548`** | Ask whether it appears on the ownership / radio papers |
-| Claimed prior UK call sign | **`MZQY5`** | Same |
-| Claimed last UK AIS | Nice / Antibes **Sep–Oct 2019**, type Dive Vessel | Context only; not independently re-verified this pass |
+**IDs** ([`AIS.md`](AIS.md)):
 
-Copy each block into a new mail. Attach nothing on first contact unless the form requires it (Poland PDF form).
+| ID | Value |
+| --- | --- |
+| Polish registry | **`POL000AYP`** (established) |
+| Claimed prior UK MMSI | **`235025548`** |
+| Claimed prior UK call sign | **`MZQY5`** |
+| Claimed last UK AIS | Nice / Antibes **Sep–Oct 2019**, Dive Vessel |
+| Last public French berth (website) | Port Vauban, Antibes, **5 Aug 2020** |
 
 ---
 
-## A. France — Var association registry (ECO-VIE)
+## Shared “who we are / what we know” (English)
+
+Paste near the top of the Greek and Polish mails. Attach a short photo pack only if asked, or after they reply.
+
+```
+We are writing about one vessel we have been trying to follow:
+
+- Name: MV SUNRISE — converted wooden Scottish workboat / dive vessel, about 20 m
+- Bruce Weaving publicly described himself as “MSV Sunrise captain and owner”
+- UK company Sunrise Adventures Ltd (11060560) ran the charter (incorporated 13 Nov 2017, dissolved 23 Apr 2019)
+- Claimed UK AIS while she was on the French Riviera: MMSI 235025548, call sign MZQY5 (Dive Vessel; last historic AIS said Nice/Antibes Sep–Oct 2019). The ship’s own site still listed Port Vauban, Antibes, on 5 Aug 2020
+- We then lost a continuous public trail. She later appears in Vlycho, Lefkada, Greece
+- 18 Dec 2023: partial sinking at the Vlycho quay (Polish flag). We hold photographs and open-source dates (e.g. already against that quay in May 2023 Street View; still there after 2026 salvage auctions)
+- Lefkada Port Fund Appendix A: MV SUNRISE, Poland, POL000AYP, 20 m, wood. Notice 1643/5-9-2025 names ECO-VIE Association, France, as shipowner
+
+We are trying to establish the ownership and flag chain from the UK/AIS period in France through to POL000AYP and ECO-VIE, and how she came to be abandoned and to sink at Vlycho. We are happy to share the photographs and chronology we already have if that helps your file.
+```
+
+**Careful wording:** she was **in France under a UK MMSI**, not “French-flagged.” ECO-VIE is an **association loi 1901** (non-profit association), not a commercial company — that is why officers are not on Infogreffe/INSEE.
+
+---
+
+## A. France first — Var association file (ECO-VIE)
 
 **To:** `pref-associations@var.gouv.fr`  
-**CC (optional):** keep empty first pass  
-**Subject:** Demande de communication — association ECO-VIE (JO 200800511893) — Roquebrune-sur-Argens
+**Subject:** Demande de communication — association ECO-VIE (JO 200800511893) — navire MV SUNRISE / intérêt légitime
 
 ```
 Madame, Monsieur,
 
-Je vous écris pour solliciter la communication du dossier de l’association suivante :
+Nous nous intéressons à un navire précis et à son propriétaire, et nous souhaitons comprendre la chaîne de propriété / immatriculation entre la France et la Grèce.
+
+Navire : MV SUNRISE, ancien chalutier écossais en bois converti (~20 m).
+M. Bruce Weaving s’est présenté publiquement comme « MSV Sunrise captain and owner ».
+L’activité charter a été portée par Sunrise Adventures Ltd (Royaume-Uni, 11060560).
+Identité AIS / radio britannique (période Côte d’Azur, à vérifier) : MMSI 235025548, indicatif MZQY5 — dernière AIS historique citée Nice/Antibes, sept.–oct. 2019 ; le site du bateau indiquait encore Port Vauban, Antibes, le 5 août 2020.
+Nous avons ensuite perdu la trace publique continue. Le navire apparaît plus tard à Vlycho (Leucade, Grèce), où il a partiellement coulé le 18 décembre 2023 sous pavillon polonais. Nous disposons de photographies et d’un historique open source (quai dès mai 2023 ; toujours présent après les enchères 2026).
+
+Le Δημοτικό Λιμενικό Ταμείο Λευκάδος a, dans ses décisions publiques, inscrit :
+- MV SUNRISE / Pologne / POL000AYP / 20 m / bois
+- et adressé la mise en demeure n° 1643/5-9-2025 à « ECO-VIE Association », France, comme πλοιοκτήτρια.
+
+L’association que nous identifions est :
 
 - Titre : ECO-VIE
 - Déclaration : 27 novembre 2008, Sous-préfecture de Draguignan
-- Publication Journal officiel : 20 décembre 2008, identifiant 200800511893
+- JO : 20 décembre 2008, identifiant 200800511893
 - Siège déclaré : Bastide des Planets, quartier des Planets, 83520 Roquebrune-sur-Argens
 
-Documents demandés (copie ou extrait) :
-1. Déclaration constitutive et statuts
-2. Liste des dirigeants / personnes habilitées à représenter l’association à la création
-3. Toute modification postérieure (siège, objet, dirigeants, dissolution), y compris non publiée au JO si elle figure au dossier préfectoral
-4. Le cas échéant, numéro RNA
+Ce siège est le même hameau que des entités foncières où M. Bruce Weaving figure (notamment SCI Building Solutions, SIREN 438917551, et GFA des Planets, SIREN 450168521, Bastide / Les Bastides des Planets). Une autre adresse Roquebrune figurant sur un dépôt britannique est 13 Clos Saint Pierre. Comme il s’agit d’une association loi 1901, les dirigeants ne sont pas publiés au même titre qu’une société commerciale — d’où notre demande auprès de vos services.
 
-Motif : identification du propriétaire / représentant d’un navire nommé MV SUNRISE (pavillon polonais POL000AYP), pour lequel le Δημοτικό Λιμενικό Ταμείο Λευκάδος (Grèce) a adressé la mise en demeure n° 1643/5-9-2025 à « ECO-VIE Association » (France) en vue de l’enlèvement d’une épave à Vlycho, Leucade.
+Nous demandons communication (copie ou extrait) de :
+1. la déclaration constitutive et les statuts ;
+2. la liste des dirigeants / personnes habilitées à la création ;
+3. toute modification ultérieure (siège, objet, dirigeants, dissolution), y compris non publiée au JO si elle figure au dossier ;
+4. le numéro RNA le cas échéant.
 
-Adresse de réponse : investigation@sailingsa.co.za
-
-Je reste à votre disposition pour tout formulaire ou justificatif d’intérêt.
+Nous restons à votre disposition pour transmettre le dossier photographique et chronologique déjà constitué, si cela est utile. Réponse : investigation@sailingsa.co.za
 
 Cordialement,
 [Votre nom]
 investigation@sailingsa.co.za
 ```
 
-**French systems (self-serve before / beside the mail):**
-
-| System | Use |
-| --- | --- |
-| [Journal officiel associations](https://www.journal-officiel.gouv.fr/associations/) | Confirm only 2008 creation (already done) |
-| [data.gouv / JO API](https://journal-officiel-datadila.opendatasoft.com/) | Machine search — no later Var ECO-VIE hit |
-| Prefet associations (this mail) | **Only** place that should hold officers / statutes |
-| [annuaire service-public](https://lannuaire.service-public.gouv.fr/) | Prefet contact confirmation |
-| INSEE / recherche-entreprises | loi 1901 often has **no** SIREN — already empty for this name at Roquebrune |
-| Pappers / Infogreffe | Companies only — SCI Building Solutions / GFA des Planets already filed; **not** ECO-VIE |
-
-Bruce at Bastide des Planets (SCI / GFA) makes him the **likely** registrant of a 2008 association at that seat. The Var file is what **proves or disproves** officer status. Do not write “Bruce registered it” as fact in the letter.
+That file is the one that can show whether the association officers match the farm / Bastide person.
 
 ---
 
-## B. Greece — Lefkada Port Fund (service + wreck committee)
+## B. Poland — REJA24 `odpis pełny` (`POL000AYP`)
 
-**To:** `dltl@lefkada.gov.gr`  
-**Subject:** Access to documents — MV SUNRISE / POL000AYP — notice 1643/5-9-2025 and Decision 133/2026
+**Form:** https://pya.org.pl/files//rejestracja/reja24/reja24-wniosek-o-odpis-wyciag.pdf — select **odpis pełny**. Fee ~PLN 15 (confirm on portal).
+
+**Cover / purpose text:**
 
 ```
 Dear Sir / Madam,
 
-I request access to documents held by the Δημοτικό Λιμενικό Ταμείο Λευκάδος concerning the wreck of the vessel:
+We are interested in one recreational vessel and its registered owner. We have followed her from a UK AIS period on the French Riviera to a Polish registry number used in Greece after she sank.
 
-- Name: MV SUNRISE
-- Flag / registry: Poland / POL000AYP
-- Length / material: 20 m / wood (Appendix A, Decision 27/2026)
-- Location: λιμένας Βλυχού, Lefkada
-- Prior UK radio identity (if present in your file): MMSI 235025548, call sign MZQY5
+Please issue an electronic signed full historical extract (odpis pełny) for:
 
-Please provide copies (or certified extracts) of:
+POL000AYP — MV SUNRISE (as in Lefkada Port Fund Appendix A: Poland, 20 m, wood)
 
-1. Notice / πρόσκληση αριθμ. 1643/5-9-2025 to ECO-VIE Association, France, including the French address used
-2. Proof of service / επίδοση (including any French bailiff / huissier return). Decision 27/2026 states service was attempted via French bailiffs and that nobody was found at the company’s seat; later decisions state επιδόθηκε νομίμως — I need the underlying return, not only the formula
-3. Any ownership / registry certificate relied on (Polish certificate or other)
-4. The wreck-committee πρακτικό of 27/5/2024 cited in Decisions 27/2026, 63/2026 and 133/2026
-5. Committee minutes of the auctions of 12/5/2026 and 23/6/2026 (empty / άγονοι)
+Prior UK radio identity to check against your file: MMSI 235025548, call sign MZQY5 (claimed; last historic AIS Nice/Antibes Sep–Oct 2019).
 
-Legal references already public: Law 2881/2001; Decision 27/2026 (ADA 6Υ85ΟΡΛΠ-0ΔΨ); Decision 63/2026; Declaration 2/2026 protocol 1250/10-6-2026; Decision 133/2026 (ADA 6ΝΤΥΟΡΛΠ-1ΦΛ).
+We need from first Polish registration: dates, owner (właściciel) and operator (armator) at each change, previous registry / hull IDs, and any MMSI or call sign recorded.
 
-Reply to: investigation@sailingsa.co.za
+Publicly, Bruce Weaving called himself captain and owner; Sunrise Adventures Ltd (UK 11060560) ran the charter; Greece later named ECO-VIE Association, France. We are trying to see where legal ownership moved on the Polish register.
 
-Thank you for your assistance.
-
-Yours faithfully,
-[Your name]
-investigation@sailingsa.co.za
-```
-
-Greek text variant (same ask) — send **both** English and Greek in one mail if you prefer:
-
-```
-Αξιότιμοι κύριοι,
-
-Ζητώ πρόσβαση σε έγγραφα του Δημοτικού Λιμενικού Ταμείου Λευκάδος για το ναυάγιο του πλοίου MV SUNRISE (σημαία Πολωνίας, νηολόγιο POL000AYP, λιμένας Βλυχού), ιδίως:
-
-1. την πρόσκληση 1643/5-9-2025 προς ECO-VIE Association (Γαλλία) και τη διεύθυνση επίδοσης
-2. την απόδειξη επίδοσης / έκθεση δικαστικού επιμελητή
-3. το πιστοποιητικό κυριότητας / νηολογίου που χρησιμοποιήθηκε
-4. το πρακτικό της Επιτροπής της 27/5/2024
-5. τα πρακτικά των διαγωνισμών 12/5/2026 και 23/6/2026
-
-Απαντήσεις στο: investigation@sailingsa.co.za
-
-Με τιμή,
-[Ονοματεπώνυμο]
+We can share photographs and our chronology of the Vlycho wreck if helpful.
+Reply: investigation@sailingsa.co.za
+Applicant: [name, postal address for the form]
 ```
 
 ---
 
-## C. Greece — Nydri Coast Guard (18 Dec 2023)
+## C. Greece — Lefkada Port Fund (`dltl@lefkada.gov.gr`)
 
-**To:** try `nydri@hcg.gr` if that local alias exists; otherwise the Lefkada / regional HCG address published for Α′ Λιμενικό Τμήμα Νυδρίου (confirm on hcg.gr before send).  
-**CC:** `dltl@lefkada.gov.gr` optional  
-**Subject:** Penal Code 277 §1A file — Vlycho, 18 Dec 2023 — MV SUNRISE / POL000AYP
+**Subject:** MV SUNRISE / POL000AYP — interest in the vessel and shipowner — notice 1643 and file
 
 ```
 Dear Sir / Madam,
 
-I request information / copies from the file opened by Α′ Λιμενικό Τμήμα Νυδρίου on 18 December 2023 under Penal Code article 277 §1A and PD 55/1998 concerning the partial sinking of a Polish-flagged pleasure craft and a French-flagged craft moored parallel inside Vlycho port (Coast Guard bulletin restated 19 Dec 2023 by Kathimerini / Rthess).
+We are writing as parties interested in the vessel MV SUNRISE and in clarifying who owns her and how she came to be the wreck in your harbour.
 
-The large hull is identified in later Port Fund decisions as MV SUNRISE, registry POL000AYP, 20 m, wood.
+What we already know and can share:
+- Converted wooden ~20 m vessel; Bruce Weaving publicly “MSV Sunrise captain and owner”; charter via Sunrise Adventures Ltd (UK 11060560)
+- Claimed UK AIS on the Riviera: MMSI 235025548 / MZQY5; Port Vauban, Antibes still on the boat’s site 5 Aug 2020; then we lost a continuous public trail
+- 18 Dec 2023 partial sinking at Vlycho; your Appendix A: MV SUNRISE / POL000AYP / 20 m / wood; notice 1643/5-9-2025 to ECO-VIE Association, France; two 2026 auctions empty (Decision 133/2026)
+- Photographs: afloat at the quay May 2023; wreck thereafter; still present July 2026
 
-Please advise, to the extent releasable:
+We would like copies / extracts of:
+1. Notice 1643/5-9-2025 and the French address used
+2. Proof of service / French bailiff return (Decision 27/2026: nobody found at the seat; later texts say duly served)
+3. Ownership / Polish certificate you relied on
+4. Wreck-committee minutes 27/5/2024
+5. Auction committee minutes 12/5/2026 and 23/6/2026
 
-1. Recorded owner / operator / flag documents on the day
-2. Whether a survey found the cause of water ingress
-3. Identity of the French vessel (transom Cape Horn / TL)
-4. Outcome of the 277 §1A preliminary investigation (open / closed / referred)
-5. Any note that the Polish hull had been moved from a mooring buoy to the mole before the listing
-
-Reply to: investigation@sailingsa.co.za
+We are happy to send you our photo pack and chronology if that assists your file or any claim against the named shipowner.
+Reply: investigation@sailingsa.co.za
 
 Yours faithfully,
 [Your name]
 ```
 
+Greek short block (same mail):
+
+```
+Ενδιαφερόμαστε για το πλοίο MV SUNRISE (POL000AYP) και τον πλοιοκτήτη. Έχουμε φωτογραφίες και χρονολόγιο του ναυαγίου στο Βλυχό και μπορούμε να τα διαθέσουμε. Ζητούμε την πρόσκληση 1643/5-9-2025, την επίδοση, το πιστοποιητικό κυριότητας, το πρακτικό 27/5/2024 και τα πρακτικά των διαγωνισμών 12/5 και 23/6/2026. Απάντηση: investigation@sailingsa.co.za
+```
+
 ---
 
-## D. Poland — REJA24 full historical copy
+## D. Greece — Nydri Coast Guard (how she sank)
 
-**Channel:** electronic form, not only free-form email.  
-Form: https://pya.org.pl/files//rejestracja/reja24/reja24-wniosek-o-odpis-wyciag.pdf  
-Portal / fee notes: https://portal.reja24.gov.pl/ (and gov.pl REJA24 pages)
-
-**Ask for:** **`odpis pełny`** for registry number **`POL000AYP`** (entire history from first Polish registration). Fee published as **PLN 15** for electronic signed copy — confirm on the live form.
-
-**Cover email** (if a contact box accepts it; else print the fields on the wniosek):
-
-**To:** use the address printed on the current REJA24 odpis instructions (check portal before send — do not invent).  
-**Subject:** Wniosek o odpis pełny — POL000AYP — MV SUNRISE
+**To:** Α′ Λιμενικό Τμήμα Νυδρίου (confirm current email on hcg.gr)  
+**Subject:** MV SUNRISE / POL000AYP — 18 Dec 2023 Vlycho — information we hold / file request
 
 ```
 Dear Sir / Madam,
 
-Please issue an electronic signed full historical extract (odpis pełny) for recreational vessel registry number:
+We are interested in the vessel MV SUNRISE (later Polish registry POL000AYP) and in understanding the 18 December 2023 incident at Vlycho under Penal Code 277 §1A / PD 55/1998.
 
-POL000AYP
-Name: MV SUNRISE (as recorded in Greek Lefkada Port Fund Appendix A)
-Prior UK AIS identity (to check against your file): MMSI 235025548, call sign MZQY5 (claimed; last public AIS said Nice/Antibes Sep–Oct 2019)
+We already hold open-source photographs and dates (quay occupation by May 2023; listing 18 Dec 2023; wreck still present 2024–2026) and a chronology from her UK AIS period in France (claimed MMSI 235025548 / MZQY5) through to the Port Fund naming ECO-VIE Association, France. We can share that material if it helps your file.
 
-I need the complete history from first Polish registration, including:
-- first registration date and office
-- owner (właściciel) and operator (armator) at each amendment
-- dates of every ownership change
-- previous registry / hull identifiers if recorded
-- any MMSI / call sign / radio licence recorded for this hull (UK or Polish)
+Please advise, to the extent releasable: recorded owner/operator that day; cause of water ingress; identity of the French craft Cape Horn / TL; outcome of the 277 §1A preliminary investigation; any note of a prior move from a mooring to the mole.
 
-Purpose: identification of the registered owner at the casualty of 18 December 2023 in Vlycho, Lefkada, Greece, and of the shipowner named in Greek notice 1643/5-9-2025 (ECO-VIE Association, France).
-
-Reply / delivery: investigation@sailingsa.co.za
-Applicant: [Your name, postal address for the form]
-
-I will pay the published fee for the electronic odpis pełny.
-
-Yours faithfully,
-[Your name]
+Reply: investigation@sailingsa.co.za
 ```
 
 ---
 
-## E. Send order (once mailbox works)
+## Send order
 
-1. **France** (officers of ECO-VIE) — closes “is Bruce on the association?”  
-2. **Poland** (who owned `POL000AYP` on 18 Dec 2023) — closes registered owner  
-3. **Lefkada Port Fund** (address served + bailiff return) — closes whether Roquebrune is the served seat  
-4. **Nydri** — 277 outcome / Cape Horn  
+1. **France** — ECO-VIE officers / link to Bastide farm addresses  
+2. **Poland** — when `POL000AYP` started and who owned her  
+3. **Port Fund** — who they are claiming against and on what paper  
+4. **Nydri** — how the sinking was recorded  
 
-Do not accuse. Quote Decision numbers. File replies into the case folder and update [`OPEN_RECORDS.md`](OPEN_RECORDS.md).
+After each reply: file under `bruce-sunrise/replies/`, update [`OPEN_RECORDS.md`](OPEN_RECORDS.md), send a short thank-you + any extra photo/date they ask for.
