@@ -413,7 +413,10 @@ def sync_course_marks(
                 marks.pop(stale, None)
 
     trail["mark_labels"] = labels
-    replay["mark_labels"] = labels
+    trail["course_mark_labels"] = labels
+    # Keep off replay: replay.mark_labels breaks JS loadPasses().map
+    replay["course_mark_labels"] = labels
+    replay.pop("mark_labels", None)
 
     return {
         "waypoint": replay.get("waypoint"),
