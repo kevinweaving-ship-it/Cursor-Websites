@@ -398,10 +398,13 @@ def sync_course_marks(
             if stale not in labels:
                 marks.pop(stale, None)
     else:
-        # all / ab — primary Mark A as "1", Class C mark as "C", Finish as "2"
+        # all / ab — Mark A/B (shared turning mark for Class A+B), Mark C, Finish.
         if ab_mark:
             marks["1"] = {"lat": ab_mark["lat"], "lon": ab_mark["lon"]}
-            labels["1"] = "1"
+            labels["1"] = "AB"
+            # Alias pin so "Mark B" is findable (same SI mark as Class A).
+            marks["B"] = {"lat": ab_mark["lat"], "lon": ab_mark["lon"]}
+            labels["B"] = "B"
         if c_mark and (
             not ab_mark
             or abs(c_mark["lat"] - ab_mark["lat"]) > 1e-5
