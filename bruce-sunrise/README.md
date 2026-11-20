@@ -23,7 +23,7 @@ Interactive summary: [MV Sunrise investigation canvas](https://cursor.com/canvas
 
 ## Hypothesis (not a finding)
 
-Long abandonment **holds**. Locals: dumped on the mole **one April morning** (year not in the quote). Family: Bruce in **Hermanus from Nov 2020**, one Europe trip in between, **left Hermanus for Europe April 2022** — that April is the leading dump candidate, not proved. They had already lived on the Var/Riviera for years (Roquebrune from 2001; Antibes/Nice charter 2018–2020). ECO-VIE is a **2008** association, not a post-sinking shell. No public insurance file. Full story: [`CHRONOLOGY.md`](CHRONOLOGY.md). Scores: [`HYPOTHESIS.md`](HYPOTHESIS.md).
+Long abandonment **holds**. Locals: dumped on the mole **one April morning** (year not in the quote). Family: Bruce in **Hermanus from Nov 2020**, one Europe trip in between, **left Hermanus for Europe April 2022** — that April is the leading dump candidate, not proved. They had already lived on the Var/Riviera for years (Roquebrune from 2001; Antibes/Nice charter 2018–2020). ECO-VIE is a **2008** association, not a post-sinking shell. No public insurance file. A later dump’s “five years at the quay” and several cruiser URLs **do not survive a retrieve** — see [`DIGEST.md`](DIGEST.md). Full story: [`CHRONOLOGY.md`](CHRONOLOGY.md). Scores: [`HYPOTHESIS.md`](HYPOTHESIS.md).
 
 ## What is still open
 
@@ -41,6 +41,7 @@ Long abandonment **holds**. Locals: dumped on the mole **one April morning** (ye
 | File | Contents |
 | --- | --- |
 | [`CHRONOLOGY.md`](CHRONOLOGY.md) | Purchase-to-date story; where they lived (Roquebrune / Antibes / Hermanus / Vlycho) |
+| [`DIGEST.md`](DIGEST.md) | Extra local dump scored: fact vs useful vs reject (mooring ball, blogs, insurance) |
 | [`TIMELINE.md`](TIMELINE.md) | Dated events, verified vs inferred |
 | [`POLAND_FLAG.md`](POLAND_FLAG.md) | Why Poland, and when the flag can have changed |
 | [`FRANCE_ENTITIES.md`](FRANCE_ENTITIES.md) | ECO-VIE, Building Solutions, GFA des Planets, Clos Saint Pierre |

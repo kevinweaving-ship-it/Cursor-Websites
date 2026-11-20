@@ -29,7 +29,8 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 | some April (2021 / 2022 / 2023) | supported (local) | Residents quoted 18 Dec 2023: found tied at the Vlycho mole one April morning, no name, no owner; “they brought it here to sink.” Year still not in that quote. |
 | **2023-12-18** | established | Partial sinking at the **concrete quay inside Vlycho port**. Polish-flagged hull takes on water; French-flagged ~10 m **Cape Horn (TL)** alongside is forced under. Photos show tarps, rust, listing against the jetty. No injuries. Petroleum boom. Nydri opens **Penal Code 277 §1A** (causing a shipwreck) plus PD 55/1998. Locals call her an abandoned rotten hulk. |
 | 2023-12-19 | established | Kathimerini restates the Coast Guard bulletin (Polish + French flags, water ingress, pressure on the second hull). |
-| 2024-02-25 | supported | Local account: wreck still opposite the pharmacy in Vlycho. |
+| **2024-02-25** | established | Stavros Katsoupas on Aroma: half-sunk hull still opposite the pharmacy, unmoved more than two months. Other Vlycho wrecks named separately. |
+| **2024-08-22** | established | Sailing ZigZag EXIF: listing wooden hull at the Vlycho quay, tarps, yellow boom. Posted 20 Sep 2024 as the large wreck left after others were removed. |
 | **2024-05-27** | established | Port Fund wreck-committee minutes (cited in Decision 133/2026). Full inspection report not retrieved this run. |
 | 2024-10-17 | established | Building Solutions establishment at Bastide des Planets recorded closed. |
 | **2025-01-17** | established | Building Solutions company closed (INSEE `date_fermeture`). |

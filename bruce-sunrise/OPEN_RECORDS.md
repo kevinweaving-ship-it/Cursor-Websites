@@ -37,6 +37,12 @@ Greek access-to-documents rules apply. Cite Decision **133/2026** and Law **2881
 
 The public HCG HTML bulletin URL returned **403** from this environment. Retry from another network, or request the file from Nydri.
 
+## 3a. Google Earth Pro — Vlycho quay
+
+- Point: **~38.6825°N, 20.6989°E** (38°40′57″N 20°41′56″E). Vliho Yacht Club prints 38.40.95N / 20.41.89E.
+- Ask: first year a ~20 m wooden hull is **against the quay** rather than on a ball in the basin, 2019–2023.
+- This environment cannot run Earth Pro. Do it on a desktop with historical imagery.
+
 ## 3b. Facebook group thread — 18 Dec 2023
 
 - Group: [Προβληματική Λευκάδα](https://www.facebook.com/groups/991205502037297/).

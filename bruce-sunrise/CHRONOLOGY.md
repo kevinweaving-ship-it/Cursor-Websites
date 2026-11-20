@@ -97,7 +97,8 @@ If he was in Hermanus from Nov 2020, the boat was already without him in the Med
 | some April 2021 / **2022** / 2023 | local | Residents, quoted 18 Dec 2023: found tied at the mole one April morning, **no name, no owner**; “they brought it here to sink.” Year **not in the quote**. Family travel makes **April 2022** the leading year. |
 | **18 Dec 2023** | established | Official casualty. Already against the **concrete quay inside the port**. Polish-flagged hull lists; French **Cape Horn (TL)** alongside forced under. Photos: tarps, rust, chain. Nydri opens **Penal Code 277 §1A**. iLefkada: leaking for a long time, listed **that day**. |
 | 19 Dec 2023 | established | Kathimerini / Rthess restate the Coast Guard bulletin. |
-| 25 Feb 2024 | supported | Still opposite the pharmacy in Vlycho. |
+| 25 Feb 2024 | established | Stavros Katsoupas (Aroma): the half-sunk hull still **opposite the pharmacy** in Vlycho, unmoved for **more than two months**. He compares it to **other** Vlycho wrecks (bakery boom; sailboat near the xerα) — do not read those older wrecks as Sunrise. |
+| **22 Aug 2024** | established | Sailing ZigZag photo (EXIF iPhone 15 Pro): listing wooden workboat at the paved quay, tarps, **yellow boom**. Posted 20 Sep 2024: many shoreline wrecks gone; “this rather large one” left. That is Sunrise, eight months after the official casualty. |
 
 Polish number **`POL000AYP`** is on the later Greek PDF. Issue date still a window **1 Aug 2020 – ~Dec 2021**.
 

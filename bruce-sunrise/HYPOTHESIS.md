@@ -66,6 +66,8 @@ If Bruce was in Hermanus from Nov 2020, the hull was already without him in the 
 
 A same-day drag on 18 Dec 2023 is **unlikely**: the Coast Guard was called because two boats already berthed in the port were going under.
 
+**Mooring ball vs quay.** Family: she had been on a mooring ball, then ended against the concrete jetty. Vlycho has both — buoys off the quay and alongside wrecks on the town quay (Cruiserswiki snippet). Storm-drag onto the lee shore is real Ionian weather and a **plausible** reason Port Police warp an unmanned leaker to shallow wall. It is **not** written on this hull. The only Sunrise-specific account is the residents’ **tow to the mole to die**. Do not merge those two stories. A later dump’s “iLefkada 17 Oct 2025: five years at that quay” was **not found**; the dated line remains “more than two years in the **bay**” (18 Dec 2023). See [`DIGEST.md`](DIGEST.md).
+
 ## 3. Which day she actually sank — **18 Dec is the official casualty; the rot is older**
 
 Coast Guard (restated 19 Dec by Kathimerini / Rthess): **morning of 18 Dec 2023**, notified of two pleasure craft, Polish and French flags, moored parallel in Vlycho port. First hull **half-sunk from water ingress**; second **sunk from pressure** of the first. No injuries. Petroleum pollution. Boom. **Preliminary investigation opened under Penal Code 277 §1A (causing a shipwreck)** and PD 55/1998 (marine environment).
@@ -113,6 +115,8 @@ That does **not** mean no claim was filed. Hull policies and P&I files are priva
 A laid-up wreck in Vlycho from ~2021, then a later notice of loss at another position, would be the fraud. **There is no public document of that.** It is the first question for whoever holds the policy (French pleasure insurer, UK, or a broker from the Antibes years). SamBoat’s 2019 booking page implies the boat was offered commercially; commercial use often has a different policy than a private laid-up hull.
 
 Do not treat “it smacks of insurance fraud” as proved. Treat it as **the file to demand**.
+
+**Can he abandon, reflag Polish, park title in ECO-VIE, claim elsewhere, and leave the Greeks with nothing?** Publicly: abandonment **holds**; Polish-after-abandon **timing still open**; ECO-VIE as a dry well **fits the later Greek dead-end**; a paid claim **fails on the public web**. In practice the Port Fund has already **failed to get her lifted** (two empty auctions; ZigZag still photographed her at the quay **22 Aug 2024**). A ~20 m wooden hull is almost certainly under the Nairobi **300 GT** compulsory wreck-insurance threshold, which is why Greece is chasing the association rather than a P&I club. That is **useful** as to why the State looks powerless. It is not a finding that a claim was paid. Wear-and-tear / due-diligence exclusions would normally **kill** a slow-rot claim **if** the insurer saw Vlycho. A claim that she sank somewhere else is the only way that square closes — and that document is private.
 
 ## What the photos add (18 Dec 2023, iLefkada)
 
