@@ -101,7 +101,7 @@ If he was in Hermanus from Nov 2020, the boat was already without him in the Med
 | **May 2023** | established | Google Street View, 105 Επαρ.Οδ. Λευκάδας–Βασιλικής: **already against this quay, upright and afloat**. Cream wooden hull, wheelhouse, dinghies on the hard. Not yet listed. See [`STREETVIEW.md`](STREETVIEW.md). |
 | **18 Dec 2023** | established | Official casualty. Already against the **concrete quay inside the port**. Polish-flagged hull lists; French **Cape Horn (TL)** alongside forced under. Photos: tarps, rust, chain. Nydri opens **Penal Code 277 §1A**. iLefkada: leaking for a long time, listed **that day**. Street View had shown her floating here seven months earlier — 18 Dec is the **listing**, not the arrival. |
 | 19 Dec 2023 | established | Kathimerini / Rthess restate the Coast Guard bulletin. |
-| 25 Feb 2024 | established | Stavros Katsoupas (Aroma): the half-sunk hull still **opposite the pharmacy** in Vlycho, unmoved for **more than two months**. He compares it to **other** Vlycho wrecks (bakery boom; sailboat near the xerα) — do not read those older wrecks as Sunrise. |
+| 25 Feb 2024 | established | Stavros Katsoupas (Aroma): the half-sunk hull still **opposite the pharmacy** in Vlycho, unmoved for **more than two months**. He compares it to **other** Vlycho wrecks (the six-year wooden hull at Papadopoulos bakery) — do not read those older wrecks as Sunrise. |
 | **July 2024** | established | Google Street View, same pin: **listed**, tarps, wrecked. Matches ZigZag 22 Aug 2024. |
 | **22 Aug 2024** | established | Sailing ZigZag photo (EXIF iPhone 15 Pro): listing wooden workboat at the paved quay, tarps, **yellow boom**. Posted 20 Sep 2024: many shoreline wrecks gone; “this rather large one” left. |
 
@@ -115,7 +115,7 @@ Polish number **`POL000AYP`** is on the later Greek PDF. Issue date still a wind
 | --- | --- | --- |
 | 27 May 2024 | established | Port Fund wreck-committee minutes (cited later). Full report not retrieved. |
 | 17 Oct 2024 / **17 Jan 2025** | established | SCI Building Solutions establishment closed, then company closed. |
-| **5 Sep 2025** | established | Notice **1643/5-9-2025** to **ECO-VIE Association, France**, as shipowner. Served, says Decision 133/2026. ECO-VIE itself is **2008**, Roquebrune, no later JO officers. |
+| **5 Sep 2025** | established | Notice **1643/5-9-2025** to **ECO-VIE Association, France**, as shipowner. Later decisions: **duly served**. Decision **27/2026**: French **bailiffs found nobody at the seat**. ECO-VIE itself is **2008**, Roquebrune, no later JO officers. Full Greek file: [`GREECE.md`](GREECE.md). |
 | 31 Mar 2026 | established | Decision **27/2026** Appendix A: **MV SUNRISE / Poland / POL000AYP / 20 m / wood**. |
 | 12 May 2026 | established | First removal auction: **nobody**. |
 | 23 Jun 2026 | established | Repeat auction: **nobody**. |

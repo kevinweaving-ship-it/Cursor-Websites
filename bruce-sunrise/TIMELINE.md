@@ -39,8 +39,9 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 | **2024-05-27** | established | Port Fund wreck-committee minutes (cited in Decision 133/2026). Full inspection report not retrieved this run. |
 | 2024-10-17 | established | Building Solutions establishment at Bastide des Planets recorded closed. |
 | **2025-01-17** | established | Building Solutions company closed (INSEE `date_fermeture`). |
-| **2025-09-05** | established | Port Fund notice **1643/5-9-2025** to **ECO-VIE Association, France**, as shipowner. Decision 133/2026 says it was duly served. |
+| **2025-09-05** | established | Port Fund notice **1643/5-9-2025** to **ECO-VIE Association, France**, as shipowner. Later decisions say **duly served**. Decision **27/2026** also: French **bailiffs found nobody at the seat**. |
 | **2026-03-31** | established | Decision **27/2026** (ADA `6Υ85ΟΡΛΠ-0ΔΨ`) approves first-auction terms. Appendix A: **MV SUNRISE**, Polish flag, **`POL000AYP`**, 20 m, wood. |
+| 2026-04-23 | established (cited) | President Decision **797/23-4-2026** forms the auction committee (ADA cited `946ΒΟΡΛΠ-ΟΕΔ`; independent retrieve 404 this pass). |
 | 2026-04-29 | established | First removal tender **858/29-4-2026**. |
 | 2026-05-12 | established | First auction: nobody came. |
 | 2026-05-20 | established | Board Decision **63/2026** authorises a repeat. |
@@ -58,5 +59,7 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 That is enough to date the sinking. The Hellenic Coast Guard HTML bulletin itself returned **403** from this environment (Akamai), so the bulletin URL is listed in [`SOURCES.md`](SOURCES.md) as configured but not retrieved here.
 
 ## Identity match
+
+Greek port / salvage / tenders / abandonment / two tows: [`GREECE.md`](GREECE.md).
 
 The Port Fund auction is for the ship **“SUNRISE”**. iLefkada’s same-day photos show **SUNRISE** on the bow of a ~20 m wooden converted workboat. Appendix A of Decision **27/2026** and of Declaration **2/2026** (both retrieved as Diavgeia PDFs this pass) print **MV SUNRISE / Poland / `POL000AYP` / 20 m / wood**. Treat **`POL000AYP` as established** from those Greek decisions. The AKEP HTML attachment URL still returns **403**; it is no longer needed for the number.

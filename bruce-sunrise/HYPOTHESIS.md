@@ -2,6 +2,8 @@
 
 This is **not** a finding of fraud. It scores the story against public records. Insurance fraud is a crime; a pattern that *looks like* a liability dump is not a proved claim file.
 
+Greek port / casualty / salvage file: [`GREECE.md`](GREECE.md).
+
 Scores: **holds** / **partial** / **open** / **fails**.
 
 ## The story being tested

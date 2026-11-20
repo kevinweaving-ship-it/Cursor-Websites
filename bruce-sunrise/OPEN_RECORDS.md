@@ -25,7 +25,9 @@ Needed fields:
 - Holder: Δημοτικό Λιμενικό Ταμείο Λευκάδος.
 - Contact printed on earlier tender packs: **dltl@lefkada.gov.gr**, +30 26450 23272.
 - Ask for: the notice, proof of service, French address used, and the ownership document they relied on (almost certainly the Polish certificate).
+- Decision **27/2026** already says service was attempted **via French bailiffs** and **nobody was found at the company’s seat**. Later decisions still print **επιδόθηκε νομίμως**. Need the bailiff return, not the formula.
 - If the served address is **Bastide des Planets, 83520 Roquebrune-sur-Argens**, the Roquebrune ECO-VIE identification is closed.
+- Also ask for the **27 May 2024** wreck-committee protocol (cited in every tender; full text unpublished). Compilation: [`GREECE.md`](GREECE.md).
 
 Greek access-to-documents rules apply. Cite Decision **133/2026** and Law **2881/2001**.
 
