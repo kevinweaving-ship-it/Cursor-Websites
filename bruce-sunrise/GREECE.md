@@ -24,7 +24,7 @@ Vlycho harbour: closed bay, about 4 km south of Nydri. Town quay is the concrete
 
 | When | Tag | What |
 | --- | --- | --- |
-| some **April** 2021 / 2022 / **2023** | local | Residents, quoted 18 Dec 2023: found tied at the **mole** one April morning, **no name, no owner**; “they brought it here to sink.” **Not** a Coast Guard finding. Year **not in the quote**. Must be an April **before May 2023**. |
+| some **April** 2021 / 2022 / **2023** | local | Residents, quoted 18 Dec 2023: found tied at the **mole** one April morning, **no name, no owner**; “they brought it here to sink.” **Not** a Coast Guard finding. Year **not in the quote**. Must be an April **before May 2023**. Planet mosaics (not an ID): last mooring-style flag **Jan 2023**; jetty brightens **May–Jun 2023**. **April 2023** now leads for the wall. [`PLANET.md`](PLANET.md). |
 | **May 2023** | established | Street View: already **against this quay, upright and afloat**. Not yet listed. |
 | **18 Dec 2023**, morning | established | Official casualty. Polish-flagged hull **half-sinks from water ingress** at the quay **inside** the port; French ~10 m **Cape Horn (TL)** alongside is forced under. No injuries. Petroleum pollution. Boom. Nydri opens **Penal Code 277 §1A** (causing a shipwreck) + **PD 55/1998**. iLefkada: more than **two years** in the **bay**, already leaking, listed **that day**. |
 | 19 Dec 2023 | established | Kathimerini / Rthess restate the Coast Guard bulletin. Katsoupas (Aroma comment): same dump-and-rot pattern as older Vlycho wrecks. |

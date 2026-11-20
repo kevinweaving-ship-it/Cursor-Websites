@@ -65,6 +65,8 @@ Yellow bar on the crops is **20 m** (Sunrise’s recorded length) at that zoom.
 
 There is **no public 30 cm frame of Sunrise on a Vlycho buoy**. The ball period, if it happened, sits in the **Maxar gap after 2 Aug 2020 and before 21 Oct 2022** (or she was not in this bay on those two days). iLefkada’s “more than two years in the bay” by 18 Dec 2023 would need her here from ~Dec 2021 — **that is not visible on 21 Oct 2022**. Tag: **supported absence on these mosaics**, not a proof she never used a ball.
 
+**Planet monthly mosaics (21 Nov 2026, low–moderate, not an ID):** first ~15–20 m **candidate** in the inner bay **Dec 2020**; later flags Feb/May 2021, Feb/Apr 2022; last mooring-style flag **Jan 2023**; jetty brightens **May–Jun 2023** (Street View already has her on the wall in **May 2023**). Oct 2022 **not flagged**, agrees Maxar. Full log and the “not flagged ≠ absent” caveat: [`PLANET.md`](PLANET.md).
+
 Nydri harbour and other Lefkada inlets were **not** searched.
 
 ## Other maps tried for the buoy years (2021–early 2023)
@@ -76,14 +78,14 @@ Working assumption from family/locals: she **was** on a ball in this bay, then d
 | **Copernicus VHR 2021** (EU 2 m mosaic, veg season 2020–22) | **Free, looked.** Land and the quay strip are there; **the mooring field is blanked** (NoData). It is a land-cover product. Cannot see a buoy. Crop: [`bay-vhr2021-quay-water-masked.jpg`](photos/bay-vhr2021-quay-water-masked.jpg). |
 | **Copernicus VHR 2018** | Same water cut-out. Too early anyway (still Scotland/France). |
 | **Sentinel-2** | Plenty of dates, **10 m**. A 20 m hull is two pixels. Cannot honestly ID a buoyed trawler. |
-| **Planet PlanetScope** | **Daily, 3 m.** Right resolution for a buoyed 20 m hull. **Planet AI is working** (user). Do **not** start in the empty bay. Show the **wreck on the pier first** so it locks size, then walk it back onto the buoys. Prompts below. |
+| **Planet PlanetScope** | **Daily, 3 m.** Right resolution for a boat-sized object. **Planet AI monthly mosaics run 21 Nov 2026** — filed in [`PLANET.md`](PLANET.md). Auto-flags are **candidates, not IDs**. The screener **missed** the known wreck on the wall for most of 2023–25. |
 | **Maxar / Airbus archive** (Discover, SkyWatch) | May have extra 30 cm days that never made it into Google/ESRI. Paid browse/order. |
 | **AIS / MarineTraffic** | No public hit on **POL000AYP**. An abandoned boat often has the transponder off. |
 | **Apple / Bing / Cadastre** | One mosaic, or too early. Not a 2021–22 time series. |
 
 ## What to open next
 
-1. **Planet AI — wreck first, then the buoy, then the move.** Paste in this order. Do not let it hunt the whole Ionian.
+1. **Planet monthly mosaics already run.** Do **not** re-run the 65-month auto-screener (it missed the known wreck). Next: **daily** PlanetScope **Apr–Jun 2023** (wall week) and **Nov–Dec 2020** (first-candidate week), or SkySat / leftover Maxar 30 cm. Log: [`PLANET.md`](PLANET.md). Prompts below still work if you open a **daily** scene, not another monthly mosaic.
 
 **Prompt 1 — lock the wreck (size and place)**
 

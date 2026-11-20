@@ -58,6 +58,7 @@ Retrieved or confirmed **21 Nov 2026 (Africa/Johannesburg)** unless noted. Greek
 - Lefkaditika Nea empty first auction, 9 Jun 2026: https://www.kolivas.de/archives/575586
 - Vliho Yacht Club position print 38.40.95N / 20.41.89E: https://vlihoyc.com/ruairis-round-up-2023/
 - Google Street View, 105 Επαρ.Οδ. Λευκάδας–Βασιλικής (May 2019: not there; May 2023 / Jul 2024 / Jul 2026 screenshots in `bruce-sunrise/photos/`)
+- Planet AI session id (login-walled; blob URL not fetchable): `b64d9dd9-52bc-4ece-82cc-88c97c46ee2e` — operator paste filed in [`PLANET.md`](PLANET.md)
 - ESRI World Imagery Wayback: https://livingatlas.arcgis.com/wayback/ (Vlycho capture dates 2017-05-22, 2020-08-02, 2022-10-21, 2025-08-28)
 - Copernicus Browser (Sentinel-2): https://browser.dataspace.copernicus.eu/
 - Maxar Discover catalog: https://discover.maxar.com

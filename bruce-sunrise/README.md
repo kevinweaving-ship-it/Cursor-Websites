@@ -24,7 +24,7 @@ Interactive summary: [MV Sunrise investigation canvas](https://cursor.com/canvas
 
 ## Hypothesis (not a finding)
 
-Long abandonment **holds**. Locals: dumped on the mole **one April morning** (year not in the quote). Family: Bruce in **Hermanus from Nov 2020**, one Europe trip in between, **left Hermanus for Europe April 2022**. Maxar **21 Oct 2022** still shows ordinary yachts at this berth, so April 2022 leads on **travel** and April 2023 is now the better **wall** date — not proved. They had already lived on the Var/Riviera for years (Roquebrune from 2001; Antibes/Nice charter 2018–2020). ECO-VIE is a **2008** association, not a post-sinking shell. No public insurance file. A later dump’s “five years at the quay” and several cruiser URLs **do not survive a retrieve** — see [`DIGEST.md`](DIGEST.md). Full story: [`CHRONOLOGY.md`](CHRONOLOGY.md). Scores: [`HYPOTHESIS.md`](HYPOTHESIS.md).
+Long abandonment **holds**. Locals: dumped on the mole **one April morning** (year not in the quote). Family: Bruce in **Hermanus from Nov 2020**, one Europe trip in between, **left Hermanus for Europe April 2022**. Maxar **21 Oct 2022** still shows ordinary yachts at this berth. Planet mosaics (low–moderate, **not an ID**): first bay **candidate Dec 2020**; last mooring-style flag **Jan 2023**; jetty brightens **May–Jun 2023**. **April 2023** now leads for the **wall**; April 2022 still leads on **travel**. They had already lived on the Var/Riviera for years (Roquebrune from 2001; Antibes/Nice charter 2018–2020). ECO-VIE is a **2008** association, not a post-sinking shell. No public insurance file. A later dump’s “five years at the quay” and several cruiser URLs **do not survive a retrieve** — see [`DIGEST.md`](DIGEST.md). Full story: [`CHRONOLOGY.md`](CHRONOLOGY.md). Scores: [`HYPOTHESIS.md`](HYPOTHESIS.md).
 
 ## What is still open
 
@@ -33,7 +33,7 @@ Long abandonment **holds**. Locals: dumped on the mole **one April morning** (ye
 3. **Whether ECO-VIE of Roquebrune is the entity Greece served**, and who its officers were at transfer, sinking, and notice.
 4. **Sale versus related-entity transfer** — same-address evidence is not a bill of sale.
 5. **Exact Polish registration date** — only a window is proven (see [`POLAND_FLAG.md`](POLAND_FLAG.md)).
-6. **Which April** she was put on the mole — quote unnamed; family travel (**Hermanus** Nov 2020 – Apr 2022) makes **April 2022** the leading candidate.
+6. **Which April** she was put on the mole — quote unnamed. **April 2023** now leads for the **wall** (Maxar empty 21 Oct 2022; Street View on the wall May 2023; Planet jetty brightens May–Jun 2023). **April 2022** still leads only as family **travel**. Planet Dec 2020 bay blob is a **candidate**, not an ID ([`PLANET.md`](PLANET.md)).
 7. **Nydri Penal Code 277 file** outcome.
 8. **Any hull / P&I policy and notice of loss** — not on the public web.
 
@@ -45,6 +45,7 @@ Long abandonment **holds**. Locals: dumped on the mole **one April morning** (ye
 | [`DIGEST.md`](DIGEST.md) | Extra local dump scored: fact vs useful vs reject (mooring ball, blogs, insurance) |
 | [`STREETVIEW.md`](STREETVIEW.md) | Google Street View at the Vlycho quay: not there May 2019; May 2023 afloat; Jul 2024 wreck; Jul 2026 still there |
 | [`SATELLITE.md`](SATELLITE.md) | Cadence vs Google; bay mosaics: **no** 20 m hull on a Vlycho buoy in the public Maxar dates |
+| [`PLANET.md`](PLANET.md) | Planet AI monthly log: candidates not IDs; Dec 2020 first blob; wall window May–Jun 2023 |
 | [`TIMELINE.md`](TIMELINE.md) | Dated events, verified vs inferred |
 | [`POLAND_FLAG.md`](POLAND_FLAG.md) | Why Poland, and when the flag can have changed |
 | [`FRANCE_ENTITIES.md`](FRANCE_ENTITIES.md) | ECO-VIE, Building Solutions, GFA des Planets, Clos Saint Pierre |

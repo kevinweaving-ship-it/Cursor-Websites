@@ -44,6 +44,8 @@ That is **Sunrise still at the quay 69 days after 18 Dec**, opposite the pharmac
 
 Quay window: **after Aug 2020, by May 2023**. Maxar **21 Oct 2022** still shows ordinary yachts at this berth (**supported**) — wall may be after that date. Same-day storm-drag on 18 Dec is **out**. Cadence ranking: [`SATELLITE.md`](SATELLITE.md).
 
+**Planet AI monthly mosaics (21 Nov 2026) — useful as cadence, not as an ID.** First ~15–20 m **candidate** Dec 2020; last mooring-style flag Jan 2023; jetty brightens May–Jun 2023. Operator score **low–moderate**. **Reject:** reading a flag as SUNRISE; reading “not flagged” as absent (screener missed the known wreck on the wall); Planet’s “no public sinking report” (we have iLefkada 18 Dec 2023). Log: [`PLANET.md`](PLANET.md).
+
 ---
 
 ## 3. “There must be more social media / blogs” — **keep the hits; reject the mix-ups**

@@ -61,14 +61,14 @@ Against the unnamed April dump:
 | --- | --- |
 | **April 2021** | Weakened **as a wall date**. Maxar **21 Oct 2022** still shows ordinary yachts at this berth, not the later wreck footprint ([`SATELLITE.md`](SATELLITE.md)). Possible only if she was on a **ball** until later. |
 | **April 2022** | **Leading on family travel**, weakened **as a wall date** by the same Oct 2022 mosaic (she would have been sitting six months). Ball → wall later still works. |
-| **April 2023** | **Raised for the wall.** After 21 Oct 2022, before May 2023 Street View. Fits “just dumped” in the May 2023 photo. Still needs a **ball in the bay from ~2021** to keep iLefkada’s two years. |
+| **April 2023** | **Now the leading wall date.** After 21 Oct 2022 Maxar empty, before May 2023 Street View. Planet eye: jetty faint Apr–May, bright Jun 2023 (low–moderate, not an ID). Fits “just dumped” in the May 2023 photo. Ball period still needs a sharper sensor. |
 | April 2024 | **Impossible** for this dump — she is already on this quay in May 2023. Also the wrong boat (UK-flagged, 20 Apr 2024). |
 
 If Bruce was in Hermanus from Nov 2020, the hull was already without him in the Med for long stretches. That **strengthens abandonment**. It does not by itself date the mole tow. The one Europe trip between Nov 2020 and Apr 2022 is the other window in which he could have moved her France → Vlycho, which would match iLefkada’s “in the bay more than two years” by Dec 2023.
 
 A same-day drag on 18 Dec 2023 is **unlikely**: the Coast Guard was called because two boats already berthed in the port were going under.
 
-**Mooring ball vs quay.** Family: she had been on a ball, then against the wall. **No public Maxar frame shows a 20 m hull on a Vlycho buoy.** Inner-bay mosaics: **2 Aug 2020** (France week) and **21 Oct 2022** are yacht-sized boats on balls only; **28 Aug 2025** has the wreck **on the pier**. See [`SATELLITE.md`](SATELLITE.md). Street View still closes the **wall**: empty May 2019, occupied May 2023. Oct 2022 she is on **neither** wall nor ball in this bay — that fights iLefkada’s “two years in the bay” unless the reporter over-estimated or she sat in another inlet. A same-day storm-drag to the quay on 18 Dec is **out**.
+**Mooring ball vs quay.** Family: she had been on a ball, then against the wall. **No public Maxar frame shows a 20 m hull on a Vlycho buoy.** Inner-bay mosaics: **2 Aug 2020** (France week) and **21 Oct 2022** are yacht-sized boats on balls only; **28 Aug 2025** has the wreck **on the pier**. See [`SATELLITE.md`](SATELLITE.md). Planet monthly mosaics (21 Nov 2026): **candidates** Dec 2020, Feb/May 2021, Feb/Apr 2022, last mooring-style **Jan 2023** — **not IDs**; the auto-screener missed the known wreck on the wall. Street View still closes the **wall**: empty May 2019, occupied May 2023. Oct 2022 she is on **neither** wall nor ball in this bay — that fights iLefkada’s “two years in the bay” unless the reporter over-estimated, she sat in another inlet, or a 3–5 m blob in other months is her. A same-day storm-drag to the quay on 18 Dec is **out**. Full Planet log: [`PLANET.md`](PLANET.md).
 
 ## 3. Which day she actually sank — **18 Dec is the official casualty; the rot is older**
 
