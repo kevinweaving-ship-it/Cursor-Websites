@@ -76,14 +76,14 @@ Working assumption from family/locals: she **was** on a ball in this bay, then d
 | **Copernicus VHR 2021** (EU 2 m mosaic, veg season 2020–22) | **Free, looked.** Land and the quay strip are there; **the mooring field is blanked** (NoData). It is a land-cover product. Cannot see a buoy. Crop: [`bay-vhr2021-quay-water-masked.jpg`](photos/bay-vhr2021-quay-water-masked.jpg). |
 | **Copernicus VHR 2018** | Same water cut-out. Too early anyway (still Scotland/France). |
 | **Sentinel-2** | Plenty of dates, **10 m**. A 20 m hull is two pixels. Cannot honestly ID a buoyed trawler. |
-| **Planet PlanetScope** | **Daily, 3 m.** This is the map that can still show a 20 m hull on a ball in 2021–22. Paid. |
+| **Planet PlanetScope** | **Daily, 3 m** (land + this harbour). A 20 m hull is ~6–7 pixels — a real oblong, not two dots. The [Planet AI app](https://ai.planet.com/) (opened 5 Nov 2026) searches **monthly mosaics** in plain English, ~10 years back. Daily single scenes are still a paid Explorer/sales order. This agent cannot log in. |
 | **Maxar / Airbus archive** (Discover, SkyWatch) | May have extra 30 cm days that never made it into Google/ESRI. Paid browse/order. |
 | **AIS / MarineTraffic** | No public hit on **POL000AYP**. An abandoned boat often has the transponder off. |
 | **Apple / Bing / Cadastre** | One mosaic, or too early. Not a 2021–22 time series. |
 
 ## What to open next
 
-1. **Planet monthly mosaics of the mooring field** 2021–Apr 2023 — only remaining way to see a 20 m hull on a ball. Maxar/Earth/ESRI have no extra 30 cm pass in that gap at this pin.
+1. **Planet** — open [ai.planet.com](https://ai.planet.com/), sign in, paste: *Vlycho / Vliho bay, Lefkada, Greece, 38.6825 N 20.701 E. Monthly mosaics August 2020–May 2023. Find a ~20 m / 70 ft wooden motor vessel on a mooring buoy east of the village quay, then against the concrete pier. Month-by-month. PlanetScope only.* A hit is the same large oblong on the balls for several months, then on the wall. Clouds and mosaic seams can hide a month; one empty month is not proof she left. Daily 3 m scenes (Planet Explorer, paid) if the monthly stack is inconclusive.
 2. **Copernicus Browser** Sentinel-2 true-colour, cloud-filtered, 2021–May 2023 — blob check only; 10 m cannot ID a buoyed hull.
 3. **Maxar Discover** for any extra 30 cm scene Aug 2020–May 2023 that the Vivid mosaic skipped.
 4. Nydri / other Lefkada inlets — not searched.
