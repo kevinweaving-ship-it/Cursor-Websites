@@ -355,9 +355,13 @@ def sync_course_marks(
     if default_mark:
         replay["waypoint"] = {"lat": default_mark["lat"], "lon": default_mark["lon"]}
         wbb = replay.setdefault("waypoint_by_boat", {})
+        # SI: Class A + Class B + Multihull → Virtual Mark A; Class C only → Virtual Mark C.
+        orc_class = replay.get("orc_class") or {}
         for sail, meta in (replay.get("boats") or {}).items():
+            cls = str(orc_class.get(sail) or "").upper()
             fleet_name = str((meta or {}).get("fleet") or "").lower()
-            use = c_mark if ("class c" in fleet_name or fleet_name == "c") and c_mark else default_mark
+            is_c = cls == "CLASS C" or "class c" in fleet_name or fleet_name == "c"
+            use = c_mark if is_c and c_mark else (ab_mark or default_mark)
             if use:
                 wbb[sail] = {"lat": use["lat"], "lon": use["lon"]}
 
@@ -672,11 +676,12 @@ def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict], setu
             while len(series.setdefault("lon", [])) < n:
                 series["lon"].append(None)
 
-    marks_info = sync_course_marks(replay, trail, setups or [], fleet)
     rounded = sync_rounded_at(replay, setups or [], id_to_label)
     retired = sync_retired(replay, id_to_label, setups or [])
     tcf_map = sync_tcf(replay, id_to_label, setups or [])
     yb_proj = sync_yb_proj(replay, id_to_label, setups or [])
+    # Course marks after orc_class so Class A+B share Mark A; Class C gets Mark C.
+    marks_info = sync_course_marks(replay, trail, setups or [], fleet)
     atomic_write(replay_path, replay)
     atomic_write(trail_path, trail)
     try:
