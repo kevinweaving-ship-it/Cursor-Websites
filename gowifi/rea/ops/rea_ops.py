@@ -477,9 +477,43 @@ def whatsapp_status(cfg: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _is_graphify_invocation(argv: list[str]) -> bool:
+    """Detect Graphify launches for ops_jobs denial (Option B). Fail closed.
+
+    Matches bare names, absolute/relative paths, and ``python -m graphify[y]``.
+    Does not affect ops_run (run_check), which keeps allowlist + path gates.
+    """
+    if not argv:
+        return False
+    py_bins = {
+        "python",
+        "python3",
+        "/usr/bin/python",
+        "/usr/bin/python3",
+        "/usr/local/bin/python",
+        "/usr/local/bin/python3",
+    }
+    for i, item in enumerate(argv):
+        if item.startswith("-"):
+            continue
+        name = Path(item).name
+        if name == "graphify" or name == "graphify-mcp" or name.startswith("graphify"):
+            return True
+        if item in py_bins or name in {"python", "python3"}:
+            # python3 -m graphify / graphifyy
+            if i + 2 < len(argv) and argv[i + 1] == "-m":
+                mod = argv[i + 2]
+                if mod == "graphify" or mod == "graphifyy" or mod.startswith("graphify"):
+                    return True
+    return False
+
+
 def _command_allowed(cfg: dict[str, Any], argv: list[str]) -> dict[str, Any]:
     if not argv:
         return fail("empty_command", "")
+    # Option B: never run Graphify through ops_jobs (no project-root path gate).
+    if _is_graphify_invocation(argv):
+        return fail("command_denied", "graphify_denied_via_jobs")
     extra = [
         ["python3", "-m", "compileall"],
         ["/usr/bin/sleep"],

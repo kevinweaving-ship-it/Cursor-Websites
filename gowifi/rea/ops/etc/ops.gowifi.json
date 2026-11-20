@@ -88,7 +88,10 @@
     ["git", "diff"],
     ["git", "log"],
     ["git", "rev-parse"],
-    ["sha256sum"]
+    ["sha256sum"],
+    ["graphify", "query"],
+    ["graphify", "path"],
+    ["graphify", "explain"]
   ],
   "http_allow_hosts": [
     "127.0.0.1",
