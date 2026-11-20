@@ -57,16 +57,16 @@ Against the unnamed April dump:
 
 | Candidate | Fit |
 | --- | --- |
-| **April 2021** | Possible. Needs the one Hermanus–Europe trip. |
-| **April 2022** | **Still leading on family travel** (left Hermanus that month). Wall-by-May-2023 then means a year afloat at the quay — matches the May 2023 frame. |
-| **April 2023** | One month before Street View, so the photo would be “just dumped.” **Fits the photo.** Only fits iLefkada’s “more than two years in the **bay**” if she was already on a **ball** in the bay from ~2021 and April 2023 was ball → wall. |
+| **April 2021** | Weakened **as a wall date**. Maxar **21 Oct 2022** still shows ordinary yachts at this berth, not the later wreck footprint ([`SATELLITE.md`](SATELLITE.md)). Possible only if she was on a **ball** until later. |
+| **April 2022** | **Leading on family travel**, weakened **as a wall date** by the same Oct 2022 mosaic (she would have been sitting six months). Ball → wall later still works. |
+| **April 2023** | **Raised for the wall.** After 21 Oct 2022, before May 2023 Street View. Fits “just dumped” in the May 2023 photo. Still needs a **ball in the bay from ~2021** to keep iLefkada’s two years. |
 | April 2024 | **Impossible** for this dump — she is already on this quay in May 2023. Also the wrong boat (UK-flagged, 20 Apr 2024). |
 
 If Bruce was in Hermanus from Nov 2020, the hull was already without him in the Med for long stretches. That **strengthens abandonment**. It does not by itself date the mole tow. The one Europe trip between Nov 2020 and Apr 2022 is the other window in which he could have moved her France → Vlycho, which would match iLefkada’s “in the bay more than two years” by Dec 2023.
 
 A same-day drag on 18 Dec 2023 is **unlikely**: the Coast Guard was called because two boats already berthed in the port were going under.
 
-**Mooring ball vs quay.** Family: she had been on a ball, then against the wall. Street View **closes the wall window**: **not there May 2019**; **already there, still floating, May 2023**. Last public French berth 5 Aug 2020, so the wall date is **after Aug 2020**, by May 2023. 18 Dec is when she listed, not when she arrived. A same-day storm-drag to the quay is **out**. The April mole tow is still the Sunrise-specific move: April **2021, 2022 or 2023**. See [`STREETVIEW.md`](STREETVIEW.md).
+**Mooring ball vs quay.** Family: she had been on a ball, then against the wall. Street View **closes the wall window**: **not there May 2019**; **already there, still floating, May 2023**. Maxar **21 Oct 2022** still looks like ordinary yachts at this berth (**supported**) — see [`SATELLITE.md`](SATELLITE.md). That would put the wall **after 21 Oct 2022**, by May 2023, and raise **April 2023** for the mole tow. A same-day storm-drag to the quay on 18 Dec is **out**.
 
 ## 3. Which day she actually sank — **18 Dec is the official casualty; the rot is older**
 

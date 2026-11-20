@@ -95,7 +95,9 @@ If he was in Hermanus from Nov 2020, the boat was already without him in the Med
 
 | When | Tag | What |
 | --- | --- | --- |
-| some April 2021 / **2022** / 2023 | local | Residents, quoted 18 Dec 2023: found tied at the mole one April morning, **no name, no owner**; “they brought it here to sink.” Year **not in the quote**. Must be an April **before May 2023** (Street View). April 2022 still leads on family travel; April 2023 only works if she was already in the **bay** on a ball from ~2021. |
+| **2020-08-02** | supported | ESRI/Maxar Vivid: town quay and near-shore balls, no 20 m workboat at the later wreck berth. Matches Port Vauban that week. See [`SATELLITE.md`](SATELLITE.md). |
+| some April 2021 / **2022** / **2023** | local | Residents, quoted 18 Dec 2023: found tied at the mole one April morning, **no name, no owner**; “they brought it here to sink.” Year **not in the quote**. Must be an April **before May 2023**. **April 2022** still leads on family travel; **April 2023** is now the better **wall** date if the 21 Oct 2022 mosaic is read correctly (ordinary yachts, not the wreck footprint). |
+| **2022-10-21** | supported | ESRI/Maxar Vivid: this wall packed with white yachts; **no** lone pale hull with a boom. |
 | **May 2023** | established | Google Street View, 105 Επαρ.Οδ. Λευκάδας–Βασιλικής: **already against this quay, upright and afloat**. Cream wooden hull, wheelhouse, dinghies on the hard. Not yet listed. See [`STREETVIEW.md`](STREETVIEW.md). |
 | **18 Dec 2023** | established | Official casualty. Already against the **concrete quay inside the port**. Polish-flagged hull lists; French **Cape Horn (TL)** alongside forced under. Photos: tarps, rust, chain. Nydri opens **Penal Code 277 §1A**. iLefkada: leaking for a long time, listed **that day**. Street View had shown her floating here seven months earlier — 18 Dec is the **listing**, not the arrival. |
 | 19 Dec 2023 | established | Kathimerini / Rthess restate the Coast Guard bulletin. |

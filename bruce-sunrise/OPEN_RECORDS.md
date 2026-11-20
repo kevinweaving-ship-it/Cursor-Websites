@@ -40,7 +40,8 @@ The public HCG HTML bulletin URL returned **403** from this environment. Retry f
 ## 3a. Street View / Earth — Vlycho quay
 
 - Google Street View at **105 Επαρ.Οδ. Λευκάδας–Βασιλικής**: **not there May 2019**; afloat at wall **May 2023**; wreck **Jul 2024** and **Jul 2026**. See [`STREETVIEW.md`](STREETVIEW.md).
-- **Still useful:** Earth Pro on the **basin** (mooring balls) 2020–2023, which the road camera may miss. A May 2019 screenshot in `photos/` would lock the empty quay frame.
+- **Satellite ranking:** [`SATELLITE.md`](SATELLITE.md). Google Earth is **not** denser than ESRI here. **More photos/year:** Sentinel-2 (~144 days, 10 m) and Planet (daily, 3 m). High-res Maxar captures at this quay: **2 Aug 2020**, **21 Oct 2022**, **28 Aug 2025**.
+- **Still useful:** Planet monthly mosaics for April 2021 / 2022 / 2023; Copernicus Browser blob-check; Maxar Discover for any extra 30 cm scene Oct 2022–May 2023; Earth Pro on the **basin**. A May 2019 Street View screenshot in `photos/` would lock the empty quay frame.
 
 ## 3b. Facebook group thread — 18 Dec 2023
 

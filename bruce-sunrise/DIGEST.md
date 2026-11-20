@@ -42,7 +42,7 @@ That is **Sunrise still at the quay 69 days after 18 Dec**, opposite the pharmac
 - **July 2026** — still there after the empty auctions.
 - **May 2019** — **she is not there** (same filmstrip, opened). Charter site that month: Port of Nice.
 
-Quay window: **after Aug 2020, by May 2023**. Same-day storm-drag on 18 Dec is **out**. The April tow is 2021 / 2022 / 2023. Full table: [`STREETVIEW.md`](STREETVIEW.md).
+Quay window: **after Aug 2020, by May 2023**. Maxar **21 Oct 2022** still shows ordinary yachts at this berth (**supported**) — wall may be after that date. Same-day storm-drag on 18 Dec is **out**. Cadence ranking: [`SATELLITE.md`](SATELLITE.md).
 
 ---
 

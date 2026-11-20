@@ -58,6 +58,10 @@ Retrieved or confirmed **20 Nov 2026 (Africa/Johannesburg)** unless noted. ChatG
 - Lefkaditika Nea empty first auction, 9 Jun 2026: https://www.kolivas.de/archives/575586
 - Vliho Yacht Club position print 38.40.95N / 20.41.89E: https://vlihoyc.com/ruairis-round-up-2023/
 - Google Street View, 105 Επαρ.Οδ. Λευκάδας–Βασιλικής (May 2019: not there; May 2023 / Jul 2024 / Jul 2026 screenshots in `bruce-sunrise/photos/`)
+- ESRI World Imagery Wayback: https://livingatlas.arcgis.com/wayback/ (Vlycho capture dates 2017-05-22, 2020-08-02, 2022-10-21, 2025-08-28)
+- Copernicus Browser (Sentinel-2): https://browser.dataspace.copernicus.eu/
+- Maxar Discover catalog: https://discover.maxar.com
+- Element84 earth-search STAC: https://earth-search.aws.element84.com/v1/search
 - Rthess restating Coast Guard + PK 277, 19 Dec 2023: https://www.rthess.gr/ellada/lefkada-rypansi-apo-petrelaioeidi-meta-ti-vythisi-dyo-thalamigon/
 - Lefkada Today first auction, 30 Apr 2026: https://www.lefkadatoday.gr/diagonismos-gia-tin-apomakrynsi-toy-nayagioy-sunrise-ston-vlycho-leykadas/
 - Paleros Yacht Services tender post: https://www.facebook.com/PalerosYachtServices/posts/-tender-announced-for-removal-of-sunrise-wreck-vlycho-lefkada-the-municipal-port/1364318139079751/

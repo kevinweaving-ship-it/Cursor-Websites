@@ -16,12 +16,14 @@ Identity: same wooden workboat, same quay, same hill behind Vlycho as the iLefka
 ## What this closes
 
 - **Quay window:** after **May 2019**, by **May 2023**. She was not on this wall in May 2019. She was on it, still floating, in May 2023.
-- Last public French berth is still **5 Aug 2020** (Port Vauban). So the wall arrival is really **after Aug 2020**, by May 2023.
+- Last public French berth is still **5 Aug 2020** (Port Vauban). Maxar **2 Aug 2020** is empty of a 20 m workboat here. Maxar **21 Oct 2022** still shows ordinary yachts at this berth (**supported**), so the wall may be **after 21 Oct 2022**, by May 2023.
 - She was **not** on a mooring ball on 18 Dec 2023. She had already been against this quay in May 2023, seven months before she listed.
 - A same-day storm-drag to the wall on 18 Dec is **out**.
 - 18 Dec is the day she **went down**, not the day she **arrived**.
 - “Five years at this quay from 2019” is **false**. Five years by late 2025 would need a 2020 wall date — still possible, not proved.
 - July 2026 Street View confirms the wreck **survived** the empty 2026 tenders.
+
+High-res **satellite** at this same wall is **not** denser than Google: ESRI/Maxar Vivid used **2 Aug 2020** and **21 Oct 2022** here. Oct 2022 tiles show ordinary yachts, not the later wreck footprint — see [`SATELLITE.md`](SATELLITE.md). Sentinel-2 has ~144 days/year but at 10 m.
 
 ## What it does not close
 
@@ -33,6 +35,6 @@ Identity: same wooden workboat, same quay, same hill behind Vlycho as the iLefka
 | Candidate | Fit against Street View + iLefkada |
 | --- | --- |
 | **April 2021** | Possible tow-to-wall. Needs the one Hermanus–Europe trip. Would give ~2.5 years in the bay by Dec 2023 if she was already in Vlycho. |
-| **April 2022** | **Still leading.** Bruce left Hermanus that month. Wall by May 2023 is then a year of sitting afloat at the quay — matches the May 2023 photo (intact, not listed). Bay time can still reach “more than two years” if she was in Vlycho on a ball from ~2021. |
-| **April 2023** | Only one month before the May 2023 frame, so the photo would be “just dumped.” **Fits the photo.** **Fits poorly** with iLefkada’s “more than two years in the bay” unless she had already been on a **ball** in the bay since ~2021 and the April 2023 move was ball → wall. That split (bay 2021, wall April 2023) is now the cleanest way April 2023 still works. |
+| **April 2022** | Leading on **family travel**. Weakened as a **wall** date: Maxar 21 Oct 2022 still shows ordinary yachts at this berth. |
+| **April 2023** | **Raised for the wall** (after 21 Oct 2022, by May 2023). “Just dumped” in the May 2023 photo. Needs a **ball from ~2021** to keep iLefkada’s two years in the bay. |
 | April 2024 | **Impossible** for the dump — she is already on this quay in May 2023. Also the wrong boat (UK flag, 20 Apr 2024). |
