@@ -54,6 +54,21 @@ A 2014–15 BODACC B notice (BODACC-B_20150008) is the gazette entry ChatGPT use
 
 Puts Bruce in the Planets landholding group years before ECO-VIE was declared. Again: **not** an officer list for the association.
 
+## 3b. UK vehicles + a second Roquebrune street
+
+Same French Bruce (DOB Jul 1965) also ran two short UK companies:
+
+| Company | Number | Dates | Address on the filing |
+| --- | --- | --- | --- |
+| **Building Solutions (EUROPE) Ltd** | **06526022** | 6 Mar 2008 – 28 Feb 2012 | Correspondence **13 Clos Saint Pierre, 83520 Roquebrune-sur-Argens**. SIC 4521 construction. |
+| **SCI Building Solutions (UK) Ltd** | **07158783** | 16 Feb 2010 – 27 Sep 2011 | 59 Blandford Road, Beckenham. Director spelled **Bruce Micael Weaving**. |
+
+**13 Clos Saint Pierre** is a second Roquebrune street, not Bastide des Planets. It puts him in that commune on a 2008 UK filing — the same year ECO-VIE was declared. Do not confuse **06526022** with the unrelated active **Building Solutions Europe Ltd** (11911153, London SW18, 2019).
+
+A different **Bruce Weaving** (South African, DOB Apr 1962, Hartfield) is on Companies House for Sangala Ltd. Not this person.
+
+D&B lists **WEAVING BRUCE** at **Mandelieu-la-Napoule** (next to Cannes). Page is JS-walled here; the directory snippet is used as **supported**. LinkedIn snippets: “based in Antibes, FRANCE” and “Nice et périphérie.”
+
 ## 4. Same-hamlet noise — do not treat as the owner
 
 **Isabelle Marty**, SIREN 538093113, individual farmer at Roquebrune-sur-Argens. BODACC A notice 2485 (6–7 Apr 2024) records a **20 Mar 2024** judgment opening *liquidation judiciaire*, address **chemin du Planais, Bastide des Planets**, with **cessation of payments 15 Dec 2023** (three days before the Vlycho sinking).

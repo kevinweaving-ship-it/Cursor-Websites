@@ -8,6 +8,11 @@ Retrieved or confirmed **20 Nov 2026 (Africa/Johannesburg)** unless noted. ChatG
 - https://find-and-update.company-information.service.gov.uk/company/11060560/officers
 - https://find-and-update.company-information.service.gov.uk/company/11060560/persons-with-significant-control
 - https://find-and-update.company-information.service.gov.uk/company/11060560/filing-history
+- Building Solutions (EUROPE) Ltd 06526022 (Clos Saint Pierre): https://find-and-update.company-information.service.gov.uk/company/06526022
+- Officers 06526022: https://find-and-update.company-information.service.gov.uk/company/06526022/officers
+- SCI Building Solutions (UK) Ltd 07158783: https://find-and-update.company-information.service.gov.uk/company/07158783
+- Bruce officer (Sunrise Adventures): https://find-and-update.company-information.service.gov.uk/officers/W8VqJ_8aLLr9LNS0LO1btE4ofZM/appointments
+- Bruce officer (06526022 / Clos Saint Pierre): https://find-and-update.company-information.service.gov.uk/officers/GQEJ4ek9aFJBHO-psuahUWw6IXg/appointments
 
 ## France
 
@@ -53,7 +58,15 @@ Retrieved or confirmed **20 Nov 2026 (Africa/Johannesburg)** unless noted. ChatG
 - Paleros: wreck still in Vlycho after empty tenders: https://www.facebook.com/PalerosYachtServices/posts/%EF%B8%8F-the-sunrise-wreck-still-remains-in-vlycho-baythe-tender-process-for-the-remova/1398512665660298/
 - iLefkada photos: https://ilefkada.gr/wp-content/uploads/2023/12/skafos-1.jpg (through skafos-5.jpg)
 - Charter site archive (Port Vauban 5 Aug 2020): https://web.archive.org/web/20200805101420/https://sunriseadventureboat.com/
-- Charter about / SamBoat (Jul 2019): https://web.archive.org/web/20190720141102/https://sunriseadventureboat.com/about-boat-rental/
+- Charter homepage Saint-Tropez (23 Dec 2018): https://web.archive.org/web/20181223081848/https://sunriseadventureboat.com/
+- Charter about / SamBoat / 25 years in the Med (20 Jul 2019): https://web.archive.org/web/20190720141102/https://sunriseadventureboat.com/about-boat-rental/
+- Charter contact / info@sunriseadventureboat.com (20 Jul 2019): https://web.archive.org/web/20190720132938/https://sunriseadventureboat.com/contact/
+- Charter photos (20 Jul 2019): https://web.archive.org/web/20190720143012/https://sunriseadventureboat.com/photos/
+- Botel aggregator (zombie): https://touristbooking.fr/hotel/msv-sunrise-antibes
+- LinkedIn snippet (login-walled): https://uk.linkedin.com/in/bruce-weaving-24031033
+- LinkedIn Nice et périphérie (login-walled): https://fr.linkedin.com/in/bruce-weaving-9b6454170
+- D&B Mandelieu snippet (JS-walled): https://www.dnb.com/business-directory/company-profiles.weaving_bruce.a581a2bc9572e17e46bc6c2579ddac00.html
+- Facebook place Port Vauban (login-walled): id 1620790754852959
 - Facebook group quoted by aromalefkadas: https://www.facebook.com/groups/991205502037297/
 - Different casualty 20 Apr 2024 (UK flag, do not mix): https://www.prevezatoday.gr/vythistike-skafos-sto-limani-toy-vlychoy-synelifthi-o-ploioktitis/
 

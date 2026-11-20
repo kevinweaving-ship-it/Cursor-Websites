@@ -44,11 +44,11 @@ The public HCG HTML bulletin URL returned **403** from this environment. Retry f
 
 ## 3c. Bruce travel Nov 2020 – Apr 2022
 
-Family recollection only: SA **Nov 2020**, one Europe return, left SA **Apr 2022**. Not a passport stamp. Would pin:
+Family recollection only: **Hermanus Nov 2020**, one Europe return, left Hermanus **Apr 2022**. Not a passport stamp. No public web tying him to Hermanus. Would pin:
 
-- whether “here” in Nov 2020 was SA or Vlycho;
+- whether “here” in Nov 2020 was Hermanus or Vlycho;
 - the month of the one return trip (April 2021 would matter);
-- whether April 2022 was France (Bastide des Planets) or Lefkada.
+- whether April 2022 was France (Roquebrune / Antibes) or Lefkada.
 
 ## 4. Var association registry — ECO-VIE 2008
 
@@ -82,4 +82,4 @@ ChatGPT’s last unfinished pass said it had recovered:
 - a SamBoat listing naming Bruce as owner in **August 2019**;
 - the boat’s own site still listing **Port Vauban, Antibes** in **August 2020**.
 
-**Recovered this pass:** [sunriseadventureboat.com](https://web.archive.org/web/20200805101420/https://sunriseadventureboat.com/) — Dec 2018 Saint-Tropez; 2019 Port of Nice + SamBoat booking link; **5 Aug 2020 Port Vauban, Antibes**. SamBoat listing HTML still not archived under obvious URLs. Facebook [SunriseAdventuresLtd](https://www.facebook.com/SunriseAdventuresLtd/posts/479643322481826/) is a lead.
+**Recovered this pass:** [sunriseadventureboat.com](https://web.archive.org/web/20200805101420/https://sunriseadventureboat.com/) — Dec 2018 Saint-Tropez; 2019 Port of Nice + Corsica/Elba + SamBoat booking link; **5 Aug 2020 Port Vauban, Antibes** bunks & breakfast. Contact: info@sunriseadventureboat.com. Botel aggregators: touristbooking.fr / Trip.com (zombie listings, 0 real reviews). LinkedIn snippets: Antibes-based captain; Nice et périphérie. D&B Mandelieu-la-Napoule. UK **06526022** correspondence **13 Clos Saint Pierre**. SamBoat listing HTML still not archived under obvious URLs. Facebook [SunriseAdventuresLtd](https://www.facebook.com/SunriseAdventuresLtd/posts/479643322481826/) and place `1620790754852959` are login-walled.
