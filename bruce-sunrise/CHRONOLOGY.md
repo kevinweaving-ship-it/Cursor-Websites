@@ -68,8 +68,9 @@ This is the stretch the web actually covers. They were not passing through.
 | --- | --- | --- |
 | winter 2018 | supported | Charter site: winter **bunks & breakfast** in port (“traditional French breakfast” while she rests). |
 | **Dec 2018** | established | Homepage: **“Sunrise is currently in Saint-Tropez”** for **Les Voiles de Saint-Tropez**. Email **info@sunriseadventureboat.com**. |
-| 2019 season | established | About page update: based **Port of Nice** most of the summer; trips to **Corsica and Elba**. Captain only, included in the rate. SamBoat booking link. Facebook place **Sunrise Adventure Boat, Port Vauban, Antibes** (page id `1620790754852959`). |
 | 23 Apr 2019 | established | UK company **dissolved** by compulsory strike-off (Gazette 5 Feb 2019). No accounts, no vessel on the filing list. Charter site kept running. |
+| **May 2019** | established | Google Street View, same Vlycho quay pin: **she is not there.** Matches the Nice charter season. |
+| 2019 season | established | About page update: based **Port of Nice** most of the summer; trips to **Corsica and Elba**. Captain only, included in the rate. SamBoat booking link. Facebook place **Sunrise Adventure Boat, Port Vauban, Antibes** (page id `1620790754852959`). |
 | to Aug 2020 | established | Last Wayback **5 Aug 2020**: now **Port Vauban, Antibes**, bunks & breakfast via **Booking.com** `hotel/fr/msv-sunrise-antibes`. Aggregators still list **MSV Sunrise**, **Avenue de Verdun, capitainerie port, 06600 Antibes** (Wi-Fi, bar, lounge, bike hire, paid airport shuttle). Trip.com in 2026 still has the listing with **no guest reviews** — a zombie hotel page, not proof she is still there. |
 | 1 Aug 2020 | established | Poland **REJA24** opens. Earliest date this hull could get **`POL000AYP`**. |
 

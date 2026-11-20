@@ -32,7 +32,7 @@ The second boat is the French-flagged ~10 m motor cruiser with **Cape Horn** and
 
 ## 2. Dragged to the concrete jetty, then left to sink — **partial**
 
-**Holds on location.** Google Street View (**May 2023**, 105 Επαρ.Οδ. Λευκάδας–Βασιλικής): already **against this quay, upright and afloat**. The 18 Dec photos then show her **listing** there. Coast Guard: made fast, parallel, **inside** the port. July 2024 / July 2026 Street View: still the wreck on that wall. See [`STREETVIEW.md`](STREETVIEW.md).
+**Holds on location.** Google Street View (105 Επαρ.Οδ. Λευκάδας–Βασιλικής): **not there May 2019**; **May 2023** already **against this quay, upright and afloat**. The 18 Dec photos then show her **listing** there. Coast Guard: made fast, parallel, **inside** the port. July 2024 / July 2026 Street View: still the wreck on that wall. See [`STREETVIEW.md`](STREETVIEW.md).
 
 **Partial on the drag.** Residents, quoted the same day:
 
@@ -66,7 +66,7 @@ If Bruce was in Hermanus from Nov 2020, the hull was already without him in the 
 
 A same-day drag on 18 Dec 2023 is **unlikely**: the Coast Guard was called because two boats already berthed in the port were going under.
 
-**Mooring ball vs quay.** Family: she had been on a ball, then against the wall. Street View **closes the wall date**: already there **May 2023**, still floating. 18 Dec is when she listed, not when she arrived. A same-day storm-drag to the quay is **out**. The April mole tow is still the Sunrise-specific move, and it is now **no later than April 2023**. May 2019 Street View at the same pin exists as a thumbnail and has **not** been opened — that is the remaining check for “was she already on this quay in 2019?”. See [`STREETVIEW.md`](STREETVIEW.md).
+**Mooring ball vs quay.** Family: she had been on a ball, then against the wall. Street View **closes the wall window**: **not there May 2019**; **already there, still floating, May 2023**. Last public French berth 5 Aug 2020, so the wall date is **after Aug 2020**, by May 2023. 18 Dec is when she listed, not when she arrived. A same-day storm-drag to the quay is **out**. The April mole tow is still the Sunrise-specific move: April **2021, 2022 or 2023**. See [`STREETVIEW.md`](STREETVIEW.md).
 
 ## 3. Which day she actually sank — **18 Dec is the official casualty; the rot is older**
 

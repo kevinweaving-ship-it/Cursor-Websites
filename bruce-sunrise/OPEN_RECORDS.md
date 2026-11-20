@@ -39,9 +39,8 @@ The public HCG HTML bulletin URL returned **403** from this environment. Retry f
 
 ## 3a. Street View / Earth — Vlycho quay
 
-- Google Street View at **105 Επαρ.Οδ. Λευκάδας–Βασιλικής** now **keeps** May 2023 (afloat at wall), Jul 2024 (wreck), Jul 2026 (still there). See [`STREETVIEW.md`](STREETVIEW.md).
-- **Still open:** the **May 2019** thumbnail on that same filmstrip. Open it. If she is absent, the quay arrival is after May 2019 and by May 2023.
-- Earth Pro at **~38.6825°N, 20.6989°E** still useful for the basin (mooring balls) between 2019 and 2023, which Street View from the road may not show.
+- Google Street View at **105 Επαρ.Οδ. Λευκάδας–Βασιλικής**: **not there May 2019**; afloat at wall **May 2023**; wreck **Jul 2024** and **Jul 2026**. See [`STREETVIEW.md`](STREETVIEW.md).
+- **Still useful:** Earth Pro on the **basin** (mooring balls) 2020–2023, which the road camera may miss. A May 2019 screenshot in `photos/` would lock the empty quay frame.
 
 ## 3b. Facebook group thread — 18 Dec 2023
 

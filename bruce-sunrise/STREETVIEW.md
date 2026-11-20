@@ -9,22 +9,24 @@ This is the Earth-Pro-style check. It dates **quay**, not the first day in the *
 | **May 2023** | [`streetview-vlycho-2023-05.jpg`](photos/streetview-vlycho-2023-05.jpg) | Converted wooden trawler **already alongside the quay**, **upright and afloat**. Cream hull, wheelhouse, masts, solar on the cabin, lines ashore, dinghies on the hard. Laid-up, not listed. | **established** — at the wall, not yet the 18 Dec casualty |
 | **July 2024** | [`streetview-vlycho-2024-07.jpg`](photos/streetview-vlycho-2024-07.jpg) | Same hull, **listing**, tarps, wrecked. Matches ZigZag 22 Aug 2024 and the post-18 Dec photos. | **established** |
 | **July 2026** | [`streetview-vlycho-2026-07.jpg`](photos/streetview-vlycho-2026-07.jpg) | Still there, still listed. After both empty auctions (12 May / 23 Jun 2026). | **established** |
-| **May 2019** | thumbnail only on the May 2023 filmstrip | Capture **exists**. Not opened. Cannot yet say whether she is in frame. | **open** |
+| **May 2019** | same filmstrip, opened | **She is not there.** Parking, yachts, no 20 m wooden trawler on this quay. Screenshot not copied into `photos/` this pass. Cross-check: charter site that month still had her in the **Port of Nice**. | **established** |
 
 Identity: same wooden workboat, same quay, same hill behind Vlycho as the iLefkada / ZigZag wreck photos. Treat as **MV Sunrise**.
 
 ## What this closes
 
-- She was **not** on a mooring ball on 18 Dec 2023. She had already been **against this concrete quay in May 2023**, seven months before she listed.
-- A same-day storm-drag to the wall on 18 Dec is **out**. The wall was her berth.
+- **Quay window:** after **May 2019**, by **May 2023**. She was not on this wall in May 2019. She was on it, still floating, in May 2023.
+- Last public French berth is still **5 Aug 2020** (Port Vauban). So the wall arrival is really **after Aug 2020**, by May 2023.
+- She was **not** on a mooring ball on 18 Dec 2023. She had already been against this quay in May 2023, seven months before she listed.
+- A same-day storm-drag to the wall on 18 Dec is **out**.
 - 18 Dec is the day she **went down**, not the day she **arrived**.
-- July 2026 Street View independently confirms the wreck **survived** the empty 2026 tenders.
+- “Five years at this quay from 2019” is **false**. Five years by late 2025 would need a 2020 wall date — still possible, not proved.
+- July 2026 Street View confirms the wreck **survived** the empty 2026 tenders.
 
 ## What it does not close
 
-- First day in Vlycho **bay** (iLefkada still: more than two years by 18 Dec 2023 → before ~Dec 2021).
-- Which **April** she was towed from a ball to this mole. Must be an April **before May 2023**.
-- May 2019 frame — **open that thumbnail**. If she is absent, arrival at this quay is after May 2019 and by May 2023. If she is present, the “five years at the quay” claim gets a real test.
+- First day in Vlycho **bay** (iLefkada still: more than two years by 18 Dec 2023 → before ~Dec 2021). Street View from the road does not prove she was absent from a **mooring ball** in 2019.
+- Which **April** she was towed from a ball to this mole. Must be April **2021, 2022 or 2023**.
 
 ## April dump vs these frames
 

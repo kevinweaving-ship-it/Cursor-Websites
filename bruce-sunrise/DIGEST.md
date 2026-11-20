@@ -33,16 +33,16 @@ That is **Sunrise still at the quay 69 days after 18 Dec**, opposite the pharmac
 - Katabatic gusts and dragging onto the lee shore are real Ionian weather. Port Police warping a leaking unmanned hull to shallow quay so she does not block the channel is **plausible**. It is **not** written on Sunrise.
 - Storm-drag and “they brought it here to sink” are **different** stories. Do not merge them.
 
-**Reject:** “October 17, 2025 iLefkada.gr — already at that exact spot by the quay for roughly five years.” **No such article found.** The dated iLefkada line is **18 Dec 2023**: more than **two** years in the **bay** (κόλπος), already taking on water, listed **that day**. “Bay” is not “quay”. Five years would push arrival to ~2020; that remains **open**, not proved by this dump.
+**Reject:** “October 17, 2025 iLefkada.gr — already at that exact spot by the quay for roughly five years.” **No such article found.** The dated iLefkada line is **18 Dec 2023**: more than **two** years in the **bay** (κόλπος), already taking on water, listed **that day**. “Bay” is not “quay”. **Five years on this quay from 2019 is false** — Street View May 2019 shows an empty wall. Five years by late 2025 would still need a **2020** wall date (after Antibes); that remains **open**, not proved.
 
 **Street View now dates the quay (21 Nov 2026 screenshots).** Google, 105 Επαρ.Οδ. Λευκάδας–Βασιλικής:
 
 - **May 2023** — already against the wall, **upright and afloat**.
 - **July 2024** — listed, tarps (matches ZigZag).
 - **July 2026** — still there after the empty auctions.
-- **May 2019** — thumbnail exists, **not opened**.
+- **May 2019** — **she is not there** (same filmstrip, opened). Charter site that month: Port of Nice.
 
-Same-day storm-drag on 18 Dec is **out**. The April tow is before May 2023. Open the May 2019 frame next. Full table: [`STREETVIEW.md`](STREETVIEW.md).
+Quay window: **after Aug 2020, by May 2023**. Same-day storm-drag on 18 Dec is **out**. The April tow is 2021 / 2022 / 2023. Full table: [`STREETVIEW.md`](STREETVIEW.md).
 
 ---
 

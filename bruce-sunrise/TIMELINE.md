@@ -17,8 +17,9 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 | **2018-05** | supported | Passage Scotland → Gibraltar → Mediterranean (David Rowe film, uploaded 2018-09-27). |
 | 2018 | supported | Refit in southern France for Mediterranean charter. Bruce’s published testimonial: “MSV Sunrise captain and owner.” |
 | **2018-12** | established | Charter homepage: **“Sunrise is currently in Saint-Tropez”** for Les Voiles de Saint-Tropez. Email info@sunriseadventureboat.com. |
-| 2019 season | established | About page: based **Port of Nice** most of the summer; trips to **Corsica and Elba**. Captain included. SamBoat booking link. Facebook place Sunrise Adventure Boat, Port Vauban. |
 | **2019-04-23** | established | Sunrise Adventures Ltd dissolved by compulsory strike-off (first Gazette 2019-02-05). No filed accounts showing the vessel as a company asset. Charter site kept running. |
+| **2019-05** | established | Google Street View, 105 Επαρ.Οδ. Λευκάδας–Βασιλικής: **Sunrise is not on the Vlycho quay.** |
+| 2019 season | established | About page: based **Port of Nice** most of the summer; trips to **Corsica and Elba**. Captain included. SamBoat booking link. Facebook place Sunrise Adventure Boat, Port Vauban. |
 | 2020-01-31 / 2020-12-31 | established | UK leaves the EU; Brexit transition ends. Relevant to flag choice, not proof of a flag change. |
 | **2020-08-01** | established | Poland’s **REJA24** recreational register (vessels ≤24 m) takes effect. Earliest date this hull *could* have received a `POL######` number under the current system. |
 | **2020-08-05** | established | Last Wayback capture of sunriseadventureboat.com: still **Port Vauban, Antibes**, bunks & breakfast via Booking.com. Aggregators still list MSV Sunrise, Avenue de Verdun, capitainerie, 06600 Antibes. Domain later died. |
