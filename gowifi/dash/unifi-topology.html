@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoWifi · UniFi topology</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<style>
+:root {
+  --bg:#ffffff; --text:#334155; --muted:#64748b; --acc:#334155; --wire:#7eb6ff; --wire-bak:#b7d4f5;
+  --pad:12px; --ok:#16a34a; --warn:#c77800; --line:#e6eef6;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--bg); color:var(--text);
+  font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+a { color:#123a7a; text-decoration:none; }
+header.app {
+  position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--line);
+  padding:10px max(var(--pad), env(safe-area-inset-right)) 12px max(var(--pad), env(safe-area-inset-left));
+}
+.bar { display:flex; flex-direction:column; gap:6px; }
+header.app h1 { margin:0; font-size:18px; font-weight:600; color:#123a7a; }
+.nav { display:flex; flex-wrap:wrap; gap:4px 16px; }
+.nav a { color:#123a7a; font-size:14px; min-height:40px; display:inline-flex; align-items:center; }
+main { padding:10px max(var(--pad), env(safe-area-inset-right)) 28px max(var(--pad), env(safe-area-inset-left)); }
+.banner {
+  margin:0 0 10px; padding:8px 10px; border:1px solid var(--line); border-radius:12px; background:#fff8e8;
+}
+.banner.ok { background:#eef8f1; }
+.banner strong { color:var(--warn); }
+.banner.ok strong { color:var(--ok); }
+.topo { position:relative; width:100%; max-width:100%; margin:0; overflow:visible; }
+.fibre-in {
+  position:absolute; z-index:3; pointer-events:none;
+  font-size:11px; line-height:1.2; color:var(--muted);
+  white-space:nowrap; background:#fff; padding:0 4px;
+  transform:translate(-50%, 0);
+}
+.fibre-in .pct { color:var(--ok); font-weight:600; }
+.link-mbps {
+  position:absolute; z-index:3; pointer-events:none;
+  font-size:11px; line-height:1.15; color:#475569;
+  white-space:nowrap; background:#fff; padding:0 3px;
+  transform:translate(-50%, -120%);
+}
+.topo-flow {
+  display:flex; flex-direction:row; flex-wrap:wrap; align-items:center;
+  justify-content:flex-start; gap:28px 24px; z-index:2; padding:56px 8px 40px;
+}
+.spine {
+  display:flex; flex-direction:row; align-items:flex-start; gap:44px; flex:0 0 auto; z-index:2;
+}
+.spine-icon {
+  height:52px; display:flex; align-items:center; justify-content:center;
+}
+.col { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; }
+.col-inet { margin-right:100px; }
+.col-udm { min-width:36px; }
+.site-card #udm-icon {
+  width:52px; height:18px; max-width:none; max-height:18px;
+  object-fit:cover; object-position:center;
+}
+#lte-node {
+  position:absolute; left:50%; bottom:calc(100% + 12px); transform:translateX(-50%);
+}
+.col-sw-branch {
+  position:relative; width:48px; height:88px; align-self:flex-start; flex:0 0 48px;
+  display:flex; align-items:center;
+}
+#switch-node {
+  position:absolute; left:50%; bottom:calc(50% + 88px); transform:translateX(-50%);
+}
+.col-es { min-width:40px; }
+.radio-grid {
+  display:grid;
+  grid-template-columns:auto auto minmax(88px, auto);
+  grid-template-rows:auto auto auto 32px auto;
+  align-items:center; justify-items:start;
+  column-gap:56px; row-gap:28px;
+  z-index:2;
+}
+#es16-pop, #ptp-block, #hs-trees { display:contents; }
+#nano-block {
+  grid-column:3; grid-row:5;
+  display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
+  padding:10px 0 0 4px;
+}
+#nano-cpe {
+  display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
+  gap:20px;
+}
+.cpe-span { margin-left:140px; }
+.ptp-grow { min-width:88px; min-height:20px; }
+.hs-tree {
+  display:flex; flex-direction:row; align-items:center;
+  gap:72px; padding-left:28px; min-height:58px;
+}
+.hs-branches { display:flex; flex-direction:column; justify-content:center; gap:22px; }
+.hs-branch { display:flex; flex-direction:row; align-items:flex-start; gap:72px; }
+.hs-branch-drop { margin-top:36px; }
+.hs-clients {
+  display:flex; flex-direction:column; justify-content:flex-start;
+  align-items:flex-start;
+  gap:28px; padding:24px 0 0 8px;
+}
+.hs-clients > .cpe-station { align-self:flex-start; }
+.radio-pair {
+  display:flex; flex-direction:row; align-items:flex-start; gap:0;
+}
+.radio-pair .cpe-station { min-width:0; }
+.radio-pair .cpe-station:first-child { align-items:flex-end; }
+.radio-pair .sector-station { align-items:flex-start; min-width:0; }
+.radio-face-right img { transform:scaleX(-1); }
+.radio-grid.gone, #nano-block.gone, .hs-tree.gone, .uisp-kid.gone, .gone { display:none; }
+.stack { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.uisp-kid img { width:36px; height:36px; display:block; object-fit:contain; }
+.uisp-kid.uisp-radio img { width:36px; height:36px; }
+.cap {
+  font-weight:400; font-size:11px; line-height:1.2; color:var(--muted);
+  text-align:center; max-width:90px; white-space:normal;
+  background:#fff; padding:0 3px; position:relative; z-index:4;
+}
+.site-card {
+  display:flex; flex-direction:row; align-items:center; gap:8px;
+  padding:5px 12px 5px 7px; background:#fff;
+  border:1px solid #d9e3ee; border-radius:20px;
+  box-shadow:0 1px 2px rgba(15,23,42,.04);
+}
+.site-card img { width:18px; height:18px; object-fit:contain; }
+.site-card-name { font-weight:400; font-size:11px; color:#475569; white-space:nowrap; }
+.cpe-row {
+  display:flex; flex-direction:row; align-items:flex-start; justify-content:flex-start;
+  gap:64px; min-height:58px;
+}
+.cpe-station {
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+  gap:2px; min-width:52px;
+}
+.cpe-row img, .cpe-station img, .hs-tree img {
+  width:36px; height:36px; max-width:36px; max-height:36px;
+  display:block; object-fit:contain;
+}
+.cpe-name {
+  font-weight:400; font-size:11px; line-height:1.15; color:#475569;
+  text-align:center; max-width:88px; white-space:normal;
+  background:#fff; padding:0 3px; position:relative; z-index:4;
+}
+.uisp-cube img, .cpe-station.uisp-cube img {
+  width:22px; height:22px; max-width:22px; max-height:22px;
+}
+.cpe-station.sector-station img, img.sector-icon {
+  width:22px; height:36px; max-width:22px; max-height:36px;
+}
+.globe-svg, #lte-icon { width:34px; height:34px; display:block; object-fit:contain; }
+#udm-icon, #console-icon { width:52px; height:auto; display:block; object-fit:contain; }
+#wires { position:absolute; left:0; top:0; right:0; bottom:0; width:100%; height:100%; pointer-events:none; z-index:1; overflow:visible; }
+.wire-base { fill:none; stroke:var(--wire); stroke-width:2; stroke-linecap:butt; stroke-linejoin:miter; stroke-miterlimit:2; }
+.wire-base.bak { stroke:var(--wire-bak); }
+.wire-base.down { stroke:#c62828; }
+.wire-base.wifi { stroke:#f0a04b; stroke-dasharray:5 4; }
+.wire-base.dash { stroke-dasharray:5 4; }
+.pkt { fill:#5b93d6; }
+.pkt.bak { fill:var(--wire-bak); }
+.pkt.wifi { fill:#f0a04b; }
+.later { margin:20px auto 0; max-width:520px; color:var(--muted); font-size:13px; }
+.later h2 { margin:0 0 8px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#123a7a; }
+@media (min-width: 600px) {
+  header.app, main { max-width:1400px; margin-left:auto; margin-right:auto; }
+  .bar { flex-direction:row; align-items:flex-end; justify-content:space-between; }
+  .topo-flow { flex-wrap:nowrap; gap:56px 120px; min-height:520px; padding:96px 12px 80px; }
+  .spine { gap:72px; }
+  .col-inet { margin-right:120px; }
+  .spine-icon { height:64px; }
+  .col-sw-branch { height:120px; }
+  .radio-grid { column-gap:88px; row-gap:36px; grid-template-rows:auto auto auto 48px auto; }
+  #switch-node { bottom:calc(50% + 112px); }
+  .globe-svg, #lte-icon { width:40px; height:40px; }
+  #udm-icon, #console-icon { width:64px; }
+  .site-card #udm-icon {
+    width:64px; height:20px; max-width:none; max-height:20px;
+    object-fit:cover; object-position:center;
+  }
+  .uisp-kid img, .uisp-kid.uisp-radio img, .cpe-row img, .cpe-station img, .hs-tree img {
+    width:48px; height:48px; max-width:48px; max-height:48px;
+  }
+  .uisp-cube img, .cpe-station.uisp-cube img {
+    width:26px; height:26px; max-width:26px; max-height:26px;
+  }
+  .cpe-station.sector-station img, img.sector-icon {
+    width:28px; height:48px; max-width:28px; max-height:48px;
+  }
+  .radio-pair .cpe-station { min-width:0; }
+  .cpe-row { gap:80px; min-height:72px; }
+  .cpe-station { min-width:64px; gap:2px; }
+  .cpe-name { font-size:12px; max-width:110px; }
+  .hs-tree { gap:96px; min-height:72px; }
+  .hs-branch { gap:96px; }
+  .hs-branch-drop { margin-top:52px; }
+  .hs-branches { gap:28px; }
+  .hs-clients { gap:36px; padding:28px 0 0 8px; align-items:flex-start; }
+  .cpe-span { margin-left:140px; }
+  .fibre-in, .link-mbps { font-size:12px; }
+  .cap { font-size:12px; max-width:110px; }
+  .site-card { padding:6px 14px 6px 8px; }
+  .site-card img { width:20px; height:20px; }
+  .site-card-name, .cpe-name { font-size:12px; }
+  #nano-block { padding:12px 0 0 4px; }
+  #nano-cpe { gap:24px; }
+  #lte-node { bottom:calc(100% + 16px); }
+}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="bar">
+    <div><h1>UniFi topology</h1></div>
+    <nav class="nav">
+      <a href="/dash/unifi.html">UniFi</a>
+      <a href="/dash/unifi.html?h=1-dream-machine-pro-hermanus">Dream Machine</a>
+      <a href="/dash/#/">Home</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="banner" id="banner">Loading topology…</div>
+  <div class="topo" id="topo">
+    <svg class="wires" id="wires" viewBox="0 0 100 100" preserveAspectRatio="xMinYMin meet" aria-hidden="true"></svg>
+    <div class="fibre-in" id="fibre-in-wan" hidden></div>
+    <div class="fibre-in" id="fibre-in-wan2" hidden></div>
+    <div id="link-mbps-layer"></div>
+    <div class="topo-flow" id="topo-grid" data-topo-layout="horizontal">
+    <div class="spine">
+    <div class="col col-inet stack" id="globe">
+      <div class="spine-icon">
+      <svg class="globe-svg" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="15" fill="none" stroke="#64748b" stroke-width="2"></circle>
+        <ellipse cx="24" cy="24" rx="7" ry="15" fill="none" stroke="#64748b" stroke-width="2"></ellipse>
+        <path d="M9 24h30M11 16h26M11 32h26" fill="none" stroke="#64748b" stroke-width="2"></path>
+      </svg>
+      </div>
+      <div class="cap">Internet</div>
+    </div>
+    <div class="col col-udm">
+      <div class="stack" id="lte-node">
+        <div class="cap">U-LTE</div>
+        <img id="lte-icon" alt="U-LTE" width="64" height="64">
+      </div>
+      <div class="stack" id="udm-node">
+        <div class="spine-icon">
+        <div class="site-card" id="vk-pop-pill">
+          <img id="udm-icon" alt="UDM">
+          <span class="site-card-name">VK Pop</span>
+        </div>
+        </div>
+        <div class="cap">UDM</div>
+      </div>
+    </div>
+    <div class="col col-con stack" id="console-node">
+      <div class="spine-icon">
+      <img id="console-icon" alt="Console" width="129" height="129">
+      </div>
+      <div class="cap">Console</div>
+    </div>
+    <div class="col col-sw-branch">
+      <div class="stack uisp-kid gone" id="switch-node">
+        <div class="cap" id="switch-name"></div>
+        <div class="cap gone" id="vk-pop-site"></div>
+        <img id="switch-icon" alt="">
+      </div>
+    </div>
+    <div class="col col-es stack uisp-kid gone" id="es16-node">
+      <div class="spine-icon">
+      <img id="es16-icon" alt="">
+      </div>
+      <div class="cap" id="es16-name"></div>
+    </div>
+    </div>
+    <div class="radio-grid gone" id="radio-grid">
+      <div id="es16-pop"></div>
+      <div id="ptp-block"></div>
+      <div id="hs-trees"></div>
+      <div id="nano-block" class="gone"><div id="nano-cpe"></div></div>
+    </div>
+    </div>    </div>
+  </div>
+  <div class="later" id="later"></div>
+</main>
+<script>
+const HOST = "1-dream-machine-pro-hermanus";
+const LIVE_MS = 250;
+const RATE_MS = 250;
+const CONSOLE_MS = 15000;
+const SPOKE_PX = 140;
+const STUB_PX = 18;
+const STALE_MS = 45000;
+const HIST_MAX = 90;
+const CONSOLE_MAC = "e4:38:83:de:e6:4a";
+const ICONS = {
+  udm: "https://static.ui.com/fingerprint/ui/icons/a685746f-cd8f-4453-90c7-68a3ba9c1953_129x129.png",
+  console: "https://static.ui.com/fingerprint/ui/icons/3af1df03-557b-4243-9aaf-91abbb97aac6_129x129.png",
+  lte: "https://static.ui.com/fingerprint/ui/icons/299afbfa-1584-2214-5673-42e6f7560a67_129x129.png",
+  sector120: "/dash/img/am-5g19-120.png"
+};
+
+let GAUGES = [];
+let HISTORY = {};
+let LAST_OK_MS = 0;
+let LAST_AS_AT = "";
+let STALE = false;
+let CONSOLE = { ok: false };
+let SWITCH = { show:false, ok:false };
+let ES16 = { show:false, ok:false };
+let ESPOP = [];
+let NANO_CPE = [];
+let PTP = [];
+let LINKS = [];
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[c]));
+}
+function fmtAsAt(s) {
+  const raw = String(s || "").trim();
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/);
+  if (m) return m[1] + " " + m[2];
+  const m2 = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  return m2 ? (m2[1] + " " + m2[2] + ":00") : raw;
+}
+function wanStatus(s) {
+  const low = String(s || "").toLowerCase();
+  if (low === "online" || low === "up") return "Online";
+  if (low === "offline" || low === "down") return "Offline";
+  return s || "";
+}
+function numOrNull(n) {
+  if (n == null || n === "") return null;
+  const v = Number(n);
+  return Number.isFinite(v) ? v : null;
+}
+function mergeGauges(base, live) {
+  if (!live || !live.length) return base || [];
+  if (!base || !base.length) return live;
+  const byId = Object.fromEntries(live.map(g => [g.id, g]));
+  return base.map(g => {
+    const n = byId[g.id];
+    if (!n) return g;
+    const stDown = [n.speedtest_down_mbps, g.speedtest_down_mbps].map(numOrNull).filter(v => v != null);
+    const stUp = [n.speedtest_up_mbps, g.speedtest_up_mbps].map(numOrNull).filter(v => v != null);
+    return Object.assign({}, g, n, {
+      name: g.name,
+      capacity_down_mbps: g.capacity_down_mbps,
+      capacity_up_mbps: g.capacity_up_mbps,
+      speedtest_down_mbps: stDown.length ? Math.max.apply(null, stDown) : g.speedtest_down_mbps,
+      speedtest_up_mbps: stUp.length ? Math.max.apply(null, stUp) : g.speedtest_up_mbps,
+      used_down_mbps: n.used_down_mbps,
+      used_up_mbps: n.used_up_mbps
+    });
+  });
+}
+function pushHist(gauges) {
+  (gauges || []).forEach(g => {
+    if (!HISTORY[g.id]) HISTORY[g.id] = { down: [], up: [] };
+    HISTORY[g.id].down.push(numOrNull(g.used_down_mbps));
+    HISTORY[g.id].up.push(numOrNull(g.used_up_mbps));
+    if (HISTORY[g.id].down.length > HIST_MAX) HISTORY[g.id].down.shift();
+    if (HISTORY[g.id].up.length > HIST_MAX) HISTORY[g.id].up.shift();
+  });
+}
+function gauge(id) {
+  return (GAUGES || []).find(g => g.id === id) || {};
+}
+function fibrePeak(id, live) {
+  const key = "fibre-peak-" + id;
+  let prev = 0;
+  try { prev = Number(localStorage.getItem(key) || 0) || 0; } catch (e) { prev = 0; }
+  if (live != null && live > prev && live >= 100) {
+    prev = Math.round(live * 10) / 10;
+    try { localStorage.setItem(key, String(prev)); } catch (e) {}
+  }
+  return prev || null;
+}
+function fibreTotal(g) {
+  const st = numOrNull(g.speedtest_down_mbps);
+  const cap = numOrNull(g.capacity_down_mbps);
+  const live = numOrNull(g.used_down_mbps);
+  const peak = fibrePeak(g.id, live);
+  const named = String(g.name || "").match(/(\d+)\s*\/\s*\d+/);
+  const nameN = named ? Number(named[1]) : 0;
+  const best = Math.max(st || 0, cap || 0, peak || 0, nameN || 0);
+  return best > 0 ? Math.round(best) : null;
+}
+function fmtLiveMbps(n) {
+  if (n == null) return "—";
+  if (Math.abs(n) >= 10) return n.toFixed(1);
+  return n.toFixed(2);
+}
+function placeFibreIn(id, rec, x, y, side) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const total = fibreTotal(rec);
+  const live = numOrNull(rec.used_down_mbps);
+  if (total == null && live == null) { el.hidden = true; return; }
+  const pct = (total && live != null) ? Math.max(0, live / total * 100) : null;
+  const pctTxt = pct == null ? "—" : ((pct >= 10 ? pct.toFixed(0) : pct.toFixed(1)) + "%");
+  el.innerHTML = esc(total == null ? "—" : (total + " Mbps")) + " / " + esc(fmtLiveMbps(live)) + " / <span class=\"pct\">" + esc(pctTxt) + "</span>";
+  el.style.left = x.toFixed(1) + "px";
+  el.style.top = (side === "above" ? (y - 20) : (y + 12)).toFixed(1) + "px";
+  el.hidden = false;
+}
+function clockAsAt() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return d.getUTCFullYear() + "-" + p(d.getUTCMonth() + 1) + "-" + p(d.getUTCDate()) + " " + p(d.getUTCHours()) + ":" + p(d.getUTCMinutes()) + ":" + p(d.getUTCSeconds());
+}
+function setBanner(stale, asAt) {
+  const banner = document.getElementById("banner");
+  LAST_AS_AT = stale ? fmtAsAt(asAt || LAST_AS_AT) : clockAsAt();
+  banner.className = stale ? "banner" : "banner ok";
+  banner.innerHTML = stale
+    ? "<strong>Stale.</strong> as at " + esc(LAST_AS_AT || "—")
+    : "<strong>Live.</strong> as at " + esc(LAST_AS_AT);
+}
+function bindIcon(id, src) {
+  const img = document.getElementById(id);
+  img.src = src;
+  img.addEventListener("load", () => requestAnimationFrame(paintWires));
+  img.addEventListener("error", () => { img.classList.add("gone"); }, { once:true });
+}
+function box(sel) {
+  const origin = document.getElementById("wires").getBoundingClientRect();
+  const r = document.querySelector(sel).getBoundingClientRect();
+  return {
+    l: r.left - origin.left, r: r.right - origin.left,
+    t: r.top - origin.top, b: r.bottom - origin.top,
+    cx: r.left + r.width / 2 - origin.left,
+    cy: r.top + r.height / 2 - origin.top,
+    w: r.width, h: r.height
+  };
+}
+function h(x1, x2, y) { return `M${x1.toFixed(1)} ${y.toFixed(1)} L${x2.toFixed(1)} ${y.toFixed(1)}`; }
+function v(x, y1, y2) { return `M${x.toFixed(1)} ${y1.toFixed(1)} L${x.toFixed(1)} ${y2.toFixed(1)}`; }
+function dishGap(b, side) {
+  const g = 10;
+  if (side === "l") return b.l - g;
+  if (side === "r") return b.r + g;
+  if (side === "t") return b.t - g;
+  return b.b + g;
+}
+function ortho(x1, y1, x2, y2, frac) {
+  const a = Number(x1.toFixed(1));
+  const b = Number(y1.toFixed(1));
+  const c = Number(x2.toFixed(1));
+  const d = Number(y2.toFixed(1));
+  if (Math.abs(b - d) < 3) return `M${a} ${b} H${c}`;
+  if (Math.abs(a - c) < 3) return `M${a} ${b} V${d}`;
+  const mid = Number((a + (c - a) * ((frac == null) ? 0.5 : frac)).toFixed(1));
+  return `M${a} ${b} H${mid} V${d} H${c}`;
+}
+function lr(a, b, yOff, frac) {
+  const off = yOff || 0;
+  return ortho(dishGap(a, "r"), a.cy + off, dishGap(b, "l"), b.cy + off, frac);
+}
+function fanFrom(origin, target) {
+  const ox = dishGap(origin, "r");
+  const mid = ox + 36;
+  return `M${ox.toFixed(1)} ${origin.cy.toFixed(1)} H${mid.toFixed(1)} V${target.cy.toFixed(1)} H${dishGap(target, "l").toFixed(1)}`;
+}
+function fanJoinX(targets, stub) {
+  return Math.min(...targets.map(t => t.l)) - (stub == null ? 120 : stub);
+}
+function fanSpoke(from, to, joinX) {
+  return `M${dishGap(from, "r").toFixed(1)} ${from.cy.toFixed(1)} H${joinX.toFixed(1)} V${to.cy.toFixed(1)} H${dishGap(to, "l").toFixed(1)}`;
+}
+function hopPath(a, b, frac) {
+  if (b.t > a.b + 20 && b.cx < a.l - 8) {
+    const midY = a.b + 18;
+    return `M${a.cx.toFixed(1)} ${dishGap(a, "b").toFixed(1)} V${midY.toFixed(1)} H${b.cx.toFixed(1)} V${dishGap(b, "t").toFixed(1)}`;
+  }
+  return lr(a, b, 0, frac);
+}
+function inward(a, b, px) {
+  if (Math.abs(b - a) < 0.01) return a;
+  return a + Math.sign(b - a) * px;
+}
+let WIRE_SIG = "";
+function packets(d, on, extra, dur, offset) {
+  if (!on || !d) return "";
+  const cls = extra ? ("pkt " + extra) : "pkt";
+  const t = (dur || 1.7) * 2;
+  const off = offset || 0;
+  return [off, off - t / 2].map(begin =>
+    `<circle class="${cls}" r="3"><animateMotion dur="${t}s" begin="${begin}s" repeatCount="indefinite" path="${d}"></animateMotion></circle>`
+  ).join("");
+}
+function equalizeHsBranchDrops() {
+  document.querySelectorAll(".hs-tree").forEach(tree => {
+    const drop = tree.querySelector(".hs-branch-drop");
+    if (!drop) {
+      tree.style.paddingBottom = "";
+      return;
+    }
+    const swImg = tree.querySelector("[id^='hs-sw-icon-']");
+    const dropRad = drop.querySelector(".cpe-station:not(.sector-station) img");
+    const other = Array.prototype.find.call(tree.querySelectorAll(".hs-branch"), b => !b.classList.contains("hs-branch-drop"));
+    const liteImg = other && other.querySelector(".cpe-station img");
+    if (!swImg || !swImg.offsetParent || !dropRad || !liteImg) return;
+    const sw = swImg.getBoundingClientRect();
+    const lite = liteImg.getBoundingClientRect();
+    const ap = dropRad.getBoundingClientRect();
+    const swCy = sw.top + sw.height / 2;
+    const liteUp = swCy - (lite.top + lite.height / 2);
+    const apDown = (ap.top + ap.height / 2) - swCy;
+    const applied = Number(drop.dataset.dropY || 0);
+    const dy = Math.max(0, Math.round(applied + liteUp - apDown));
+    if (dy === applied) return;
+    drop.dataset.dropY = String(dy);
+    drop.style.transform = dy ? "translateY(" + dy + "px)" : "";
+    tree.style.paddingBottom = dy ? dy + "px" : "";
+  });
+}
+function paintWires() {
+  if (typeof placeHops === "function") placeHops();
+  if (typeof equalizeHsBranchDrops === "function") equalizeHsBranchDrops();
+  const svg = document.getElementById("wires");
+  const topo = document.getElementById("topo");
+  const g = box(".globe-svg");
+  const l = box("#lte-icon");
+  const u = box("#udm-icon");
+  const c = box("#console-icon");
+  const br = topo.getBoundingClientRect();
+  const tw = Math.max(Math.round(br.width), 1);
+  const th = Math.max(Math.round(br.height), 1);
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
+  svg.style.left = "0px";
+  svg.style.top = "0px";
+  svg.style.width = tw + "px";
+  svg.style.height = th + "px";
+  svg.setAttribute("viewBox", "0 0 " + tw + " " + th);
+  svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
+  function knownOn(id) {
+    const s = gauge(id).status;
+    if (s == null || s === "") return null;
+    return wanStatus(s) === "Online";
+  }
+  const wanOn = knownOn("wan");
+  const wan2On = knownOn("wan2");
+  const lteOn = knownOn("lte");
+  const f1 = !STALE && wanOn === true;
+  const f2 = !STALE && wan2On === true;
+  const fC = CONSOLE.ok === true;
+  const swShow = SWITCH.show && document.getElementById("switch-icon") && document.getElementById("switch-icon").offsetParent;
+  const esShow = ES16.show && document.getElementById("es16-icon") && document.getElementById("es16-icon").offsetParent;
+  const fSw = fC && SWITCH.ok === true;
+  const fEs = fC && ES16.ok === true;
+  function lineCls(alive, extra) {
+    if (alive === null) return "wire-base wait" + (extra ? " " + extra : "");
+    return "wire-base" + (alive ? (extra ? " " + extra : "") : " down");
+  }
+  const popEl = document.getElementById("vk-pop-pill");
+  const pop = (popEl && popEl.offsetParent) ? box("#vk-pop-pill") : null;
+  const hub = pop || u;
+  const fibreX = (g.r + hub.l) / 2;
+  const wireY = (g.cy + hub.cy) / 2;
+  placeFibreIn("fibre-in-wan", gauge("wan"), fibreX, wireY - 6, "above");
+  placeFibreIn("fibre-in-wan2", gauge("wan2"), fibreX, wireY + 6, "below");
+  const dF1 = lr(g, hub, -2, 0.5);
+  const dF2 = lr(g, hub, 2, 0.5);
+  const dLte = `M${l.cx.toFixed(1)} ${dishGap(l, "b").toFixed(1)} V${(hub.t - 8).toFixed(1)}`;
+  const dPopL = "";
+  const dPopR = pop ? lr(pop, c, 0, 0.5) : "";
+  const dCon = pop ? "" : lr(u, c, 0, 0.5);
+  let dSw = "";
+  let dEs = "";
+  if (esShow) dEs = lr(c, box("#es16-icon"), 0, 0.5);
+  if (swShow) {
+    const sw = box("#switch-icon");
+    dSw = `M${sw.cx.toFixed(1)} ${c.cy.toFixed(1)} V${(sw.b + 8).toFixed(1)}`;
+  }
+  let html =
+    `<path class="${lineCls(wanOn)}" d="${dF1}"></path>` +
+    `<path class="${lineCls(wan2On, "bak")}" d="${dF2}"></path>` +
+    `<path class="${lineCls(lteOn)}" d="${dLte}"></path>` +
+    (dPopL ? `<path class="${lineCls(CONSOLE.ok === true)}" d="${dPopL}"></path>` : "") +
+    (dPopR ? `<path class="${lineCls(CONSOLE.ok === true)}" d="${dPopR}"></path>` : "") +
+    (dCon ? `<path class="${lineCls(CONSOLE.ok === true)}" d="${dCon}"></path>` : "") +
+    (dSw ? `<path class="${lineCls(fSw)}" d="${dSw}"></path>` : "") +
+    (dEs ? `<path class="${lineCls(fEs)}" d="${dEs}"></path>` : "") +
+    packets(dF1, f1, "", 1.55, 0) + packets(dF2, f2, "bak", 2.35, -0.7) +
+    packets(dPopL, fC, "", 1.9, -1.2) + packets(dPopR, fC, "", 1.9, -0.4) + packets(dCon, fC, "", 1.9, -1.2) +
+    packets(dSw, fSw, "", 2.15, -0.4) + packets(dEs, fEs, "", 2.75, -1.0);
+  const extra = [];
+  const extraPk = [];
+  if (esShow) {
+    const es = box("#es16-icon");
+    const pops = [];
+    ESPOP.forEach((kid, i) => {
+      const el = document.getElementById("pop-icon-" + i);
+      if (!kid.show || !el || !el.offsetParent) return;
+      pops.push({ kid, i, p: box("#pop-icon-" + i) });
+    });
+    const wrapped = pops.some(x => x.p.t > es.b + 20 && x.p.cx < es.l - 8);
+    pops.forEach(({ kid, i, p }) => {
+      const d = wrapped ? hopPath(es, p) : fanFrom(es, p);
+      const on = fEs && kid.ok === true;
+      extra.push(`<path class="${lineCls(on)}" d="${d}"></path>`);
+      extraPk.push(packets(d, on, "", 1.65 + i * 0.28, -0.25 * i));
+    });
+  }
+  const nanoImg = document.querySelector("img[data-role='nano']");
+  if (nanoImg && nanoImg.offsetParent && NANO_CPE.some(k => k.show)) {
+    const n = box("img[data-role='nano']");
+    const cpes = [];
+    NANO_CPE.forEach((kid, i) => {
+      const el = document.getElementById("cpe-icon-" + i);
+      if (!kid.show || !el || !el.offsetParent) return;
+      cpes.push({ kid, i, p: box("#cpe-icon-" + i) });
+    });
+    if (cpes.length) {
+      const joinX = fanJoinX(cpes.map(x => x.p), SPOKE_PX);
+      cpes.forEach(({ kid, i, p }) => {
+        const d = fanSpoke(n, p, joinX);
+        const on = kid.ok === true;
+        extra.push(`<path class="${lineCls(on, "wifi dash")}" d="${d}"></path>`);
+        extraPk.push(packets(d, on, "wifi", 2.05 + i * 0.32, -0.2 * i));
+        const cube = kid.cube || {};
+        const cEl = document.getElementById("cube-icon-" + i);
+        if (cube.show && cEl && cEl.offsetParent) {
+          const cb = box("#cube-icon-" + i);
+          const d2 = lr(p, cb, 0, 0.5);
+          extra.push(`<path class="${lineCls(on && cube.ok === true)}" d="${d2}"></path>`);
+          extraPk.push(packets(d2, on && cube.ok === true, "", 2.4 + i * 0.3, -0.15 * i));
+        }
+      });
+    }
+  }
+  PTP.forEach((kid, i) => {
+    const src = kid.srcSel && document.querySelector(kid.srcSel);
+    const el = document.getElementById("ptp-icon-" + i);
+    if (!kid.show || !src || !src.offsetParent || !el || !el.offsetParent) return;
+    const d = hopPath(box(kid.srcSel), box("#ptp-icon-" + i), 0.35);
+    extra.push(`<path class="${lineCls(kid.ok === true, "wifi dash")}" d="${d}"></path>`);
+    extraPk.push(packets(d, kid.ok === true, "wifi", 2.2 + i * 0.35, -0.18 * i));
+    paintSiteTreeWires(kid, i, extra, extraPk, lineCls);
+  });
+  html += extra.join("") + extraPk.join("");
+  placeLinkRates();
+  const sig = html + "|" + tw + "x" + th + "|" + f1 + f2 + fC + fSw + fEs + ESPOP.map(k => k.ok).join("") + NANO_CPE.map(k => k.ok + ":" + ((k.cube && k.cube.ok) || "")).join("") + PTP.map(k => k.ok + ":" + siteTreeSig(k)).join("");
+  if (sig === WIRE_SIG) return;
+  WIRE_SIG = sig;
+  svg.innerHTML = html;
+}
+function later() {
+  const rows = (GAUGES || []).map(g => {
+    const down = numOrNull(g.used_down_mbps);
+    const up = numOrNull(g.used_up_mbps);
+    return `<div>${esc(g.name || g.id)} · ${esc(wanStatus(g.status) || "—")} · ↓ ${down == null ? "—" : down.toFixed(2)} · ↑ ${up == null ? "—" : up.toFixed(2)}</div>`;
+  });
+  document.getElementById("later").innerHTML = "<h2>Later</h2>" + (rows.join("") || "<div>—</div>");
+}
+function paint() {
+  try {
+    later();
+    requestAnimationFrame(() => {
+      try { paintWires(); } catch (e) { console.warn(e); }
+    });
+  } catch (e) { console.warn(e); }
+}
+function markStale() {
+  STALE = true;
+  paint();
+  setBanner(true, LAST_AS_AT);
+}
+function applyHost(data) {
+  STALE = false;
+  LAST_OK_MS = Date.now();
+  GAUGES = (data.host && data.host.gauges) || data.gauges || GAUGES;
+  pushHist(GAUGES);
+  paint();
+  setBanner(false, data.as_at);
+}
+function liveUrl() {
+  return "/dash/api/unifi?h=" + encodeURIComponent(HOST) + "&live=1&t=" + Date.now();
+}
+function fetchLive() {
+  return fetch(liveUrl(), { credentials:"same-origin", cache:"no-store" })
+    .then(r => r.json())
+    .then(data => {
+      if (!data || !data.ok || !(data.gauges || []).length) {
+        if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+        return false;
+      }
+      STALE = false;
+      LAST_OK_MS = Date.now();
+      GAUGES = mergeGauges(GAUGES, data.gauges || []);
+      pushHist(GAUGES);
+      paint();
+      setBanner(false, data.as_at);
+      return true;
+    })
+    .catch(() => {
+      if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+      return false;
+    });
+}
+function liveTick() {
+  if (document.hidden) {
+    if (LAST_OK_MS && Date.now() - LAST_OK_MS > STALE_MS && !STALE) markStale();
+    return;
+  }
+  if (!STALE && LAST_OK_MS) setBanner(false);
+  fetchLive();
+}
+function startPoll() {
+  if (window.__unifiPoll) return;
+  window.__unifiPoll = setInterval(liveTick, LIVE_MS);
+  window.__unifiRatePoll = setInterval(() => {
+    if (!document.hidden) refreshLinkRates();
+  }, RATE_MS);
+  window.__unifiConsolePoll = setInterval(() => {
+    if (!document.hidden) loadConsole();
+  }, CONSOLE_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      fetchLive();
+      refreshLinkRates();
+      loadConsole();
+    }
+  });
+}
+function consoleLinkUp(dev) {
+  if (!dev) return false;
+  const ident = dev.identification || {};
+  const ov = dev.overview || {};
+  if (dev.enabled === false) return false;
+  if (String(ov.status || "").toLowerCase() !== "active") return false;
+  const rawIfs = dev.interfaces;
+  const ifs = Array.isArray(rawIfs) ? rawIfs : ((rawIfs && (rawIfs.items || rawIfs.data)) || []);
+  const eth8 = ifs.find(iface => {
+    const iid = iface.identification || {};
+    const name = String(iid.name || iface.ifname || iface.name || "");
+    return name === "8" || name.toLowerCase() === "eth8" || Number(iid.position) === 7;
+  });
+  if (!eth8) return false;
+  const st = eth8.status || {};
+  const speed = String(st.currentSpeed || st.speed || "");
+  return st.plugged === true && /[1-9]/.test(speed);
+}
+
+function asRows(data) {
+  if (Array.isArray(data)) return data;
+  if (!data || typeof data !== "object") return [];
+  return data.items || data.data || data.devices || [];
+}
+function identOf(d) { return (d && d.identification) || {}; }
+function devId(d) { return String(identOf(d).id || d.id || ""); }
+function sideId(side) {
+  if (!side) return "";
+  const dev = side.device || {};
+  const ident = dev.identification || {};
+  return String(ident.id || dev.id || side.id || "");
+}
+function uispIcon(model, type) {
+  const folder = type || "airMax";
+  return "https://gowifi.uisp.com/nms/models/" + folder + "/" + model + "-l.png";
+}
+function linkToConsole(links, consoleId, id) {
+  return (links || []).find(L => {
+    const a = sideId(L.from);
+    const b = sideId(L.to);
+    if (!a || !b || a === b) return false;
+    return (a === consoleId && b === id) || (b === consoleId && a === id);
+  }) || null;
+}
+function linkBetween(links, a, b) {
+  if (!a || !b) return null;
+  if (a === b) {
+    return (links || []).find(L => sideId(L.from) === a && sideId(L.to) === a) || null;
+  }
+  return (links || []).find(L => {
+    const x = sideId(L.from);
+    const y = sideId(L.to);
+    return (x === a && y === b) || (x === b && y === a);
+  }) || null;
+}
+function sideRxMbps(side) {
+  const st = side && side.interface && side.interface.statistics;
+  if (!st) return null;
+  const rx = numOrNull(st.rxRate);
+  return rx == null ? null : rx / 1000000;
+}
+function sideTxMbps(side) {
+  const st = side && side.interface && side.interface.statistics;
+  if (!st) return null;
+  const tx = numOrNull(st.txRate);
+  return tx == null ? null : tx / 1000000;
+}
+function linkDownMbps(link, childId) {
+  if (!link) return null;
+  const fromId = sideId(link.from);
+  const toId = sideId(link.to);
+  let child = null, parent = null;
+  if (childId && fromId === childId) { child = link.from; parent = link.to; }
+  else if (childId && toId === childId) { child = link.to; parent = link.from; }
+  else { child = link.to || link.from; parent = child === link.from ? link.to : link.from; }
+  const rx = sideRxMbps(child);
+  const tx = sideTxMbps(parent);
+  if (rx != null && tx != null) return Math.max(rx, tx);
+  return rx != null ? rx : tx;
+}
+function sumMbps(nodes) {
+  let total = 0, any = false;
+  (nodes || []).forEach(n => {
+    if (!n || n.show === false) return;
+    const v = numOrNull(n.downMbps);
+    if (v != null) { total += v; any = true; }
+  });
+  return any ? total : null;
+}
+function rollupTree() {
+  NANO_CPE.forEach(k => {
+    if (k.cube && k.cube.show) {
+      const cube = numOrNull(k.cube.downMbps);
+      if (cube != null) k.downMbps = cube;
+    }
+  });
+  const nano = ESPOP.find(p => radioRole(p) === "nano");
+  const nanoSum = sumMbps(NANO_CPE);
+  if (nano && nanoSum != null) nano.downMbps = nanoSum;
+  PTP.forEach(k => {
+    (k.radios || []).forEach(rad => {
+      const cliSum = sumMbps(rad.clients);
+      if (cliSum != null) rad.downMbps = cliSum;
+    });
+    if (k.switch && k.switch.show) {
+      const radSum = sumMbps(k.radios);
+      if (radSum != null) k.switch.downMbps = radSum;
+      k.downMbps = k.switch.downMbps;
+    } else {
+      const radSum = sumMbps(k.radios);
+      if (radSum != null) k.downMbps = radSum;
+    }
+    const near = ESPOP.find(p => radioRole(p) === k.role);
+    if (near && k.downMbps != null) near.downMbps = k.downMbps;
+  });
+  const esSum = sumMbps(ESPOP);
+  if (ES16.show && esSum != null) ES16.downMbps = esSum;
+  const fed = [];
+  if (ES16.show) fed.push(ES16);
+  if (SWITCH.show) fed.push(SWITCH);
+  const conSum = sumMbps(fed);
+  if (conSum != null) CONSOLE.downMbps = conSum;
+}
+function applyLinkRates(links) {
+  if (links) LINKS = links;
+  const cid = CONSOLE.id;
+  if (cid) CONSOLE.downMbps = linkDownMbps(linkBetween(LINKS, cid, cid), cid);
+  if (SWITCH.id) SWITCH.downMbps = linkDownMbps(linkBetween(LINKS, cid, SWITCH.id), SWITCH.id);
+  if (ES16.id) ES16.downMbps = linkDownMbps(linkBetween(LINKS, cid, ES16.id), ES16.id);
+  ESPOP.forEach(k => {
+    if (k.id) k.downMbps = linkDownMbps(linkBetween(LINKS, ES16.id, k.id), k.id);
+  });
+  const nano = ESPOP.find(p => radioRole(p) === "nano");
+  NANO_CPE.forEach(k => {
+    if (k.id && nano && nano.id) k.downMbps = linkDownMbps(linkBetween(LINKS, nano.id, k.id), k.id);
+    if (k.cube && k.cube.id) k.cube.downMbps = linkDownMbps(linkBetween(LINKS, k.id, k.cube.id), k.cube.id);
+  });
+  PTP.forEach(k => {
+    const near = ESPOP.find(p => radioRole(p) === k.role);
+    if (k.id && near && near.id) k.downMbps = linkDownMbps(linkBetween(LINKS, near.id, k.id), k.id);
+    if (k.switch && k.switch.id) k.switch.downMbps = linkDownMbps(linkBetween(LINKS, k.id, k.switch.id), k.switch.id);
+    (k.radios || []).forEach(rad => {
+      if (rad.id && k.switch && k.switch.id) rad.downMbps = linkDownMbps(linkBetween(LINKS, k.switch.id, rad.id), rad.id);
+      (rad.clients || []).forEach(cli => {
+        if (cli.id && rad.id) cli.downMbps = linkDownMbps(linkBetween(LINKS, rad.id, cli.id), cli.id);
+      });
+    });
+  });
+  rollupTree();
+}
+function refreshLinkRates() {
+  fetch("/dash/api/data-links", { credentials:"same-origin", cache:"no-store" })
+    .then(r => r.json())
+    .then(linkData => {
+      applyLinkRates(asRows(linkData));
+      placeLinkRates();
+    })
+    .catch(() => {});
+}
+function addLinkMbps(layer, mbps, x, y) {
+  if (mbps == null || !Number.isFinite(mbps) || !layer) return;
+  const el = document.createElement("div");
+  el.className = "link-mbps";
+  el.textContent = fmtLiveMbps(mbps);
+  el.style.left = x.toFixed(1) + "px";
+  el.style.top = y.toFixed(1) + "px";
+  layer.appendChild(el);
+}
+function addInMbps(layer, mbps, b, dir) {
+  if (!b) return;
+  if (dir === "left") addLinkMbps(layer, mbps, b.l - 10, b.cy);
+  else if (dir === "right") addLinkMbps(layer, mbps, b.r + 32, b.cy);
+  else if (dir === "down") addLinkMbps(layer, mbps, b.cx, b.b + 22);
+  else addLinkMbps(layer, mbps, b.cx, b.t);
+}
+function addSpokeMbps(layer, mbps, from, to, joinX, along, prevY) {
+  if (!to || mbps == null) return;
+  if (along === "v") {
+    const startY = prevY != null ? prevY : (from && from.cy);
+    const y = (startY != null && Math.abs(startY - to.cy) > 8) ? (startY + to.cy) / 2 : to.cy;
+    addLinkMbps(layer, mbps, joinX, y);
+    return;
+  }
+  addLinkMbps(layer, mbps, (joinX + to.l) / 2, to.cy);
+}
+function safeBox(sel) {
+  try {
+    const el = document.querySelector(sel);
+    if (!el || !el.offsetParent && el.id !== "wires") return null;
+    if (!el.getClientRects().length) return null;
+    return box(sel);
+  } catch (e) { return null; }
+}
+function placeLinkRates() {
+  const layer = document.getElementById("link-mbps-layer");
+  if (!layer) return;
+  layer.innerHTML = "";
+  const con = safeBox("#console-icon");
+  const es = safeBox("#es16-icon");
+  const sw = safeBox("#switch-icon");
+  if (con) addInMbps(layer, CONSOLE.downMbps, con, "left");
+  if (es) addInMbps(layer, ES16.downMbps, es, "right");
+  if (sw && con) addLinkMbps(layer, SWITCH.downMbps, sw.cx, (sw.b + con.cy) / 2);
+  else if (sw) addInMbps(layer, SWITCH.downMbps, sw, "down");
+  const lte = safeBox("#lte-icon");
+  if (lte) addInMbps(layer, numOrNull(gauge("lte").used_down_mbps), lte, "down");
+  ESPOP.forEach((kid, i) => {
+    addInMbps(layer, kid.downMbps, safeBox("#pop-icon-" + i), "left");
+  });
+  const nanoBox = safeBox("img[data-role='nano']");
+  const cpeBoxes = [];
+  NANO_CPE.forEach((kid, i) => {
+    const p = safeBox("#cpe-icon-" + i);
+    if (p) cpeBoxes.push({ kid, p });
+  });
+  if (cpeBoxes.length) {
+    const joinX = fanJoinX(cpeBoxes.map(x => x.p), SPOKE_PX);
+    cpeBoxes.forEach(({ kid, p }) => addSpokeMbps(layer, kid.downMbps, nanoBox, p, joinX, "h"));
+  }
+  PTP.forEach((kid, i) => {
+    addInMbps(layer, kid.downMbps, safeBox("#ptp-row-" + i), "left");
+    addInMbps(layer, kid.switch && kid.switch.downMbps, safeBox("#hs-sw-icon-" + i), "left");
+    (kid.radios || []).forEach((rad, ri) => {
+      addInMbps(layer, rad.downMbps, safeBox("#hs-rad-icon-" + i + "-" + ri), "left");
+      const sec = safeBox("#hs-rad-icon-" + i + "-" + ri + "-sector") || safeBox("#hs-rad-icon-" + i + "-" + ri);
+      const clients = [];
+      (rad.clients || []).forEach((cli, ci) => {
+        const p = safeBox("#hs-cli-icon-" + i + "-" + ri + "-" + ci);
+        if (p) clients.push({ cli, p });
+      });
+      if (clients.length === 1 && sec) {
+        addLinkMbps(layer, clients[0].cli.downMbps, (sec.r + clients[0].p.l) / 2, (sec.cy + clients[0].p.cy) / 2);
+      } else if (clients.length) {
+        const joinX = fanJoinX(clients.map(x => x.p), STUB_PX);
+        clients.forEach(({ cli, p }) => {
+          const along = needsOrangeSpan(cli.name) ? "h" : "v";
+          addSpokeMbps(layer, cli.downMbps, sec, p, joinX, along);
+        });
+      }
+    });
+  });
+}
+function setKid(prefix, rec) {
+  const node = document.getElementById(prefix + "-node");
+  const img = document.getElementById(prefix + "-icon");
+  const lab = document.getElementById(prefix + "-name");
+  if (!rec.show) {
+    node.classList.add("gone");
+    return;
+  }
+  node.classList.remove("gone");
+  if (rec.icon && img.getAttribute("src") !== rec.icon) {
+    img.src = rec.icon;
+    img.alt = rec.name || rec.model || "";
+    img.addEventListener("load", () => requestAnimationFrame(paintWires), { once: true });
+  }
+  const short = { switch: "UISP-S", es16: "ES16" };
+  lab.textContent = short[prefix] || rec.name || rec.model || "";
+}
+function isVkPop(d) {
+  const site = identOf(d).site || {};
+  const name = String(site.name || site.id || "").replace(/\s+/g, " ").trim();
+  return /^vk pop$/i.test(name);
+}
+function radioRank(d) {
+  const m = String(identOf(d).model || "");
+  const n = String(identOf(d).name || "");
+  if (/vk-fk|fk ptp/i.test(n)) return 0;
+  if (/vk-lo|lo ptp/i.test(n)) return 1;
+  if (m === "LAP-120" || /lite\s*ap/i.test(n)) return 2;
+  if (m === "NBE-5AC-Gen2" || /nano/i.test(n)) return 3;
+  return 9;
+}
+function cleanLabel(name, model) {
+  let n = String(name || "").replace(/GoWifi/gi, "").replace(/\s+/g, " ").trim();
+  if (/nano/i.test(n) && /beam/i.test(n)) return "Nano";
+  if (/lite\s*ap/i.test(n)) return "LiteAP";
+  if (/wanting/i.test(n)) return "Wanting";
+  if (/de\s+villiers/i.test(n) || /de\s+villers/i.test(n)) return "De Villiers";
+  if (/marlene/i.test(n)) return "Marlene";
+  if (/hundermark/i.test(n)) return "Hundermark";
+  if (/air\s*cube/i.test(n) || model === "ACB-ISP") return "AirCube";
+  if (/vk-fk/i.test(n)) return "VK-FK";
+  if (/vk-lo/i.test(n)) return "VK-LO";
+  if (/fk-vk/i.test(n)) return "FK High Site";
+  if (/lo-vk/i.test(n)) return "LO High Site";
+  if (model === "ES-8-150W" || /es-8|eswitch/i.test(n)) return "ES8";
+  if (/fk\s*ap/i.test(n)) return "FK AP";
+  if (/lo-?ap/i.test(n)) return "LO AP";
+  if (/deon|gerber/i.test(n)) return "Deon";
+  if (/^bing\b/i.test(n)) return "Bing";
+  if (/v-?sq|hotspot/i.test(n)) return "V-SQ";
+  if (/whale/i.test(n)) return "Whale";
+  if (/litebeam/i.test(n)) return "LiteBeam";
+  n = n.replace(/\s*PTP\s*/i, " ").replace(/\s+/g, " ").trim();
+  return n || model || "";
+}
+function isNanoRec(rec) {
+  return rec && (rec.model === "NBE-5AC-Gen2" || /nano/i.test(rec.name || ""));
+}
+function radioRole(rec) {
+  if (isNanoRec(rec)) return "nano";
+  const n = rec && rec.name || "";
+  if (/vk-fk|fk ptp/i.test(n)) return "fk";
+  if (/vk-lo|lo ptp/i.test(n)) return "lo";
+  return "";
+}
+function isAirCube(d) {
+  const ident = identOf(d);
+  return ident.model === "ACB-ISP" || String(ident.type || "") === "airCube" || /air\s*cube/i.test(ident.name || "");
+}
+function radioRow(rec) {
+  const role = radioRole(rec);
+  if (role === "fk") return 1;
+  if (role === "lo") return 2;
+  if (role === "nano") return 5;
+  return 4;
+}
+function placeHops() {
+  const grid = document.getElementById("radio-grid");
+  if (!grid || grid.classList.contains("gone")) return;
+  ESPOP.forEach((rec, i) => {
+    const n = document.getElementById("pop-node-" + i);
+    if (n) n.style.gridArea = radioRow(rec) + " / 1";
+  });
+  PTP.forEach((rec, i) => {
+    const n = document.getElementById("ptp-row-" + i);
+    if (n) n.style.gridArea = (rec.role === "fk" ? 1 : 2) + " / 2";
+    const t = document.getElementById("hs-tree-" + i);
+    if (t) t.style.gridArea = (rec.role === "fk" ? 1 : 2) + " / 3";
+  });
+}
+function isRocket(rec) {
+  const m = String((rec && rec.model) || "");
+  const n = String((rec && rec.name) || "");
+  return /^R5AC/i.test(m) || /rocket/i.test(m) || /rocket/i.test(n);
+}
+function needsOrangeSpan(name) {
+  return /bing|villiers|villers|hundermark|marlene|wanting/i.test(String(name || ""));
+}
+function stationHtml(id, rec, name, opts) {
+  opts = opts || {};
+  const lab = name || cleanLabel(rec.name, rec.model);
+  const face = opts.face ? " radio-face-" + opts.face : "";
+  const span = needsOrangeSpan(lab) || needsOrangeSpan(rec.name) ? " cpe-span" : "";
+  const inner = `<div class="cpe-station${face}${span}">
+    <img id="${id}" alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+    <span class="cpe-name">${esc(lab)}</span>
+  </div>`;
+  if (!opts.sector) return inner;
+  return `<div class="radio-pair">${inner}<div class="cpe-station sector-station">
+    <img class="sector-icon" id="${id}-sector" alt="120 sector" src="${ICONS.sector120}">
+    <span class="cpe-name">120°</span>
+  </div></div>`;
+}
+function linkKids(rows, links, parentId, used, type) {
+  return rows.filter(d => {
+    const id = devId(d);
+    if (!id || id === parentId || used.has(id)) return false;
+    const L = linkToConsole(links, parentId, id);
+    return !!(L && String(L.type || "").toLowerCase() === type);
+  });
+}
+function isSiteSwitch(d) {
+  const m = String(identOf(d).model || "");
+  return m === "ES-8-150W" || m === "ES-16-150W" || /^ES-8/i.test(m);
+}
+function attachSiteTree(rec, farDev, rows, links, used) {
+  rec.switch = { show:false, ok:false };
+  rec.radios = [];
+  const farId = devId(farDev);
+  const swDev = linkKids(rows, links, farId, used, "ethernet").find(isSiteSwitch);
+  if (!swDev) return rec;
+  used.add(devId(swDev));
+  rec.switch = kidRec(swDev, linkToConsole(links, farId, devId(swDev)));
+  const radios = linkKids(rows, links, devId(swDev), used, "ethernet").filter(d => {
+    const t = String(identOf(d).type || "");
+    return t === "airMax" || /lite|beam|ap/i.test(identOf(d).name || "");
+  });
+  rec.radios = radios.map(r => {
+    used.add(devId(r));
+    const rr = kidRec(r, linkToConsole(links, devId(swDev), devId(r)));
+    rr.clients = linkKids(rows, links, devId(r), used, "wireless").map(c => {
+      used.add(devId(c));
+      return kidRec(c, linkToConsole(links, devId(r), devId(c)));
+    }).sort((a, b) => cleanLabel(a.name).localeCompare(cleanLabel(b.name)));
+    return rr;
+  }).sort((a, b) => cleanLabel(a.name).localeCompare(cleanLabel(b.name)));
+  return rec;
+}
+function siteTreeSig(kid) {
+  const sw = kid && kid.switch && kid.switch.ok;
+  const rad = ((kid && kid.radios) || []).map(r => r.ok + ":" + ((r.clients || []).map(c => c.ok).join(","))).join("|");
+  return sw + "/" + rad;
+}
+function paintSiteTreeWires(kid, i, extra, extraPk, lineCls) {
+  const swEl = document.getElementById("hs-sw-icon-" + i);
+  if (!kid.switch || !kid.switch.show || !swEl || !swEl.offsetParent) return;
+  const sw = box("#hs-sw-icon-" + i);
+  const pill = document.getElementById("ptp-row-" + i);
+  if (pill && pill.offsetParent) {
+    const p = box("#ptp-row-" + i);
+    const d = lr(p, sw, 0, 0.5);
+    extra.push(`<path class="${lineCls(kid.ok && kid.switch.ok)}" d="${d}"></path>`);
+    extraPk.push(packets(d, !!(kid.ok && kid.switch.ok), "", 2.1 + i * 0.2, -0.1 * i));
+  }
+  (kid.radios || []).forEach((rad, ri) => {
+    const rEl = document.getElementById("hs-rad-icon-" + i + "-" + ri);
+    if (!rad.show || !rEl || !rEl.offsetParent) return;
+    const rb = box("#hs-rad-icon-" + i + "-" + ri);
+    const d = lr(sw, rb, 0, 0.5);
+    extra.push(`<path class="${lineCls(kid.switch.ok && rad.ok)}" d="${d}"></path>`);
+    extraPk.push(packets(d, !!(kid.switch.ok && rad.ok), "", 2.2 + ri * 0.2, -0.12 * ri));
+    const secEl = document.getElementById("hs-rad-icon-" + i + "-" + ri + "-sector");
+    const from = (secEl && secEl.offsetParent) ? box("#hs-rad-icon-" + i + "-" + ri + "-sector") : rb;
+    const cboxes = [];
+    (rad.clients || []).forEach((cli, ci) => {
+      const cEl = document.getElementById("hs-cli-icon-" + i + "-" + ri + "-" + ci);
+      if (!cli.show || !cEl || !cEl.offsetParent) return;
+      cboxes.push({ cli, ci, p: box("#hs-cli-icon-" + i + "-" + ri + "-" + ci) });
+    });
+    if (cboxes.length === 1) {
+      const d2 = lr(from, cboxes[0].p, 0, 0.5);
+      extra.push(`<path class="${lineCls(rad.ok && cboxes[0].cli.ok, "wifi dash")}" d="${d2}"></path>`);
+      extraPk.push(packets(d2, !!(rad.ok && cboxes[0].cli.ok), "wifi", 2.3, -0.1));
+    } else {
+      const joinX = fanJoinX(cboxes.map(x => x.p), STUB_PX);
+      cboxes.forEach(({ cli, ci, p }) => {
+        const d2 = fanSpoke(from, p, joinX);
+        extra.push(`<path class="${lineCls(rad.ok && cli.ok, "wifi dash")}" d="${d2}"></path>`);
+        extraPk.push(packets(d2, !!(rad.ok && cli.ok), "wifi", 2.3 + ci * 0.2, -0.1 * ci));
+      });
+    }
+  });
+}
+function renderSiteTrees(list) {
+  const wrap = document.getElementById("hs-trees");
+  if (!wrap) return;
+  wrap.innerHTML = list.map((rec, i) => {
+    if (!rec.switch || !rec.switch.show) return "";
+    const row = rec.role === "fk" ? 1 : 2;
+    const branches = (rec.radios || []).map((rad, ri) => {
+      const clients = (rad.clients || []).map((cli, ci) => stationHtml("hs-cli-icon-" + i + "-" + ri + "-" + ci, cli, null, { face: "left" })).join("");
+      const drop = (isRocket(rad) && (rec.radios || []).length > 1) ? " hs-branch-drop" : "";
+      return `<div class="hs-branch${drop}">${stationHtml("hs-rad-icon-" + i + "-" + ri, rad, null, { sector: isRocket(rad), face: "right" })}<div class="hs-clients">${clients}</div></div>`;
+    }).join("");
+    return `<div class="hs-tree" id="hs-tree-${i}" style="grid-area:${row} / 3">${stationHtml("hs-sw-icon-" + i, rec.switch)}<div class="hs-branches">${branches}</div></div>`;
+  }).join("");
+  wrap.querySelectorAll("img").forEach(img => {
+    img.addEventListener("load", () => requestAnimationFrame(paintWires), { once:true });
+  });
+}
+function renderEs16Pop(list) {
+  const grid = document.getElementById("radio-grid");
+  const boxEl = document.getElementById("es16-pop");
+  if (!list.length) {
+    grid.classList.add("gone");
+    boxEl.innerHTML = "";
+    return;
+  }
+  grid.classList.remove("gone");
+  boxEl.innerHTML = list.map((rec, i) => {
+    const role = radioRole(rec);
+    const face = " radio-face-right";
+    return `<div class="stack uisp-kid uisp-radio${face}" id="pop-node-${i}" style="grid-area:${radioRow(rec)} / 1">
+      <img id="pop-icon-${i}"${role ? ` data-role="${role}"` : ""} alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+      <div class="cap">${esc(cleanLabel(rec.name, rec.model))}</div>
+    </div>`;
+  }).join("");
+  list.forEach((rec, i) => {
+    const img = document.getElementById("pop-icon-" + i);
+    if (img) img.addEventListener("load", () => requestAnimationFrame(paintWires), { once:true });
+  });
+}
+function renderHops(cpeList, ptpList) {
+  const cpeWrap = document.getElementById("nano-block");
+  const cpeBox = document.getElementById("nano-cpe");
+  const ptpBox = document.getElementById("ptp-block");
+  const ptpSorted = ptpList.slice().sort((a, b) => (a.role === "fk" ? 0 : 1) - (b.role === "fk" ? 0 : 1));
+  ptpBox.innerHTML = ptpSorted.map((rec, i) => {
+    const row = rec.role === "fk" ? 1 : 2;
+    return `<div class="site-card ptp-row" id="ptp-row-${i}" style="grid-area:${row} / 2">
+      <img id="ptp-icon-${i}" alt="${esc(cleanLabel(rec.name, rec.model))}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+      <span class="site-card-name">${esc(cleanLabel(rec.name, rec.model))}</span>
+    </div>`;
+  }).join("");
+  if (!cpeList.length) {
+    cpeWrap.classList.add("gone");
+    cpeBox.innerHTML = "";
+  } else {
+    cpeWrap.classList.remove("gone");
+    cpeBox.innerHTML = cpeList.map((rec, i) => {
+      const cube = rec.cube && rec.cube.show ? rec.cube : null;
+      const cubeHtml = cube ? `<div class="cpe-station uisp-kid uisp-radio uisp-cube" id="cube-node-${i}">
+        <img id="cube-icon-${i}" alt="AirCube" src="${esc(cube.icon || "")}" onerror="this.classList.add('gone')">
+        <span class="cpe-name">Cube</span>
+      </div>` : "";
+      return `<div class="cpe-row" id="cpe-row-${i}">
+        <div class="cpe-station cpe-span">
+          <img id="cpe-icon-${i}" alt="${esc(rec.name || "")}" src="${esc(rec.icon || "")}" onerror="this.classList.add('gone')">
+          <span class="cpe-name">${esc(cleanLabel(rec.name, rec.model))}</span>
+        </div>
+        ${cubeHtml}
+      </div>`;
+    }).join("");
+  }
+  PTP = ptpSorted;
+  [...cpeList.keys()].forEach(i => {
+    ["cpe-icon-" + i, "cube-icon-" + i].forEach(id => {
+      const img = document.getElementById(id);
+      if (img) img.addEventListener("load", () => requestAnimationFrame(paintWires), { once:true });
+    });
+  });
+  ptpSorted.forEach((rec, i) => {
+    const img = document.getElementById("ptp-icon-" + i);
+    if (img) img.addEventListener("load", () => requestAnimationFrame(paintWires), { once:true });
+  });
+  renderSiteTrees(ptpSorted);
+  requestAnimationFrame(placeHops);
+}
+function kidRec(dev, link) {
+  if (!dev || !link) return { show:false, ok:false };
+  const ident = identOf(dev);
+  const ov = dev.overview || {};
+  const ok = identOf(dev) &&
+    dev.enabled !== false &&
+    String(ov.status || "").toLowerCase() === "active" &&
+    String(link.state || "").toLowerCase() === "active";
+  return {
+    show: true,
+    ok,
+    id: devId(dev),
+    downMbps: linkDownMbps(link, devId(dev)),
+    name: ident.name || ident.displayName || ident.model || "",
+    model: ident.model || "",
+    icon: uispIcon(ident.model || "", ident.type || "")
+  };
+}
+let TOPO_SIG = "";
+let CONSOLE_BUSY = false;
+function loadConsole() {
+  if (CONSOLE_BUSY) return;
+  CONSOLE_BUSY = true;
+  Promise.all([
+    fetch("/dash/api/devices?withInterfaces=true", { credentials:"same-origin", cache:"no-store" }).then(r => r.json()),
+    fetch("/dash/api/data-links", { credentials:"same-origin", cache:"no-store" }).then(r => r.json()).catch(() => [])
+  ]).then(([devData, linkData]) => {
+    const rows = asRows(devData);
+    const links = asRows(linkData);
+    const hit = rows.find(d => String(identOf(d).mac || d.mac || "").toLowerCase() === CONSOLE_MAC);
+    if (!rows.length || !hit) {
+      paint();
+      return;
+    }
+    const cid = hit ? devId(hit) : "";
+    LINKS = links;
+    CONSOLE = { ok: consoleLinkUp(hit), id: cid };
+    const kids = cid ? rows.filter(d => {
+      const id = devId(d);
+      return id && id !== cid && linkToConsole(links, cid, id);
+    }) : [];
+    const sw = kids.find(d => identOf(d).model === "UISP-S");
+    const es = kids.find(d => identOf(d).model === "ES-16-150W");
+    SWITCH = kidRec(sw, sw ? linkToConsole(links, cid, devId(sw)) : null);
+    ES16 = kidRec(es, es ? linkToConsole(links, cid, devId(es)) : null);
+    setKid("switch", SWITCH);
+    setKid("es16", ES16);
+    document.getElementById("vk-pop-site").classList.toggle("gone", !(SWITCH.show || ES16.show));
+    const eid = es ? devId(es) : "";
+    const popKids = (eid ? rows.filter(d => {
+      const id = devId(d);
+      if (!id || id === eid || id === cid) return false;
+      if (!linkToConsole(links, eid, id)) return false;
+      return isVkPop(d);
+    }) : []).sort((a, b) => radioRank(a) - radioRank(b));
+    ESPOP = popKids.map(d => kidRec(d, linkToConsole(links, eid, devId(d))));
+    const nanoDev = popKids.find(d => {
+      const rec = { name: identOf(d).name, model: identOf(d).model };
+      return radioRole(rec) === "nano";
+    });
+    const nid = nanoDev ? devId(nanoDev) : "";
+    const cpeKids = (nid ? rows.filter(d => {
+      const id = devId(d);
+      if (!id || id === nid || id === eid || id === cid) return false;
+      const L = linkToConsole(links, nid, id);
+      if (!L || String(L.type || "").toLowerCase() !== "wireless") return false;
+      return true;
+    }) : []).sort((a, b) => cleanLabel(identOf(a).name).localeCompare(cleanLabel(identOf(b).name)));
+    NANO_CPE = cpeKids.map(d => {
+      const rec = kidRec(d, linkToConsole(links, nid, devId(d)));
+      const cubeDev = rows.find(c => {
+        const id = devId(c);
+        if (!id || id === devId(d)) return false;
+        const L = linkToConsole(links, devId(d), id);
+        return !!(L && String(L.type || "").toLowerCase() === "ethernet" && isAirCube(c));
+      });
+      rec.cube = cubeDev ? kidRec(cubeDev, linkToConsole(links, devId(d), devId(cubeDev))) : { show:false, ok:false };
+      return rec;
+    });
+    const used = new Set([nid, eid, cid].filter(Boolean));
+    PTP = [];
+    popKids.forEach((d, i) => {
+      const role = radioRole(kidRec(d, linkToConsole(links, eid, devId(d))));
+      if (role !== "fk" && role !== "lo") return;
+      const nearId = devId(d);
+      const far = rows.find(x => {
+        const id = devId(x);
+        if (!id || id === nearId || used.has(id)) return false;
+        const L = linkToConsole(links, nearId, id);
+        return !!(L && String(L.type || "").toLowerCase() === "wireless");
+      });
+      if (!far) return;
+      used.add(devId(far));
+      const rec = kidRec(far, linkToConsole(links, nearId, devId(far)));
+      rec.srcSel = "#es16-pop img[data-role='" + role + "']";
+      rec.role = role;
+      attachSiteTree(rec, far, rows, links, used);
+      PTP.push(rec);
+    });
+    const sig = [cid, eid, nid].concat(ESPOP.map(k => k.name), NANO_CPE.map(k => k.name), PTP.map(k => k.name + ":" + k.role)).join("|");
+    const gridEmpty = !document.querySelector("#es16-pop .uisp-kid, #hs-trees .hs-tree, #nano-cpe .cpe-row");
+    if (sig !== TOPO_SIG || gridEmpty) {
+      TOPO_SIG = sig;
+      renderEs16Pop(ESPOP);
+      renderHops(NANO_CPE, PTP);
+    }
+    applyLinkRates(links);
+    paint();
+  }).catch(() => {
+    paint();
+  }).finally(() => { CONSOLE_BUSY = false; });
+}
+
+function bootLive() {
+  fetchLive().then(ok => {
+    if (!ok && !LAST_AS_AT) {
+      document.getElementById("banner").className = "banner";
+      document.getElementById("banner").innerHTML = "<strong>Not live from UniFi.</strong>";
+    }
+  });
+  startPoll();
+}
+function bootFat() {
+  fetch("/dash/api/unifi?h=" + encodeURIComponent(HOST), { credentials:"same-origin", cache:"no-store" })
+    .then(r => r.json())
+    .then(data => {
+      if (!data || !data.host) return;
+      if (data.host.gauges && data.host.gauges.length) {
+        GAUGES = mergeGauges(data.host.gauges, GAUGES);
+      }
+      paint();
+      if (data.as_at && !LAST_AS_AT) setBanner(STALE, data.as_at);
+    })
+    .catch(() => {});
+}
+bindIcon("udm-icon", ICONS.udm);
+bindIcon("console-icon", ICONS.console);
+bindIcon("lte-icon", ICONS.lte);
+window.addEventListener("resize", () => { placeHops(); paintWires(); });
+paint();
+loadConsole();
+bootLive();
+bootFat();
+</script>
+</body>
+</html>
