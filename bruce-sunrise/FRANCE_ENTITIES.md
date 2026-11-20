@@ -17,7 +17,11 @@ Greece named **ECO-VIE Association, based in France** as shipowner. The public G
 
 **Why this is the lead.** The name matches Greece’s “ECO-VIE Association”. The seat is the same hamlet later used by Bruce’s SCI. Other French ECO-VIE / E.C.O-V.I.E. associations exist (Fontenay-le-Comte 2002; Tourrettes-sur-Loup RNA `W061001187` from 2009; others). Those are **different entities**. Tourrettes-sur-Loup is inland of Nice and thematically similar; it is **not** the one with a documented Bruce address overlap.
 
-**Still missing:** founding declaration, statutes, officer list, and any later changes, from the Var association registry (`pref-associations@var.gouv.fr`). Without those, Bruce cannot be listed as president, treasurer, or signatory of ECO-VIE.
+**JO after 2008:** none. A title search of the Journal officiel associations dataset for ECO-VIE in the Var returns **only** the 27 Nov 2008 creation. No modification, change of officers, change of seat, or dissolution was ever gazetted. INSEE `recherche-entreprises` returns **zero** hits for the name at Roquebrune (expected: a loi 1901 association is not a SIREN company unless it opted in).
+
+So ECO-VIE of Roquebrune is an **old, unpublished, possibly dormant association at Bruce’s documented hamlet**, not a vehicle incorporated after 18 Dec 2023. A later transfer of the hull *into* that existing shell is still possible. Officers remain unpublished.
+
+**Still missing:** founding declaration, statutes, officer list, and any later unpublished changes, from the Var association registry (`pref-associations@var.gouv.fr`). Without those, Bruce cannot be listed as president, treasurer, or signatory of ECO-VIE.
 
 ## 2. SCI Building Solutions — same address
 

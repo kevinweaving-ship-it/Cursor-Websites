@@ -16,14 +16,17 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 | **2019-04-23** | established | Sunrise Adventures Ltd dissolved by compulsory strike-off (first Gazette 2019-02-05). No filed accounts showing the vessel as a company asset. |
 | 2020-01-31 / 2020-12-31 | established | UK leaves the EU; Brexit transition ends. Relevant to flag choice, not proof of a flag change. |
 | **2020-08-01** | established | Poland’s **REJA24** recreational register (vessels ≤24 m) takes effect. Earliest date this hull *could* have received a `POL######` number under the current system. |
+| **2020-08-05** | established | Last Wayback capture of sunriseadventureboat.com: still **Port Vauban, Antibes**, bunks & breakfast. Domain later died. |
 | ~2021-12 or earlier | supported | iLefkada (day of sinking) says the large Polish-flagged hull had been moored in Vlycho **more than two years**. That is a reporter’s estimate, not a port-entry log. |
-| **2023-12-18** | established | Partial sinking at Vlycho. Polish-flagged vessel takes on water; French-flagged ~10 m speedboat alongside is forced under. No injuries. Petroleum pollution contained with a boom. Preliminary investigation: Nydri Coast Guard. |
+| some April (year open) | supported (local) | Residents quoted 18 Dec 2023: found tied at the Vlycho mole one April morning, no name, no owner; “they brought it here to sink.” |
+| **2023-12-18** | established | Partial sinking at the **concrete quay inside Vlycho port**. Polish-flagged hull takes on water; French-flagged ~10 m **Cape Horn (TL)** alongside is forced under. Photos show tarps, rust, listing against the jetty. No injuries. Petroleum boom. Nydri opens **Penal Code 277 §1A** (causing a shipwreck) plus PD 55/1998. Locals call her an abandoned rotten hulk. |
 | 2023-12-19 | established | Kathimerini restates the Coast Guard bulletin (Polish + French flags, water ingress, pressure on the second hull). |
 | 2024-02-25 | supported | Local account: wreck still opposite the pharmacy in Vlycho. |
 | **2024-05-27** | established | Port Fund wreck-committee minutes (cited in Decision 133/2026). Full inspection report not retrieved this run. |
 | 2024-10-17 | established | Building Solutions establishment at Bastide des Planets recorded closed. |
 | **2025-01-17** | established | Building Solutions company closed (INSEE `date_fermeture`). |
 | **2025-09-05** | established | Port Fund notice **1643/5-9-2025** to **ECO-VIE Association, France**, as shipowner. Decision 133/2026 says it was duly served. |
+| **2026-03-31** | established | Decision **27/2026** (ADA `6Υ85ΟΡΛΠ-0ΔΨ`) approves first-auction terms. Appendix A: **MV SUNRISE**, Polish flag, **`POL000AYP`**, 20 m, wood. |
 | 2026-04-29 | established | First removal tender **858/29-4-2026**. |
 | 2026-05-12 | established | First auction: nobody came. |
 | 2026-05-20 | established | Board Decision **63/2026** authorises a repeat. |
@@ -41,4 +44,4 @@ That is enough to date the sinking. The Hellenic Coast Guard HTML bulletin itsel
 
 ## Identity match
 
-The Port Fund auction is for the ship **“SUNRISE”**. iLefkada’s same-day photos show **SUNRISE** on the bow of a ~20 m wooden converted workboat. ChatGPT’s earlier pass recorded Polish number **`POL000AYP`** from the Port Fund appendix. That appendix (AKEP attachment) returned **403** from this environment, so treat **`POL000AYP`** as **supported pending re-download**, not as independently re-verified in this pass.
+The Port Fund auction is for the ship **“SUNRISE”**. iLefkada’s same-day photos show **SUNRISE** on the bow of a ~20 m wooden converted workboat. Appendix A of Decision **27/2026** and of Declaration **2/2026** (both retrieved as Diavgeia PDFs this pass) print **MV SUNRISE / Poland / `POL000AYP` / 20 m / wood**. Treat **`POL000AYP` as established** from those Greek decisions. The AKEP HTML attachment URL still returns **403**; it is no longer needed for the number.

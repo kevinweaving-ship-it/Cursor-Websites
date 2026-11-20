@@ -4,7 +4,13 @@ User question from the ChatGPT project: *why register her in Poland, what reason
 
 ## When — for this hull
 
-**Proven window only.** No Polish registration date is in the public files retrieved here.
+**The number is now established from the Greek appendix.** Decision **27/2026** (31 Mar 2026, ADA `6Υ85ΟΡΛΠ-0ΔΨ`) and Declaration **2/2026** (ADA `ΡΟΖΨΟΡΛΠ-Ρ5Ρ`) both print Appendix A:
+
+> Όνομα πλοίου **MV SUNRISE** · Σημαία **ΠΟΛΩΝΙΑΣ** · Νηολόγιο **POL000AYP** · Μήκος **20m** · Υλικό **ΞΥΛΟ**
+
+That is the Port Fund’s identification of the Vlycho wreck. It is **not** a Polish extract: it does not date first registration, name the owner, or list amendments.
+
+**Proven window only for the date of that Polish number.** No Polish registration date is in the public files retrieved here.
 
 | Bound | Date | Why |
 | --- | --- | --- |
@@ -66,7 +72,7 @@ Bruce’s Companies House nationality is **French**, residence France. He did no
 
 **Not shown:**
 
-- The date Poland first issued `POL000AYP`.
+- The date Poland first issued `POL000AYP` (the number itself is now in the Greek PDF).
 - Whether Bruce, Sunrise Adventures Ltd, ECO-VIE, or someone else was the first Polish owner.
 - Whether money changed hands.
 - Any MMSI tied to this hull (UKE ship-station lists have several unrelated `SUNRISE` radio licences).

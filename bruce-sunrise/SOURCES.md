@@ -35,13 +35,27 @@ Retrieved or confirmed **20 Nov 2026 (Africa/Johannesburg)** unless noted. ChatG
 
 - iLefkada casualty report and photos, 18 Dec 2023: https://ilefkada.gr/epikairotita/18320/vlycho-vythistikan-dyo-skafi/
 - Kathimerini restating the Coast Guard bulletin, 19 Dec 2023: https://www.kathimerini.gr/society/562791553/leykada-thalassia-rypansi-logo-vythisis-dyo-thalamigon/
+- Decision 27/2026 first-auction terms + Appendix A (POL000AYP): https://diavgeia.gov.gr/doc/6Υ85ΟΡΛΠ-0ΔΨ
 - Decision 133/2026 (repeat auction unsuccessful): https://diavgeia.gov.gr/doc/6ΝΤΥΟΡΛΠ-1ΦΛ
-- Decision 63/2026 (first auction empty): https://diavgeia.gov.gr/doc/9ΨΚΤΟΡΛΠ-6ΒΓ
-- Repeat declaration 2/2026: https://diavgeia.gov.gr/doc/ΡΟΖΨΟΡΛΠ-Ρ5Ρ
+- Decision 63/2026 (repeat-auction authorisation): https://diavgeia.gov.gr/doc/9ΨΚΤΟΡΛΠ-6ΒΓ
+- Repeat declaration 2/2026 + Appendix A: https://diavgeia.gov.gr/doc/ΡΟΖΨΟΡΛΠ-Ρ5Ρ
+- aromalefkadas Facebook-sourced quay photo, 18 Dec 2023: https://aromalefkadas.gr/wp-content/uploads/2023/12/411494776_2115236532156766_1322190571838645100_n.jpg
 - HCG bulletin URL (403 from this environment): https://www.hcg.gr/el/epikairothta/by8ish-8g-skafwn-sto-nydri-ptwsh-oxhmatos-sth-8alassa-sthn-aigina-diakomides-as8enwn/
 - AKEP tender appendix URL (403 from this environment): https://www.akep.gr/Attachment/1207230/901650
 
 ## Other
+
+- aromalefkadas sinking + local “April mole” quote, 18 Dec 2023: https://aromalefkadas.gr/%CE%B2%CE%BF%CF%8D%CE%BB%CE%B9%CE%B1%CE%BE%CE%B1%CE%BD-%CF%83%CE%BA%CE%AC%CF%86%CE%B7-%CF%83%CF%84%CE%BF-%CE%B2%CE%BB%CF%85%CF%87%CF%8C/
+- aromalefkadas still at pharmacy, 25 Feb 2024: https://aromalefkadas.gr/ναυάγιο-στο-βλυχό-λευκάδας-και-διαχρο/
+- Rthess restating Coast Guard + PK 277, 19 Dec 2023: https://www.rthess.gr/ellada/lefkada-rypansi-apo-petrelaioeidi-meta-ti-vythisi-dyo-thalamigon/
+- Lefkada Today first auction, 30 Apr 2026: https://www.lefkadatoday.gr/diagonismos-gia-tin-apomakrynsi-toy-nayagioy-sunrise-ston-vlycho-leykadas/
+- Paleros Yacht Services tender post: https://www.facebook.com/PalerosYachtServices/posts/-tender-announced-for-removal-of-sunrise-wreck-vlycho-lefkada-the-municipal-port/1364318139079751/
+- Paleros: wreck still in Vlycho after empty tenders: https://www.facebook.com/PalerosYachtServices/posts/%EF%B8%8F-the-sunrise-wreck-still-remains-in-vlycho-baythe-tender-process-for-the-remova/1398512665660298/
+- iLefkada photos: https://ilefkada.gr/wp-content/uploads/2023/12/skafos-1.jpg (through skafos-5.jpg)
+- Charter site archive (Port Vauban 5 Aug 2020): https://web.archive.org/web/20200805101420/https://sunriseadventureboat.com/
+- Charter about / SamBoat (Jul 2019): https://web.archive.org/web/20190720141102/https://sunriseadventureboat.com/about-boat-rental/
+- Facebook group quoted by aromalefkadas: https://www.facebook.com/groups/991205502037297/
+- Different casualty 20 Apr 2024 (UK flag, do not mix): https://www.prevezatoday.gr/vythistike-skafos-sto-limani-toy-vlychoy-synelifthi-o-ploioktitis/
 
 - 2018 charter film: https://www.youtube.com/watch?v=fqw1sVRrdkk
 - Scottish Sub Aqua Club dive-boat list: https://www.scotsac.com/diving-links/dive-boats-centres-and-operators-gear-repairs-and-sales-scotland
@@ -55,7 +69,7 @@ Retrieved or confirmed **20 Nov 2026 (Africa/Johannesburg)** unless noted. ChatG
 | INSEE recherche-entreprises API | verified working |
 | Journal officiel associations API | verified working |
 | BODACC PDF | verified working |
-| Diavgeia Decision 133 PDF | verified working |
+| Diavgeia Decisions 27 / 63 / 133 PDFs | verified working; Appendix A = POL000AYP |
 | iLefkada / Kathimerini | verified working |
 | gov.pl REJA24 / ELI Poland | verified working |
 | ChatGPT share backend-api | verified working |

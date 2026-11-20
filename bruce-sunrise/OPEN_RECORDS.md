@@ -31,10 +31,16 @@ Greek access-to-documents rules apply. Cite Decision **133/2026** and Law **2881
 
 ## 3. Nydri Coast Guard incident file — 18 Dec 2023
 
-- Α′ Λιμενικό Τμήμα Νυδρίου (preliminary investigation named by Kathimerini).
-- Ask for: recorded owner/operator, flag documents produced, survey of water ingress, identity of the French-flagged speedboat, pollution file.
+- Α′ Λιμενικό Τμήμα Νυδρίου.
+- Opened under **Penal Code 277 §1A** (causing a shipwreck) and **PD 55/1998**. Outcome unpublished.
+- Ask for: recorded owner/operator, flag documents, survey of water ingress, whether she was moved from a mooring to the mole, identity of **Cape Horn / TL**, pollution file, any arrest or file closure.
 
 The public HCG HTML bulletin URL returned **403** from this environment. Retry from another network, or request the file from Nydri.
+
+## 3b. Facebook group thread — 18 Dec 2023
+
+- Group: [Προβληματική Λευκάδα](https://www.facebook.com/groups/991205502037297/).
+- Quote used by aromalefkadas: April-morning dump at the mole. Need the original post and comments to pin **which April** and any named tug / skipper.
 
 ## 4. Var association registry — ECO-VIE 2008
 
@@ -49,11 +55,23 @@ The public HCG HTML bulletin URL returned **403** from this environment. Retry f
 - RSS / MCA pleasure or fishing history for *Sunbeam* / *Sunrise* LK209. The 1986 OJ “scrapping” entry conflicts with later dive-boat use; do not treat LK209 as proven until the hull numbers match.
 - Companies House already retrieved: no accounts, no bill of sale on the public filing list.
 
-## 6. Charter-site / SamBoat archives
+## 6. Insurance schedule and notice of loss
+
+No public claim was found. Ask whoever placed cover in the Antibes/Nice years (broker, SamBoat commercial use, French pleasure policy):
+
+- named insured vs ECO-VIE;
+- in-commission vs laid-up warranty;
+- cruising limits (France vs Greece);
+- date and **place** on any notice of loss;
+- whether Vlycho / abandonment was disclosed.
+
+A claim locating the casualty anywhere other than Vlycho, after years on that quay, is the fraud question. It cannot be answered from the web.
+
+## 7. Charter-site / SamBoat archives
 
 ChatGPT’s last unfinished pass said it had recovered:
 
 - a SamBoat listing naming Bruce as owner in **August 2019**;
 - the boat’s own site still listing **Port Vauban, Antibes** in **August 2020**.
 
-Those URLs were **not** re-found in this pass (Wayback had no useful `sunriseadventures.com` / `.fr` / `msv-sunrise.com` hits for the 2018–2020 charter). Re-run Wayback / SamBoat with any URL Bruce still has (Facebook Sunrise Adventures, old emails, Google cache). If recovered, they pin the French base **after** the UK company died and **at the month REJA24 opened**.
+**Recovered this pass:** [sunriseadventureboat.com](https://web.archive.org/web/20200805101420/https://sunriseadventureboat.com/) — Dec 2018 Saint-Tropez; 2019 Port of Nice + SamBoat booking link; **5 Aug 2020 Port Vauban, Antibes**. SamBoat listing HTML still not archived under obvious URLs. Facebook [SunriseAdventuresLtd](https://www.facebook.com/SunriseAdventuresLtd/posts/479643322481826/) is a lead.
