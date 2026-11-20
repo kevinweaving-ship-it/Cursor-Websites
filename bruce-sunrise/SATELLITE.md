@@ -67,6 +67,20 @@ There is **no public 30 cm frame of Sunrise on a Vlycho buoy**. The ball period,
 
 Nydri harbour and other Lefkada inlets were **not** searched.
 
+## Other maps tried for the buoy years (2021–early 2023)
+
+Working assumption from family/locals: she **was** on a ball in this bay, then dragged to the pier. Google/ESRI simply have **no sharp photo of that stretch**.
+
+| Map | Result |
+| --- | --- |
+| **Copernicus VHR 2021** (EU 2 m mosaic, veg season 2020–22) | **Free, looked.** Land and the quay strip are there; **the mooring field is blanked** (NoData). It is a land-cover product. Cannot see a buoy. Crop: [`bay-vhr2021-quay-water-masked.jpg`](photos/bay-vhr2021-quay-water-masked.jpg). |
+| **Copernicus VHR 2018** | Same water cut-out. Too early anyway (still Scotland/France). |
+| **Sentinel-2** | Plenty of dates, **10 m**. A 20 m hull is two pixels. Cannot honestly ID a buoyed trawler. |
+| **Planet PlanetScope** | **Daily, 3 m.** This is the map that can still show a 20 m hull on a ball in 2021–22. Paid. |
+| **Maxar / Airbus archive** (Discover, SkyWatch) | May have extra 30 cm days that never made it into Google/ESRI. Paid browse/order. |
+| **AIS / MarineTraffic** | No public hit on **POL000AYP**. An abandoned boat often has the transponder off. |
+| **Apple / Bing / Cadastre** | One mosaic, or too early. Not a 2021–22 time series. |
+
 ## What to open next
 
 1. **Planet monthly mosaics of the mooring field** 2021–Apr 2023 — only remaining way to see a 20 m hull on a ball. Maxar/Earth/ESRI have no extra 30 cm pass in that gap at this pin.
