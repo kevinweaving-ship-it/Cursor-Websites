@@ -476,6 +476,32 @@ def sync_rounded_at(replay: dict, setups: list[dict], id_to_label: dict[int, str
     replay["rounded_at"] = rounded
     return rounded
 
+def sync_tcf(replay: dict, id_to_label: dict[int, str], setups: list[dict]) -> dict[str, float]:
+    """Write replay['tcf'] from YB RaceSetup tcf2 (ORC ToT)."""
+    pack_keys = list((replay.get("boats") or {}).keys())
+    tcf: dict[str, float] = {}
+    for setup in setups or []:
+        for t in setup.get("teams") or []:
+            if (t.get("type") or "").upper() == "COMMITTEE":
+                continue
+            raw = t.get("tcf2") if t.get("tcf2") not in (None, "", "0") else t.get("tcf")
+            try:
+                val = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if val <= 0:
+                continue
+            label = (t.get("sail") or t.get("name") or "").strip()
+            key = match_pack_key(label, pack_keys) if label else None
+            if not key and t.get("id") is not None:
+                lab = id_to_label.get(int(t["id"]))
+                key = match_pack_key(lab or "", pack_keys) if lab else None
+            if key:
+                tcf[key] = val
+    replay["tcf"] = tcf
+    return tcf
+
+
 def sync_retired(replay: dict, id_to_label: dict[int, str], setups: list[dict]) -> list[str]:
     """Write replay['retired'] from YB RaceSetup status=RETIRED."""
     pack_keys = list((replay.get("boats") or {}).keys())
@@ -559,6 +585,7 @@ def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict], setu
     marks_info = sync_course_marks(replay, trail, setups or [], fleet)
     rounded = sync_rounded_at(replay, setups or [], id_to_label)
     retired = sync_retired(replay, id_to_label, setups or [])
+    tcf_map = sync_tcf(replay, id_to_label, setups or [])
     atomic_write(replay_path, replay)
     atomic_write(trail_path, trail)
     try:
@@ -566,7 +593,7 @@ def pack_fleet(fleet: str, id_to_label: dict[int, str], tracks: list[dict], setu
         os.chown(trail_path, -1, os.stat(DATA).st_gid)
     except Exception:
         pass
-    return {"fleet": fleet, "added": added_total, "end_ts_ms": end_ts, "boats_mapped": len(label_to_key), "unchanged": unchanged, "retired": retired, "marks": marks_info, "rounded": len(rounded)}
+    return {"fleet": fleet, "added": added_total, "end_ts_ms": end_ts, "boats_mapped": len(label_to_key), "unchanged": unchanged, "retired": retired, "marks": marks_info, "rounded": len(rounded), "tcf": len(tcf_map)}
 
 
 def load_race_tracks(race_key: str) -> tuple[dict[int, str], list[dict], list[str], dict]:
