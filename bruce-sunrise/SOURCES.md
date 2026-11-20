@@ -1,6 +1,6 @@
 # Sources
 
-Retrieved or confirmed **21 Nov 2026 (Africa/Johannesburg)** unless noted. Greek compilation: [`GREECE.md`](GREECE.md). ChatGPT share: https://chatgpt.com/share/6b00b9c1-1550-83e9-a312-03cabb69212f (title: Research Bruce Sunrise). That share stopped mid-pass on the Poland-flag question; this folder continues from official records rather than copying the share.
+Retrieved or confirmed **21 Nov 2026 (Africa/Johannesburg)** unless noted. Greek compilation: [`GREECE.md`](GREECE.md). Record letters: [`REQUESTS.md`](REQUESTS.md). Mailbox: [`MAILBOX.md`](MAILBOX.md). ChatGPT share: https://chatgpt.com/share/6b00b9c1-1550-83e9-a312-03cabb69212f (title: Research Bruce Sunrise). That share stopped mid-pass on the Poland-flag question; this folder continues from official records rather than copying the share.
 
 ## United Kingdom
 

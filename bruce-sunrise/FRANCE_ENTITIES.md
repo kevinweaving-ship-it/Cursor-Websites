@@ -23,6 +23,8 @@ So ECO-VIE of Roquebrune is an **old, unpublished, possibly dormant association 
 
 **Still missing:** founding declaration, statutes, officer list, and any later unpublished changes, from the Var association registry (`pref-associations@var.gouv.fr`). Without those, Bruce cannot be listed as president, treasurer, or signatory of ECO-VIE.
 
+Same-hamlet SCI/GFA make him the **likely** person who registered a 2008 association at Bastide des Planets — still a hypothesis until the prefecture file names him. Ready letter + French system list: [`REQUESTS.md`](REQUESTS.md) §A.
+
 ## 2. SCI Building Solutions — same address
 
 | Field | Record |

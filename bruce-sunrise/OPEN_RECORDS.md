@@ -2,6 +2,8 @@
 
 Order is by how much each document would close. Public web search cannot replace these.
 
+**Outbound address:** `investigation@sailingsa.co.za` — create on GoWifi Mail-in-a-Box + add MX ([`MAILBOX.md`](MAILBOX.md)). Paste-ready letters: [`REQUESTS.md`](REQUESTS.md). Do not send until a test round-trip works.
+
 ## 1. Polish full historical copy — `POL000AYP`
 
 - Form: [REJA24 wniosek o odpis / wyciąg](https://pya.org.pl/files//rejestracja/reja24/reja24-wniosek-o-odpis-wyciag.pdf) — select **`odpis pełny`**, not the short current extract.
