@@ -26,10 +26,12 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 | between Nov 2020 and Apr 2022 | family | One return trip **to Europe**; month unknown. Mostly Hermanus. |
 | ~2021-12 or earlier | supported | iLefkada (day of sinking) says the large Polish-flagged hull had been moored in Vlycho **more than two years**. That is a reporter’s estimate, not a port-entry log. |
 | **2022-04** | family | Bruce **leaves Hermanus for Europe**. Leading candidate for the locals’ “one April morning” dump at the Vlycho mole — not proved. He may have gone to France, not Greece. |
-| some April (2021 / 2022 / 2023) | supported (local) | Residents quoted 18 Dec 2023: found tied at the Vlycho mole one April morning, no name, no owner; “they brought it here to sink.” Year still not in that quote. |
-| **2023-12-18** | established | Partial sinking at the **concrete quay inside Vlycho port**. Polish-flagged hull takes on water; French-flagged ~10 m **Cape Horn (TL)** alongside is forced under. Photos show tarps, rust, listing against the jetty. No injuries. Petroleum boom. Nydri opens **Penal Code 277 §1A** (causing a shipwreck) plus PD 55/1998. Locals call her an abandoned rotten hulk. |
+| some April (2021 / 2022 / 2023) | supported (local) | Residents quoted 18 Dec 2023: found tied at the Vlycho mole one April morning, no name, no owner; “they brought it here to sink.” Year still not in that quote. Must be before **May 2023**. |
+| **2023-05** | established | Google Street View (105 Επαρ.Οδ. Λευκάδας–Βασιλικής): already **against the Vlycho quay, upright and afloat**. Not yet listed. |
+| **2023-12-18** | established | Partial sinking at the **concrete quay inside Vlycho port**. Polish-flagged hull takes on water; French-flagged ~10 m **Cape Horn (TL)** alongside is forced under. Photos show tarps, rust, listing against the jetty. No injuries. Petroleum boom. Nydri opens **Penal Code 277 §1A** (causing a shipwreck) plus PD 55/1998. Locals call her an abandoned rotten hulk. Street View had her floating here in May — 18 Dec is the listing, not the arrival. |
 | 2023-12-19 | established | Kathimerini restates the Coast Guard bulletin (Polish + French flags, water ingress, pressure on the second hull). |
 | **2024-02-25** | established | Stavros Katsoupas on Aroma: half-sunk hull still opposite the pharmacy, unmoved more than two months. Other Vlycho wrecks named separately. |
+| **2024-07** | established | Google Street View, same pin: listed, tarps, wrecked. |
 | **2024-08-22** | established | Sailing ZigZag EXIF: listing wooden hull at the Vlycho quay, tarps, yellow boom. Posted 20 Sep 2024 as the large wreck left after others were removed. |
 | **2024-05-27** | established | Port Fund wreck-committee minutes (cited in Decision 133/2026). Full inspection report not retrieved this run. |
 | 2024-10-17 | established | Building Solutions establishment at Bastide des Planets recorded closed. |
@@ -42,7 +44,8 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 | 2026-06-10 | established | Repeat tender **1250/10-6-2026** for wreck of the ship **“SUNRISE”** at Vlycho. |
 | **2026-06-23** | established | Repeat auction: nobody came. |
 | **2026-07-13** | established | Decision **133/2026** declares the repeat auction unsuccessful. Published on Diavgeia 15 Oct 2026. |
-| 2026-11-20 | open | No later contractor award or completion certificate found. Physical removal status unverified. |
+| **2026-07** | established | Google Street View, same pin: wreck **still there**. |
+| 2026-11-20 | open | No later contractor award or completion certificate found. |
 
 ## Provenance of the sinking date
 

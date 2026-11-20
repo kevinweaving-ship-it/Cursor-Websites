@@ -35,15 +35,14 @@ That is **Sunrise still at the quay 69 days after 18 Dec**, opposite the pharmac
 
 **Reject:** “October 17, 2025 iLefkada.gr — already at that exact spot by the quay for roughly five years.” **No such article found.** The dated iLefkada line is **18 Dec 2023**: more than **two** years in the **bay** (κόλπος), already taking on water, listed **that day**. “Bay” is not “quay”. Five years would push arrival to ~2020; that remains **open**, not proved by this dump.
 
-**How to date the quay tie-up (still the right next steps):**
+**Street View now dates the quay (21 Nov 2026 screenshots).** Google, 105 Επαρ.Οδ. Λευκάδας–Βασιλικής:
 
-| Source | What it would close |
-| --- | --- |
-| Nydri / Lefkada Port Police file + May 27 2024 wreck-committee protocol | Whether they logged a tow from a buoy, and when |
-| Google Earth Pro historical at **~38.6825°N, 20.6989°E** (38°40′57″N 20°41′56″E; Vliho YC prints 38.40.95N / 20.41.89E) | First year a ~20 m wooden hull is against that quay vs out on a ball |
-| Facebook group Προβληματική Λευκάδα, 18 Dec 2023 thread | Which April |
+- **May 2023** — already against the wall, **upright and afloat**.
+- **July 2024** — listed, tarps (matches ZigZag).
+- **July 2026** — still there after the empty auctions.
+- **May 2019** — thumbnail exists, **not opened**.
 
-This environment cannot run Earth Pro. The GPS is **useful**. It is not a substitute for the frames.
+Same-day storm-drag on 18 Dec is **out**. The April tow is before May 2023. Open the May 2019 frame next. Full table: [`STREETVIEW.md`](STREETVIEW.md).
 
 ---
 

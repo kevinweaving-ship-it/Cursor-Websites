@@ -32,7 +32,7 @@ The second boat is the French-flagged ~10 m motor cruiser with **Cape Horn** and
 
 ## 2. Dragged to the concrete jetty, then left to sink — **partial**
 
-**Holds on location.** The 18 Dec photos show Sunrise **already against the cracked concrete quay**, listing away from it, chain to the wall, the French boat on the outer side. Coast Guard: both craft were **προσδεδεμένα παράλληλα εντός του λιμένα Βλύχου** — made fast, parallel, **inside** the port — when the morning report came in. February 2024: still “opposite the pharmacy.”
+**Holds on location.** Google Street View (**May 2023**, 105 Επαρ.Οδ. Λευκάδας–Βασιλικής): already **against this quay, upright and afloat**. The 18 Dec photos then show her **listing** there. Coast Guard: made fast, parallel, **inside** the port. July 2024 / July 2026 Street View: still the wreck on that wall. See [`STREETVIEW.md`](STREETVIEW.md).
 
 **Partial on the drag.** Residents, quoted the same day:
 
@@ -57,16 +57,16 @@ Against the unnamed April dump:
 
 | Candidate | Fit |
 | --- | --- |
-| **April 2021** | Bruce is mostly in Hermanus. Only fits if that was the one Europe trip. |
-| **April 2022** | **Leading candidate.** He left Hermanus for Europe that month. Still not proved he went to Vlycho rather than France, or that he was the one who tied her to the mole. |
-| **April 2023** | After he is already back in Europe. Possible; family note does not cover 2022–23. |
-| April 2024 | **Wrong boat** (UK-flagged Vlycho sinking, 20 Apr 2024). |
+| **April 2021** | Possible. Needs the one Hermanus–Europe trip. |
+| **April 2022** | **Still leading on family travel** (left Hermanus that month). Wall-by-May-2023 then means a year afloat at the quay — matches the May 2023 frame. |
+| **April 2023** | One month before Street View, so the photo would be “just dumped.” **Fits the photo.** Only fits iLefkada’s “more than two years in the **bay**” if she was already on a **ball** in the bay from ~2021 and April 2023 was ball → wall. |
+| April 2024 | **Impossible** for this dump — she is already on this quay in May 2023. Also the wrong boat (UK-flagged, 20 Apr 2024). |
 
 If Bruce was in Hermanus from Nov 2020, the hull was already without him in the Med for long stretches. That **strengthens abandonment**. It does not by itself date the mole tow. The one Europe trip between Nov 2020 and Apr 2022 is the other window in which he could have moved her France → Vlycho, which would match iLefkada’s “in the bay more than two years” by Dec 2023.
 
 A same-day drag on 18 Dec 2023 is **unlikely**: the Coast Guard was called because two boats already berthed in the port were going under.
 
-**Mooring ball vs quay.** Family: she had been on a mooring ball, then ended against the concrete jetty. Vlycho has both — buoys off the quay and alongside wrecks on the town quay (Cruiserswiki snippet). Storm-drag onto the lee shore is real Ionian weather and a **plausible** reason Port Police warp an unmanned leaker to shallow wall. It is **not** written on this hull. The only Sunrise-specific account is the residents’ **tow to the mole to die**. Do not merge those two stories. A later dump’s “iLefkada 17 Oct 2025: five years at that quay” was **not found**; the dated line remains “more than two years in the **bay**” (18 Dec 2023). See [`DIGEST.md`](DIGEST.md).
+**Mooring ball vs quay.** Family: she had been on a ball, then against the wall. Street View **closes the wall date**: already there **May 2023**, still floating. 18 Dec is when she listed, not when she arrived. A same-day storm-drag to the quay is **out**. The April mole tow is still the Sunrise-specific move, and it is now **no later than April 2023**. May 2019 Street View at the same pin exists as a thumbnail and has **not** been opened — that is the remaining check for “was she already on this quay in 2019?”. See [`STREETVIEW.md`](STREETVIEW.md).
 
 ## 3. Which day she actually sank — **18 Dec is the official casualty; the rot is older**
 

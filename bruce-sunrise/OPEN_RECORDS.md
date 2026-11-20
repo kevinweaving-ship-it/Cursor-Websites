@@ -37,11 +37,11 @@ Greek access-to-documents rules apply. Cite Decision **133/2026** and Law **2881
 
 The public HCG HTML bulletin URL returned **403** from this environment. Retry from another network, or request the file from Nydri.
 
-## 3a. Google Earth Pro — Vlycho quay
+## 3a. Street View / Earth — Vlycho quay
 
-- Point: **~38.6825°N, 20.6989°E** (38°40′57″N 20°41′56″E). Vliho Yacht Club prints 38.40.95N / 20.41.89E.
-- Ask: first year a ~20 m wooden hull is **against the quay** rather than on a ball in the basin, 2019–2023.
-- This environment cannot run Earth Pro. Do it on a desktop with historical imagery.
+- Google Street View at **105 Επαρ.Οδ. Λευκάδας–Βασιλικής** now **keeps** May 2023 (afloat at wall), Jul 2024 (wreck), Jul 2026 (still there). See [`STREETVIEW.md`](STREETVIEW.md).
+- **Still open:** the **May 2019** thumbnail on that same filmstrip. Open it. If she is absent, the quay arrival is after May 2019 and by May 2023.
+- Earth Pro at **~38.6825°N, 20.6989°E** still useful for the basin (mooring balls) between 2019 and 2023, which Street View from the road may not show.
 
 ## 3b. Facebook group thread — 18 Dec 2023
 
