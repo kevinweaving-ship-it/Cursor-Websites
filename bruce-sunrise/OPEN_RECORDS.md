@@ -38,6 +38,7 @@ Greek access-to-documents rules apply. Cite Decision **133/2026** and Law **2881
 - Α′ Λιμενικό Τμήμα Νυδρίου.
 - Opened under **Penal Code 277 §1A** (causing a shipwreck) and **PD 55/1998**. Outcome unpublished.
 - Ask for: recorded owner/operator, flag documents, survey of water ingress, whether she was moved from a mooring to the mole, identity of **Cape Horn / TL**, pollution file, any arrest or file closure.
+- **New local lead (Paleros FB, 30 Apr 2026 comments):** any named **yard / work company** that worked on the hull shortly before 18 Dec 2023; any **dispute** between owner and that company; any insurance papers produced in the 277 file. Do **not** treat “Greek insurer” (Ian Bywater comment) as the registered owner — ΔΛΤΛ names ECO-VIE.
 
 The public HCG HTML bulletin URL returned **403** from this environment. Retry from another network, or request the file from Nydri.
 

@@ -65,7 +65,8 @@ Retrieved or confirmed **21 Nov 2026 (Africa/Johannesburg)** unless noted. Greek
 - Element84 earth-search STAC: https://earth-search.aws.element84.com/v1/search
 - Rthess restating Coast Guard + PK 277, 19 Dec 2023: https://www.rthess.gr/ellada/lefkada-rypansi-apo-petrelaioeidi-meta-ti-vythisi-dyo-thalamigon/
 - Lefkada Today first auction, 30 Apr 2026: https://www.lefkadatoday.gr/diagonismos-gia-tin-apomakrynsi-toy-nayagioy-sunrise-ston-vlycho-leykadas/
-- Paleros Yacht Services tender post: https://www.facebook.com/PalerosYachtServices/posts/-tender-announced-for-removal-of-sunrise-wreck-vlycho-lefkada-the-municipal-port/1364318139079751/
+- Paleros Yacht Services tender post (30 Apr 2026; opening 12 May 2026): https://www.facebook.com/PalerosYachtServices/posts/-tender-announced-for-removal-of-sunrise-wreck-vlycho-lefkada-the-municipal-port/1364318139079751/
+- Same post comments (local only): Fil Brown — work just before sink + owner/work-company dispute; Ian Bywater — “Greek insurer” (conflicts with ECO-VIE); ~3 years in bay. Screenshots: `bruce-sunrise/photos/paleros-fb-2026-04/`
 - Paleros: wreck still in Vlycho after empty tenders: https://www.facebook.com/PalerosYachtServices/posts/%EF%B8%8F-the-sunrise-wreck-still-remains-in-vlycho-baythe-tender-process-for-the-remova/1398512665660298/
 - iLefkada photos: https://ilefkada.gr/wp-content/uploads/2023/12/skafos-1.jpg (through skafos-5.jpg)
 - Charter site archive (Port Vauban 5 Aug 2020): https://web.archive.org/web/20200805101420/https://sunriseadventureboat.com/

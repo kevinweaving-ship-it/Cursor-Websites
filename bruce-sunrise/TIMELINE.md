@@ -33,6 +33,7 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 | **2023-01** | candidate (Planet) | Last Planet flag “consistent with a mooring placement” (~18–20 m, east-central / far east). May be outside the inner-bay box. |
 | **2022-10-21** | supported | ESRI/Maxar Vivid, whole inner bay: yacht-sized boats on the mooring balls; **no** 20 m hull on a buoy or on the pier. |
 | **2023-05** | established | Google Street View (105 Επαρ.Οδ. Λευκάδας–Βασιλικής): already **against the Vlycho quay, upright and afloat**. Not yet listed. |
+| shortly before **2023-12-18** | local (open) | Paleros FB comments on the **30 Apr 2026** tender post: **Fil Brown** — owner had **work done just before it sank**; dispute owner vs **work company**; insurance unclear. **George Sarantitis** — restoration supposed to take weeks. No yard named. Not Coast Guard. |
 | **2023-12-18** | established | Partial sinking at the **concrete quay inside Vlycho port**. Polish-flagged hull takes on water; French-flagged ~10 m **Cape Horn (TL)** alongside is forced under. Photos show tarps, rust, listing against the jetty. No injuries. Petroleum boom. Nydri opens **Penal Code 277 §1A** (causing a shipwreck) plus PD 55/1998. Locals call her an abandoned rotten hulk. Street View had her floating here in May — 18 Dec is the listing, not the arrival. |
 | 2023-12-19 | established | Kathimerini restates the Coast Guard bulletin (Polish + French flags, water ingress, pressure on the second hull). |
 | **2024-02-25** | established | Stavros Katsoupas on Aroma: half-sunk hull still opposite the pharmacy, unmoved more than two months. Other Vlycho wrecks named separately. |
@@ -45,6 +46,7 @@ Dates in **Africa/Johannesburg**. Status tags: **established** (primary record),
 | **2026-03-31** | established | Decision **27/2026** (ADA `6Υ85ΟΡΛΠ-0ΔΨ`) approves first-auction terms. Appendix A: **MV SUNRISE**, Polish flag, **`POL000AYP`**, 20 m, wood. |
 | 2026-04-23 | established (cited) | President Decision **797/23-4-2026** forms the auction committee (ADA cited `946ΒΟΡΛΠ-ΟΕΔ`; independent retrieve 404 this pass). |
 | 2026-04-29 | established | First removal tender **858/29-4-2026**. |
+| **2026-04-30** | established (restatement) | Paleros Yacht Services FB announces the **12 May 2026** tender; photo of listed SUNRISE + boom. Commenters: ~**3 years** in the bay; work/dispute rumour above; “Greek insurer” owner claim **conflicts** with ECO-VIE. Screenshots: `photos/paleros-fb-2026-04/`. |
 | 2026-05-12 | established | First auction: nobody came. |
 | 2026-05-20 | established | Board Decision **63/2026** authorises a repeat. |
 | 2026-06-10 | established | Repeat tender **1250/10-6-2026** for wreck of the ship **“SUNRISE”** at Vlycho. |

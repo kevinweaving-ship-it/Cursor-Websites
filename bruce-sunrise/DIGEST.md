@@ -1,6 +1,6 @@
 # Digest — extra local dump vs the record
 
-This scores a later research dump (Aroma photos, mooring-ball → quay, “five years”, cruiser blogs, insurance) against what can be **established**. Do not paste the dump into the chronology as fact.
+This scores later research dumps (Aroma photos, mooring-ball → quay, “five years”, cruiser blogs, insurance, Paleros FB comments) against what can be **established**. Do not paste dumps into the chronology as fact.
 
 Tags: **keep** (primary record), **useful** (true of Vlycho or of marine practice, not proved for this hull), **reject** (wrong boat, wrong place, or not found).
 
@@ -101,11 +101,31 @@ Score the user’s question, not the dump’s legal essay.
 
 ---
 
-## 6. What to do next (in order)
+## 6. Paleros Yacht Services Facebook — **30 Apr 2026 tender post + comments** — **useful local; not Coast Guard**
+
+Screenshots filed under `photos/paleros-fb-2026-04/`. Post is the **first-auction** announcement (opening **Tue 12 May 2026, 10:00** at ΔΛΤΛ offices) — already **established** from Diavgeia; Paleros restates it and shows the listed hull with yellow boom.
+
+Comment thread (same day / days after the post; relative “28w/29w” from a ~Nov 2026 screenshot). **Local only** — name no yard, no invoice, no Coast Guard bulletin.
+
+| Who | Quote (as shown) | Tag |
+| --- | --- | --- |
+| **Fil Brown** | “Owner had work done just before it sank. Dispute between owner and work company.” | **useful lead** — pre-18 Dec **yard / repair dispute**. Actor and date open. Ask Nydri + ΔΛΤΛ. |
+| **Fil Brown** | “everyone is blaming the other party who may or may not be insured in the first place.” | **useful** — blame + insurance uncertainty among locals; **not** a policy file. |
+| **Ian Bywater** | “The owner is a Greek insurer.” | **reject as ownership fact** — conflicts with ΔΛΤΛ naming **ECO-VIE Association, France** / Polish **POL000AYP**. Keep only as rumour that an **insurer** is in the story somehow. |
+| **Paul Evenden** / **Κωσταντίνος Κολυβάς** / **George Sarantitis** | “Three?” / “3 years…” (as of ~Apr 2026) | **useful corroboration** of long presence — aligns with iLefkada “>2 years in the bay” by Dec 2023 and Street View wall by May 2023. Does **not** pin which April she hit the mole. |
+| **George Sarantitis** | restoration “supposed to be… in a few weeks”; asks if owner/captain involved and “has he disappeared?” | **useful** — same **restoration / work** theme as Fil Brown; captain disappearance is opinion. |
+| **Paleros** (page) | costs to owner if identifiable; many unattended boats in Vliho; hazmat first on other Ionian wrecks | **useful place practice**, not a Sunrise invoice. |
+
+**Do not** promote “work dispute” or “Greek insurer owner” into the chronology as established. They go in [`OPEN_RECORDS.md`](OPEN_RECORDS.md) as questions for Nydri / the Port Fund.
+
+---
+
+## 7. What to do next (in order)
 
 1. **Earth Pro** at 38.6825°N, 20.6989°E, 2019–2023 — first frame she is against the quay.
 2. **Προβληματική Λευκάδα** thread, 18 Dec 2023 — which April.
 3. **Polish `odpis pełny` POL000AYP** — flag date vs abandon date; owner on 18 Dec 2023.
 4. **Notice 1643/5-9-2025** and **27 May 2024 protocol** — what papers Greece had.
-5. **Insurance schedule** — named insured, cruising limits, place of loss.
-6. Do **not** spend more time on Darksyde / Lesanda-as-Vlycho / 2019 Θέαλος URL until someone pastes the actual page.
+5. **Nydri / ΔΛΤΛ** — any named **yard / work company** and dispute before 18 Dec 2023 (Paleros comments).
+6. **Insurance schedule** — named insured, cruising limits, place of loss.
+7. Do **not** spend more time on Darksyde / Lesanda-as-Vlycho / 2019 Θέαλος URL until someone pastes the actual page.

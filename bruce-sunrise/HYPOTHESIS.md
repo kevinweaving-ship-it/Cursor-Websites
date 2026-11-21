@@ -103,7 +103,17 @@ What remains open is the **date title moved into it** — before abandonment, af
 
 Until the Polish history copy and the Greek service file are in hand, call this **the working theory**, not a closed fact.
 
-## 6. Insurance claim that she sank somewhere else — **fails on the public web; not disproved**
+## 6. Pre-sinking yard work / dispute — **open local lead (Paleros FB)**
+
+On the **30 Apr 2026** Paleros Yacht Services tender post, commenters (not officials) said:
+
+- **Fil Brown:** work done **just before it sank**; **dispute** between owner and **work company**; everyone blaming the other; may or may not be insured.
+- **George Sarantitis:** restoration was supposed to take **a few weeks**; asks whether owner/captain is involved / has disappeared.
+- **Ian Bywater:** “The owner is a **Greek insurer**” — **rejects as ownership**: Port Fund papers name **ECO-VIE / France** and **POL000AYP**. Keep only as a hint that someone locally thinks an **insurer** sits in the chain.
+
+This is **consistent with** a repair fight + neglect + then 18 Dec ingress. It is **not** proof of who did the work, who was insured, or that a claim was paid. Score: **open lead** → ask Nydri / ΔΛΤΛ. Screenshots: `photos/paleros-fb-2026-04/`. Digest: [`DIGEST.md`](DIGEST.md) §6.
+
+## 7. Insurance claim that she sank somewhere else — **fails on the public web; not disproved**
 
 Searched: Bruce Weaving + insurance / assurance / sinistre / total loss / wreck; Sunrise Adventures; ECO-VIE; Vlycho. **No public claim, insurer, survey, or alternative casualty location.**
 
@@ -151,6 +161,7 @@ The State treated the morning of 18 Dec as a **possible criminal causing of a sh
 - **18 Dec as the only sinking day:** official casualty date; the decay is older.
 - **Polish flag:** number `POL000AYP` established on the Greek PDF. Date of issue still a window (Aug 2020–~Dec 2021).
 - **ECO-VIE as a liability wall:** fits the later Greek dead-end. Association is **2008**, not a post-sinking incorporation. Transfer date unknown.
+- **Yard work / dispute just before sinking:** local Paleros comments only. Ask Nydri. Do not promote to fact.
 - **Insurance claim she sank somewhere else:** no public trace. Get the policy. Do not call that fraud on this file.
 
-Next: Polish `odpis pełny`, Nydri 277 file, Lefkada notice 1643/5-9-2025, Var ECO-VIE officers, and the **insurance schedule**. Facebook group thread from 18 Dec 2023 (Προβληματική Λευκάδα) is the place to pin which April.
+Next: Polish `odpis pełny`, Nydri 277 file (incl. any yard/dispute), Lefkada notice 1643/5-9-2025, Var ECO-VIE officers, and the **insurance schedule**. Facebook group thread from 18 Dec 2023 (Προβληματική Λευκάδα) is the place to pin which April.

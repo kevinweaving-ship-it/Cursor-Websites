@@ -179,6 +179,7 @@ investigation@sailingsa.co.za
 3. Πιστοποιητικό κυριότητας / νηολογίου που χρησιμοποιήσατε
 4. Πρακτικό Επιτροπής 27/5/2024
 5. Πρακτικά διαγωνισμών 12/5/2026 και 23/6/2026
+6. Οποιαδήποτε αναφορά σε ναυπηγείο / συνεργείο που εργάστηκε στο σκάφος λίγο πριν τις 18 Δεκ 2023, ή σε διαφορά ιδιοκτήτη–εργολάβου (τοπική φήμη σε δημόσια συζήτηση· δεν την παρουσιάζουμε ως γεγονός)
 
 Μπορούμε να σας στείλουμε φωτογραφίες και χρονολόγιο αν βοηθά το αρχείο σας.
 Απάντηση: investigation@sailingsa.co.za
@@ -203,7 +204,7 @@ On 18 December 2023 she half-sank in Vlycho port under the Polish flag. Your pub
 
 ECO-VIE is a French loi 1901 association with declared seat at Bastide des Planets, Roquebrune-sur-Argens — the same hamlet as entities where Mr Weaving appears (SCI / GFA des Planets). We are trying to understand who the removal claim is against and on what documents.
 
-Please provide copies/extracts of: notice 1643 and French service address; bailiff / service return; ownership / registry certificate used; wreck-committee minutes 27/5/2024; auction minutes 12/5/2026 and 23/6/2026.
+Please provide copies/extracts of: notice 1643 and French service address; bailiff / service return; ownership / registry certificate used; wreck-committee minutes 27/5/2024; auction minutes 12/5/2026 and 23/6/2026; any file note naming a yard/work company that worked on the hull shortly before 18 Dec 2023, or an owner–contractor dispute (local Facebook rumour only — we do not present it as fact).
 
 We can send photographs and chronology if that assists your file.
 Reply: investigation@sailingsa.co.za

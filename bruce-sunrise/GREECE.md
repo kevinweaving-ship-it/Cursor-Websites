@@ -26,6 +26,7 @@ Vlycho harbour: closed bay, about 4 km south of Nydri. Town quay is the concrete
 | --- | --- | --- |
 | some **April** 2021 / 2022 / **2023** | local | Residents, quoted 18 Dec 2023: found tied at the **mole** one April morning, **no name, no owner**; “they brought it here to sink.” **Not** a Coast Guard finding. Year **not in the quote**. Must be an April **before May 2023**. Planet mosaics (not an ID): last mooring-style flag **Jan 2023**; jetty brightens **May–Jun 2023**. **April 2023** now leads for the wall. [`PLANET.md`](PLANET.md). |
 | **May 2023** | established | Street View: already **against this quay, upright and afloat**. Not yet listed. |
+| **shortly before 18 Dec 2023** | local (open) | Paleros Yacht Services FB comments (**30 Apr 2026** tender post): **Fil Brown** — owner had **work done just before it sank**; **dispute** owner vs **work company**; blame + “may or may not be insured.” **George Sarantitis** — restoration supposed to take **a few weeks**. No yard named. Not Coast Guard. Screenshots: `photos/paleros-fb-2026-04/`. |
 | **18 Dec 2023**, morning | established | Official casualty. Polish-flagged hull **half-sinks from water ingress** at the quay **inside** the port; French ~10 m **Cape Horn (TL)** alongside is forced under. No injuries. Petroleum pollution. Boom. Nydri opens **Penal Code 277 §1A** (causing a shipwreck) + **PD 55/1998**. iLefkada: more than **two years** in the **bay**, already leaking, listed **that day**. |
 | 19 Dec 2023 | established | Kathimerini / Rthess restate the Coast Guard bulletin. Katsoupas (Aroma comment): same dump-and-rot pattern as older Vlycho wrecks. |
 | **25 Feb 2024** | established | Katsoupas: still **opposite the pharmacy**, unmoved more than two months. |
@@ -36,6 +37,7 @@ Vlycho harbour: closed bay, about 4 km south of Nydri. Town quay is the concrete
 | **31 Mar 2026** | established | Board Decision **27/2026** (ADA `6Υ85ΟΡΛΠ-0ΔΨ`): first open **highest-bidder** auction to lift / remove / destroy. Appendix A: **MV SUNRISE / Poland / POL000AYP / 20 m / wood**. |
 | **23 Apr 2026** | established (cited) | President Decision **797/23-4-2026** (ADA cited `946ΒΟΡΛΠ-ΟΕΔ`): forms the auction committee. Independent retrieve **404** this pass. |
 | **29 Apr 2026** | established | First tender **858/29-4-2026**. Bids due 11 May 15:00; opening **12 May 10:00**. Guarantee 5%. |
+| **30 Apr 2026** | established (restatement) | Paleros Yacht Services FB: tender announcement for removal of **SUNRISE** wreck, Vlycho; photo of listed hull + yellow boom. Commenters (~same week): ~**3 years** in the bay; work/dispute rumour above. Ian Bywater “owner is a Greek insurer” — **conflicts** with ECO-VIE / POL000AYP; rumour only. |
 | **12 May 2026** | established | First auction: **nobody**. Declared **άγονος**. |
 | **20 May 2026** | established | Decision **63/2026** (ADA `9ΨΚΤΟΡΛΠ-6ΒΓ`): repeat, same terms. |
 | **10 Jun 2026** | established | Repeat tender **2/2026**, protocol **1250/10-6-2026** (ADA `ΡΟΖΨΟΡΛΠ-Ρ5Ρ`). Auction **23 Jun 2026, 10:00**. |
