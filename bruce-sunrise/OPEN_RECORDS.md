@@ -2,7 +2,7 @@
 
 Order is by how much each document would close. Public web search cannot replace these.
 
-**Outbound address:** `investigation@sailingsa.co.za` — create on GoWifi Mail-in-a-Box + add MX ([`MAILBOX.md`](MAILBOX.md)). Paste-ready letters: [`REQUESTS.md`](REQUESTS.md). Do not send until a test round-trip works.
+**Outbound address:** `investigation@sailingsa.co.za` (signatory **James Porter**). Three FOIs **sent** 21 Nov 2026 — [`SENT.md`](SENT.md). Watch replies ([`replies/`](replies/)). Publish GoDaddy **MX** if dig is empty ([`MAILBOX.md`](MAILBOX.md)).
 
 ## 1. Polish full historical copy — `POL000AYP`
 

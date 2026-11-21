@@ -54,8 +54,10 @@ Long abandonment **holds**. Locals: dumped on the mole **one April morning** (ye
 | [`HYPOTHESIS.md`](HYPOTHESIS.md) | Abandonment / jetty / flag / ECO-VIE / insurance scores |
 | [`OPEN_RECORDS.md`](OPEN_RECORDS.md) | Documents to request next |
 | [`REQUESTS.md`](REQUESTS.md) | Letter framing and send order |
-| [`EMAILS.md`](EMAILS.md) | Full bilingual drafts + verified To/Cc for France, Poland, Lefkada Port Fund |
-| [`MAILBOX.md`](MAILBOX.md) | Create that mailbox on GoWifi MiaB + GoDaddy MX (none yet) |
+| [`EMAILS.md`](EMAILS.md) | Bilingual FOIs (James Porter) — **sent** 21 Nov 2026 |
+| [`SENT.md`](SENT.md) | Message-IDs + Postfix delivery / bounce log |
+| [`replies/`](replies/) | Inbound replies / NDRs (watch every 12h) |
+| [`MAILBOX.md`](MAILBOX.md) | `investigation@sailingsa.co.za` live; **MX still empty** — fix at GoDaddy for replies |
 | [`SOURCES.md`](SOURCES.md) | URL index |
 
 ## Working rule
