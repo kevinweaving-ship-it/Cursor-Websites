@@ -8,7 +8,7 @@ Native language first, English second, **same email**. Bodies as sent: [`sent/bo
 
 | Authority | To | Also | Delivery |
 | --- | --- | --- | --- |
-| **1. France — Var associations** | **`pref-associations@var.gouv.fr`** | Cc `sp-associations-draguignan@var.gouv.fr` — **bounced User Unknown**; do not re-use | To accepted |
+| **1. France — Var associations** | **`pref-associations@var.gouv.fr`** (current official for Draguignan too) | ~~`sp-associations-draguignan@var.gouv.fr`~~ obsolete / bounced | To accepted — **no resend** |
 | **2. Poland — REJA24** | **`pomoc@reja24.gov.pl`** | Cc `w.stepien@pya.org.pl`, `s.sadowska@pya.org.pl` (both accepted) | Delivered |
 | **3. Greece — Lefkada Port Fund** | **`dltl@lefkada.gov.gr`** | Tel +30 26450 23272 | Delivered |
 

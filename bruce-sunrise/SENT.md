@@ -17,7 +17,8 @@ Times: **21 Nov 2026 ~02:21–02:22 Africa/Johannesburg** (SAST on the box).
 
 ## Bounce filed
 
-- NDR in INBOX: Cc `sp-associations-draguignan@var.gouv.fr` unknown. France **To** still accepted — no resend needed unless Prefectorate later rejects.
+- NDR in INBOX: Cc `sp-associations-draguignan@var.gouv.fr` unknown. France **To** still accepted.
+- **Re-check 21 Nov 2026 ~17:55 SAST:** live [var.gouv.fr démarches associations](https://www.var.gouv.fr/Demarches/Associations-Fondations-et-fonds-de-dotations/Association-loi-1901/Associations-loi-1901-et-demarches) still lists **only** `pref-associations@var.gouv.fr` for arrondissements Toulon **+ Draguignan + Brignoles** (DCL Toulon). The Draguignan sous-préfecture address is **obsolete** (old annuaires). **No resend** — correct mailbox already got the letter.
 
 ## Inbox checks
 
