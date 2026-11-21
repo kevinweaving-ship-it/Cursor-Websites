@@ -1,0 +1,80 @@
+text:
+Return-Path: <>
+Delivered-To: investigation@sailingsa.co.za
+Received: from box.gowifi.co.za ([127.0.0.1])
+	by box.gowifi.co.za with LMTP
+	id cFhQISbkAGusjhoA9JTXBw
+	(envelope-from <>)
+	for <investigation@sailingsa.co.za>; Sat, 21 Nov 2026 02:21:58 +0200
+X-Spam-Checker-Version: SpamAssassin 3.4.6 (2021-04-09) on box.gowifi.co.za
+X-Spam-Level: *
+X-Spam-Status: No, score=1.7 required=5.0 tests=DEAR_SOMETHING,NO_RELAYS
+	autolearn=no autolearn_force=no version=3.4.6
+X-Spam-Report: 
+	*  1.7 DEAR_SOMETHING BODY: Contains 'Dear (something)'
+	* -0.0 NO_RELAYS Informational: message was not relayed via SMTP
+X-Spam-Score: 1.7
+Received: by box.gowifi.co.za (Postfix)
+	id 73D12FD447; Sat, 21 Nov 2026 02:21:58 +0200 (SAST)
+Date: Sat, 21 Nov 2026 02:21:58 +0200 (SAST)
+From: MAILER-DAEMON@box.gowifi.co.za (Mail Delivery System)
+Subject: Undelivered Mail Returned to Sender
+To: investigation@sailingsa.co.za
+Auto-Submitted: auto-replied
+MIME-Version: 1.0
+Content-Type: multipart/report; report-type=delivery-status;
+	boundary="9E169FC154.1795220518/box.gowifi.co.za"
+Message-Id: <20261121002158.73D12FD447@box.gowifi.co.za>
+
+This is a MIME-encapsulated message.
+
+--9E169FC154.1795220518/box.gowifi.co.za
+Content-Description: Notification
+Content-Type: text/plain; charset=us-ascii
+
+This is the mail system at host box.gowifi.co.za.
+
+I'm sorry to have to inform you that your message could not
+be delivered to one or more recipients. It's attached below.
+
+For further assistance, please send mail to postmaster.
+
+If you do so, please include this problem report. You can
+delete your own text from the attached returned message.
+
+                   The mail system
+
+<sp-associations-draguignan@var.gouv.fr>: host
+    fimad.interieur.gouv.fr[143.196.251.33] said: 554 5.7.1
+    <sp-associations-draguignan@var.gouv.fr>: Recipient address rejected: 511
+    "User Unknown" (in reply to RCPT TO command)
+
+--9E169FC154.1795220518/box.gowifi.co.za
+Content-Description: Delivery report
+Content-Type: message/delivery-status
+
+Reporting-MTA: dns; box.gowifi.co.za
+X-Postfix-Queue-ID: 9E169FC154
+X-Postfix-Sender: rfc822; investigation@sailingsa.co.za
+Arrival-Date: Sat, 21 Nov 2026 02:21:50 +0200 (SAST)
+
+Final-Recipient: rfc822; sp-associations-draguignan@var.gouv.fr
+Original-Recipient: rfc822;sp-associations-draguignan@var.gouv.fr
+Action: failed
+Status: 5.7.1
+Remote-MTA: dns; fimad.interieur.gouv.fr
+Diagnostic-Code: smtp; 554 5.7.1 <sp-associations-draguignan@var.gouv.fr>:
+    Recipient address rejected: 511 "User Unknown"
+
+--9E169FC154.1795220518/box.gowifi.co.za
+Content-Description: Undelivered Message
+Content-Type: message/rfc822
+
+Return-Path: <investigation@sailingsa.co.za>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=sailingsa.co.za;
+	s=mail; t=1795220510;
+	bh=U//y3+OqutTA2fSwn4fMFGDUZnB8Iju5js8HJyPMIS8=;
+	h=From:To:Cc:Subject:Date:Reply-To:From;
+	b=umPFmXgxIuOt1+BYqhWdseMYfbh0V8btgHY5NgcmaFxCVxQKmL+lbETvlh6AwW/JZ
+	 LFlU7wugLsv3V7RK4gGoLlhvUOxT265YijjQDRhOd4yg8ZoYPx3ragouniY78m15cf
+	 RDH6+zduTL59HCZ2O5ofcdKMnuu5bBqKXTyKmQwvUo4Qsn4nwo0loAk14wvS7UlxqR
