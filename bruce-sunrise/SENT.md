@@ -19,6 +19,15 @@ Times: **21 Nov 2026 ~02:21–02:22 Africa/Johannesburg** (SAST on the box).
 
 - NDR in INBOX: Cc `sp-associations-draguignan@var.gouv.fr` unknown. France **To** still accepted — no resend needed unless Prefectorate later rejects.
 
+## Inbox checks
+
+| When (Africa/Johannesburg) | INBOX | New authority replies |
+| --- | --- | --- |
+| 21 Nov 2026 ~02:22 | 1 (France Cc NDR only) | — |
+| **21 Nov 2026 14:00** | still **1** — same NDR only | **none** from Var / REJA24 / Lefkada |
+
+Timer continues every 12h.
+
 ## DNS note (inbound)
 
 Public dig (21 Nov 2026 after send): **MX for `sailingsa.co.za` empty** at Google/Cloudflare resolvers. Outbound worked (DKIM `d=sailingsa.co.za; s=mail` present on the France message). **Replies may not land** until MX `10 box.gowifi.co.za` (+ SPF/DKIM TXT as MiaB prints) is published at GoDaddy. Check mailbox anyway on each timer; fix MX if still missing.
