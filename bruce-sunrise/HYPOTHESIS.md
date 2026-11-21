@@ -109,7 +109,7 @@ On the **30 Apr 2026** Paleros Yacht Services tender post, commenters (not offic
 
 - **Fil Brown:** work done **just before it sank**; **dispute** between owner and **work company**; everyone blaming the other; may or may not be insured.
 - **George Sarantitis:** restoration was supposed to take **a few weeks**; asks whether owner/captain is involved / has disappeared.
-- **Ian Bywater:** “The owner is a **Greek insurer**” — **rejects as ownership**: Port Fund papers name **ECO-VIE / France** and **POL000AYP**. Keep only as a hint that someone locally thinks an **insurer** sits in the chain.
+- **Ian Bywater:** “The owner is a **Greek insurer**” — **reject as ownership** (ΔΛΤΛ: ECO-VIE / POL000AYP). Family read: **likely jest** — the old Greek gag that boats get sunk for insurance — not a tip that a Greek insurer holds title. Do not open a “Greek insurer owner” hunt from this line.
 
 This is **consistent with** a repair fight + neglect + then 18 Dec ingress. It is **not** proof of who did the work, who was insured, or that a claim was paid. Score: **open lead** → ask Nydri / ΔΛΤΛ. Screenshots: `photos/paleros-fb-2026-04/`. Digest: [`DIGEST.md`](DIGEST.md) §6.
 

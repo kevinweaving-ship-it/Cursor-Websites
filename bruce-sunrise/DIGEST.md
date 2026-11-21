@@ -111,7 +111,7 @@ Comment thread (same day / days after the post; relative “28w/29w” from a ~N
 | --- | --- | --- |
 | **Fil Brown** | “Owner had work done just before it sank. Dispute between owner and work company.” | **useful lead** — pre-18 Dec **yard / repair dispute**. Actor and date open. Ask Nydri + ΔΛΤΛ. |
 | **Fil Brown** | “everyone is blaming the other party who may or may not be insured in the first place.” | **useful** — blame + insurance uncertainty among locals; **not** a policy file. |
-| **Ian Bywater** | “The owner is a Greek insurer.” | **reject as ownership fact** — conflicts with ΔΛΤΛ naming **ECO-VIE Association, France** / Polish **POL000AYP**. Keep only as rumour that an **insurer** is in the story somehow. |
+| **Ian Bywater** | “The owner is a Greek insurer.” | **reject as ownership** — conflicts with ΔΛΤΛ **ECO-VIE / France** + **POL000AYP**. Family read: **likely jest** — Greek dark humour that boats get sunk for insurance, not a named Greek insurer as πλοιοκτήτρια. Do not chase a “Greek insurer owner.” |
 | **Paul Evenden** / **Κωσταντίνος Κολυβάς** / **George Sarantitis** | “Three?” / “3 years…” (as of ~Apr 2026) | **useful corroboration** of long presence — aligns with iLefkada “>2 years in the bay” by Dec 2023 and Street View wall by May 2023. Does **not** pin which April she hit the mole. |
 | **George Sarantitis** | restoration “supposed to be… in a few weeks”; asks if owner/captain involved and “has he disappeared?” | **useful** — same **restoration / work** theme as Fil Brown; captain disappearance is opinion. |
 | **Paleros** (page) | costs to owner if identifiable; many unattended boats in Vliho; hazmat first on other Ionian wrecks | **useful place practice**, not a Sunrise invoice. |

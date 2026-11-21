@@ -37,7 +37,7 @@ Vlycho harbour: closed bay, about 4 km south of Nydri. Town quay is the concrete
 | **31 Mar 2026** | established | Board Decision **27/2026** (ADA `6Υ85ΟΡΛΠ-0ΔΨ`): first open **highest-bidder** auction to lift / remove / destroy. Appendix A: **MV SUNRISE / Poland / POL000AYP / 20 m / wood**. |
 | **23 Apr 2026** | established (cited) | President Decision **797/23-4-2026** (ADA cited `946ΒΟΡΛΠ-ΟΕΔ`): forms the auction committee. Independent retrieve **404** this pass. |
 | **29 Apr 2026** | established | First tender **858/29-4-2026**. Bids due 11 May 15:00; opening **12 May 10:00**. Guarantee 5%. |
-| **30 Apr 2026** | established (restatement) | Paleros Yacht Services FB: tender announcement for removal of **SUNRISE** wreck, Vlycho; photo of listed hull + yellow boom. Commenters (~same week): ~**3 years** in the bay; work/dispute rumour above. Ian Bywater “owner is a Greek insurer” — **conflicts** with ECO-VIE / POL000AYP; rumour only. |
+| **30 Apr 2026** | established (restatement) | Paleros Yacht Services FB: tender announcement for removal of **SUNRISE** wreck, Vlycho; photo of listed hull + yellow boom. Commenters (~same week): ~**3 years** in the bay; work/dispute rumour above. Ian Bywater “owner is a Greek insurer” — **conflicts** with ECO-VIE / POL000AYP; treated as **likely jest** (insurance-scam stereotype), not a title lead. |
 | **12 May 2026** | established | First auction: **nobody**. Declared **άγονος**. |
 | **20 May 2026** | established | Decision **63/2026** (ADA `9ΨΚΤΟΡΛΠ-6ΒΓ`): repeat, same terms. |
 | **10 Jun 2026** | established | Repeat tender **2/2026**, protocol **1250/10-6-2026** (ADA `ΡΟΖΨΟΡΛΠ-Ρ5Ρ`). Auction **23 Jun 2026, 10:00**. |
