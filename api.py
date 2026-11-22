@@ -25991,7 +25991,7 @@ def _serve_club_page_impl(slug: str, club: tuple):
         "</div>"
     )
     doc = (
-        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
+        "<!DOCTYPE html><html lang=\"en-ZA\"><head><meta charset=\"UTF-8\"><title>"
         f"{club_heading_html} | SailingSA</title>"
         "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
         f"<meta name=\"description\" content=\"Sailing club: {html_module.escape(cn or ca or 'Club')}. Sailors and regattas.\">"
@@ -26392,7 +26392,7 @@ def serve_regatta_class_standalone(slug: str, class_slug: str, request: Request)
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         doc = (
-            "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
+            "<!DOCTYPE html><html lang=\"en-ZA\"><head><meta charset=\"UTF-8\"><title>"
             f"{html_module.escape(class_name)} – {escaped_title} | SailingSA</title>"
             f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
@@ -26740,7 +26740,7 @@ def serve_regatta_standalone(slug: str, request: Request):
         )
         sa_toolbar_js = '<script src="/js/regatta-sa-toolbar.js" defer></script>' if is_sa else ""
         doc = (
-            "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>"
+            "<!DOCTYPE html><html lang=\"en-ZA\"><head><meta charset=\"UTF-8\"><title>"
             f"{escaped_title} | SailingSA</title>"
             f"<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
             f"<link rel=\"canonical\" href=\"{html_module.escape(canonical_url)}\">"
