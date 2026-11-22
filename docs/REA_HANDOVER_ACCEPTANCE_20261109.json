@@ -1,0 +1,46 @@
+{
+  "verified_at": "2026-11-09T13:18:00Z",
+  "timezone_note": "Africa/Johannesburg",
+  "gowifi": {
+    "qb_read": true,
+    "qb_write_named_correct": true,
+    "mail_imap": true,
+    "mail_send_locked": true,
+    "github_https_read": true,
+    "github_ssh_write": false,
+    "db_query": true,
+    "services": true,
+    "backup_deploy_path": true,
+    "nginx_test": true,
+    "gold_lock": true,
+    "general_root_shell": false
+  },
+  "sailingsa": {
+    "services": true,
+    "db_query": true,
+    "nginx_test": true,
+    "backup_stage": true,
+    "preflight": true,
+    "github_key_present": true,
+    "github_ssh_write": false,
+    "gold_lock": true,
+    "general_root_shell": false
+  },
+  "cupido_oct_2026": {
+    "ok": true,
+    "balance": 2477.0,
+    "open_invoices": {
+      "2112": 759.0,
+      "2161": 759.0,
+      "2497": 959.0
+    },
+    "deleted": [
+      "payment:2457",
+      "journalentry:2473"
+    ],
+    "evidence": "/opt/rea/ops/audit/cupido-oct-correct-20261109.json"
+  },
+  "remaining_failures": [
+    "GitHub SSH write deploy key not authorized on either box"
+  ]
+}
