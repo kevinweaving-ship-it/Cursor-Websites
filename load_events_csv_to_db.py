@@ -146,6 +146,7 @@ def main():
                         event_status = EXCLUDED.event_status,
                         last_seen_at = now(),
                         scrape_run_id = EXCLUDED.scrape_run_id
+                    WHERE COALESCE(events.origin, 'sas_scrape') IS DISTINCT FROM 'club'
                 """, (
                     r["source"], r["source_event_id"], r["source_url"],
                     r["event_name"], r["start_date"], r["end_date"], r["event_year"],
