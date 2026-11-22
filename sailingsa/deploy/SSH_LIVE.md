@@ -256,6 +256,46 @@ Script backs up to `/root/backups/api.py.TIMESTAMP`, copies from `/root/incoming
 
 ---
 
+## TLS / Let's Encrypt (Safari "This Connection Is Not Private")
+
+Let's Encrypt certs last **~90 days** — they are **not** permanent. Auto-renew is via `certbot.timer` (twice daily). Nginx site configs are Gold-locked (`chattr +i` on `/etc/nginx/sites-enabled/sailingsa` and `00-timadvisor`). Certbot's nginx plugin must temporarily edit those files; without unlock hooks, renew fails and the site eventually expires.
+
+**Incident 2026-11-22:** renew failed with `Unable to revert temporary config` / `PermissionError` on immutable nginx configs. Certs expired ~13:27 Africa/Johannesburg → Safari "Not Private". Fixed by renewing + installing pre/post hooks.
+
+**Install / reinstall hooks (on live as root):**
+```bash
+bash sailingsa/deploy/install-ssl-certbot-hooks.sh
+```
+Or copy:
+- `sailingsa/deploy/certbot-hooks/pre/unlock-nginx-for-certbot.sh` → `/etc/letsencrypt/renewal-hooks/pre/`
+- `sailingsa/deploy/certbot-hooks/post/lock-nginx-after-certbot.sh` → `/etc/letsencrypt/renewal-hooks/post/`
+
+**Manual renew (if Safari blocks again):**
+```bash
+# unlock happens in pre hook; or:
+chattr -i /etc/nginx/sites-enabled/sailingsa /etc/nginx/sites-available/sailingsa \
+         /etc/nginx/sites-enabled/00-timadvisor /etc/nginx/sites-available/00-timadvisor
+rm -rf /var/lib/letsencrypt/temp_checkpoint
+certbot renew --force-renewal --non-interactive --no-random-sleep-on-renew
+nginx -t && systemctl reload nginx
+chattr +i /etc/nginx/sites-enabled/sailingsa /etc/nginx/sites-available/sailingsa \
+         /etc/nginx/sites-enabled/00-timadvisor /etc/nginx/sites-available/00-timadvisor
+```
+
+**Verify:**
+```bash
+certbot certificates
+certbot renew --dry-run --non-interactive --no-random-sleep-on-renew
+/usr/local/sbin/sailingsa-ssl-expiry-check
+/usr/local/sbin/sailingsa-server-monitor --check-ssl
+curl -sI https://sailingsa.co.za/ | head -5
+lsattr /etc/nginx/sites-enabled/sailingsa   # must show immutable i again
+```
+
+**Alerting:** daily 09:15 Africa/Johannesburg cron `/etc/cron.d/sailingsa_ssl_expiry` runs `--check-ssl` (WARNING <21d, CRITICAL <7d → WhatsApp). Hook log: `/var/log/letsencrypt/nginx-lock-hooks.log`.
+
+---
+
 ## Fix API Timeouts (ERR_CONNECTION_TIMED_OUT)
 
 **Fix API timeouts:**

@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""Check live TLS cert expiry for sailingsa + timadvisor.
+
+Exit codes:
+  0  OK (>= (>= 21 days left)
+  1  WARNING  (< 21 days)
+  2  CRITICAL (< 7 days, expired, or probe failed)
+"""
+from __future__ import annotations
+
+import datetime as dt
+import socket
+import ssl
+import sys
+
+HOSTS = (
+    ("sailingsa.co.za", 443),
+    ("www.sailingsa.co.za", 443),
+    ("timadvisor.co.za", 443),
+    ("www.timadvisor.co.za", 443),
+)
+WARN_DAYS = 21
+CRIT_DAYS = 7
+SAST = dt.timezone(dt.timedelta(hours=2), name="Africa/Johannesburg")
+
+
+def expiry_for(host: str, port: int) -> dt.datetime:
+    ctx = ssl.create_default_context()
+    with socket.create_connection((host, port), timeout=12) as sock:
+        with ctx.wrap_socket(sock, server_hostname=host) as ssock:
+            cert = ssock.getpeercert()
+    return dt.datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y %Z").replace(
+        tzinfo=dt.timezone.utc
+    )
+
+
+def main() -> int:
+    now = dt.datetime.now(dt.timezone.utc)
+    worst = 10**9
+    lines = []
+    for host, port in HOSTS:
+        try:
+            exp = expiry_for(host, port)
+            days = (exp - now).total_seconds() / 86400.0
+            worst = min(worst, days)
+            lines.append(
+                f"{host}: {days:.1f}d left (until {exp.astimezone(SAST).strftime('%Y-%m-%d %H:%M SAST')})"
+            )
+        except Exception as e:
+            worst = -1
+            lines.append(f"{host}: ERROR {e}")
+    print("\n".join(lines))
+    if worst < 0 or worst < CRIT_DAYS:
+        return 2
+    if worst < WARN_DAYS:
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
