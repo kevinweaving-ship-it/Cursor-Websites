@@ -337,14 +337,16 @@
       var oldNote = card.querySelector('p.midmar-lb-sheet-note');
       if (oldNote) oldNote.remove();
     }
-    var host = document.getElementById('midmar-live-media');
+    var live = document.getElementById('club-live-media') || document.getElementById('midmar-live-media');
     var wx = document.getElementById('ssa-regatta-slot-card');
     var header = document.querySelector('.regatta-header-wrap');
     var page = document.querySelector('.regatta-page');
-    if (host) {
-      if (card.parentNode !== host) host.insertBefore(card, host.firstChild);
-      if (wx && wx.parentNode === host && card.nextSibling !== wx) host.insertBefore(card, wx);
-    } else if (wx && wx.parentNode) {
+    /* Never park boards inside the weather/cam box. */
+    if (live && live.parentNode) {
+      if (live.contains(card) || card.parentNode !== live.parentNode) {
+        live.parentNode.insertBefore(card, live.nextSibling);
+      }
+    } else if (wx && wx.parentNode && wx.parentNode.id !== 'club-live-media') {
       if (card.nextSibling !== wx) wx.parentNode.insertBefore(card, wx);
     } else if (header && header.parentNode) {
       if (card.previousSibling !== header) header.parentNode.insertBefore(card, header.nextSibling);
@@ -612,21 +614,28 @@
   }
 
   function ensureHost(firstCard) {
+    var live = document.getElementById('club-live-media') || document.getElementById('midmar-live-media');
     var host = document.getElementById(HOST_ID);
-    if (host) return host;
+    if (host) {
+      if (live && live.contains(host) && live.parentNode) {
+        live.parentNode.insertBefore(host, live.nextSibling);
+      }
+      return host;
+    }
     host = document.createElement('div');
     host.id = HOST_ID;
     host.className = 'midmar-lb-host';
-    if (firstCard && firstCard.parentNode) {
+    if (live && live.parentNode) {
+      live.parentNode.insertBefore(host, live.nextSibling);
+      if (firstCard) host.appendChild(firstCard);
+    } else if (firstCard && firstCard.parentNode) {
       firstCard.parentNode.insertBefore(host, firstCard);
       host.appendChild(firstCard);
     } else {
       var header = document.querySelector('.regatta-header-wrap');
       var page = document.querySelector('.regatta-page');
       var wx = document.getElementById('ssa-regatta-slot-card');
-      var live = document.getElementById('club-live-media') || document.getElementById('midmar-live-media');
-      if (live && live.parentNode) live.parentNode.insertBefore(host, live.nextSibling);
-      else if (wx && wx.parentNode) wx.parentNode.insertBefore(host, wx);
+      if (wx && wx.parentNode && wx.parentNode.id !== 'club-live-media') wx.parentNode.insertBefore(host, wx);
       else if (header && header.parentNode) header.parentNode.insertBefore(host, header.nextSibling);
       else if (page) page.insertBefore(host, page.firstChild);
     }
