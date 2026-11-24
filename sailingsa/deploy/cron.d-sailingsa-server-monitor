@@ -1,0 +1,8 @@
+# SailingSA server health → existing WhatsApp engine.
+# CRON_TZ keeps 10:30 as Africa/Johannesburg regardless of system TZ.
+CRON_TZ=Africa/Johannesburg
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+TZ=Africa/Johannesburg
+*/5 * * * * root /usr/local/sbin/sailingsa-server-monitor --check >> /var/log/sailingsa-server-monitor.log 2>&1
+30 10 * * * root /usr/local/sbin/sailingsa-server-monitor --daily >> /var/log/sailingsa-server-monitor.log 2>&1

@@ -1,0 +1,21 @@
+# SailingSA housekeeping KEEP list — NEVER auto-deleted.
+# One absolute path per line. Comments start with #.
+# Also protected: any path whose name contains KEEP / known-good / BEFORE_BIO.
+
+# Current #128 locked live api.py rollback + prior same-day snapshots
+/var/www/sailingsa/api/api.py.20260918_092046.bak
+/var/www/sailingsa/api/api.py.20260918_085426.bak
+/var/www/sailingsa/api/api.py.20260918_083952.bak
+
+# #128 capacity release (known-good)
+/root/releases/api_cap15_20260918_092046.tar.gz
+
+# Newest valid full SailingSA backup (Phase 2A retained)
+/root/backup_20260917_230605.tar.gz
+
+# Known-good frontend rollback (Phase 2A retained)
+/root/backups/sailingsa_frontend_BEFORE_BIO_20260306_150545
+/root/backups/PROOF_sailingsa_frontend_BEFORE_BIO_20260306_150545.txt
+
+# Unique Lipton telemetry archive (also in public.lipton_telemetry)
+/root/lipton-vakaros-archive

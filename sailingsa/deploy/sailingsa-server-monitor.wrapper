@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+LOCK=/var/lock/sailingsa-server-monitor.lock
+mkdir -p /var/lock
+exec 9>"$LOCK"
+if ! flock -n 9; then
+  echo "$(date -Is) sailingsa-server-monitor: lock held; exiting"
+  exit 0
+fi
+export TZ=Africa/Johannesburg
+exec /usr/bin/python3 /usr/local/sbin/sailingsa-server-monitor.py "$@"

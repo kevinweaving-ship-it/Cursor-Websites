@@ -1,0 +1,10 @@
+/var/log/sailingsa-server-monitor.log {
+	rotate 14
+	daily
+	maxsize 10M
+	missingok
+	notifempty
+	compress
+	delaycompress
+	copytruncate
+}
