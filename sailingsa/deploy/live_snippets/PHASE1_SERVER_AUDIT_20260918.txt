@@ -1,0 +1,81 @@
+SailingSA PHASE 1 server audit. 2026-09-18 09:38 SAST. #128 NOT modified.
+
+ROLLBACK POINT
+- Live api.py 80844 lines 3936631 bytes md5 3b355643c390bd12367903a236365726 chattr +i maxconn=15
+- #128 bak: /var/www/sailingsa/api/api.py.20260918_092046.bak + /root/releases/api_cap15_20260918_092046.tar.gz
+- Newest full webroot tarball KEEP: /root/backup_20260917_230605.tar.gz (11G)
+- Git: origin/main 4af7332; #128 PR branch cursor/cap-pool-15-baea 4fc93dc
+- Repo api.py STALE: 27093 lines 1.4MB md5 8e6b900955616620f1f357cdf9a2ebb1
+- Host: 77G disk 90%→89% after safe clean; RAM 3.8G used 2.7G avail 1.1G swap 675M; load 0.52/2.02/4.24
+- PG: sailors_master 2933MB; max_connections 100; shared_buffers 128MB; now 14/9/iit 0
+
+SAFE REMOVED (~200MB)
+- /tmp/__pycache__ (~98M)
+- /root/__pycache__ writable pyc (~35M; 5 immutable lw-gold*.pyc left, 24K)
+- /var/www/sailingsa/__pycache__ (~2.7M)
+- /tmp/ssa_fullsite_audit* /tmp/ssa_prove_* /tmp/ssa_pg_peak /tmp/ssa_deploy /tmp/ssa_v2_step16
+- /tmp/ssa_* journal/inventory/jsonl sampler leftovers
+NOT removed: #128 files, backups, releases, api.py*.bak, /var/tmp/sailingsa_* caches, secrets.
+
+PROPOSED DELETION (do not delete yet) — largest first
+path | size | date | purpose | safe? | reason
+/root/backup_20260917_073848.tar.gz | 11G | 2026-09-17 | full webroot | YES if 230605 verified | older duplicate of same-day full backup
+/root/backup_20260917_220433.tar.gz | 11G | 2026-09-17 | full webroot | YES if 230605 verified | older duplicate
+/root/backup_20260917_230605.tar.gz | 11G | 2026-09-17 | full webroot | NO | newest known-good full backup
+/var/www/sailingsa/api/api.py.* (604 files) | 1.4G | mostly 2026-09-12..18 | intermediate live baks | MOSTLY YES keep #128 092046 + maybe last 2 | today's debug copies
+/root/releases/api_checkout_diag_20260918_003149.tar.gz | 650M | 2026-09-18 | accidental fat tree | YES keep api_cap15 731K | not an api.py-only tarball
+/root/releases/api_20260912_075409.tar.gz | 598M | 2026-09-12 | fat api tree | YES | superseded
+/var/www/sailingsa/_backup_PRE_GOLD_HEADER_SWAP_20260808_112109 | 951M | 2026-08-08 | header swap rollback | LIKELY | 6 weeks old; confirm unused
+/root/backups/sailingsa_frontend_BEFORE_BIO_20260306_* (x3) | 627M×3 | 2026-03-06 | identical frontend git copies | YES keep one | triplicate
+/root/lipton-vakaros-archive | 473M | 2026-08-29 | Lipton telemetry | MAYBE | event over; not serving
+/root/releases/api_20260302_105031.tar.gz | 160M | 2026-03-02 | old api tree | YES | ancient
+/root/live_sailingsa_backup.tar.gz | 160M | 2026-03-02 | old full | YES | ancient vs Sept 17 full
+/root/sailingsa_beta_dump.sql | 192M | 2026-02-08 | old SQL dump | LIKELY | 7 months; not #128
+/root/backup_20260911_201816_upcoming48h.tar.gz | 419M | 2026-09-11 | dated webroot | LIKELY | superseded by Sept 17
+/var/log/syslog | 685M | live | rsyslog | rotate | not delete file; logrotate
+/var/log/journal | 1.3G | live | journald | vacuum to 400M | not app data
+/tmp remaining ~690M | mixed Aug traffic dumps | temp | MOSTLY YES | leave secrets
+/var/www/sailingsa/api_restore_8001 | 7.1M | Aug 7 api | stale restore tree | AFTER disable unit | tied to :8001
+/root/backup_mm_overlay_* (many ~3.7M) | ~150M+ | 2026-09-10 | Midmar overlays | LIKELY | debug leftovers
+
+Recoverable if Phase 2 accepts the YES rows: ~22G (two 11G dups) + ~3–4G (fat releases/baks/triplicates) ≈ 25–26G. Disk would drop from 89% toward ~55%.
+
+SERVICES
+Need: sailingsa-api :8000 workers 4 (60-workers.conf). nginx → 8000. #128.
+Need: nginx, postgresql@16-main, cron, ssh.
+Need (non-SSA, same box): arial :8003–8006, tuya/cbi, hikpoc, whatsapp poc, sailing2026 :8766, mariadb.
+UNNECESSARY: sailingsa-api-restore.service enabled+running :8001, cwd api_restore_8001, api.py 49359 lines Aug 7, same DB_URL, nginx has ZERO 8001 refs. Mark disable+stop in Phase 2. Do not stop today.
+QUESTION: sailingsa-admin-api :8002 enabled; unit says nginx /admin/; sites-enabled has no 8002 and no /admin proxy. Verify before disable.
+No zombies except hikpoc ffmpeg defunct (non-SSA).
+Cron SSA: events 03:00, registry 02:00, wos 04:00, ssl 04:30, accreditation Sun 03:00, health */6. Duplicate sas scrape already disabled.
+
+CODE (report only)
+- Live api.py 80844 / 3.9MB / 1500 unique func names / 1588 top-level defs / 20 duplicate names
+- Worst dups: sponsor_profile_page ×76, sponsors_index_page ×48, regatta_admin_1_page ×25, traffic_* ×19
+- Unused imports (ast): functools, lru_cache, math
+- Live api.py psycopg2.connect = 0
+- Request-path raw connect left: modules/sailor_bio.py ×2
+- Offline scripts in /var/www/sailingsa/api/*.py still connect (not imported)
+- Repo api.py 27k lines vs live 80k — NEVER scp repo→live
+- Safe sync: copy LIVE api.py into a repo branch, md5-verify 3b355643c390bd12367903a236365726, PR that snapshot. Deploy scripts must refuse if live md5 != committed md5.
+
+PERF (no changes) baseline #128
+- Worker RSS ~1.72G (504+454+404+359 MB) on 3.8G host
+- CAP15 sailor p50/max 15.9/26.0s; search max 22.5s; hub burst 13.8s all 200
+- PG peak 55 / 100
+- OG media 6.7G; regatta-pdfs 1.8G (content, not junk)
+
+TOP 5 OPTIMISATIONS (do not implement)
+1. Sailor /dev-1 hold time 11–26s (REGEXP + long checkout) — largest UX
+2. Hub / named search 9–22s
+3. Worker RAM 1.7G + host swap 675M — shrink api.py / stop unused units
+4. Delete 22G duplicate Sept 17 tarballs so disk leaves 90%
+5. Disable :8001 restore (stale code + extra DB client) after confirm
+
+DANGEROUS
+- Disk 89% on 77G (INODE/write risk)
+- Swap in use 675M
+- sailingsa-api.service unit file contains plaintext OAuth secrets
+- :8001 restore shares sailors_master
+- Immutable leftover /root/__pycache__/lw-gold*.pyc (chattr +i)
+- ffmpeg zombie under hikpoc (non-SSA)
