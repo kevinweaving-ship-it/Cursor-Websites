@@ -15,7 +15,7 @@
   var WX_ID = 'ssa-regatta-slot-card';
   var MM_ID = 'mmLiptonReels';
   var CSS_ID = 'club-live-media-css';
-  var JS_VER = 'clubwx28';
+  var JS_VER = 'clubwx30';
   var HYC_CAM_ID = 'hyc-club-cam';
   var HMYC_CAM_ID = 'hmyc-club-cam';
   var TSC_CAM_ID = 'tsc-club-cam';
