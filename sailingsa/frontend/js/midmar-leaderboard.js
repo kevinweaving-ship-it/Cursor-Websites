@@ -742,7 +742,8 @@
   function paintFleets(anchor, rows) {
     var host = ensureHost(anchor);
     var dart = isDartLb();
-    var groups = groupFleets(rows).filter(function (g) {
+    var all = groupFleets(rows);
+    var groups = all.filter(function (g) {
       if (dart) return dartPodium(g.rows).board.length > 0;
       return podiumRows(g.rows).length > 0;
     });
@@ -757,7 +758,7 @@
       if (list) list.innerHTML = '<p class="midmar-lb-empty">Waiting for race scores</p>';
       return;
     }
-    var many = groups.length > 1;
+    var many = all.length > 1;
     groups.forEach(function (g, idx) {
       var card = fleetCard(host, idx);
       if (idx === 0) card.id = CARD_ID;
