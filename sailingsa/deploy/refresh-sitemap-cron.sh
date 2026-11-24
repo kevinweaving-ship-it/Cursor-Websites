@@ -53,4 +53,11 @@ PY
 # Nginx serves files as www-data
 chown www-data:www-data "$WEB_ROOT"/sitemap.xml "$WEB_ROOT"/sitemap-*.xml 2>/dev/null || true
 
+# Pass C: Hero / Hero 2 event story cards (same 15-min cadence). Non-fatal.
+if [ -f "$WEB_ROOT/sailingsa/deploy/refresh-landing-event-cards.py" ]; then
+  echo "[$(date -Is)] landing event cards refresh"
+  "$PY" "$WEB_ROOT/sailingsa/deploy/refresh-landing-event-cards.py" || echo "[landing-cards] failed (non-fatal)" >&2
+  chown www-data:www-data "$WEB_ROOT/index.html" "$WEB_ROOT/blank.html" 2>/dev/null || true
+fi
+
 echo "[$(date -Is)] sitemap refresh done"
