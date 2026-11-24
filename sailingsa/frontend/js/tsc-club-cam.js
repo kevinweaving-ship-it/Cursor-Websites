@@ -145,6 +145,7 @@
     video.setAttribute('webkit-playsinline', '');
     video.controls = false;
     video.removeAttribute('controls');
+    video.setAttribute('poster', 'https://cdn.skylinewebcams.com/_6246.jpg');
     var src = playUrl();
     function goPlay() {
       var p = video.play();
