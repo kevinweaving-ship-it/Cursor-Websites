@@ -91,6 +91,16 @@ def compact_text(payload: dict) -> str:
         from .page_indexing import render_lines as _pi_lines
 
         lines.extend(_pi_lines(pi))
+    rr = payload.get("rich_results") or {}
+    if rr.get("live") or rr.get("gsc"):
+        from .rich_results import render_lines as _rr_lines
+
+        lines.extend(_rr_lines({"live": rr.get("live") or {}, "gsc": rr.get("gsc") or {}}))
+    ps = payload.get("pagespeed") or {}
+    if ps.get("scores") or ps.get("autofix"):
+        from .pagespeed import render_lines as _ps_lines
+
+        lines.extend(_ps_lines(ps if "scores" in ps else {"scores": ps.get("scores") or {}, "autofix": ps.get("autofix") or {}}))
     cls = payload.get("classes") or {}
     lines.append(
         f"Live: REAL {cls.get(REAL, 0)} | STALE {cls.get(STALE, 0)} | "
@@ -115,6 +125,7 @@ def compact_text(payload: dict) -> str:
             "canonical_live_mismatches": [{}] * int(health.get("live_canonical_mismatches") or 0),
             "performance": health.get("performance") or {},
             "alerts": health.get("alerts") or [],
+            "manual_indexing": health.get("manual_indexing") or payload.get("manual_indexing") or {},
         }
         lines.extend(health_lines(fake))
     if attn:
@@ -122,7 +133,7 @@ def compact_text(payload: dict) -> str:
         for item in attn[:8]:
             lines.append(f"- {item}")
     elif not (health.get("alerts") or []):
-        lines.append("HEALTHY: no new REAL defects; SEO health checks quiet")
+        lines.append("LIVE CHECKS: no new confirmed defects; historical indexing exclusions still require review")
     return "\n".join(lines)
 
 

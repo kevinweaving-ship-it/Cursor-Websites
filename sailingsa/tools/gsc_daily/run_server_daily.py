@@ -24,6 +24,9 @@ from .server_api import inspect_url, list_sitemaps, list_sites, search_analytics
 from .server_auth import NeedGoogleConsent, access_token
 from .seo_health import evaluate_health, health_lines, write_health
 from .page_indexing import probe_families, render_lines as page_indexing_lines, write_page_indexing
+from .pagespeed import render_lines as pagespeed_lines
+from .pagespeed import run as run_pagespeed
+from .rich_results import audit_web_root, render_lines as rich_results_lines
 from .watchlist import build_watchlist, persist_reals, priority_event_urls
 from .whatsapp_gsc import class_counts, write_whatsapp
 
@@ -248,6 +251,20 @@ def main(argv: list[str] | None = None) -> int:
         data_root=root,
         as_of=datetime.now(SAST),
     )
+    try:
+        from .manual_index_worker import reconcile_accepted
+        from .manual_queue import write_admin_snapshot
+
+        recon = reconcile_accepted(root)
+        health["manual_indexing"] = {
+            **(health.get("manual_indexing") or {}),
+            "reconcile_checked": len(recon.get("checked") or []),
+            "reconcile_now_indexed": recon.get("now_indexed") or [],
+            "reconcile_error": recon.get("error") or "",
+        }
+        write_admin_snapshot(root, dest)
+    except Exception as exc:
+        health.setdefault("manual_indexing", {})["reconcile_error"] = f"{type(exc).__name__}: {exc}"[:240]
     write_health(dest, health)
     for a in health.get("alerts") or []:
         if a not in attn:
@@ -266,6 +283,25 @@ def main(argv: list[str] | None = None) -> int:
     write_page_indexing(dest, page_idx)
     for item in page_idx.get("broken") or []:
         attn.append(f"INDEX FAMILY {item}")
+    try:
+        rich = audit_web_root(inspections=inspections, dest=dest)
+    except Exception as e:
+        rich = {"error": f"{type(e).__name__}: {e}", "live": {}, "gsc": {}}
+        (dest / "rich_results.json").write_text(json.dumps(rich, indent=2) + "\n")
+    live_err_n = int((rich.get("live") or {}).get("error_pages") or 0)
+    gsc_err_n = int((rich.get("gsc") or {}).get("event_error_urls") or 0)
+    if live_err_n:
+        attn.append(f"EVENT JSON-LD errors on {live_err_n} pages")
+    if gsc_err_n:
+        attn.append(f"GSC Event ERRORS on {gsc_err_n} inspected URLs")
+    try:
+        psi = run_pagespeed(dest=dest, apply=apply_fixes, fetch=not args.no_google)
+    except Exception as e:
+        psi = {"error": f"{type(e).__name__}: {e}", "scores": {}, "autofix": {}}
+        (dest / "pagespeed.json").write_text(json.dumps(psi, indent=2) + "\n")
+    mob = ((psi.get("scores") or {}).get("mobile") or {})
+    if isinstance(mob.get("performance"), int) and mob["performance"] < 70:
+        attn.append(f"PageSpeed mobile {mob['performance']} LCP {mob.get('lcp_s')}s")
     payload = {
         "run_date": day,
         "sitemap_submit": sub,
@@ -325,7 +361,9 @@ def main(argv: list[str] | None = None) -> int:
             },
             "live_canonical_mismatches": len(health.get("canonical_live_mismatches") or []),
             "performance": health.get("performance"),
+            "manual_indexing": health.get("manual_indexing") or {},
         },
+        "manual_indexing": health.get("manual_indexing") or {},
         "page_indexing": {
             "snapshot_date": page_idx.get("snapshot_date"),
             "snapshot_total": page_idx.get("snapshot_total"),
@@ -349,6 +387,21 @@ def main(argv: list[str] | None = None) -> int:
             "Official Search Console API has no Page Indexing report. "
             "Do not click Validate Fix."
         ),
+        "rich_results": {
+            "live": rich.get("live") or {},
+            "gsc": rich.get("gsc") or {},
+            "error": rich.get("error"),
+        },
+        "rich_results_note": rich.get("note")
+        or (
+            "Official Search Console API has no Enhancement report table. "
+            "We audit live Event JSON-LD and read URL Inspection richResultsResult."
+        ),
+        "pagespeed": {
+            "scores": psi.get("scores") or {},
+            "autofix": psi.get("autofix") or {},
+            "error": psi.get("error"),
+        },
     }
     (dest / "gsc_api.json").write_text(json.dumps(google, indent=2) + "\n", encoding="utf-8")
     (dest / "report.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -375,6 +428,12 @@ def main(argv: list[str] | None = None) -> int:
         *page_indexing_lines(page_idx),
         "",
         payload["page_indexing_note"],
+        "",
+        *rich_results_lines(rich),
+        "",
+        payload["rich_results_note"],
+        "",
+        *pagespeed_lines(psi),
         "",
     ]
     (dest / "REPORT.md").write_text("\n".join(md), encoding="utf-8")

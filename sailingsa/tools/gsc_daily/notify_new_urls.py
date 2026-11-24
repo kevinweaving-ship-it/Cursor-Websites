@@ -76,8 +76,13 @@ def run(
     prev = load_prev(prev_path)
     added = sorted(set(current) - prev) if prev else []
     removed = sorted(prev - set(current)) if prev else []
+    from .manual_queue import enqueue, stamp_sitemap
+    from .manual_index_worker import wake_worker
+
+    added_n = enqueue(root, added)
+    if added_n:
+        wake_worker()
     first_seen = not prev
-    save_list(prev_path, current)
     payload: dict = {
         "as_of": datetime.now(SAST).isoformat(),
         "sitemap": ROOT_SITEMAP,
@@ -93,7 +98,8 @@ def run(
             "the URL set grows."
         ),
     }
-    if first_seen or not added:
+    if not added and not first_seen:
+        save_list(prev_path, current)
         dest = root / datetime.now(SAST).date().isoformat()
         dest.mkdir(parents=True, exist_ok=True)
         (dest / "notify_new_urls.json").write_text(json.dumps(payload, indent=2) + "\n")
@@ -106,8 +112,14 @@ def run(
 
             token = access_token(secret_dir)
             submit_sitemap(token)
+            receipt_dir = root / "submission-receipts"
+            receipt_dir.mkdir(exist_ok=True, parents=True)
+            receipt = {"submitted_at": payload["as_of"], "sitemap": ROOT_SITEMAP, "added": added or current}
+            (receipt_dir / (datetime.now(SAST).strftime("%Y%m%dT%H%M%S%f") + ".json")).write_text(json.dumps(receipt) + "\n")
+            save_list(prev_path, current)
             payload["submitted"] = True
             payload["submit_action"] = "put_index"
+            stamp_sitemap(root, added or [], payload["as_of"])
             watch = prioritize(added)[:inspect_budget]
             for url in watch:
                 try:
@@ -160,6 +172,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     for u in (payload.get("added") or [])[:12]:
         print(" +", u.replace(SITE, ""))
+    if payload.get("submit_error") or payload.get("auth_error"):
+        print("GSC sitemap submission failed; changes retained for retry")
+        return 1
     return 0
 
 

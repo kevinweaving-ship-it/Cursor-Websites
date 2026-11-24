@@ -1,0 +1,10 @@
+[Unit]
+Description=SailingSA GSC manual-indexing queue worker (single lock)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=PYTHONPATH=/opt/sailingsa-gsc
+Environment=TZ=Africa/Johannesburg
+ExecStart=/usr/local/sbin/sailingsa-gsc-manual-index --budget 8
+Nice=10
