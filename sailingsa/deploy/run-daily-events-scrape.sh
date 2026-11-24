@@ -122,3 +122,9 @@ if [ -n "${LOADER:-}" ] && ( [ -n "${DATABASE_URL:-}" ] || [ -n "${DB_URL:-}" ] 
   fi
 fi
 log "Done. records_added=$RECORDS_ADDED"
+
+# Upcoming Event rows share /regatta/{regatta_id}. Refresh Google sitemap after calendar load.
+if [ "$ON_SERVER" = true ] && [ -x "/var/www/sailingsa/deploy/refresh-sitemap-cron.sh" ]; then
+  log "Refreshing sitemap after events scrape..."
+  /var/www/sailingsa/deploy/refresh-sitemap-cron.sh >> "$LOG_FILE" 2>&1 || log "sitemap refresh failed (non-fatal)"
+fi
