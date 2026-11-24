@@ -1,0 +1,23 @@
+# SailingSA-tuned rsyslog rotation.
+# daily + maxsize so /var/log/syslog cannot grow unbounded (was 686M weekly).
+# Does not rm the active log; logrotate renames then signals rsyslog.
+/var/log/syslog
+/var/log/mail.log
+/var/log/kern.log
+/var/log/auth.log
+/var/log/user.log
+/var/log/cron.log
+{
+	rotate 14
+	daily
+	maxsize 100M
+	missingok
+	notifempty
+	create 0640 syslog adm
+	compress
+	delaycompress
+	sharedscripts
+	postrotate
+		/usr/lib/rsyslog/rsyslog-rotate
+	endscript
+}
