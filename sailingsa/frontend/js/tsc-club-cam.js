@@ -8,11 +8,30 @@
   if (window.__SSA_TSC_CLUB_CAM__) return;
   window.__SSA_TSC_CLUB_CAM__ = true;
 
-  var PLAY = '/api/regatta/2026-11-28-tsc-cape-classic/tsc-live-cam';
-  var STATUS = '/api/regatta/2026-11-28-tsc-cape-classic/tsc-live-cam-status';
   var HLS_SRC = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js';
   var CSS_ID = 'tsc-club-cam-css';
   var hlsWait = null;
+  var CANON_RID = '2026-11-28-tsc-cape-classic';
+
+  function camRid() {
+    var path = String((window.location && window.location.pathname) || '')
+      .replace(/\/+$/, '')
+      .toLowerCase();
+    var m = path.match(/^\/(?:regatta|event)\/([^/]*tsc-cape-classic[^/]*)/);
+    if (m && m[1]) return m[1];
+    var el = document.querySelector('[data-regatta-id]');
+    var rid = el ? String(el.getAttribute('data-regatta-id') || '').trim().toLowerCase() : '';
+    if (rid.indexOf('tsc-cape-classic') !== -1) return rid;
+    return CANON_RID;
+  }
+
+  function playPath() {
+    return '/api/regatta/' + encodeURIComponent(camRid()) + '/tsc-live-cam';
+  }
+
+  function statusPath() {
+    return '/api/regatta/' + encodeURIComponent(camRid()) + '/tsc-live-cam-status';
+  }
 
   function root() {
     return document.getElementById('tsc-club-cam') || document.querySelector('[data-tsc-club-cam]');
@@ -63,7 +82,7 @@
   }
 
   function playUrl() {
-    return PLAY + '?t=' + Date.now() + '&fresh=1';
+    return playPath() + '?t=' + Date.now() + '&fresh=1';
   }
 
   function setStamp(box, live) {
@@ -85,7 +104,7 @@
 
   function pollStatus(box) {
     function tick() {
-      fetch(STATUS + '?_=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' })
+      fetch(statusPath() + '?_=' + Date.now(), { credentials: 'same-origin', cache: 'no-store' })
         .then(function (r) {
           return r && r.ok ? r.json() : null;
         })
@@ -146,7 +165,7 @@
     pollStatus(box);
   }
 
-  window.SSATscClubCam = { start: start, playUrl: PLAY, statusUrl: STATUS };
+  window.SSATscClubCam = { start: start, playUrl: playPath(), statusUrl: statusPath() };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start);
