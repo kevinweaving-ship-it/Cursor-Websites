@@ -97,3 +97,17 @@ def server_data_root() -> Path:
 
 def run_dir(day: str, root: Path | None = None) -> Path:
     return (root or default_data_root()) / day
+
+
+# Visible Search Console UI (Request indexing). Never export this profile.
+GSC_CHROME_PROFILE_LINUX = Path("/root/gsc-oauth-chrome")
+GSC_CDP_PORT = 9333
+GSC_INSPECT_UI = (
+    "https://search.google.com/search-console/inspect"
+    "?resource_id=sc-domain%3Asailingsa.co.za"
+)
+MANUAL_INDEX_LOCK = "manual-index.lock"
+STARVE_AFTER_HOURS = 36
+IMMINENT_REGATTA_DAYS = 14
+RECENT_ROUNDUP_DAYS = 7
+REQUEST_DEDUP_HOURS = 12

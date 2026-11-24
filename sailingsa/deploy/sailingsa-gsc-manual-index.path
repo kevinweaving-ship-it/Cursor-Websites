@@ -1,0 +1,9 @@
+[Unit]
+Description=Wake GSC manual-indexing worker when the queue changes
+
+[Path]
+PathModified=/var/lib/sailingsa/gsc-daily/manual-indexing.sqlite
+Unit=sailingsa-gsc-manual-index.service
+
+[Install]
+WantedBy=multi-user.target

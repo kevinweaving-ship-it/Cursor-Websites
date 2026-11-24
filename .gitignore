@@ -200,6 +200,9 @@ find_*.py
 get_*.py
 list_*.py
 manual_*.py
+!sailingsa/tools/gsc_daily/manual_queue.py
+!sailingsa/tools/gsc_daily/manual_index_worker.py
+!sailingsa/tools/gsc_daily/manual_queue_check.py
 monitor_*.py
 process_*.py
 rebuild_*.py

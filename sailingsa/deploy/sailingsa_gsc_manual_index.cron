@@ -1,0 +1,5 @@
+# Resume the Search Console Request-indexing queue. Worker no-ops if empty, locked, or quota-paused.
+# Sitemap PUT remains on sailingsa_sitemap_refresh / notify_new_urls — do not disable those.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+7 * * * * root /usr/local/sbin/sailingsa-gsc-manual-index --budget 8 >> /var/log/sailingsa-gsc-manual-index.log 2>&1
