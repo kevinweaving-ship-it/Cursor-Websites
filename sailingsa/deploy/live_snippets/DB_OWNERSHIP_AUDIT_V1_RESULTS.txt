@@ -1,0 +1,90 @@
+SailingSA live DB-ownership audit V1. STOP after comprehensive pass.
+Live: /var/www/sailingsa/api/api.py  chattr +i  marker DB_OWNERSHIP_AUDIT_V1
+Bak: api.py.20260918_085426.bak  +  /root/releases/api_db_own_20260918_085426.tar.gz
+Restart: one, 2026-09-18 08:59:37 SAST. Pool still 2-12 x 4. #116-#126 preserved. /auth/session OOS.
+
+WHAT THE PASS CHANGED (live api.py only)
+- Every executable `with psycopg2.connect(DB_URL)` in api.py → `with db_connection()` (SQL unchanged).
+- Pooled checkouts that called conn.close() now return_db_connection.
+- Nested reuse: _yearly_series_* accept/pass conn; _get_upcoming_events no longer opens a second db_connection for past-card sort; event-card / header-icon / logo helpers take conn=.
+- api.py remaining raw psycopg2.connect: 0.
+
+WHAT THE PASS DID NOT CHANGE
+- api_search still borrows at 36693 and returns at 37374 (span 681) across SA/temp/name-only SQL + Python collapse.
+- _get_upcoming_events still holds 17711→17940 (span 229) across card construction, yearly maps, match/scrub, left-logo attach.
+- _bg_club / _bg / _bg2 / _bg3 do not own a conn; they call serve_club_page / _events_page_html → _get_upcoming_events on a background thread that shares the worker's 12-slot pool.
+- serve_dev1_rank_page keeps the #125 shared checkout (span 884).
+- modules/sailor_bio.py still uses raw psycopg2.connect (request-path bio). Offline scripts under /var/www/sailingsa/api/*.py also still connect; they are not imported by api.py except sailor_bio.
+
+STATIC RE-INVENTORY (live after cleanup)
+- api.py acq hits 261. raw connect(DB_URL) 0. psycopg2.connect 0.
+- Remaining request-path raw connect: modules/sailor_bio.py (2) used by api_sailor_details / build_sailor_bio_from_db.
+- Remaining nested: intentional reuse via conn= / _use_db_connection (yearly maps, event cards, #125 _dev1_held). No unexplained second get_db on those chains.
+- Remaining connections spanning substantial non-DB / long SQL (request-path, not infra):
+  api_search                         36693→37374  hold across full search SQL + collapse
+  _get_upcoming_events               17711→17940  hold across cards/logos/yearly/match
+  _get_events_by_type_slug           17974→18113  same card/logo pattern
+  serve_dev1_rank_page               52012→52896  #125 shared checkout (do not reopen)
+  _get_sailor_by_name_slug_from_results 39707→39813  results REGEXP
+  _get_regatta_full_page_data        56984→57147
+  _serve_club_page_impl              66693→66782
+  _get_public_stats                  18461→18713
+  api_regattas_with_counts           37650→38248
+  api_standings                      40078→41648  (admin/standings, not 390 matrix)
+  check_session                      42190→42341  /auth/session OOS
+  Background holders (no own checkout): _bg_club, _bg, _bg2, _bg3, events_logo_detail rebuild
+
+TEST (identical 390 x2 after the one restart, then 32-way burst)
+OWN1 07:00–07:03 UTC  390  383x200  4x500(/auth/session pool exhaust)  2x404(regatta)  1x301
+OWN2 07:03–07:05 UTC  390  388x200  2x500(/auth/session pool exhaust)
+BURST 32-way sailor/regatta/search/club  29x200  3x404 (ilca-nationals / fbyc-easter / finn-nationals; same URLs 200 on retry in-burst)
+
+JOURNAL
+OWN window 08:59–09:10 SAST: error_getting 90  pool_get_failed 90  exhausted_phrase 253
+  workers: 353494=88  353495=2
+  requesters (not holders): _get_regatta_by_regatta_id 12, serve_dev1 shared 6, _get_unassigned_club_id 6,
+    _get_regatta_by_event_name_slug 5, sas_id_personal fallback 5, fleet_shell 3,
+    _get_sailor_name_by_slug 2, _get_regatta_full_page_data 2,
+    events_logo_detail bg 2, _get_sailor_by_name_slug_from_results 1, /auth/session 6
+BURST last 4 min: error_getting 49  pool_get_failed 49  exhausted_phrase 134  all worker 353496
+  requesters: _get_regatta_by_regatta_id 16, event_name_slug 6, fleet_shell 5,
+    _get_sailor_name_by_slug 2, _get_regatta_full_page_data 2, _get_unassigned_club_id 2,
+    serve_dev1 shared 1, _get_sailor_by_name_slug_from_results 1
+reclaim 0  cross-request reclaim 0  too-many-clients 0  SUPERUSER 0  unexplained 502 0
+idle-in-transaction END 0 (burst mid-sample iit peak 8)
+
+PG
+burst peak total=37 sailors_user=32 active=23 iit=8
+end / now total=14 sailors=9 active=1 iit=0  (baseline)
+OWN PG sampler did not run on live (local sudo postgres failed). OWN journal still proves per-worker pool 12 exhausted.
+
+PASS CRITERIA
+pool exhausted 0          FAIL
+DB-related 500 0          FAIL (OWN auth-session 6 total; all "connection pool exhausted")
+unexplained 502 0         PASS
+reclaim 0                 PASS
+cross-request reclaim 0   PASS
+too-many clients 0        PASS
+SUPERUSER reserved 0      PASS
+idle-in-transaction end 0 PASS
+PG returns to baseline    PASS
+PG peak << 44             burst 37 (below 44) but pool 12 exhausted so PG headroom is not the limiter
+
+PER-WORKER / HOLD TIMES
+_EXHAUST_DIAG=False so no HOLD_MS lines. Observed request totals = lower bound on DB hold for those paths.
+OWN family p50/max sec: sailor 10.85/21.59  search 3.62/15.96  dev-1 5.52/11.87  regatta 4.85/14.05  club 1.97/3.24
+BURST: sailor 15.6–17.6s  search hub 17.6s  named search 3.7–6.0s  club 2.2–3.2s
+Exhaustion clustered on a single worker each time (353494 OWN, 353496 burst) = that worker's 12 slots full.
+
+STOP
+Comprehensive api.py ownership pass is live. Pool exhaustion remains and journal volume rose vs #126 (6 exhaust events) because leftover unpooled connects now compete for the same 2–12 pool.
+Remaining measured holders are long SQL / page construction, not leaked checkouts:
+  1. api_search
+  2. _get_upcoming_events (via club / events / _bg_club / _bg / _bg2)
+  3. serve_dev1_rank_page shared checkout + _get_sailor_by_name_slug_from_results
+  4. _get_regatta_full_page_data / SEO slug lookups (requesters when 12 is full)
+  5. events_logo_detail background rebuild
+  6. /auth/session (OOS)
+  7. modules/sailor_bio.py raw connect (outside pool; extra PG client)
+12 per worker is too small for 16–32 concurrent sailor/search/regatta/club plus bg rebuilds while those holds are 10–20s.
+Do not do more function surgery. Decision is maxconn/workers vs accept burst exhaustion.
