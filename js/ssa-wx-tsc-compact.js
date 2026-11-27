@@ -8,7 +8,7 @@
 
   var ROOT_ID = "ssa-wx-venue-tsc";
   var CSS_ID = "ssa-wx-venue-tsc-css";
-  var JS_VER = "tscv1";
+  var JS_VER = "tscv2";
   var TWW_API = "https://weather.theewater.co.za/wp-json/theewater-weather/v1";
   var OM_URL =
     "https://api.open-meteo.com/v1/forecast?latitude=-34.0264&longitude=19.2624" +
@@ -253,28 +253,6 @@
     });
   }
 
-  function parseHybrid(fc) {
-    var m = fc && fc.models && fc.models.hybrid;
-    var time = (fc && fc.time) || [];
-    if (!m || !m.wind || !time.length) return { hours: [], source: "" };
-    var hours = [];
-    var i;
-    for (i = 0; i < time.length; i += 1) {
-      hours.push({
-        t: Number(time[i]) * 1000,
-        w: m.wind[i],
-        g: m.gust && m.gust[i] != null ? m.gust[i] : m.wind[i],
-        dir: m.dir ? m.dir[i] : null,
-        day: !m.day || m.day[i] !== 0,
-        thunder: m.code && m.code[i] >= 95
-      });
-    }
-    return {
-      hours: hours,
-      source: "Theewater hybrid (ECMWF/GFS/ICON), station-tuned. Layout is SailingSA."
-    };
-  }
-
   function parseOpenMeteo(d) {
     var h = d && d.hourly;
     if (!h || !h.time) return { hours: [], source: "" };
@@ -290,7 +268,10 @@
         thunder: h.weather_code && h.weather_code[i] >= 95
       });
     }
-    return { hours: hours, source: "Open-Meteo 10 m wind — not tuned to the club anemometer." };
+    return {
+      hours: hours,
+      source: "Forecast data from Open-Meteo.com (10 m wind at the club). Not tuned to the anemometer."
+    };
   }
 
   function loadJson(url, opts) {
@@ -568,14 +549,7 @@
         return null;
       }
     );
-    var fcP = loadJson(TWW_API + "/forecast?_=" + Date.now()).then(
-      function (d) {
-        return parseHybrid(d);
-      },
-      function () {
-        return loadJson(OM_URL).then(parseOpenMeteo);
-      }
-    );
+    var fcP = loadJson(OM_URL).then(parseOpenMeteo);
     return Promise.all([clubP, damP, fcP]);
   }
 
@@ -623,7 +597,6 @@
     bandCol: bandCol,
     rateSail: rateSail,
     ratePower: ratePower,
-    parseHybrid: parseHybrid,
     parseOpenMeteo: parseOpenMeteo,
     next48: next48,
     JS_VER: JS_VER

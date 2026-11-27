@@ -669,7 +669,7 @@ window.getRegattas = getRegattas;
         if (!/(?:^|[?&])wx=v2(?:&|$)/.test(q)) return;
         if (document.querySelector('script[src*="ssa-wx-tsc-compact.js"]')) return;
         var s = document.createElement('script');
-        s.src = '/js/ssa-wx-tsc-compact.js?v=tscv1';
+        s.src = '/js/ssa-wx-tsc-compact.js?v=tscv2';
         s.defer = true;
         (document.head || document.documentElement).appendChild(s);
     } catch (e) { /* keep club pages loading if this test hook fails */ }
