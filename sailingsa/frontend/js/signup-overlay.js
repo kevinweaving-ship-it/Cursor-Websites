@@ -67,6 +67,7 @@
             '#' + OVERLAY_ID + ' iframe{flex:1;width:100%;border:0;background:#fff;}' +
             '#' + TEASER_ID + '{margin:8px 0;padding:10px 12px;border:1px solid #fdba74;background:#fff7ed;border-radius:8px;font-size:14px;line-height:1.35;color:#9a3412;}' +
             '#' + TEASER_ID + ' button{margin-top:8px;min-height:44px;padding:8px 12px;border:0;border-radius:8px;background:#c62828;color:#fff;font-weight:600;font-size:14px;cursor:pointer;}' +
+            '#ssa-ssr-entity{display:none !important;}' +
             'body.ssa-guest-teaser .sailor-stats-section,' +
             'body.ssa-guest-teaser .sailor-career-regatta-history,' +
             'body.ssa-guest-teaser .sailor-ai-overview,' +
@@ -227,8 +228,12 @@
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', scheduleTeaser);
+        document.addEventListener('DOMContentLoaded', function () {
+            ensureStyle();
+            scheduleTeaser();
+        });
     } else {
+        ensureStyle();
         scheduleTeaser();
     }
     var obs = new MutationObserver(scheduleTeaser);
