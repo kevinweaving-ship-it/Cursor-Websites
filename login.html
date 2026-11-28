@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login / Register - SailingSA</title>
+    <title>Login - SailingSA</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Audiowide&display=swap" rel="stylesheet">
@@ -314,9 +314,478 @@
             margin-bottom: 1rem;
             text-align: center;
         }
+
+            /* Sign-in / sign-up page switch links */
+            .auth-page-switch {
+                text-align: center;
+                margin-top: 1rem;
+                padding-top: 0.75rem;
+                border-top: 1px solid rgba(0,0,0,0.08);
+                font-size: 0.95rem;
+                color: #64748b;
+            }
+            .auth-page-switch a {
+                color: #1a365d;
+                font-weight: 700;
+                margin-left: 0.35rem;
+                text-decoration: none;
+            }
+            .auth-page-switch a:hover {
+                text-decoration: underline;
+            }
+            .signup-splash-card .auth-page-switch {
+                border-top-color: rgba(255,255,255,0.25);
+                color: rgba(255,255,255,0.85);
+            }
+            .signup-splash-card .auth-page-switch a {
+                color: #fef08a;
+            }
     </style>
+    <style>
+        body.login-replacement-active {
+            background: linear-gradient(180deg, #f5f6f8 0%, #eef1f4 100%);
+        }
+        .login-replacement-active .login-page {
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin-top: 0;
+            padding: 8px;
+            background: linear-gradient(180deg, #f5f6f8 0%, #eef1f4 100%);
+            box-sizing: border-box;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+        .login-replacement-active .login-container {
+            position: relative;
+            max-width: 440px;
+            width: 100%;
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            max-height: none;
+            overflow: visible;
+        }
+        .login-replacement-active .logo-section,
+        .login-replacement-active .login-nav-back {
+            display: none !important;
+        }
+        .login-home-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+            padding: 0 14px;
+            min-height: 84px;
+            height: 84px;
+            border-radius: 8px;
+            background: #08184a;
+            color: #fff;
+            box-sizing: border-box;
+        }
+        .login-home-logo {
+            display: block;
+            width: auto;
+            height: 76px;
+            max-height: 76px;
+            max-width: 220px;
+            object-fit: contain;
+            object-position: left center;
+            flex: 0 0 auto;
+        }
+        .login-home-link {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            color: #fff !important;
+            font-size: 22px;
+            font-weight: 800;
+            text-decoration: none;
+            letter-spacing: 0.02em;
+            text-transform: none;
+        }
+        .login-art-card {
+            position: relative;
+            overflow: hidden;
+            padding: 10px 12px 12px;
+            border-radius: 0;
+            background:
+                linear-gradient(90deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.98) 58%, rgba(255,255,255,0.2) 100%);
+            min-height: auto;
+        }
+        .login-art-card::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: 0;
+            width: 52%;
+            height: 240px;
+            background-image:
+                linear-gradient(270deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.75) 100%),
+                url("https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic%20white%20sailboat%20on%20bright%20blue%20ocean%20near%20dramatic%20mountain%20coastline%2C%20clean%20sky%2C%20high-end%20editorial%20travel%20photography%2C%20crisp%20water%20spray%2C%20elegant%20sailing%20scene&image_size=portrait_16_9");
+            background-size: cover;
+            background-position: center center;
+            clip-path: polygon(34% 0, 100% 0, 100% 100%, 0 100%);
+            pointer-events: none;
+        }
+        .login-art-brand {
+            position: relative;
+            z-index: 1;
+            max-width: 50%;
+            margin-bottom: 10px;
+            padding-top: 0;
+            min-height: 200px;
+        }
+        .login-art-logo {
+            display: block;
+            width: auto;
+            max-width: 148px;
+            max-height: 72px;
+            height: auto;
+            object-fit: contain;
+            object-position: left center;
+        }
+        .login-art-title {
+            margin: 6px 0 0;
+            color: #08184a;
+            font-size: 16px;
+            line-height: 1.05;
+            letter-spacing: 0.02em;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .login-replacement-active #errorMessage {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 8px;
+            border-radius: 10px;
+            border: 1px solid #ef9a9a;
+            background: rgba(255, 235, 238, 0.96);
+        }
+        .login-art-socials,
+        .login-art-fields {
+            position: relative;
+            z-index: 1;
+        }
+        .login-art-socials {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .login-social-button {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+            width: 100%;
+            min-height: 40px;
+            padding: 0 12px;
+            border-radius: 6px;
+            border: 1px solid #d2d7e0;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(8, 24, 74, 0.08);
+        }
+        .login-social-button svg {
+            width: 22px;
+            height: 22px;
+            flex: 0 0 22px;
+        }
+        .login-social-button span {
+            flex: 1;
+            text-align: center;
+            padding-right: 12px;
+        }
+        .login-social-google {
+            background: #fff;
+            color: #1d2a57;
+        }
+        .login-social-facebook {
+            background: #0f39c9;
+            border-color: #0f39c9;
+            color: #fff;
+        }
+        .login-social-apple {
+            background: #000;
+            border-color: #000;
+            color: #fff;
+        }
+        .login-social-disabled {
+            background: #d9dde5 !important;
+            border-color: #c5cad6 !important;
+            color: #6d7485 !important;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .login-social-disabled svg {
+            opacity: 0.65;
+        }
+        .login-art-divider {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0;
+            color: #7d8198;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .login-art-divider::before,
+        .login-art-divider::after {
+            content: '';
+            flex: 1 1 auto;
+            height: 1px;
+            background: #d8dbe4;
+        }
+        .login-art-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .login-art-field {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .login-art-field-label {
+            color: #08184a;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .login-art-input-wrap {
+            display: flex;
+            align-items: center;
+            min-height: 38px;
+            border: 1px solid #d3d7e0;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.96);
+        }
+        .login-art-input-wrap svg {
+            flex: 0 0 18px;
+            width: 18px;
+            height: 18px;
+            margin: 0 10px;
+        }
+        .login-art-input-wrap input {
+            flex: 1;
+            border: 0;
+            background: transparent;
+            padding: 0 10px 0 0;
+            height: 36px;
+            font-size: 16px;
+            color: #1d2a57;
+            box-shadow: none;
+        }
+        .login-art-input-wrap input::placeholder {
+            color: #a0a4b4;
+            font-size: 16px;
+        }
+        .password-visibility-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+        }
+        .password-visibility-toggle svg {
+            margin: 0;
+            opacity: 0.9;
+        }
+        .password-visibility-toggle.is-visible svg path,
+        .password-visibility-toggle.is-visible svg circle {
+            stroke: #0c8aa9;
+        }
+        .login-art-submit {
+            width: 100%;
+            min-height: 40px;
+            margin-top: 2px;
+            border: 0;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #027c99 0%, #0a95b3 100%);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 0 6px 14px rgba(2, 124, 153, 0.16);
+        }
+        .login-art-forgot {
+            margin-top: 6px;
+            text-align: center;
+        }
+        .login-art-forgot a {
+            color: #0b84a2;
+            font-size: 13px;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .login-art-hidden-toggle {
+            display: none;
+        }
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        @media (max-width: 480px) {
+            .login-replacement-active .login-page {
+                padding: 4px;
+            }
+            .login-home-bar {
+                margin-bottom: 4px;
+                padding: 0 10px;
+                min-height: 80px;
+                height: 80px;
+                border-radius: 0;
+            }
+            .login-home-logo {
+                height: 72px;
+                max-height: 72px;
+                max-width: 200px;
+            }
+            .login-home-link {
+                min-height: 40px;
+                font-size: 20px;
+            }
+            .login-art-card {
+                padding: 8px 10px 10px;
+            }
+            .login-art-card::before {
+                top: 16px;
+                width: 50%;
+                height: 210px;
+            }
+            .login-art-brand {
+                max-width: 52%;
+                margin-bottom: 8px;
+                min-height: 180px;
+            }
+            .login-art-logo {
+                max-width: 120px;
+                max-height: 58px;
+            }
+            .login-art-title {
+                font-size: 14px;
+                margin-top: 4px;
+            }
+            .login-social-button {
+                min-height: 36px;
+                padding: 0 10px;
+                font-size: 11px;
+            }
+            .login-social-button svg {
+                width: 18px;
+                height: 18px;
+                flex-basis: 18px;
+            }
+            .login-social-button span {
+                padding-right: 4px;
+            }
+            .login-art-divider {
+                margin: 6px 0;
+                font-size: 11px;
+            }
+            .login-art-fields {
+                gap: 5px;
+            }
+            .login-art-field {
+                gap: 2px;
+            }
+            .login-art-field-label {
+                font-size: 10px;
+            }
+            .login-art-input-wrap {
+                min-height: 36px;
+            }
+            .login-art-input-wrap svg {
+                width: 16px;
+                height: 16px;
+                margin: 0 8px;
+            }
+            .login-art-input-wrap input {
+                height: 34px;
+                font-size: 16px;
+            }
+            .password-visibility-toggle {
+                width: 34px;
+                height: 34px;
+            }
+            .login-art-submit {
+                min-height: 38px;
+                font-size: 14px;
+            }
+            .login-art-forgot {
+                margin-top: 4px;
+            }
+            .login-art-forgot a {
+                font-size: 12px;
+            }
+        }
+        @media (max-height: 780px) {
+            .login-art-card::before {
+                height: 190px;
+                opacity: 0.95;
+            }
+            .login-art-brand {
+                min-height: 170px;
+            }
+                opacity: 0.9;
+            }
+            .login-art-logo {
+                max-height: 52px;
+                max-width: 110px;
+            }
+            .login-art-title {
+                font-size: 13px;
+                margin-top: 2px;
+            }
+            .login-art-socials {
+                gap: 4px;
+            }
+            .login-social-button {
+                min-height: 34px;
+            }
+            .login-art-divider {
+                margin: 4px 0;
+            }
+            .login-art-fields {
+                gap: 4px;
+            }
+            .login-art-input-wrap,
+            .login-art-input-wrap input {
+                min-height: 34px;
+                height: 32px;
+            }
+        }
+    </style>
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
-<body>
+<body class="login-replacement-active">
     <div class="login-page">
         <div class="login-container">
             <div class="logo-section">
@@ -325,75 +794,107 @@
             </div>
 
             <!-- Back / Cancel: return to originating page without signing in -->
-            <div style="margin-bottom: 1rem; text-align: center;">
-                <a href="#" id="backToPageLink" class="btn-login btn-back" style="display: inline-block; text-decoration: none;" onclick="goBackToReturnUrl(); return false;">Back to results</a>
+            <div style="margin-bottom: 0;">
+                <div class="login-home-bar">
+                    <img src="/assets/logos/Live/logo-wordmark-on-color.png?v=20260813-login-header-white" alt="SailingSA" class="login-home-logo">
+                    <a href="#" id="backToPageLink" class="login-home-link" onclick="goBackToReturnUrl(); return false;">Home</a>
+                </div>
             </div>
 
             <!-- Error Message -->
             <div id="errorMessage" class="error-message"></div>
 
-            <!-- Main Login Form (Canonical Structure) -->
+            <!-- Main Login Form (Replacement Artwork) -->
             <div id="initialChoice" class="login-section active">
-                <form id="usernamePasswordForm" onsubmit="handleUsernamePasswordLogin(event)">
-                    <div class="form-group" style="position: relative;">
-                        <label for="usernameInput">WA no / SAS ID</label>
-                        <input type="text" id="usernameInput" name="username" autocomplete="username" placeholder="WhatsApp No (e.g. 082 123) or SAS ID" required>
+                <div class="login-art-card">
+                    <div class="login-art-brand">
+                        <img src="/assets/logos/Live/logo-wordmark-on-white.png?v=20260813-login-compact2" alt="SailingSA" class="login-art-logo">
+                        <h1 class="login-art-title">Access Your Account</h1>
                     </div>
-                    <div class="form-group" style="position: relative;">
-                        <label for="passwordInput" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span style="font-weight: bold;">Password</span>
-                            <label for="showPasswordCheckbox" style="display: inline-flex; align-items: center; font-size: 14px; font-weight: normal; cursor: pointer; user-select: none; color: #333; margin: 0;">
-                                <span style="font-weight: normal; margin-right: 0.5rem;">- Show</span>
-                                <input type="checkbox" id="showPasswordCheckbox" style="cursor: pointer; width: 16px; height: 16px; flex-shrink: 0; margin: 0;" onchange="togglePasswordVisibility()">
-                            </label>
-                        </label>
-                        <input type="password" id="passwordInput" name="password" autocomplete="current-password" placeholder="Password" required>
-                    </div>
-                    <div class="form-group" style="margin-top: 0.5rem;">
-                        <label for="rememberCredentials" style="display: inline-flex; align-items: center; font-size: 14px; font-weight: normal; cursor: pointer; user-select: none; color: #333;">
-                            <input type="checkbox" id="rememberCredentials" style="margin-right: 0.5rem; cursor: pointer; width: 16px; height: 16px; flex-shrink: 0;" checked>
-                            <span>Remember credentials on this device</span>
-                        </label>
-                    </div>
-                    <div class="btn-group">
-                        <button type="submit" class="btn-login btn-primary">Sign In</button>
-                    </div>
-                    <div class="forgot-password-link">
-                        <a href="#" onclick="handleForgotPassword(event)">Forgot password?</a>
-                    </div>
-                </form>
 
-                <div class="divider">OR</div>
+                    <form id="usernamePasswordForm" onsubmit="handleUsernamePasswordLogin(event)">
+                        <input type="checkbox" id="rememberCredentials" class="login-art-hidden-toggle" checked>
+                        <input type="checkbox" id="showPasswordCheckbox" class="login-art-hidden-toggle" checked>
 
-                <div class="btn-group">
-                    <button class="btn-login btn-google" onclick="loginWithGoogle()">
-                        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                        </svg>
-                        <span>Sign in with Google</span>
-                        <span style="font-size: 0.75em; opacity: 0.7; margin-left: 0.5rem;">(in Development)</span>
-                    </button>
-                    <button class="btn-login btn-facebook" onclick="loginWithFacebook()">
-                        <svg class="btn-icon" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                        </svg>
-                        Sign in with Facebook
-                    </button>
-                </div>
+                        <div class="login-art-socials">
+                            <button type="button" class="login-social-button login-social-google" onclick="loginWithGoogle()">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                <span>Sign in with Google</span>
+                            </button>
+                            <button type="button" class="login-social-button login-social-facebook" onclick="loginWithFacebook()">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="12" fill="white"/>
+                                    <path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#0F39C9"/>
+                                </svg>
+                                <span>Sign in with Facebook</span>
+                            </button>
+                            <button type="button" class="login-social-button login-social-apple login-social-disabled" disabled aria-disabled="true" title="Apple Sign In not configured yet">
+                                <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path d="M16.86 12.36C16.89 15.35 19.48 16.35 19.51 16.36C19.49 16.43 19.11 17.73 18.18 19.09C17.37 20.27 16.53 21.45 15.2 21.47C13.89 21.49 13.47 20.69 11.98 20.69C10.49 20.69 10.03 21.45 8.79 21.49C7.5 21.54 6.52 20.2 5.7 19.03C4.03 16.61 2.74 12.19 4.45 9.22C5.3 7.74 6.82 6.8 8.47 6.78C9.73 6.76 10.92 7.63 11.69 7.63C12.46 7.63 13.92 6.59 15.43 6.74C16.06 6.77 17.84 6.99 18.98 8.66C18.89 8.72 16.84 9.91 16.86 12.36ZM14.43 5.17C15.1 4.36 15.55 3.23 15.43 2.11C14.46 2.15 13.29 2.76 12.59 3.57C11.97 4.29 11.42 5.44 11.56 6.54C12.64 6.62 13.76 5.98 14.43 5.17Z"/>
+                                </svg>
+                                <span>Apple Coming Soon</span>
+                            </button>
+                        </div>
 
-                <div class="divider">OR</div>
+                        <div class="login-art-divider">Or</div>
 
-                <div class="btn-group">
-                    <button class="btn-login btn-register" onclick="showRegistrationForm(event)">
-                        1st Time Here ?
-                        <svg class="btn-icon" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                        </svg>
-                        Register
-                    </button>
+                        <div class="login-art-fields">
+                            <div class="login-art-field">
+                                <label class="login-art-field-label" for="usernameInput">Whatsapp / SAS ID</label>
+                                <div class="login-art-input-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M12 3.25C7.44 3.25 3.75 6.86 3.75 11.31C3.75 13.06 4.34 14.67 5.34 15.98L4.44 20.75L9.38 19.47C10.2 19.78 11.08 19.94 12 19.94C16.56 19.94 20.25 16.33 20.25 11.88C20.25 7.43 16.56 3.25 12 3.25Z" fill="#25D366"/>
+                                        <path d="M16.23 14.08C16.04 14.63 15.16 15.09 14.67 15.15C14.29 15.2 13.81 15.22 12.16 14.55C10.05 13.69 8.68 11.58 8.58 11.45C8.49 11.32 7.74 10.32 7.74 9.29C7.74 8.26 8.26 7.75 8.45 7.55C8.64 7.36 8.86 7.31 8.99 7.31C9.12 7.31 9.25 7.31 9.36 7.31C9.48 7.31 9.64 7.26 9.79 7.61C9.95 7.96 10.33 8.98 10.39 9.1C10.45 9.21 10.49 9.34 10.41 9.47C10.34 9.6 10.3 9.68 10.19 9.8C10.08 9.93 9.96 10.09 9.86 10.2C9.76 10.31 9.66 10.43 9.78 10.64C9.9 10.84 10.32 11.54 10.96 12.1C11.79 12.82 12.49 13.04 12.71 13.13C12.93 13.22 13.05 13.2 13.17 13.07C13.29 12.94 13.66 12.51 13.81 12.29C13.96 12.06 14.11 12.1 14.31 12.17C14.51 12.25 15.57 12.76 15.79 12.88C16.01 13 16.15 13.06 16.21 13.16C16.28 13.27 16.28 13.77 16.23 14.08Z" fill="white"/>
+                                    </svg>
+                                    <input type="text" id="usernameInput" name="username" autocomplete="username" placeholder="Whatsapp Number or SAS ID number">
+                                </div>
+                            </div>
+
+                            <div class="login-art-field">
+                                <label class="login-art-field-label" for="emailInput">Email</label>
+                                <div class="login-art-input-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M4 6.5H20C20.83 6.5 21.5 7.17 21.5 8V16C21.5 16.83 20.83 17.5 20 17.5H4C3.17 17.5 2.5 16.83 2.5 16V8C2.5 7.17 3.17 6.5 4 6.5Z" stroke="#1D2A57" stroke-width="1.8"/>
+                                        <path d="M3.5 8L12 13.75L20.5 8" stroke="#1D2A57" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                    <input type="email" id="emailInput" name="email" autocomplete="email" placeholder="Enter your email address">
+                                </div>
+                            </div>
+
+                            <div class="login-art-field">
+                                <label class="login-art-field-label" for="passwordInput">Password</label>
+                                <div class="login-art-input-wrap">
+                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <rect x="5.5" y="10.5" width="13" height="10" rx="1.8" stroke="#1D2A57" stroke-width="1.8"/>
+                                        <path d="M8.5 10.5V8.5C8.5 6.57 10.07 5 12 5C13.93 5 15.5 6.57 15.5 8.5V10.5" stroke="#1D2A57" stroke-width="1.8" stroke-linecap="round"/>
+                                        <path d="M12 14V17" stroke="#1D2A57" stroke-width="1.8" stroke-linecap="round"/>
+                                    </svg>
+                                    <input type="text" id="passwordInput" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+                                    <button type="button" id="passwordToggleBtn" class="password-visibility-toggle" onclick="togglePasswordVisibility()" aria-label="Toggle password visibility">
+                                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                            <path d="M2.5 12C4.43 8.25 8.01 6 12 6C15.99 6 19.57 8.25 21.5 12C19.57 15.75 15.99 18 12 18C8.01 18 4.43 15.75 2.5 12Z" stroke="#1D2A57" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                            <circle cx="12" cy="12" r="2.8" stroke="#1D2A57" stroke-width="1.8"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="login-art-submit">Log In</button>
+                        </div>
+
+                        <div class="login-art-forgot">
+                            <a href="#" onclick="handleForgotPassword(event)">Forgot Password?</a>
+                        </div>
+                        <div class="auth-page-switch">
+                            <span>New here?</span>
+                            <a href="/signup.html" id="goToSignupLink" onclick="goToSignup(event)">Sign up</a>
+                        </div>
+                    </form>
                 </div>
             </div>
 
@@ -567,6 +1068,16 @@
                 var params = new URLSearchParams(window.location.search);
                 var urlReturnTo = params.get('returnTo');
                 if (urlReturnTo) sessionStorage.setItem('auth_returnTo', urlReturnTo);
+                if (params.get('signup') || params.get('register') || params.get('sas_id') || params.get('sasId') || params.get('sas')) {
+                    var signupTarget = buildSignupUrl({
+                        sas_id: params.get('sas_id') || params.get('sasId') || params.get('sas') || '',
+                        name: params.get('name') || '',
+                        returnTo: params.get('returnTo') || ''
+                    });
+                    window.location.replace(signupTarget);
+                    return;
+                }
+
             } catch (e) {}
             // Load stored credentials and auto-populate
             loadStoredCredentials();
@@ -582,66 +1093,80 @@
         function togglePasswordVisibility() {
             const passwordInput = document.getElementById('passwordInput');
             const showPasswordCheckbox = document.getElementById('showPasswordCheckbox');
+            const passwordToggleBtn = document.getElementById('passwordToggleBtn');
             if (passwordInput && showPasswordCheckbox) {
-                passwordInput.type = showPasswordCheckbox.checked ? 'text' : 'password';
+                showPasswordCheckbox.checked = !showPasswordCheckbox.checked;
+                const shouldShow = showPasswordCheckbox.checked;
+                passwordInput.type = shouldShow ? 'text' : 'password';
+                if (passwordToggleBtn) {
+                    passwordToggleBtn.classList.toggle('is-visible', shouldShow);
+                    passwordToggleBtn.setAttribute('aria-pressed', shouldShow ? 'true' : 'false');
+                }
             }
         }
         
         // Make function globally accessible
         window.togglePasswordVisibility = togglePasswordVisibility;
         
-        // Store credentials in localStorage
-        function storeCredentials(username, password) {
-            const rememberCredentials = document.getElementById('rememberCredentials');
-            if (rememberCredentials && rememberCredentials.checked) {
-                try {
-                    // Store credentials (in production, consider encrypting the password)
-                    localStorage.setItem('saved_username', username);
-                    localStorage.setItem('saved_password', password); // Note: In production, consider encryption
-                    localStorage.setItem('remember_credentials', 'true');
-                    console.log('[DEBUG] Credentials stored in localStorage');
-                } catch (error) {
-                    console.error('[DEBUG] Failed to store credentials:', error);
-                }
-            } else {
-                // Clear stored credentials if "Remember" is unchecked
-                clearStoredCredentials();
+        // Always remember WhatsApp/SAS/email + password for easy login after logout.
+        function storeCredentials(username, password, email) {
+            try {
+                const id = (username || '').trim();
+                const em = (email || '').trim();
+                const pw = password != null ? String(password) : '';
+                if (id) localStorage.setItem('saved_username', id);
+                if (em) localStorage.setItem('saved_email', em);
+                if (pw) localStorage.setItem('saved_password', pw);
+                localStorage.setItem('remember_credentials', 'true');
+                const rememberCheckbox = document.getElementById('rememberCredentials');
+                if (rememberCheckbox) rememberCheckbox.checked = true;
+                console.log('[DEBUG] Credentials stored in localStorage');
+            } catch (error) {
+                console.error('[DEBUG] Failed to store credentials:', error);
             }
         }
         
-        // Load stored credentials and populate form
+        // Load stored credentials and populate form (after logout, fields stay filled).
         function loadStoredCredentials() {
             try {
-                const rememberCredentials = localStorage.getItem('remember_credentials');
-                if (rememberCredentials === 'true') {
-                    const savedUsername = localStorage.getItem('saved_username');
-                    const savedPassword = localStorage.getItem('saved_password');
-                    
-                    if (savedUsername && document.getElementById('usernameInput')) {
-                        document.getElementById('usernameInput').value = savedUsername;
+                const savedUsername = localStorage.getItem('saved_username') || '';
+                const savedEmail = localStorage.getItem('saved_email') || '';
+                const savedPassword = localStorage.getItem('saved_password') || '';
+                const rememberCredentials = localStorage.getItem('remember_credentials') === 'true'
+                    || !!(savedUsername || savedEmail || savedPassword);
+
+                if (!rememberCredentials) return;
+
+                const usernameInput = document.getElementById('usernameInput');
+                const emailInput = document.getElementById('emailInput');
+                if (savedUsername && usernameInput) {
+                    if (savedUsername.indexOf('@') !== -1 && emailInput && !savedEmail) {
+                        emailInput.value = savedUsername;
+                    } else {
+                        usernameInput.value = savedUsername;
                     }
-                    
-                    if (savedPassword && document.getElementById('passwordInput')) {
-                        document.getElementById('passwordInput').value = savedPassword;
-                    }
-                    
-                    // Check the "Remember credentials" checkbox
-                    const rememberCheckbox = document.getElementById('rememberCredentials');
-                    if (rememberCheckbox) {
-                        rememberCheckbox.checked = true;
-                    }
-                    
-                    console.log('[DEBUG] Stored credentials loaded and populated');
                 }
+                if (savedEmail && emailInput) {
+                    emailInput.value = savedEmail;
+                }
+                if (savedPassword) {
+                    const passwordInput = document.getElementById('passwordInput');
+                    if (passwordInput) passwordInput.value = savedPassword;
+                }
+                const rememberCheckbox = document.getElementById('rememberCredentials');
+                if (rememberCheckbox) rememberCheckbox.checked = true;
+                localStorage.setItem('remember_credentials', 'true');
+                console.log('[DEBUG] Stored credentials loaded and populated');
             } catch (error) {
                 console.error('[DEBUG] Failed to load stored credentials:', error);
             }
         }
         
-        // Clear stored credentials
+        // Clear stored credentials (only when user explicitly opts out — not on logout).
         function clearStoredCredentials() {
             try {
                 localStorage.removeItem('saved_username');
+                localStorage.removeItem('saved_email');
                 localStorage.removeItem('saved_password');
                 localStorage.removeItem('remember_credentials');
                 console.log('[DEBUG] Stored credentials cleared');
@@ -653,20 +1178,24 @@
         // Try auto-login with stored credentials
         async function tryAutoLogin() {
             try {
-                // Check if we should try auto-login (only if credentials are stored)
+                try {
+                    if (sessionStorage.getItem('disable_auto_login_once') === 'true') {
+                        console.log('[DEBUG] Auto-login suppressed for this tab — form still prefilled');
+                        return;
+                    }
+                } catch (eAutoSuppress) {}
                 const rememberCredentials = localStorage.getItem('remember_credentials');
                 if (rememberCredentials !== 'true') {
-                    return; // Don't auto-login if credentials aren't stored
+                    return;
                 }
                 
-                const savedUsername = localStorage.getItem('saved_username');
+                const savedUsername = localStorage.getItem('saved_username') || localStorage.getItem('saved_email') || '';
                 const savedPassword = localStorage.getItem('saved_password');
                 
                 if (!savedUsername || !savedPassword) {
-                    return; // No stored credentials
+                    return;
                 }
                 
-                // Check if there's already a valid session
                 const session = await checkSession();
                 if (session && session.valid) {
                     console.log('[DEBUG] Valid session exists, skipping auto-login');
@@ -674,8 +1203,6 @@
                 }
                 
                 console.log('[DEBUG] Attempting auto-login with stored credentials');
-                
-                // Try to login with stored credentials
                 const result = await loginWithUsernamePassword(savedUsername, savedPassword);
                 
                 if (result.success) {
@@ -683,14 +1210,11 @@
                     storeSession(result.session || result.session_token);
                     redirectToLandingPage();
                 } else {
-                    console.log('[DEBUG] Auto-login failed:', result.error);
-                    // Clear invalid credentials
-                    clearStoredCredentials();
+                    // Keep credentials so user can tap Log In after logout / failed auto attempt.
+                    console.log('[DEBUG] Auto-login failed (keeping saved credentials for form):', result.error);
                 }
             } catch (error) {
-                console.error('[DEBUG] Auto-login error:', error);
-                // Clear credentials on error
-                clearStoredCredentials();
+                console.error('[DEBUG] Auto-login error (keeping saved credentials):', error);
             }
         }
 
@@ -719,6 +1243,13 @@
                 if (sessionToken) {
                     // New session from redirect - store it
                     storeSession(sessionToken);
+                    try {
+                        var lm = (urlParams.get('login_method') || '').toLowerCase();
+                        if (lm === 'google' || lm === 'facebook' || lm === 'password') {
+                            localStorage.setItem('saved_login_method', lm);
+                            localStorage.setItem('remember_credentials', 'true');
+                        }
+                    } catch (_lm) {}
                     // Remove from URL
                     window.history.replaceState({}, document.title, window.location.pathname);
                     // Check if valid and redirect
@@ -788,7 +1319,7 @@
 
         function showRegistrationForm(e) {
             if (e) e.preventDefault();
-            showSection('registrationForm');
+            goToSignup(e);
         }
 
         function handleForgotPassword(e) {
@@ -833,6 +1364,17 @@
             }
         }
 
+        function _allowedReturnHost(hostname) {
+            var h = (hostname || '').toLowerCase();
+            return h === 'sailingsa.co.za' || h === 'www.sailingsa.co.za' || h === 'timadvisor.co.za' || h === 'www.timadvisor.co.za' || h === window.location.hostname;
+        }
+        function _sessionTokenForHandoff() {
+            try {
+                var fromCookie = document.cookie.split('; ').find(function(row) { return row.indexOf('session=') === 0; });
+                if (fromCookie) return decodeURIComponent((fromCookie.split('=')[1] || ''));
+            } catch (e) {}
+            try { return localStorage.getItem('session') || ''; } catch (e2) { return ''; }
+        }
         function goBackToReturnUrl() {
             var returnTo = null;
             try {
@@ -847,7 +1389,11 @@
             if (target) {
                 try {
                     var u = new URL(target);
-                    if (u.origin !== window.location.origin) target = null;
+                    if (!_allowedReturnHost(u.hostname)) target = null;
+                    else if (u.origin !== window.location.origin) {
+                        var tok = _sessionTokenForHandoff();
+                        if (tok) { u.searchParams.set('session', tok); target = u.toString(); }
+                    }
                 } catch (err) { target = null; }
             }
             if (!target) {
@@ -862,58 +1408,108 @@
 
         function redirectToLandingPage() {
             console.log('[DEBUG] redirectToLandingPage: Called');
-            try { sessionStorage.removeItem('auth_returnTo'); } catch (e) {}
-            // Redirect to landing page (works on local network)
-            const currentHost = window.location.hostname;
-            const currentProtocol = window.location.protocol;
-            const currentPort = window.location.port;
-            
-            console.log('[DEBUG] redirectToLandingPage: Current location:', {
-                hostname: currentHost,
-                protocol: currentProtocol,
-                port: currentPort,
-                fullUrl: window.location.href
-            });
-            
+            var stored = null;
+            try { stored = sessionStorage.getItem('auth_returnTo'); } catch (e) {}
+            if (stored) {
+                try { sessionStorage.setItem('auth_returnTo', stored); } catch (e2) {}
+                goBackToReturnUrl();
+                return;
+            }
             const landingUrl = window.location.origin + '/';
             console.log('[DEBUG] redirectToLandingPage: Redirecting to:', landingUrl);
             window.location.replace(landingUrl);
         }
 
+
+        function buildSignupUrl(extra) {
+            var u = new URL((window.location.origin || '') + '/signup.html');
+            var returnTo = getAuthReturnToValue();
+            if (returnTo) u.searchParams.set('returnTo', returnTo);
+            extra = extra || {};
+            Object.keys(extra).forEach(function(k) {
+                if (extra[k]) u.searchParams.set(k, extra[k]);
+            });
+            return u.toString();
+        }
+
+        function goToSignup(e) {
+            if (e) e.preventDefault();
+            window.location.href = buildSignupUrl({});
+        }
+        window.goToSignup = goToSignup;
+
+        function getAuthReturnToValue() {
+            try {
+                const stored = sessionStorage.getItem('auth_returnTo');
+                if (stored) return stored;
+            } catch (e) {}
+            try {
+                const params = new URLSearchParams(window.location.search);
+                return params.get('returnTo') || '';
+            } catch (e2) {}
+            return '';
+        }
+
         // Login functions
         function loginWithGoogle() {
-            // TODO: Implement Google login
-            showError('Google login - Coming soon');
+            try {
+                const oauthUrl = new URL((window.location.origin || '') + '/auth/google');
+                oauthUrl.searchParams.set('flow', 'login');
+                const returnTo = getAuthReturnToValue();
+                if (returnTo) {
+                    oauthUrl.searchParams.set('returnTo', returnTo);
+                }
+                window.location.href = oauthUrl.toString();
+            } catch (error) {
+                console.error('[ERROR] Failed to start Google login:', error);
+                showError('Failed to start Google login. Please try again.');
+            }
+        }
+
+        function loginWithApple() {
+            // TODO: Implement Apple login
+            showError('Apple login - Coming soon');
         }
 
         function loginWithFacebook() {
             console.log('[DEBUG] loginWithFacebook() function called');
             try {
-                const oauthUrl = (window.location.origin || '') + '/auth/facebook';
-                console.log('[DEBUG] Redirecting to:', oauthUrl);
-                window.location.href = oauthUrl;
+                const oauthUrl = new URL((window.location.origin || '') + '/auth/facebook');
+                oauthUrl.searchParams.set('flow', 'login');
+                const returnTo = getAuthReturnToValue();
+                if (returnTo) {
+                    oauthUrl.searchParams.set('returnTo', returnTo);
+                }
+                console.log('[DEBUG] Redirecting to:', oauthUrl.toString());
+                window.location.href = oauthUrl.toString();
             } catch (error) {
                 console.error('[ERROR] Failed to redirect:', error);
                 showError('Failed to start Facebook login. Please try again.');
             }
         }
         
-        // Make function globally accessible for onclick handlers
+        // Make functions globally accessible for onclick handlers
+        window.loginWithGoogle = loginWithGoogle;
         window.loginWithFacebook = loginWithFacebook;
+        window.loginWithApple = loginWithApple;
 
 
         async function handleUsernamePasswordLogin(e) {
             e.preventDefault();
-            const username = document.getElementById('usernameInput').value.trim();
+            const usernameField = document.getElementById('usernameInput');
+            const emailField = document.getElementById('emailInput');
+            const username = usernameField ? usernameField.value.trim() : '';
+            const email = emailField ? emailField.value.trim() : '';
+            const identifier = username || email;
             const password = document.getElementById('passwordInput').value;
 
-            if (!username || !password) {
-                showError('Please enter both WhatsApp No or SAS ID and password');
+            if (!identifier || !password) {
+                showError('Please enter your WhatsApp number, SAS ID or email, plus your password');
                 return;
             }
 
-            // Store credentials if "Remember" is checked
-            storeCredentials(username, password);
+            // Always remember for easy login after logout
+            storeCredentials(username || identifier, password, email);
 
             // Auto-detect if input is SAS ID (numeric) or WhatsApp number (starts with +)
             // The backend will handle the lookup
@@ -922,7 +1518,7 @@
 
             try {
                 console.log('[DEBUG] handleUsernamePasswordLogin: Calling loginWithUsernamePassword');
-                const result = await loginWithUsernamePassword(username, password);
+                const result = await loginWithUsernamePassword(identifier, password);
                 console.log('[DEBUG] handleUsernamePasswordLogin: Login result:', result);
 
                 if (result.success) {
@@ -1565,8 +2161,7 @@
         }
 
         function handleGoogleVerification() {
-            // TODO: Implement Google OAuth for registration
-            showError('Google verification - Coming soon');
+            loginWithGoogle();
         }
 
         function handleFacebookVerification() {

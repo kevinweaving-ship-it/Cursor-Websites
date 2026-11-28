@@ -27,6 +27,12 @@ import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
+# Real human traffic (site_traffic_events) — see site_traffic.py; admin Traffic card + /api/traffic/*
+try:
+    import site_traffic as _site_traffic
+except ImportError:
+    _site_traffic = None
+
 # Sailor bio: build_sailor_bio_from_db(sas_id) from modules/sailor_bio.py — do not reintroduce _get_sailor_bio_data for bio generation.
 _api_modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sailingsa", "api")
 if _api_modules_dir not in sys.path:
@@ -553,6 +559,37 @@ async def _canonical_redirect_middleware(request: Request, call_next):
         return RedirectResponse(url=target, status_code=301)
 
     return await call_next(request)
+
+
+@app.middleware("http")
+async def _inject_site_traffic_script(request: Request, call_next):
+    """Append site-traffic.js before </body> on HTML responses (API-served pages). Nginx should also inject for static HTML."""
+    response = await call_next(request)
+    path = (request.url.path or "")
+    if path.startswith("/api/") or path.startswith("/admin/api"):
+        return response
+    ctype = (response.headers.get("content-type") or "").lower()
+    if "text/html" not in ctype:
+        return response
+    try:
+        body = b""
+        async for chunk in response.body_iterator:
+            body += chunk if isinstance(chunk, (bytes, bytearray)) else chunk.encode("utf-8", "replace")
+        text = body.decode("utf-8", "replace")
+        if "site-traffic.js" in text or "</body>" not in text.lower():
+            return Response(content=body, status_code=response.status_code, headers=dict(response.headers), media_type=response.media_type)
+        snippet = '<script src="/js/site-traffic.js" defer></script>\n'
+        # case-insensitive replace of first </body>
+        low = text.lower()
+        idx = low.rfind("</body>")
+        if idx < 0:
+            return Response(content=body, status_code=response.status_code, headers=dict(response.headers), media_type=response.media_type)
+        new_text = text[:idx] + snippet + text[idx:]
+        headers = dict(response.headers)
+        headers.pop("content-length", None)
+        return Response(content=new_text.encode("utf-8"), status_code=response.status_code, headers=headers, media_type="text/html; charset=utf-8")
+    except Exception:
+        return response
 
 
 def _get_client_ip(request: Request) -> str:
@@ -9360,63 +9397,140 @@ def _admin_analytics_top_pages_window(cur, interval_literal: str, limit: int = 2
 
 @app.get("/admin/api/analytics-traffic")
 def admin_api_analytics_traffic(request: Request, limit: int = Query(25, ge=25, le=100)):
-    """Top pages from analytics_events for 24h / 7d / 30d (page_view only, metadata.path). limit 25 or 100 per window. Admin live only. No requests/min."""
+    """Human traffic from site_traffic_events (Direct/Google/Social/Referral). Admin live only. Not login sessions."""
     if socket.gethostname() != ADMIN_LIVE_HOSTNAME:
         raise HTTPException(status_code=403, detail="Admin disabled on local.")
     role = _get_session_role(request)
     if not role or role not in ("super_admin", "admin"):
         raise HTTPException(status_code=403, detail="Admin access required.")
     lim = 100 if int(limit) == 100 else 25
-    if not table_exists("analytics_events"):
-        return JSONResponse(
-            content={
-                "ok": True,
-                "analytics_table_exists": False,
-                "partial_data": True,
-                "partial_data_message": "analytics_events not available — historic tabs have no page data.",
-                "limit_applied": lim,
-                "by_window": {"24h": {"top_pages": [], "page_view_count": 0}, "7d": {"top_pages": [], "page_view_count": 0}, "30d": {"top_pages": [], "page_view_count": 0}},
-            },
-            headers=_DASHBOARD_DATA_HEADERS,
-        )
+    empty = {
+        "ok": True,
+        "traffic_table": "site_traffic_events",
+        "analytics_table_exists": False,
+        "partial_data": True,
+        "partial_data_message": "site_traffic_events not available.",
+        "limit_applied": lim,
+        "by_window": {
+            "24h": {"human_visits": 0, "engaged_visits": 0, "quarantined_bot_visits": 0, "page_view_count": 0, "by_source": [], "top_pages": []},
+            "7d": {"human_visits": 0, "engaged_visits": 0, "quarantined_bot_visits": 0, "page_view_count": 0, "by_source": [], "top_pages": []},
+            "30d": {"human_visits": 0, "engaged_visits": 0, "quarantined_bot_visits": 0, "page_view_count": 0, "by_source": [], "top_pages": []},
+        },
+        "realtime": {
+            "active_now": 0,
+            "humans_1m": 0,
+            "humans_5m": 0,
+            "humans_15m": 0,
+            "engaged_15m": 0,
+            "quarantined_bots_15m": 0,
+            "by_source_15m": [],
+            "top_pages_15m": [],
+        },
+        "active_visits": [],
+    }
+    if _site_traffic is None:
+        empty["partial_data_message"] = "site_traffic module missing."
+        return JSONResponse(content=empty, headers=_DASHBOARD_DATA_HEADERS)
     conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        by_window = {}
-        for key, iv in (("24h", "1 day"), ("7d", "7 days"), ("30d", "30 days")):
-            pages, n = _admin_analytics_top_pages_window(cur, iv, lim)
-            by_window[key] = {"top_pages": pages, "page_view_count": n}
+        _site_traffic.ensure_site_traffic_table(cur)
+        conn.commit()
+        payload = _site_traffic.admin_traffic_payload(cur, lim)
         cur.close()
-        total_all = sum(w["page_view_count"] for w in by_window.values())
-        partial = True
-        msg = "Partial data — counts are page_view events from instrumented clients only; not full site traffic."
-        if total_all == 0:
-            msg = "Partial data — no page_view rows in these windows (coverage gap or table empty for period)."
-        return JSONResponse(
-            content={
-                "ok": True,
-                "analytics_table_exists": True,
-                "partial_data": partial,
-                "partial_data_message": msg,
-                "limit_applied": lim,
-                "by_window": by_window,
-            },
-            headers=_DASHBOARD_DATA_HEADERS,
-        )
+        return JSONResponse(content=payload, headers=_DASHBOARD_DATA_HEADERS)
     except Exception as e:
-        return JSONResponse(
-            content={
-                "ok": False,
-                "error": str(e),
-                "analytics_table_exists": True,
-                "partial_data": True,
-                "partial_data_message": "Could not load analytics aggregates.",
-                "by_window": {"24h": {"top_pages": [], "page_view_count": 0}, "7d": {"top_pages": [], "page_view_count": 0}, "30d": {"top_pages": [], "page_view_count": 0}},
-            },
-            status_code=500,
-            headers=_DASHBOARD_DATA_HEADERS,
-        )
+        empty["ok"] = False
+        empty["error"] = str(e)
+        empty["partial_data_message"] = "Could not load traffic aggregates."
+        return JSONResponse(content=empty, status_code=500, headers=_DASHBOARD_DATA_HEADERS)
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.post("/api/traffic/collect")
+async def api_traffic_collect(request: Request):
+    """Beacon: batch human traffic events → site_traffic_events. Public; bots flagged/dropped from admin views."""
+    if _site_traffic is None:
+        return JSONResponse(content={"ok": False, "error": "traffic module unavailable"}, status_code=503)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    events_in = payload.get("events") if isinstance(payload, dict) else None
+    if not isinstance(events_in, list):
+        events_in = [payload] if isinstance(payload, dict) and payload.get("event_type") else []
+    if not events_in:
+        return {"ok": True, "saved": 0}
+    ua = (request.headers.get("user-agent") or "")[:500]
+    ip = _get_client_ip(request)
+    is_bot = _site_traffic.is_bot_user_agent(ua)
+    site_host = (request.url.hostname or "")
+    normalized = []
+    for raw in events_in[:40]:
+        ev = _site_traffic.normalize_event(raw, ip=ip, ua=ua, is_bot=is_bot, site_host=site_host)
+        if ev:
+            normalized.append(ev)
+    if not normalized:
+        return {"ok": True, "saved": 0}
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        _site_traffic.ensure_site_traffic_table(cur)
+        n = _site_traffic.insert_traffic_events(cur, normalized)
+        conn.commit()
+        cur.close()
+        return {"ok": True, "saved": n}
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        print(f"[traffic] collect failed: {e}", flush=True)
+        return JSONResponse(content={"ok": False, "error": "save failed"}, status_code=500)
+    finally:
+        if conn:
+            return_db_connection(conn)
+
+
+@app.post("/admin/api/traffic/release-human")
+async def admin_traffic_release_human(request: Request):
+    """Release false-positive quarantine: set is_bot=false for visit_ids in site_traffic_events only."""
+    if socket.gethostname() != ADMIN_LIVE_HOSTNAME:
+        raise HTTPException(status_code=403, detail="Admin disabled on local.")
+    role = _get_session_role(request)
+    if not role or role not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    if _site_traffic is None:
+        return JSONResponse(content={"ok": False, "error": "traffic module unavailable"}, status_code=503)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    visit_ids = payload.get("visit_ids") if isinstance(payload, dict) else None
+    if isinstance(visit_ids, str):
+        visit_ids = [visit_ids]
+    if not isinstance(visit_ids, list) or not visit_ids:
+        raise HTTPException(status_code=400, detail="visit_ids required")
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        n = _site_traffic.release_visits_as_human(cur, visit_ids)
+        conn.commit()
+        cur.close()
+        return {"ok": True, "released_rows": n, "visit_ids": visit_ids}
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        return JSONResponse(content={"ok": False, "error": str(e)}, status_code=500)
     finally:
         if conn:
             return_db_connection(conn)

@@ -646,29 +646,200 @@
     card.classList.toggle('v10-hidden', lines.length === 0);
   }
 
-  function setPartialBanner() {
+  function setPartialBanner(msg) {
     var el = document.getElementById('trafficPartialLabel');
     if (!el) return;
-    el.classList.add('v10-hidden');
-    el.textContent = '';
+    if (msg) {
+      el.textContent = msg;
+      el.classList.remove('v10-hidden');
+    } else {
+      el.textContent = '';
+      el.classList.add('v10-hidden');
+    }
   }
+
+  var trafficCache = null;
 
   function renderTrafficBlock() {
     var container = document.getElementById('v10TrafficLines');
     if (!container) return;
-    setPartialBanner();
+    var d = trafficCache;
+    if (!d) {
+      setPartialBanner('Loading traffic…');
+      container.innerHTML = '';
+      return;
+    }
+    setPartialBanner(d.partial_data ? (d.partial_data_message || 'Partial traffic data') : '');
     var parts = [];
-    var fromApi = dashboardPayload && dashboardPayload.traffic_top_paths;
-    var livePages = sortCountDesc(
-      fromApi && fromApi.length ? fromApi : aggregateSessionPathsV10()
-    ).slice(0, 5);
-    if (livePages.length) {
-      parts.push('<div class="v10-subtle">Top pages (same data as Live users)</div>');
-      livePages.forEach(function (p) {
+    var rt = d.realtime || {};
+    parts.push(
+      '<p class="v10-one-line"><strong>Realtime</strong> · active now ' +
+        Number(rt.active_now || 0) +
+        ' · 1m ' +
+        Number(rt.humans_1m || 0) +
+        ' · 5m ' +
+        Number(rt.humans_5m || 0) +
+        ' · 15m ' +
+        Number(rt.humans_15m || 0) +
+        ' humans</p>'
+    );
+    parts.push(
+      '<p class="v10-one-line">Engaged 15m: ' +
+        Number(rt.engaged_15m || 0) +
+        ' · Quarantined bots 15m: ' +
+        Number(rt.quarantined_bots_15m || 0) +
+        ' (excluded from human counts)</p>'
+    );
+    var src15 = rt.by_source_15m || [];
+    if (src15.length) {
+      parts.push('<div class="v10-subtle">Source (15m · humans)</div>');
+      src15.slice(0, 6).forEach(function (s) {
+        parts.push('<p class="v10-one-line-traffic">' + escapeHtml(String(s.source || 'other')) + ' (' + Number(s.count || 0) + ')</p>');
+      });
+    }
+    var pages15 = rt.top_pages_15m || [];
+    if (pages15.length) {
+      parts.push('<div class="v10-subtle">Top pages (15m · humans)</div>');
+      pages15.slice(0, 5).forEach(function (p) {
         parts.push('<p class="v10-one-line-traffic">' + pathLabelHtml(p.path) + ' (' + Number(p.count || 0) + ')</p>');
       });
     }
+    var w = (d.by_window && d.by_window['24h']) || {};
+    var visits = Number(w.human_visits || 0);
+    var engaged = Number(w.engaged_visits || 0);
+    var qbot = Number(w.quarantined_bot_visits || 0);
+    var pvs = Number(w.page_view_count || 0);
+    parts.push(
+      '<p class="v10-one-line">Last 24h: ' +
+        visits +
+        ' human visits · ' +
+        engaged +
+        ' engaged · ' +
+        pvs +
+        ' page views · ' +
+        qbot +
+        ' bots quarantined</p>'
+    );
+    var sources = w.by_source || [];
+    if (sources.length) {
+      parts.push('<div class="v10-subtle">Source (24h)</div>');
+      sources.slice(0, 6).forEach(function (s) {
+        parts.push('<p class="v10-one-line-traffic">' + escapeHtml(String(s.source || 'other')) + ' (' + Number(s.count || 0) + ')</p>');
+      });
+    }
+    var pages = w.top_pages || [];
+    if (pages.length) {
+      parts.push('<div class="v10-subtle">Top pages (24h · humans)</div>');
+      pages.slice(0, 5).forEach(function (p) {
+        parts.push('<p class="v10-one-line-traffic">' + pathLabelHtml(p.path) + ' (' + Number(p.count || 0) + ')</p>');
+      });
+    }
+    var active = d.active_visits || [];
+    if (active.length) {
+      parts.push('<div class="v10-subtle">On site now (≤5m · not idle/exited)</div>');
+      active.slice(0, 8).forEach(function (a) {
+        parts.push(
+          '<p class="v10-one-line-traffic">' +
+            escapeHtml(String(a.source_channel || '')) +
+            ' · ' +
+            pathLabelHtml(a.path) +
+            (a.ip_address ? ' · ' + escapeHtml(String(a.ip_address)) : '') +
+            '</p>'
+        );
+      });
+    }
+    var qrev = d.quarantine_review || [];
+    if (qrev.length) {
+      parts.push('<div class="v10-subtle">Quarantine review (may release if human)</div>');
+      qrev.slice(0, 5).forEach(function (a) {
+        parts.push(
+          '<p class="v10-one-line-traffic">' +
+            escapeHtml(String(a.source_channel || '')) +
+            ' · ' +
+            pathLabelHtml(a.path) +
+            ' · ' +
+            escapeHtml(String(a.user_agent || '').slice(0, 40)) +
+            ' <button type="button" class="blank-stat" data-traffic-release="' +
+            escapeHtml(String(a.visit_id || '')) +
+            '">Release human</button></p>'
+        );
+      });
+    }
+    var journeys = d.recent_journeys || [];
+    if (journeys.length) {
+      parts.push('<div class="v10-subtle">Recent sessions (full path from table)</div>');
+      journeys.slice(0, 3).forEach(function (j) {
+        var trail = (j.page_trail || []).slice(0, 12).map(function (p) {
+          return pathLabelHtml(p);
+        }).join(' → ');
+        parts.push(
+          '<p class="v10-one-line-traffic">' +
+            escapeHtml(String(j.source_channel || '')) +
+            ' · ' +
+            Number(j.event_count || 0) +
+            ' events · ' +
+            Number(j.page_count || 0) +
+            ' pages</p>'
+        );
+        if (trail) {
+          parts.push('<p class="v10-one-line-traffic">' + trail + '</p>');
+        }
+        var clicks = (j.steps || []).filter(function (s) { return s.t === 'click' && s.click; }).slice(0, 6);
+        if (clicks.length) {
+          parts.push(
+            '<p class="v10-one-line-traffic">Clicks: ' +
+              clicks.map(function (c) { return escapeHtml(String(c.click)); }).join(' · ') +
+              '</p>'
+          );
+        }
+      });
+    }
+    if (!Number(rt.active_now || 0) && !visits && !active.length) {
+      parts.push('<p class="v10-one-line">No human traffic beacons yet (deploy tracker).</p>');
+    }
     container.innerHTML = parts.join('');
+  }
+
+  async function loadTrafficData() {
+    try {
+      var r = await fetch(window.API_BASE + '/admin/api/analytics-traffic?limit=25&t=' + Date.now(), {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      trafficCache = await r.json();
+    } catch (e) {
+      trafficCache = {
+        partial_data: true,
+        partial_data_message: 'Traffic API failed to load.',
+        by_window: {},
+        active_visits: [],
+        quarantine_review: [],
+      };
+    }
+    renderTrafficBlock();
+  }
+
+  function wireTrafficReleaseDelegation() {
+    var box = document.getElementById('v10TrafficLines');
+    if (!box || box._trafficReleaseWired) return;
+    box._trafficReleaseWired = true;
+    box.addEventListener('click', async function (ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('[data-traffic-release]') : null;
+      if (!btn) return;
+      ev.preventDefault();
+      var vid = btn.getAttribute('data-traffic-release') || '';
+      if (!vid) return;
+      btn.disabled = true;
+      try {
+        await fetch(window.API_BASE + '/admin/api/traffic/release-human', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ visit_ids: [vid] }),
+        });
+      } catch (e) {}
+      await loadTrafficData();
+    });
   }
 
   function applyDashboardMeta(d) {
@@ -704,7 +875,7 @@
   function renderAllDynamic() {
     renderLiveUsers();
     renderBehaviourSnapshot();
-    renderTrafficBlock();
+    loadTrafficData();
     loadScrapes();
     loadNews();
   }
@@ -903,6 +1074,7 @@
 
   wireRestart();
   wireScrapeRunDelegation();
+  wireTrafficReleaseDelegation();
   wireNewsStatsSearchToggle();
   window.setInterval(tickSystemLine, 1000);
 
@@ -915,7 +1087,8 @@
   ]).then(function () {
     renderLiveUsers();
     renderBehaviourSnapshot();
-    renderTrafficBlock();
+    return loadTrafficData();
+  }).then(function () {
     return loadScrapes();
   }).then(function () {
     return loadNews();
@@ -924,4 +1097,8 @@
   window.setInterval(function () {
     refreshAll();
   }, REFRESH_MS);
+  // Traffic card: faster realtime poll (5s) — humans + quarantine only
+  window.setInterval(function () {
+    loadTrafficData();
+  }, 5000);
 })();
