@@ -71,7 +71,15 @@ Like YouTube: you can watch without an account; like/subscribe needs sign-in.
 
 Email sign-up stays the slow path (wait for a link). WhatsApp or Google/Facebook is the fast path. We are **not** merging old signup pull requests and **not** overwriting the live server from git.
 
-First real build (when you say go): Claim pop-up stays on the sailor, no “is this you?”, no second search. Header Sign In / Sign Up then uses that **same** box.
+**How we will not break it (when you say go — Mac Mini, not this Cloud machine)**
+
+- **Backup first.** Run `sailingsa/deploy/pre-change-backup.sh` so live is in `/root/backup_TIMESTAMP.tar.gz`. Confirm the file exists before any edit. Restore = put that tarball back.  
+- **Do not touch** the header, nav, or page layout. Same cards, same colours, same compact phone look. Clone the existing Claim pop-up. No new look.  
+- **Do not overwrite** live `api.py` from git. Do not merge old signup PRs. Copy **live** signup/login into git first so we do not wipe what already works.  
+- **Use the tools on the box:** Graphify, REA, Chromium screenshots at phone size (390×844), MotionSites only for small spacing, Stitch only if it is actually signed in. Screenshot after each step. Two identical visual fails → stop.  
+- **No resistance:** Claim = pop-up, prove, one password, done. Header Sign Up = same box. Many Tims / father-son = one list, tap the right row. Sign In = same box, no new form. No second search. No “is this you?” after they already picked. No SAS quiz after claim.
+
+First real build (when you say go): backup, then Claim pop-up stays on the sailor, no “is this you?”, no second search. Header Sign In / Sign Up then uses that **same** box.
 
 ---
 
