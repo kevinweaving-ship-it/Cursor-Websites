@@ -2,8 +2,8 @@
  * TSC Theewater club cam.
  * Play only the SailingSA HLS proxy. Never fetch skylinewebcams.com or
  * hd-auth.skylinewebcams.com from the browser — that returns copyright_violation.
- * Stay on the live edge: Skyline's site player is ~one 3s segment behind;
- * our old store-and-forward proxy + liveSyncDurationCount=3 sat much further back.
+ * Buffer one 3s Skyline segment, then play at 1x. Target is 2–3s behind live
+ * (one TARGETDURATION). Do not chase the live edge — that skips.
  */
 (function () {
   'use strict';
@@ -14,13 +14,18 @@
   var CSS_ID = 'tsc-club-cam-css';
   var hlsWait = null;
   var CANON_RID = '2026-11-28-tsc-cape-classic';
+  var START_BUFFER_S = 2.5;
   var HLS_LIVE = {
     enableWorker: true,
-    lowLatencyMode: true,
+    lowLatencyMode: false,
     liveSyncDurationCount: 1,
-    liveMaxLatencyDurationCount: 4,
+    liveMaxLatencyDurationCount: 3,
     liveDurationInfinity: true,
-    maxLiveSyncPlaybackRate: 1.5
+    maxLiveSyncPlaybackRate: 1,
+    startFragPrefetch: true,
+    maxBufferLength: 6,
+    maxMaxBufferLength: 9,
+    backBufferLength: 9
   };
 
   function camRid() {
@@ -171,16 +176,19 @@
     }, 1000);
   }
 
-  function jumpLive(hls, video) {
+  function bufferedAhead(video) {
     try {
-      if (hls && typeof hls.liveSyncPosition === 'number' && hls.liveSyncPosition >= 0) {
-        video.currentTime = hls.liveSyncPosition;
-        return;
+      var t = video.currentTime || 0;
+      var b = video.buffered;
+      var i;
+      var end = 0;
+      for (i = 0; i < b.length; i += 1) {
+        if (b.start(i) <= t + 0.2 && b.end(i) > end) end = b.end(i);
       }
-      if (video.seekable && video.seekable.length) {
-        video.currentTime = video.seekable.end(video.seekable.length - 1);
-      }
-    } catch (e) {}
+      return Math.max(0, end - t);
+    } catch (e) {
+      return 0;
+    }
   }
 
   function start() {
@@ -209,9 +217,19 @@
     video.removeAttribute('controls');
     video.removeAttribute('poster');
     var retryTimer = 0;
+    var started = false;
     function goPlay() {
       var p = video.play();
       if (p && p.catch) p.catch(function () {});
+    }
+    function playWhenBuffered() {
+      if (started) {
+        if (video.paused) goPlay();
+        return;
+      }
+      if (bufferedAhead(video) < START_BUFFER_S) return;
+      started = true;
+      goPlay();
     }
     function armRetry(delay) {
       if (retryTimer) window.clearTimeout(retryTimer);
@@ -226,6 +244,7 @@
       }, delay || 12000);
     }
     function begin() {
+      started = false;
       if (box._tscHls) {
         try { box._tscHls.destroy(); } catch (e) {}
         box._tscHls = null;
@@ -237,14 +256,8 @@
           box._tscHls = hls;
           hls.loadSource(src);
           hls.attachMedia(video);
-          hls.on(Hls.Events.MANIFEST_PARSED, function () {
-            jumpLive(hls, video);
-            goPlay();
-          });
-          hls.on(Hls.Events.LEVEL_UPDATED, function () {
-            var lat = typeof hls.latency === 'number' ? hls.latency : 0;
-            if (lat > 12) jumpLive(hls, video);
-          });
+          hls.on(Hls.Events.FRAG_BUFFERED, playWhenBuffered);
+          hls.on(Hls.Events.BUFFER_APPENDED, playWhenBuffered);
           hls.on(Hls.Events.ERROR, function (_ev, data) {
             if (data && data.fatal) armRetry(3000);
           });
@@ -253,10 +266,11 @@
         }
         video.onerror = function () { armRetry(3000); };
         video.src = src;
-        goPlay();
+        video.addEventListener('canplay', playWhenBuffered);
         armRetry(12000);
       });
     }
+    video.addEventListener('waiting', playWhenBuffered);
     begin();
     watchPicture(box, video);
   }

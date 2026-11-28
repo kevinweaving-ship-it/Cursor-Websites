@@ -10,17 +10,18 @@ var src = fs.readFileSync(
 );
 
 assert.ok(src.indexOf("skylinewebcams.com") !== -1, "must document Skyline source");
-assert.ok(src.indexOf("lowLatencyMode: true") !== -1, "must use low-latency HLS");
-assert.ok(src.indexOf("liveSyncDurationCount: 1") !== -1, "must sit one segment off live");
-assert.ok(src.indexOf("maxLiveSyncPlaybackRate: 1.5") !== -1, "must catch up when behind");
+assert.ok(src.indexOf("lowLatencyMode: false") !== -1, "classic 3s HLS must buffer, not LL-chase");
+assert.ok(src.indexOf("liveSyncDurationCount: 1") !== -1, "must sit one segment (~3s) off live");
+assert.ok(src.indexOf("maxLiveSyncPlaybackRate: 1") !== -1, "must play 1x — no speed-up skip");
+assert.ok(src.indexOf("START_BUFFER_S = 2.5") !== -1, "must wait ~2.5s buffered before play");
+assert.ok(src.indexOf("jumpLive") === -1, "must not seek to live edge");
 assert.ok(src.indexOf("tsc-live-cam") !== -1, "must play SSA HLS proxy");
-assert.ok(src.indexOf("new Hls({ enableWorker: true, lowLatencyMode: false })") === -1);
 
 var media = fs.readFileSync(
   path.join(__dirname, "..", "sailingsa", "frontend", "js", "club-live-media.js"),
   "utf8"
 );
-assert.ok(media.indexOf("wxlive3") !== -1, "club loader must cache-bust tsc-club-cam.js");
+assert.ok(media.indexOf("wxlive4") !== -1, "club loader must cache-bust tsc-club-cam.js");
 assert.ok(media.indexOf("tsc-club-cam.js?v=") !== -1);
 
 console.log("PASS: tsc-club-cam");
