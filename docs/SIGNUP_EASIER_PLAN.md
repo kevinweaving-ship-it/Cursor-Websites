@@ -2,7 +2,7 @@
 
 **Status:** Plan only. No live deploy. No merge of existing signup PRs.  
 **Date:** 28 Nov 2026 (Africa/Johannesburg)  
-**Update:** Box design/code tools + gated teaser (seamless signup, hide profile depth until claim).  
+**Update:** Box design/code tools + gated teaser + mimic Facebook / YouTube / WhatsApp / Strava (planning only).  
 **Live inspected:** HTTPS to `sailingsa.co.za` (this Cloud VM has **no** `~/.ssh/sailingsa_live_key`; SSH to `root@102.218.215.253` returned `Permission denied (publickey,password)`). Readme commands remain the deploy path on the Mac Mini.
 
 ---
@@ -140,6 +140,31 @@ Then Well Done (≤5s) → `returnTo` or that sailor profile.
 
 ---
 
+## Mimic popular platforms (planning — steal behaviour, not brands)
+
+Live scrape of Facebook / YouTube was **not** run this Cloud turn: Context.dev is at **0 credits** (refill 3 Dec 2026 SAST). Patterns below are the stable 2024–2026 product model plus our own claim popup / Dockside / Strava-style teaser research already in this repo. **On Mac Mini (Step 0)** screenshot those apps at **390×844** with Chromium/REA and copy **px, overlay height, button stack** — never logos, copy, or a cinematic rebuild.
+
+| Platform | How signup actually works | What we copy |
+|---|---|---|
+| **Facebook / Instagram** | “Continue with” Google, or **phone + code**. Overlay on the feed. Like / comment / save hit a sheet. Account exists after the code. | WhatsApp PIN = their SMS OTP. Overlay on sailor/search. Do not bounce to a 7-step `/signup.html` for claim traffic. |
+| **YouTube** | **Watch first.** Sign in (Google one-tap) only for like, subscribe, comment, save. Sign in **is** sign up. Video stays under the sheet. | Logged-out sailor **teaser** stays visible. Claim unlocks ranks / career / media — not the whole site. One “Continue” language, not Register vs Login as two products. |
+| **WhatsApp / Telegram** | Phone + code **is** the account. No email, no “confirm password”, no membership quiz. | After PIN: Screen C password once. Skip Find Profile, SAS quiz, second search when `sas_id` is known. |
+| **Strava / LinkedIn** | Headline profile is public (name, club/company, last activity). Kudos, full analysis, network depth gated. | Name, club, class chips, last event public. Race-by-race, SSA ranks, media depth behind claim. |
+| **Google identity** | One field at a time: who → proof → password. Never dump the whole form. | Screen A buttons → B PIN → C password. Child/family is an advanced tap, not the main path. |
+
+**Intuitive (not a new site):**
+
+1. **Stay in context** — sheet on the sailor they recognised (YouTube watch page). Header Sign Up still opens `/signup.html` for cold traffic.  
+2. **Continue with…** — WhatsApp primary, Google, Facebook; email labelled as the slow Confirm-link path. Hide Apple until it works.  
+3. **Gate actions, not discovery** — search, club/class, **regatta sheets** stay public (YouTube lets you watch). Profile **depth** is the subscribe/like equivalent.  
+4. **One identity** — they already picked the sailor; do not ask name again.  
+5. **Sign in = sign up** — login.html becomes sign-in + forgot password only (Step 5). Same overlay can say “Continue” for both.  
+6. **Proof before member** — still no `user_accounts` until PIN / OAuth / Confirm (stricter than Facebook’s instant cookie; we keep that on purpose).
+
+Do **not** clone Facebook’s dark sheet or YouTube’s grey modal CSS. Clone **our** `#state-login-required` / claim popup density (14–16px, 44×44 taps, existing tokens).
+
+---
+
 ## Sequenced work (do in this order)
 
 Each step is one Mac session. Gold lock + `SSH_LIVE.md`. Snapshot live files before any copy. **Use the tools already on the boxes** — do not skip them because this Cloud VM cannot SSH.
@@ -167,7 +192,8 @@ Then:
 4. **REA**: `rea-admin sailingsa -- capabilities`; WhatsApp unit status; Chromium `capture_browser_scenario` at **390×844** on live `/signup.html?signup=1`.  
 5. **MotionSites skill** (already in repo, PR #293 merged): study **2–3 compact patterns only** — `ai-workflow.md` (LogIn / UserPlus control size), `securify-hero.md` (trust density), `email-landing-page.md` (field spacing). Steal **px / gap / radius**, not cinematic video heroes or 72px type.  
 6. **Google Stitch**: on Mac run `stitch status --json`. If `authenticated: true`, ask for a **compact 390×844 claim overlay** using `docs/design_system.md` tokens. If false, record auth required and continue with live splash + skill examples. Never invent Stitch output. Never apply generated CSS onto live without Plan → diff → MP screenshot.  
-7. Close or label #253/#71/#83/#101 as superseded-by-live.
+7. Close or label #253/#71/#83/#101 as superseded-by-live.  
+8. **Platform screenshots (Mac Chromium, 390×844):** Facebook Continue-with sheet, YouTube “Sign in to like/subscribe”, WhatsApp Web phone+code, Strava logged-out athlete. Steal overlay height and button order only. Store under `shots/signup-platforms/` on the Mac; do not commit third-party UI into git.
 
 ### Step 1 — Deep-link skip (biggest ease win, frontend only)
 
@@ -253,6 +279,7 @@ Live login still has Find Profile + Complete Registration. Point “1st time / S
 | REA `rea-admin` / Chromium | **installed on boxes**; **not exposed** in this Cloud session. Mac Mini is the runtime |
 | Codex / OpenCode | Mac Codex Default (PR #252). Not this Cloud agent |
 | Box MCP | **not used** (“boxes” = SSH servers) |
+| Context.dev live web search | **USAGE_EXCEEDED** this turn (0 credits). Auth valid. Refill **3 Dec 2026 ~10:01 SAST** (~300 credits) or [Developer $20 / 10k credits](https://context.dev/u/120_abdW4TedsjN2cg1dg_7mC_HS). Do not retry until then. Platform mimic uses known patterns + Mac screenshots in Step 0. |
 
 ---
 
