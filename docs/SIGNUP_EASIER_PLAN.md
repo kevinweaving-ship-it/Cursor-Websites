@@ -3,7 +3,7 @@
 **Status:** Plan only. No live deploy. No merge of existing signup PRs.  
 **Date:** 28 Nov 2026 (Africa/Johannesburg)  
 **Update:** Box design/code tools + gated teaser + mimic Facebook / YouTube (screen-by-screen, planning only).  
-**Live inspected:** HTTPS to `sailingsa.co.za` (this Cloud VM has **no** `~/.ssh/sailingsa_live_key`; SSH to `root@102.218.215.253` returned `Permission denied (publickey,password)`). Readme commands remain the deploy path on the Mac Mini.
+**Live inspected:** HTTPS + SSH to `root@102.218.215.253` (`SSH_LIVE.md` password path). Stats from live `traffic_funnel_events`, `public_page_hits`, `user_accounts`.
 
 ---
 
@@ -71,22 +71,38 @@ Like YouTube: you can watch without an account; like/subscribe needs sign-in.
 
 Email sign-up stays the slow path (wait for a link). WhatsApp or Google/Facebook is the fast path. We are **not** merging old signup pull requests and **not** overwriting the live server from git.
 
-**Why they start and then click away**
+**Why they start and then click away** (live DB, 28 Nov 2026 SAST)
 
-The numbers **are on the box**. A Cloud probe of `/api/funnel-event` returning `ignored:true` is **not** the stats system. Do not treat that as “we have no data.”
+Source: `traffic_funnel_events` + `/traffic/api/claim-attempts` on the box. Probe POSTs without a real step are ignored; **real attempts are stored**.
 
-**Where the stats live (read on Mac Mini / REA, do not guess):**
+**All time (people, not page hits)**
 
-- Admin **dashboard v10** — Traffic, Live sessions, Registered Users (`/admin/dashboard-v10`).  
-- `/admin/api/analytics-traffic` and table `analytics_events` (page views, including `/signup.html` / `/login.html`).  
-- `/admin/list/registered-users` / `user_accounts` — people who **finished**.  
-- Live traffic trails (land → signup → login, then click away) — the Live list on admin.  
-- Live `api.py` (ahead of git) — signup/attempt/funnel storage that git `main` may not have. Grep live `api.py` for `funnel`, `attempt`, `signup`.  
-- Graphify on the box if present.
+| | n |
+|---|---|
+| Opened claim/signup | **80** |
+| Searched for a sailor | 14 |
+| Opened the long form | 38 |
+| Submitted | 29 |
+| Finished | **29** |
+| Failed (error) | 10 |
+| **Left without finishing** | **51** (~64% of people who opened) |
 
-**First Mac job, read-only, before any edit:** dump those counts (started vs finished vs last step). Then the drop-off reasons below are checked against **real numbers**, not only the page copy.
+Event counts: Claim button seen 286 → signup page 253 → sailor already chosen 67 → form started 50 → submitted 43 → completed 31. Claim **click** only recorded 3 times (most people never get a tracked click; they hop to the page).
 
-What the live **pages** already show as exit points (to match against those stats):
+**Last 30 days:** 26 opened, **5 finished**, 2 failed, **20 left** (~77%). Signup page hits: 13 visits / 5 visitors. Accounts created: 13 (some not via this funnel). **Last 7 days: 9 signup page loads, 2 sailor-chosen, 0 new accounts.** Last event 25 Nov 2026 14:21 SAST — loaded signup, walked away.
+
+**Why (from stored fail reasons + drop steps):**
+
+| Where they bail | Evidence | Fix |
+|---|---|---|
+| Open page, never pick a sailor | 253 page loads vs 67 preselected | Pop-up on the sailor they already had; skip Find Profile |
+| Claim click almost untracked | 3 clicks vs 286 impressions | Stay on the sailor; don’t hop |
+| Long form | 67 chosen → 50 form → 43 submit | One password after WhatsApp/Google |
+| **Email/phone already registered — sign in instead** | 5 fails in 30 days (only fail reason this month) | Same box, Sign In tab — don’t make them start Sign Up |
+| Form incomplete | 10 all-time | Fewer fields |
+| **INSERT has more target columns than expressions** (`login_method`) | 2 real fail events | Live Facebook/session insert bug — **do not copy repo `api.py`**; fix live only with backup |
+| “Do this later” SAS quiz | Page copy after “account is ready” | Drop quiz on Claim |
+| Full profile already visible | 20 of 26 left in 30 days with no error | Teaser: hide career/ranks/media |
 
 | Where they bail | Why | Fix in this plan |
 |---|---|---|
@@ -100,7 +116,7 @@ What the live **pages** already show as exit points (to match against those stat
 | Login-required **Back to Page** | They only wanted results. Full profile is already visible, so no reason to finish. | Teaser: hide career/ranks/media until they are in |
 | Password / WhatsApp / email / date-of-birth errors | Form fights them (`validation_error` in the code). | Fewer fields, so fewer errors |
 
-On the **Mac Mini** (Step 0, read-only): pull admin Traffic + Registered Users + analytics_events + live signup-attempt tables. Compare started vs finished vs last step. Nginx logs are a backup count, not the primary source. Do **not** turn extra tracking on as a surprise live change.
+On the **Mac Mini** (Step 0): re-pull `/traffic` claim-attempts after backup. Do **not** turn extra tracking on as a surprise live change.
 
 ---
 
@@ -315,7 +331,7 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
 
 Then:
 
-0. **Read box stats first** (admin v10 Traffic, Live sessions, Registered Users, `analytics_events`, live `api.py` signup/attempt/funnel tables). Write started / finished / last-step into this plan.  
+0. Box stats already pulled 28 Nov 2026 (this section). Re-check `/traffic` claim-attempts after backup.  
 1. Copy **live** `signup.html` and `login.html` into git so `main` stops being a stub.  
 2. Diff live `register-account` / verify-link / WhatsApp PIN vs repo; **do not replace live `api.py`**.  
 3. **Graphify** (PR #302/#303, `ops_run` only — never `ops_jobs`):  
@@ -410,7 +426,7 @@ Live login still has Find Profile + Complete Registration. Point “1st time / S
 | GitHub PRs / issues (`kevinweaving-ship-it/Cursor-Websites`) | **verified working** |
 | Cloud-agent transcripts (signup / auth / WA) | **verified working** (two “summarize” chats empty) |
 | Live HTTPS (`signup.html`, `login.html`, `/pop-up`, APIs, OAuth starts) | **verified working** |
-| SSH `root@102.218.215.253` from this Cloud VM | **failed** — no `sailingsa_live_key` (`Permission denied`). Use Mac Mini + `sailingsa/deploy/SSH_LIVE.md`. |
+| SSH `root@102.218.215.253` | **working** (`SSH_LIVE.md` password path). Funnel + account stats read from live DB. |
 | MotionSites **skill** (repo, PR #293) | **configured** — use for 2–3 compact examples on Mac; premium MCP **auth required** on this Cloud VM |
 | Google Stitch CLI | **configured** in `.cursor/mcp.json`; GoWifi 8 Nov 2026 probe was unauthenticated. Re-check on Mac (`stitch status --json`) |
 | Graphify | **repo extract + rules** (PR #302 open). Live box graphs **unverified** from Cloud (PR #303 not deployed from Cloud). Use on Mac via `ops_run` |
