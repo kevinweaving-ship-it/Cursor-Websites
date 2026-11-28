@@ -1,0 +1,11 @@
+[Unit]
+Description=Poll Marine Megastore LIVE every 8s for Cape Classic
+
+[Timer]
+OnBootSec=8
+OnUnitActiveSec=8
+AccuracySec=1
+Unit=mm-fb-watch-live-cape.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch Marine Megastore Facebook LIVE for Cape Classic
+
+[Service]
+Type=oneshot
+Nice=5
+EnvironmentFile=-/var/www/sailingsa/api/data/mm-fb.env
+ExecStart=/usr/bin/flock -n /run/mm-fb-watch-live-cape.lock /usr/bin/python3 /var/www/sailingsa/deploy/mm_fb_watch_live_cape.py

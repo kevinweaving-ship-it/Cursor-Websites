@@ -1,0 +1,11 @@
+[Unit]
+Description=Keep fetching Marine Megastore reels/lives for Cape Classic
+
+[Timer]
+OnBootSec=15
+OnUnitActiveSec=25
+AccuracySec=5
+Unit=mm-fb-fetch-cape.service
+
+[Install]
+WantedBy=timers.target
