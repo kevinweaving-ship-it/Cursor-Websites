@@ -71,11 +71,22 @@ Like YouTube: you can watch without an account; like/subscribe needs sign-in.
 
 Email sign-up stays the slow path (wait for a link). WhatsApp or Google/Facebook is the fast path. We are **not** merging old signup pull requests and **not** overwriting the live server from git.
 
-**Why they start and then click away** (checked 28 Nov 2026)
+**Why they start and then click away**
 
-We **cannot count** real drop-off numbers from this Cloud machine. Live signup **does** send step events (`claim_cta_click`, `claim_page_loaded`, `sailor_search`, `registration_started`, `validation_error`, `verification_requested`, `claim_completed`) to `/api/funnel-event`. That API answers `{ok:true, ignored:true}` — it throws the numbers away. GET on that endpoint is gone (410). So “how many clicked away” is not in a dashboard yet.
+The numbers **are on the box**. A Cloud probe of `/api/funnel-event` returning `ignored:true` is **not** the stats system. Do not treat that as “we have no data.”
 
-What we **can** see on the live pages is **where** people are invited to leave, and why it is hard:
+**Where the stats live (read on Mac Mini / REA, do not guess):**
+
+- Admin **dashboard v10** — Traffic, Live sessions, Registered Users (`/admin/dashboard-v10`).  
+- `/admin/api/analytics-traffic` and table `analytics_events` (page views, including `/signup.html` / `/login.html`).  
+- `/admin/list/registered-users` / `user_accounts` — people who **finished**.  
+- Live traffic trails (land → signup → login, then click away) — the Live list on admin.  
+- Live `api.py` (ahead of git) — signup/attempt/funnel storage that git `main` may not have. Grep live `api.py` for `funnel`, `attempt`, `signup`.  
+- Graphify on the box if present.
+
+**First Mac job, read-only, before any edit:** dump those counts (started vs finished vs last step). Then the drop-off reasons below are checked against **real numbers**, not only the page copy.
+
+What the live **pages** already show as exit points (to match against those stats):
 
 | Where they bail | Why | Fix in this plan |
 |---|---|---|
@@ -89,7 +100,7 @@ What we **can** see on the live pages is **where** people are invited to leave, 
 | Login-required **Back to Page** | They only wanted results. Full profile is already visible, so no reason to finish. | Teaser: hide career/ranks/media until they are in |
 | Password / WhatsApp / email / date-of-birth errors | Form fights them (`validation_error` in the code). | Fewer fields, so fewer errors |
 
-On the **Mac Mini** (Step 0, read-only): check nginx hits on `/signup.html` vs `/api/register-account` vs verify-link. That is the closest real “started vs finished” count until funnel events are stored. Do **not** turn tracking on as a surprise live change.
+On the **Mac Mini** (Step 0, read-only): pull admin Traffic + Registered Users + analytics_events + live signup-attempt tables. Compare started vs finished vs last step. Nginx logs are a backup count, not the primary source. Do **not** turn extra tracking on as a surprise live change.
 
 ---
 
@@ -304,6 +315,7 @@ ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
 
 Then:
 
+0. **Read box stats first** (admin v10 Traffic, Live sessions, Registered Users, `analytics_events`, live `api.py` signup/attempt/funnel tables). Write started / finished / last-step into this plan.  
 1. Copy **live** `signup.html` and `login.html` into git so `main` stops being a stub.  
 2. Diff live `register-account` / verify-link / WhatsApp PIN vs repo; **do not replace live `api.py`**.  
 3. **Graphify** (PR #302/#303, `ops_run` only — never `ops_jobs`):  
