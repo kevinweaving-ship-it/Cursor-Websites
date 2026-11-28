@@ -71,6 +71,28 @@ Like YouTube: you can watch without an account; like/subscribe needs sign-in.
 
 Email sign-up stays the slow path (wait for a link). WhatsApp or Google/Facebook is the fast path. We are **not** merging old signup pull requests and **not** overwriting the live server from git.
 
+**Why they start and then click away** (checked 28 Nov 2026)
+
+We **cannot count** real drop-off numbers from this Cloud machine. Live signup **does** send step events (`claim_cta_click`, `claim_page_loaded`, `sailor_search`, `registration_started`, `validation_error`, `verification_requested`, `claim_completed`) to `/api/funnel-event`. That API answers `{ok:true, ignored:true}` — it throws the numbers away. GET on that endpoint is gone (410). So “how many clicked away” is not in a dashboard yet.
+
+What we **can** see on the live pages is **where** people are invited to leave, and why it is hard:
+
+| Where they bail | Why | Fix in this plan |
+|---|---|---|
+| Claim → new Sign up page | They lose the sailor they were looking at. Easy to hit Back. | Pop-up on that sailor |
+| Find Your Profile again | They already picked someone. Feels like a dead end. | Skip if we already know who |
+| Two Henshaws / lots of Tims | List is not enough to tell them apart, or they get an extra “is this you?” | One list with club, class, last event; tap = choice |
+| Long form (email, two passwords, rules) | After they already proved the phone. | One password |
+| Email “we sent a link” | They leave for inbox and never come back. | WhatsApp code / Google is the fast path; email labelled slow |
+| “Are you registered with SAS?” **after** “Your account is ready” | They think they are done. Three buttons include **“I’m not sure — do this later”** and **“I can’t find my profile — do this later”**. That is an official exit. | Drop this quiz on Claim |
+| “Profile link needs checking” / email support | Feels broken. They leave. | Do not send Claim traffic here |
+| Login-required **Back to Page** | They only wanted results. Full profile is already visible, so no reason to finish. | Teaser: hide career/ranks/media until they are in |
+| Password / WhatsApp / email / date-of-birth errors | Form fights them (`validation_error` in the code). | Fewer fields, so fewer errors |
+
+On the **Mac Mini** (Step 0, read-only): check nginx hits on `/signup.html` vs `/api/register-account` vs verify-link. That is the closest real “started vs finished” count until funnel events are stored. Do **not** turn tracking on as a surprise live change.
+
+---
+
 **How we will not break it (when you say go — Mac Mini, not this Cloud machine)**
 
 - **Backup first.** Run `sailingsa/deploy/pre-change-backup.sh` so live is in `/root/backup_TIMESTAMP.tar.gz`. Confirm the file exists before any edit. Restore = put that tarball back.  
