@@ -71,6 +71,6 @@ assert.ok(text.indexOf("var LIVE_MS = 15000") !== -1);
 assert.ok(text.indexOf("history?hours=12") !== -1, "sparkline still uses history");
 
 var media = fs.readFileSync(path.join(__dirname, "..", "sailingsa", "frontend", "js", "club-live-media.js"), "utf8");
-assert.ok(media.indexOf("wxlive2") !== -1, "club loader must cache-bust the live slot card");
+assert.ok(media.indexOf("wxlive3") !== -1, "club loader must cache-bust the live slot card");
 
 console.log("PASS: ssa-wx-live-card");
