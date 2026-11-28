@@ -1,0 +1,2237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Pop-up lab — SailingSA</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    .lab-bar {
+      background: #1a2750;
+      color: #fff;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .lab-bar .tag {
+      display: inline-block;
+      background: #ea580c;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-right: 8px;
+    }
+    .lab-main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 16px 14px 40px;
+    }
+    .lab-compare {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .lab-card-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: stretch;
+      max-width: 100%;
+    }
+    .lab-card-lbl {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #1a2750;
+      text-align: center;
+    }
+    .lab-main > .note {
+      margin: 0 0 14px;
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    /* —— Identity strip: same classes / sizes as sailor profile (V1) —— */
+    .popup-card {
+      --dev1-left-col: 76px;
+      --dev1-avatar-size: 76px;
+      --dev1-club-logo-gap: 5px;
+      --dev1-col-gap: 5px;
+      --dev1-right-col: 76px;
+      --dev1-ssl-rank-icon: 29px;
+      --dev1-rank-wordmark-fs: 8px;
+      --dev1-rank-pill-h: 16px;
+      --dev1-pill-fs: 7px;
+      --dev1-pill-pad: 1px 5px;
+      background: #fff;
+      border: 1px solid #142b5f;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: inline-grid;
+      grid-template-columns: minmax(0, max-content);
+      justify-items: stretch;
+      align-content: start;
+      gap: 0;
+      width: max-content;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    /* Below-header blocks: fill header width, never widen the card */
+    .popup-card > .sa-looked-rule,
+    .popup-card > .sa-looked-summary,
+    .popup-card > .sa-looked-events,
+    .popup-card > .sa-looked-signup {
+      width: 0;
+      min-width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    /* Podiums + stats + classes in one card; mid separator kept */
+    .sa-looked-summary {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+      width: 100%;
+      margin: 4px 0 0 0;
+      padding: 6px 8px;
+      box-sizing: border-box;
+      border: 1px solid #142b5f;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .sa-looked-summary > .sa-looked-rule {
+      margin: 4px 0;
+    }
+    .sa-looked-summary > .sa-looked-podiums {
+      margin: 0;
+    }
+    .sa-looked-summary > .sa-looked-stats {
+      margin: 0;
+    }
+    .sa-looked-summary > .sa-looked-classes {
+      margin: 2px 0 0 0;
+    }
+    .sa-approved-sailor-header {
+      display: grid !important;
+      grid-template-columns: var(--dev1-left-col) minmax(0, max-content) var(--dev1-right-col) !important;
+      column-gap: var(--dev1-col-gap, 5px) !important;
+      align-items: start !important;
+      width: max-content;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      justify-self: start;
+    }
+    /* Full-width rule: avatar left edge → SSL right edge */
+    .sa-looked-rule {
+      display: block;
+      width: 100%;
+      height: 0;
+      margin: 4px 0 0 0;
+      padding: 0;
+      border: 0;
+      border-top: 1px solid #142b5f;
+      box-sizing: border-box;
+    }
+    .sa-approved-sailor-avatar-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      box-sizing: border-box;
+      overflow: visible;
+    }
+    .sa-approved-sailor-avatar {
+      margin: 0 !important;
+      padding: 0 !important;
+      position: relative !important;
+      width: 76px !important;
+      height: 76px !important;
+      border-radius: 999px !important;
+      overflow: visible !important;
+      background: #eef4fb;
+      border: 1px solid #dbe4ee;
+      flex: 0 0 auto;
+    }
+    .sa-approved-sailor-avatar-clip {
+      width: 100%;
+      height: 100%;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+      display: block;
+      box-sizing: border-box;
+      background: #eef4fb;
+      border: 1px solid #dbe4ee;
+    }
+    .sa-approved-sailor-avatar-clip img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      object-position: 36% 22%;
+    }
+    .sa-sailor-verified-badge {
+      position: absolute !important;
+      z-index: 99999 !important;
+      pointer-events: none !important;
+    }
+    .sa-approved-sailor-main {
+      position: relative;
+      display: grid;
+      grid-template-rows: var(--dev1-avatar-size, 76px) auto;
+      justify-items: stretch;
+      justify-self: start;
+      width: max-content;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      min-height: 0;
+      line-height: 1;
+      text-align: center;
+      box-sizing: border-box;
+    }
+    .sa-approved-sailor-id-band {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      width: max-content;
+      max-width: 100%;
+      height: 100%;
+      min-height: 0;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    .sa-approved-sailor-name {
+      display: block;
+      margin: 0;
+      padding: 0;
+      line-height: 1.05;
+      text-align: center;
+      width: 100%;
+      color: #142b5f;
+    }
+    .sa-approved-sailor-name-first {
+      display: block;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      font-size: 1.12rem;
+      font-weight: 800;
+      color: #142b5f;
+    }
+    .sa-approved-sailor-name-last {
+      display: block;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      font-size: 0.98rem;
+      font-weight: 400;
+      color: #142b5f;
+    }
+    .sa-approved-sailor-club-link.sa-approved-sailor-club-icon-link {
+      display: flex;
+      flex: 1 1 auto;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      width: 0;
+      min-width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: var(--dev1-club-logo-gap, 5px) 0;
+      text-decoration: none;
+      box-sizing: border-box;
+      overflow: hidden;
+      color: inherit;
+    }
+    .sa-approved-sailor-club-icon {
+      display: flex;
+      flex: 1 1 auto;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      height: 100%;
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .sa-approved-sailor-club-icon img {
+      display: block;
+      margin: 0 auto;
+      padding: 0;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
+    .sa-approved-sailor-club {
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+      text-align: center;
+    }
+    .sa-approved-sailor-club .sa-approved-sailor-club-link {
+      display: block;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      text-decoration: none;
+      color: inherit;
+    }
+    .sa-approved-sailor-club-code {
+      display: block;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      line-height: 1;
+      width: 100%;
+      font-size: 0.98rem;
+      font-weight: 900;
+      color: #142b5f;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    /* —— PODIUMS (gold box) | bigger medals | Medal Rate —— */
+    .sa-looked-podiums {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      width: 100%;
+      margin: 3px 0;
+      padding: 0;
+      box-sizing: border-box;
+      line-height: 1;
+    }
+    .sa-looked-podiums-hdr {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: horizontal-tb;
+      transform: none;
+      margin: 0;
+      padding: 4px 6px;
+      background: #D9BB75;
+      color: #fff;
+      border: 0;
+      border-radius: 3px;
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .sa-looked-medal-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 8px;
+      flex: 1 1 auto;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+    }
+    .sa-looked-medal {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0;
+      flex: 0 0 auto;
+      min-width: 0;
+      line-height: 1;
+      text-align: center;
+    }
+    .sa-looked-medal-ico {
+      display: block;
+      font-size: 18px;
+      line-height: 1;
+      height: 18px;
+      margin: 0;
+      padding: 0 0 6px 0;
+      text-align: center;
+      box-sizing: content-box;
+    }
+    .sa-looked-medal-n-row {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+    }
+    .sa-looked-medal-n {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 1px;
+      min-width: 11px;
+      width: auto;
+      height: auto;
+      border: 1px solid #9aa8b8;
+      border-radius: 2px;
+      background: transparent;
+      font-size: 9px;
+      font-weight: 800;
+      color: #003366;
+      line-height: 1;
+      text-align: center;
+    }
+    /* Medal / Rate / 55% — one tight component */
+    .sa-looked-medal-rate {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+      flex: 0 0 auto;
+      height: auto;
+      margin: 0 0 0 -8px;
+      padding: 0;
+      line-height: 1;
+      box-sizing: border-box;
+    }
+    .sa-looked-medal-rate-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: max-content;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+      text-align: center;
+    }
+    .sa-looked-medal-rate-val {
+      display: block;
+      width: max-content;
+      max-width: none;
+      font-size: 16px;
+      font-weight: 900;
+      color: #003366;
+      line-height: 1;
+      letter-spacing: 0;
+      white-space: nowrap;
+      text-align: center;
+      margin: 0 auto;
+      padding: 0;
+    }
+    .sa-looked-medal-rate-labels {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: max-content;
+      max-width: none;
+      margin: 0 auto 2px auto;
+      padding: 0;
+      line-height: 1;
+      text-align: center;
+      box-sizing: border-box;
+    }
+    .sa-looked-medal-rate-lbl {
+      display: block;
+      width: max-content;
+      max-width: none;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0;
+      color: #166534;
+      text-transform: none;
+      line-height: 1.1;
+      margin: 0 auto;
+      padding: 0;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* —— Stats / Classes —— */
+    .sa-looked-stats {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: stretch;
+      gap: 0;
+      width: 100%;
+      margin: 4px 0 0 0;
+      padding: 0;
+      box-sizing: border-box;
+      line-height: 1;
+    }
+    .sa-looked-stats-rows {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    .sa-looked-stat-row {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 3px;
+      margin: 0;
+      padding: 0;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+    .sa-looked-stat-lbl {
+      flex: 0 0 auto;
+      min-width: 0;
+      font-size: 9px;
+      font-weight: 800;
+      color: #003366;
+      text-align: left;
+      margin: 0;
+      padding: 0;
+    }
+    .sa-looked-stat-ico {
+      display: block;
+      flex: 0 0 auto;
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      padding: 0;
+      object-fit: contain;
+    }
+    .sa-looked-stat-ico--boat {
+      filter: brightness(0) saturate(100%) invert(42%) sepia(72%) saturate(500%) hue-rotate(130deg) brightness(0.95);
+    }
+    .sa-looked-stat-ico--flag {
+      filter: brightness(0) saturate(100%) invert(18%) sepia(40%) saturate(1200%) hue-rotate(190deg) brightness(0.85);
+    }
+    .sa-looked-stat-n {
+      flex: 0 0 auto;
+      font-size: 13px;
+      font-weight: 900;
+      color: #003366;
+      line-height: 1;
+      margin: 0 0 0 1px;
+      padding: 0;
+    }
+    .sa-looked-classes {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      width: 100%;
+      margin: 6px 0 0 0;
+      padding: 0;
+      box-sizing: border-box;
+      line-height: 1;
+    }
+    .sa-looked-classes-hdr {
+      display: block;
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #142b5f;
+      text-align: left;
+      margin: 0;
+      padding: 0;
+    }
+    /* Class logos: H19 height lock; wrap to 2nd line when many/wide (e.g. J22); both lines centred */
+    .sa-looked-classes-row {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      align-content: center;
+      gap: 5px;
+      row-gap: 5px;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: visible;
+    }
+    .sa-looked-class-link {
+      display: inline-flex;
+      flex: 0 0 auto;
+      min-width: 0;
+      align-items: center;
+      justify-content: center;
+      line-height: 0;
+    }
+    .sa-looked-class-logo {
+      display: block;
+      flex: 0 0 auto;
+      width: auto;
+      height: 21px;
+      max-height: 21px;
+      object-fit: contain;
+      object-position: center center;
+      margin: 0;
+      padding: 0;
+    }
+    .sa-looked-class-logo--top {
+      width: auto;
+      height: 21px;
+      max-height: 21px;
+    }
+
+    /* —— Last 3 Events —— */
+    .sa-looked-events {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      width: 100%;
+      margin: 8px 0 0 0;
+      padding: 6px;
+      box-sizing: border-box;
+      border: 1px solid #142b5f;
+      border-radius: 8px;
+      background: #fff;
+      line-height: 1;
+    }
+    .sa-looked-events-hdr {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 3px;
+      font-size: 9px;
+      font-weight: 900;
+      letter-spacing: .02em;
+      color: #142b5f;
+      text-align: center;
+      margin: 0 0 2px 0;
+      padding: 0;
+      line-height: 1;
+      width: 100%;
+    }
+    .sa-looked-events-hdr-ico {
+      display: block;
+      flex: 0 0 auto;
+      width: 12px;
+      height: 12px;
+      margin: 0;
+      padding: 0;
+      object-fit: contain;
+      filter: brightness(0) saturate(100%) invert(42%) sepia(72%) saturate(500%) hue-rotate(130deg) brightness(0.95);
+    }
+    .sa-looked-events-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    .sa-looked-ev {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      border: 2px solid #1e3a8a;
+      border-radius: 8px;
+      background: #faf8f3;
+      overflow: hidden;
+      box-sizing: border-box;
+      text-decoration: none;
+      color: inherit;
+    }
+    .sa-looked-ev.rank-1 { border-color: #B89400; }
+    .sa-looked-ev.rank-2 { border-color: #7A8088; }
+    .sa-looked-ev-left {
+      flex: 0 0 48px;
+      width: 48px;
+      max-width: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      align-self: stretch;
+      border-right: 1px solid #1e3a8a;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .sa-looked-ev.rank-1 .sa-looked-ev-left { border-right-color: #B89400; }
+    .sa-looked-ev.rank-2 .sa-looked-ev-left { border-right-color: #7A8088; }
+    /* Rank out of — match profile .dev1-er-rankblock + .dev1-er-rankstack
+       Gold fills left column; line is only as wide as place/fleet text (stack = max-content). */
+    .sa-looked-ev-rank {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0;
+      flex: 0 0 auto;
+      align-self: stretch;
+      margin: 0;
+      padding: 6px 4px 1px;
+      box-sizing: border-box;
+      border-bottom: 1px solid #1e3a8a;
+      background: #faf8f3;
+    }
+    .sa-looked-ev.rank-1 .sa-looked-ev-rank {
+      background:
+        radial-gradient(ellipse 95% 85% at 0% 0%, #B89400 0%, rgba(184,148,0,0.7) 22%, transparent 52%),
+        radial-gradient(ellipse 95% 85% at 100% 100%, #B89400 0%, rgba(184,148,0,0.7) 22%, transparent 52%),
+        linear-gradient(115deg, #F0D56A 0%, #FFF3B8 45%, #FFFCE8 55%, #FFF3B8 70%, #F0D56A 100%);
+      border-bottom-color: #B89400;
+    }
+    .sa-looked-ev.rank-2 .sa-looked-ev-rank {
+      background:
+        radial-gradient(ellipse 95% 85% at 0% 0%, #7A8088 0%, rgba(122,128,136,0.7) 22%, transparent 52%),
+        radial-gradient(ellipse 95% 85% at 100% 100%, #7A8088 0%, rgba(122,128,136,0.7) 22%, transparent 52%),
+        linear-gradient(115deg, #D5D8DC 0%, #F0F1F3 45%, #FAFBFC 55%, #F0F1F3 70%, #D5D8DC 100%);
+      border-bottom-color: #7A8088;
+    }
+    .sa-looked-ev-rankstack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0;
+      width: max-content;
+      max-width: 100%;
+    }
+    .sa-looked-ev-place {
+      font: 900 14.4px/1 system-ui, -apple-system, sans-serif;
+      color: #000;
+      margin: 0;
+      padding: 0;
+      -webkit-text-stroke: 0;
+      text-shadow: none;
+    }
+    .sa-looked-ev-rankline {
+      display: block;
+      height: 0;
+      width: calc(100% + 2px);
+      margin: 1px -1px 0;
+      border: 0;
+      border-top: 1px solid #1e3a8a;
+      box-sizing: border-box;
+      flex: 0 0 auto;
+    }
+    .sa-looked-ev.rank-1 .sa-looked-ev-rankline { border-top-color: #B89400; }
+    .sa-looked-ev.rank-2 .sa-looked-ev-rankline { border-top-color: #7A8088; }
+    .sa-looked-ev-fleet {
+      font: 900 12.8px/1 system-ui, -apple-system, sans-serif;
+      color: #000;
+      margin: 0;
+      padding: 0;
+      -webkit-text-stroke: 0;
+      text-shadow: none;
+    }
+    /* Class logo: fill leftover left column under rank; centre logo top↔bottom */
+    .sa-looked-ev-class {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      align-self: stretch;
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 28px;
+      height: auto;
+      max-height: none;
+      margin: 0;
+      padding: 4px 2px;
+      box-sizing: border-box;
+      background: #fff;
+      overflow: hidden;
+    }
+    .sa-looked-ev-class img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 28px;
+      margin: 0 auto;
+      padding: 0;
+      object-fit: contain;
+      object-position: center center;
+    }
+    .sa-looked-ev-class img.sa-looked-ev-class-fill {
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      max-height: 28px;
+      object-fit: contain;
+      object-position: center center;
+    }
+    /* Live board badge — same as profile .dev1-er-live-badge */
+    .sa-looked-ev-live {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 2px 0 0 0;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font: 800 9px/1 system-ui, -apple-system, sans-serif;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: #fff;
+      max-width: 100%;
+      box-sizing: border-box;
+      align-self: flex-start;
+    }
+    .sa-looked-ev-live--live { background: #ea580c; }
+    .sa-looked-ev-live--racing { background: #15803d; }
+    .sa-looked-ev-live--postponed { background: #b91c1c; }
+    /* Slow pulse/blink on live status pills */
+    .sa-looked-ev-live--live,
+    .sa-looked-ev-live--racing,
+    .sa-looked-ev-live--postponed {
+      animation: sa-looked-live-blink 1.8s ease-in-out infinite;
+    }
+    @keyframes sa-looked-live-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.42; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sa-looked-ev-live--live,
+      .sa-looked-ev-live--racing,
+      .sa-looked-ev-live--postponed {
+        animation: none;
+      }
+    }
+    /* Live tint: right panel only (match event header) — left rank/class stays */
+    .sa-looked-ev.is-live-live { border-color: #f5ac86; }
+    .sa-looked-ev.is-live-racing { border-color: #86efac; }
+    .sa-looked-ev.is-live-postponed { border-color: #fca5a5; }
+    .sa-looked-ev.is-live-live .sa-looked-ev-main { background: #fff1e6; }
+    .sa-looked-ev.is-live-racing .sa-looked-ev-main { background: #dcfce7; }
+    .sa-looked-ev.is-live-postponed .sa-looked-ev-main { background: #fee2e2; }
+    .sa-looked-ev-main {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 5px 7px 6px;
+      box-sizing: border-box;
+      overflow: hidden;
+      background: #faf8f3;
+    }
+    .sa-looked-ev-title {
+      font: 700 11px/1.15 system-ui, -apple-system, sans-serif;
+      color: #1e3a8a;
+      margin: 0;
+      padding: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+      max-width: 100%;
+    }
+    .sa-looked-ev-date {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 3px;
+      font: 800 9px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #1e3a8a;
+      margin: 0;
+      padding: 0;
+    }
+    .sa-looked-ev-date img {
+      width: 10px;
+      height: 10px;
+      flex: 0 0 auto;
+      filter: brightness(0) saturate(100%) invert(18%) sepia(55%) saturate(1600%) hue-rotate(201deg) brightness(92%) contrast(95%);
+    }
+    .sa-looked-ev-logos {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 6px;
+      margin: 2px 0 0 0;
+      padding: 0;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .sa-looked-ev-club {
+      display: inline-flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 3px;
+      text-decoration: none;
+      color: #1e3a8a;
+      line-height: 1;
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    .sa-looked-ev-club img {
+      display: block;
+      height: 14px;
+      width: auto;
+      max-height: 14px;
+      max-width: 28px;
+      object-fit: contain;
+      flex: 0 0 auto;
+    }
+    .sa-looked-ev-club-code {
+      font: 800 8px/1 system-ui, -apple-system, sans-serif;
+      color: #1e3a8a;
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    .sa-looked-ev-eventlogo {
+      display: block;
+      height: 18px;
+      width: auto;
+      max-height: 18px;
+      max-width: 40px;
+      object-fit: contain;
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+    /* Claim banner — cream ask + navy CLAIM bar (replaces Is This / Claim stack) */
+    .sa-looked-cta {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      border: 1px solid #c4a26f;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fefaf5;
+    }
+    /* Already registered (green verified badge) → hide claim CTA + signup */
+    .popup-card[data-claimed="1"] .sa-looked-cta,
+    .popup-card[data-claimed="1"] .sa-looked-signup {
+      display: none !important;
+    }
+    /* Step 1 is open → hide the “Is this yours” claim card and Last 3 Events */
+    .lab-card-wrap.is-step1 .sa-looked-cta,
+    .lab-card-wrap:has(.sa-looked-signup.is-open) .sa-looked-cta,
+    .lab-card-wrap.is-step1 .sa-looked-events,
+    .lab-card-wrap:has(.sa-looked-signup.is-open) .sa-looked-events {
+      display: none !important;
+    }
+    .sa-looked-claim {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      background: transparent;
+      border: 0;
+      text-decoration: none;
+      color: inherit;
+      line-height: 1;
+      cursor: pointer;
+      font: inherit;
+    }
+    .sa-looked-claim-top {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      width: 100%;
+      margin: 0;
+      padding: 12px 14px 11px;
+      box-sizing: border-box;
+      background: #fefaf5;
+      text-align: center;
+    }
+    .sa-looked-claim-ask {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-weight: 800;
+      font-size: 15px;
+      line-height: 1.15;
+      color: #0a2351;
+      letter-spacing: -0.01em;
+    }
+    .sa-looked-claim-sub {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-weight: 500;
+      font-size: 12px;
+      line-height: 1.2;
+      color: #0a2351;
+    }
+    .sa-looked-claim-bar {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      margin: 0;
+      padding: 11px 40px 11px 14px;
+      box-sizing: border-box;
+      background: #0a2351;
+      position: relative;
+    }
+    .sa-looked-claim-txt {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-weight: 800;
+      font-size: 12px;
+      line-height: 1;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+    .sa-looked-claim-go {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: #c4a26f;
+      color: #0a2351;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1;
+      box-sizing: border-box;
+    }
+    .sa-looked-claim.is-open .sa-looked-claim-go {
+      transform: translateY(-50%) rotate(180deg);
+    }
+    /* STEP 1 signup card — sits where Last 3 Events was, below Classes */
+    .sa-looked-signup {
+      display: none;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      margin: 8px 0 0 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    .sa-looked-signup.is-open {
+      display: block;
+    }
+    .sa-looked-signup-card {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      width: 100%;
+      margin: 0;
+      padding: 12px 10px 12px;
+      box-sizing: border-box;
+      background: #0a2351;
+      border: 1px solid #142b5f;
+      border-radius: 12px;
+    }
+    .sa-looked-signup-step-lbl {
+      display: block;
+      margin: 0;
+      padding: 0;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #c4a26f;
+      text-align: center;
+    }
+    .sa-looked-signup-welcome {
+      display: block;
+      margin: 2px 0 0 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #fff;
+      text-align: center;
+    }
+    .sa-looked-signup-welcome-name {
+      color: #c4a26f;
+    }
+    .sa-looked-signup-choose {
+      display: block;
+      margin: 0 0 2px 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.25;
+      color: rgba(255,255,255,.88);
+      text-align: center;
+    }
+    .sa-looked-auth {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      margin: 0;
+      padding: 8px 10px;
+      box-sizing: border-box;
+      border-radius: 999px;
+      border: 3px solid transparent;
+      text-decoration: none;
+      cursor: pointer;
+      font: inherit;
+      line-height: 1;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .sa-looked-auth-ico {
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sa-looked-auth-ico svg {
+      display: block;
+      width: 22px;
+      height: 22px;
+    }
+    .sa-looked-auth-txt {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      line-height: 1.1;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sa-looked-auth-go {
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: #0a2351;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .sa-looked-auth--google {
+      background: #fff;
+      border-color: #c4a26f;
+      color: #0a2351;
+    }
+    .sa-looked-auth--google .sa-looked-auth-txt { color: #0a2351; }
+    .sa-looked-auth--facebook {
+      background: #1877f2;
+      border-color: #0f5ecf;
+      color: #fff;
+    }
+    .sa-looked-auth--facebook .sa-looked-auth-txt { color: #fff; }
+    .sa-looked-auth--email {
+      background: #0a2351;
+      border: 1.5px solid #e2e8f0;
+      color: #fff;
+      padding: 10px 14px;
+    }
+    .sa-looked-auth--email .sa-looked-auth-txt { color: #fff; }
+    .sa-looked-auth--email .sa-looked-auth-go { display: none; }
+
+    .sa-looked-auth--whatsapp {
+      background: #25D366;
+      border-color: #128C7E;
+      color: #fff;
+    }
+    .sa-looked-auth--whatsapp .sa-looked-auth-txt { color: #fff; }
+    .sa-looked-auth--whatsapp .sa-looked-auth-go { background: #075E54; color: #fff; }
+    .sa-looked-signup-methods {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .sa-looked-signup-card.is-method-picked .sa-looked-auth:not(.is-chosen) {
+      display: none;
+    }
+    .sa-looked-wa {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      margin: 2px 0 0 0;
+    }
+    .sa-looked-wa.is-open { display: flex; }
+    .sa-looked-wa-phone-step,
+    .sa-looked-wa-code-step {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+    .sa-looked-wa-phone-step[hidden],
+    .sa-looked-wa-code-step[hidden] {
+      display: none !important;
+    }
+    .sa-looked-wa-label {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #c4a26f;
+      text-align: center;
+    }
+    .sa-looked-wa-input {
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1.5px solid #e2e8f0;
+      background: #fff;
+      color: #0a2351;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .sa-looked-wa-send {
+      width: 100%;
+      margin: 0;
+      padding: 10px 12px;
+      border: 0;
+      border-radius: 999px;
+      background: #25D366;
+      color: #fff;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .sa-looked-wa-boxes {
+      display: flex;
+      flex-direction: row;
+      justify-content: stretch;
+      align-items: stretch;
+      gap: 6px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .sa-looked-wa-box {
+      flex: 1 1 0;
+      width: 0;
+      min-width: 0;
+      height: 38px;
+      min-height: 38px;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border-radius: 10px;
+      border: 1.5px solid #e2e8f0;
+      background: #fff;
+      color: #0a2351;
+      font: inherit;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 36px;
+      text-align: center;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .sa-looked-wa-box:focus {
+      outline: none;
+      border-color: #25D366;
+    }
+    .sa-looked-wa-msg {
+      margin: 0;
+      min-height: 1.2em;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+      color: #fff;
+      text-align: center;
+    }
+    .sa-looked-wa-msg.is-err { color: #fecaca; }
+    .sa-looked-wa-msg.is-ok { color: #bbf7d0; }
+    .lab-card-wrap.is-wa-claimed .sa-looked-claim,
+    .lab-card-wrap.is-wa-claimed .sa-looked-signup { display: none !important; }
+
+
+    /* —— SSL RANK (same card as profile) —— */
+    .sa-header-ssl-col {
+      grid-column: 3;
+      justify-self: center;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      margin: 0;
+      padding: 0;
+    }
+    .brand-box.sa-ssl-brand-box {
+      margin: 0 !important;
+      padding: 0 !important;
+      flex: 0 0 auto !important;
+      width: max-content !important;
+      max-width: none !important;
+      height: auto !important;
+      min-height: 0 !important;
+      display: inline-flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 1px !important;
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      text-decoration: none !important;
+      color: inherit !important;
+      cursor: pointer !important;
+    }
+    .brand-icon.sa-ssl-brand-icon {
+      width: var(--dev1-ssl-rank-icon);
+      height: var(--dev1-ssl-rank-icon);
+      margin: 0 auto !important;
+      padding: 0 !important;
+      display: block !important;
+      object-fit: contain !important;
+      background: transparent !important;
+    }
+    .brand-wordmark.sa-ssl-wordmark {
+      margin: 0 auto !important;
+      padding: 0 !important;
+      line-height: 1 !important;
+      letter-spacing: 0.02em !important;
+      text-align: center !important;
+      white-space: nowrap !important;
+      width: max-content !important;
+      color: #000 !important;
+      background: transparent !important;
+      font-size: var(--dev1-rank-wordmark-fs);
+      font-weight: 800;
+    }
+    .rank-num.sa-ssl-rank-num {
+      height: var(--dev1-rank-pill-h);
+      padding: var(--dev1-pill-pad);
+      font-size: var(--dev1-pill-fs);
+    }
+  </style>
+</head>
+<body>
+  <div class="lab-bar">
+    <span class="tag">Draft lab</span> /pop-up — identity + SSL (same profile cards)
+  </div>
+  <div class="lab-main">
+        <p class="note">Compare claim cards — Tim vs Calvin. <strong>Rule:</strong> green verified badge = already claimed → hide “Is this…” claim banner.</p>
+    <div class="lab-compare">
+      <div class="lab-card-wrap">
+        <div class="lab-card-lbl">Timothy Weaving · <a href="/sailor/timothy-weaving">/sailor/timothy-weaving</a></div>
+        <div id="popup-tim" class="popup-card" data-sailor="timothy-weaving" data-sas-id="21172" data-claimed="1">
+      <div class="sa-approved-sailor-header">
+        <div class="sa-approved-sailor-avatar-col">
+          <div class="sa-approved-sailor-avatar">
+            <div class="sa-approved-sailor-avatar-clip">
+              <img
+                src="/assets/personal-avatars/21172-timothy-weaving.png?v=20260811m"
+                alt="Timothy Weaving"
+                width="76"
+                height="76"
+              >
+            </div>
+            <img class="sa-sailor-verified-badge" src="/artwork/valid-status-badge.png?v=V62_FINAL_PERM_LOCK" alt="Verified Registered Sailor" style="display:block !important;margin:0 !important;padding:0 !important;position:absolute !important;left:-6px !important;bottom:-7px !important;width:36px !important;height:24px !important;min-width:0 !important;min-height:0 !important;max-width:none !important;max-height:none !important;aspect-ratio:auto !important;line-height:1 !important;object-fit:contain !important;object-position:50% 50% !important;background:transparent !important;background-color:transparent !important;border:0 none !important;border-style:none !important;border-color:transparent !important;border-radius:0 !important;box-shadow:none !important;z-index:99999 !important;pointer-events:none !important;">
+          </div>
+        </div>
+        <div class="sa-approved-sailor-main" data-name-winner="visual">
+          <div class="sa-approved-sailor-id-band">
+            <h2 class="sa-approved-sailor-name">
+              <span class="sa-approved-sailor-name-first">Timothy</span>
+              <span class="sa-approved-sailor-name-last">Weaving</span>
+            </h2>
+            <a class="sa-approved-sailor-club-link sa-approved-sailor-club-icon-link" href="/club/hyc" title="HYC">
+              <span class="sa-approved-sailor-club-icon">
+                <img src="/api/club-logo/HYC" alt="HYC">
+              </span>
+            </a>
+          </div>
+          <div class="sa-approved-sailor-club">
+            <a class="sa-approved-sailor-club-link" href="/club/hyc" title="HYC">
+              <span class="sa-approved-sailor-club-code">HYC</span>
+            </a>
+          </div>
+        </div>
+        <div class="sa-header-ssl-col">
+          <a class="brand-box sa-ssl-brand-box" href="https://worldofsailors.com/sailor/timothy-weaving" target="_blank" rel="noopener noreferrer" title="SSL ranking / World of Sailors">
+            <img class="brand-icon sa-ssl-brand-icon" src="/artwork/SSL-Ranking-Star.png?v=20260811b" alt="SSL Ranking Star Icon">
+            <div class="sa-ssl-rank-stack" style="display:inline-flex;flex-direction:column;align-items:stretch;justify-content:flex-start;width:max-content;max-width:100%;margin:0 auto;padding:0;background:transparent;box-sizing:border-box;">
+              <h2 class="brand-wordmark sa-ssl-wordmark">SSL RANK</h2>
+              <div class="rank-hero sa-ssl-rank-hero" style="display:flex;flex-direction:row;align-items:center;justify-content:center;gap:2px;width:0;min-width:100%;max-width:100%;margin:2px 0 0 0;padding:0;min-height:0;height:auto;background:transparent;box-sizing:border-box;">
+                <span class="sa-ssl-rank-line" aria-hidden="true" style="flex:0 0 5px;width:5px;min-width:5px;max-width:5px;height:2px;background:#D9BB75;border:0;border-radius:1px;"></span>
+                <div class="rank-num sa-ssl-rank-num" style="flex:0 1 auto;display:inline-flex;align-items:center;justify-content:center;margin:0;min-width:14px;max-width:100%;box-sizing:border-box;border-radius:999px;background:#D9BB75;color:#fff;font-weight:800;line-height:1;letter-spacing:0;text-align:center;white-space:nowrap;">
+                  <span class="sa-ssl-rank-wrap" style="display:inline-flex;flex-direction:row;align-items:baseline;justify-content:center;gap:0.5px;line-height:1;white-space:nowrap;">
+                    <span class="sa-ssl-rank-digits" style="display:inline-block;font-size:100%;font-weight:800;line-height:1;color:#fff;">7915</span>
+                  </span>
+                </div>
+                <span class="sa-ssl-rank-line" aria-hidden="true" style="flex:0 0 5px;width:5px;min-width:5px;max-width:5px;height:2px;background:#D9BB75;border:0;border-radius:1px;"></span>
+              </div>
+              <div class="sa-ssl-points-label" style="display:block;margin:1px auto 0 auto;padding:0;width:auto;height:7px;min-height:7px;max-height:7px;line-height:7px;font-size:6px;font-weight:800;letter-spacing:0.04em;text-align:center;color:#D9BB75;background:transparent;border:0;box-shadow:none;overflow:visible;white-space:nowrap;">POINTS</div>
+              <div class="sa-ssl-points-row" style="display:flex;flex-direction:row;align-items:center;justify-content:center;gap:2px;width:0;min-width:100%;margin:2px 0 0 0;padding:0;box-sizing:border-box;background:transparent;">
+                <span class="sa-ssl-point-box" style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;margin:0;padding:1px;border:1px solid #9aa8b8;border-radius:2px;background:transparent;color:#D9BB75;font-size:9px;font-weight:800;line-height:1;text-align:center;min-width:0;width:auto;height:auto;">1</span>
+                <span class="sa-ssl-point-box" style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;margin:0;padding:1px;border:1px solid #9aa8b8;border-radius:2px;background:transparent;color:#D9BB75;font-size:9px;font-weight:800;line-height:1;text-align:center;min-width:0;width:auto;height:auto;">2</span>
+                <span class="sa-ssl-point-box" style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;margin:0;padding:1px;border:1px solid #9aa8b8;border-radius:2px;background:transparent;color:#D9BB75;font-size:9px;font-weight:800;line-height:1;text-align:center;min-width:0;width:auto;height:auto;">2</span>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="sa-looked-summary">
+      <div class="sa-looked-podiums" data-ns-podiums="1">
+        <span class="sa-looked-podiums-hdr">PODIUMS</span>
+        <span class="sa-looked-medal-row">
+          <span class="sa-looked-medal" title="1st">
+            <span class="sa-looked-medal-ico" aria-hidden="true">🥇</span>
+            <span class="sa-looked-medal-n-row" aria-label="8">
+              <span class="sa-looked-medal-n">8</span>
+            </span>
+          </span>
+          <span class="sa-looked-medal" title="2nd">
+            <span class="sa-looked-medal-ico" aria-hidden="true">🥈</span>
+            <span class="sa-looked-medal-n-row" aria-label="3">
+              <span class="sa-looked-medal-n">3</span>
+            </span>
+          </span>
+          <span class="sa-looked-medal" title="3rd">
+            <span class="sa-looked-medal-ico" aria-hidden="true">🥉</span>
+            <span class="sa-looked-medal-n-row" aria-label="1">
+              <span class="sa-looked-medal-n">1</span>
+            </span>
+          </span>
+        </span>
+        <span class="sa-looked-medal-rate">
+          <span class="sa-looked-medal-rate-stack">
+            <span class="sa-looked-medal-rate-labels">
+              <span class="sa-looked-medal-rate-lbl">Medal Rate</span>
+            </span>
+            <span class="sa-looked-medal-rate-val">55%</span>
+          </span>
+        </span>
+      </div>
+      <div class="sa-looked-rule" role="separator" aria-hidden="true"></div>
+      <div class="sa-looked-stats">
+        <div class="sa-looked-stats-rows">
+          <div class="sa-looked-stat-row">
+            <span class="sa-looked-stat-lbl">Regattas</span>
+            <img class="sa-looked-stat-ico sa-looked-stat-ico--boat" src="/icons/assets/phosphor/fill/sailboat-fill.svg" alt="" aria-hidden="true">
+            <span class="sa-looked-stat-n">22</span>
+          </div>
+          <div class="sa-looked-stat-row">
+            <span class="sa-looked-stat-lbl">Races</span>
+            <img class="sa-looked-stat-ico sa-looked-stat-ico--flag" src="/icons/assets/phosphor/fill/flag-checkered-fill.svg" alt="" aria-hidden="true">
+            <span class="sa-looked-stat-n">199</span>
+          </div>
+        </div>
+      </div>
+      <div class="sa-looked-classes">
+        <div class="sa-looked-classes-row">
+          <a class="sa-looked-class-link" href="/class/hunter-19" title="Hunter 19">
+            <img class="sa-looked-class-logo sa-looked-class-logo--top" src="/artwork/Class%20Logo/Hunter-19-Class-Logo.png" alt="Hunter 19">
+          </a>
+          <a class="sa-looked-class-link" href="/class/sonnet" title="Sonnet">
+            <img class="sa-looked-class-logo sa-looked-class-logo--top" src="/artwork/Class%20Logo/Sonnet-Class-Logo.png" alt="Sonnet">
+          </a>
+          <a class="sa-looked-class-link" href="/class/29er" title="29er">
+            <img class="sa-looked-class-logo sa-looked-class-logo--top" src="/artwork/Class%20Logo/29er-Class-Logo.png" alt="29er">
+          </a>
+          <a class="sa-looked-class-link" href="/class/420" title="420">
+            <img class="sa-looked-class-logo" src="/artwork/Class%20Logo/420-Class-Logo.png" alt="420">
+          </a>
+          <a class="sa-looked-class-link" href="/class/dabchick" title="Dabchick">
+            <img class="sa-looked-class-logo" src="/artwork/Class%20Logo/Dabchick-Class-Logo.png" alt="Dabchick">
+          </a>
+          <a class="sa-looked-class-link" href="/class/optimist-a" title="Optimist A">
+            <img class="sa-looked-class-logo" src="/artwork/Class%20Logo/Optimist-A-Class-Logo.png" alt="Optimist A">
+          </a>
+          <a class="sa-looked-class-link" href="/class/optimist-b" title="Optimist B">
+            <img class="sa-looked-class-logo" src="/artwork/Class%20Logo/Optimist-B-Class-Logo.png" alt="Optimist B">
+          </a>
+        </div>
+      </div>
+      </div>
+      
+      <div class="sa-looked-signup" id="popup-signup" hidden>
+        <div class="sa-looked-signup-card">
+          <span class="sa-looked-signup-step-lbl">Step 1</span>
+          <span class="sa-looked-signup-welcome">Welcome <span class="sa-looked-signup-welcome-name">Timothy Weaving</span></span>
+          <span class="sa-looked-signup-choose">Please choose method to register</span>
+          <button type="button" class="sa-looked-auth sa-looked-auth--whatsapp" data-wa-open>
+            <span class="sa-looked-auth-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#fff" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            </span>
+            <span class="sa-looked-auth-txt">Signup With</span>
+            <span class="sa-looked-auth-go" aria-hidden="true">›</span>
+          </button>
+          <a class="sa-looked-auth sa-looked-auth--google" href="/signup.html?signup=1&amp;provider=google&amp;from=claim">
+            <span class="sa-looked-auth-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            </span>
+            <span class="sa-looked-auth-txt">Sign up with Google</span>
+            <span class="sa-looked-auth-go" aria-hidden="true">›</span>
+          </a>
+          <a class="sa-looked-auth sa-looked-auth--facebook" href="/signup.html?signup=1&amp;provider=facebook&amp;from=claim">
+            <span class="sa-looked-auth-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="12" fill="white"/><path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#1877F2"/></svg>
+            </span>
+            <span class="sa-looked-auth-txt">Sign up with Facebook</span>
+            <span class="sa-looked-auth-go" aria-hidden="true">›</span>
+          </a>
+          <a class="sa-looked-auth sa-looked-auth--email" href="/signup.html?signup=1&amp;provider=email&amp;from=claim">
+            <span class="sa-looked-auth-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6.5H20C20.83 6.5 21.5 7.17 21.5 8V16C21.5 16.83 20.83 17.5 20 17.5H4C3.17 17.5 2.5 16.83 2.5 16V8C2.5 7.17 3.17 6.5 4 6.5Z" stroke="#fff" stroke-width="1.8"/><path d="M3 8L12 14L21 8" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="sa-looked-auth-txt">Sign up with email</span>
+          </a>
+          <div class="sa-looked-wa" data-wa-panel hidden>
+            <div class="sa-looked-wa-phone-step" data-wa-phone-step>
+              <span class="sa-looked-wa-label">Enter Your WhatsApp No</span>
+              <input class="sa-looked-wa-input" data-wa-phone type="tel" inputmode="tel" autocomplete="tel" placeholder="082 123 4567" maxlength="16">
+              <button type="button" class="sa-looked-wa-send" data-wa-send>Request Code</button>
+            </div>
+            <div class="sa-looked-wa-code-step" data-wa-code-step hidden>
+              <span class="sa-looked-wa-label">Enter your 4-digit code</span>
+              <div class="sa-looked-wa-boxes" data-wa-boxes>
+                <input class="sa-looked-wa-box" data-wa-digit="0" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Code digit 1">
+                <input class="sa-looked-wa-box" data-wa-digit="1" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 2">
+                <input class="sa-looked-wa-box" data-wa-digit="2" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 3">
+                <input class="sa-looked-wa-box" data-wa-digit="3" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 4">
+              </div>
+            </div>
+            <p class="sa-looked-wa-msg" data-wa-msg></p>
+          </div>
+
+        </div>
+      </div>
+      <div class="sa-looked-events">
+        <span class="sa-looked-events-hdr">
+          Last 3
+          <img class="sa-looked-events-hdr-ico" src="/icons/assets/phosphor/fill/sailboat-fill.svg" alt="" aria-hidden="true">
+          Events of 22
+          <img class="sa-looked-events-hdr-ico" src="/icons/assets/phosphor/fill/sailboat-fill.svg" alt="" aria-hidden="true">
+        </span>
+        <div class="sa-looked-events-list">
+          <a class="sa-looked-ev rank-1" href="/regatta/2026-05-30-leopard-challenge-leg-2">
+            <div class="sa-looked-ev-left">
+              <div class="sa-looked-ev-rank">
+                <div class="sa-looked-ev-rankstack">
+<span class="sa-looked-ev-place">1st</span>
+                <span class="sa-looked-ev-rankline" aria-hidden="true"></span>
+                <span class="sa-looked-ev-fleet">18</span>
+                </div>
+              </div><div class="sa-looked-ev-class">
+                <img class="sa-looked-ev-class-fill" src="/artwork/Class%20Logo/Hunter-19-Class-Logo.png" alt="Hunter 19">
+              </div>
+            </div>
+            <div class="sa-looked-ev-main">
+              <div class="sa-looked-ev-title">2026 Leopard Challenge Leg 2</div>
+              <div class="sa-looked-ev-date">
+                <img src="/icons/assets/phosphor/fill/calendar-blank-fill.svg" alt="" aria-hidden="true">
+                <span>30 May 2026</span>
+              </div>
+              <div class="sa-looked-ev-logos">
+                <span class="sa-looked-ev-club">
+                  <img src="/api/club-logo/HBYC" alt="HBYC">
+                  <span class="sa-looked-ev-club-code">HBYC</span>
+                </span>
+              </div>
+            </div>
+          </a>
+          <a class="sa-looked-ev rank-2" href="/regatta/2026-04-06-western-cape-dinghy-championships">
+            <div class="sa-looked-ev-left">
+              <div class="sa-looked-ev-rank">
+                <div class="sa-looked-ev-rankstack">
+<span class="sa-looked-ev-place">2nd</span>
+                <span class="sa-looked-ev-rankline" aria-hidden="true"></span>
+                <span class="sa-looked-ev-fleet">14</span>
+                </div>
+              </div><div class="sa-looked-ev-class">
+                <img src="/artwork/Class%20Logo/Sonnet-Class-Logo.png" alt="Sonnet">
+              </div>
+            </div>
+            <div class="sa-looked-ev-main">
+              <div class="sa-looked-ev-title">2026-04-06 Western Cape Dinghy Champs</div>
+              <div class="sa-looked-ev-date">
+                <img src="/icons/assets/phosphor/fill/calendar-blank-fill.svg" alt="" aria-hidden="true">
+                <span>03–06 Apr 2026</span>
+              </div>
+              <div class="sa-looked-ev-logos">
+                <span class="sa-looked-ev-club">
+                  <img src="/api/club-logo/SBYC" alt="SBYC">
+                  <span class="sa-looked-ev-club-code">SBYC</span>
+                </span>
+                <img class="sa-looked-ev-eventlogo" src="/artwork/Event%20Logo/Western-Cape-Dinghy-Champs.png?v=20260827a" alt="Western Cape Dinghy Champs">
+              </div>
+            </div>
+          </a>
+          <a class="sa-looked-ev" href="/regatta/2026-03-30-29er-rsa-nationals">
+            <div class="sa-looked-ev-left">
+              <div class="sa-looked-ev-rank">
+                <div class="sa-looked-ev-rankstack">
+<span class="sa-looked-ev-place">6th</span>
+                <span class="sa-looked-ev-rankline" aria-hidden="true"></span>
+                <span class="sa-looked-ev-fleet">10</span>
+                </div>
+              </div><div class="sa-looked-ev-class">
+                <img src="/artwork/Class%20Logo/29er-Class-Logo.png" alt="29er">
+              </div>
+            </div>
+            <div class="sa-looked-ev-main">
+              <div class="sa-looked-ev-title">2026 RSA 29er Nationals</div>
+              <div class="sa-looked-ev-date">
+                <img src="/icons/assets/phosphor/fill/calendar-blank-fill.svg" alt="" aria-hidden="true">
+                <span>28–30 Mar 2026</span>
+              </div>
+              <div class="sa-looked-ev-logos">
+                <span class="sa-looked-ev-club">
+                  <img src="/api/club-logo/SBYC" alt="SBYC">
+                  <span class="sa-looked-ev-club-code">SBYC</span>
+                </span>
+                <img class="sa-looked-ev-eventlogo" src="/artwork/Event%20Logo/SA-Nationals.png?v=20260827a" alt="SA Nationals">
+              </div>
+            </div>
+          </a>
+          <div class="sa-looked-cta">
+            <button type="button" class="sa-looked-claim" id="popup-claim-btn" title="Claim your profile" aria-expanded="false" aria-controls="popup-signup">
+              <span class="sa-looked-claim-top">
+                <span class="sa-looked-claim-ask">Is this your sailing profile?</span>
+                <span class="sa-looked-claim-sub">Unlock your full results and stats</span>
+              </span>
+              <span class="sa-looked-claim-bar">
+                <span class="sa-looked-claim-txt">Claim my profile — Free</span>
+                <span class="sa-looked-claim-go" aria-hidden="true">∨</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+</div>
+</div>
+        </div>
+      </div>
+    </div>
+      </div>
+      <div class="lab-card-wrap">
+        <div class="lab-card-lbl">Calvin Gibbs · <a href="/sailor/calvin-gibbs">/sailor/calvin-gibbs</a></div>
+        <div id="popup-calvin" class="popup-card" data-sailor="calvin-gibbs" data-slug="calvin-gibbs">
+      <div class="sa-approved-sailor-header">
+        <div class="sa-approved-sailor-avatar-col">
+          <div class="sa-approved-sailor-avatar">
+            <div class="sa-approved-sailor-avatar-clip">
+              <img
+                src="/assets/avatars/default-youth.png"
+                alt="Calvin Gibbs"
+                width="76"
+                height="76"
+              >
+            </div>
+          </div>
+        </div>
+        <div class="sa-approved-sailor-main" data-name-winner="visual">
+          <div class="sa-approved-sailor-id-band">
+            <h2 class="sa-approved-sailor-name">
+              <span class="sa-approved-sailor-name-first">Calvin</span>
+              <span class="sa-approved-sailor-name-last">Gibbs</span>
+            </h2>
+            <a class="sa-approved-sailor-club-link sa-approved-sailor-club-icon-link" href="/club/tsc" title="TSC">
+              <span class="sa-approved-sailor-club-icon">
+                <img src="/api/club-logo/TSC" alt="TSC">
+              </span>
+            </a>
+          </div>
+          <div class="sa-approved-sailor-club">
+            <a class="sa-approved-sailor-club-link" href="/club/tsc" title="TSC">
+              <span class="sa-approved-sailor-club-code">TSC</span>
+            </a>
+          </div>
+        </div>
+        <div class="sa-header-ssl-col">
+          <a class="brand-box sa-ssl-brand-box" href="https://worldofsailors.com/sailor/calvin-gibbs" target="_blank" rel="noopener noreferrer" title="SSL ranking / World of Sailors">
+            <img class="brand-icon sa-ssl-brand-icon" src="/artwork/SSL-Ranking-Star.png?v=20260811b" alt="SSL Ranking Star Icon">
+            <div class="sa-ssl-rank-stack" style="display:inline-flex;flex-direction:column;align-items:stretch;justify-content:flex-start;width:max-content;max-width:100%;margin:0 auto;padding:0;background:transparent;box-sizing:border-box;">
+              <h2 class="brand-wordmark sa-ssl-wordmark">SSL RANK</h2>
+              <div class="rank-hero sa-ssl-rank-hero" style="display:flex;flex-direction:row;align-items:center;justify-content:center;gap:2px;width:0;min-width:100%;max-width:100%;margin:2px 0 0 0;padding:0;min-height:0;height:auto;background:transparent;box-sizing:border-box;">
+                <span class="sa-ssl-rank-line" aria-hidden="true" style="flex:0 0 5px;width:5px;min-width:5px;max-width:5px;height:2px;background:#D9BB75;border:0;border-radius:1px;"></span>
+                <div class="rank-num sa-ssl-rank-num" style="flex:0 1 auto;display:inline-flex;align-items:center;justify-content:center;margin:0;min-width:14px;max-width:100%;box-sizing:border-box;border-radius:999px;background:#D9BB75;color:#fff;font-weight:800;line-height:1;letter-spacing:0;text-align:center;white-space:nowrap;">
+                  <span class="sa-ssl-rank-wrap" style="display:inline-flex;flex-direction:row;align-items:baseline;justify-content:center;gap:0.5px;line-height:1;white-space:nowrap;">
+                    <span class="sa-ssl-rank-digits" style="display:inline-block;font-size:100%;font-weight:800;line-height:1;color:#fff;">12481</span>
+                  </span>
+                </div>
+                <span class="sa-ssl-rank-line" aria-hidden="true" style="flex:0 0 5px;width:5px;min-width:5px;max-width:5px;height:2px;background:#D9BB75;border:0;border-radius:1px;"></span>
+              </div>
+              <div class="sa-ssl-points-label" style="display:block;margin:1px auto 0 auto;padding:0;width:auto;height:7px;min-height:7px;max-height:7px;line-height:7px;font-size:6px;font-weight:800;letter-spacing:0.04em;text-align:center;color:#D9BB75;background:transparent;border:0;box-shadow:none;overflow:visible;white-space:nowrap;">POINTS</div>
+              <div class="sa-ssl-points-row" style="display:flex;flex-direction:row;align-items:center;justify-content:center;gap:2px;width:0;min-width:100%;margin:2px 0 0 0;padding:0;box-sizing:border-box;background:transparent;">
+                <span class="sa-ssl-point-box" style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;margin:0;padding:1px;border:1px solid #9aa8b8;border-radius:2px;background:transparent;color:#D9BB75;font-size:9px;font-weight:800;line-height:1;text-align:center;min-width:0;width:auto;height:auto;">3</span>
+                <span class="sa-ssl-point-box" style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;margin:0;padding:1px;border:1px solid #9aa8b8;border-radius:2px;background:transparent;color:#D9BB75;font-size:9px;font-weight:800;line-height:1;text-align:center;min-width:0;width:auto;height:auto;">9</span>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="sa-looked-summary">
+      <div class="sa-looked-podiums" data-ns-podiums="1">
+        <span class="sa-looked-podiums-hdr">PODIUMS</span>
+        <span class="sa-looked-medal-row">
+          <span class="sa-looked-medal" title="1st">
+            <span class="sa-looked-medal-ico" aria-hidden="true">🥇</span>
+            <span class="sa-looked-medal-n-row" aria-label="8">
+              <span class="sa-looked-medal-n">8</span>
+            </span>
+          </span>
+          <span class="sa-looked-medal" title="2nd">
+            <span class="sa-looked-medal-ico" aria-hidden="true">🥈</span>
+            <span class="sa-looked-medal-n-row" aria-label="1">
+              <span class="sa-looked-medal-n">1</span>
+            </span>
+          </span>
+          <span class="sa-looked-medal" title="3rd">
+            <span class="sa-looked-medal-ico" aria-hidden="true">🥉</span>
+            <span class="sa-looked-medal-n-row" aria-label="1">
+              <span class="sa-looked-medal-n">1</span>
+            </span>
+          </span>
+        </span>
+        <span class="sa-looked-medal-rate">
+          <span class="sa-looked-medal-rate-stack">
+            <span class="sa-looked-medal-rate-labels">
+              <span class="sa-looked-medal-rate-lbl">Medal Rate</span>
+            </span>
+            <span class="sa-looked-medal-rate-val">77%</span>
+          </span>
+        </span>
+      </div>
+      <div class="sa-looked-rule" role="separator" aria-hidden="true"></div>
+      <div class="sa-looked-stats">
+        <div class="sa-looked-stats-rows">
+          <div class="sa-looked-stat-row">
+            <span class="sa-looked-stat-lbl">Regattas</span>
+            <img class="sa-looked-stat-ico sa-looked-stat-ico--boat" src="/icons/assets/phosphor/fill/sailboat-fill.svg" alt="" aria-hidden="true">
+            <span class="sa-looked-stat-n">13</span>
+          </div>
+          <div class="sa-looked-stat-row">
+            <span class="sa-looked-stat-lbl">Races</span>
+            <img class="sa-looked-stat-ico sa-looked-stat-ico--flag" src="/icons/assets/phosphor/fill/flag-checkered-fill.svg" alt="" aria-hidden="true">
+            <span class="sa-looked-stat-n">95</span>
+          </div>
+        </div>
+      </div>
+      <div class="sa-looked-classes">
+        <div class="sa-looked-classes-row">
+          <a class="sa-looked-class-link" href="/class/j22" title="J22">
+            <img class="sa-looked-class-logo sa-looked-class-logo--top" src="/artwork/Class%20Logo/J22-Class-Logo.png" alt="J22">
+          </a>
+          <a class="sa-looked-class-link" href="/class/stadt-23" title="Stadt 23">
+            <img class="sa-looked-class-logo sa-looked-class-logo--top" src="/artwork/Class%20Logo/Stadt23-Class-Logo.png" alt="Stadt 23">
+          </a>
+          <a class="sa-looked-class-link" href="/class/505" title="505">
+            <img class="sa-looked-class-logo" src="/artwork/Class%20Logo/505-Class-Logo.png" alt="505">
+          </a>
+          <a class="sa-looked-class-link" href="/class/hobie-16" title="Hobie 16">
+            <img class="sa-looked-class-logo" src="/artwork/Class%20Logo/Hobie-16-Class-Logo.png" alt="Hobie 16">
+          </a>
+          <a class="sa-looked-class-link" href="/class/sonnet" title="Sonnet">
+            <img class="sa-looked-class-logo" src="/artwork/Class%20Logo/Sonnet-Class-Logo.png" alt="Sonnet">
+          </a>
+          <a class="sa-looked-class-link" href="/class/ilca-6" title="ILCA 6">
+            <img class="sa-looked-class-logo" src="/artwork/Class%20Logo/ILCA-6-Class-Logo.png" alt="ILCA 6">
+          </a>
+        </div>
+      </div>
+      </div>
+      
+      <div class="sa-looked-signup" id="popup-signup-calvin" hidden>
+        <div class="sa-looked-signup-card">
+          <span class="sa-looked-signup-step-lbl">Step 1</span>
+          <span class="sa-looked-signup-welcome">Welcome <span class="sa-looked-signup-welcome-name">Calvin Gibbs</span></span>
+          <span class="sa-looked-signup-choose">Please choose method to register</span>
+          <button type="button" class="sa-looked-auth sa-looked-auth--whatsapp" data-wa-open>
+            <span class="sa-looked-auth-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#fff" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            </span>
+            <span class="sa-looked-auth-txt">Signup With</span>
+            <span class="sa-looked-auth-go" aria-hidden="true">›</span>
+          </button>
+          <a class="sa-looked-auth sa-looked-auth--google" href="/signup.html?signup=1&amp;provider=google&amp;from=claim">
+            <span class="sa-looked-auth-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            </span>
+            <span class="sa-looked-auth-txt">Sign up with Google</span>
+            <span class="sa-looked-auth-go" aria-hidden="true">›</span>
+          </a>
+          <a class="sa-looked-auth sa-looked-auth--facebook" href="/signup.html?signup=1&amp;provider=facebook&amp;from=claim">
+            <span class="sa-looked-auth-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="12" fill="white"/><path d="M13.44 20V13.44H15.64L15.97 10.88H13.44V9.24C13.44 8.5 13.64 8 14.7 8H16V5.72C15.37 5.63 14.74 5.59 14.1 5.6C12.21 5.6 10.92 6.75 10.92 8.86V10.88H8.8V13.44H10.92V20H13.44Z" fill="#1877F2"/></svg>
+            </span>
+            <span class="sa-looked-auth-txt">Sign up with Facebook</span>
+            <span class="sa-looked-auth-go" aria-hidden="true">›</span>
+          </a>
+          <a class="sa-looked-auth sa-looked-auth--email" href="/signup.html?signup=1&amp;provider=email&amp;from=claim">
+            <span class="sa-looked-auth-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6.5H20C20.83 6.5 21.5 7.17 21.5 8V16C21.5 16.83 20.83 17.5 20 17.5H4C3.17 17.5 2.5 16.83 2.5 16V8C2.5 7.17 3.17 6.5 4 6.5Z" stroke="#fff" stroke-width="1.8"/><path d="M3 8L12 14L21 8" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <span class="sa-looked-auth-txt">Sign up with email</span>
+          </a>
+          <div class="sa-looked-wa" data-wa-panel hidden>
+            <div class="sa-looked-wa-phone-step" data-wa-phone-step>
+              <span class="sa-looked-wa-label">Enter Your WhatsApp No</span>
+              <input class="sa-looked-wa-input" data-wa-phone type="tel" inputmode="tel" autocomplete="tel" placeholder="082 123 4567" maxlength="16">
+              <button type="button" class="sa-looked-wa-send" data-wa-send>Request Code</button>
+            </div>
+            <div class="sa-looked-wa-code-step" data-wa-code-step hidden>
+              <span class="sa-looked-wa-label">Enter your 4-digit code</span>
+              <div class="sa-looked-wa-boxes" data-wa-boxes>
+                <input class="sa-looked-wa-box" data-wa-digit="0" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Code digit 1">
+                <input class="sa-looked-wa-box" data-wa-digit="1" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 2">
+                <input class="sa-looked-wa-box" data-wa-digit="2" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 3">
+                <input class="sa-looked-wa-box" data-wa-digit="3" type="text" inputmode="numeric" maxlength="1" aria-label="Code digit 4">
+              </div>
+            </div>
+            <p class="sa-looked-wa-msg" data-wa-msg></p>
+          </div>
+
+        </div>
+      </div>
+      <div class="sa-looked-events">
+        
+        <span class="sa-looked-events-hdr">
+          Last 3
+          <img class="sa-looked-events-hdr-ico" src="/icons/assets/phosphor/fill/sailboat-fill.svg" alt="" aria-hidden="true">
+          Events of 13
+          <img class="sa-looked-events-hdr-ico" src="/icons/assets/phosphor/fill/sailboat-fill.svg" alt="" aria-hidden="true">
+        </span>
+        <div class="sa-looked-events-list">
+          <a class="sa-looked-ev rank-1 is-live-live" href="/regatta/2026-08-29-lipton-challenge-cup" data-live-board-tint-rid="2026-08-29-lipton-challenge-cup" data-live-board-page-status="LIVE">
+            <div class="sa-looked-ev-left">
+              <div class="sa-looked-ev-rank">
+                <div class="sa-looked-ev-rankstack">
+<span class="sa-looked-ev-place">1st</span>
+                <span class="sa-looked-ev-rankline" aria-hidden="true"></span>
+                <span class="sa-looked-ev-fleet">17</span>
+                </div>
+              </div><div class="sa-looked-ev-class">
+                <img src="/artwork/Class%20Logo/J22-Class-Logo.png" alt="J22">
+              </div>
+            </div>
+            <div class="sa-looked-ev-main">
+              <div class="sa-looked-ev-title">2026 Lipton Challenge Cup</div>
+              <div class="sa-looked-ev-date">
+                <img src="/icons/assets/phosphor/fill/calendar-blank-fill.svg" alt="" aria-hidden="true">
+                <span>24–29 Aug 2026</span>
+              </div>
+              <span class="sa-looked-ev-live sa-looked-ev-live--live" data-live-badge="1">Live</span>
+              <div class="sa-looked-ev-logos">
+                <span class="sa-looked-ev-club">
+                  <img src="/api/club-logo/RCYC" alt="RCYC">
+                  <span class="sa-looked-ev-club-code">RCYC</span>
+                </span>
+                <img class="sa-looked-ev-eventlogo" src="/artwork/Event%20Logo/Lipton-Challenge-Cup-2025.png?v=20260827a" alt="Lipton Challenge Cup">
+              </div>
+            </div>
+          </a>
+          <a class="sa-looked-ev rank-1" href="/regatta/2026-08-16-2026-north-sails-j22-championships">
+            <div class="sa-looked-ev-left">
+              <div class="sa-looked-ev-rank">
+                <div class="sa-looked-ev-rankstack">
+<span class="sa-looked-ev-place">1st</span>
+                <span class="sa-looked-ev-rankline" aria-hidden="true"></span>
+                <span class="sa-looked-ev-fleet">16</span>
+                </div>
+              </div><div class="sa-looked-ev-class">
+                <img src="/artwork/Class%20Logo/J22-Class-Logo.png" alt="J22">
+              </div>
+            </div>
+            <div class="sa-looked-ev-main">
+              <div class="sa-looked-ev-title">2026 North Sails J22 Champs</div>
+              <div class="sa-looked-ev-date">
+                <img src="/icons/assets/phosphor/fill/calendar-blank-fill.svg" alt="" aria-hidden="true">
+                <span>15–16 Aug 2026</span>
+              </div>
+              <div class="sa-looked-ev-logos">
+                <span class="sa-looked-ev-club">
+                  <img src="/api/club-logo/RCYC" alt="RCYC">
+                  <span class="sa-looked-ev-club-code">RCYC</span>
+                </span>
+                <img class="sa-looked-ev-eventlogo" src="/artwork/Event%20Logo/J22-Nationals.png?v=20260827a" alt="J22 Nationals">
+              </div>
+            </div>
+          </a>
+          <a class="sa-looked-ev rank-1" href="/regatta/2025-08-30-lipton-challenge-cup">
+            <div class="sa-looked-ev-left">
+              <div class="sa-looked-ev-rank">
+                <div class="sa-looked-ev-rankstack">
+<span class="sa-looked-ev-place">1st</span>
+                <span class="sa-looked-ev-rankline" aria-hidden="true"></span>
+                <span class="sa-looked-ev-fleet">18</span>
+                </div>
+              </div><div class="sa-looked-ev-class">
+                <img src="/artwork/Class%20Logo/J22-Class-Logo.png" alt="J22">
+              </div>
+            </div>
+            <div class="sa-looked-ev-main">
+              <div class="sa-looked-ev-title">2025 Lipton Challenge Cup</div>
+              <div class="sa-looked-ev-date">
+                <img src="/icons/assets/phosphor/fill/calendar-blank-fill.svg" alt="" aria-hidden="true">
+                <span>25–30 Aug 2025</span>
+              </div>
+              <div class="sa-looked-ev-logos">
+                <span class="sa-looked-ev-club">
+                  <img src="/api/club-logo/RCYC" alt="RCYC">
+                  <span class="sa-looked-ev-club-code">RCYC</span>
+                </span>
+                <img class="sa-looked-ev-eventlogo" src="/artwork/Event%20Logo/Lipton-Challenge-Cup-2025.png?v=20260827a" alt="Lipton Challenge Cup">
+              </div>
+            </div>
+          </a>
+
+          <div class="sa-looked-cta">
+            <button type="button" class="sa-looked-claim" id="popup-claim-btn-calvin" title="Claim your profile" aria-expanded="false" aria-controls="popup-signup-calvin">
+              <span class="sa-looked-claim-top">
+                <span class="sa-looked-claim-ask">Is this your sailing profile?</span>
+                <span class="sa-looked-claim-sub">Unlock your full results and stats</span>
+              </span>
+              <span class="sa-looked-claim-bar">
+                <span class="sa-looked-claim-txt">Claim my profile — Free</span>
+                <span class="sa-looked-claim-go" aria-hidden="true">∨</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+</div>
+</div>
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
+  </div>
+    <script>
+  (function () {
+    function wire(claimId, panelId) {
+      var claimBtn = document.getElementById(claimId);
+      var panel = document.getElementById(panelId);
+      if (!claimBtn || !panel) return;
+      var wrap = claimBtn.closest('.lab-card-wrap');
+      var cta = wrap ? wrap.querySelector('.sa-looked-cta') : claimBtn.closest('.sa-looked-cta');
+      claimBtn.addEventListener('click', function () {
+        if (panel.classList.contains('is-open')) {
+          panel.hidden = true;
+          panel.classList.remove('is-open');
+          claimBtn.classList.remove('is-open');
+          claimBtn.setAttribute('aria-expanded', 'false');
+          if (wrap) wrap.classList.remove('is-step1');
+          if (cta) cta.hidden = false;
+        } else {
+          panel.hidden = false;
+          panel.classList.add('is-open');
+          claimBtn.classList.add('is-open');
+          claimBtn.setAttribute('aria-expanded', 'true');
+          if (wrap) wrap.classList.add('is-step1');
+          if (cta) cta.hidden = true;
+          panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+      });
+    }
+    wire('popup-claim-btn', 'popup-signup');
+    wire('popup-claim-btn-calvin', 'popup-signup-calvin');
+
+    function wireSignupChoices() {
+      document.querySelectorAll('.lab-card-wrap').forEach(function (wrap) {
+        var signupCard = wrap.querySelector('.sa-looked-signup-card');
+        var card = wrap.querySelector('.popup-card');
+        var openBtn = wrap.querySelector('[data-wa-open]');
+        var panel = wrap.querySelector('[data-wa-panel]');
+        var phoneStep = wrap.querySelector('[data-wa-phone-step]');
+        var codeStep = wrap.querySelector('[data-wa-code-step]');
+        var phone = wrap.querySelector('[data-wa-phone]');
+        var sendBtn = wrap.querySelector('[data-wa-send]');
+        var codeBoxes = wrap.querySelectorAll('[data-wa-digit]');
+        var msg = wrap.querySelector('[data-wa-msg]');
+        var verifying = false;
+        if (!signupCard) return;
+        function setMsg(text, kind) {
+          if (!msg) return;
+          msg.textContent = text || '';
+          msg.classList.remove('is-err', 'is-ok');
+          if (kind) msg.classList.add(kind);
+        }
+        function digits(v) { return String(v || '').replace(/\D/g, ''); }
+        function readCode() {
+          var out = '';
+          codeBoxes.forEach(function (box) { out += digits(box.value).slice(0, 1); });
+          return out;
+        }
+        function fillBoxes(val) {
+          var d = digits(val).slice(0, 4).split('');
+          codeBoxes.forEach(function (box, i) { box.value = d[i] || ''; });
+        }
+        function clearBoxes() {
+          codeBoxes.forEach(function (box) { box.value = ''; box.disabled = false; });
+        }
+        function setBoxesDisabled(on) {
+          codeBoxes.forEach(function (box) { box.disabled = !!on; });
+        }
+        function focusBox(i) {
+          if (codeBoxes[i]) codeBoxes[i].focus();
+        }
+        function pickMethod(el) {
+          signupCard.classList.add('is-method-picked');
+          signupCard.querySelectorAll('.sa-looked-auth').forEach(function (a) {
+            a.classList.toggle('is-chosen', a === el);
+          });
+        }
+        signupCard.querySelectorAll('.sa-looked-auth').forEach(function (el) {
+          el.addEventListener('click', function (e) {
+            pickMethod(el);
+            if (!el.hasAttribute('data-wa-open')) return;
+            e.preventDefault();
+            if (!panel) return;
+            panel.hidden = false;
+            panel.classList.add('is-open');
+            if (phoneStep) phoneStep.hidden = false;
+            if (codeStep) codeStep.hidden = true;
+            if (phone) phone.focus();
+          });
+        });
+        function sailorPayload() {
+          return {
+            sas_id: (card && card.getAttribute('data-sas-id')) || '',
+            slug: (card && (card.getAttribute('data-sailor') || card.getAttribute('data-slug'))) || '',
+            whatsapp: digits(phone && phone.value)
+          };
+        }
+        function keepSession(token) {
+          if (!token) return;
+          try { localStorage.setItem('session', token); } catch (err) {}
+          document.cookie = 'session=' + encodeURIComponent(token) + '; path=/; max-age=' + (30 * 24 * 60 * 60) + '; SameSite=Lax';
+        }
+        function goProfile(d) {
+          var slug = (d && d.slug) || (card && (card.getAttribute('data-sailor') || card.getAttribute('data-slug'))) || '';
+          var url = (d && d.profile_url) || (slug ? '/sailor/' + slug : '/');
+          window.location.href = url;
+        }
+        if (sendBtn) sendBtn.addEventListener('click', function () {
+          var n = digits(phone && phone.value);
+          if (n.length !== 10 || n.charAt(0) !== '0') {
+            setMsg('Enter a 10-digit WhatsApp number starting with 0', 'is-err');
+            return;
+          }
+          sendBtn.disabled = true;
+          setMsg('Sending code…');
+          var body = sailorPayload();
+          fetch('/api/claim/whatsapp/send-code', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }).then(function (r) { return r.json(); }).then(function (d) {
+            sendBtn.disabled = false;
+            if (!d || d.error) {
+              setMsg((d && d.error) || 'Could not send code', 'is-err');
+              return;
+            }
+            if (d.sas_id && card) card.setAttribute('data-sas-id', String(d.sas_id));
+            if (phoneStep) phoneStep.hidden = true;
+            if (codeStep) codeStep.hidden = false;
+            clearBoxes();
+            focusBox(0);
+            setMsg('Code sent on WhatsApp. Enter the 4 digits.', 'is-ok');
+          }).catch(function () {
+            sendBtn.disabled = false;
+            setMsg('Could not send code', 'is-err');
+          });
+        });
+        function verifyCode() {
+          if (verifying) return;
+          var c = readCode();
+          if (c.length !== 4) return;
+          verifying = true;
+          setBoxesDisabled(true);
+          setMsg('Checking code…');
+          var body = sailorPayload();
+          body.code = c;
+          fetch('/api/claim/whatsapp/verify-code', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d || d.error) {
+              verifying = false;
+              clearBoxes();
+              focusBox(0);
+              setMsg((d && d.error) || 'Code not accepted', 'is-err');
+              return;
+            }
+            keepSession(d.session_token || d.session);
+            if (card) {
+              card.setAttribute('data-claimed', '1');
+              card.classList.add('is-wa-claimed');
+            }
+            wrap.classList.add('is-wa-claimed');
+            setMsg('Profile claimed. Opening your sailor page…', 'is-ok');
+            goProfile(d);
+          }).catch(function () {
+            verifying = false;
+            setBoxesDisabled(false);
+            focusBox(0);
+            setMsg('Code not accepted', 'is-err');
+          });
+        }
+        codeBoxes.forEach(function (box, idx) {
+          box.addEventListener('input', function () {
+            var extra = digits(box.value);
+            if (!extra) { box.value = ''; return; }
+            if (extra.length > 1) {
+              fillBoxes((readCode().slice(0, idx) + extra).slice(0, 4));
+              if (readCode().length === 4) verifyCode();
+              else focusBox(Math.min(idx + extra.length, 3));
+              return;
+            }
+            box.value = extra.slice(0, 1);
+            if (idx < 3) focusBox(idx + 1);
+            if (readCode().length === 4) verifyCode();
+          });
+          box.addEventListener('keydown', function (e) {
+            if (e.key === 'Backspace' && !digits(box.value) && idx > 0) {
+              e.preventDefault();
+              codeBoxes[idx - 1].value = '';
+              focusBox(idx - 1);
+            }
+          });
+          box.addEventListener('paste', function (e) {
+            var text = (e.clipboardData && e.clipboardData.getData('text')) || '';
+            var d = digits(text).slice(0, 4);
+            if (!d) return;
+            e.preventDefault();
+            fillBoxes(d);
+            if (d.length === 4) verifyCode();
+            else focusBox(d.length);
+          });
+        });
+      });
+    }
+    wireSignupChoices();
+  })();
+
+    /* Live board status poll — LIVE / RACING / POSTPONED */
+    (function () {
+      var nodes = document.querySelectorAll('[data-live-board-tint-rid]');
+      if (!nodes.length) return;
+      var map = {};
+      nodes.forEach(function (el) {
+        var rid = el.getAttribute('data-live-board-tint-rid');
+        if (!rid) return;
+        (map[rid] = map[rid] || []).push(el);
+      });
+      function apply(el, st) {
+        st = String(st || 'LIVE').toUpperCase();
+        if (st !== 'LIVE' && st !== 'RACING' && st !== 'POSTPONED') st = 'LIVE';
+        el.setAttribute('data-live-board-page-status', st);
+        el.classList.remove('is-live-live', 'is-live-racing', 'is-live-postponed');
+        el.classList.add(st === 'POSTPONED' ? 'is-live-postponed' : (st === 'RACING' ? 'is-live-racing' : 'is-live-live'));
+        var badge = el.querySelector('[data-live-badge]');
+        if (!badge) {
+          var main = el.querySelector('.sa-looked-ev-main');
+          if (main) {
+            badge = document.createElement('span');
+            badge.setAttribute('data-live-badge', '1');
+            var logos = main.querySelector('.sa-looked-ev-logos');
+            if (logos) main.insertBefore(badge, logos);
+            else main.appendChild(badge);
+          }
+        }
+        if (badge) {
+          badge.className = 'sa-looked-ev-live sa-looked-ev-live--' + (st === 'POSTPONED' ? 'postponed' : (st === 'RACING' ? 'racing' : 'live'));
+          badge.textContent = st === 'POSTPONED' ? 'Postponed' : (st === 'RACING' ? 'Racing' : 'Live');
+        }
+      }
+      function tick() {
+        Object.keys(map).forEach(function (rid) {
+          fetch('/api/regatta/' + encodeURIComponent(rid) + '/live-board-status', { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (j) {
+              if (!j) return;
+              var st = String(j.status || j.live_board_status || '').toUpperCase();
+              map[rid].forEach(function (el) { apply(el, st); });
+            })
+            .catch(function () {});
+        });
+      }
+      tick();
+      setInterval(tick, 15000);
+    })();
+
+  </script>
+<script src="/js/site-traffic.js" defer></script>
+</body>
+</html>

@@ -4652,6 +4652,7 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
     <script src="/js/api.js?v=20260901landingfix"></script>
     <script src="/js/results.js?v=FORCE_CLEAN_1"></script>
     <script src="/js/session.js?v=20260813_SILENT_LOGIN"></script>
+    <script src="/js/landing-claim-popup.js?v=20260911mp3"></script>
     
     <script>
         // Function to close popup and return to landing page
@@ -8168,6 +8169,11 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                         }
                         function wireClaimBanners(slot) {
                             var info = sailorFromSlot(slot);
+                            rememberClaimSailor(info.sid, info.name);
+                            if (typeof window.mountLandingClaimPopup === "function") {
+                                window.mountLandingClaimPopup(slot, info);
+                                return;
+                            }
                             var href = claimSignupHref(info.sid, info.name);
                             slot.querySelectorAll("a.sa-claim-banner").forEach(function(a) {
                                 a.setAttribute("href", href);
@@ -8192,6 +8198,9 @@ try{if(typeof window.addEventListener==="function"){window.addEventListener("pag
                                 if (!sc.src) codes.push(sc.textContent || "");
                                 if (sc.parentNode) sc.parentNode.removeChild(sc);
                             });
+                            if (typeof window.replaceLandingClaimBanner === "function") {
+                                window.replaceLandingClaimBanner(box);
+                            }
                             slot.innerHTML = "";
                             while (box.firstChild) slot.appendChild(box.firstChild);
                             runDev1Scripts(slot, codes);
