@@ -24,15 +24,23 @@ This is a **plan**. Nothing on the live site changes until you say go.
 
 That is why it feels hard. The buttons exist. The path is too long and it forgets who you already picked.
 
-**What we plan instead**
+**What we plan instead — one box, two doors**
 
-You stay on the sailor you already found. A box pops up **on that same page**. Three short steps:
+Same pop-up everywhere. Same buttons: WhatsApp, Google, Facebook, email. Header layout does **not** change; the existing “Sign In / Sign Up” button just opens this box.
 
-1. Prove it is you (WhatsApp code, or tap Google / Facebook).  
-2. Choose a password **once**.  
-3. Done. The rest of that profile unlocks where you already are.
+**Door 1 — you already found yourself** (Claim on a sailor)
 
-If you came from search, we **do not** ask you to find yourself again, and we **do not** ask the SA Sailing quiz.
+Box pops up **on that sailor**. It already knows who you are. It does **not** ask “is this you?”. Three steps: prove it (WhatsApp code or Google/Facebook) → one password → that profile unlocks.
+
+**Door 2 — you tapped Sign Up in the header** (you have not picked a sailor)
+
+Same box. Same prove + one password. Then **one** optional search: pick your sailor from the list (tapping the name is enough — no extra “is this you?”). Or skip and link later.
+
+**After you have an account — Sign In** (same box, other tab)
+
+You are not creating anything. WhatsApp code **or** Google/Facebook **or** email + the password you already chose. No search. No “is this you?”. No new password. You are in. If you claimed a sailor, that profile is yours; if not, you land on the site logged in.
+
+Today’s login page mixes Sign In **and** a full Register / Find Profile on the same screen. That mix goes away: Sign In is only for people who already signed up. Sign Up is the other tab of the same box.
 
 **What you see before vs after sign-up (reason to bother)**
 
@@ -46,16 +54,18 @@ Like YouTube: you can watch without an account; like/subscribe needs sign-in.
 | Today | After |
 |---|---|
 | Claim sends you to another page | Box on the same sailor |
-| Search for yourself twice | Search once |
-| Long form after you already proved the phone | One password |
-| “Are you SAS registered?” after you claimed | That question gone for claim |
+| Header Sign In / Sign Up dumps you on a mixed login+register page | Same box, two tabs: Sign in / Sign up |
+| Search for yourself twice, then “is this you?” | Claim: no search, no “is this you?”. Header Sign up: search once, tapping the name is enough |
+| Login page also has Find Profile + Register | Login is only “I already have an account” |
+| Long form after you already proved the phone | One password when new; existing password when returning |
+| “Are you SAS registered?” after you claimed | That question gone |
 | Full sailor profile visible logged out | Preview only until they sign up |
 
 **What makes it easier:** fewer pages, fewer questions, no repeating work you already did.
 
 Email sign-up stays the slow path (wait for a link). WhatsApp or Google/Facebook is the fast path. We are **not** merging old signup pull requests and **not** overwriting the live server from git.
 
-First real build (when you say go): stop the double search, keep them on the sailor they tapped.
+First real build (when you say go): Claim pop-up stays on the sailor, no “is this you?”, no second search. Header Sign In / Sign Up then uses that **same** box.
 
 ---
 
