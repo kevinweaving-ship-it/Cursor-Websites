@@ -7,6 +7,58 @@
 
 ---
 
+## Plain English (read this first)
+
+This is a **plan**. Nothing on the live site changes until you say go.
+
+**How it works today**
+
+1. You search, see your name, tap Claim / Sign up.  
+2. The site **leaves that page** and opens a different Sign up page.  
+3. It asks you to **search for yourself again**.  
+4. You confirm “this is me”.  
+5. You pick WhatsApp / Google / Facebook / email **again**.  
+6. You fill a long form (email, password, password again, WhatsApp).  
+7. It then asks if you are registered with SA Sailing — even after you just claimed a sailor.  
+8. Sometimes you search a third time.
+
+That is why it feels hard. The buttons exist. The path is too long and it forgets who you already picked.
+
+**What we plan instead**
+
+You stay on the sailor you already found. A box pops up **on that same page**. Three short steps:
+
+1. Prove it is you (WhatsApp code, or tap Google / Facebook).  
+2. Choose a password **once**.  
+3. Done. The rest of that profile unlocks where you already are.
+
+If you came from search, we **do not** ask you to find yourself again, and we **do not** ask the SA Sailing quiz.
+
+**What you see before vs after sign-up (reason to bother)**
+
+Like YouTube: you can watch without an account; like/subscribe needs sign-in.
+
+- **Not signed in:** name, club, last event. Race result pages for events stay public.  
+- **Signed in:** full career, rankings, media.
+
+**What actually changes (when we build it)**
+
+| Today | After |
+|---|---|
+| Claim sends you to another page | Box on the same sailor |
+| Search for yourself twice | Search once |
+| Long form after you already proved the phone | One password |
+| “Are you SAS registered?” after you claimed | That question gone for claim |
+| Full sailor profile visible logged out | Preview only until they sign up |
+
+**What makes it easier:** fewer pages, fewer questions, no repeating work you already did.
+
+Email sign-up stays the slow path (wait for a link). WhatsApp or Google/Facebook is the fast path. We are **not** merging old signup pull requests and **not** overwriting the live server from git.
+
+First real build (when you say go): stop the double search, keep them on the sailor they tapped.
+
+---
+
 ## What “easier” means
 
 A sailor who already sees their name should get in with **one proof + one password**, on **phone portrait (390×844)**, without searching twice or filling email, WhatsApp, and two passwords after they already proved they own the phone.
