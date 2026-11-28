@@ -2,7 +2,7 @@
 
 **Status:** Plan only. No live deploy. No merge of existing signup PRs.  
 **Date:** 28 Nov 2026 (Africa/Johannesburg)  
-**Update:** Box design/code tools + gated teaser + mimic Facebook / YouTube / WhatsApp / Strava (planning only).  
+**Update:** Box design/code tools + gated teaser + mimic Facebook / YouTube (screen-by-screen, planning only).  
 **Live inspected:** HTTPS to `sailingsa.co.za` (this Cloud VM has **no** `~/.ssh/sailingsa_live_key`; SSH to `root@102.218.215.253` returned `Permission denied (publickey,password)`). Readme commands remain the deploy path on the Mac Mini.
 
 ---
@@ -162,6 +162,27 @@ Live scrape of Facebook / YouTube was **not** run this Cloud turn: Context.dev i
 6. **Proof before member** — still no `user_accounts` until PIN / OAuth / Confirm (stricter than Facebook’s instant cookie; we keep that on purpose).
 
 Do **not** clone Facebook’s dark sheet or YouTube’s grey modal CSS. Clone **our** `#state-login-required` / claim popup density (14–16px, 44×44 taps, existing tokens).
+
+### Screen-by-screen mimic (planning)
+
+Checked 28 Nov 2026 (SAST) from public help pages, not a live app scrape (Context.dev still 0 credits). Mac Step 0 still screenshots the real apps at 390×844.
+
+**Facebook (mobile, [help](https://www.facebook.com/help/mobile-basic/188157731232424) / [wikiHow Mar 2025](https://www.wikihow.com/Sign-Up-for-Facebook)):** one field per screen → phone is the default identifier (email is a switch at the bottom) → password → SMS code → extras (photo, find friends) are **Skip**. We **do not** copy DOB, gender, or find-friends. For claim traffic we already have the name, so we skip Facebook’s name step too.
+
+**YouTube ([Why sign in](https://support.google.com/youtube/answer/9879569)):** public watch works signed out; the reminder is **dismissable**. Like / Subscribe / Comment / Save opens Sign in. Sign in **is** a Google account — there is no separate YouTube register. Age-restricted is the only hard wall.
+
+| Their moment | SailingSA equivalent |
+|---|---|
+| YouTube: video plays signed out | Search + sailor **teaser** (name, club, last event) |
+| YouTube: dismiss “Sign in?” and keep watching | Existing **Back to Page** on `#state-login-required` |
+| YouTube: Like / Subscribe | SSA ranks, career table, Media/Activity depth |
+| Facebook: phone field, then SMS code | WhatsApp number → Request Code → 4-digit PIN |
+| Facebook: email is a switch, not the default | Email labelled “we’ll send a Confirm link” |
+| Facebook: Skip photo / friends | No SAS quiz, no child/family, no second search on claim |
+| YouTube: Sign in = Create account | One overlay: **Continue with WhatsApp / Google / Facebook** |
+| Instagram / TikTok: sheet on the action | Overlay on the sailor they tapped — no hop to `/signup.html` |
+
+**Do not mimic:** Facebook’s cold-start name + DOB + gender stack (that is *more* fields than we have today). Apple Sign in until it actually works. A YouTube-grey or Facebook-blue restyle of our card.
 
 ---
 
