@@ -114,7 +114,7 @@ Repo-only bugs that must **not** be copied to live: required WhatsApp, Google �
 
 ## Target funnel (one page, three screens)
 
-**Seamless (best practice from our own claim popup + LinkedIn/Strava-style teaser):** run Screens A–C **on the page they were already looking at** (landing search, `/sailor/…`). Header **Sign Up** can still open `/signup.html` for cold traffic. Do not add a fourth URL. Do not send claim traffic through Find Your Profile.
+**Seamless (today is the opposite):** `#state-login-required` already sits on the sailor, then **Sign In** goes to `/login.html` and **Sign Up** goes to `/signup.html` (see `showLoginRequiredPopup` in `index.html`). That bounce is the leak. Keep the same popup shell; swap those two buttons for Screens A–C **in the overlay**. Header **Sign Up** can still open `/signup.html` for cold traffic. Do not add a fourth URL. Do not send claim traffic through Find Your Profile.
 
 **Screen A — proof (390×844, compact card, existing tokens)**  
 If `sas_id` is in the query: show that sailor’s name + last classes, then:
@@ -224,13 +224,20 @@ The block `#sailorChoice` / “Are you registered with SA Sailing” is extra wo
 
 Logged-out **sailor profile** is a preview, not the full app. Align with copy we already ship: *“Claim your profile or register to … see more detailed information (SSA ranks, results, and full sailor data).”*
 
-| Logged out (teaser) | After claim / sign-in |
-|---|---|
-| Name, club, class chips, last event title | Full career, race-by-race, rank cards, media depth |
-| SAS ID stays hidden (`PUBLIC_SAS_ID_PAUSE`) | Own SAS ID on their session |
-| Claim / Sign up CTA on the same card | Unlocked profile in place |
+Tapping a gated block opens the **same overlay** (Screens A–C), not `/login.html`. After proof, the tab they were on unlocks in place.
 
-**Keep public:** search, club/class pages, **regatta result sheets** (official sport records, SEO). Do not 404 `/sailor/…` pages. Do not hide junior-safe public results off the event URL. Personal PII (phone, email, WhatsApp) never appears logged-out (`docs/goals.md` / POPIA).
+| Surface | Logged out (teaser) | After claim / sign-in |
+|---|---|---|
+| Profile header | Name, club, class chips, photo if we have one | Same + own SAS ID on their session |
+| Last event | **One** event title | Full **Regattas Sailed** table |
+| SSA / SSL rank cards | Hidden or “Claim to see ranks” placeholder | Rank, points, audit popup |
+| Race-by-race / career | Hidden | Full history |
+| Media tab | Count or first card only, rest gated | Full mentions |
+| Activity tab | Gated | Unlocked |
+| SAS ID | Hidden (`PUBLIC_SAS_ID_PAUSE`) | Own ID only |
+| CTA | Claim / Continue on the same card | Gone — they are in |
+
+**Keep public (not a paywall of the sport):** search, club/class pages, official **regatta HTML/PDF sheets**. Do not 404 `/sailor/…`. Do not hide junior-safe public results off the event URL. Phone / email / WhatsApp never appear logged-out (`docs/goals.md` / POPIA).
 
 This is a **product gate**, not a privacy workaround. `README_SAILOR_PROFILE_SYSTEM.md` says competition results are public — that stays true on **regatta pages**. The **profile depth** is what we hold back.
 
@@ -285,4 +292,4 @@ Live login still has Find Profile + Complete Registration. Point “1st time / S
 
 ## First implementation step (when you say go)
 
-**Step 0 + Step 1 only on the Mac Mini:** inventory Graphify / REA / Stitch / WhatsApp on the box, snapshot live `signup.html` / `login.html`, then make claim traffic (`?sas_id=`) skip Find Your Profile and stay on WhatsApp-first Screen A (overlay if possible). No `api.py` copy. No PR merges. Teaser (Step 4b) is the step after the funnel is three screens.
+**Step 0 + Step 1 only on the Mac Mini:** inventory Graphify / REA / Stitch / WhatsApp on the box, snapshot live `signup.html` / `login.html`, then make claim traffic (`?sas_id=`) skip Find Your Profile and stay on WhatsApp-first Screen A **inside the existing login-required overlay** (do not bounce to `/signup.html`). No `api.py` copy. No PR merges. Teaser (Step 4b) is the step after that overlay is three screens.
