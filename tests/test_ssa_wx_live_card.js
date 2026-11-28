@@ -7,8 +7,26 @@ global.window = global;
 var src = path.join(__dirname, "..", "sailingsa", "frontend", "js", "regatta-slot-card.js");
 var wx = require(src);
 
-assert.strictEqual(wx.JS_VER, "wxlive1");
+assert.strictEqual(wx.JS_VER, "wxlive2");
 assert.strictEqual(wx.LIVE_MS, 15000);
+
+var tww = wx.twwToReading({
+  wind_kt: 30.5,
+  wind_10min_kt: 25.1,
+  gust_kt: 32,
+  gust_max_10min_kt: 29.2,
+  dir: 288,
+  dir_10min: 285,
+  fetched_at: 1795849400
+});
+assert.strictEqual(tww.wind_kt, 25.1);
+assert.strictEqual(tww.wind_gust_kt, 29.2);
+assert.strictEqual(tww.wind_dir_deg, 285);
+
+var forced = wx.applyLive({ wind_kt: 16.74, avg_kt: 16.74, high_kt: 20 }, tww);
+assert.strictEqual(forced.wind_kt, 25.1);
+assert.strictEqual(forced.avg_kt, 25.1);
+assert.strictEqual(forced.high_kt, 29.2);
 
 var stale = {
   observed_at: "2026-11-28T03:12:47+00:00",
@@ -48,10 +66,11 @@ assert.strictEqual(data.wind_kt, 25.49);
 
 var text = fs.readFileSync(src, "utf8");
 assert.ok(text.indexOf("/latest?_=") !== -1, "must poll station /latest");
+assert.ok(text.indexOf("theewater-weather/v1/current") !== -1, "TSC must live-fetch Theewater current");
 assert.ok(text.indexOf("var LIVE_MS = 15000") !== -1);
 assert.ok(text.indexOf("history?hours=12") !== -1, "sparkline still uses history");
 
 var media = fs.readFileSync(path.join(__dirname, "..", "sailingsa", "frontend", "js", "club-live-media.js"), "utf8");
-assert.ok(media.indexOf("wxlive1") !== -1, "club loader must cache-bust the live slot card");
+assert.ok(media.indexOf("wxlive2") !== -1, "club loader must cache-bust the live slot card");
 
 console.log("PASS: ssa-wx-live-card");

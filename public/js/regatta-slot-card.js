@@ -11,7 +11,8 @@
   var CSS_ID = "ssa-regatta-slot-card-css";
   var ROOT_ID = "ssa-regatta-slot-card";
   var CAPE_CLASSIC_ID = "2026-09-13-zvyc-cape-classic";
-  var JS_VER = "wxlive1";
+  var JS_VER = "wxlive2";
+  var TWW_CURRENT = "https://weather.theewater.co.za/wp-json/theewater-weather/v1/current";
   var LIVE_MS = 15000;
   var HIST_MS = 300000;
   var HOUR_MS = 3600000;
@@ -219,6 +220,23 @@
     list.push(live);
     return list;
   }
+  function twwToReading(c) {
+    if (!c) return null;
+    var now = c.wind_10min_kt != null ? c.wind_10min_kt : c.wind_kt;
+    if (now == null || isNaN(Number(now))) return null;
+    var gust = c.gust_max_10min_kt != null ? c.gust_max_10min_kt : c.gust_kt;
+    var ts = c.fetched_at || c.ts;
+    var iso = ts ? new Date(Number(ts) * 1000).toISOString() : new Date().toISOString();
+    return {
+      station_slug: "w2s-theewater",
+      observed_at: iso,
+      wind_kt: Number(now),
+      wind_avg_kt: Number(now),
+      wind_gust_kt: gust != null && !isNaN(Number(gust)) ? Number(gust) : null,
+      wind_dir_deg: c.dir_10min != null ? c.dir_10min : c.dir,
+      live_source: "theewater-current"
+    };
+  }
   async function fetchLatest(slug) {
     var res = await fetch("/api/weather/stations/" + encodeURIComponent(slug) + "/latest?_=" + Date.now(), {
       cache: "no-store",
@@ -228,6 +246,40 @@
     var body = await res.json();
     if (!body || body.ok === false) return null;
     return body.reading || null;
+  }
+  async function fetchTwwCurrent() {
+    var res = await fetch(TWW_CURRENT + "?_=" + Date.now(), {
+      cache: "no-store",
+      credentials: "omit",
+      mode: "cors"
+    });
+    if (!res.ok) return null;
+    return twwToReading(await res.json());
+  }
+  async function fetchLive(slug) {
+    if (slug === "w2s-theewater") {
+      try {
+        var tww = await fetchTwwCurrent();
+        if (tww) return tww;
+      } catch (e) {}
+    }
+    try {
+      return await fetchLatest(slug);
+    } catch (e2) {
+      return null;
+    }
+  }
+  function applyLive(data, live) {
+    if (!data || !live) return data;
+    if (live.wind_kt != null) data.wind_kt = live.wind_kt;
+    if (live.wind_avg_kt != null) data.avg_kt = live.wind_avg_kt;
+    if (live.wind_gust_kt != null) data.high_kt = live.wind_gust_kt;
+    if (live.wind_dir_deg != null) {
+      data.wind_dir = live.wind_dir_deg;
+      var di = dirIdx(live.wind_dir_deg);
+      if (di != null) data.wind_dir_name = PTS[di];
+    }
+    return data;
   }
   async function fetchHistory(slug) {
     var href =
@@ -801,32 +853,31 @@
       if (!slug) throw new Error("no weather station");
       slot._wxSlug = slug;
       slot.setAttribute("data-weather-station", slug);
-      var needHist = opts.history === true || !slot._wxReadings;
-      var histP = needHist
-        ? fetchHistory(slug)
-            .then(function (rows) {
-              slot._wxReadings = rows;
-              slot._wxHistAt = Date.now();
-              return rows;
-            })
-            .catch(function (err) {
-              try { console.warn(err); } catch (e) {}
-              return slot._wxReadings || [];
-            })
-        : Promise.resolve(slot._wxReadings || []);
-      var liveP = fetchLatest(slug).catch(function () { return null; });
-      var parts = await Promise.all([histP, liveP]);
-      var live = parts[1];
+      var live = await fetchLive(slug);
       if (live) slot._wxLive = live;
-      var readings = mergeLiveReading(parts[0], live || slot._wxLive || null);
-      var data = viewFromReadings(readings);
-      data.slug = slug;
-      if (slot.classList.contains("ssa-wa-open")) {
-        loadWa(slot);
-      } else {
+      function paint(rows) {
+        var data = applyLive(viewFromReadings(mergeLiveReading(rows || [], slot._wxLive || null)), slot._wxLive || null);
+        data.slug = slug;
+        if (slot.classList.contains("ssa-wa-open")) {
+          loadWa(slot);
+          return;
+        }
         render(slot, data);
         fitGauge(slot);
         sizeSparkPlot(slot);
+      }
+      paint(slot._wxReadings || []);
+      var needHist = opts.history === true || !slot._wxReadings;
+      if (needHist) {
+        fetchHistory(slug)
+          .then(function (rows) {
+            slot._wxReadings = rows;
+            slot._wxHistAt = Date.now();
+            paint(rows);
+          })
+          .catch(function (err) {
+            try { console.warn(err); } catch (e) {}
+          });
       }
     } catch (err) {
       try { console.warn(err); } catch (e) {}
@@ -913,6 +964,8 @@
     JS_VER: JS_VER,
     LIVE_MS: LIVE_MS,
     mergeLiveReading: mergeLiveReading,
+    twwToReading: twwToReading,
+    applyLive: applyLive,
     viewFromReadings: viewFromReadings,
     parseMs: parseMs
   };
