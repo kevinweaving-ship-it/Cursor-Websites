@@ -40,8 +40,9 @@ Times: **21 Nov 2026 ~02:21–02:22 Africa/Johannesburg** (SAST on the box).
 | **27 Nov 2026 02:00** | still **1** — same NDR; Spam empty | **none** from Var / REJA24 / Lefkada |
 | **27 Nov 2026 14:00** | still **1** — same NDR; Spam empty | **none** from Var / REJA24 / Lefkada |
 | **28 Nov 2026 02:00** | still **1** — same NDR; Spam empty | **none** from Var / REJA24 / Lefkada |
+| **28 Nov 2026 14:00** | still **1** — same NDR; Spam empty | **none** from Var / REJA24 / Lefkada |
 
-Timer continues every 12h (~7 days since send; MX still empty).
+Timer continues every 12h (~7.5 days since send; MX still empty).
 
 ## DNS note (inbound)
 
