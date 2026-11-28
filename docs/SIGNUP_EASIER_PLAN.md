@@ -2,6 +2,7 @@
 
 **Status:** Plan only. No live deploy. No merge of existing signup PRs.  
 **Date:** 28 Nov 2026 (Africa/Johannesburg)  
+**Update:** Box design/code tools + gated teaser (seamless signup, hide profile depth until claim).  
 **Live inspected:** HTTPS to `sailingsa.co.za` (this Cloud VM has **no** `~/.ssh/sailingsa_live_key`; SSH to `root@102.218.215.253` returned `Permission denied (publickey,password)`). Readme commands remain the deploy path on the Mac Mini.
 
 ---
@@ -12,12 +13,14 @@ A sailor who already sees their name should get in with **one proof + one passwo
 
 **Happy path (claim from search or profile):**
 
-1. Tap **Claim / Sign Up** on the sailor they recognised.  
+1. Stay on the sailor they recognised — **do not bounce** to a second URL if we can overlay.  
 2. **WhatsApp number → Request Code → 4-digit PIN** (existing engine).  
 3. **Set password once.**  
-4. **Well Done** → signed in on that sailor.
+4. **Well Done** → that same profile unlocks in place.
 
 Google / Facebook stay one-tap alternatives. Email Confirm stays the slow fallback. No `user_accounts` / session / sailor page until OAuth, WhatsApp PIN, or email Confirm click.
+
+**Why sign up:** logged-out people see a **teaser**, not the full product. Name, club, class chips, last event — yes. Full career, race-by-race, rank cards, media depth — behind Claim. Search and official **regatta sheets** stay public (sport records + SEO). Sailor profile **depth** is the reward.
 
 ---
 
@@ -111,7 +114,7 @@ Repo-only bugs that must **not** be copied to live: required WhatsApp, Google �
 
 ## Target funnel (one page, three screens)
 
-Keep **live `/signup.html`** as the only signup URL. Header Sign Up, claim CTA, login “No account yet?” all stay on it. Do not invent a fourth page.
+**Seamless (best practice from our own claim popup + LinkedIn/Strava-style teaser):** run Screens A–C **on the page they were already looking at** (landing search, `/sailor/…`). Header **Sign Up** can still open `/signup.html` for cold traffic. Do not add a fourth URL. Do not send claim traffic through Find Your Profile.
 
 **Screen A — proof (390×844, compact card, existing tokens)**  
 If `sas_id` is in the query: show that sailor’s name + last classes, then:
@@ -139,21 +142,32 @@ Then Well Done (≤5s) → `returnTo` or that sailor profile.
 
 ## Sequenced work (do in this order)
 
-Each step is one Mac session. Gold lock + `SSH_LIVE.md`. Snapshot live files before any copy.
+Each step is one Mac session. Gold lock + `SSH_LIVE.md`. Snapshot live files before any copy. **Use the tools already on the boxes** — do not skip them because this Cloud VM cannot SSH.
 
-### Step 0 — Capture live (no behaviour change)
+### Step 0 — Capture live + inventory box tools (no behaviour change)
 
-On the Mac Mini, with `sailingsa_live_key`:
+On the **Mac Mini** (keys live there), not Cloud:
 
 ```bash
 ssh -i ~/.ssh/sailingsa_live_key root@102.218.215.253 \
   'wc -c /var/www/sailingsa/signup.html /var/www/sailingsa/login.html \
    /var/www/sailingsa/api/api.py; \
    ls -l /opt/sailingsa-whatsapp-poc /etc/systemd/system/sailingsa-whatsapp-poc.service 2>/dev/null; \
-   systemctl is-active sailingsa-whatsapp-poc sailingsa-api'
+   systemctl is-active sailingsa-whatsapp-poc sailingsa-api; \
+   command -v graphify graphifyy stitch chromium; \
+   /opt/rea/ops/bin/rea-admin sailingsa -- capabilities 2>/dev/null | head'
 ```
 
-Copy **live** `signup.html` and `login.html` into git so `main` stops being a stub. Diff live `register-account` / verify-link / WhatsApp PIN handlers against repo; **do not replace live `api.py`**. Close or label #253/#71/#83/#101 as superseded-by-live.
+Then:
+
+1. Copy **live** `signup.html` and `login.html` into git so `main` stops being a stub.  
+2. Diff live `register-account` / verify-link / WhatsApp PIN vs repo; **do not replace live `api.py`**.  
+3. **Graphify** (PR #302/#303, `ops_run` only — never `ops_jobs`):  
+   `graphify query "register-account claim-status signup.html"` on the Mac extract, and on box graphs under `/var/www/sailingsa/graphify-out` if present.  
+4. **REA**: `rea-admin sailingsa -- capabilities`; WhatsApp unit status; Chromium `capture_browser_scenario` at **390×844** on live `/signup.html?signup=1`.  
+5. **MotionSites skill** (already in repo, PR #293 merged): study **2–3 compact patterns only** — `ai-workflow.md` (LogIn / UserPlus control size), `securify-hero.md` (trust density), `email-landing-page.md` (field spacing). Steal **px / gap / radius**, not cinematic video heroes or 72px type.  
+6. **Google Stitch**: on Mac run `stitch status --json`. If `authenticated: true`, ask for a **compact 390×844 claim overlay** using `docs/design_system.md` tokens. If false, record auth required and continue with live splash + skill examples. Never invent Stitch output. Never apply generated CSS onto live without Plan → diff → MP screenshot.  
+7. Close or label #253/#71/#83/#101 as superseded-by-live.
 
 ### Step 1 — Deep-link skip (biggest ease win, frontend only)
 
@@ -171,13 +185,28 @@ Needs a **read-only** check that `sailingsa-whatsapp-poc` is active (Step 0). If
 
 The block `#sailorChoice` / “Are you registered with SA Sailing” is extra work after “Your account is ready”. Keep it **only** for people who signed up with Google/Facebook/email and have **no** `sas_id`. Claim-from-search never sees it.
 
-### Step 4 — Compact the splash (visual, MP first)
+### Step 4 — Compact the splash (visual, MP first, using installed design tools)
 
 - Design **390×844**. Body 14–16px, slim buttons, no full-width giant CTAs.  
 - Remove Trae `text_to_image` backgrounds; use existing SailingSA wordmark / live logo path only.  
 - Hide Apple until there is a real Apple login.  
-- Clone the working live splash card; do not MotionSites-rebuild the login.  
-- Screenshot MP, then ML, then desktop. Two identical visual failures → stop and diagnose.
+- Clone the working live splash **and** the existing `#state-login-required` / claim popup — same card shell, not a new look.  
+- MotionSites: micro-patterns only (see Step 0). Stitch mock if authenticated. Graphify to list every `showLoginRequiredPopup` / `claimSignupHref` call site so we do not miss a surface.  
+- Screenshot MP, then ML, then desktop (REA Chromium or Cursor Browser). Two identical visual failures → stop and diagnose.
+
+### Step 4b — Teaser the product (reason to sign up)
+
+Logged-out **sailor profile** is a preview, not the full app. Align with copy we already ship: *“Claim your profile or register to … see more detailed information (SSA ranks, results, and full sailor data).”*
+
+| Logged out (teaser) | After claim / sign-in |
+|---|---|
+| Name, club, class chips, last event title | Full career, race-by-race, rank cards, media depth |
+| SAS ID stays hidden (`PUBLIC_SAS_ID_PAUSE`) | Own SAS ID on their session |
+| Claim / Sign up CTA on the same card | Unlocked profile in place |
+
+**Keep public:** search, club/class pages, **regatta result sheets** (official sport records, SEO). Do not 404 `/sailor/…` pages. Do not hide junior-safe public results off the event URL. Personal PII (phone, email, WhatsApp) never appears logged-out (`docs/goals.md` / POPIA).
+
+This is a **product gate**, not a privacy workaround. `README_SAILOR_PROFILE_SYSTEM.md` says competition results are public — that stays true on **regatta pages**. The **profile depth** is what we hold back.
 
 ### Step 5 — Align login.html leftovers
 
@@ -205,7 +234,8 @@ Live login still has Find Profile + Complete Registration. Point “1st time / S
 - Replacing WhatsApp with OpenWA / Cloud API.  
 - Merging #253 or copying repo `api.py` to `/var/www/sailingsa/api/api.py`.  
 - Header / gold-header / `enforceHeader` edits.  
-- Cinematic marketing rebuild of the login card.
+- Cinematic MotionSites rebuild of the login card (72–96px type, video heroes).  
+- Paywalling official **regatta HTML/PDF sheets**.
 
 ---
 
@@ -217,11 +247,15 @@ Live login still has Find Profile + Complete Registration. Point “1st time / S
 | Cloud-agent transcripts (signup / auth / WA) | **verified working** (two “summarize” chats empty) |
 | Live HTTPS (`signup.html`, `login.html`, `/pop-up`, APIs, OAuth starts) | **verified working** |
 | SSH `root@102.218.215.253` from this Cloud VM | **failed** — no `sailingsa_live_key` (`Permission denied`). Use Mac Mini + `sailingsa/deploy/SSH_LIVE.md`. |
-| MotionSites premium MCP / Google Stitch | **not used** (not a marketing rebuild) |
+| MotionSites **skill** (repo, PR #293) | **configured** — use for 2–3 compact examples on Mac; premium MCP **auth required** on this Cloud VM |
+| Google Stitch CLI | **configured** in `.cursor/mcp.json`; GoWifi 8 Nov 2026 probe was unauthenticated. Re-check on Mac (`stitch status --json`) |
+| Graphify | **repo extract + rules** (PR #302 open). Live box graphs **unverified** from Cloud (PR #303 not deployed from Cloud). Use on Mac via `ops_run` |
+| REA `rea-admin` / Chromium | **installed on boxes**; **not exposed** in this Cloud session. Mac Mini is the runtime |
+| Codex / OpenCode | Mac Codex Default (PR #252). Not this Cloud agent |
 | Box MCP | **not used** (“boxes” = SSH servers) |
 
 ---
 
 ## First implementation step (when you say go)
 
-**Step 0 + Step 1 only:** snapshot live `signup.html` / `login.html` into git from the Mac, then make `?sas_id=` skip Find Your Profile and land on WhatsApp-first Screen A. No `api.py` copy. No PR merges.
+**Step 0 + Step 1 only on the Mac Mini:** inventory Graphify / REA / Stitch / WhatsApp on the box, snapshot live `signup.html` / `login.html`, then make claim traffic (`?sas_id=`) skip Find Your Profile and stay on WhatsApp-first Screen A (overlay if possible). No `api.py` copy. No PR merges. Teaser (Step 4b) is the step after the funnel is three screens.
