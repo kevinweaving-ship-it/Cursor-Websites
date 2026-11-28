@@ -6,7 +6,7 @@ var path = require("path");
 var src = path.join(__dirname, "..", "sailingsa", "frontend", "js", "ssa-wx-tsc-compact.js");
 var wx = require(src);
 
-assert.strictEqual(wx.JS_VER, "tscv2");
+assert.strictEqual(wx.JS_VER, "tscv3");
 assert.strictEqual(wx.shouldRun({ pathname: "/club/tsc", search: "?wx=v2" }), true);
 assert.strictEqual(wx.shouldRun({ pathname: "/club/tsc/", search: "?wx=v2&x=1" }), true);
 assert.strictEqual(wx.shouldRun({ pathname: "/club/tsc", search: "" }), false);
@@ -38,6 +38,7 @@ assert.strictEqual(om.hours.length, 1);
 assert.ok(om.source.indexOf("Open-Meteo.com") !== -1);
 
 var text = fs.readFileSync(src, "utf8");
+assert.ok(text.indexOf("/api/weather/stations/w2s-theewater/latest") !== -1);
 assert.ok(text.indexOf("https://api.open-meteo.com/v1/forecast") !== -1);
 assert.ok(text.indexOf("/forecast?") === -1 || text.indexOf("api.open-meteo.com") !== -1);
 assert.ok(text.indexOf("theewater-weather/v1/forecast") === -1, "must not fetch Theewater forecast");

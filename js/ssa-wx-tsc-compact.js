@@ -8,7 +8,7 @@
 
   var ROOT_ID = "ssa-wx-venue-tsc";
   var CSS_ID = "ssa-wx-venue-tsc-css";
-  var JS_VER = "tscv2";
+  var JS_VER = "tscv3";
   var TWW_API = "https://weather.theewater.co.za/wp-json/theewater-weather/v1";
   var OM_URL =
     "https://api.open-meteo.com/v1/forecast?latitude=-34.0264&longitude=19.2624" +
@@ -512,7 +512,17 @@
     return null;
   }
 
-  function loadAll() {
+  function liveFromRow(row) {
+    if (!row) return null;
+    return {
+      wind: row.wind_kt != null ? row.wind_kt : row.wind_avg_kt,
+      gust: row.wind_gust_kt,
+      dir: row.wind_dir_deg != null ? row.wind_dir_deg : row.wind_dir_avg_deg,
+      age: ageLabel(row.observed_at)
+    };
+  }
+
+  function loadLive() {
     var clubP = loadJson(TWW_API + "/current?_=" + Date.now()).then(
       function (c) {
         return {
@@ -526,31 +536,27 @@
         return null;
       }
     );
-    var damP = loadJson("/api/weather/clubs/TSC/stations?_=" + Date.now(), {
+    var damP = loadJson("/api/weather/stations/w2s-theewater/latest?_=" + Date.now(), {
       cache: "no-store",
       credentials: "same-origin"
-    }).catch(function () {
-      return loadJson("https://sailingsa.co.za/api/weather/clubs/TSC/stations?_=" + Date.now(), {
-        cache: "no-store",
-        credentials: "omit"
+    })
+      .then(function (body) {
+        return liveFromRow(body && body.reading);
+      })
+      .catch(function () {
+        return loadJson("/api/weather/clubs/TSC/stations?_=" + Date.now(), {
+          cache: "no-store",
+          credentials: "same-origin"
+        }).catch(function () {
+          return loadJson("https://sailingsa.co.za/api/weather/clubs/TSC/stations?_=" + Date.now(), {
+            cache: "no-store",
+            credentials: "omit"
+          });
+        }).then(function (body) {
+          return liveFromRow(pickDam(body));
+        });
       });
-    }).then(
-      function (body) {
-        var row = pickDam(body);
-        if (!row) return null;
-        return {
-          wind: row.wind_kt != null ? row.wind_kt : row.wind_avg_kt,
-          gust: row.wind_gust_kt,
-          dir: row.wind_dir_deg != null ? row.wind_dir_deg : row.wind_dir_avg_deg,
-          age: ageLabel(row.observed_at)
-        };
-      },
-      function () {
-        return null;
-      }
-    );
-    var fcP = loadJson(OM_URL).then(parseOpenMeteo);
-    return Promise.all([clubP, damP, fcP]);
+    return Promise.all([clubP, damP]);
   }
 
   function boot() {
@@ -569,24 +575,36 @@
         return;
       }
       var state = { hours: [], idx: 0, source: "" };
-      function tick() {
-        loadAll()
+      function paint() {
+        render(root, state);
+      }
+      function tickLive() {
+        loadLive()
           .then(function (parts) {
             state.club = parts[0];
             state.dam = parts[1];
-            state.hours = (parts[2] && parts[2].hours) || [];
-            state.source = (parts[2] && parts[2].source) || "Forecast unavailable.";
-            if (state.idx == null) state.idx = 0;
-            render(root, state);
+            paint();
           })
-          .catch(function () {
-            render(root, state);
-          });
+          .catch(paint);
       }
-      tick();
+      function tickFc() {
+        loadJson(OM_URL)
+          .then(parseOpenMeteo)
+          .then(function (om) {
+            state.hours = (om && om.hours) || [];
+            state.source = (om && om.source) || "Forecast unavailable.";
+            paint();
+          })
+          .catch(paint);
+      }
+      tickLive();
+      tickFc();
       setInterval(function () {
-        if (!document.hidden) tick();
-      }, 60000);
+        if (!document.hidden) tickLive();
+      }, 15000);
+      setInterval(function () {
+        if (!document.hidden) tickFc();
+      }, 300000);
     }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go);
     else go();
