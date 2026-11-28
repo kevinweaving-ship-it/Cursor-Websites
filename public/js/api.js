@@ -660,6 +660,21 @@ window.sailingSessionIsSuperAdmin = sailingSessionIsSuperAdmin;
 window.getRegattaClassEntries = getRegattaClassEntries;
 window.getRegattas = getRegattas;
 
+(function sailingLoadTscWxCompact() {
+    try {
+        if (typeof window === 'undefined' || !window.location) return;
+        var path = String(window.location.pathname || '').replace(/\/+$/, '').toLowerCase();
+        if (path !== '/club/tsc') return;
+        var q = String(window.location.search || '');
+        if (!/(?:^|[?&])wx=v2(?:&|$)/.test(q)) return;
+        if (document.querySelector('script[src*="ssa-wx-tsc-compact.js"]')) return;
+        var s = document.createElement('script');
+        s.src = '/js/ssa-wx-tsc-compact.js?v=tscv3';
+        s.defer = true;
+        (document.head || document.documentElement).appendChild(s);
+    } catch (e) { /* keep club pages loading if this test hook fails */ }
+})();
+
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {

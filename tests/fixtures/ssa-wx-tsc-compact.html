@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TSC venue outlook preview</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: #f5f7fa; font-family: Arial, Helvetica, sans-serif; }
+    .club-page { max-width: 1100px; margin: 0 auto; padding: 12px; }
+    .club-story-identity { padding: 8px 0; }
+    h1 { margin: 0 0 8px; font-size: 1.1rem; color: #001f3f; }
+    #ssa-regatta-slot-card { height: 122px; display: flex; align-items: center; justify-content: center; font: 700 13px Arial, sans-serif; color: #001f3f; }
+    .club-tsc-cam { margin-top: 10px; aspect-ratio: 16/9; background: #001f3f; color: #fff; display: flex; align-items: center; justify-content: center; font: 700 12px Arial, sans-serif; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="club-page">
+    <div class="club-story-identity"><h1>TSC - Theewater Sports Club</h1></div>
+    <div id="club-live-media" class="club-live-media">
+      <section id="ssa-regatta-slot-card" class="card ssa-wx-card ssa-regatta-slot-card">Existing 122px wind card (unchanged)</section>
+      <section id="tsc-club-cam" class="card club-live-cam club-tsc-cam">TSC cam placeholder</section>
+    </div>
+  </div>
+  <script>window.__SSA_WX_TSC_COMPACT_FORCE__ = true;</script>
+  <script src="../../sailingsa/frontend/js/ssa-wx-tsc-compact.js"></script>
+</body>
+</html>
