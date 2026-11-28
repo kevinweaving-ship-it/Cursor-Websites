@@ -2,8 +2,8 @@
  * TSC Theewater club cam.
  * Play only the SailingSA HLS proxy. Never fetch skylinewebcams.com or
  * hd-auth.skylinewebcams.com from the browser — that returns copyright_violation.
- * Buffer one 3s Skyline segment, then play at 1x. Target is 2–3s behind live
- * (one TARGETDURATION). Do not chase the live edge — that skips.
+ * Buffer one 3s Skyline segment, then play at 1x ~3s behind live.
+ * Do not skip on stall (hls.js default maxStarvationDelay is 4s — that freeze-then-jump).
  */
 (function () {
   'use strict';
@@ -19,13 +19,17 @@
     enableWorker: true,
     lowLatencyMode: false,
     liveSyncDurationCount: 1,
-    liveMaxLatencyDurationCount: 3,
     liveDurationInfinity: true,
     maxLiveSyncPlaybackRate: 1,
     startFragPrefetch: true,
-    maxBufferLength: 6,
-    maxMaxBufferLength: 9,
-    backBufferLength: 9
+    maxBufferLength: 10,
+    maxMaxBufferLength: 12,
+    backBufferLength: 12,
+    maxStarvationDelay: 20,
+    maxLoadingDelay: 12,
+    highBufferWatchdogPeriod: 20,
+    maxBufferHole: 0.05,
+    nudgeMaxRetry: 0
   };
 
   function camRid() {
