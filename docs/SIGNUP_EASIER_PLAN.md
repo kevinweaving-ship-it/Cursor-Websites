@@ -34,7 +34,13 @@ Box pops up **on that sailor**. It already knows who you are. It does **not** as
 
 **Door 2 — you tapped Sign Up in the header** (you have not picked a sailor)
 
-Same box. Same prove + one password. Then **one** optional search: pick your sailor from the list (tapping the name is enough — no extra “is this you?”). Or skip and link later.
+Same box. Same prove + one password. Then **one** search that works like the homepage sailor search — because names clash.
+
+Type `Tim` or `Thomas Henshaw` and you get a **list**. Keep typing to shrink it. Each row shows enough to tell them apart: full name, club, class, last event (youth vs dad, which club). Tap the right one. That tap **is** the choice — no extra “is this you?” after.
+
+Same list on the **homepage search** before Claim: if two Henshaws come up, you pick one there, then Claim is Door 1 on that person. We do not invent a second search.
+
+Or skip and link a sailor later.
 
 **After you have an account — Sign In** (same box, other tab)
 
@@ -55,7 +61,7 @@ Like YouTube: you can watch without an account; like/subscribe needs sign-in.
 |---|---|
 | Claim sends you to another page | Box on the same sailor |
 | Header Sign In / Sign Up dumps you on a mixed login+register page | Same box, two tabs: Sign in / Sign up |
-| Search for yourself twice, then “is this you?” | Claim: no search, no “is this you?”. Header Sign up: search once, tapping the name is enough |
+| Search for yourself twice, then “is this you?” | Claim on a sailor you already opened: no search, no “is this you?”. If many Tims / father-and-son: **one** list (homepage or header box) with club, class, last event; keep typing to narrow; tap the right row |
 | Login page also has Find Profile + Register | Login is only “I already have an account” |
 | Long form after you already proved the phone | One password when new; existing password when returning |
 | “Are you SAS registered?” after you claimed | That question gone |
@@ -186,7 +192,7 @@ If `sas_id` is in the query: show that sailor’s name + last classes, then:
 - Sign up with **Facebook**  
 - Sign up with **email** (secondary copy: “we’ll email a Confirm link”)
 
-If no `sas_id`: same buttons, then **one** name/SAS-ID search (not two).
+If no `sas_id`: same buttons, then **one** sailor search (same cards as the homepage). Type to filter. Rows show name, club, class, last event so father/son and many Tims can be told apart. Tapping a row is the choice. Not two searches. Not a second “is this you?”.
 
 **Screen B — WhatsApp PIN** (only if they picked WhatsApp)  
 Number → Request Code → 4 digits. Same branded WA message already specified in the Sep thread.
